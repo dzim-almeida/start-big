@@ -1,0 +1,1 @@
+# Transforma 'app' em um pacote Python
