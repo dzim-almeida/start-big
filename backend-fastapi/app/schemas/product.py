@@ -1,6 +1,6 @@
 # Modelos Pydantic para entrada/saída de dados
 
-from pydantic import BaseModel, ConfigDict # Modelo de entrada do Pydantic
+from pydantic import BaseModel, ConfigDict # type: ignore # Modelo de entrada do Pydantic
 from typing import Optional # Tipagem: opcional
 
 # Herda de BaseModel do Pydantic para validação

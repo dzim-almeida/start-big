@@ -1,0 +1,1 @@
+# Configuração e leitura das variáveis ambientes

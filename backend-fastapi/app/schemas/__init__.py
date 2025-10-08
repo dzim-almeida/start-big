@@ -1,0 +1,1 @@
+# Modelos de I/O com Pydantic

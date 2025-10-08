@@ -2,7 +2,7 @@
 
 from typing import Union
 
-from fastapi import FastAPI
+from fastapi import FastAPI # type: ignore
 
 from app.api.v1.endpoints import produtos
 
