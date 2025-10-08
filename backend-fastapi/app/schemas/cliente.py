@@ -1,4 +1,3 @@
-# app/schemas/cliente.py
 # Modelos Pydantic para Clientes
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Date, Field # type: ignore

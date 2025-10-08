@@ -11,6 +11,9 @@ from sqlalchemy.orm import relationship  # type: ignore
 from app.db.base import Base
 from app.core.enum import Estado  # Enum dos estados brasileiros
 
+# =========================
+# Modelo SQLAlchemy: Endereco
+# =========================
 class Endereco(Base):
     """
     Modelo SQLAlchemy para a tabela 'enderecos'.

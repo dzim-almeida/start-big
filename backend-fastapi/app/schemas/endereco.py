@@ -1,6 +1,6 @@
-# Modelos Pydantic para Clientes
+# Modelos Pydantic para Endereço
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field  # type: ignore # Modelo de entrada do Pydantic
+from pydantic import BaseModel, Field  # type: ignore # Modelo de entrada do Pydantic
 from typing import Optional
 from app.core.enum import Estado  # Importa o Enum Estado
 

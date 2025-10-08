@@ -39,3 +39,7 @@ class Estado(str, enum.Enum):
     SAO_PAULO = "SP"
     SERGIPE = "SE"
     TOCANTINS = "TO"
+
+class TipoUsuario(str, enum.Enum):
+    ADMIN = "Admin"
+    USER = "User"
