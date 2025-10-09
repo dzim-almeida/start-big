@@ -1,5 +1,10 @@
 # Modelos SQLAlchemy para Usuários
 
+"""
+Modelos SQLAlchemy para a tabela 'usuarios'.
+Define o modelo Usuario, que representa os dados de um usuário do sistema.
+"""
+
 from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint, ForeignKey, Enum as SqlAlchemyEnum  # type: ignore
 from sqlalchemy.orm import relationship  # type: ignore
 from app.db.base import Base

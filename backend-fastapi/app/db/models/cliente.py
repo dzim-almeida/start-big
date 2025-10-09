@@ -1,5 +1,10 @@
 # Modelos SQLAlchemy para Clientes
 
+"""
+Modelos SQLAlchemy para a tabela 'clientes'.
+Define o modelo Cliente, que representa os dados de um cliente do sistema.
+"""
+
 from sqlalchemy import Column, Integer, String, Date, UniqueConstraint, ForeignKey, Enum as SqlAlchemyEnum  # type: ignore
 from sqlalchemy.orm import relationship  # type: ignore
 from app.db.base import Base
