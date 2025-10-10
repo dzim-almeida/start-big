@@ -11,7 +11,6 @@ from app.db.crud import usuario as usuario_crud  # Função CRUD para criar usu�
 
 # Função para criar um usuário admin
 def create_usuario_admin_service(db: Session, novo_usuario: UsuarioCreate):
-    try:
         # Verifica se o email já existe
         usuario_existente = usuario_crud.get_usuario_by_email(db, novo_usuario.email)
         if usuario_existente:
@@ -28,5 +27,3 @@ def create_usuario_admin_service(db: Session, novo_usuario: UsuarioCreate):
         )
 
         return usuario_crud.create_usuario_db(db, novo_usuario)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

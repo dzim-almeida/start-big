@@ -1,1 +1,16 @@
 backend-fastapi/.env
+
+# Python Bytecode Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ambientes virtuais
+venv/
+.venv/
+
+# Logs e Dados temporários
+*.log
+*.sqlite
+pdv.db  # O seu arquivo de banco de dados local

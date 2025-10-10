@@ -1,0 +1,19 @@
+///Sexta-feira 10-10-25///
+
+
+
+
+
+
+
+
+
+///Quinta-feira 9-10-25///
+Ascrescentei a feat de hash de senhas, bem como o test_create_usuario em pytest.
+***Melhoras na estrutura e modularização dos arquivos:
+/api/v1/endpoints -> agora direciona a rota para services, o qual possui a regra de negócio para o banco de dados
+Nova pasta -> /services/ -> possui a regra de negócio para o banco de dados
+Nova pasta -> /db/crud/ -> intermediário entre /services/ e *db*
+Melhoras em /core/security.py -> Correção de bugs, bem como uso direto do bcrypt para criptografia
+|--> Atualização de /schemas/usuario.py -> agora senha só pode receber no máximo 72 chars
+***
