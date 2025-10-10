@@ -7,3 +7,5 @@ pip install uvicorn "pydantic[email]" pytest httpx
 pip install sqlalchemy
 
 pip install "pydantic-settings"
+
+pip install "passlib[bcrypt]"
