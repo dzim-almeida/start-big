@@ -13,3 +13,4 @@ venv/
 *.log
 *.sqlite
 pdv.db  # O seu arquivo de banco de dados local
+backend-fastapi/pdv.db
