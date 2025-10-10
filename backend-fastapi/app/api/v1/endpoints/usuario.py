@@ -1,6 +1,6 @@
 # Endpoint de Usuários
 
-from fastapi import APIRouter, Depends, HTTPException, status  # type: ignore
+from fastapi import APIRouter, Depends, status  # type: ignore
 from sqlalchemy.orm import Session  # type: ignore
 
 from app.schemas.usuario import UsuarioCreate, UsuarioRead # Importa os modelos Pydantic
