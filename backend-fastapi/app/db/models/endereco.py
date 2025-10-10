@@ -15,10 +15,6 @@ from app.core.enum import Estado  # Enum dos estados brasileiros
 # Modelo SQLAlchemy: Endereco
 # =========================
 class Endereco(Base):
-    """
-    Modelo SQLAlchemy para a tabela 'enderecos'.
-    Representa os dados de endereço de um cliente.
-    """
     __tablename__ = "enderecos"
 
     # Chave primária

@@ -18,4 +18,4 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.include_router(api.router, prefix="/api/v1", tags=["API"])
+app.include_router(api.router, prefix="/api/v1")

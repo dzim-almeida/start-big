@@ -22,7 +22,7 @@ class UsuarioCreate(UsuarioBase):
     senha: str = Field(
         ...,
         min_length=8,
-        max_length=128,
+        max_length=72,
         description="Senha do usuário (mínimo 8 caracteres)"
     )
 
