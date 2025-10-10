@@ -8,4 +8,6 @@ pip install sqlalchemy
 
 pip install "pydantic-settings"
 
-pip install "passlib[bcrypt]"
+pip3 install bcrypt
+
+pip 
