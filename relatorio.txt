@@ -1,16 +1,19 @@
 ///Sexta-feira 10-10-25///
-
-
-
-
-
-
-
+***
+Fix nos testes de criação de usuário,
+Criação do teste de login, /teste/api/v1/login.py
+função para gerar web token feita, /app/core/security.py
+Login retornando o JWT para autenticação; /app/api/v1/endpoint/login.py
+***
+Refatoração do código,
+Fix de warnings,
+Configuração do Git e GitHub;
 
 
 ///Quinta-feira 9-10-25///
 Ascrescentei a feat de hash de senhas, bem como o test_create_usuario em pytest.
-***Melhoras na estrutura e modularização dos arquivos:
+***
+Melhoras na estrutura e modularização dos arquivos:
 /api/v1/endpoints -> agora direciona a rota para services, o qual possui a regra de negócio para o banco de dados
 Nova pasta -> /services/ -> possui a regra de negócio para o banco de dados
 Nova pasta -> /db/crud/ -> intermediário entre /services/ e *db*

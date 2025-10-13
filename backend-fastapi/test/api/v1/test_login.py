@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session  # type: ignore
 from datetime import datetime
 
 from app.db.models.usuario import Usuario as UsuarioModel # type: ignore
+from app.schemas.usuario import UsuarioCreate
 from app.core import security
 from app.core.enum import TipoUsuario
+from app.services import usuario as usuario_service
 
 # Teste de login bem-sucedido
 def test_login_com_sucesso(client: TestClient, db_session: Session):
@@ -23,18 +25,16 @@ def test_login_com_sucesso(client: TestClient, db_session: Session):
         data_criacao=datetime.now()
     )
 
-    # Adiciona o usuário de teste ao banco de dados
-    db_session.add(usuario_teste)
-    db_session.commit()
+    usuario_service.create_usuario_admin_service(db_session, UsuarioCreate(usuario_teste))
     
     # Dados de login para o teste
-    login_data = {
-        "username": usuario_teste.email,
-        "password": senha_plana
+    USUARIO_PAYLOAD = {
+        "email": usuario_teste.email,
+        "senha": senha_plana
     }
 
     # Realiza o login
-    response = client.post("/api/v1/login/", data=login_data)
+    response = client.post("/api/v1/auth/", json=USUARIO_PAYLOAD)
 
     # Verifica se o login foi bem-sucedido
     assert response.status_code == 200
