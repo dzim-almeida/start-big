@@ -1,9 +1,11 @@
 # Arquivo para segurança, como hashing de senhas e verificação
 
+from fastapi import HTTPException, Depends, status
+
 import bcrypt # type: ignore
 
 from datetime import datetime, timedelta, timezone
-from jose import jwt # type: ignore
+from jose import jwt, JWTError # type: ignore
 from app.core.config import settings
 import uuid
 
@@ -32,4 +34,18 @@ def create_acesso_token(dados: dict) -> str:
     # Gera o token JWT usando a chave secreta e o algoritmo especificado
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
-    
+
+def verify_dados_token(token: str):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não foi possível validar as credenciais",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        dados_token = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.ALGORITHM)
+        usuario_id = dados_token.get("sub")
+        if usuario_id is None:
+            raise credentials_exception
+        return dados_token
+    except JWTError:
+        raise credentials_exception

@@ -1,11 +1,15 @@
 # Arquivo de serviço para operações relacionadas a usuários
 
 from sqlalchemy.orm import Session  # type: ignore
+
 from app.db.models.usuario import Usuario as UsuarioModel  # Importa o modelo SQLAlchemy
 
 # Função para obter um usuário pelo email
 def get_usuario_by_email(db: Session, email: str):
     return db.query(UsuarioModel).filter(UsuarioModel.email == email).first()
+
+def get_usuario_by_id(db: Session, id: int):
+    return db.query(UsuarioModel).filter(UsuarioModel.id == id).first()
 
 # Função para criar um novo usuário
 def create_usuario_db(db: Session, novo_usuario: UsuarioModel):

@@ -23,3 +23,7 @@ def login_service(db: Session, usuario: UsuarioLogin) -> dict:
 
     acesso_token = security.create_acesso_token(dados=dados_para_token)
     return {"access_token": acesso_token, "token_type": "bearer", "expires_in": 900}
+
+
+
+
