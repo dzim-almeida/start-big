@@ -57,17 +57,28 @@ def login_service(db: Session, user_data: UsuarioLogin) -> dict:
     # 5. Retorna o token no formato esperado pelo padrão OAuth2.
     return {"access_token": access_token, "token_type": "bearer", "expires_in": 900}
 
-def logout_service(db: Session, token: dict) -> dict:
+def logout_service(db: Session, token: dict) -> None:
+    """
+    Prepara e solicita a adição de um token à blocklist.
 
+    Args:
+        db (Session): A sessão do banco de dados.
+        token (dict): O payload do token JWT decodificado.
+    """
+    # Extrai o 'jti' (ID único) e 'exp' (timestamp de expiração) do token.
     jti = token.get("jti")
     exp = token.get("exp")
 
+    # Converte o timestamp de expiração para um objeto datetime ciente do fuso horário.
     exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
 
+    # Cria a instância do modelo SQLAlchemy para a blocklist.
     revoke_token = TokenBlocklist(
         jti=jti,
         exp=exp_datetime
     )
 
+    # Chama a função CRUD para adicionar o token à sessão do banco de dados.
+    # O commit será realizado na camada de endpoint.
     token_crud.create_revoke_token(db, revoke_token)
 
