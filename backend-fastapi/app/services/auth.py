@@ -6,13 +6,17 @@
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 # Importa o schema Pydantic para os dados de login.
 from app.schemas.auth import UsuarioLogin
+# Importa o models SQLAlchemy para os tokens revogados.
+from app.db.models.token import TokenBlocklist
 # Importa as funções de segurança para verificar senha e criar token.
 from app.core.security import verify_password, create_access_token
 # Importa as funções de acesso ao banco de dados para usuários.
 from app.db.crud import usuario as user_crud
+from app.db.crud import token as token_crud
 
 def login_service(db: Session, user_data: UsuarioLogin) -> dict:
     """
@@ -52,3 +56,18 @@ def login_service(db: Session, user_data: UsuarioLogin) -> dict:
     
     # 5. Retorna o token no formato esperado pelo padrão OAuth2.
     return {"access_token": access_token, "token_type": "bearer", "expires_in": 900}
+
+def logout_service(db: Session, token: dict) -> dict:
+
+    jti = token.get("jti")
+    exp = token.get("exp")
+
+    exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
+
+    revoke_token = TokenBlocklist(
+        jti=jti,
+        exp=exp_datetime
+    )
+
+    token_crud.create_revoke_token(db, revoke_token)
+

@@ -15,5 +15,5 @@ def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     return user_service.create_user_admin_service(db, usuario)
    
 @router.get("/me", response_model=UsuarioRead, summary="Retornar o usuário")
-def get_user(user_id: str = Depends(get_token), db: Session = Depends(get_db)):
-    return user_service.get_user_by_id(db, int(user_id))
+def get_user(token: dict = Depends(get_token), db: Session = Depends(get_db)):
+    return user_service.get_user_by_id(db, int(token.get("sub")))

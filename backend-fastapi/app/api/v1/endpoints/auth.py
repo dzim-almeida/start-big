@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth import UsuarioLogin, UsuarioLoginResponse
 from app.services import auth as auth_service
 from app.db.session import get_db
+from app.core.depends import get_token
 
 router = APIRouter()
 
@@ -21,3 +22,9 @@ def login_to_access_token(user_data: OAuth2PasswordRequestForm = Depends(), db: 
         senha=user_data.password
     )
     return auth_service.login_service(db, user)
+
+@router.post("/logout", status_code=status.HTTP_200_OK, summary="Realizar logout e revogar o token")
+def logout_to_revoke_token(token: dict = Depends(get_token), db: Session = Depends(get_db)):
+    auth_service.logout_service(db, token)
+    db.commit()
+    return {"message": "Logout bem-sucedido"}

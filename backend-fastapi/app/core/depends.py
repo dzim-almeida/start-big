@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import verify_token_data
 from app.db.crud import usuario as user_crud
+from app.db.crud import token as token_crud
 from app.db.session import get_db
 from app.db.models.usuario import Usuario as UsuarioModel # Importar o modelo para o type hint
 
@@ -27,8 +28,23 @@ def get_token(
     3. Busca o usuário no banco de dados com base no ID do token.
     4. Retorna o objeto do usuário ou lança uma exceção HTTP 401 se falhar.
     """
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não foi possível validar as credenciais",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
     # Valida o token e obtém os dados (payload)
     token_data = verify_token_data(token)
+
+    token_jti = token_data.get("jti")
+
+    revoke_token = token_crud.get_revoke_token(db, token_jti)
+
+    if revoke_token:
+        # Se o usuário não for encontrado (ex: foi deletado), o token é inválido.
+        raise credentials_exception
     
     # Extrai o ID do usuário do payload do token ('sub' é o campo padrão)
     user_id = token_data.get("sub")
@@ -38,10 +54,6 @@ def get_token(
 
     if not user:
         # Se o usuário não for encontrado (ex: foi deletado), o token é inválido.
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário do token não encontrado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
         
-    return user_id
+    return token_data

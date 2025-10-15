@@ -81,7 +81,7 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     email_errado = "naoexiste@gmail.com"
     senha = "senhaSegura123"
 
-# Payload do usuário de teste
+    # Payload do usuário de teste
     usuario_teste = UsuarioModel(
         nome="Teste Usuario",
         email= email_correto,
@@ -106,4 +106,69 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     assert response.status_code == 401
     assert "Email ou senha inválidos" in response.json()["detail"]
 
+def test_logout_com_sucesso(client: TestClient, db_session: Session):
+
+    payload_login = {
+        "username": "teste.usuario@example.com",
+        "password": "senhaSegura123"
+    }
+
+    # Payload do usuário de teste
+    test_user = UsuarioModel(
+        nome="Logout Sucesso",
+        email= payload_login["username"],
+        senha_hash=security.hash_password(payload_login["password"]),
+        tipo=UserType.USER,
+        data_criacao=datetime.now()
+    )
+
+    db_session.add(test_user)
+    db_session.commit()
+
+    response_login = client.post("/api/v1/auth/login", data=payload_login)
+    assert response_login.status_code == 200
+    token = response_login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response_logout = client.post("/api/v1/auth/logout", headers=headers)
+    assert response_logout.status_code == 200
+    assert "Logout bem-sucedido" in response_logout.json()["message"]
+
+def test_usar_token_revogado(client: TestClient, db_session: Session):
+     
+    payload_login = {
+        "username": "teste.usuario@example.com",
+        "password": "senhaSegura123"
+    }
+
+    # Payload do usuário de teste
+    test_user = UsuarioModel(
+        nome="Logout Sucesso",
+        email= payload_login["username"],
+        senha_hash=security.hash_password(payload_login["password"]),
+        tipo=UserType.USER,
+        data_criacao=datetime.now()
+    )
+
+    db_session.add(test_user)
+    db_session.commit()
+
+    response_login = client.post("/api/v1/auth/login", data=payload_login)
+    assert response_login.status_code == 200
+    token = response_login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response_logout = client.post("/api/v1/auth/logout", headers=headers)
+    assert response_logout.status_code == 200
+    assert "Logout bem-sucedido" in response_logout.json()["message"]
+
+    response_me = client.get("/api/v1/usuarios/me", headers=headers)
+
+    assert response_me.status_code == 401
+    assert "Não foi possível validar as credenciais" in response_me.json()["detail"]
+
+    
+
+    
+    
 
