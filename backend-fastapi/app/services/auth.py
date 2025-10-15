@@ -1,29 +1,54 @@
-# Serviço de Login
+# ---------------------------------------------------------------------------
+# ARQUIVO: auth.py (dentro da pasta services)
+# DESCRIÇÃO: Módulo responsável pela lógica de negócio da autenticação,
+#            como a validação de credenciais e a geração de tokens de acesso.
+# ---------------------------------------------------------------------------
 
-from fastapi import HTTPException, status  # type: ignore
-from sqlalchemy.orm import Session  # type: ignore
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
+# Importa o schema Pydantic para os dados de login.
 from app.schemas.auth import UsuarioLogin
-from app.db.crud import usuario as usuario_crud
-from app.core import security  # Funções de segurança (hash de senha, criação de token)
+# Importa as funções de segurança para verificar senha e criar token.
+from app.core.security import verify_password, create_access_token
+# Importa as funções de acesso ao banco de dados para usuários.
+from app.db.crud import usuario as user_crud
 
-def login_service(db: Session, usuario: UsuarioLogin) -> dict:
-    usuario_existente = usuario_crud.get_usuario_by_email(db, email=usuario.email)
-    if not usuario_existente or not security.verify_senha(usuario.senha, usuario_existente.senha_hash):
+def login_service(db: Session, user_data: UsuarioLogin) -> dict:
+    """
+    Valida as credenciais de um usuário e gera um token de acesso.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        user_data (UsuarioLogin): Os dados de login (email e senha).
+
+    Raises:
+        HTTPException: Lança um erro 401 se as credenciais forem inválidas.
+
+    Returns:
+        dict: Um dicionário contendo o token de acesso e informações relacionadas.
+    """
+    # 1. Busca o usuário no banco de dados pelo e-mail fornecido.
+    user = user_crud.get_user_by_email(db, email=user_data.email)
+
+    # 2. Verifica se o usuário existe E se a senha fornecida corresponde ao hash salvo.
+    if not user or not verify_password(user_data.senha, user.senha_hash):
+        # Se a validação falhar, lança uma exceção de "Não Autorizado".
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha inválidos",
+            # O header 'WWW-Authenticate' é uma boa prática para esquemas de autenticação Bearer.
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    dados_para_token = {
-        "sub": str(usuario_existente.id),
-        "roles": str(usuario_existente.tipo),
+    # 3. Prepara o payload (os dados) que serão incluídos dentro do token.
+    data_to_token = {
+        "sub": str(user.id),      # 'sub' (subject) é o padrão para identificar o dono do token.
+        "roles": str(user.tipo),  # Incluir o 'role' (tipo) é útil para controle de acesso.
     }
 
-    acesso_token = security.create_acesso_token(dados=dados_para_token)
-    return {"access_token": acesso_token, "token_type": "bearer", "expires_in": 900}
-
-
-
-
+    # 4. Cria o token JWT usando a função de segurança.
+    access_token = create_access_token(data=data_to_token)
+    
+    # 5. Retorna o token no formato esperado pelo padrão OAuth2.
+    return {"access_token": access_token, "token_type": "bearer", "expires_in": 900}

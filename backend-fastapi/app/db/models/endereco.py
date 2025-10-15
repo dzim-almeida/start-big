@@ -9,7 +9,7 @@ from sqlalchemy import Column, Integer, String, Enum as SQLAlchemyEnum, ForeignK
 from sqlalchemy.orm import relationship  # type: ignore
 
 from app.db.base import Base
-from app.core.enum import Estado  # Enum dos estados brasileiros
+from app.core.enum import State  # Enum dos estados brasileiros
 
 # =========================
 # Modelo SQLAlchemy: Endereco
@@ -29,7 +29,7 @@ class Endereco(Base):
     complemento = Column(String(100), nullable=True, doc="Complemento do endereço (opcional)")
     bairro = Column(String(100), nullable=False, doc="Bairro")
     cidade = Column(String(100), nullable=False, doc="Cidade")
-    estado = Column(SQLAlchemyEnum(Estado), nullable=False, doc="Estado (UF)")
+    estado = Column(SQLAlchemyEnum(State), nullable=False, doc="Estado (UF)")
     cep = Column(String(10), nullable=False, doc="CEP")
 
     # Relacionamento com o modelo Cliente

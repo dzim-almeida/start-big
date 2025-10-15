@@ -6,8 +6,8 @@ from datetime import datetime
 
 from app.db.models.usuario import Usuario as UsuarioModel # type: ignore
 from app.core import security
-from app.core.enum import TipoUsuario
-from app.services import usuario as usuario_service
+from app.core.enum import UserType
+
 
 # Teste de login bem-sucedido
 def test_login_com_sucesso(client: TestClient, db_session: Session):
@@ -19,8 +19,8 @@ def test_login_com_sucesso(client: TestClient, db_session: Session):
     usuario_teste = UsuarioModel(
         nome="Teste Usuario",
         email= email,
-        senha_hash=security.generate_senha_hash(senha),
-        tipo=TipoUsuario.USER,
+        senha_hash=security.hash_password(senha),
+        tipo=UserType.USER,
         data_criacao=datetime.now()
     )
 
@@ -30,12 +30,12 @@ def test_login_com_sucesso(client: TestClient, db_session: Session):
     
     # Dados de login para o teste
     login_data = {
-        "email": email,
-        "senha": senha
+        "username": email,
+        "password": senha
     }
 
     # Realiza o login
-    response = client.post("/api/v1/auth/", json=login_data)
+    response = client.post("/api/v1/auth/login", data=login_data)
 
     # Verifica se o login foi bem-sucedido
     assert response.status_code == 200
@@ -54,8 +54,8 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     usuario_teste = UsuarioModel(
         nome="Teste Usuario",
         email= email,
-        senha_hash=security.generate_senha_hash(senha_correta),
-        tipo=TipoUsuario.USER,
+        senha_hash=security.hash_password(senha_correta),
+        tipo=UserType.USER,
         data_criacao=datetime.now()
     )
 
@@ -65,12 +65,12 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     
     # Dados de login para o teste
     login_data = {
-        "email": email,
-        "senha": senha_errada
+        "username": email,
+        "password": senha_errada
     }
 
     # Realiza o login
-    response = client.post("/api/v1/auth/", json=login_data)
+    response = client.post("/api/v1/auth/login", data=login_data)
 
     assert response.status_code == 401
     assert "Email ou senha inválidos" in response.json()["detail"]
@@ -85,8 +85,8 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     usuario_teste = UsuarioModel(
         nome="Teste Usuario",
         email= email_correto,
-        senha_hash=security.generate_senha_hash(senha),
-        tipo=TipoUsuario.USER,
+        senha_hash=security.hash_password(senha),
+        tipo=UserType.USER,
         data_criacao=datetime.now()
     )
 
@@ -96,12 +96,12 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     
     # Dados de login para o teste
     login_data = {
-        "email": email_errado,
-        "senha": senha
+        "username": email_errado,
+        "password": senha
     }
 
     # Realiza o login
-    response = client.post("/api/v1/auth/", json=login_data)
+    response = client.post("/api/v1/auth/login", data=login_data)
 
     assert response.status_code == 401
     assert "Email ou senha inválidos" in response.json()["detail"]

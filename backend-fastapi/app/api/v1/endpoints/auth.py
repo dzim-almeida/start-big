@@ -3,13 +3,21 @@
 from fastapi import APIRouter, Depends, status # type: ignore
 from sqlalchemy.orm import Session
 
+from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth import UsuarioLogin, UsuarioLoginResponse
 from app.services import auth as auth_service
 from app.db.session import get_db
 
 router = APIRouter()
 
-@router.post("/", response_model=UsuarioLoginResponse, status_code=status.HTTP_200_OK, summary="Realizar login e obter token de acesso")
-def login_para_acessar_token(usuario: UsuarioLogin, db: Session = Depends(get_db)):
-    return auth_service.login_service(db, usuario)
+# @router.post("/login", response_model=UsuarioLoginResponse, status_code=status.HTTP_200_OK, summary="Realizar login e obter token de acesso")
+# def login_para_acessar_token(user_data: UsuarioLogin, db: Session = Depends(get_db)):
+#     return auth_service.login_service(db, user_data)
 
+@router.post("/login", response_model=UsuarioLoginResponse, status_code=status.HTTP_200_OK, summary="Realizar login e obter token de acesso")
+def login_to_access_token(user_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = UsuarioLogin(
+        email=user_data.username,
+        senha=user_data.password
+    )
+    return auth_service.login_service(db, user)
