@@ -1,3 +1,13 @@
+///Quarta-feira 15-10-25///
+***
+Verificação de tokens JWT, para saber a validade
+Aplicação de tokens para usar métodos do sistema
+Refatoração do projeto, variáveis e funções em inglês
+Comentários em todo o projeto, facilitando a leitura e decodificação
+Aplicação de revogação de tokens para mais segurança em logout
+Novo arquivo -> /core/depends.py -> Dependências do sistema, sujeito a ir para services
+
+
 ///Sexta-feira 10-10-25///
 ***
 Fix nos testes de criação de usuário,

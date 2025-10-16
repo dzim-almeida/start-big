@@ -1,38 +1,40 @@
-# Testes para a funcionalidade de login
 
+from datetime import datetime
+import pytest
 from fastapi.testclient import TestClient  # type: ignore
 from sqlalchemy.orm import Session  # type: ignore
-from datetime import datetime
 
-from app.db.models.usuario import Usuario as UsuarioModel # type: ignore
+from app.db.models.usuario import Usuario as UsuarioModel  # type: ignore
 from app.core import security
 from app.core.enum import UserType
+from app.core.config import settings
+
+TEST_USER_EMAIL = "teste.usuario@example.com"
+TEST_USER_PASSWORD = "senhaSegura123"
 
 
-# Teste de login bem-sucedido
-def test_login_com_sucesso(client: TestClient, db_session: Session):
-    # Cria um usuário de teste diretamente no banco de dados
-    email = "teste.usuario@example.com"
-    senha = "senhaSegura123"
-
-    # Payload do usuário de teste
-    usuario_teste = UsuarioModel(
+@pytest.fixture(scope="function")
+def test_user(db_session: Session):
+    # Payload do usuário de teste 
+    user = UsuarioModel(
         nome="Teste Usuario",
-        email= email,
-        senha_hash=security.hash_password(senha),
+        email=TEST_USER_EMAIL,
+        senha_hash=security.hash_password(TEST_USER_PASSWORD),
         tipo=UserType.USER,
-        data_criacao=datetime.now()
+        data_criacao=datetime.now(),
     )
 
     # Adiciona o usuário de teste ao banco de dados
-    db_session.add(usuario_teste)
+    db_session.add(user)
     db_session.commit()
-    
+    db_session.refresh(user)
+    return user
+
+# pylint: disable=unused-argument
+# Teste de login bem-sucedido
+def test_login_com_sucesso(client: TestClient, test_user: UsuarioModel):
     # Dados de login para o teste
-    login_data = {
-        "username": email,
-        "password": senha
-    }
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
 
     # Realiza o login
     response = client.post("/api/v1/auth/login", data=login_data)
@@ -42,32 +44,15 @@ def test_login_com_sucesso(client: TestClient, db_session: Session):
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["expires_in"] == 900
-    
-def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
-    # Cria um usuário de teste diretamente no banco de dados
-    email = "teste.usuario@example.com"
-    senha_correta = "senhaSegura123"
-    senha_errada = "naoexiste123"
+    assert data["expires_in"] == (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
-# Payload do usuário de teste
-    usuario_teste = UsuarioModel(
-        nome="Teste Usuario",
-        email= email,
-        senha_hash=security.hash_password(senha_correta),
-        tipo=UserType.USER,
-        data_criacao=datetime.now()
-    )
 
-    # Adiciona o usuário de teste ao banco de dados
-    db_session.add(usuario_teste)
-    db_session.commit()
-    
+def test_login_com_senha_incorreta(client: TestClient, test_user: UsuarioModel):
+
+    password_incorrect = "naoexiste123"
+
     # Dados de login para o teste
-    login_data = {
-        "username": email,
-        "password": senha_errada
-    }
+    login_data = {"username": TEST_USER_EMAIL, "password": password_incorrect}
 
     # Realiza o login
     response = client.post("/api/v1/auth/login", data=login_data)
@@ -75,30 +60,13 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     assert response.status_code == 401
     assert "Email ou senha inválidos" in response.json()["detail"]
 
-def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
-    # Cria um usuário de teste diretamente no banco de dados
-    email_correto = "teste.usuario@example.com"
-    email_errado = "naoexiste@gmail.com"
-    senha = "senhaSegura123"
 
-    # Payload do usuário de teste
-    usuario_teste = UsuarioModel(
-        nome="Teste Usuario",
-        email= email_correto,
-        senha_hash=security.hash_password(senha),
-        tipo=UserType.USER,
-        data_criacao=datetime.now()
-    )
+def test_login_com_email_incorreto(client: TestClient, test_user: UsuarioModel):
 
-    # Adiciona o usuário de teste ao banco de dados
-    db_session.add(usuario_teste)
-    db_session.commit()
-    
+    email_incorrect = "naoexiste@gmail.com"
+
     # Dados de login para o teste
-    login_data = {
-        "username": email_errado,
-        "password": senha
-    }
+    login_data = {"username": email_incorrect, "password": TEST_USER_PASSWORD}
 
     # Realiza o login
     response = client.post("/api/v1/auth/login", data=login_data)
@@ -106,26 +74,13 @@ def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
     assert response.status_code == 401
     assert "Email ou senha inválidos" in response.json()["detail"]
 
-def test_logout_com_sucesso(client: TestClient, db_session: Session):
 
-    payload_login = {
-        "username": "teste.usuario@example.com",
-        "password": "senhaSegura123"
-    }
+def test_logout_com_sucesso(client: TestClient, test_user: UsuarioModel):
 
-    # Payload do usuário de teste
-    test_user = UsuarioModel(
-        nome="Logout Sucesso",
-        email= payload_login["username"],
-        senha_hash=security.hash_password(payload_login["password"]),
-        tipo=UserType.USER,
-        data_criacao=datetime.now()
-    )
+   # Dados de login para o teste
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
 
-    db_session.add(test_user)
-    db_session.commit()
-
-    response_login = client.post("/api/v1/auth/login", data=payload_login)
+    response_login = client.post("/api/v1/auth/login", data=login_data)
     assert response_login.status_code == 200
     token = response_login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -134,26 +89,13 @@ def test_logout_com_sucesso(client: TestClient, db_session: Session):
     assert response_logout.status_code == 200
     assert "Logout bem-sucedido" in response_logout.json()["message"]
 
-def test_usar_token_revogado(client: TestClient, db_session: Session):
-     
-    payload_login = {
-        "username": "teste.usuario@example.com",
-        "password": "senhaSegura123"
-    }
 
-    # Payload do usuário de teste
-    test_user = UsuarioModel(
-        nome="Logout Sucesso",
-        email= payload_login["username"],
-        senha_hash=security.hash_password(payload_login["password"]),
-        tipo=UserType.USER,
-        data_criacao=datetime.now()
-    )
+def test_usar_token_revogado(client: TestClient, test_user: UsuarioModel):
 
-    db_session.add(test_user)
-    db_session.commit()
+   # Dados de login para o teste
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
 
-    response_login = client.post("/api/v1/auth/login", data=payload_login)
+    response_login = client.post("/api/v1/auth/login", data=login_data)
     assert response_login.status_code == 200
     token = response_login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -166,9 +108,3 @@ def test_usar_token_revogado(client: TestClient, db_session: Session):
 
     assert response_me.status_code == 401
     assert "Não foi possível validar as credenciais" in response_me.json()["detail"]
-
-    
-
-    
-    
-

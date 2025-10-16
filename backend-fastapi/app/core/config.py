@@ -7,11 +7,13 @@
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
+
 class Settings(BaseSettings):
     """
     Define as configurações da aplicação que serão carregadas de variáveis de ambiente.
     Utiliza o Pydantic para validar os tipos de dados de cada variável.
     """
+
     # URL de conexão com o banco de dados. Ex: "sqlite:///./pdv.db"
     DATABASE_URL: str
 
@@ -26,6 +28,7 @@ class Settings(BaseSettings):
 
     # Configuração para o Pydantic carregar as variáveis de um arquivo .env
     model_config = ConfigDict(env_file=".env")
+
 
 # Cria uma instância única das configurações que será importada em outros módulos.
 settings = Settings()

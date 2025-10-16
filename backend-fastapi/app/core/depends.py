@@ -10,14 +10,16 @@ from sqlalchemy.orm import Session
 from app.core.security import verify_token_data
 from app.db.crud import token as token_crud
 from app.db.crud import usuario as user_crud
-from app.db.models.usuario import Usuario as UsuarioModel
 from app.db.session import get_db
 
 # Define o esquema de autenticação OAuth2.
 # O 'tokenUrl' aponta para o endpoint de login que fornecerá o token.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-def get_token(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> dict:
+
+def get_token(
+    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+) -> dict:
     """
     Dependência para validar um token e obter seu payload.
 

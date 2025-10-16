@@ -14,6 +14,8 @@ from app.schemas.auth import UsuarioLogin
 from app.db.models.token import TokenBlocklist
 # Importa as funções de segurança para verificar senha e criar token.
 from app.core.security import verify_password, create_access_token
+# Importa a variável de EXPIRE_TOKEN
+from app.core.config import settings
 # Importa as funções de acesso ao banco de dados para usuários.
 from app.db.crud import usuario as user_crud
 from app.db.crud import token as token_crud
@@ -55,7 +57,7 @@ def login_service(db: Session, user_data: UsuarioLogin) -> dict:
     access_token = create_access_token(data=data_to_token)
     
     # 5. Retorna o token no formato esperado pelo padrão OAuth2.
-    return {"access_token": access_token, "token_type": "bearer", "expires_in": 900}
+    return {"access_token": access_token, "token_type": "bearer", "expires_in": (settings.ACCESS_TOKEN_EXPIRE_MINUTES*60)}
 
 def logout_service(db: Session, token: dict) -> None:
     """
