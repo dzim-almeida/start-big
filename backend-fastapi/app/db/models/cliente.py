@@ -8,7 +8,7 @@ Define o modelo Cliente, que representa os dados de um cliente do sistema.
 from sqlalchemy import Column, Integer, String, Date, UniqueConstraint, ForeignKey, Enum as SqlAlchemyEnum  # type: ignore
 from sqlalchemy.orm import relationship  # type: ignore
 from app.db.base import Base
-from app.core.enum import Genero, TipoCliente  # Enum de gênero
+from app.core.enum import Gender, ClientType  # Enum de gênero
 
 # =========================
 # Modelo SQLAlchemy: Cliente
@@ -17,7 +17,7 @@ class Cliente(Base):
     __tablename__ = "clientes"
 
     id = Column(Integer, primary_key=True, index=True)
-    tipo = Column(SqlAlchemyEnum(TipoCliente), nullable=False)  # 'PF' ou 'PJ'
+    tipo = Column(SqlAlchemyEnum(ClientType), nullable=False)  # 'PF' ou 'PJ'
     email = Column(String(255, collation="NOCASE"), unique=True, nullable=True)
     contato = Column(String(20), nullable=True)
     observacoes = Column(String(500), nullable=True)
@@ -54,7 +54,7 @@ class ClientePF(Base):
     cpf = Column(String(14), unique=True, index=True, nullable=False)         # CPF, obrigatório e único
     rg = Column(String(20), unique=True, nullable=True)                       # RG, pode ser nulo e único
     email = Column(String(255, collation="NOCASE"), unique=True, nullable=True) # Email, pode ser nulo e único
-    genero = Column(SqlAlchemyEnum(Genero), nullable=True)                    # Enum de gênero: Masculino, Feminino, Outro
+    genero = Column(SqlAlchemyEnum(Gender), nullable=True)                    # Enum de gênero: Masculino, Feminino, Outro
     data_nascimento = Column(Date, nullable=True)                             # Data de nascimento
 
     # Relação 1:1 com Cliente
