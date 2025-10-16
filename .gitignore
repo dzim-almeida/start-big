@@ -1,16 +1,28 @@
-backend-fastapi/.env
-# Python Bytecode Files
+# 1. Arquivos e Pastas de Ambiente Virtual
+# Ignora a pasta de ambiente virtual
+venv/
+.venv/
+
+# 2. Python Bytecode e Cache
+# Ignora o cache de bytecode (arquivos .pyc e a pasta __pycache__)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Ambientes virtuais
-venv/
-.venv/
-
-# Logs e Dados temporários
-*.log
+# 3. Arquivos de Banco de Dados Local e Logs
+# Ignora seu arquivo de banco de dados SQLite local
+*.db
 *.sqlite
-pdv.db  # O seu arquivo de banco de dados local
+pdv.db
+
+# 4. Configurações de IDE e Outros Temporários
+# Ignora o arquivo .env (crucial para segredos como a SECRET_KEY)
+.env
+# Arquivos de configurações do VS Code (opcional)
+.vscode/
+
+# 5. Ignorar caches de testes (como os arquivos .cpython-313.pyc do Pytest)
+# Isso deve ser coberto por *.pyc e __pycache__
+.pytest_cache/
 backend-fastapi/pdv.db

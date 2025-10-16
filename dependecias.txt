@@ -10,4 +10,4 @@ pip install "pydantic-settings"
 
 pip3 install bcrypt
 
-pip 
+pip install python-jose[cryptography]

@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Date, Field # type: ignore
 from typing import Optional, List
-from app.core.enum import Genero
+from app.core.enum import Gender
 from app.schemas.endereco import Endereco
 
 # Base para Cliente, usado para herança nos modelos de entrada e saída
@@ -47,7 +47,7 @@ class ClientePFCreate(ClienteBase):
         pattern=r"^\d{5,20}$",
         description="RG com 5 a 20 dígitos"
     )
-    genero: Optional[Genero] = Field(
+    genero: Optional[Gender] = Field(
         None,
         description="Gênero do cliente"
     )

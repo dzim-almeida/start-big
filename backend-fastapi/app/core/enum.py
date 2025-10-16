@@ -1,17 +1,24 @@
-# Arquivo para centralizar seus ENUMs
+# ---------------------------------------------------------------------------
+# ARQUIVO: enum.py
+# DESCRIÇÃO: Centraliza todas as classes Enum da aplicação para garantir
+#            consistência e reutilização de tipos de dados fixos.
+# ---------------------------------------------------------------------------
 
 import enum
 
-class Genero(enum.Enum):
+class Gender(enum.Enum):
+    """Define os gêneros possíveis para usuários ou clientes."""
     MASCULINO = "Masculino"
     FEMININO = "Feminino"
     OUTRO = "Outro"
 
-class TipoCliente(str, enum.Enum):
+class ClientType(str, enum.Enum):
+    """Define os tipos de cliente (Pessoa Física ou Jurídica)."""
     PF = "Pessoa Física"
     PJ = "Pessoa Jurídica"
 
-class Estado(str, enum.Enum):
+class State(str, enum.Enum):
+    """Define as siglas dos estados brasileiros."""
     ACRE = "AC"
     ALAGOAS = "AL"
     AMAPA = "AP"
@@ -40,6 +47,7 @@ class Estado(str, enum.Enum):
     SERGIPE = "SE"
     TOCANTINS = "TO"
 
-class TipoUsuario(str, enum.Enum):
+class UserType(str, enum.Enum):
+    """Define os níveis de permissão ou tipos de usuário no sistema."""
     ADMIN = "Admin"
     USER = "User"
