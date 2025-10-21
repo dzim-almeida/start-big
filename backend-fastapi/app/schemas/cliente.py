@@ -1,12 +1,23 @@
-# Modelos Pydantic para Clientes
+# ---------------------------------------------------------------------------
+# ARQUIVO: cliente.py
+# DESCRIÇÃO: Schemas Pydantic para validação de dados de Cliente.
+#            Define as estruturas de entrada (ClientePFCreate) e
+#            saída (ClientePFRead).
+# ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Date, Field # type: ignore
+from datetime import date
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List
-from app.core.enum import Gender
-from app.schemas.endereco import Endereco
+from app.core.enum import Gender, ClientType
+from app.schemas.endereco import Endereco, EnderecoRead # Importa os dois schemas de endereço
 
-# Base para Cliente, usado para herança nos modelos de entrada e saída
+# =========================
+# Schema Pydantic: ClienteBase
+# =========================
 class ClienteBase(BaseModel):
+    """
+    Schema base com campos comuns a todos os tipos de clientes.
+    """
     email: Optional[EmailStr] = Field(
         None,
         max_length=255,
@@ -22,16 +33,24 @@ class ClienteBase(BaseModel):
         max_length=500,
         description="Observações sobre o cliente"
     )
+    
+    # Na criação, espera uma lista de schemas 'Endereco' (sem ID)
     endereco: Optional[List[Endereco]] = Field(
         None,
         description="Endereço(s) do cliente"
     )
 
-    # Permite criar instâncias a partir de objetos ORM
+    # Permite que o Pydantic crie instâncias a partir de objetos ORM (SQLAlchemy)
     model_config = ConfigDict(from_attributes=True)
 
-# Modelo para criação de Cliente Pessoa Física
+# =========================
+# Schema Pydantic: ClientePFCreate (Criação)
+# =========================
 class ClientePFCreate(ClienteBase):
+    """
+    Schema para validar os dados de ENTRADA ao criar um
+    novo Cliente Pessoa Física. Herda os campos comuns de ClienteBase.
+    """
     nome: str = Field(
         ...,
         max_length=255,
@@ -39,7 +58,7 @@ class ClientePFCreate(ClienteBase):
     )
     cpf: str = Field(
         ...,
-        pattern=r"^\d{11}$",
+        pattern=r"^\d{11}$", # Validação de formato (11 dígitos numéricos)
         description="CPF com 11 dígitos"
     )
     rg: Optional[str] = Field(
@@ -51,16 +70,15 @@ class ClientePFCreate(ClienteBase):
         None,
         description="Gênero do cliente"
     )
-    data_nascimento: Optional[Date] = Field(
+    data_nascimento: Optional[date] = Field(
         None,
         description="Data de nascimento do cliente"
     )
 
-    # Exemplo para documentação OpenAPI
+    # Exemplo para documentação OpenAPI (Swagger)
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "tipo": "PF",
                 "email": "joao@email.com",
                 "contato": "11999999999",
                 "observacoes": "Cliente VIP",
@@ -73,15 +91,6 @@ class ClientePFCreate(ClienteBase):
                         "cidade": "São Paulo",
                         "estado": "SP",
                         "cep": "01234-567"
-                    },
-                    {
-                        "logradouro": "Avenida Teste",
-                        "numero": "456",
-                        "complemento": None,
-                        "bairro": "Bairro Teste",
-                        "cidade": "Rio de Janeiro",
-                        "estado": "RJ",
-                        "cep": "12345-678"
                     }
                 ],
                 "nome": "João Silva",
@@ -93,9 +102,29 @@ class ClientePFCreate(ClienteBase):
         }
     )
 
-# Modelo para leitura de Cliente Pessoa Física (inclui o ID)
+# =========================
+# Schema Pydantic: ClientePFRead (Leitura/Resposta)
+# =========================
 class ClientePFRead(ClientePFCreate):
+    """
+    Schema para formatar os dados de SAÍDA (resposta da API)
+    de um Cliente Pessoa Física.
+    
+    Herda de ClientePFCreate para incluir TODOS os campos
+    (base e específicos de PF).
+    """
     id: int = Field(
         ...,
         description="ID do cliente"
+    )
+    tipo: ClientType = Field(
+        ...,
+        description="Tipo do cliente"
+    )
+    
+    # Sobrescreve o campo 'endereco' da classe base
+    # para usar o schema 'EnderecoRead' (que inclui ID)
+    endereco: List[EnderecoRead] = Field(
+        ...,
+        description="Endereco do cliente"
     )

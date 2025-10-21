@@ -11,6 +11,9 @@ from app.db.models.cliente import Cliente, ClientePF
 from app.db.models.endereco import Endereco
 from app.db.models.token import TokenBlocklist
 
+# Destroi e recria todas as tabelas conforme os modelos atuais
+# Base.metadata.drop_all(bind=engine)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

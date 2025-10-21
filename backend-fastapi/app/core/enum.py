@@ -8,14 +8,14 @@ import enum
 
 class Gender(enum.Enum):
     """Define os gêneros possíveis para usuários ou clientes."""
-    MASCULINO = "Masculino"
-    FEMININO = "Feminino"
-    OUTRO = "Outro"
+    MASCULINO = "MASCULINO"
+    FEMININO = "FEMININO"
+    OUTRO = "OUTRO"
 
 class ClientType(str, enum.Enum):
     """Define os tipos de cliente (Pessoa Física ou Jurídica)."""
-    PF = "Pessoa Física"
-    PJ = "Pessoa Jurídica"
+    PF = "PF"
+    PJ = "PJ"
 
 class State(str, enum.Enum):
     """Define as siglas dos estados brasileiros."""
@@ -49,5 +49,5 @@ class State(str, enum.Enum):
 
 class UserType(str, enum.Enum):
     """Define os níveis de permissão ou tipos de usuário no sistema."""
-    ADMIN = "Admin"
-    USER = "User"
+    ADMIN = "ADMIN"
+    USER = "USER"
