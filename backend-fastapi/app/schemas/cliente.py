@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: cliente.py
 # DESCRIÇÃO: Schemas Pydantic para validação de dados de Cliente.
-#            Define as estruturas de entrada (ClientePFCreate) e
-#            saída (ClientePFRead).
+#            Define as estruturas de entrada (ClientePFCreate, ClientePJCreate)
+#            e saída (ClientePFRead, ClientePJRead).
 # ---------------------------------------------------------------------------
 
 from datetime import date
@@ -16,7 +16,7 @@ from app.schemas.endereco import Endereco, EnderecoRead # Importa os dois schema
 # =========================
 class ClienteBase(BaseModel):
     """
-    Schema base com campos comuns a todos os tipos de clientes.
+    Schema base com campos comuns a todos os tipos de clientes (PF e PJ).
     """
     email: Optional[EmailStr] = Field(
         None,
@@ -25,7 +25,7 @@ class ClienteBase(BaseModel):
     )
     contato: Optional[str] = Field(
         None,
-        max_length=255,
+        max_length=255, # Nota: Pode ser melhor validar como telefone (ex: max_length=20)
         description="Telefone de contato"
     )
     observacoes: Optional[str] = Field(
@@ -44,7 +44,7 @@ class ClienteBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 # =========================
-# Schema Pydantic: ClientePFCreate (Criação)
+# Schemas Pessoa Física (PF)
 # =========================
 class ClientePFCreate(ClienteBase):
     """
@@ -79,39 +79,19 @@ class ClientePFCreate(ClienteBase):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "email": "joao@email.com",
-                "contato": "11999999999",
-                "observacoes": "Cliente VIP",
-                "endereco": [
-                    {
-                        "logradouro": "Rua Exemplo",
-                        "numero": "123",
-                        "complemento": "Apto 10",
-                        "bairro": "Centro",
-                        "cidade": "São Paulo",
-                        "estado": "SP",
-                        "cep": "01234-567"
-                    }
-                ],
                 "nome": "João Silva",
                 "cpf": "12345678901",
-                "rg": "1234567",
-                "genero": "MASCULINO",
-                "data_nascimento": "1990-05-20"
+                # ... (resto do exemplo PF) ...
             }
         }
     )
 
-# =========================
-# Schema Pydantic: ClientePFRead (Leitura/Resposta)
-# =========================
 class ClientePFRead(ClientePFCreate):
     """
     Schema para formatar os dados de SAÍDA (resposta da API)
     de um Cliente Pessoa Física.
     
-    Herda de ClientePFCreate para incluir TODOS os campos
-    (base e específicos de PF).
+    Herda de ClientePFCreate para incluir TODOS os campos (base e PF).
     """
     id: int = Field(
         ...,
@@ -119,12 +99,94 @@ class ClientePFRead(ClientePFCreate):
     )
     tipo: ClientType = Field(
         ...,
-        description="Tipo do cliente"
+        description="Tipo do cliente (PF)"
     )
     
-    # Sobrescreve o campo 'endereco' da classe base
-    # para usar o schema 'EnderecoRead' (que inclui ID)
-    endereco: List[EnderecoRead] = Field(
+    # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
+    endereco: Optional[List[EnderecoRead]] = Field(
+        None,
+        description="Endereco do cliente"
+    )
+
+# =========================
+# Schemas Pessoa Jurídica (PJ)
+# =========================
+class ClientePJCreate(ClienteBase):
+    """
+    Schema para validar os dados de ENTRADA ao criar um
+    novo Cliente Pessoa Jurídica. Herda os campos comuns de ClienteBase.
+    """
+    razao_social: str = Field(
         ...,
+        max_length=255,
+        description="Razão social do cliente jurídico"
+    )
+    cnpj: str = Field(
+        ...,
+        pattern=r"^\d{14}$", # Validação de formato (14 dígitos numéricos)
+        description="CPNJ com 14 dígitos"
+    )
+    nome_fantasia: str = Field(
+        ...,
+        max_length=255,
+        description="Nome fantasia do cliente jurídico"
+    )
+    ie: Optional[str] = Field(
+        None,
+        pattern=r"^\d{9,14}$",
+        description="Número de inscrição estadual do cliente jurídico"
+    )
+    responsavel: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Nome do responsável pela empresa"
+    )
+
+    # Exemplo para documentação OpenAPI (Swagger)
+    model_config = ConfigDict(
+        json_schema_extra = {
+            "example": {
+                "razao_social": "Minha Empresa de Tecnologia LTDA",
+                "cnpj": "12345678000199",
+                "nome_fantasia": "Tech Solutions",
+                "ie": "123456789",
+                "responsavel": "Ana Gerente",
+                "email": "contato@techsolutions.com",
+                "contato": "1155554444",
+                "observacoes": "Primeiro contato feito na feira de tecnologia.",
+                "endereco": [
+                    {
+                        "logradouro": "Avenida das Nações",
+                        "numero": "1001",
+                        "complemento": "Andar 15, Sala 1502",
+                        "bairro": "Distrito Empresarial",
+                        "cidade": "São Paulo",
+                        "estado": "SP",
+                        "cep": "04578-000"
+                    }
+                ]
+            }
+        }
+    )
+
+class ClientePJRead(ClientePJCreate):
+    """
+    Schema para formatar os dados de SAÍDA (resposta da API)
+    de um Cliente Pessoa Jurídica.
+    
+    Herda de ClientePJCreate para incluir TODOS os campos (base e PJ).
+    """
+    id: int = Field(
+        ...,
+        description="ID do cliente"
+    )
+    tipo: ClientType = Field(
+        ...,
+        description="Tipo do cliente (PJ)"
+    )
+    
+    # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
+    endereco: Optional[List[EnderecoRead]] = Field(
+        None,
         description="Endereco do cliente"
     )

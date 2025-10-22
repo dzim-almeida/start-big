@@ -5,7 +5,7 @@
 #            classe base e 'ClientePF' é uma especialização (filha).
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, Date, UniqueConstraint, ForeignKey, Enum as SqlAlchemyEnum
+from sqlalchemy import Integer, String, Date, ForeignKey, Enum as SqlAlchemyEnum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.db.base import Base
@@ -64,7 +64,7 @@ class ClientePF(Cliente): # Herda da classe base 'Cliente'
     nome: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False)
     
     # CPF, obrigatório e único
-    cpf: Mapped[str] = mapped_column(String(14), unique=True, index=True, nullable=False)
+    cpf: Mapped[str] = mapped_column(String(11), unique=True, index=True, nullable=False)
     
     # RG, pode ser nulo e único
     rg: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
@@ -75,12 +75,41 @@ class ClientePF(Cliente): # Herda da classe base 'Cliente'
     # Data de nascimento
     data_nascimento: Mapped[Date | None] = mapped_column(Date, nullable=True)
 
-    # Restrição de unicidade para CPF e RG juntos
-    __table_args__ = (
-        UniqueConstraint('cpf', 'rg', name='_rg_cpf_uc'),
-    )
-
     # CONFIGURAÇÃO DO POLIMORFISMO PARA A CLASSE FILHA
     __mapper_args__ = {
         'polymorphic_identity': ClientType.PF.value, # Mapeia esta classe ao valor 'PF' do Enum
     }
+
+# ==========================================
+# Modelo SQLAlchemy: Cliente Pessoa Jurídica (Classe Filha)
+# ==========================================
+class ClientePJ(Cliente): # Herda da classe base 'Cliente'
+    """
+    Representa a tabela 'clientes_PJ', contendo dados específicos
+    de clientes do tipo Pessoa Jurídica. Utiliza herança de tabela unida.
+    """
+    __tablename__ = "clientes_pj"
+
+    # Chave primária que também é chave estrangeira para 'clientes.id'
+    id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), primary_key=True, index=True)
+    
+    # Razão social, obrigatório e único
+    razao_social: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False)
+    
+    # CNPJ, obrigatório e único
+    cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True, nullable=False)
+    
+    # Nome fantasia, obrigatório
+    nome_fantasia: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False)
+    
+    # Inscrição Estadual, opcional e único
+    ie: Mapped[str | None] = mapped_column(String(14), unique=True, nullable=True)
+    
+    # Reponsável pela empresa, opcional
+    responsavel: Mapped[str | None] = mapped_column(String(255, collation="NOCASE"), nullable=True)
+
+    # CONFIGURAÇÃO DO POLIMORFISMO PARA A CLASSE FILHA
+    __mapper_args__ = {
+        'polymorphic_identity': ClientType.PJ.value, # Mapeia esta classe ao valor 'PJ' do Enum
+    }
+
