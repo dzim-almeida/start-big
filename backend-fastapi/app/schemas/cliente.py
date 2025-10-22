@@ -7,7 +7,7 @@
 
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Annotated, Union, Literal
 from app.core.enum import Gender, ClientType
 from app.schemas.endereco import Endereco, EnderecoRead # Importa os dois schemas de endereço
 
@@ -97,8 +97,8 @@ class ClientePFRead(ClientePFCreate):
         ...,
         description="ID do cliente"
     )
-    tipo: ClientType = Field(
-        ...,
+    tipo: Literal[ClientType.PF] = Field(
+        default=ClientType.PF,
         description="Tipo do cliente (PF)"
     )
     
@@ -180,8 +180,8 @@ class ClientePJRead(ClientePJCreate):
         ...,
         description="ID do cliente"
     )
-    tipo: ClientType = Field(
-        ...,
+    tipo: Literal[ClientType.PJ] = Field(
+        default=ClientType.PJ,
         description="Tipo do cliente (PJ)"
     )
     
@@ -190,3 +190,9 @@ class ClientePJRead(ClientePJCreate):
         None,
         description="Endereco do cliente"
     )
+
+# --- A União Discriminada ---
+ClienteRead = Annotated[
+    Union[ClientePFRead, ClientePJRead],
+    Field(discriminator="tipo")
+]

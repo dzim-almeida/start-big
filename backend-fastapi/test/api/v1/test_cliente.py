@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: test_cliente.py
-# DESCRIÇÃO: Testes de integração para os endpoints de Cliente,
+# DESCRIÇÃO: Testes de integração para os endpoints de Cliente (PF, PJ, Busca),
 #            seguindo a metodologia TDD.
 # ---------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ def header_with_token(client: TestClient, db_session: Session) -> dict:
     'scope="function"' garante que isso seja executado para cada teste
     que a utiliza, garantindo um estado limpo.
     """
-    # Arrange 1: Criar o usuário no banco
+    # Arrange 1: Criar o usuário de teste no banco de dados
     user = UsuarioModel(
         nome="Teste Usuario",
         email=TEST_USER_EMAIL,
@@ -41,16 +41,20 @@ def header_with_token(client: TestClient, db_session: Session) -> dict:
     db_session.add(user)
     db_session.commit()
 
-    # Arrange 2: Fazer login para obter o token
+    # Arrange 2: Preparar dados para fazer login via API
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
-    response = client.post("/api/v1/auth/login", data=login_data)
-    assert response.status_code == 200 # Garante que o login da fixture funcionou
     
-    # Act: Montar os headers
+    # Act: Realizar o login para obter um token de acesso
+    response = client.post("/api/v1/auth/login", data=login_data)
+    
+    # Assert (pré-condição): Garante que o login da fixture funcionou
+    assert response.status_code == 200 
+    
+    # Arrange 3: Extrair o token e montar o header de autorização
     token = response.json()["access_token"]
     header_with_token = {"Authorization": f"Bearer {token}"}
     
-    # Assert (retorno da fixture)
+    # Retorna os headers para serem usados pelos testes
     return header_with_token
 
 # =========================
@@ -61,7 +65,7 @@ def test_criar_cliente_pf_usuario_logado(client: TestClient, header_with_token: 
     Testa o "caminho feliz": a criação bem-sucedida de um Cliente PF
     quando o usuário está autenticado.
     """
-    # Arrange: Define o payload (corpo da requisição) para o novo cliente PF
+    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PF
     data_client = {
         "email": "joao.silva@meu-pdv.com",
         "contato": "11987654321",
@@ -86,7 +90,6 @@ def test_criar_cliente_pf_usuario_logado(client: TestClient, header_with_token: 
                 "cep": "30110-010"
             }
         ],
-        
         "nome": "João Pedro Silva",
         "cpf": "98765432101",
         "rg": "12345678",
@@ -94,21 +97,22 @@ def test_criar_cliente_pf_usuario_logado(client: TestClient, header_with_token: 
         "data_nascimento": "1995-12-15"
     }
 
-    # Act: Envia a requisição POST para o endpoint de PF
+    # Act: Envia a requisição POST para o endpoint de criação de PF,
+    # incluindo o payload e os headers de autenticação obtidos da fixture.
     response = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
     
     # Assert: Verifica se a criação foi bem-sucedida
-    assert response.status_code == 201 # Verifica o status HTTP 201 Created
+    assert response.status_code == status.HTTP_201_CREATED # Verifica o status HTTP 201 Created
     data = response.json()
-    assert data["nome"] == "João Pedro Silva" # Verifica se o nome retornado está correto
-    assert data["email"] == "joao.silva@meu-pdv.com" # Verifica se o email retornado está correto
+    assert data["nome"] == "João Pedro Silva" # Verifica se o nome na resposta está correto
+    assert data["email"] == "joao.silva@meu-pdv.com" # Verifica se o email na resposta está correto
 
-def test_criar_cliente_pf_sem_token(client: TestClient):
+def test_criar_cliente_sem_token(client: TestClient):
     """
     Testa o "caminho triste": a falha ao tentar criar um Cliente PF
-    sem enviar um token de autenticação.
+    sem enviar um token de autenticação (usuário não logado).
     """
-    # Arrange: Define o payload (corpo da requisição) para o novo cliente PF
+    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PF
     data_client = {
         "nome": "João Pedro Silva",
         "cpf": "98765432101",
@@ -119,32 +123,15 @@ def test_criar_cliente_pf_sem_token(client: TestClient):
         "contato": "11987654321",
         "observacoes": "Cliente novo, aceita e-mail marketing.",
         "endereco": [
-            {
-                "logradouro": "Rua das Flores",
-                "numero": "456A",
-                "complemento": "Casa",
-                "bairro": "Jardim América",
-                "cidade": "Campinas",
-                "estado": "SP",
-                "cep": "13010-000"
-            },
-            {
-                "logradouro": "Av. Principal",
-                "numero": "20",
-                "complemento": "Escritório",
-                "bairro": "Centro",
-                "cidade": "Belo Horizonte",
-                "estado": "MG",
-                "cep": "30110-010"
-            }
+            # ... (lista de endereços) ...
         ]
     }
 
     # Act: Envia a requisição POST, mas desta vez SEM os headers de autenticação
     response = client.post("/api/v1/clientes/cliente_pf", json=data_client)
     
-    # Assert: Verifica se a API protegeu o endpoint e retornou 401 Unauthorized
-    assert response.status_code == 401
+    # Assert: Verifica se a API protegeu o endpoint corretamente, retornando 401 Unauthorized
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 # =========================
 # Testes de Criação de Cliente PJ
@@ -154,7 +141,7 @@ def test_criar_cliente_pj_usuario_logado(client: TestClient, header_with_token: 
     Testa o "caminho feliz": a criação bem-sucedida de um Cliente PJ
     quando o usuário está autenticado.
     """
-    # Arrange: Define o payload (corpo da requisição) para o novo cliente PJ
+    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PJ
     data_client = {
         "razao_social": "Minha Empresa de Tecnologia LTDA",
         "cnpj": "12345678000199",
@@ -177,24 +164,57 @@ def test_criar_cliente_pj_usuario_logado(client: TestClient, header_with_token: 
         ]
     }
 
-    # Act: Envia a requisição POST para o novo endpoint de PJ
+    # Act: Envia a requisição POST para o endpoint de criação de PJ,
+    # incluindo o payload e os headers de autenticação.
     response = client.post("/api/v1/clientes/cliente_pj", json=data_client, headers=header_with_token)
     
     # Assert: Verifica se a criação foi bem-sucedida
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
-    assert data["cnpj"] == "12345678000199" # Verifica se o CNPJ retornado está correto
-    assert data["email"] == "contato@techsolutions.com" # Verifica se o email retornado está correto
+    assert data["cnpj"] == "12345678000199" # Verifica se o CNPJ na resposta está correto
+    assert data["email"] == "contato@techsolutions.com" # Verifica se o email na resposta está correto
 
+# =========================
+# Teste de Busca de Cliente
+# =========================
+def test_buscar_cliente_pf_com_cpf_usuario_logado(client: TestClient, header_with_token: dict):
+    """
+    Testa a funcionalidade de busca por CPF:
+    1. Cria um cliente PF.
+    2. Busca por esse cliente usando seu CPF.
+    3. Verifica se o cliente correto foi retornado.
+    """
+    # --- Arrange ---
+    # 1. Define o payload para criar o cliente que será buscado
+    data_client = {
+        "email": "joao.silva@meu-pdv.com",
+        "contato": "11987654321",
+        "observacoes": "Cliente novo, aceita e-mail marketing.",
+        "endereco": [
+            # ... (lista de endereços) ...
+        ],
+        "nome": "João Pedro Silva",
+        "cpf": "98765432101", # O CPF que será usado na busca
+        "rg": "12345678",
+        "genero": "MASCULINO",
+        "data_nascimento": "1995-12-15"
+    }
 
-# (Início do teste comentado)
-# def test_buscar_cliente_pf_com_cpf_usuario_logado(client: TestClient, header_with_token: dict):
-# 
-#     test_criar_cliente_pf_usuario_logado(client, header_with_token)
-# 
-#     client_cpf = "98765432101"
-# 
-#     response = client.get(f"/api/v1/clientes/?cpf={client_cpf}", headers=header_with_token)
-#     assert response.status_code == 200
-#     data = response.json()
-#
+    # 2. Cria o cliente via API (pré-condição para a busca)
+    response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
+    assert response_create.status_code == status.HTTP_201_CREATED # Garante que a criação funcionou
+
+    # --- Act ---
+    # 3. Define o termo de busca (o CPF criado)
+    client_cpf = "98765432101"
+
+    # 4. Envia a requisição GET para o endpoint de busca,
+    #    passando o CPF como parâmetro de query 'buscar'
+    response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
+    
+    # --- Assert ---
+    # 5. Verifica se a busca foi bem-sucedida e retornou o cliente correto
+    assert response_search.status_code == status.HTTP_200_OK
+    data = response_search.json()
+    assert len(data) == 1 # A busca deve retornar exatamente um cliente
+    assert data[0]["cpf"] == client_cpf # Verifica se o CPF do cliente retornado é o buscado

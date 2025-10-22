@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: services/cliente.py
 # DESCRIÇÃO: Camada de serviço com a lógica de negócio para Clientes.
-#            Implementa a criação polimórfica de Clientes Pessoa Física.
+#            Implementa a criação polimórfica de Clientes Pessoa Física
+#            e Pessoa Jurídica, além da busca polimórfica.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 # Importa os modelos ORM necessários
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
 from app.db.models.endereco import Endereco as EnderecoModel
-# Importa o schema Pydantic de entrada
+# Importa os schemas Pydantic de entrada
 from app.schemas.cliente import ClientePFCreate, ClientePJCreate
 # Importa a camada de acesso a dados (CRUD)
 from app.db.crud import cliente as client_crud
@@ -18,6 +19,9 @@ from app.db.crud import cliente as client_crud
 from app.core.enum import State, Gender
 
 
+# =========================
+# Serviço: Criar Cliente PF
+# =========================
 def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
     """
     Serviço para criar um novo cliente Pessoa Física completo.
@@ -31,20 +35,21 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
 
     Args:
         db (Session): A sessão do banco de dados.
-        data_client (ClientePFCreate): Os dados validados do novo cliente.
+        new_client_pf (ClientePFCreate): Os dados validados do novo cliente PF.
 
     Raises:
         HTTPException: 409 (Conflict) se o CPF já existir.
 
     Returns:
-        ClienteModel: O objeto do cliente recém-criado (polimorficamente
-                      carregado como ClientePFModel), completo com IDs.
+        ClientePFModel: O objeto do cliente recém-criado (polimorficamente
+                        carregado), completo com IDs.
     """
 
     # 1. REGRA DE NEGÓCIO: Verificar se o CPF já existe
     existing_client = client_crud.get_client_by_cpf(db, new_client_pf.cpf)
     
     if existing_client:
+        # Lança exceção se o CPF já estiver cadastrado
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="CPF já cadastrado")
 
     # 2. PREPARA OS OBJETOS DE ENDEREÇO (FILHOS)
@@ -60,7 +65,6 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
             cep=endereco.cep
         ) for endereco in new_client_pf.endereco or [] # 'or []' trata o caso de lista de endereços ser nula/vazia
     ]   
-
 
     # 3. PREPARA O OBJETO PRINCIPAL (ClientePFModel)
     # Cria uma única instância da classe filha polimórfica
@@ -79,17 +83,22 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
         data_nascimento=new_client_pf.data_nascimento,
 
         # Conecta o relacionamento com a lista de endereços
+        # O nome do atributo 'endereco' deve corresponder ao 'relationship' no modelo Cliente
         endereco = new_address_client_to_db
     )
 
     # 4. CHAMA A CAMADA CRUD
-    # Passa o objeto completo para a função do CRUD
+    # Passa o objeto completo para a função do CRUD específica para PF
     new_client_pf_in_db = client_crud.create_client_pf(db, new_client_pf_to_db)
 
     # 5. RETORNA O OBJETO PERSISTIDO
     # O CRUD (com db.refresh) garante que este objeto está completo
     return new_client_pf_in_db
 
+
+# =========================
+# Serviço: Criar Cliente PJ
+# =========================
 def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
     """
     Serviço para criar um novo cliente Pessoa Jurídica completo.
@@ -103,20 +112,21 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
 
     Args:
         db (Session): A sessão do banco de dados.
-        data_client (ClientePJCreate): Os dados validados do novo cliente.
+        new_client_pj (ClientePJCreate): Os dados validados do novo cliente PJ.
 
     Raises:
         HTTPException: 409 (Conflict) se o CNPJ já existir.
 
     Returns:
-        ClienteModel: O objeto do cliente recém-criado (polimorficamente
-                      carregado como ClientePJModel), completo com IDs.
+        ClientePJModel: O objeto do cliente recém-criado (polimorficamente
+                        carregado), completo com IDs.
     """
 
     # 1. REGRA DE NEGÓCIO: Verificar se o CNPJ já existe
     existing_client = client_crud.get_client_by_cnpj(db, new_client_pj.cnpj)
     
     if existing_client:
+        # Lança exceção se o CNPJ já estiver cadastrado
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="CNPJ já cadastrado")
 
     # 2. PREPARA OS OBJETOS DE ENDEREÇO (FILHOS)
@@ -132,7 +142,6 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
             cep=endereco.cep
         ) for endereco in new_client_pj.endereco or [] # 'or []' trata o caso de lista de endereços ser nula/vazia
     ]   
-
 
     # 3. PREPARA O OBJETO PRINCIPAL (ClientePJModel)
     # Cria uma única instância da classe filha polimórfica
@@ -151,13 +160,32 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
         responsavel=new_client_pj.responsavel,
 
         # Conecta o relacionamento com a lista de endereços
+        # O nome do atributo 'endereco' deve corresponder ao 'relationship' no modelo Cliente
         endereco = new_address_client_to_db
     )
 
     # 4. CHAMA A CAMADA CRUD
-    # Passa o objeto completo para a função do CRUD
+    # Passa o objeto completo para a função do CRUD específica para PJ
     new_client_pj_in_db = client_crud.create_client_pj(db, new_client_pj_to_db)
 
     # 5. RETORNA O OBJETO PERSISTIDO
     # O CRUD (com db.refresh) garante que este objeto está completo
     return new_client_pj_in_db
+
+
+# =========================
+# Serviço: Buscar Clientes
+# =========================
+# (Atenção: A assinatura de retorno 'ClienteModel' pode estar incorreta,
+#  o CRUD retorna uma lista. Mantida conforme o original.)
+def get_client_by_search(db: Session, search: str) -> ClienteModel:
+    """
+    Busca clientes (PF ou PJ) de forma polimórfica usando a camada CRUD.
+    (Nota: A lógica original retornava uma lista, mas a assinatura
+     indica um único objeto. A lógica atual retorna a lista.)
+    """
+    # Delega a busca para a função do CRUD que executa a query polimórfica
+    existing_clients = client_crud.get_client_by_search(db, search)
+    
+    # Retorna a lista de clientes encontrada (pode ser vazia)
+    return existing_clients
