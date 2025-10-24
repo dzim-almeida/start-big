@@ -79,9 +79,25 @@ class ClientePFCreate(ClienteBase):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "nome": "João Silva",
-                "cpf": "12345678901",
-                # ... (resto do exemplo PF) ...
+                "nome": "João Pedro Silva",
+                "cpf": "98765432101",
+                "rg": "12345678",
+                "genero": "MASCULINO",
+                "data_nascimento": "1995-12-15",
+                "email": "joao.silva@meu-pdv.com",
+                "contato": "11987654321",
+                "observacoes": "Cliente novo, aceita e-mail marketing.",
+                "endereco": [
+                    {
+                        "logradouro": "Rua das Flores",
+                        "numero": "456A",
+                        "complemento": "Casa",
+                        "bairro": "Jardim América",
+                        "cidade": "Campinas",
+                        "estado": "SP",
+                        "cep": "13010-000"
+                    }
+                ]
             }
         }
     )

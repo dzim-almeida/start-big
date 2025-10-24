@@ -5,10 +5,12 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, cliente, usuario
+from app.api.v1.endpoints import reset_bd, auth, cliente, usuario
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
+
+router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
 
 # Inclui o roteador de usuários sob o prefixo /usuarios
 # Todos os endpoints definidos em 'usuario.py' serão acessados via /api/v1/usuarios/...

@@ -26,6 +26,16 @@ class UsuarioCreate(UsuarioBase):
         description="Senha do usuário (mínimo 8 caracteres)"
     )
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "nome": "TestUser",
+                "email": "test@test.com",
+                "senha": "test1234"
+            }
+        }
+    )
+
 class UsuarioRead(UsuarioBase):
     id: int = Field(
         ...,
