@@ -1,12 +1,12 @@
-# app/db/models/endereco.py
+# ---------------------------------------------------------------------------
+# ARQUIVO: endereco.py
+# DESCRIÇÃO: Modelo SQLAlchemy para a tabela 'enderecos', que representa
+#            os endereços vinculados aos clientes.
+# ---------------------------------------------------------------------------
 
-"""
-Modelos SQLAlchemy para a tabela 'enderecos'.
-Define o modelo Endereco, que representa os endereços vinculados aos clientes.
-"""
-
-from sqlalchemy import Column, Integer, String, Enum as SQLAlchemyEnum, ForeignKey  # type: ignore
-from sqlalchemy.orm import relationship  # type: ignore
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.sqltypes import Enum as SQLAlchemyEnum
 
 from app.db.base import Base
 from app.core.enum import State  # Enum dos estados brasileiros
@@ -15,26 +15,31 @@ from app.core.enum import State  # Enum dos estados brasileiros
 # Modelo SQLAlchemy: Endereco
 # =========================
 class Endereco(Base):
+    """
+    Representa a tabela 'enderecos'. Cada registro é um endereço
+    associado a um cliente.
+    """
     __tablename__ = "enderecos"
 
     # Chave primária
-    id = Column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Chave estrangeira referenciando 'clientes.id'
-    id_cliente = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id"), nullable=False)
 
     # Campos de endereço
-    logradouro = Column(String(255), nullable=False, doc="Nome da rua, avenida, etc.")
-    numero = Column(String(20), nullable=False, doc="Número do endereço")
-    complemento = Column(String(100), nullable=True, doc="Complemento do endereço (opcional)")
-    bairro = Column(String(100), nullable=False, doc="Bairro")
-    cidade = Column(String(100), nullable=False, doc="Cidade")
-    estado = Column(SQLAlchemyEnum(State), nullable=False, doc="Estado (UF)")
-    cep = Column(String(10), nullable=False, doc="CEP")
+    logradouro: Mapped[str] = mapped_column(String(255), nullable=False, doc="Nome da rua, avenida, etc.")
+    numero: Mapped[str] = mapped_column(String(20), nullable=False, doc="Número do endereço")
+    complemento: Mapped[str | None] = mapped_column(String(100), nullable=True, doc="Complemento do endereço (opcional)")
+    bairro: Mapped[str] = mapped_column(String(100), nullable=False, doc="Bairro")
+    cidade: Mapped[str] = mapped_column(String(100), nullable=False, doc="Cidade")
+    estado: Mapped[State] = mapped_column(SQLAlchemyEnum(State), nullable=False, doc="Estado (UF)")
+    cep: Mapped[str] = mapped_column(String(10), nullable=False, doc="CEP")
 
-    # Relacionamento com o modelo Cliente
-    endereco_cliente = relationship(
+    # Relacionamento Muitos-para-Um com o modelo Cliente
+    # 'back_populates' aponta para o atributo 'endereco' no modelo Cliente
+    cliente = relationship(
         "Cliente",
-        back_populates="cliente_endereco",
+        back_populates="endereco",
         doc="Relacionamento com o cliente proprietário do endereço"
     )
