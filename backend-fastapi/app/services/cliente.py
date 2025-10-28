@@ -2,7 +2,7 @@
 # ARQUIVO: services/cliente.py
 # DESCRIÇÃO: Camada de serviço com a lógica de negócio para Clientes.
 #            Implementa a criação polimórfica de Clientes Pessoa Física
-#            e Pessoa Jurídica, além da busca polimórfica.
+#            e Pessoa Jurídica, busca, atualização e deleção.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 # Importa os modelos ORM necessários
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
 from app.db.models.endereco import Endereco as EnderecoModel
-# Importa os schemas Pydantic de entrada
-from app.schemas.cliente import ClientePFCreate, ClientePJCreate
+# Importa os schemas Pydantic de entrada/atualização
+from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePFUpdate, ClientePJCreate, ClientePJUpdate
 # Importa a camada de acesso a dados (CRUD)
 from app.db.crud import cliente as client_crud
 # Importa os Enums para conversão de tipo
@@ -26,7 +26,7 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
     """
     Serviço para criar um novo cliente Pessoa Física completo.
 
-    Esta função implementa a herança polimórfica:
+    Implementa a herança polimórfica:
     1. Valida regras de negócio (ex: CPF duplicado).
     2. Cria uma lista de objetos EnderecoModel.
     3. Cria UMA ÚNICA instância de ClientePFModel com todos os dados
@@ -41,8 +41,7 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
         HTTPException: 409 (Conflict) se o CPF já existir.
 
     Returns:
-        ClientePFModel: O objeto do cliente recém-criado (polimorficamente
-                        carregado), completo com IDs.
+        ClientePFModel: O objeto do cliente recém-criado, completo com IDs.
     """
 
     # 1. REGRA DE NEGÓCIO: Verificar se o CPF já existe
@@ -103,7 +102,7 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
     """
     Serviço para criar um novo cliente Pessoa Jurídica completo.
 
-    Esta função implementa a herança polimórfica:
+    Implementa a herança polimórfica:
     1. Valida regras de negócio (ex: CNPJ duplicado).
     2. Cria uma lista de objetos EnderecoModel.
     3. Cria UMA ÚNICA instância de ClientePJModel com todos os dados
@@ -118,8 +117,7 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
         HTTPException: 409 (Conflict) se o CNPJ já existir.
 
     Returns:
-        ClientePJModel: O objeto do cliente recém-criado (polimorficamente
-                        carregado), completo com IDs.
+        ClientePJModel: O objeto do cliente recém-criado, completo com IDs.
     """
 
     # 1. REGRA DE NEGÓCIO: Verificar se o CNPJ já existe
@@ -181,11 +179,147 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
 def get_client_by_search(db: Session, search: str) -> ClienteModel:
     """
     Busca clientes (PF ou PJ) de forma polimórfica usando a camada CRUD.
-    (Nota: A lógica original retornava uma lista, mas a assinatura
-     indica um único objeto. A lógica atual retorna a lista.)
+    Retorna a lista de clientes encontrada (pode ser vazia).
+    (Nota: O tipo de retorno na assinatura está como ClienteModel, mas
+     a função retorna a lista 'existing_clients'.)
     """
     # Delega a busca para a função do CRUD que executa a query polimórfica
     existing_clients = client_crud.get_client_by_search(db, search)
     
     # Retorna a lista de clientes encontrada (pode ser vazia)
     return existing_clients
+
+# =========================
+# Serviço: Atualizar Cliente
+# =========================
+def update_client_by_id(db: Session, id: int, client: ClienteUpdate) -> ClienteModel:
+    """
+    Atualiza um cliente existente (PF ou PJ) pelo ID.
+    Busca o cliente, aplica atualizações parciais (incluindo endereços)
+    e retorna o objeto SQLAlchemy atualizado.
+    """
+    
+    # 1. Busca o cliente existente no banco pelo ID
+    update_client = client_crud.get_client_by_id(db, id)
+
+    # 2. Verifica se o cliente foi encontrado
+    if not update_client:
+         # Lança erro 404 se não encontrado
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    
+    # 3. Verifica o tipo do payload recebido (PF ou PJ) usando isinstance
+    if isinstance(client, ClientePFUpdate):
+        # Extrai apenas os dados enviados na requisição (para atualização parcial)
+        update_data = client.model_dump(exclude_unset=True)
+        # Atualiza os campos simples do objeto SQLAlchemy
+        for key, value in update_data.items():
+            # Pula 'tipo' e 'endereco' (tratado separadamente)
+            if key not in ["tipo", "endereco"]:
+                # Converte Enum de Gênero, se presente
+                if key == "genero" and value is not None:
+                    value = Gender(value)
+                # Define o novo valor no objeto SQLAlchemy
+                setattr(update_client, key, value)
+        
+        # Tratamento especial para atualizar/substituir a lista de endereços
+        if "endereco" in update_data and update_data["endereco"] is not None:
+
+            # Limpa a coleção de endereços existente na memória
+            # (Se cascade='delete-orphan', os antigos serão deletados no commit)
+            update_client.endereco.clear()
+
+            # Cria novas instâncias de EnderecoModel a partir dos dados do payload
+            edit_address_client_to_db = [
+                EnderecoModel(
+                    logradouro=endereco.logradouro, # Acesso via ponto '.' pois 'endereco' aqui é Pydantic model
+                    numero=endereco.numero,
+                    complemento=endereco.complemento,
+                    bairro=endereco.bairro,
+                    cidade=endereco.cidade,
+                    estado=State(endereco.estado), # Converte para Enum
+                    cep=endereco.cep
+                # Itera sobre a lista de objetos Pydantic Endereco dentro de 'client'
+                ) for endereco in client.endereco or [] 
+            ]
+
+            # Atribui a nova lista de objetos EnderecoModel à relação
+            update_client.endereco = edit_address_client_to_db
+
+        # Chama o CRUD para persistir as alterações (flush + refresh)
+        return client_crud.update_client_in_db(db, update_client)
+    
+    elif isinstance(client, ClientePJUpdate):
+        # Lógica similar para Cliente PJ
+        update_data = client.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            # Pula 'tipo' e 'endereco'
+            if key not in ["tipo", "endereco"]:
+                # Define o novo valor no objeto SQLAlchemy
+                setattr(update_client, key, value)
+
+        # Tratamento especial para atualizar/substituir a lista de endereços
+        if "endereco" in update_data and update_data["endereco"] is not None:
+
+                # Limpa a coleção de endereços existente na memória
+                update_client.endereco.clear()
+
+                # Cria novas instâncias de EnderecoModel a partir dos dados do payload
+                edit_address_client_to_db = [
+                    EnderecoModel(
+                        logradouro=endereco.logradouro, # Acesso via ponto '.'
+                        numero=endereco.numero,
+                        complemento=endereco.complemento,
+                        bairro=endereco.bairro,
+                        cidade=endereco.cidade,
+                        estado=State(endereco.estado), # Converte para Enum
+                        cep=endereco.cep
+                    # Itera sobre a lista de objetos Pydantic Endereco dentro de 'client'
+                    ) for endereco in client.endereco or []
+                ]
+
+                # Atribui a nova lista de objetos EnderecoModel à relação
+                update_client.endereco = edit_address_client_to_db
+
+        # Chama o CRUD para persistir as alterações (flush + refresh)
+        return client_crud.update_client_in_db(db, update_client)
+    else:
+        # Caso o tipo no payload não seja nem PF nem PJ (não deveria acontecer com a Union)
+        raise HTTPException(status_code=400, detail="Tipo de cliente inválido recebido")
+
+# =========================
+# Serviço: Deletar Cliente - NOVO SERVIÇO
+# =========================
+def delete_client_by_id(db: Session, id: int) -> bool:
+    """
+    Serviço para deletar um cliente pelo seu ID.
+
+    1. Busca o cliente.
+    2. Se encontrado, delega a exclusão para o CRUD.
+    3. Retorna True se a exclusão foi solicitada (não garante commit).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        id (int): O ID do cliente a ser deletado.
+
+    Raises:
+        HTTPException: 404 (Not Found) se o cliente não for encontrado.
+
+    Returns:
+        bool: Retorna True indicando que a operação de deleção foi chamada no CRUD.
+              (A confirmação final depende do commit no endpoint).
+    """
+    # 1. Busca o cliente existente pelo ID
+    existing_client = client_crud.get_client_by_id(db, id)
+
+    # 2. Verifica se o cliente foi encontrado
+    if not existing_client:
+        # Lança erro 404 se não encontrado
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+
+    # 3. Delega a exclusão para a camada CRUD
+    # O CRUD marcará o objeto para deleção e fará flush
+    client_crud.delete_client_by_id(db, existing_client)
+    
+    # Retorna True para indicar sucesso na chamada do serviço
+    # (O commit final é responsabilidade do endpoint)
+    return True

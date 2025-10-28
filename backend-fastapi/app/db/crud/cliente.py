@@ -9,6 +9,8 @@ from sqlalchemy import select, or_
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
 
+def get_client_by_id(db: Session, id: int) -> ClienteModel | None:
+    return db.query(ClienteModel).filter(ClienteModel.id == id).first()
 
 def get_client_by_cpf(db: Session, cpf: str) -> ClientePFModel | None:
     """
@@ -23,6 +25,22 @@ def get_client_by_cpf(db: Session, cpf: str) -> ClientePFModel | None:
     """
     # A query é feita diretamente no modelo ClientePFModel para eficiência
     return db.query(ClientePFModel).filter(ClientePFModel.cpf == cpf).first()
+
+
+def get_client_by_cnpj(db: Session, cnpj: str) -> ClientePJModel | None:
+    """
+    Busca um único cliente Pessoa Jurídica no banco de dados pelo seu CNPJ.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        cnpj (str): O CNPJ do cliente a ser pesquisado.
+
+    Returns:
+        ClientePJModel | None: O objeto do cliente PJ se encontrado, caso contrário None.
+    """
+    # A query é feita diretamente no modelo ClientePJModel para eficiência
+    return db.query(ClientePJModel).filter(ClientePJModel.cnpj == cnpj).first()
+
 
 def get_client_by_search(db: Session, search: str) -> list[ClientePFModel | ClientePJModel]:
     """
@@ -59,21 +77,6 @@ def get_client_by_search(db: Session, search: str) -> list[ClientePFModel | Clie
     result = db.scalars(stmt).all()
 
     return result
-
-
-def get_client_by_cnpj(db: Session, cnpj: str) -> ClientePJModel | None:
-    """
-    Busca um único cliente Pessoa Jurídica no banco de dados pelo seu CNPJ.
-
-    Args:
-        db (Session): A sessão do banco de dados.
-        cnpj (str): O CNPJ do cliente a ser pesquisado.
-
-    Returns:
-        ClientePJModel | None: O objeto do cliente PJ se encontrado, caso contrário None.
-    """
-    # A query é feita diretamente no modelo ClientePJModel para eficiência
-    return db.query(ClientePJModel).filter(ClientePJModel.cnpj == cnpj).first()
 
 
 def create_client_pf(db: Session, new_client: ClientePFModel) -> ClientePFModel:
@@ -129,3 +132,12 @@ def create_client_pj(db: Session, new_client: ClientePJModel) -> ClientePJModel:
 
     # Retorna o objeto persistido e atualizado
     return new_client
+
+def update_client_in_db(db: Session, update_client: ClienteModel) -> ClienteModel:
+    db.flush()
+    db.refresh(update_client)
+    return update_client
+
+def delete_client_by_id(db: Session, delete_cliet: ClienteModel) -> None:
+    db.delete(delete_cliet)
+    db.flush()
