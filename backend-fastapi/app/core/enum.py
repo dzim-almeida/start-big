@@ -51,3 +51,11 @@ class UserType(str, enum.Enum):
     """Define os níveis de permissão ou tipos de usuário no sistema."""
     ADMIN = "ADMIN"
     USER = "USER"
+
+class EntityType(str, enum.Enum):
+    """
+    Define os tipos de entidades polimórficas no sistema
+    (ex: para vincular um endereço a um cliente ou a um fornecedor).
+    """
+    CLIENTE = "CLIENTE"
+    FORNECEDOR = "FORNECEDOR"
