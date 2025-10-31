@@ -4,9 +4,9 @@
 #            de ambiente de forma segura e validada.
 # ---------------------------------------------------------------------------
 
-# Configurações das variáveis com Pydantic Settings Model
-from pydantic_settings import BaseSettings # type: ignore
-from pydantic import ConfigDict # type: ignore
+from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
+
 
 class Settings(BaseSettings):
     """
