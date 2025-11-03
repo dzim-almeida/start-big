@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 # Importa os modelos ORM necessários
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-from app.db.models.endereco import Endereco as EnderecoModel
 # Importa os schemas Pydantic de entrada/atualização
 from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePFUpdate, ClientePJCreate, ClientePJUpdate
 # Importa a camada de acesso a dados (CRUD)
@@ -18,13 +17,13 @@ from app.db.crud import cliente as client_crud
 # Importa o serviço de endereço para reutilização da lógica
 from app.services import endereco as endereco_service
 # Importa os Enums para conversão de tipo
-from app.core.enum import State, Gender, EntityType
+from app.core.enum import Gender, EntityType
 
 
 # =========================
 # Serviço: Criar Cliente PF
 # =========================
-def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
+def create_client_pf(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
     """
     Serviço para criar um novo cliente Pessoa Física completo.
 
@@ -93,7 +92,7 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
 # =========================
 # Serviço: Criar Cliente PJ
 # =========================
-def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
+def create_client_pj(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
     """
     Serviço para criar um novo cliente Pessoa Jurídica completo.
 

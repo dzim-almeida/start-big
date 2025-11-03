@@ -42,7 +42,7 @@ def create_new_client_pf(
     """
     try:
         # Delega a lógica de criação para a camada de serviço
-        new_client_pf = client_service.create_client_pf_service(db, client_pf)
+        new_client_pf = client_service.create_client_pf(db, client_pf)
 
         # Comita a transação se o serviço foi bem-sucedido
         db.commit()
@@ -88,7 +88,7 @@ def create_new_client_pf(
     """
     try:
         # Delega a lógica de criação para a camada de serviço
-        new_client_pj = client_service.create_client_pj_service(db, client_pj)
+        new_client_pj = client_service.create_client_pj(db, client_pj)
 
         # Comita a transação se o serviço foi bem-sucedido
         db.commit()
