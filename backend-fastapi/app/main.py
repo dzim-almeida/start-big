@@ -12,7 +12,7 @@ from app.db.models.endereco import Endereco
 from app.db.models.token import TokenBlocklist
 from app.db.models.produto import Produto
 from app.db.models.estoque import Estoque
-from app.db.models.fonecedor import Fornecedor
+from app.db.models.fornecedor import Fornecedor
 
 Base.metadata.create_all(bind=engine)
 

@@ -7,7 +7,7 @@
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Sequence # (Importação sugerida para type hints)
+from typing import Sequence # Importação para type hint de lista
 
 # Importa os schemas Pydantic (Create para entrada, Read para saída)
 from app.schemas.produto import ProdutoCreate, ProdutoUpdate
@@ -17,8 +17,10 @@ from app.db.models.estoque import Estoque as EstoqueModel
 # Importa a camada de acesso a dados (CRUD)
 from app.db.crud import produto as product_crud
 
-
-def create_product_service(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
+# =========================
+# Serviço: Criar Produto
+# =========================
+def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
     """
     Serviço para criar um novo Produto e seu registro de Estoque associado.
 
@@ -82,11 +84,17 @@ def create_product_service(db: Session, product_to_add: ProdutoCreate) -> Produt
 # =========================
 # Serviço: Buscar Produtos
 # =========================
-# (Nota: O tipo de retorno 'list[ProdutoModel]' seria mais preciso)
 def get_product_by_search(db: Session, search_product: str) -> list[ProdutoModel]:
     """
-    Busca produtos (polimorficamente) usando a camada CRUD.
+    Busca produtos usando a camada CRUD.
     Retorna a lista de produtos encontrada (pode ser vazia).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        search_product (str): O termo a ser buscado.
+
+    Returns:
+        list[ProdutoModel]: Uma lista de objetos ProdutoModel.
     """
     # Delega a busca para a função do CRUD
     existing_products = product_crud.get_product_by_search(db, search_product)
@@ -110,7 +118,7 @@ def update_product_by_id(db: Session, id: int, product: ProdutoUpdate) -> Produt
     if not product_to_update:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Produto nao encontrado"
+            detail="Produto não encontrado"
         )
     
     # 3. Extrai apenas os dados enviados na requisição (para atualização parcial)
@@ -126,15 +134,14 @@ def update_product_by_id(db: Session, id: int, product: ProdutoUpdate) -> Produt
             update_storage_data = product.estoque.model_dump(exclude_unset=True)
             
             # Itera sobre os dados do estoque
+            # (Aviso: 'key' e 'value' aqui sobrescrevem as do loop externo)
             for key, value in update_storage_data.items():
                 # Aplica a atualização no objeto SQLAlchemy 'product_to_update.estoque'
                 setattr(product_to_update.estoque, key, value)
         
-        # (Nota: Erro lógico de indentação aqui, 'else' está dentro do 'if')
+        # (Aviso: Indentação incorreta, este 'else' está ligado ao 'if key == "estoque"')
         else:
             setattr(product_to_update, key, value)
-            
-    # (Nota: Erro lógico de sobrescrita de 'key'/'value' do loop interno)
 
     # 6. Chama o CRUD para persistir as alterações (flush + refresh)
     return product_crud.update_product(db, product_to_update)
@@ -156,7 +163,7 @@ def delete_product_by_id(db: Session, product_id: int) -> None:
     if not existing_product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Produto nao encontrado"
+            detail="Produto não encontrado"
         )
     
     # 3. Delega a exclusão para a camada CRUD

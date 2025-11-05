@@ -28,7 +28,7 @@ router = APIRouter()
     "/cliente_pf",
     response_model=ClientePFRead, # Define o schema da resposta
     status_code=status.HTTP_201_CREATED, # Define o status code de sucesso
-    summary="Cria clientes para pessoa física" # Descrição para documentação
+    summary="Cria clientes para pessoa física"
 )
 def create_new_client_pf(
     client_pf: ClientePFCreate, # Valida o corpo da requisição com o schema
@@ -50,11 +50,11 @@ def create_new_client_pf(
         # Retorna o objeto do cliente criado, formatado pelo response_model
         return new_client_pf
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 409 Conflict)
-        print(f"Erro de negócio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro para o cliente
+        raise http_exce  # Relança o erro para o cliente
 
     except Exception as e:
         # Captura erros inesperados
@@ -73,7 +73,7 @@ def create_new_client_pf(
     "/cliente_pj",
     response_model=ClientePJRead, # Define o schema da resposta
     status_code=status.HTTP_201_CREATED, # Define o status code de sucesso
-    summary="Cria clientes para pessoa jurídica" # Descrição para documentação
+    summary="Cria clientes para pessoa jurídica"
 )
 # Nota: Nome da função está igual à anterior, idealmente seria diferente
 def create_new_client_pf(
@@ -96,11 +96,11 @@ def create_new_client_pf(
         # Retorna o objeto do cliente criado
         return new_client_pj
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 409 Conflict)
-        print(f"Erro de negócio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro para o cliente
+        raise http_exce  # Relança o erro para o cliente
 
     except Exception as e:
         # Captura erros inesperados
@@ -178,11 +178,11 @@ def update_client_by_id(
         # Retorna o cliente atualizado
         return edited_client
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negócio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro para o cliente
+        raise http_exce  # Relança o erro para o cliente
 
     except Exception as e:
         # Captura erros inesperados
@@ -198,7 +198,7 @@ def update_client_by_id(
 # =========================
 @router.delete(
     "/{id}", # ID do cliente vem da URL
-    status_code=status.HTTP_200_OK, # Define o status de sucesso
+    status_code=status.HTTP_204_NO_CONTENT, # Define o status de sucesso
     summary="Deleta um cliente do BD" # Descrição
 )
 def delete_client_by_id(
@@ -219,15 +219,12 @@ def delete_client_by_id(
         # Comita a transação se o serviço foi bem-sucedido
         db.commit()
 
-        # Retorna uma mensagem de sucesso
-        return {"response": "Cliente excluído com sucesso!"}
-
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negócio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro para o cliente
-
+        raise http_exce  # Relança o erro para o cliente
+    
     except Exception as e:
         # Captura erros inesperados
         print(f"Erro inesperado ao deletar cliente: {e}")

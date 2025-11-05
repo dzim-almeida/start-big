@@ -26,7 +26,7 @@ router = APIRouter()
     "/",
     response_model=ProdutoRead, # Define o schema da resposta (provavelmente aninhado)
     status_code=status.HTTP_201_CREATED, # Define o status code de sucesso
-    summary="Cria novos produtos" # Descrição para documentação
+    summary="Cria novos produtos"
 )
 def create_product(
     product: ProdutoCreate, # Valida o corpo da requisição com o schema
@@ -42,7 +42,7 @@ def create_product(
     try:
         # 1. TENTA EXECUTAR A LÓGICA DE NEGÓCIO
         # Delega a criação (Produto + Estoque) para a camada de serviço
-        new_product = product_service.create_product_service(db, product)
+        new_product = product_service.create_product(db, product)
 
         # 2. CAMINHO FELIZ: Se o serviço foi concluído sem erros,
         #    salva permanentemente o Produto e o Estoque no banco.
@@ -51,12 +51,12 @@ def create_product(
         # 3. Retorna o novo produto criado
         return new_product
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # 4A. CAMINHO TRISTE (Erro de Negócio):
         # Captura erros de negócio (ex: 409 Conflict, código duplicado)
-        print(f"Erro de negócio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro HTTP para o cliente
+        raise http_exce  # Relança o erro HTTP para o cliente
 
     except Exception as e:
         # 4B. CAMINHO TRISTE (Erro Inesperado):
@@ -75,7 +75,7 @@ def create_product(
     "/",
     response_model=list[ProdutoRead], # A resposta é uma lista de produtos
     status_code=status.HTTP_200_OK,
-    summary="Buscar produtos por nome ou codigo"
+    summary="Buscar produtos por nome ou código"
 )
 def get_product_by_search(
     # Define 'buscar' como um parâmetro de query (ex: /produtos/?buscar=...)
@@ -83,7 +83,7 @@ def get_product_by_search(
         ..., # Indica que o parâmetro é obrigatório
         min_length=1,
         max_length=255,
-        description="Entrada deve ser nome ou codigo do produto"
+        description="Entrada deve ser nome ou código do produto"
     ),
     token: dict = Depends(get_token), # Garante autenticação
     db: Session = Depends(get_db) # Injeta a sessão do banco
@@ -104,7 +104,7 @@ def get_product_by_search(
     "/{id}", # Recebe o ID do produto na URL
     response_model=ProdutoRead, # Retorna o produto atualizado
     status_code=status.HTTP_200_OK,
-    summary="Edita um produto existente atraves do ID"
+    summary="Edita um produto existente através do ID"
 )
 def put_product_by_id(
     # Extrai o ID da URL, valida se é um inteiro >= 1
@@ -135,16 +135,16 @@ def put_product_by_id(
         # Retorna o produto atualizado
         return(edited_product)
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negocio: {http_exec.detail}")
-        # NOTA DE FORMATAÇÃO: db.rollback() está faltando parênteses
-        db.rollback
-        raise http_exec
+        print(f"Erro de negócio: {http_exce.detail}") # Corrigido: 'negócio'
+        # CORREÇÃO: Adicionado parênteses ao rollback
+        db.rollback()
+        raise http_exce
 
     except Exception as e:
         # Captura erros inesperados
-        print(f"Erro inesperado ao criar produto: {e}") # Nota: Mensagem de erro copiada (deveria ser 'atualizar')
+        print(f"Erro inesperado ao atualizar produto: {e}") # Corrigido: 'atualizar'
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -156,14 +156,14 @@ def put_product_by_id(
 # =========================
 @router.delete(
     "/{id}",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_204_NO_CONTENT, # Define o status de sucesso
     summary="Exclui um produto pelo id"
 )
 def delete_product_by_id(
     # Extrai o ID da URL, valida se é um inteiro >= 1
     id: int = Path(
         ...,
-        description="ID do produto a ser excluido",
+        description="ID do produto a ser excluído",
         ge=1
     ),
     token: dict = Depends(get_token), # Garante autenticação
@@ -179,15 +179,12 @@ def delete_product_by_id(
         
         # Comita a transação se o serviço foi bem-sucedido
         db.commit()
-        
-        # Retorna uma mensagem de sucesso
-        return {"response": "Produto excluído com sucesso!"}
 
-    except HTTPException as http_exec:
+    except HTTPException as http_exce:
         # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negocio: {http_exec.detail}")
+        print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()  # Desfaz a transação
-        raise http_exec  # Relança o erro HTTP
+        raise http_exce  # Relança o erro HTTP
 
     except Exception as e:
         # Captura erros inesperados

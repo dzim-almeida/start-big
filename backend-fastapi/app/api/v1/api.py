@@ -10,6 +10,7 @@ from app.api.v1.endpoints import auth
 from app.api.v1.endpoints import cliente
 from app.api.v1.endpoints import usuario
 from app.api.v1.endpoints import produto
+from app.api.v1.endpoints import fornecedor
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -32,3 +33,7 @@ router.include_router(cliente.router, prefix="/clientes", tags=["Clientes"])
 # Inclui o roteador de produtos sob o prefixo /produtos
 # Endpoints de produtos serão acessados via /api/v1/produtos/...
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
+
+# Inclui o roteador de fornecedores sob o prefixo /fornecedores
+# Endpoints de fornecedores serão acessados via /api/v1/fornecedores/...
+router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Fornecedores"])

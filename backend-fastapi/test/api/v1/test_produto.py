@@ -350,7 +350,7 @@ def test_excluir_produto(client: TestClient, header_with_token: dict):
     exclude_response = client.delete(f"/api/v1/produtos/1", headers=header_with_token)
     
     # --- Assert 1: Verificar o Resultado da Deleção ---
-    assert exclude_response.status_code == 200 # Verifica se a deleção retornou 200 OK
+    assert exclude_response.status_code == 204 # Verifica se a deleção retornou 200 OK
     
     # --- Assert 2: Verificar se o Cliente Realmente Foi Deletado ---
     # Tenta buscar o produto pelo código que acabou de ser deletado

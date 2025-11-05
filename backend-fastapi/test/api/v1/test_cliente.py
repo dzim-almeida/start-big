@@ -261,6 +261,26 @@ def test_editar_cliente_com_usuario_logado(client: TestClient, header_with_token
     edited_client = data_search[0]
 
     edited_client["cpf"] = "65764352122"
+    edited_client["endereco"] = [
+        {
+            "bairro": "Novo Bairro",
+            "cep": "13011-000",
+            "cidade": "Campinas",
+            "estado": "SP",
+            "id": 1,
+            "logradouro": "Nova Rua",
+            "numero": "789"
+        },
+        {
+            "bairro": "Veneza",
+            "cep": "63504-360",
+            "cidade": "Iguatu",
+            "estado": "CE",
+            "id": None,
+            "logradouro": "Jose Ferreira Lima",
+            "numero": "27"
+        }
+    ]
 
     response_edit = client.put(f"/api/v1/clientes/{edited_client["id"]}", json=edited_client, headers=header_with_token)
     assert response_edit.status_code == status.HTTP_200_OK
@@ -296,7 +316,7 @@ def test_deletar_cliente_com_usuario_logado(client: TestClient, header_with_toke
     data_create = response_create.json()
 
     response_delete = client.delete(f"/api/v1/clientes/{data_create["id"]}", headers=header_with_token)
-    assert response_delete.status_code == status.HTTP_200_OK
+    assert response_delete.status_code == status.HTTP_204_NO_CONTENT
 
     client_cpf = "98765432101"
     response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)

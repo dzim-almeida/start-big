@@ -1,14 +1,15 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: services/endereco.py
 # DESCRIÇÃO: Camada de serviço com a lógica de negócio para Endereços.
-#            (Atualmente contém uma função utilitária para conversão)
+#            Contém funções utilitárias para criação e atualização
+#            de endereços polimórficos.
 # ---------------------------------------------------------------------------
 
-from app.schemas.endereco import Endereco # Importa o schema Pydantic 'Endereco'
-from app.db.models.endereco import Endereco as EnderecoModel # Importa o modelo SQLAlchemy 'EnderecoModel'
+from app.schemas.endereco import Endereco, EnderecoUpdate # Importa os schemas Pydantic
+from app.db.models.endereco import Endereco as EnderecoModel # Importa o modelo SQLAlchemy
 from app.core.enum import State, EntityType # Importa os Enums necessários
 
-def address_client_to_db(id_entity: int, type_entity: EntityType, address_client: list[Endereco]) -> list[EnderecoModel]:
+def address_to_db(id_entity: int, type_entity: EntityType, address_client: list[Endereco]) -> list[EnderecoModel]:
     """
     Converte uma lista de schemas Pydantic 'Endereco' em uma lista
     de modelos SQLAlchemy 'EnderecoModel', vinculando-os a uma entidade.
@@ -39,3 +40,42 @@ def address_client_to_db(id_entity: int, type_entity: EntityType, address_client
     ]
     # Retorna a lista de modelos SQLAlchemy
     return new_address_client_to_db
+
+def update_address_in_db(address_in_db: list[EnderecoModel], address_update: list[EnderecoUpdate], id_entity: int, type_entity: EntityType) -> list[EnderecoModel]:
+    """
+    Atualiza uma lista de objetos EnderecoModel (do banco) com dados
+    de uma lista de schemas EnderecoUpdate (do payload).
+
+    Esta função implementa uma lógica de "find-and-update" baseada no ID.
+    (Nota: Não lida com a criação de novos ou deleção de antigos,
+     apenas atualiza os existentes que são passados.)
+
+    Args:
+        address_in_db (list[EnderecoModel]): A lista de endereços
+                                             existentes no banco (objetos SQLAlchemy).
+        address_update (list[EnderecoUpdate]): A lista de dados de atualização
+                                               (objetos Pydantic).
+
+    Returns:
+        list[EnderecoModel]: A lista de objetos SQLAlchemy 'address_in_db'
+                             com os atributos modificados.
+    """
+    # Itera sobre a lista de objetos de atualização do Pydantic
+    for address in address_update:
+        # Converte o objeto Pydantic em um dicionário, excluindo campos não enviados
+        address_data = address.model_dump(exclude_unset=True)
+        # Garante que temos um ID para fazer a correspondência
+        if address_data["id"] is not None:
+            # Itera sobre a lista de objetos do banco
+            for db_address in address_in_db:
+                # Encontra o endereço correspondente pelo ID
+                if db_address.id == address_data.get("id"):
+                    # Itera sobre os campos enviados no payload de atualização
+                    for key, value in address_data.items():
+                        # Atualiza o atributo no objeto SQLAlchemy
+                        setattr(db_address, key, value)
+        elif address_data["id"] is None:
+            new_address = address_to_db(id_entity, type_entity, [address])
+            address_in_db.append(new_address[0])
+    # Retorna a lista de objetos do banco, agora modificada
+    return address_in_db

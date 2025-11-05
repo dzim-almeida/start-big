@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: endereco.py
 # DESCRIÇÃO: Schemas Pydantic para validação de dados de Endereço.
-#            Define as estruturas de entrada (Endereco) e saída (EnderecoRead).
+#            Define as estruturas de entrada (Endereco), saída (EnderecoRead)
+#            e atualização (EnderecoUpdate).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, Field
@@ -45,11 +46,48 @@ class EnderecoRead(Endereco):
     # Campo 'id_entidade' da relação polimórfica
     id_entidade: int = Field(
         ...,
-        description="Id da entidade (ex: Cliente ID) à qual o endereço pertence"
+        description="ID da entidade (ex: Cliente ID) à qual o endereço pertence"
     )
     
     # Campo 'tipo_entidade' da relação polimórfica
-    tipo_entidade: str = Field( # Nota: Poderia usar o Enum EntityType aqui (ex: tipo_entidade: EntityType = Field(...))
+    tipo_entidade: str = Field( # Nota: Poderia usar o Enum EntityType aqui
         ...,
         description="Tipo da entidade (ex: CLIENTE, FORNECEDOR)"
+    )
+
+# =========================
+# Schema Pydantic: EnderecoUpdate (Atualização)
+# =========================
+class EnderecoUpdate(BaseModel):
+    """
+    Schema para atualizar um Endereço existente.
+    Todos os campos são opcionais, permitindo atualizações parciais.
+    
+    O 'id' é obrigatório para identificar qual endereço na lista deve ser
+    atualizado (lógica a ser implementada no serviço).
+    """
+    id: Optional[int] = Field(
+        None,
+        description="ID do endereço a ser atualizado"
+    )
+    logradouro: Optional[str] = Field(
+        None, max_length=255, description="Logradouro do endereço"
+    )
+    numero: Optional[str] = Field(
+        None, max_length=20, description="Número do endereço"
+    )
+    bairro: Optional[str] = Field(
+        None, max_length=100, description="Bairro do endereço"
+    )
+    cidade: Optional[str] = Field(
+        None, max_length=100, description="Cidade do endereço"
+    )
+    estado: Optional[State] = Field(
+        None, description="Estado do endereço (UF)"
+    )
+    cep: Optional[str] = Field(
+        None, max_length=10, description="CEP do endereço"
+    )
+    complemento: Optional[str] = Field(
+        None, max_length=100, description="Complemento do endereço"
     )
