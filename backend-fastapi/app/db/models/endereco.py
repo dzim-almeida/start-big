@@ -4,8 +4,8 @@
 #            os endereços vinculados a diferentes entidades (ex: Clientes).
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Integer, String, Index, and_
+from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from sqlalchemy.sql.sqltypes import Enum as SQLAlchemyEnum
 
 from app.db.base import Base
@@ -23,14 +23,16 @@ class Endereco(Base):
     __tablename__ = "enderecos"
 
     # Chave primária da tabela de endereços
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, doc="ID único do endereço (Chave primária)")
 
     # --- Colunas para Relação Polimórfica ---
-    # Armazena o ID da entidade (ex: ID do cliente)
-    id_entidade: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Armazena o ID da entidade (ex: ID do cliente, ID do fornecedor)
+    id_entidade: Mapped[int] = mapped_column(Integer, nullable=False, doc="ID da entidade proprietária deste endereço")
     # Armazena o tipo da entidade (ex: 'CLIENTE' ou 'FORNECEDOR')
-    tipo_entidade: Mapped[EntityType] = mapped_column(SQLAlchemyEnum(EntityType), nullable=False)
-    # (Nota: O 'backref' do modelo Cliente criará um atributo 'cliente' aqui)
+    tipo_entidade: Mapped[EntityType] = mapped_column(SQLAlchemyEnum(EntityType), nullable=False, doc="Tipo da entidade proprietária (ex: CLIENTE)")
+    
+    # (Nota: Os relacionamentos em Cliente/Fornecedor criarão os
+    # atributos 'cliente' e 'fornecedor' aqui através do 'overlaps')
 
     # --- Campos de endereço ---
     logradouro: Mapped[str] = mapped_column(String(255), nullable=False, doc="Nome da rua, avenida, etc.")
@@ -40,3 +42,13 @@ class Endereco(Base):
     cidade: Mapped[str] = mapped_column(String(100), nullable=False, doc="Cidade")
     estado: Mapped[State] = mapped_column(SQLAlchemyEnum(State), nullable=False, doc="Estado (UF)")
     cep: Mapped[str] = mapped_column(String(10), nullable=False, doc="CEP")
+    
+    # --- Índice Otimizado ---
+    # (Permite múltiplos endereços por entidade, otimizando a busca)
+    __table_args__ = (
+        Index(
+            "idx_entidade_tipo", # Nome do índice
+            "id_entidade",       # Coluna 1 do índice
+            "tipo_entidade"      # Coluna 2 do índice
+        ),
+    )

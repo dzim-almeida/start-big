@@ -7,24 +7,24 @@
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Sequence # Importação para type hint de lista
 
 # Importa os modelos ORM necessários
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-from app.db.models.endereco import Endereco as EnderecoModel
 # Importa os schemas Pydantic de entrada/atualização
 from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePFUpdate, ClientePJCreate, ClientePJUpdate
 # Importa a camada de acesso a dados (CRUD)
 from app.db.crud import cliente as client_crud
 # Importa o serviço de endereço para reutilização da lógica
-from app.services import endereco as endereco_service
+from app.services import endereco as address_service
 # Importa os Enums para conversão de tipo
-from app.core.enum import State, Gender, EntityType
+from app.core.enum import Gender, EntityType
 
 
 # =========================
 # Serviço: Criar Cliente PF
 # =========================
-def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
+def create_client_pf(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
     """
     Serviço para criar um novo cliente Pessoa Física completo.
 
@@ -34,16 +34,6 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
     3. Persiste o cliente no banco (para obter o ID).
     4. Chama o serviço de endereço para criar e vincular os endereços.
     5. Retorna o cliente completo.
-
-    Args:
-        db (Session): A sessão do banco de dados.
-        new_client_pf (ClientePFCreate): Os dados validados do novo cliente PF.
-
-    Raises:
-        HTTPException: 409 (Conflict) se o CPF já existir.
-
-    Returns:
-        ClientePFModel: O objeto do cliente recém-criado, completo com IDs e endereços.
     """
 
     # 1. REGRA DE NEGÓCIO: Verificar se o CPF já existe
@@ -76,7 +66,7 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
     # 4. PREPARA E VINCULA OS ENDEREÇOS
     # Chama o serviço de endereço para criar as instâncias de EnderecoModel
     # passando o ID recém-criado e o tipo da entidade.
-    new_address_client_to_db = endereco_service.address_client_to_db(
+    new_address_client_to_db = address_service.address_to_db(
         new_client_pf_in_db.id, # O ID obtido do passo 3
         EntityType.CLIENTE,
         new_client_pf.endereco # A lista de schemas Pydantic de endereço
@@ -93,7 +83,7 @@ def create_client_pf_service(db: Session, new_client_pf: ClientePFCreate) -> Cli
 # =========================
 # Serviço: Criar Cliente PJ
 # =========================
-def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
+def create_client_pj(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
     """
     Serviço para criar um novo cliente Pessoa Jurídica completo.
 
@@ -132,7 +122,7 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
 
     # 4. PREPARA E VINCULA OS ENDEREÇOS
     # Chama o serviço de endereço reutilizado
-    new_address_client_to_db = endereco_service.address_client_to_db(
+    new_address_client_to_db = address_service.address_to_db(
         new_client_pj_in_db.id,
         EntityType.CLIENTE,
         new_client_pj.endereco
@@ -148,8 +138,8 @@ def create_client_pj_service(db: Session, new_client_pj: ClientePJCreate) -> Cli
 # =========================
 # Serviço: Buscar Clientes
 # =========================
-# (Atenção: A assinatura de retorno 'ClienteModel' pode estar incorreta,
-#  o CRUD retorna uma lista. Mantida conforme o original.)
+# (Nota: O tipo de retorno 'ClienteModel' está inconsistente com
+#  a implementação do CRUD, que retorna uma lista)
 def get_client_by_search(db: Session, search: str) -> ClienteModel:
     """
     Busca clientes (PF ou PJ) de forma polimórfica usando a camada CRUD.
@@ -195,19 +185,14 @@ def update_client_by_id(db: Session, id: int, client: ClienteUpdate) -> ClienteM
         
         # 4. Tratamento especial para atualizar/substituir a lista de endereços
         if "endereco" in update_data and update_data["endereco"] is not None:
-            # Limpa a coleção de endereços existente na memória
-            # (Se cascade='delete-orphan', os antigos serão deletados no commit)
-            update_client.endereco.clear()
-
-            # Chama o serviço de endereço reutilizado para criar as novas instâncias
-            edit_address_client_to_db = endereco_service.address_client_to_db(
+            # Chama o serviço de endereço para lidar com a atualização da lista
+            updated_addresses = address_service.update_address_in_db(
+                update_client.endereco, # Lista de endereços do banco
+                client.endereco,        # Lista de dados de atualização do schema
                 update_client.id,
-                EntityType.CLIENTE,
-                client.endereco # A lista de schemas Pydantic de endereço vinda do payload
+                EntityType.CLIENTE         
             )
-
-            # Atribui a nova lista de objetos EnderecoModel à relação
-            update_client.endereco = edit_address_client_to_db
+            update_client.endereco = updated_addresses
 
         # 5. Chama o CRUD para persistir as alterações (flush + refresh)
         return client_crud.update_client_in_db(db, update_client)
@@ -223,19 +208,14 @@ def update_client_by_id(db: Session, id: int, client: ClienteUpdate) -> ClienteM
 
         # 4. Tratamento especial para atualizar/substituir a lista de endereços
         if "endereco" in update_data and update_data["endereco"] is not None:
-
-                # Limpa a coleção de endereços existente na memória
-                update_client.endereco.clear()
-
-                # Chama o serviço de endereço reutilizado
-                edit_address_client_to_db = endereco_service.address_client_to_db(
-                    update_client.id,
-                    EntityType.CLIENTE,
-                    client.endereco
-                )
-
-                # Atribui a nova lista de objetos EnderecoModel à relação
-                update_client.endereco = edit_address_client_to_db
+            # Chama o serviço de endereço para lidar com a atualização da lista
+            updated_addresses = address_service.update_address_in_db(
+                update_client.endereco, # Lista de endereços do banco
+                client.endereco,         # Lista de dados de atualização do schema
+                update_client.id,
+                EntityType.CLIENTE
+            )
+            update_client.endereco = updated_addresses
 
         # 5. Chama o CRUD para persistir as alterações (flush + refresh)
         return client_crud.update_client_in_db(db, update_client)
@@ -263,7 +243,4 @@ def delete_client_by_id(db: Session, id: int) -> bool:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
 
     # 3. Delega a exclusão para a camada CRUD
-    client_crud.delete_client_by_id(db, existing_client)
-    
-    # Retorna True para indicar sucesso na chamada do serviço
-    return True
+    return client_crud.delete_client_by_id(db, existing_client)

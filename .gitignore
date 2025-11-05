@@ -26,3 +26,4 @@ pdv.db
 # Isso deve ser coberto por *.pyc e __pycache__
 .pytest_cache/
 backend-fastapi/pdv.db
+backend-fastapi/nota.txt

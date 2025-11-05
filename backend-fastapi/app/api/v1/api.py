@@ -5,11 +5,17 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter
-from app.api.v1.endpoints import reset_bd, auth, cliente, usuario
+from app.api.v1.endpoints import reset_bd
+from app.api.v1.endpoints import auth
+from app.api.v1.endpoints import cliente
+from app.api.v1.endpoints import usuario
+from app.api.v1.endpoints import produto
+from app.api.v1.endpoints import fornecedor
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
 
+# Endpoint utilitário para resetar o banco de dados (provavelmente para testes)
 router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
 
 # Inclui o roteador de usuários sob o prefixo /usuarios
@@ -23,3 +29,11 @@ router.include_router(auth.router, prefix="/auth", tags=["Login"])
 # Inclui o roteador de clientes sob o prefixo /clientes
 # Endpoints de clientes serão acessados via /api/v1/clientes/...
 router.include_router(cliente.router, prefix="/clientes", tags=["Clientes"])
+
+# Inclui o roteador de produtos sob o prefixo /produtos
+# Endpoints de produtos serão acessados via /api/v1/produtos/...
+router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
+
+# Inclui o roteador de fornecedores sob o prefixo /fornecedores
+# Endpoints de fornecedores serão acessados via /api/v1/fornecedores/...
+router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Fornecedores"])

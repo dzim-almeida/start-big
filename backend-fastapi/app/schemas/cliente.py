@@ -9,9 +9,9 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Annotated, Union, Literal
 # Importa Enums necessários
-from app.core.enum import Gender, ClientType
+from app.core.enum import Gender, ClientType, State # Importado State (via Endereco)
 # Importa schemas de Endereço
-from app.schemas.endereco import Endereco, EnderecoRead
+from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
 # =========================
 # Schema Pydantic: ClienteBase
@@ -123,7 +123,7 @@ class ClientePFRead(ClientePFCreate):
     # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
     endereco: Optional[List[EnderecoRead]] = Field(
         None,
-        description="Endereco do cliente"
+        description="Endereço(s) do cliente"
     )
 
 class ClientePFUpdate(ClienteBase):
@@ -162,6 +162,11 @@ class ClientePFUpdate(ClienteBase):
         None,
         description="Nova data de nascimento do cliente"
     )
+    # Na atualização, espera uma lista de schemas 'EnderecoUpdate' (com ID)
+    endereco: Optional[List[EnderecoUpdate]] = Field(
+        None,
+        description="Endereço(s) do cliente"
+    )
 
     # Exemplo para documentação OpenAPI (Swagger) mostrando atualização parcial
     model_config = ConfigDict(
@@ -172,18 +177,17 @@ class ClientePFUpdate(ClienteBase):
                 "email": "joao.silva.novo@meu-pdv.com",
                 "contato": "11988887777",
                 "observacoes": "Cliente VIP.",
-                "endereco": [ # Exemplo: substituindo a lista de endereços
+                "endereco": [ # Exemplo: atualizando um endereço existente
                     {
+                        "id": 1, # ID do endereço a ser atualizado
                         "logradouro": "Nova Rua",
                         "numero": "789",
-                        "complemento": None,
                         "bairro": "Novo Bairro",
                         "cidade": "Campinas",
                         "estado": "SP",
                         "cep": "13011-000"
                     }
                 ]
-                # CPF, RG, genero, data_nascimento não enviados = não alterados
             }
         }
     )
@@ -204,7 +208,7 @@ class ClientePJCreate(ClienteBase):
     cnpj: str = Field(
         ..., # Obrigatório
         pattern=r"^\d{14}$", # Validação de formato (14 dígitos numéricos)
-        description="CPNJ com 14 dígitos"
+        description="CNPJ com 14 dígitos"
     )
     nome_fantasia: str = Field(
         ..., # Obrigatório
@@ -269,7 +273,7 @@ class ClientePJRead(ClientePJCreate):
     # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
     endereco: Optional[List[EnderecoRead]] = Field(
         None,
-        description="Endereco do cliente"
+        description="Endereço(s) do cliente"
     )
 
 class ClientePJUpdate(ClienteBase):
@@ -308,6 +312,11 @@ class ClientePJUpdate(ClienteBase):
         None,
         max_length=255,
         description="Novo nome do responsável pela empresa"
+    )
+    # Na atualização, espera uma lista de schemas 'EnderecoUpdate' (com ID)
+    endereco: Optional[List[EnderecoUpdate]] = Field(
+        None,
+        description="Endereço(s) do cliente"
     )
 
     # Exemplo para documentação OpenAPI (Swagger) mostrando atualização parcial

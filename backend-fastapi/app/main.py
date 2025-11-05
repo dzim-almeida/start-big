@@ -10,6 +10,9 @@ from app.db.models.usuario import Usuario
 from app.db.models.cliente import Cliente, ClientePF
 from app.db.models.endereco import Endereco
 from app.db.models.token import TokenBlocklist
+from app.db.models.produto import Produto
+from app.db.models.estoque import Estoque
+from app.db.models.fornecedor import Fornecedor
 
 Base.metadata.create_all(bind=engine)
 

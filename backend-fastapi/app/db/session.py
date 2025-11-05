@@ -4,9 +4,25 @@
 #            gerador de sessão para ser usado como dependência no FastAPI.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings # <-- Importa a instância das configurações
+
+# --- INÍCIO DA MUDANÇA ---
+# Precisamos do 'Engine' do SQLAlchemy para adicionar o listener
+from sqlalchemy.engine import Engine
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """
+    Força a verificação de chaves estrangeiras no SQLite.
+    Isso não afeta outros bancos de dados como PostgreSQL ou MySQL.
+    """
+    if dbapi_connection.__class__.__module__ == "sqlite3":
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+# --- FIM DA MUDANÇA ---
 
 # 1. CRIAÇÃO DA ENGINE
 # A 'engine' é o ponto central de comunicação com o banco de dados.
