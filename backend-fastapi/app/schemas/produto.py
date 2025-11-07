@@ -81,7 +81,7 @@ class ProdutoCreate(BaseModel):
                 "nota_fiscal": "1004.22.99",
                 "categoria": "Bebidas",
                 "marca": "Fazenda Boa Vista",
-                "id_fornecedor": 5,
+                "id_fornecedor": 1,
                 # Objeto de estoque aninhado
                 "estoque": {
                     "valor_varejo": 2999,

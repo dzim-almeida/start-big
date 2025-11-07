@@ -7,7 +7,6 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from starlette import status # Boa prática para usar status codes nominais
 
 from app.db.models.usuario import Usuario as UsuarioModel
 from app.core.security import hash_password
