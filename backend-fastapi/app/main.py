@@ -13,6 +13,7 @@ from app.db.models.token import TokenBlocklist
 from app.db.models.produto import Produto
 from app.db.models.estoque import Estoque
 from app.db.models.fornecedor import Fornecedor
+from app.db.models.servico import Servico
 
 Base.metadata.create_all(bind=engine)
 
