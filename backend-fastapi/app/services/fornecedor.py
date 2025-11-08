@@ -70,6 +70,23 @@ def create_supplier(db: Session, supplier: FornecedorCreate) -> FornecedorModel:
     return new_supplier_in_db
 
 # =========================
+# Serviço: Buscar TODOS os Fornecedores
+# =========================
+def get_all_suppliers(db: Session) -> Sequence[FornecedorModel]:
+    """
+    Busca TODOS os fornecedores cadastrados no banco de dados.
+    (Apenas delega a chamada para a camada CRUD).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[FornecedorModel]: Uma lista (sequência) de todos os fornecedores.
+    """
+    suppliers_in_db = supplier_crud.get_all_suppliers(db)
+    return suppliers_in_db
+
+# =========================
 # Serviço: Buscar Fornecedores
 # =========================
 def get_supplier_by_search(db: Session, supplier_search: str) -> list[FornecedorModel]:

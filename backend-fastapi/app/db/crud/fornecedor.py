@@ -32,6 +32,21 @@ def get_supplier_by_id(db: Session, supplier_id: int) -> FornecedorModel:
     supplier_in_db = db.scalars(stmt).first()
     return supplier_in_db
 
+def get_all_suppliers(db: Session) -> Sequence[FornecedorModel]:
+    """
+    Busca TODOS os fornecedores cadastrados no banco de dados.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[FornecedorModel]: Uma lista (sequência) de todos os fornecedores.
+    """
+    # Constrói a query: SELECT * FROM fornecedor
+    stmt = select(FornecedorModel)
+    # Executa a query e retorna todos os resultados
+    suppliers_in_db = db.scalars(stmt).all()
+    return suppliers_in_db
 
 def get_supplier_by_cnpj(db: Session, supplier_cnpj: str) -> FornecedorModel:
     """

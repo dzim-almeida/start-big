@@ -6,11 +6,39 @@
 
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import select, or_
+from typing import Sequence
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
 
 def get_client_by_id(db: Session, id: int) -> ClienteModel | None:
+    """
+    Busca um cliente (base, PF ou PJ) pelo seu ID (chave primária).
+    (Utiliza a sintaxe legada do .query())
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        id (int): O ID do cliente a ser buscado.
+
+    Returns:
+        ClienteModel | None: O objeto do cliente se encontrado, caso contrário None.
+    """
     return db.query(ClienteModel).filter(ClienteModel.id == id).first()
+
+def get_all_clients(db: Session) -> Sequence[ClienteModel]:
+    """
+    Busca TODOS os clientes cadastrados no banco de dados.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ClienteModel]: Uma lista (sequência) de todos os clientes.
+    """
+    # Constrói a query: SELECT * FROM cliente
+    stmt = select(ClienteModel)
+    # Executa a query e retorna todos os resultados
+    clients_in_db = db.scalars(stmt).all()
+    return clients_in_db
 
 def get_client_by_cpf(db: Session, cpf: str) -> ClientePFModel | None:
     """
@@ -134,10 +162,32 @@ def create_client_pj(db: Session, new_client: ClientePJModel) -> ClientePJModel:
     return new_client
 
 def update_client_in_db(db: Session, update_client: ClienteModel) -> ClienteModel:
+    """
+    Persiste as alterações feitas em um objeto Cliente na sessão.
+    (Usado pela camada de serviço após a modificação dos dados).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        update_client (ClienteModel): O objeto Cliente modificado.
+
+    Returns:
+        ClienteModel: O objeto Cliente atualizado do banco.
+    """
+    # Envia os UPDATEs para o DB (mas não comita)
     db.flush()
+    # Atualiza o objeto Python com dados do DB (ex: triggers)
     db.refresh(update_client)
     return update_client
 
 def delete_client_by_id(db: Session, delete_cliet: ClienteModel) -> None:
+    """
+    Marca um cliente para exclusão na sessão do banco de dados.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+        delete_cliet (ClienteModel): O objeto a ser deletado.
+    """
+    # Marca o objeto para ser deletado
     db.delete(delete_cliet)
+    # Envia o comando DELETE para o banco (mas não comita)
     db.flush()

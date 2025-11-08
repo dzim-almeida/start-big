@@ -6,6 +6,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
+from typing import Sequence
 
 from app.core.depends import get_token
 from app.db.session import get_db
@@ -62,11 +63,33 @@ def create_supplier(
         )
 
 # =========================
-# Endpoint: Buscar Fornecedores
+# Endpoint: Buscar TODOS os Fornecedores
+# =========================
+@router.get(
+    "/a",
+    response_model=Sequence[FornecedorRead],
+    status_code=status.HTTP_200_OK,
+    summary="Retorna todos os fornecedores cadastrados"
+)
+def get_all_suppliers(
+    token: dict = Depends(get_token), # Garante autenticação
+    db: Session = Depends(get_db) # Injeta a sessão do banco
+):
+    """
+    Endpoint para buscar TODOS os fornecedores cadastrados no sistema.
+    (Nota: Rota de utilidade, sem paginação)
+    """
+    # Delega a busca para a camada de serviço
+    suppliers_in_db = supplier_service.get_all_suppliers(db)
+    # Retorna a lista de fornecedores
+    return suppliers_in_db
+
+# =========================
+# Endpoint: Buscar Fornecedores (Search)
 # =========================
 @router.get(
     "/",
-    response_model=list[FornecedorRead], # A resposta é uma lista de fornecedores
+    response_model=Sequence[FornecedorRead], # A resposta é uma lista de fornecedores
     status_code=status.HTTP_200_OK,
     summary="Buscar os fornecedores por nome ou CNPJ"
 )

@@ -82,6 +82,23 @@ def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
     return product_in_db
 
 # =========================
+# Serviço: Buscar TODOS os Produtos
+# =========================
+def get_all_products(db: Session) -> Sequence[ProdutoModel]:
+    """
+    Busca TODOS os produtos cadastrados no banco de dados.
+    (Apenas delega a chamada para a camada CRUD).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ProdutoModel]: Uma lista (sequência) de todos os produtos.
+    """
+    products_in_db = product_crud.get_all_products(db)
+    return products_in_db
+
+# =========================
 # Serviço: Buscar Produtos
 # =========================
 def get_product_by_search(db: Session, search_product: str) -> list[ProdutoModel]:

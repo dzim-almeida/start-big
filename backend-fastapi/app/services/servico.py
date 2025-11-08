@@ -59,6 +59,23 @@ def create_service(db: Session, service: ServicoCreate) -> ServicoModel:
     return new_service_in_db
 
 # =========================
+# Serviço: Buscar TODOS os Serviços
+# =========================
+def get_all_services(db: Session) -> Sequence[ServicoModel]:
+    """
+    Busca TODOS os serviços cadastrados no banco de dados.
+    (Apenas delega a chamada para a camada CRUD).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ServicoModel]: Uma lista (sequência) de todos os serviços.
+    """
+    services_in_db = service_crud.get_all_services(db)
+    return services_in_db
+
+# =========================
 # SERVIÇO: Buscar Serviços (Search)
 # =========================
 def get_service_by_search(db: Session, search: str) -> Sequence[ServicoModel]:

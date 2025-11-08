@@ -33,6 +33,21 @@ def get_service_by_id(db: Session, id: int) -> ServicoModel | None:
     service_in_db = db.scalars(stmt).first()
     return service_in_db
 
+def get_all_services(db: Session) -> Sequence[ServicoModel]:
+    """
+    Busca TODOS os serviços cadastrados no banco de dados.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ServicoModel]: Uma lista (sequência) de todos os serviços.
+    """
+    # Constrói a query: SELECT * FROM servicos
+    stmt = select(ServicoModel)
+    # Executa a query e retorna todos os resultados
+    services_in_db = db.scalars(stmt).all()
+    return services_in_db
 
 # =========================
 # READ: Buscar por Termo (Search)

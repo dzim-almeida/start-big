@@ -56,6 +56,22 @@ def get_product_by_id(db: Session, product_id: int) -> ProdutoModel:
     product = db.scalars(stmt).first()
     return product
 
+def get_all_products(db: Session) -> Sequence[ProdutoModel]:
+    """
+    Busca TODOS os produtos cadastrados no banco de dados.
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ProdutoModel]: Uma lista (sequência) de todos os produtos.
+    """
+    # Constrói a query: SELECT * FROM produto
+    stmt = select(ProdutoModel)
+    # Executa a query e retorna todos os resultados
+    products_in_db = db.scalars(stmt).all()
+    return products_in_db
+
 
 def get_product_by_code(db: Session, product_code: str) -> ProdutoModel:
     """

@@ -6,6 +6,7 @@
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Path
 from sqlalchemy.orm import Session
+from typing import Sequence
 
 # Importa os schemas necessários para entrada (Create/Update) e saída (Read)
 from app.schemas.cliente import ClienteRead, ClienteUpdate
@@ -111,9 +112,30 @@ def create_new_client_pf(
             detail="Ocorreu um erro interno no servidor."
         )
 
+# =========================
+# Endpoint: Buscar TODOS os Clientes
+# =========================
+@router.get(
+    "/a",
+    response_model=Sequence[ClienteRead],
+    status_code=status.HTTP_200_OK,
+    summary="Retorna todos os clientes cadastrados"
+)
+def get_all_clients(
+    token: dict = Depends(get_token), # Garante autenticação
+    db: Session = Depends(get_db) # Injeta a sessão do banco
+):
+    """
+    Endpoint para buscar TODOS os clientes cadastrados no sistema.
+    (Nota: Rota de utilidade, sem paginação)
+    """
+    # Delega a busca para a camada de serviço
+    clients_in_db = client_service.get_all_clients(db)
+    # Retorna a lista de clientes
+    return clients_in_db
 
 # =========================
-# Endpoint: Buscar Clientes
+# Endpoint: Buscar Clientes (Search)
 # =========================
 @router.get(
     "/",

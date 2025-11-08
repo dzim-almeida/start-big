@@ -64,11 +64,33 @@ def create_service(
         )
 
 # =========================
-# Endpoint: Buscar Serviços
+# Endpoint: Buscar TODOS os Serviços
+# =========================
+@router.get(
+    "/a",
+    response_model=Sequence[ServicoRead],
+    status_code=status.HTTP_200_OK,
+    summary="Retorna todos os serviços cadastrados" # <-- Corrigido
+)
+def get_all_services(
+    token: dict = Depends(get_token), # Garante autenticação
+    db: Session = Depends(get_db) # Injeta a sessão do banco
+):
+    """
+    Endpoint para buscar TODOS os serviços cadastrados no sistema.
+    (Nota: Rota de utilidade, sem paginação)
+    """
+    # Delega a busca para a camada de serviço
+    services_in_db = service_services.get_all_services(db)
+    # Retorna a lista de serviços
+    return services_in_db
+
+# =========================
+# Endpoint: Buscar Serviços (Search)
 # =========================
 @router.get(
     "/",
-    response_model=list[ServicoRead], # A resposta é uma lista de serviços
+    response_model=Sequence[ServicoRead], # A resposta é uma lista de serviços
     status_code=status.HTTP_200_OK,
     summary="Buscar um serviço através da descrição."
 )

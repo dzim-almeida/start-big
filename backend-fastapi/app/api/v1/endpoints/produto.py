@@ -6,6 +6,7 @@
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query, Path
 from sqlalchemy.orm import Session
+from typing import Sequence
 
 # Importa os schemas Pydantic de entrada (Create/Update) e saída (Read)
 from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoUpdate
@@ -69,7 +70,29 @@ def create_product(
         )
     
 # =========================
-# Endpoint: Buscar Produtos
+# Endpoint: Buscar TODOS os Produtos
+# =========================
+@router.get(
+    "/a",
+    response_model=Sequence[ProdutoRead],
+    status_code=status.HTTP_200_OK,
+    summary="Retorna todos os produtos cadastrados"
+)
+def get_all_products(
+    token: dict = Depends(get_token), # Garante autenticação
+    db: Session = Depends(get_db) # Injeta a sessão do banco
+):
+    """
+    Endpoint para buscar TODOS os produtos cadastrados no sistema.
+    (Nota: Rota de utilidade, sem paginação)
+    """
+    # Delega a busca para a camada de serviço
+    products_in_db = product_service.get_all_products(db)
+    # Retorna a lista de produtos
+    return products_in_db
+
+# =========================
+# Endpoint: Buscar Produtos (Search)
 # =========================
 @router.get(
     "/",

@@ -134,6 +134,22 @@ def create_client_pj(db: Session, new_client_pj: ClientePJCreate) -> ClientePJMo
     # 5. RETORNA O OBJETO PERSISTIDO
     return new_client_pj_in_db
 
+# =========================
+# Serviço: Buscar TODOS os Clientes
+# =========================
+def get_all_clients(db: Session) -> Sequence[ClienteModel]:
+    """
+    Busca TODOS os clientes cadastrados no banco de dados.
+    (Apenas delega a chamada para a camada CRUD).
+
+    Args:
+        db (Session): A sessão do banco de dados.
+
+    Returns:
+        Sequence[ClienteModel]: Uma lista (sequência) de todos os clientes.
+    """
+    clients_in_db = client_crud.get_all_clients(db)
+    return clients_in_db
 
 # =========================
 # Serviço: Buscar Clientes
@@ -190,7 +206,7 @@ def update_client_by_id(db: Session, id: int, client: ClienteUpdate) -> ClienteM
                 update_client.endereco, # Lista de endereços do banco
                 client.endereco,        # Lista de dados de atualização do schema
                 update_client.id,
-                EntityType.CLIENTE         
+                EntityType.CLIENTE
             )
             update_client.endereco = updated_addresses
 
