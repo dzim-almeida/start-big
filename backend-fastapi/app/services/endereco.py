@@ -4,10 +4,13 @@
 #            Contém funções utilitárias para criação e atualização
 #            de endereços polimórficos.
 # ---------------------------------------------------------------------------
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.schemas.endereco import Endereco, EnderecoUpdate # Importa os schemas Pydantic
 from app.db.models.endereco import Endereco as EnderecoModel # Importa o modelo SQLAlchemy
 from app.core.enum import State, EntityType # Importa os Enums necessários
+from app.db.crud import endereco as address_crud
 
 def address_to_db(id_entity: int, type_entity: EntityType, address_client: list[Endereco]) -> list[EnderecoModel]:
     """
@@ -79,3 +82,35 @@ def update_address_in_db(address_in_db: list[EnderecoModel], address_update: lis
             address_in_db.append(new_address[0])
     # Retorna a lista de objetos do banco, agora modificada
     return address_in_db
+
+def delete_address_in_db(db: Session, address_id: int, entity_id: int, entity_type: EntityType):
+    """
+    Serviço para deletar um Endereço pelo seu ID de forma segura.
+
+    Implementa a lógica de negócio:
+    1. Busca o endereço pelo ID.
+    2. Verifica se o endereço foi encontrado (404).
+    3. Verifica se o endereço pertence à entidade correta (403).
+    4. Delega a exclusão para o CRUD.
+    """
+    # 1. Busca o endereço existente no banco
+    address_in_db = address_crud.get_address_by_id(db, address_id)
+    
+    # 2. Verifica se o endereço foi encontrado
+    if not address_in_db:
+        # Lança erro 404 se não encontrado
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endereço não encontrado."
+        )
+        
+    # 3. Verifica se o endereço pertence à entidade fornecida (Regra de Segurança)
+    if (address_in_db.id_entidade != entity_id or address_in_db.tipo_entidade != entity_type):
+        # Lança erro 403 (Proibido) se o endereço não pertencer
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Endereço não pertece à entidade fornecida."
+        )
+        
+    # 4. Delega a exclusão para a camada CRUD
+    address_crud.delete_address_by_id(db, address_in_db)
