@@ -1,10 +1,9 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Sequence
 
 
 from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
-# Importe a classe de Enumeração para a Unidade de Medida, se existir
-# from app.core.enum import UnidadeMedida 
+from app.schemas.produto_fotos import ProdutoFotoRead
 
 class ProdutoCreate(BaseModel):
     """
@@ -59,7 +58,7 @@ class ProdutoCreate(BaseModel):
 
     # 4. Relacionamento (Chave Estrangeira - FK)
     # Assumimos que o ID do fornecedor é um inteiro.
-    id_fornecedor: Optional[int] = Field(
+    fornecedor_id: Optional[int] = Field(
         None, 
         description="ID do fornecedor (Chave Estrangeira)."
     )
@@ -81,7 +80,7 @@ class ProdutoCreate(BaseModel):
                 "nota_fiscal": "1004.22.99",
                 "categoria": "Bebidas",
                 "marca": "Fazenda Boa Vista",
-                "id_fornecedor": 1,
+                "fornecedor_id": None,
                 # Objeto de estoque aninhado
                 "estoque": {
                     "valor_varejo": 2999,
@@ -99,6 +98,11 @@ class ProdutoRead(ProdutoCreate):
     id: int = Field(
         ...,
         description="ID do produto"
+    )
+
+    fotos: Optional[Sequence[ProdutoFotoRead]] = Field(
+        ...,
+        description="Fotos do produto"
     )
 
     estoque: EstoqueRead = Field(
@@ -155,7 +159,7 @@ class ProdutoUpdate(BaseModel):
     )
 
     # 4. Relacionamento (Chave Estrangeira - FK)
-    id_fornecedor: Optional[int] = Field(
+    fornecedor_id: Optional[int] = Field(
         None, 
         description="Novo ID do fornecedor."
     )
