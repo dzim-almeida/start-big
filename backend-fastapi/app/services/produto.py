@@ -56,7 +56,7 @@ def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
         nota_fiscal=product_to_add.nota_fiscal,
         categoria=product_to_add.categoria,
         marca=product_to_add.marca,
-        id_fornecedor=product_to_add.id_fornecedor
+        fornecedor_id=product_to_add.fornecedor_id
     )
 
     # 3. MAPEAMENTO: Extrai os dados de estoque do schema Pydantic aninhado

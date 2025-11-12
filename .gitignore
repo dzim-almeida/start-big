@@ -27,3 +27,4 @@ pdv.db
 .pytest_cache/
 backend-fastapi/pdv.db
 backend-fastapi/nota.txt
+/backend-fastapi/static

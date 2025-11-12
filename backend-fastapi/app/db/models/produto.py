@@ -29,7 +29,7 @@ class Produto(Base):
     marca: Mapped[str | None] = mapped_column(String(100), nullable=True, doc="Marca do produto")
     
     # Chave estrangeira para o fornecedor (Muitos-para-Um)
-    id_fornecedor: Mapped[int | None] = mapped_column(Integer, ForeignKey("fornecedores.id", ondelete="SET NULL"), nullable=True, doc="ID do fornecedor principal (FK)")
+    fornecedor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fornecedores.id", ondelete="SET NULL"), nullable=True, doc="ID do fornecedor principal (FK)")
     
     # Relação Lado "Muitos" (Produto) para "Um" (Fornecedor)
     fornecedor = relationship(
@@ -42,7 +42,15 @@ class Produto(Base):
     estoque = relationship(
         "Estoque",
         back_populates="produto",
-        cascade="all, delete-orphan",
+        cascade="all, delete-orphan", # Garante a exclusão do registro de Estoque ao deletar o Produto
         uselist=False, # Define a relação como 1-para-1
         doc="Relacionamento Um-para-Um com os dados de estoque"
+    )
+
+    fotos = relationship(
+        "ProdutoFoto",
+        back_populates="produto",
+        cascade="all, delete-orphan", # Garante a exclusão de todas as Fotos ao deletar o Produto
+        uselist=True, # Define a relação como 1-para-Vários
+        doc="Relacionamento de Um-para-Vários com Fotos"
     )
