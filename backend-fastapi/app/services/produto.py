@@ -7,7 +7,7 @@
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Sequence # Importação para type hint de lista
+from typing import Sequence, List, Optional # Adicionado Optional
 
 # Importa os schemas Pydantic (Create para entrada, Read para saída)
 from app.schemas.produto import ProdutoCreate, ProdutoUpdate
@@ -23,21 +23,6 @@ from app.db.crud import produto as product_crud
 def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
     """
     Serviço para criar um novo Produto e seu registro de Estoque associado.
-
-    Recebe um schema 'ProdutoCreate' aninhado, valida os dados,
-    cria as instâncias dos modelos 'ProdutoModel' e 'EstoqueModel',
-    conecta-os, e os persiste no banco através da camada CRUD.
-
-    Args:
-        db (Session): A sessão do banco de dados.
-        product_to_add (ProdutoCreate): O schema Pydantic com os dados do
-                                     produto e do estoque aninhado.
-
-    Raises:
-        HTTPException: 409 (Conflict) se o 'codigo_produto' já existir.
-
-    Returns:
-        ProdutoModel: O objeto do produto recém-criado.
     """
     
     # 1. REGRA DE NEGÓCIO: Valida se o código do produto já existe
@@ -45,7 +30,18 @@ def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
     
     if existing_product:
         # Lança um erro de conflito se o código for duplicado
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Código já cadastrado")
+        if not existing_product.ativo:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Produto desabilitado com este Código. Por favor, reative o cadastro."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail= {
+                "campo": "codigo_produto",
+                "mensagem": "Código de produto já cadastrado"
+            }
+        )
     
     # 2. MAPEAMENTO: Cria a instância do modelo SQLAlchemy 'ProdutoModel'
     new_product_to_db = ProdutoModel(
@@ -59,10 +55,9 @@ def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
         fornecedor_id=product_to_add.fornecedor_id
     )
 
-    # 3. MAPEAMENTO: Extrai os dados de estoque do schema Pydantic aninhado
+    # 3. MAPEAMENTO e CONEXÃO (GRAPH): Estoque
     new_product_storage = product_to_add.estoque
 
-    # Cria a instância do modelo SQLAlchemy 'EstoqueModel'
     new_storage_for_product = EstoqueModel(
         quantidade=new_product_storage.quantidade,
         quantidade_ideal=new_product_storage.quantidade_ideal,
@@ -72,51 +67,28 @@ def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
         valor_atacado=new_product_storage.valor_atacado
     )
 
-    # 4. CONEXÃO (GRAPH): Conecta os dois objetos em memória (relação 1-para-1)
     new_product_to_db.estoque = new_storage_for_product
 
-    # 5. PERSISTÊNCIA: Passa o objeto Produto (que contém o Estoque) para o CRUD
-    product_in_db = product_crud.create_product(db, new_product_to_db)
-
-    # 6. RETORNO: Retorna o objeto persistido no banco
-    return product_in_db
+    # 4. PERSISTÊNCIA
+    return product_crud.create_product(db, new_product_to_db)
 
 # =========================
 # Serviço: Buscar TODOS os Produtos
 # =========================
 def get_all_products(db: Session) -> Sequence[ProdutoModel]:
     """
-    Busca TODOS os produtos cadastrados no banco de dados.
-    (Apenas delega a chamada para a camada CRUD).
-
-    Args:
-        db (Session): A sessão do banco de dados.
-
-    Returns:
-        Sequence[ProdutoModel]: Uma lista (sequência) de todos os produtos.
+    Busca TODOS os produtos cadastrados. (Apenas delega para o CRUD).
     """
-    products_in_db = product_crud.get_all_products(db)
-    return products_in_db
+    return product_crud.get_all_products(db)
 
 # =========================
 # Serviço: Buscar Produtos
 # =========================
-def get_product_by_search(db: Session, search_product: str) -> list[ProdutoModel]:
+def get_product_by_search(db: Session, search_product: str) -> Sequence[ProdutoModel]: # Corrigido: Usando Sequence
     """
     Busca produtos usando a camada CRUD.
-    Retorna a lista de produtos encontrada (pode ser vazia).
-
-    Args:
-        db (Session): A sessão do banco de dados.
-        search_product (str): O termo a ser buscado.
-
-    Returns:
-        list[ProdutoModel]: Uma lista de objetos ProdutoModel.
     """
-    # Delega a busca para a função do CRUD
-    existing_products = product_crud.get_product_by_search(db, search_product)
-    # Retorna a lista de produtos encontrada
-    return existing_products
+    return product_crud.get_product_by_search(db, search_product)
 
 # =========================
 # Serviço: Atualizar Produto
@@ -124,64 +96,98 @@ def get_product_by_search(db: Session, search_product: str) -> list[ProdutoModel
 def update_product_by_id(db: Session, id: int, product: ProdutoUpdate) -> ProdutoModel:
     """
     Atualiza um produto existente e/ou seu estoque associado pelo ID.
-    Busca o produto, aplica atualizações parciais (patch) e retorna
-    o objeto SQLAlchemy atualizado.
     """
     
-    # 1. Busca o produto (e seu estoque, via relationship) pelo ID
+    # 1. Busca o produto
     product_to_update = product_crud.get_product_by_id(db, id)
     
-    # 2. Verifica se o produto foi encontrado
     if not product_to_update:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Produto não encontrado"
         )
     
-    # 3. Extrai apenas os dados enviados na requisição (para atualização parcial)
+    # 2. Extrai dados para atualização parcial
     update_product_data = product.model_dump(exclude_unset=True)
 
-    # 4. Itera sobre os dados enviados (nível Produto)
-    for key, value in update_product_data.items():
+    # 3. Lógica de atualização aninhada para 'estoque'
+    if "estoque" in update_product_data and update_product_data["estoque"] is not None:
         
-        # 5. Lógica de atualização aninhada para 'estoque'
-        if key == "estoque" and update_product_data["estoque"] is not None:
-            
-            # Extrai os dados aninhados de estoque (do schema Pydantic 'product')
-            update_storage_data = product.estoque.model_dump(exclude_unset=True)
-            
-            # Itera sobre os dados do estoque
-            # (Aviso: 'key' e 'value' aqui sobrescrevem as do loop externo)
-            for key, value in update_storage_data.items():
-                # Aplica a atualização no objeto SQLAlchemy 'product_to_update.estoque'
-                setattr(product_to_update.estoque, key, value)
+        # Extrai os dados aninhados de estoque (do schema Pydantic 'product')
+        # Correção: O product_to_update.estoque já existe.
+        update_storage_data = product.estoque.model_dump(exclude_unset=True)
         
-        # (Aviso: Indentação incorreta, este 'else' está ligado ao 'if key == "estoque"')
-        else:
-            setattr(product_to_update, key, value)
+        # Itera sobre os dados do estoque e aplica ao objeto ORM
+        for key, value in update_storage_data.items():
+            # Aplica a atualização no objeto SQLAlchemy 'product_to_update.estoque'
+            setattr(product_to_update.estoque, key, value)
+        
+        # Remove 'estoque' do dict principal para não tentar atualizar o atributo de relacionamento
+        del update_product_data["estoque"]
 
-    # 6. Chama o CRUD para persistir as alterações (flush + refresh)
+    # 4. Itera sobre os dados restantes (nível Produto) e aplica
+    # Correção: Este loop agora é executado independentemente do loop de 'estoque'.
+    for key, value in update_product_data.items():
+        setattr(product_to_update, key, value)
+
+    # 5. Chama o CRUD para persistir as alterações
     return product_crud.update_product(db, product_to_update)
     
 # =========================
-# Serviço: Deletar Produto
+# Serviço: Ativar Produto
 # =========================
-def delete_product_by_id(db: Session, product_id: int) -> None:
+def active_product_by_id(db: Session, product_id: int, product_code: Optional[str]) -> ProdutoModel: # Corrigido retorno e tipagem
     """
-    Serviço para deletar um produto pelo seu ID.
-
-    1. Busca o produto.
-    2. Se encontrado, delega a exclusão para o CRUD.
+    Serviço para ativar um produto pelo seu ID, opcionalmente redefinindo o código.
     """
-    # 1. Busca o produto existente pelo ID
+    # 1. Busca o produto
     existing_product = product_crud.get_product_by_id(db, product_id)
-    
-    # 2. Verifica se o produto foi encontrado
+
     if not existing_product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Produto não encontrado"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
     
-    # 3. Delega a exclusão para a camada CRUD
-    return product_crud.delete_product(db, existing_product)
+    # 2. Regras de negócio para o código
+    if existing_product.codigo_produto is None and product_code is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Código do produto é necessário para ativação, pois o campo está vazio."
+        )
+    elif existing_product.codigo_produto and product_code:
+        # Se o produto JÁ tem código, e um NOVO código foi enviado na query, verifica conflito
+        if existing_product.codigo_produto != product_code and product_crud.get_product_by_code(db, product_code):
+             raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="O novo Código de produto fornecido já está em uso por outro produto ativo."
+            )
+        # Se for o mesmo código, ignora a atualização. Se for diferente e não tem conflito, aplica.
+    
+    # 3. Aplica modificações no objeto
+    existing_product.ativo = True
+    
+    if product_code:
+        existing_product.codigo_produto = product_code
+
+    # 4. Delega a ativação para o CRUD e retorna o objeto
+    return product_crud.active_product_by_id(db, existing_product)
+
+# =========================
+# Serviço: Desativar produto
+# =========================
+def disable_product_by_id(db: Session, product_id: int, delete_product_code: bool) -> ProdutoModel: # Corrigido retorno
+    """
+    Serviço para desativar um produto pelo seu ID (Soft Delete).
+    """
+    # 1. Busca o produto
+    existing_product = product_crud.get_product_by_id(db, product_id)
+
+    if not existing_product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
+    
+    # 2. Aplica modificações no objeto
+    existing_product.ativo = False
+
+    if delete_product_code:
+        existing_product.codigo_produto = None # Atribui None se a flag for True
+
+    # 3. Delega a desativação para o CRUD e retorna o objeto
+    return product_crud.disable_product_by_id(db, existing_product)

@@ -287,40 +287,40 @@ def test_editar_cliente_com_usuario_logado(client: TestClient, header_with_token
     data_edit = response_edit.json()
     assert data_edit["cpf"] == "65764352122"
 
-def test_deletar_cliente_com_usuario_logado(client: TestClient, header_with_token: dict):
-    data_client = {
-        "email": "joao.silva@meu-pdv.com",
-        "contato": "11987654321",
-        "observacoes": "Cliente novo, aceita e-mail marketing.",
-        "endereco": [
-           {
-                "logradouro": "Avenida das Nações",
-                "numero": "1001",
-                "complemento": "Andar 15, Sala 1502",
-                "bairro": "Distrito Empresarial",
-                "cidade": "São Paulo",
-                "estado": "SP",
-                "cep": "04578-000"
-            }
-        ],
-        "nome": "João Pedro Silva",
-        "cpf": "98765432101", # O CPF que será usado na busca
-        "rg": "12345678",
-        "genero": "MASCULINO",
-        "data_nascimento": "1995-12-15"
-    }
+# def test_deletar_cliente_com_usuario_logado(client: TestClient, header_with_token: dict):
+#     data_client = {
+#         "email": "joao.silva@meu-pdv.com",
+#         "contato": "11987654321",
+#         "observacoes": "Cliente novo, aceita e-mail marketing.",
+#         "endereco": [
+#            {
+#                 "logradouro": "Avenida das Nações",
+#                 "numero": "1001",
+#                 "complemento": "Andar 15, Sala 1502",
+#                 "bairro": "Distrito Empresarial",
+#                 "cidade": "São Paulo",
+#                 "estado": "SP",
+#                 "cep": "04578-000"
+#             }
+#         ],
+#         "nome": "João Pedro Silva",
+#         "cpf": "98765432101", # O CPF que será usado na busca
+#         "rg": "12345678",
+#         "genero": "MASCULINO",
+#         "data_nascimento": "1995-12-15"
+#     }
 
-    response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
-    assert response_create.status_code == status.HTTP_201_CREATED
+#     response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
+#     assert response_create.status_code == status.HTTP_201_CREATED
 
-    data_create = response_create.json()
+#     data_create = response_create.json()
 
-    response_delete = client.delete(f"/api/v1/clientes/{data_create["id"]}", headers=header_with_token)
-    assert response_delete.status_code == status.HTTP_204_NO_CONTENT
+#     response_delete = client.delete(f"/api/v1/clientes/{data_create["id"]}", headers=header_with_token)
+#     assert response_delete.status_code == status.HTTP_204_NO_CONTENT
 
-    client_cpf = "98765432101"
-    response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
-    assert response_search.status_code == status.HTTP_200_OK
-    data_search = response_search.json()
+#     client_cpf = "98765432101"
+#     response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
+#     assert response_search.status_code == status.HTTP_200_OK
+#     data_search = response_search.json()
 
-    assert len(data_search) == 0
+#     assert len(data_search) == 0

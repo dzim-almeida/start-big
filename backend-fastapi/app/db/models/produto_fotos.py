@@ -2,7 +2,6 @@ from sqlalchemy import Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.models.produto import Produto
 
 class ProdutoFoto(Base):
     """

@@ -3,12 +3,13 @@
 # DESCRIÇÃO: Modelo SQLAlchemy para a tabela 'fornecedores'.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, and_
+from sqlalchemy import Integer, String, Boolean, and_
 from sqlalchemy.orm import relationship, Mapped, mapped_column, foreign
+from typing import List
 
-from app.db.models.endereco import Endereco
+from app.db.models.endereco import Endereco # Importado Endereco
 from app.db.base import Base
-from app.core.enum import EntityType # (Necessário para a primaryjoin)
+# from app.core.enum import EntityType # Não é necessário importar o Enum aqui se ele for usado apenas na primaryjoin
 
 class Fornecedor(Base):
     """
@@ -21,27 +22,30 @@ class Fornecedor(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, doc="ID único do fornecedor (Chave primária)")
     
     # Campos de dados do fornecedor
-    nome: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome do fornecedor (Pessoa Física ou Contato)")
-    cnpj: Mapped[str] = mapped_column(String(14), index=True, nullable=False, doc="CNPJ do fornecedor (14 dígitos)")
+    nome: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome ou Razão Social do fornecedor")
+    cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True, nullable=False, doc="CNPJ do fornecedor (14 dígitos)")
     nome_fantasia: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome fantasia da empresa fornecedora")
     ie: Mapped[str | None] = mapped_column(String(14), unique=True, nullable=True, doc="Inscrição Estadual (IE) do fornecedor")
+    # Uso de 'bool' para tipagem
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se um Fornecedor está ativo (True) ou desativado (False)")
 
     # Relação Lado "Um" (Fornecedor) para "Muitos" (Produto)
+    # Tipagem: Lista de objetos Produto
     produto = relationship(
         "Produto",
         back_populates="fornecedor",
         doc="Relacionamento um-para-muitos com os produtos deste fornecedor",
-        uselist=True # Define que um fornecedor pode ter múltiplos produtos
+        # uselist=True é o padrão para list/List, mas pode ser omitido
     )
     
     # Relação Lado "Um" (Fornecedor) para "Muitos" (Endereco) - Polimórfica
-    endereco = relationship(
+    # Tipagem: Lista de objetos Endereco
+    endereco: Mapped[List[Endereco]] = relationship(
         "Endereco",
         # Junção manual para relação polimórfica
         primaryjoin="and_(foreign(Endereco.id_entidade) == Fornecedor.id, foreign(Endereco.tipo_entidade) == 'FORNECEDOR')",
         cascade="all, delete-orphan",
-        uselist=True, # Define que um fornecedor pode ter múltiplos endereços
-        # Evita conflitos com o relacionamento 'Cliente.endereco'
+        # uselist=True é o padrão
         overlaps="endereco",
         doc="Relacionamento polimórfico um-para-muitos com os endereços"
     )
