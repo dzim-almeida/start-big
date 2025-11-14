@@ -2,11 +2,12 @@
 # ARQUIVO: endpoints/fornecedor.py
 # DESCRIÇÃO: Define os endpoints (rotas) da API para operações CRUD
 #            relacionadas a Fornecedores.
+#            Rotas: /fornecedores, /fornecedores/all, /fornecedores/{id}, etc.
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query, Response
 from sqlalchemy.orm import Session
-from typing import Sequence
+from typing import Sequence, List
 
 from app.core.depends import get_token
 from app.db.session import get_db
@@ -14,185 +15,175 @@ from app.db.session import get_db
 from app.schemas.fornecedor import FornecedorCreate, FornecedorRead, FornecedorUpdate
 from app.services import fornecedor as supplier_service
 
-# Cria um roteador específico para este módulo
+# Cria um roteador específico. Assume que a URL base é /fornecedores
 router = APIRouter()
 
-# =========================
-# Endpoint: Criar Fornecedor
-# =========================
-@router.post(
-    "/",
-    response_model=FornecedorRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Cria um novo fornecedor"
-)
-def create_supplier(
-    supplier: FornecedorCreate, # Valida o corpo da requisição com o schema
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
-):
-    """
-    Endpoint para criar um novo Fornecedor e seus endereços associados.
-
-    Recebe um payload aninhado (Fornecedor + Endereços) e gerencia
-    a transação do banco de dados (commit/rollback).
-    """
+# Função auxiliar para padronizar o tratamento de transações e exceções (Recomendado: Mover para um módulo 'utils' ou 'core')
+def _handle_db_transaction(db: Session, func, *args, **kwargs):
+    """Executa a lógica de serviço, gerencia a transação e trata exceções."""
     try:
-        # 1. TENTA EXECUTAR A LÓGICA DE NEGÓCIO
-        # Delega a criação para a camada de serviço
-        new_supplier = supplier_service.create_supplier(db, supplier)
-        
-        # 2. CAMINHO FELIZ: Comita a transação
+        result = func(db, *args, **kwargs)
         db.commit()
-        
-        # 3. Retorna o novo fornecedor criado
-        return new_supplier
-    
+        return result
     except HTTPException as http_exce:
-        # 4A. CAMINHO TRISTE (Erro de Negócio):
+        # Erros de negócio (ex: 404 Not Found, 409 Conflict)
         print(f"Erro de negócio: {http_exce.detail}")
         db.rollback()
         raise http_exce
-    
     except Exception as e:
-        # 4B. CAMINHO TRISTE (Erro Inesperado):
-        print(f"Erro inesperado ao cadastrar fornecedor: {e}")
+        # Erros inesperados (ex: falha de conexão, erro de lógica no serviço)
+        print(f"Erro inesperado: {e}")
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ocorreu um erro interno no servidor."
         )
 
 # =========================
-# Endpoint: Buscar TODOS os Fornecedores
+# Endpoint: Criar Fornecedor
+# Rota: POST /fornecedores
 # =========================
-@router.get(
-    "/a",
-    response_model=Sequence[FornecedorRead],
-    status_code=status.HTTP_200_OK,
-    summary="Retorna todos os fornecedores cadastrados"
+@router.post(
+    "/", # Mantido "/", mas poderia ser "/create" para evitar ambiguidades com a busca
+    response_model=FornecedorRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cria um novo fornecedor e seus endereços associados"
 )
-def get_all_suppliers(
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+def create_supplier(
+    supplier: FornecedorCreate,
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para buscar TODOS os fornecedores cadastrados no sistema.
-    (Nota: Rota de utilidade, sem paginação)
+    Cria um novo Fornecedor com o payload aninhado.
+    Utiliza a função auxiliar para gerenciar a transação.
     """
-    # Delega a busca para a camada de serviço
-    suppliers_in_db = supplier_service.get_all_suppliers(db)
-    # Retorna a lista de fornecedores
-    return suppliers_in_db
+    return _handle_db_transaction(
+        db,
+        supplier_service.create_supplier,
+        supplier
+    )
+
+# =========================
+# Endpoint: Buscar TODOS os Fornecedores (Sem Paginação)
+# Rota: GET /fornecedores/all
+# =========================
+@router.get(
+    "/all", # Rota alterada de '/a' para '/all' (melhor legibilidade)
+    response_model=Sequence[FornecedorRead],
+    status_code=status.HTTP_200_OK,
+    summary="Retorna todos os fornecedores cadastrados (rota de utilidade)"
+)
+def get_all_suppliers(
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Busca e retorna a lista completa de fornecedores.
+    """
+    # A busca não altera o estado do BD
+    return supplier_service.get_all_suppliers(db)
 
 # =========================
 # Endpoint: Buscar Fornecedores (Search)
+# Rota: GET /fornecedores/
 # =========================
 @router.get(
     "/",
-    response_model=Sequence[FornecedorRead], # A resposta é uma lista de fornecedores
+    response_model=List[FornecedorRead],
     status_code=status.HTTP_200_OK,
     summary="Buscar os fornecedores por nome ou CNPJ"
 )
 def get_supplier_by_search(
-    # Define 'buscar' como um parâmetro de query (ex: /fornecedores/?buscar=...)
     buscar: str = Query(
-        ..., # Indica que o parâmetro é obrigatório
+        ...,
         min_length=1,
         max_length=255,
-        description="Busca do fornecedor" # Corrigido: 'Busca do fornecedor'
+        description="Busca por nome, razão social ou CNPJ do fornecedor."
     ),
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para buscar fornecedores pelo nome ou CNPJ.
-    Retorna uma lista de fornecedores ou uma lista vazia.
+    Busca fornecedores pelo nome ou CNPJ.
     """
-    # Delega a lógica de busca para o serviço
-    suppliers_in_db = supplier_service.get_supplier_by_search(db, buscar)
-    
-    # Retorna a lista de resultados
-    return suppliers_in_db
+    # A busca não altera o estado do BD
+    return supplier_service.get_supplier_by_search(db, buscar)
 
 # =========================
 # Endpoint: Atualizar Fornecedor (PUT)
+# Rota: PUT /fornecedores/{id}
 # =========================
 @router.put(
-    "/{id}", # Recebe o ID do fornecedor na URL
-    response_model=FornecedorRead, # Retorna o fornecedor atualizado
+    "/{id}",
+    response_model=FornecedorRead,
     status_code=status.HTTP_200_OK,
-    summary="Atualiza os dados do fornecedor"
+    summary="Atualiza os dados de um fornecedor pelo ID"
 )
 def update_supplier(
-    # Extrai o ID da URL, valida se é um inteiro >= 1
-    id: int = Path(
-        ...,
-        description="ID do fornecedor a ser atualizado",
-        ge=1
-    ),
-    *, # Força os parâmetros seguintes a serem nomeados (keyword-only)
-    
-    # Valida o corpo da requisição (JSON) com o schema de atualização
+    id: int = Path(..., description="ID do fornecedor a ser atualizado", ge=1),
+    *,
     supplier: FornecedorUpdate,
-    
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para atualizar um fornecedor existente pelo seu ID.
-    Gerencia a transação (commit/rollback).
+    Atualiza um fornecedor existente pelo seu ID.
     """
-    try:
-        # Delega a lógica de atualização para o serviço
-        update_supplier = supplier_service.update_supplier(db, id, supplier)
-        
-        # Comita a transação se o serviço foi bem-sucedido
-        db.commit()
-        
-        # Retorna o fornecedor atualizado
-        return update_supplier
-    
-    except HTTPException as http_exce:
-        # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback()
-        raise http_exce
-    
-    except Exception as e:
-        # Captura erros inesperados
-        print(f"Erro inesperado ao atualizar fornecedor: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
-    
+    return _handle_db_transaction(
+        db,
+        supplier_service.update_supplier,
+        id,
+        supplier
+    )
+
 # =========================
-# Endpoint: Deletar Fornecedor (DELETE)
+# Endpoint: Ativar Fornecedor (Update Lógico)
+# Rota: PUT /fornecedores/ativa/{id}
 # =========================
-@router.delete(
-    "/{id}",
-    status_code=status.HTTP_204_NO_CONTENT, # Define o status de sucesso
-    summary="Deleta um fornecedor do BD" # Corrigido: 'Deleta'
+@router.put(
+    "/ativa/{id}",
+    response_model=FornecedorRead,
+    status_code=status.HTTP_200_OK,
+    summary="Ativa um Fornecedor logicamente no BD"
 )
-def delete_supplier_by_id(
-    # Extrai o ID da URL, valida se é um inteiro >= 1
-    id: int = Path(
-        ...,
-        description="ID do fornecedor a ser deletado",
-        ge=1
-    ),
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+def active_supplier_by_id(
+    id: int = Path(..., description="ID do Fornecedor a ser ativado", ge=1),
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para deletar um fornecedor existente pelo seu ID.
-    Gerencia a transação (commit/rollback).
+    Ativa um Fornecedor existente pelo seu ID.
     """
-    # (Nota: A lógica de try/except foi omitida no original, 
-    #  mas é recomendada como nos outros endpoints)
-    
-    # Delega a lógica de deleção para o serviço
-    supplier_service.delete_supplier(db, id)
-    # Comita a transação
-    db.commit()
+    return _handle_db_transaction(
+        db,
+        supplier_service.active_supplier_by_id,
+        id
+    )
+
+# =========================
+# Endpoint: Desativar Fornecedor (Update Lógico)
+# Rota: PUT /fornecedores/desativa/{id}
+# =========================
+@router.put(
+    "/desativa/{id}",
+    status_code=status.HTTP_204_NO_CONTENT, # Sem corpo de resposta
+    summary="Desativa um Fornecedor logicamente no BD"
+)
+def disable_supplier_by_id(
+    id: int = Path(..., description="ID do Fornecedor a ser desativado", ge=1),
+    token: dict = Depends(get_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Desativa um Fornecedor existente pelo seu ID (Soft Delete).
+    Retorna 204 No Content se a operação for bem-sucedida.
+    """
+    # A função auxiliar fará o serviço, commit e tratamento de erro
+    _handle_db_transaction(
+        db,
+        supplier_service.disable_supplier_by_id,
+        id
+    )
+    # Retorna Response vazia 204
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

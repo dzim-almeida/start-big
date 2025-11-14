@@ -2,12 +2,12 @@
 # ARQUIVO: cliente.py
 # DESCRIÇÃO: Modelos SQLAlchemy para as tabelas 'clientes', 'clientes_pf',
 #            e 'clientes_pj'. Define a hierarquia de herança polimórfica,
-#            onde 'Cliente' é a classe base e 'ClientePF'/'ClientePJ'
-#            são especializações (filhas).
+#            utilizando Herança de Tabela Unida.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, Date, ForeignKey, Enum as SqlAlchemyEnum, and_
+from sqlalchemy import Integer, String, Boolean, Date, ForeignKey, Enum as SqlAlchemyEnum, and_
 from sqlalchemy.orm import relationship, Mapped, mapped_column, foreign
+from typing import List
 
 from app.db.base import Base
 from app.core.enum import Gender, ClientType
@@ -34,20 +34,17 @@ class Cliente(Base):
     email: Mapped[str | None] = mapped_column(String(255, collation="NOCASE"), unique=True, nullable=True, doc="Email do cliente")
     contato: Mapped[str | None] = mapped_column(String(20), nullable=True, doc="Telefone de contato do cliente")
     observacoes: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o cliente")
+    # Uso de 'bool'
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o cliente está ativo (True) ou desativado (False)")
 
     # Relação 1-para-Muitos com Endereco (Polimórfica)
-    # Um cliente pode ter vários endereços
-    endereco = relationship(
+    # Tipagem: Lista de objetos Endereco
+    endereco: Mapped[List[Endereco]] = relationship(
         "Endereco",
         # Define a condição de junção manual para esta relação polimórfica
-        # Liga Cliente.id a Endereco.id_entidade ONDE o tipo for 'CLIENTE'
         primaryjoin="and_(foreign(Endereco.id_entidade) == Cliente.id, foreign(Endereco.tipo_entidade) == 'CLIENTE')",
-        # Garante que os endereços sejam deletados junto com o cliente
         cascade="all, delete-orphan", 
-        # Indica que este lado da relação é uma lista
-        uselist=True,
-        # Indica ao SQLAlchemy que este relacionamento sobrepõe outros
-        # relacionamentos para 'Endereco', evitando conflitos de 'backref'.
+        # uselist=True é o padrão
         overlaps="endereco",
         doc="Lista de endereços associados a este cliente"
     )

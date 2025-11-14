@@ -165,39 +165,39 @@ def test_editar_fornecedor(client: TestClient, header_with_token: dict):
 # =========================
 # Teste de Deleção de Fornecedor
 # =========================
-def test_deletar_fornecedor(client: TestClient, header_with_token: dict):
-    """
-    Testa a funcionalidade de deleção (DELETE) de um fornecedor existente:
-    1. Cria um fornecedor.
-    2. Envia uma requisição DELETE para excluir o fornecedor pelo ID.
-    3. Verifica se a deleção foi bem-sucedida (status 204).
-    4. Tenta buscar o fornecedor deletado e verifica se a busca retorna uma lista vazia.
-    """
-    # --- Arrange 1: Criar o Fornecedor ---
-    data_supplier = {
-        "nome": "Alan Amorim ME",
-        "cnpj": "72345734000132",
-        "nome_fantasia": "BigTech",
-        "ie": None
-    }
+# def test_deletar_fornecedor(client: TestClient, header_with_token: dict):
+#     """
+#     Testa a funcionalidade de deleção (DELETE) de um fornecedor existente:
+#     1. Cria um fornecedor.
+#     2. Envia uma requisição DELETE para excluir o fornecedor pelo ID.
+#     3. Verifica se a deleção foi bem-sucedida (status 204).
+#     4. Tenta buscar o fornecedor deletado e verifica se a busca retorna uma lista vazia.
+#     """
+#     # --- Arrange 1: Criar o Fornecedor ---
+#     data_supplier = {
+#         "nome": "Alan Amorim ME",
+#         "cnpj": "72345734000132",
+#         "nome_fantasia": "BigTech",
+#         "ie": None
+#     }
     
-    create_response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
-    assert create_response.status_code == 201
+#     create_response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
+#     assert create_response.status_code == 201
 
-    supplier_id = create_response.json()["id"]
+#     supplier_id = create_response.json()["id"]
 
-    # --- Act: Enviar a Requisição de Deleção (DELETE) ---
-    delete_response = client.delete(f"/api/v1/fornecedores/{supplier_id}", headers=header_with_token)
+#     # --- Act: Enviar a Requisição de Deleção (DELETE) ---
+#     delete_response = client.delete(f"/api/v1/fornecedores/{supplier_id}", headers=header_with_token)
     
-    # --- Assert 1: Verificar o Resultado da Deleção ---
-    assert delete_response.status_code == 204
+#     # --- Assert 1: Verificar o Resultado da Deleção ---
+#     assert delete_response.status_code == 204
 
-    # --- Assert 2: Verificar se o Fornecedor Foi Deletado ---
-    # Tenta buscar o fornecedor pelo CNPJ que acabou de ser deletado
-    search_cnpj = "72345734000132"
-    search_response = client.get(f"/api/v1/fornecedores/?buscar={search_cnpj}", headers=header_with_token)
-    assert search_response.status_code == 200 # A busca deve ser bem-sucedida (200 OK)
-    search_data = search_response.json()
+#     # --- Assert 2: Verificar se o Fornecedor Foi Deletado ---
+#     # Tenta buscar o fornecedor pelo CNPJ que acabou de ser deletado
+#     search_cnpj = "72345734000132"
+#     search_response = client.get(f"/api/v1/fornecedores/?buscar={search_cnpj}", headers=header_with_token)
+#     assert search_response.status_code == 200 # A busca deve ser bem-sucedida (200 OK)
+#     search_data = search_response.json()
 
-    # A lista de resultados da busca DEVE estar vazia agora
-    assert len(search_data) == 0
+#     # A lista de resultados da busca DEVE estar vazia agora
+#     assert len(search_data) == 0

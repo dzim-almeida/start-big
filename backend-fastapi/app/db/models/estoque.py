@@ -7,7 +7,6 @@
 from sqlalchemy import Integer, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-from app.db.models.produto import Produto
 from app.db.base import Base
 
 class Estoque(Base):
