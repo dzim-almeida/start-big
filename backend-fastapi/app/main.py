@@ -7,6 +7,7 @@ from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
 
 from app.db.models.usuario import Usuario
+from app.db.models.funcionario import Funcionario
 from app.db.models.cliente import Cliente, ClientePF
 from app.db.models.endereco import Endereco
 from app.db.models.token import TokenBlocklist
