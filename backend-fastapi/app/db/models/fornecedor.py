@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column, foreign
 from typing import List
 
 from app.db.models.endereco import Endereco # Importado Endereco
+from app.db.models.produto import Produto as ProdutoModel
 from app.db.base import Base
 # from app.core.enum import EntityType # Não é necessário importar o Enum aqui se ele for usado apenas na primaryjoin
 
@@ -31,7 +32,7 @@ class Fornecedor(Base):
 
     # Relação Lado "Um" (Fornecedor) para "Muitos" (Produto)
     # Tipagem: Lista de objetos Produto
-    produto = relationship(
+    produto: Mapped[list[ProdutoModel]] = relationship(
         "Produto",
         back_populates="fornecedor",
         doc="Relacionamento um-para-muitos com os produtos deste fornecedor",

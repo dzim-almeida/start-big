@@ -59,3 +59,4 @@ class EntityType(str, enum.Enum):
     """
     CLIENTE = "CLIENTE"
     FORNECEDOR = "FORNECEDOR"
+    FUNCIONARIO = "FUNCIONARIO"

@@ -27,6 +27,9 @@ class Cliente(Base):
     # Chave primária
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, doc="ID único do cliente (Chave primária)")
     
+    # Uso de 'bool'
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o cliente está ativo (True) ou desativado (False)")
+
     # Coluna discriminadora para o polimorfismo ('PF' ou 'PJ')
     tipo: Mapped[ClientType] = mapped_column(SqlAlchemyEnum(ClientType), nullable=False, doc="Tipo de cliente (PF ou PJ)")
     
@@ -34,9 +37,7 @@ class Cliente(Base):
     email: Mapped[str | None] = mapped_column(String(255, collation="NOCASE"), unique=True, nullable=True, doc="Email do cliente")
     contato: Mapped[str | None] = mapped_column(String(20), nullable=True, doc="Telefone de contato do cliente")
     observacoes: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o cliente")
-    # Uso de 'bool'
-    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o cliente está ativo (True) ou desativado (False)")
-
+    
     # Relação 1-para-Muitos com Endereco (Polimórfica)
     # Tipagem: Lista de objetos Endereco
     endereco: Mapped[List[Endereco]] = relationship(
