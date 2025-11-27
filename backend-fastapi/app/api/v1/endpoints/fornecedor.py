@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path, Query, Resp
 from sqlalchemy.orm import Session
 from typing import Sequence, List
 
-from app.core.depends import get_token
+from app.core.depends import get_token, check_permission, _handle_db_transaction
 from app.db.session import get_db
 
 from app.schemas.fornecedor import FornecedorCreate, FornecedorRead, FornecedorUpdate
@@ -17,27 +17,6 @@ from app.services import fornecedor as supplier_service
 
 # Cria um roteador específico. Assume que a URL base é /fornecedores
 router = APIRouter()
-
-# Função auxiliar para padronizar o tratamento de transações e exceções (Recomendado: Mover para um módulo 'utils' ou 'core')
-def _handle_db_transaction(db: Session, func, *args, **kwargs):
-    """Executa a lógica de serviço, gerencia a transação e trata exceções."""
-    try:
-        result = func(db, *args, **kwargs)
-        db.commit()
-        return result
-    except HTTPException as http_exce:
-        # Erros de negócio (ex: 404 Not Found, 409 Conflict)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback()
-        raise http_exce
-    except Exception as e:
-        # Erros inesperados (ex: falha de conexão, erro de lógica no serviço)
-        print(f"Erro inesperado: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
 
 # =========================
 # Endpoint: Criar Fornecedor
@@ -51,7 +30,7 @@ def _handle_db_transaction(db: Session, func, *args, **kwargs):
 )
 def create_supplier(
     supplier: FornecedorCreate,
-    token: dict = Depends(get_token),
+    permission: dict = Depends(check_permission("criar_funcionario")),
     db: Session = Depends(get_db)
 ):
     """

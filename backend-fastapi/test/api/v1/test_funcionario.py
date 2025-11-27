@@ -4,7 +4,6 @@
 #            Utiliza dados dinâmicos para garantir isolamento por função.
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -15,7 +14,9 @@ import string
 # Assumindo o caminho de imports
 from app.db.models.usuario import Usuario as UsuarioModel
 from app.core.security import hash_password 
-from app.core.enum import UserType 
+from app.core.enum import UserType
+
+PREFIX = "/api/v1/cargos"
 
 # --- Constantes de Teste ---
 TEST_USER_EMAIL = "teste.funcionario@example.com"
@@ -30,14 +31,19 @@ BASE_FUNCIONARIO_DATA = {
     "rg": "11223344",
     "carteira_trabalho": "1234567-8",
     "cnh": "98765432101",
-    "funcao": "Vendedor Senior",
+    "cargo_id": None,
     "agencia": "0001",
     "conta": "12345678",
     "banco": "Banco PDV",
     "mae": "Maria Joaquina Souza",
     "pai": "Roberto Carlos Souza",
     "observacao": "Pode cobrir a área de Fortaleza se necessário.",
-    "usuario_id": 1,
+    "empresa_id": 1,
+    "usuario": {
+            "nome": "Admin Master",
+            "email": "funcionario@gmail.com",
+            "senha": "batabatjk"
+        },
     "endereco": [
             {
                 "logradouro": "Rua das Flores",
@@ -60,23 +66,19 @@ BASE_FUNCIONARIO_DATA = {
         ],
 }
 
+BASE_CARGO_DATA = {
+    "nome": "Gerente",
+    "permissioes": {
+        "venda": True,
+        "funcionario": True
+    }
+}
+
 # =========================
 # Fixture de Autenticação
 # =========================
 @pytest.fixture(scope="function")
-def header_with_token(client: TestClient, db_session: Session) -> dict:
-    """
-    Cria um usuário de teste, realiza o login e retorna headers com o token Bearer.
-    """
-    user = UsuarioModel(
-        nome="Teste Funcionario",
-        email=TEST_USER_EMAIL,
-        senha_hash=hash_password(TEST_USER_PASSWORD),
-        tipo=UserType.USER,
-        data_criacao=datetime.now(),
-    )
-    db_session.add(user)
-    db_session.commit()
+def header_with_token(client: TestClient, db_session: Session, create_test_empresa) -> dict:
 
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
     response = client.post("/api/v1/auth/login", data=login_data)
@@ -190,7 +192,7 @@ def test_editar_funcionario_com_sucesso(client: TestClient, header_with_token: d
     assert response_edit.status_code == status.HTTP_200_OK
     data_edit = response_edit.json()
     assert data_edit["id"] == funcionario_id
-    assert data_edit["funcao"] == "Gerente de Projetos"
+    # assert data_edit["funcao"] == "Gerente de Projetos"
     assert data_edit["email"] == payload_edit["email"]
     assert data_edit["nome"] == data_create["nome"] # Campo não alterado deve ser mantido
 
@@ -255,3 +257,24 @@ def test_ativar_funcionario_com_sucesso(client: TestClient, header_with_token: d
     # 2. Verifica se o campo 'ativo' foi definido como True na resposta
     assert data_activate["ativo"] == True 
     assert data_activate["id"] == funcionario_id
+
+def test_adicionar_cargo_funcionario(client: TestClient, header_with_token: dict, unique_funcionario_data):
+    
+    data_create = unique_funcionario_data()
+
+    request_url = f"{PREFIX}/"
+
+    response = client.post(
+        request_url,
+        json=BASE_CARGO_DATA,
+        headers=header_with_token
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    response_create = client.post("/api/v1/funcionarios/", json=data_create, headers=header_with_token)
+    assert response_create.status_code == status.HTTP_201_CREATED
+    funcionario_id = response_create.json()["id"]
+
+    response_cargo = client.put(f"/api/v1/funcionarios/{funcionario_id}/cargo?cargo_id=1", headers=header_with_token)
+    assert response_cargo.status_code == status.HTTP_200_OK

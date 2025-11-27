@@ -16,6 +16,8 @@ from app.db.models.estoque import Estoque
 from app.db.models.fornecedor import Fornecedor
 from app.db.models.servico import Servico
 from app.db.models.produto_fotos import ProdutoFoto
+from app.db.models.empresa import Empresa
+from app.db.models.cargo import Cargo
 
 Base.metadata.create_all(bind=engine)
 

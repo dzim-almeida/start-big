@@ -1,11 +1,12 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: funcionario_service.py
 # DESCRIÇÃO: Camada de serviço com a lógica de negócio para Funcionários.
-#            Lida com a criação, validação e atualização do Funcionario
-#            e seus endereços.
+#            Lida com a criação aninhada (Usuario, Endereços), validação
+#            de conflitos e atualizações.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
+from datetime import datetime
 from sqlalchemy.orm import Session
 from typing import Sequence, List
 
@@ -13,56 +14,67 @@ from typing import Sequence, List
 from app.schemas.funcionario import FuncionarioCreate, FuncionarioUpdate
 # Importa o modelo ORM
 from app.db.models.funcionario import Funcionario as FuncionarioModel
+from app.db.models.usuario import Usuario as UsuarioModel
 # Importa a camada de acesso a dados (CRUD)
 from app.db.crud import funcionario as employee_crud
+from app.db.crud import usuario as user_crud
 # Importa o serviço de endereço para reutilização da lógica
 from app.services import endereco as address_service
+from app.core.security import hash_password
 # Importa os Enums para tipagem de entidade
 from app.core.enum import EntityType
 
 
+not_found_exce = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Funcionário não encontrado no sistema"
+)
+
 # =========================
-# Serviço: Criar Funcionário
+# Serviço: Criar Funcionário (Com Usuário e Endereços)
 # =========================
 def create_employee(db: Session, new_employee: FuncionarioCreate) -> FuncionarioModel:
     """
-    Serviço para criar um novo funcionário, validar conflitos e estabelecer
-    a relação 1:1 com o usuário logado (user_id).
+    Serviço para criar um novo funcionário, incluindo a criação de um novo
+    usuário vinculado e seus endereços, garantindo que não haja conflitos
+    (CPF, Email, RG) e aplicando a lógica de desabilitado/reativação.
     """
 
     validation_errors = []
 
-    # 1. REGRA DE NEGÓCIO: Verificar restrição 1:1 com Usuário
-    existing_employee_by_user = employee_crud.get_employee_by_user_id(db, new_employee.usuario_id)
-    if existing_employee_by_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="O usuário já está associado a um registro de funcionário."
-        )
+    # 1. COMENTÁRIO DE REGRA DE NEGÓCIO (Mantido como estava)
+    # # 1. REGRA DE NEGÓCIO: Verificar restrição 1:1 com Usuário
+    # existing_employee_by_user = employee_crud.get_employee_by_user_id(db, new_employee.usuario_id)
+    # if existing_employee_by_user:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="O usuário já está associado a um registro de funcionário."
+    #     )
 
     # 2. Validações de Conflito (CPF, Email, RG, etc.)
     
-    # Validação de CPF
+    # Validação de CPF (usa a função genérica que lida com o status 'disabled')
     error_cpf = employee_crud.verify_employee_conflict(
         db, new_employee.cpf, employee_crud.get_employee_by_cpf, "CPF"
     )
     if error_cpf:
         if error_cpf == "disabled employee":
+            # Exceção específica para funcionário desativado (sugere reativação)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Funcionário desabilitado com este CPF. Por favor, reative o cadastro."
             )
         validation_errors.append({"campo": "cpf", "mensagem": error_cpf})
 
-    # Validação de Email
-    if new_employee.email: # Só valida se o email for fornecido (nullable=True no modelo)
+    # Validação de Email (apenas se fornecido)
+    if new_employee.usuario.email:
         error_email = employee_crud.verify_employee_conflict(
-            db, new_employee.email, employee_crud.get_employee_by_email, "Email"
+            db, new_employee.usuario.email, employee_crud.get_employee_by_email, "Email"
         )
         if error_email:
             validation_errors.append({"campo": "email", "mensagem": error_email})
             
-    # Validação de RG (Se existir a regra UNIQUE no modelo, deve ser validado)
+    # Validação de RG (apenas se fornecido)
     if new_employee.rg:
         error_rg = employee_crud.verify_employee_conflict(
             db, new_employee.rg, employee_crud.get_employee_by_rg, "RG"
@@ -71,43 +83,47 @@ def create_employee(db: Session, new_employee: FuncionarioCreate) -> Funcionario
             validation_errors.append({"campo": "rg", "mensagem": error_rg})
     
     if validation_errors:
+        # Retorna erro 422 com todos os detalhes de validação
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=validation_errors
         )
 
-    # 3. MAPEAMENTO: Cria a instância do modelo SQLAlchemy
+    # 3. CRIAÇÃO DO USUÁRIO VINCULADO
+    usuario_data = new_employee.usuario.model_dump()
+    password = usuario_data.pop("senha") # Extrai e remove a senha do dicionário
+    
+    usuario_to_db = UsuarioModel(
+        **usuario_data,
+        senha_hash=hash_password(password), # Gera o hash
+        empresa_id=new_employee.empresa_id,
+        is_master=False,
+        ativo=True,
+        data_criacao=datetime.now()
+    )
+    
+    # Cria o usuário para obter o ID
+    usuario_in_db = user_crud.create_user(db, usuario_to_db)
+
+    # 4. CRIAÇÃO DO FUNCIONÁRIO
+    employee_data = new_employee.model_dump(exclude={"usuario", "endereco"})
     employee_to_db = FuncionarioModel(
-        # Dados do Funcionario
-        nome=new_employee.nome,
-        email=new_employee.email,
-        contato=new_employee.contato,
-        observacao=new_employee.observacao,
-        cpf=new_employee.cpf,
-        rg=new_employee.rg,
-        carteira_trabalho=new_employee.carteira_trabalho,
-        cnh=new_employee.cnh,
-        funcao=new_employee.funcao,
-        mae=new_employee.mae,
-        pai=new_employee.pai,
-        banco=new_employee.banco,
-        agencia=new_employee.agencia,
-        conta=new_employee.conta,
-        
-        # Chave Estrangeira (FK)
-        usuario_id=new_employee.usuario_id
+        **employee_data,
+        # Vincula ao usuário recém criado
+        usuario_id=usuario_in_db.id,
     )
 
-    # 4. CHAMA A CAMADA CRUD (para obter o ID)
+    # Cria o funcionário para obter o ID
     new_employee_in_db = employee_crud.create_employee(db, employee_to_db)
 
-    # 5. PREPARA E VINCULA OS ENDEREÇOS (Polimórfico)
+    # 5. VINCULAÇÃO DOS ENDEREÇOS (Polimórfico)
     if new_employee.endereco:
         new_address_employee_to_db = address_service.address_to_db(
             new_employee_in_db.id,
-            EntityType.FUNCIONARIO, # Uso do Enum correto
+            EntityType.FUNCIONARIO, 
             new_employee.endereco
         )
+        # Adiciona os endereços à relação ORM
         new_employee_in_db.endereco = new_address_employee_to_db
     
     # 6. RETORNA O OBJETO PERSISTIDO
@@ -140,7 +156,7 @@ def get_employee_by_search(db: Session, search: str) -> Sequence[FuncionarioMode
 def update_employee_by_id(db: Session, employee_id: int, employee: FuncionarioUpdate) -> FuncionarioModel:
     """
     Atualiza um funcionário existente pelo ID.
-    Aplica atualizações parciais (patch) e lida com a lista de endereços.
+    Lida com a atualização de campos simples e a lista de endereços (criação/edição).
     """
     
     # 1. Busca o funcionário existente no banco pelo ID
@@ -152,21 +168,21 @@ def update_employee_by_id(db: Session, employee_id: int, employee: FuncionarioUp
     # 2. Extrai apenas os dados enviados na requisição (para atualização parcial)
     update_data = employee.model_dump(exclude_unset=True)
     
-    # 3. Tratamento especial para atualizar/substituir a lista de endereços
+    # 3. Tratamento especial para atualizar/substituir/criar endereços
     if "endereco" in update_data and update_data["endereco"] is not None:
+        # Usa o serviço utilitário para aplicar as alterações nos endereços existentes
         updated_addresses = address_service.update_address_in_db(
-            update_employee.endereco, # Lista atual do ORM
-            employee.endereco,        # Lista nova/editada do Pydantic
-            update_employee.id,
-            EntityType.FUNCIONARIO
+            address_in_db=update_employee.endereco, # Lista atual do ORM
+            address_update=employee.endereco,        # Lista nova/editada do Pydantic
+            id_entity=update_employee.id,
+            type_entity=EntityType.FUNCIONARIO
         )
         update_employee.endereco = updated_addresses
-        # Remove 'endereco' do dict principal para evitar conflito com relacionamento ORM
+        # Remove 'endereco' do dict principal para atualização dos campos simples
         del update_data["endereco"]
     
-    # 4. Itera sobre os dados restantes (simples) e atualiza o objeto SQLAlchemy
+    # 4. Itera sobre os dados restantes (campos simples) e atualiza o objeto SQLAlchemy
     for key, value in update_data.items():
-        # A FK usuario_id é mantida (não está no schema de update)
         setattr(update_employee, key, value)
     
     # 5. Chama o CRUD para persistir as alterações
@@ -174,11 +190,11 @@ def update_employee_by_id(db: Session, employee_id: int, employee: FuncionarioUp
 
 
 # =========================
-# Serviço: Ativar Funcionário
+# Serviço: Ativar Funcionário (Soft Update)
 # =========================
 def active_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
     """
-    Serviço para ativar um funcionário pelo seu ID.
+    Serviço para ativar um funcionário pelo seu ID (seta 'ativo' para True).
     """
     # 1. Busca o funcionário
     existing_employee = employee_crud.get_employee_by_id(db, employee_id)
@@ -189,12 +205,12 @@ def active_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
     # 2. Atualiza o objeto em memória
     existing_employee.ativo = True
 
-    # 3. Delega a ativação para o CRUD e retorna o objeto
+    # 3. Delega a persistência para o CRUD
     return employee_crud.active_employee_by_id(db, existing_employee)
 
 
 # =========================
-# Serviço: Desativar Funcionário
+# Serviço: Desativar Funcionário (Soft Delete)
 # =========================
 def disable_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
     """
@@ -209,5 +225,26 @@ def disable_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
     # 2. Atualiza o objeto em memória
     existing_employee.ativo = False
 
-    # 3. Delega a desativação para o CRUD e retorna o objeto
+    # 3. Delega a persistência para o CRUD
     return employee_crud.disable_employee_by_id(db, existing_employee)
+
+
+# =========================
+# Serviço: Atualizar Cargo do Funcionário
+# =========================
+def update_cargo_funcionario(db: Session, funcionario_id: int, cargo_id: int) -> FuncionarioModel:
+    """
+    Associa um novo Cargo (via cargo_id) a um Funcionário (via funcionario_id).
+    """
+    
+    # 1. Busca o funcionário
+    employee_in_db = employee_crud.get_employee_by_id(db, funcionario_id)
+
+    if not employee_in_db:
+        raise not_found_exce
+    
+    # 2. Atualiza a FK (Foreign Key) do cargo
+    employee_in_db.cargo_id = cargo_id
+
+    # 3. Persiste a alteração
+    return employee_crud.update_employee_in_db(db, update_employee=employee_in_db)

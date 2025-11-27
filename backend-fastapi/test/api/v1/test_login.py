@@ -1,6 +1,7 @@
 
 from datetime import datetime
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient  # type: ignore
 from sqlalchemy.orm import Session  # type: ignore
 
@@ -13,26 +14,56 @@ TEST_USER_EMAIL = "teste.usuario@example.com"
 TEST_USER_PASSWORD = "senhaSegura123"
 
 
-@pytest.fixture(scope="function")
-def test_user(db_session: Session):
-    # Payload do usuário de teste 
-    user = UsuarioModel(
-        nome="Teste Usuario",
-        email=TEST_USER_EMAIL,
-        senha_hash=security.hash_password(TEST_USER_PASSWORD),
-        tipo=UserType.USER,
-        data_criacao=datetime.now(),
+def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
+    """
+    Gera um payload válido combinando dados da Empresa e do Usuário Master.
+    Permite sufixos para criar dados únicos nos testes.
+    """
+    return {
+        # --- Dados da Empresa (EmpresaCreate) ---
+        "razao_social": f"Empresa Teste {cnpj_suffix} LTDA",
+        "nome_fantasia": "Tech Teste",
+        "cnpj": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
+        "regime_tributario": "Simples Nacional",
+        "celular": "11999998888",
+        
+        "usuario": {
+            "nome": "Admin Master",
+            "email": TEST_USER_EMAIL,
+            "senha": TEST_USER_PASSWORD
+        },
+        
+        # --- Endereço Inicial (Opcional) ---
+        "endereco": [
+            {
+                "logradouro": "Av. Paulista",
+                "numero": "1000",
+                "bairro": "Bela Vista",
+                "cidade": "São Paulo",
+                "estado": "SP",
+                "cep": "01310-100"
+            }
+        ]
+    }
+
+def create_test_empresa(client: TestClient):
+    payload = get_empresa_payload_valido()
+
+    request_url = "/api/v1/empresas/"
+
+    response = client.post(
+        request_url,
+        json=payload
     )
 
-    # Adiciona o usuário de teste ao banco de dados
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
+    assert response.status_code == status.HTTP_201_CREATED
 
 # pylint: disable=unused-argument
 # Teste de login bem-sucedido
-def test_login_com_sucesso(client: TestClient, test_user: UsuarioModel):
+def test_login_com_sucesso(client: TestClient, db_session: Session):
+
+    create_test_empresa(client)
+
     # Dados de login para o teste
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
 
@@ -47,7 +78,9 @@ def test_login_com_sucesso(client: TestClient, test_user: UsuarioModel):
     assert data["expires_in"] == (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
 
-def test_login_com_senha_incorreta(client: TestClient, test_user: UsuarioModel):
+def test_login_com_senha_incorreta(client: TestClient, db_session: Session):
+
+    create_test_empresa(client)
 
     password_incorrect = "naoexiste123"
 
@@ -61,7 +94,9 @@ def test_login_com_senha_incorreta(client: TestClient, test_user: UsuarioModel):
     assert "Email ou senha inválidos" in response.json()["detail"]
 
 
-def test_login_com_email_incorreto(client: TestClient, test_user: UsuarioModel):
+def test_login_com_email_incorreto(client: TestClient, db_session: Session):
+
+    create_test_empresa(client)
 
     email_incorrect = "naoexiste@gmail.com"
 
@@ -75,7 +110,9 @@ def test_login_com_email_incorreto(client: TestClient, test_user: UsuarioModel):
     assert "Email ou senha inválidos" in response.json()["detail"]
 
 
-def test_logout_com_sucesso(client: TestClient, test_user: UsuarioModel):
+def test_logout_com_sucesso(client: TestClient, db_session: Session):
+
+    create_test_empresa(client)
 
    # Dados de login para o teste
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
@@ -90,7 +127,9 @@ def test_logout_com_sucesso(client: TestClient, test_user: UsuarioModel):
     assert "Logout bem-sucedido" in response_logout.json()["message"]
 
 
-def test_usar_token_revogado(client: TestClient, test_user: UsuarioModel):
+def test_usar_token_revogado(client: TestClient, db_session: Session):
+
+    create_test_empresa(client)
 
    # Dados de login para o teste
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}

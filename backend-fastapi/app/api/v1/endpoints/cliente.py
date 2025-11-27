@@ -14,35 +14,13 @@ from app.schemas.cliente import ClienteRead, ClienteUpdate
 from app.schemas.cliente import ClientePFCreate, ClientePFRead
 from app.schemas.cliente import ClientePJCreate, ClientePJRead
 # Importa as dependências de autenticação e sessão
-from app.core.depends import get_token
+from app.core.depends import get_token,  _handle_db_transaction
 from app.db.session import get_db
 # Importa a camada de serviço que contém a lógica de negócio
 from app.services import cliente as client_service
 
 # Cria um roteador específico. Assume que a URL base é /clientes
 router = APIRouter()
-
-# Função auxiliar para padronizar o tratamento de transações e exceções
-def _handle_db_transaction(db: Session, func, *args, **kwargs):
-    """Executa a lógica de serviço, gerencia a transação e trata exceções."""
-    try:
-        result = func(db, *args, **kwargs)
-        db.commit()
-        return result
-    except HTTPException as http_exce:
-        # Erros de negócio (ex: 404 Not Found, 409 Conflict)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback()
-        raise http_exce
-    except Exception as e:
-        # Erros inesperados (ex: falha de conexão, erro de lógica no serviço)
-        print(f"Erro inesperado: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
-
 
 # =========================
 # Endpoint: Criar Cliente PF

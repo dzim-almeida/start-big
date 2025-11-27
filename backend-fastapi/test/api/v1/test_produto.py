@@ -14,47 +14,24 @@ from app.core.security import hash_password
 from app.core.enum import UserType
 
 # --- Constantes de Teste ---
-TEST_USER_EMAIL = "teste.usuario@example.com"
-TEST_USER_PASSWORD = "senhaSegura123"
+TEST_USER_EMAIL = "teste.funcionario@example.com"
+TEST_USER_PASSWORD = "senhaSegura456"
 
 # =========================
 # Fixture de Autenticação
 # =========================
+# =========================
+# Fixture de Autenticação
+# =========================
 @pytest.fixture(scope="function")
-def header_with_token(client: TestClient, db_session: Session) -> dict:
-    """
-    Fixture reutilizável que cria um usuário de teste, realiza o login
-    via API e retorna um dicionário de headers com o token Bearer.
-    
-    'scope="function"' garante que isso seja executado para cada teste
-    que a utiliza, garantindo um estado limpo.
-    """
-    # Arrange 1: Criar o usuário de teste no banco de dados
-    user = UsuarioModel(
-        nome="Teste Usuario",
-        email=TEST_USER_EMAIL,
-        senha_hash=hash_password(TEST_USER_PASSWORD),
-        tipo=UserType.USER,
-        data_criacao=datetime.now(),
-    )
-    db_session.add(user)
-    db_session.commit()
+def header_with_token(client: TestClient, db_session: Session, create_test_empresa) -> dict:
 
-    # Arrange 2: Preparar dados para fazer login via API
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
-    
-    # Act: Realizar o login para obter um token de acesso
     response = client.post("/api/v1/auth/login", data=login_data)
+    assert response.status_code == 200 
     
-    # Assert (pré-condição): Garante que o login da fixture funcionou
-    assert response.status_code == 200
-    
-    # Arrange 3: Extrair o token e montar o header de autorização
     token = response.json()["access_token"]
-    header_with_token = {"Authorization": f"Bearer {token}"}
-    
-    # Retorna os headers para serem usados pelos testes
-    return header_with_token
+    return {"Authorization": f"Bearer {token}"}
 
 
 # =========================

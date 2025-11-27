@@ -7,6 +7,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from typing import Dict # Import adicionado para tipagem mais clara do retorno
 
 # Importa o schema Pydantic para os dados de login.
 from app.schemas.auth import UsuarioLogin
@@ -16,11 +17,15 @@ from app.db.models.token import TokenBlocklist
 from app.core.security import verify_password, create_access_token
 # Importa a variável de EXPIRE_TOKEN
 from app.core.config import settings
-# Importa as funções de acesso ao banco de dados para usuários.
+# Importa as funções de acesso ao banco de dados para usuários e tokens.
 from app.db.crud import usuario as user_crud
 from app.db.crud import token as token_crud
 
-def login_service(db: Session, user_data: UsuarioLogin) -> dict:
+
+# =========================
+# Serviço: Login
+# =========================
+def login_service(db: Session, user_data: UsuarioLogin) -> Dict[str, str | int]:
     """
     Valida as credenciais de um usuário e gera um token de acesso.
 
@@ -50,37 +55,44 @@ def login_service(db: Session, user_data: UsuarioLogin) -> dict:
     # 3. Prepara o payload (os dados) que serão incluídos dentro do token.
     data_to_token = {
         "sub": str(user.id),      # 'sub' (subject) é o padrão para identificar o dono do token.
-        "roles": str(user.tipo),  # Incluir o 'role' (tipo) é útil para controle de acesso.
+        # Informações adicionais podem ser incluídas aqui, como 'empresa_id' ou 'cargos'.
     }
 
     # 4. Cria o token JWT usando a função de segurança.
     access_token = create_access_token(data=data_to_token)
     
     # 5. Retorna o token no formato esperado pelo padrão OAuth2.
-    return {"access_token": access_token, "token_type": "bearer", "expires_in": (settings.ACCESS_TOKEN_EXPIRE_MINUTES*60)}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60) # Tempo em segundos
+    }
 
-def logout_service(db: Session, token: dict) -> None:
+
+# =========================
+# Serviço: Logout
+# =========================
+def logout_service(db: Session, token: Dict[str, str | int]) -> None:
     """
     Prepara e solicita a adição de um token à blocklist.
-
+    
     Args:
         db (Session): A sessão do banco de dados.
-        token (dict): O payload do token JWT decodificado.
+        token (dict): O payload do token JWT decodificado (contém 'jti' e 'exp').
     """
-    # Extrai o 'jti' (ID único) e 'exp' (timestamp de expiração) do token.
+    # 1. Extrai o 'jti' (ID único do token) e 'exp' (timestamp de expiração) do payload.
     jti = token.get("jti")
     exp = token.get("exp")
 
-    # Converte o timestamp de expiração para um objeto datetime ciente do fuso horário.
+    # 2. Converte o timestamp de expiração (Unix epoch) para um objeto datetime ciente do fuso horário.
     exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
 
-    # Cria a instância do modelo SQLAlchemy para a blocklist.
+    # 3. Cria a instância do modelo SQLAlchemy para a blocklist.
     revoke_token = TokenBlocklist(
         jti=jti,
         exp=exp_datetime
     )
 
-    # Chama a função CRUD para adicionar o token à sessão do banco de dados.
-    # O commit será realizado na camada de endpoint.
+    # 4. Chama a função CRUD para adicionar o token à sessão do banco de dados.
+    # O commit final será realizado na camada de endpoint/transação.
     token_crud.create_revoke_token(db, revoke_token)
-

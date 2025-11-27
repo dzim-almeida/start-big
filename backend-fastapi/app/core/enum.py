@@ -14,11 +14,13 @@ class Gender(enum.Enum):
 
 class ClientType(str, enum.Enum):
     """Define os tipos de cliente (Pessoa Física ou Jurídica)."""
+    # Herda de `str` para que os valores possam ser usados diretamente como strings (ex: em Pydantic)
     PF = "PF"
     PJ = "PJ"
 
 class State(str, enum.Enum):
-    """Define as siglas dos estados brasileiros."""
+    """Define as siglas dos estados brasileiros (UF)."""
+    # Lista abrangente das siglas estaduais.
     ACRE = "AC"
     ALAGOAS = "AL"
     AMAPA = "AP"
@@ -49,14 +51,18 @@ class State(str, enum.Enum):
 
 class UserType(str, enum.Enum):
     """Define os níveis de permissão ou tipos de usuário no sistema."""
+    # Nota: Este Enum parece redundante se a permissão for baseada em Cargo/JSON.
     ADMIN = "ADMIN"
     USER = "USER"
 
 class EntityType(str, enum.Enum):
     """
-    Define os tipos de entidades polimórficas no sistema
-    (ex: para vincular um endereço a um cliente ou a um fornecedor).
+    Define os tipos de entidades polimórficas no sistema.
+    
+    Essencial para o relacionamento polimórfico de Endereços
+    (ex: Endereço pode pertencer a um Cliente, Fornecedor, Funcionário ou Empresa).
     """
     CLIENTE = "CLIENTE"
     FORNECEDOR = "FORNECEDOR"
     FUNCIONARIO = "FUNCIONARIO"
+    EMPRESA = "EMPRESA"
