@@ -73,12 +73,6 @@ def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
         "regime_tributario": "Simples Nacional",
         "celular": "11999998888",
         
-        "usuario": {
-            "nome": "Admin Master",
-            "email": TEST_USER_EMAIL,
-            "senha": TEST_USER_PASSWORD
-        },
-        
         # --- Endereço Inicial (Opcional) ---
         "endereco": [
             {
@@ -92,15 +86,38 @@ def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
         ]
     }
 
+def get_usuario_payload_valido():
+    return {
+        "nome": "Admin Master",
+        "email": TEST_USER_EMAIL,
+        "senha": TEST_USER_PASSWORD
+    }
+
 @pytest.fixture(scope="function")
 def create_test_empresa(client: TestClient):
-    payload = get_empresa_payload_valido()
 
-    request_url = "/api/v1/empresas/"
+    usuario_payload = get_usuario_payload_valido()
+    empresa_payload = get_empresa_payload_valido()
+    
+    request_usuario_url = "/api/v1/usuarios/"
+    request_empresa_url = "/api/v1/empresas/"
 
-    response = client.post(
-        request_url,
-        json=payload
+    usuario_response = client.post(
+        request_usuario_url,
+        json=usuario_payload
     )
 
-    assert response.status_code == 201
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    response = client.post("/api/v1/auth/login", data=login_data)
+    
+    token = response.json()["access_token"]
+
+    header_with_token = {"Authorization": f"Bearer {token}"}
+
+    empresa_response = client.post(
+        request_empresa_url,
+        json=empresa_payload,
+        headers=header_with_token
+    )
+
+    assert empresa_response.status_code == 201

@@ -1,9 +1,12 @@
-from typing import Sequence
-from fastapi import APIRouter, status, Depends, Path
-# Nota: 'Session' do pytest não é necessário para endpoints, assumindo que era
-# Session do SQLAlchemy ou que o import de Session do FastAPI/SQLAlchemy foi omitido.
-# Corrigido para sqlalchemy.orm.Session para consistência, se o tipo for esse.
-from sqlalchemy.orm import Session # Assumindo sqlalchemy.orm.Session
+# ---------------------------------------------------------------------------
+# ARQUIVO: cargo.py
+# DESCRIÇÃO: Define os endpoints (rotas) da API para operações CRUD
+#            relacionadas a Cargos.
+#            Rotas base: /cargos
+# ---------------------------------------------------------------------------
+from typing import Sequence, Optional
+from fastapi import APIRouter, Response, status, Depends, Path, Query
+from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
@@ -23,12 +26,13 @@ router = APIRouter()
     summary="Cria novos cargos de permissão para funcionários"
 )
 def create_cargo_funcionario(
+    # Verificação de permissão: Requer a permissão "cargo" para executar
+    user_permission: dict = Depends(check_permission(required_permission="cargo")),
+    *,
     # Dados do novo cargo, validados pelo Pydantic Schema
     new_cargo: CargoCreate,
     # Injeção da sessão do banco de dados
-    db: Session = Depends(get_db),
-    # Verificação de permissão: Requer a permissão "cargo" para executar
-    user_permission: dict = Depends(check_permission(required_permission="cargo"))
+    db: Session = Depends(get_db)
 ):
     """
     Cria um novo cargo de permissão no sistema.
@@ -57,6 +61,10 @@ def create_cargo_funcionario(
 def get_cargo_funcionarios(
     # Apenas verifica a permissão, o retorno (dict) não é usado na função de serviço
     user_token: dict = Depends(check_permission(required_permission="cargo")),
+    buscar_cargo: Optional[str] = Query(
+        None,
+        description="Campo para filtrar os cargos requeridos"
+    ),
     db: Session = Depends(get_db)
 ):
     """
@@ -67,7 +75,8 @@ def get_cargo_funcionarios(
     # Chama o serviço de busca de todos os cargos
     return _handle_db_transaction(
         db,
-        cargo_service.get_all_cargo_funcionario,
+        cargo_service.get_cargos_funcionario,
+        buscar_cargo
     )
 
 # -------------------------------------------------------------------
@@ -114,7 +123,7 @@ def update_cargo_funcionario(
 )
 def delete_cargo_funcionario(
     # Permissão específica para deleção
-    user_token: dict = Depends(check_permission(required_permission="delete-cargo")),
+    user_token: dict = Depends(check_permission(required_permission="cargo")),
     # ID do cargo a ser deletado
     cargo_id: int = Path(
         ...,
@@ -133,4 +142,4 @@ def delete_cargo_funcionario(
         cargo_id
     )
     # Retorna o status 204 No Content, que é o esperado para deleções bem-sucedidas
-    return
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,83 +1,99 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: empresa.py
-# DESCRIÇÃO: Define os endpoints (rotas) da API para operações CRUD
-#            relacionadas a Empresas (Multi-tenancy).
-#            Rotas base: /empresas
+# ARQUIVO: endpoints/empresa.py
+# MÓDULO: Interface de API (Controller)
+# DESCRIÇÃO: Gerencia o ciclo de vida da entidade Empresa (Tenant).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, File, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, Path, UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Optional
 
-# Importa os schemas necessários para entrada (Create) e saída (Read)
 from app.schemas.empresa import EmpresaCreate, EmpresaRead
-# Importa as dependências de sessão e transação
-from app.core.depends import get_db, _handle_db_transaction
-# Importa a camada de serviço que contém a lógica de negócio
-from app.services import empresa as enterprise_service
+from app.db.models.usuario import Usuario as UsuarioModel
+from app.core.depends import get_current_master_user, _handle_db_transaction
+from app.db.session import get_db
+from app.services import empresa as empresa_service
 
 
-# Cria um roteador específico. Assume que a URL base é /empresas
 router = APIRouter()
 
-# ===============================================
-# Endpoint 1: Criar Empresa (Sign Up) (POST /)
-# ===============================================
+
 @router.post(
     "/",
     response_model=EmpresaRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Cria a empresa responsável pelo PDV (Processo de Sign Up)"
+    summary="Inicializar Empresa (Setup)",
+    description="Cria a empresa única do sistema e vincula o usuário Master logado a ela."
 )
-def create_enterprise(
-    payload: EmpresaCreate,
+def create_empresa(
+    usuario_master: dict = Depends(get_current_master_user),
+    *,
+    empresa_to_add: EmpresaCreate,
     db: Session = Depends(get_db)
 ):
     """
-    Cadastra uma nova **Empresa (Loja)** no sistema, incluindo o **Usuário Master**
-    e o(s) **Endereço(s)** inicial(is) em uma única transação.
+    Realiza o cadastro da empresa (Tenant) no banco de dados.
     
-    * **payload**: Dados da empresa + Dados do usuário master inicial.
-    * **Retorno**: Objeto Empresa criado com ID.
-    * **Exceções**: Retorna 409 Conflict em caso de CNPJ ou E-mail do usuário duplicado.
-    
-    A transação é gerenciada para garantir a atomicidade (Tudo ou Nada).
+    Regras:
+    1. Requer um usuário Master autenticado.
+    2. Só permite o cadastro se não houver nenhuma empresa registrada (Singleton).
+    3. Vincula automaticamente o usuário logado como pertencente a essa empresa.
+
+    Args:
+        usuario_master (dict): Payload do token do Usuário Master (contém 'sub'/ID).
+        empresa_to_add (EmpresaCreate): Payload com dados da empresa e endereço.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        EmpresaRead: Dados da empresa criada.
     """
-    # Chama o serviço de criação de empresa dentro do gerenciador de transação
+    # A ID do usuário Master é extraída do token (campo 'sub')
+    usuario_master_id = int(usuario_master.get("sub"))
+    
     return _handle_db_transaction(
         db,
-        enterprise_service.create_enterprise,
-        payload
+        empresa_service.create_empresa,
+        usuario_master_id,
+        empresa_to_add
     )
 
-# ===============================================
-# Endpoint 2: Adicionar Imagem à Empresa (POST /{id}/imagem)
-# ===============================================
 @router.post(
-    "/{empresa_id}/imagem/",
+    "/imagem/",
     response_model=EmpresaRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Adiciona/Atualiza uma imagem de perfil/logo para a empresa"
+    summary="Upload de Logomarca",
+    description="Armazena a imagem enviada e atualiza a URL da logo da empresa."
 )
 def create_image_empresa(
-    # ID da empresa, obtido da URL (Path Parameter)
-    empresa_id: int = Path(
-        ...,
-        description="ID da empresa a receber a imagem"
-    ),
-    # Arquivo de imagem, obtido do corpo da requisição (Form-Data)
-    file: UploadFile = File(
-        ...,
-        description="Imagem em arquivo (e.g., JPEG, PNG)"
-    ),
+    usuario_master: dict = Depends(get_current_master_user),
+    file: UploadFile = File(..., description="Arquivo de imagem (JPEG, PNG)"),
     db: Session = Depends(get_db)
 ):
     """
-    Faz o upload de um arquivo e o associa como imagem da empresa.
+    Endpoint para upload de branding da empresa.
+    
+    Args:
+        usuario_master (dict): Payload do token do Usuário Master (contém 'empresa_id').
+        file (UploadFile): O arquivo de imagem enviado.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        EmpresaRead: Dados da empresa atualizada.
     """
-    # Chama o serviço de criação/associação de imagem
+    # FIX/Ajuste: Deve-se passar o empresa_id e não o sub (usuario_id)
+    empresa_id: Optional[int] = usuario_master.get("empresa_id")
+
+    if not empresa_id:
+        # Se o Master não tiver empresa_id no token, significa que a empresa não foi criada
+        # ou o token está desatualizado. Levanta uma exceção (404/400).
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O ID da Empresa não está presente no token de acesso. Crie a empresa primeiro."
+        )
+
     return _handle_db_transaction(
         db,
-        enterprise_service.create_image_empresa,
-        empresa_id,
+        empresa_service.create_image_empresa,
+        empresa_id, # Passa o ID da empresa do token
         file
     )

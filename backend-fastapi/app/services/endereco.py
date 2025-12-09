@@ -52,7 +52,7 @@ def address_to_db(id_entity: int, type_entity: EntityType, address_data: List[En
 # =========================
 # Função Utilitária: Atualizar Endereço Existente
 # =========================
-def update_address_in_db(address_in_db: List[EnderecoModel], address_update: List[EnderecoUpdate], id_entity: int, type_entity: EntityType) -> List[EnderecoModel]:
+def update_address_in_db(address_in_db: List[EnderecoModel], address_to_update: List[EnderecoUpdate], id_entity: int, type_entity: EntityType) -> List[EnderecoModel]:
     """
     Atualiza uma lista de objetos EnderecoModel (do banco) com dados
     de uma lista de schemas EnderecoUpdate (do payload).
@@ -64,7 +64,7 @@ def update_address_in_db(address_in_db: List[EnderecoModel], address_update: Lis
 
     Args:
         address_in_db (list[EnderecoModel]): A lista de endereços existentes no banco (ORM).
-        address_update (list[EnderecoUpdate]): A lista de dados de atualização (Pydantic).
+        address_to_update (list[EnderecoUpdate]): A lista de dados de atualização (Pydantic).
         id_entity (int): ID da entidade pai para novos endereços.
         type_entity (EntityType): Tipo da entidade pai para novos endereços.
 
@@ -72,14 +72,17 @@ def update_address_in_db(address_in_db: List[EnderecoModel], address_update: Lis
         list[EnderecoModel]: A lista de objetos SQLAlchemy com as alterações (incluindo novos).
     """
     # 1. Itera sobre a lista de objetos de atualização do Pydantic
-    for address in address_update:
+    for address in address_to_update:
         # Converte o objeto Pydantic em um dicionário, excluindo campos não enviados
         address_data = address.model_dump(exclude_unset=True)
         
         # 2. LÓGICA DE ATUALIZAÇÃO: Se o ID existir (atualização de um endereço existente)
         if address_data.get("id") is not None:
             # Encontra o endereço correspondente na lista do banco
-            db_address = next((addr for addr in address_in_db if addr.id == address_data.get("id")), None)
+            db_address = next(
+                (addr for addr in address_in_db if addr.id == address_data.get("id")),
+                None
+            )
             
             if db_address:
                 # Itera sobre os campos enviados e atualiza o objeto SQLAlchemy

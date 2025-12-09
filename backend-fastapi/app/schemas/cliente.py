@@ -1,83 +1,75 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: cliente.py
-# DESCRIÇÃO: Schemas Pydantic para validação de dados de Cliente.
-#            Define as estruturas de entrada (Create/Update) e saída (Read)
-#            para Clientes Pessoa Física (PF) e Pessoa Jurídica (PJ).
+# ARQUIVO: cliente_schema.py
+# MÓDULO: Schemas Pydantic (DTOs)
+# DESCRIÇÃO: Define regras de validação, tipos e documentação OpenAPI.
 # ---------------------------------------------------------------------------
 
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Annotated, Union, Literal
-# Importa Enums necessários
-from app.core.enum import Gender, ClientType, State # Importado State (via Endereco)
-# Importa schemas de Endereço
+from app.core.enum import Gender, ClientType, State
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
-# =========================
-# Schema Pydantic: ClienteBase
-# =========================
+# ===========================================================================
+# SCHEMA BASE (CAMPOS COMUNS)
+# ===========================================================================
+
 class ClienteBase(BaseModel):
-    """
-    Schema base com campos comuns a todos os tipos de clientes (PF e PJ).
-    """
+    """Atributos compartilhados entre PF e PJ."""
+    
     email: Optional[EmailStr] = Field(
         None,
         max_length=255,
-        description="Email do cliente"
+        description="Endereço de e-mail principal para contato."
     )
     contato: Optional[str] = Field(
         None,
-        max_length=255, # Nota: Pode ser melhor validar como telefone (ex: max_length=20)
-        description="Telefone de contato"
+        max_length=255,
+        description="Telefone ou celular principal."
     )
     observacoes: Optional[str] = Field(
         None,
         max_length=500,
-        description="Observações sobre o cliente"
+        description="Notas internas ou observações sobre o cliente."
     )
-    
-    # Na criação/atualização, espera uma lista de schemas 'Endereco' (sem ID)
     endereco: Optional[List[Endereco]] = Field(
         None,
-        description="Endereço(s) do cliente"
+        description="Lista de endereços vinculados."
     )
 
-    # Permite que o Pydantic crie instâncias a partir de objetos ORM (SQLAlchemy)
     model_config = ConfigDict(from_attributes=True)
 
-# =========================
-# Schemas Pessoa Física (PF)
-# =========================
+# ===========================================================================
+# PESSOA FÍSICA (PF)
+# ===========================================================================
+
 class ClientePFCreate(ClienteBase):
-    """
-    Schema para validar os dados de ENTRADA ao criar um
-    novo Cliente Pessoa Física. Herda os campos comuns de ClienteBase.
-    """
+    """Modelo de entrada para criação de Pessoa Física."""
+    
     nome: str = Field(
-        ..., # Indica que o campo é obrigatório
+        ...,
         max_length=255,
-        description="Nome completo do cliente"
+        description="Nome civil completo."
     )
     cpf: str = Field(
-        ..., # Obrigatório
-        pattern=r"^\d{11}$", # Validação de formato (11 dígitos numéricos)
-        description="CPF com 11 dígitos"
+        ...,
+        pattern=r"^\d{11}$",
+        description="CPF (apenas números, 11 dígitos)."
     )
     rg: Optional[str] = Field(
         None,
         pattern=r"^\d{5,20}$",
-        description="RG com 5 a 20 dígitos"
+        description="Registro Geral (apenas números)."
     )
     genero: Optional[Gender] = Field(
         None,
-        description="Gênero do cliente"
+        description="Gênero conforme enumeração do sistema."
     )
     data_nascimento: Optional[date] = Field(
         None,
-        description="Data de nascimento do cliente"
+        description="Data de nascimento (YYYY-MM-DD)."
     )
 
-    # Exemplo para documentação OpenAPI (Swagger)
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -88,13 +80,13 @@ class ClientePFCreate(ClienteBase):
                 "data_nascimento": "1995-12-15",
                 "email": "joao.silva@meu-pdv.com",
                 "contato": "11987654321",
-                "observacoes": "Cliente novo, aceita e-mail marketing.",
+                "observacoes": "Cliente novo.",
+                "tipo": "PF",
                 "endereco": [
                     {
                         "logradouro": "Rua das Flores",
-                        "numero": "456A",
-                        "complemento": "Casa",
-                        "bairro": "Jardim América",
+                        "numero": "100",
+                        "bairro": "Centro",
                         "cidade": "Campinas",
                         "estado": "SP",
                         "cep": "13010-000"
@@ -105,148 +97,60 @@ class ClientePFCreate(ClienteBase):
     )
 
 class ClientePFRead(ClientePFCreate):
-    """
-    Schema para formatar os dados de SAÍDA (resposta da API)
-    de um Cliente Pessoa Física.
+    """Modelo de saída (Response) para Pessoa Física."""
     
-    Herda de ClientePFCreate para incluir TODOS os campos (base e PF).
-    """
-    id: int = Field(
-        ..., # Obrigatório na resposta
-        description="ID do cliente"
-    )
-    # Define o valor literal esperado para o campo 'tipo'
+    id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PF] = Field(
-        default=ClientType.PF, # Garante que o valor padrão seja consistente
-        description="Tipo do cliente (PF)"
+        default=ClientType.PF,
+        description="Discriminador de tipo: PF"
     )
-    # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
-    endereco: Optional[List[EnderecoRead]] = Field(
-        None,
-        description="Endereço(s) do cliente"
-    )
+    endereco: Optional[List[EnderecoRead]] = Field(None)
+    ativo: bool = Field(..., description="Status do cadastro.")
 
 class ClientePFUpdate(ClienteBase):
-    """
-    Schema para validar os dados de ENTRADA ao ATUALIZAR um
-    Cliente Pessoa Física existente. TODOS os campos são opcionais,
-    EXCETO 'tipo' que é necessário para a discriminação da Union.
-    """
-    # Campo 'tipo' obrigatório para o discriminator funcionar na entrada
-    tipo: Literal[ClientType.PF] = Field(
-        # default=ClientType.PF, # Default não é necessário se for obrigatório
-        description="Tipo do cliente (PF)"
-    )
+    """Modelo de entrada para atualização parcial de Pessoa Física."""
+    
+    tipo: Literal[ClientType.PF] = Field(description="Obrigatório para identificar o schema.")
+    
+    nome: Optional[str] = Field(None, max_length=255)
+    cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")
+    rg: Optional[str] = Field(None, pattern=r"^\d{5,20}$")
+    genero: Optional[Gender] = Field(None)
+    data_nascimento: Optional[date] = Field(None)
+    endereco: Optional[List[EnderecoUpdate]] = Field(None)
 
-    # Campos específicos de PF agora são opcionais
-    nome: Optional[str] = Field(
-        None, # <-- Default None o torna opcional
-        max_length=255,
-        description="Novo nome completo do cliente"
-    )
-    cpf: Optional[str] = Field( # Nota: CPF geralmente não é editável
-        None,
-        pattern=r"^\d{11}$",
-        description="Novo CPF"
-    )
-    rg: Optional[str] = Field(
-        None,
-        pattern=r"^\d{5,20}$",
-        description="Novo RG do cliente"
-    )
-    genero: Optional[Gender] = Field(
-        None,
-        description="Novo gênero do cliente"
-    )
-    data_nascimento: Optional[date] = Field(
-        None,
-        description="Nova data de nascimento do cliente"
-    )
-    # Na atualização, espera uma lista de schemas 'EnderecoUpdate' (com ID)
-    endereco: Optional[List[EnderecoUpdate]] = Field(
-        None,
-        description="Endereço(s) do cliente"
-    )
+# ===========================================================================
+# PESSOA JURÍDICA (PJ)
+# ===========================================================================
 
-    # Exemplo para documentação OpenAPI (Swagger) mostrando atualização parcial
-    model_config = ConfigDict(
-        json_schema_extra= {
-            "example": {
-                "tipo": "PF", # Deve incluir o tipo na atualização
-                "nome": "João Pedro Silva Santos", # Exemplo de alteração
-                "email": "joao.silva.novo@meu-pdv.com",
-                "contato": "11988887777",
-                "observacoes": "Cliente VIP.",
-                "endereco": [ # Exemplo: atualizando um endereço existente
-                    {
-                        "id": 1, # ID do endereço a ser atualizado
-                        "logradouro": "Nova Rua",
-                        "numero": "789",
-                        "bairro": "Novo Bairro",
-                        "cidade": "Campinas",
-                        "estado": "SP",
-                        "cep": "13011-000"
-                    }
-                ]
-            }
-        }
-    )
-
-# =========================
-# Schemas Pessoa Jurídica (PJ)
-# =========================
 class ClientePJCreate(ClienteBase):
-    """
-    Schema para validar os dados de ENTRADA ao criar um
-    novo Cliente Pessoa Jurídica. Herda os campos comuns de ClienteBase.
-    """
-    razao_social: str = Field(
-        ..., # Obrigatório
-        max_length=255,
-        description="Razão social do cliente jurídico"
-    )
-    cnpj: str = Field(
-        ..., # Obrigatório
-        pattern=r"^\d{14}$", # Validação de formato (14 dígitos numéricos)
-        description="CNPJ com 14 dígitos"
-    )
-    nome_fantasia: str = Field(
-        ..., # Obrigatório
-        max_length=255,
-        description="Nome fantasia do cliente jurídico"
-    )
-    ie: Optional[str] = Field(
-        None,
-        pattern=r"^\d{9,14}$",
-        description="Número de inscrição estadual do cliente jurídico"
-    )
-    responsavel: Optional[str] = Field(
-        None,
-        max_length=255,
-        description="Nome do responsável pela empresa"
-    )
+    """Modelo de entrada para criação de Pessoa Jurídica."""
+    
+    razao_social: str = Field(..., max_length=255, description="Razão Social da empresa.")
+    cnpj: str = Field(..., pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
+    nome_fantasia: str = Field(..., max_length=255, description="Nome Fantasia / Marca.")
+    ie: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Estadual.")
+    responsavel: Optional[str] = Field(None, max_length=255, description="Pessoa de contato na empresa.")
 
-    # Exemplo para documentação OpenAPI (Swagger)
     model_config = ConfigDict(
-        json_schema_extra = {
+        json_schema_extra={
             "example": {
-                "razao_social": "Minha Empresa de Tecnologia LTDA",
+                "razao_social": "Tech Solutions LTDA",
                 "cnpj": "12345678000199",
-                "nome_fantasia": "Tech Solutions",
+                "nome_fantasia": "Tech Soluções",
                 "ie": "123456789",
                 "responsavel": "Ana Gerente",
-                "email": "contato@techsolutions.com",
+                "email": "contato@tech.com",
                 "contato": "1155554444",
-                "observacoes": "Primeiro contato feito na feira de tecnologia.",
+                "tipo": "PJ",
                 "endereco": [
                     {
-                        "logradouro": "Avenida das Nações",
-                        "numero": "1001",
-                        "complemento": "Andar 15, Sala 1502",
-                        "bairro": "Distrito Empresarial",
+                        "logradouro": "Av. Empresarial",
+                        "numero": "200",
+                        "bairro": "Distrito Ind.",
                         "cidade": "São Paulo",
                         "estado": "SP",
-                        "cep": "04578-000"
+                        "cep": "04000-000"
                     }
                 ]
             }
@@ -254,96 +158,35 @@ class ClientePJCreate(ClienteBase):
     )
 
 class ClientePJRead(ClientePJCreate):
-    """
-    Schema para formatar os dados de SAÍDA (resposta da API)
-    de um Cliente Pessoa Jurídica.
+    """Modelo de saída (Response) para Pessoa Jurídica."""
     
-    Herda de ClientePJCreate para incluir TODOS os campos (base e PJ).
-    """
-    id: int = Field(
-        ..., # Obrigatório na resposta
-        description="ID do cliente"
-    )
-    # Define o valor literal esperado para o campo 'tipo'
-    tipo: Literal[ClientType.PJ] = Field(
-        default=ClientType.PJ, # Garante que o valor padrão seja consistente
-        description="Tipo do cliente (PJ)"
-    )
-    
-    # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
-    endereco: Optional[List[EnderecoRead]] = Field(
-        None,
-        description="Endereço(s) do cliente"
-    )
+    id: int = Field(..., description="Identificador único do cliente.")
+    tipo: Literal[ClientType.PJ] = Field(default=ClientType.PJ, description="Discriminador de tipo: PJ")
+    endereco: Optional[List[EnderecoRead]] = Field(None)
+    ativo: bool = Field(..., description="Status do cadastro.")
 
 class ClientePJUpdate(ClienteBase):
-    """
-    Schema para validar os dados de ENTRADA ao ATUALIZAR um
-    Cliente Pessoa Jurídica existente. TODOS os campos são opcionais,
-    EXCETO 'tipo' que é necessário para a discriminação da Union.
-    """
-    # Campo 'tipo' obrigatório para o discriminator funcionar na entrada
-    tipo: Literal[ClientType.PJ] = Field(
-        # default=ClientType.PJ, # Default não é necessário se for obrigatório
-        description="Tipo do cliente (PJ)"
-    )
+    """Modelo de entrada para atualização parcial de Pessoa Jurídica."""
+    
+    tipo: Literal[ClientType.PJ] = Field(description="Obrigatório para identificar o schema.")
+    
+    razao_social: Optional[str] = Field(None, max_length=255)
+    cnpj: Optional[str] = Field(None, pattern=r"^\d{14}$")
+    nome_fantasia: Optional[str] = Field(None, max_length=255)
+    ie: Optional[str] = Field(None, pattern=r"^\d{9,14}$")
+    responsavel: Optional[str] = Field(None, max_length=255)
+    endereco: Optional[List[EnderecoUpdate]] = Field(None)
 
-    # Campos específicos de PJ agora são opcionais
-    razao_social: Optional[str] = Field(
-        None,
-        max_length=255,
-        description="Nova razão social do cliente jurídico"
-    )
-    cnpj: Optional[str] = Field( # Nota: CNPJ geralmente não é editável
-        None,
-        pattern=r"^\d{14}$",
-        description="Novo CNPJ")
-    nome_fantasia: Optional[str] = Field(
-        None,
-        max_length=255,
-        description="Novo nome fantasia do cliente jurídico"
-    )
-    ie: Optional[str] = Field(
-        None,
-        pattern=r"^\d{9,14}$",
-        description="Novo número de inscrição estadual"
-    )
-    responsavel: Optional[str] = Field(
-        None,
-        max_length=255,
-        description="Novo nome do responsável pela empresa"
-    )
-    # Na atualização, espera uma lista de schemas 'EnderecoUpdate' (com ID)
-    endereco: Optional[List[EnderecoUpdate]] = Field(
-        None,
-        description="Endereço(s) do cliente"
-    )
+# ===========================================================================
+# UNIÕES POLIMÓRFICAS
+# ===========================================================================
 
-    # Exemplo para documentação OpenAPI (Swagger) mostrando atualização parcial
-    model_config = ConfigDict(
-        json_schema_extra = {
-            "example": {
-                "tipo": "PJ", # Deve incluir o tipo na atualização
-                "razao_social": "Minha Empresa de Tecnologia S.A.", # Exemplo de alteração
-                "nome_fantasia": "Tech Solutions Global",
-                "responsavel": "Novo Responsável",
-                "email": "financeiro@techsolutions.com",
-                "contato": "11977776666",
-                "observacoes": "Contrato renovado.",
-                # CNPJ, IE, Endereco não enviados = não alterados
-            }
-        }
-    )
-
-# =================================
-# Uniões Discriminadas (Polimorfismo)
-# =================================
 ClienteRead = Annotated[
-    Union[ClientePFRead, ClientePJRead], # Define que a resposta pode ser PF ou PJ
-    Field(discriminator="tipo") # Usa o campo 'tipo' para determinar qual schema usar
+    Union[ClientePFRead, ClientePJRead],
+    Field(discriminator="tipo")
 ]
 
 ClienteUpdate = Annotated[
-    Union[ClientePFUpdate, ClientePJUpdate], # Define que a entrada pode ser PF ou PJ
-    Field(discriminator="tipo") # Usa o campo 'tipo' para validar o schema correto
+    Union[ClientePFUpdate, ClientePJUpdate],
+    Field(discriminator="tipo")
 ]

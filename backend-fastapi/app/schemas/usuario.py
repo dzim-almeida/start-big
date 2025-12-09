@@ -13,9 +13,12 @@ from datetime import datetime
 class UsuarioBase(BaseModel):
     """
     Campos básicos e comuns para identificação do usuário.
+
+    Attributes:
+        nome (str): Nome completo do usuário.
+        email (EmailStr): E-mail de login, validado automaticamente como formato de e-mail.
     """
     nome: str = Field(..., max_length=255, description="Nome completo")
-    # Usa EmailStr para garantir validação de formato de e-mail automática
     email: EmailStr = Field(..., max_length=255, description="E-mail de login")
 
     model_config = ConfigDict(from_attributes=True)
@@ -25,7 +28,10 @@ class UsuarioBase(BaseModel):
 # =========================
 class UsuarioCreate(UsuarioBase):
     """
-    Dados de criação, incluindo a senha em texto plano.
+    Dados de criação, incluindo a senha em texto plano, para um novo usuário.
+
+    Attributes:
+        senha (str): Senha em texto plano (será hashada no Service/CRUD). Deve ter entre 8 e 72 caracteres.
     """
     senha: str = Field(
         ..., 
@@ -38,8 +44,8 @@ class UsuarioCreate(UsuarioBase):
         json_schema_extra={
             "example": {
                 "nome": "Admin Master",
-                "email": "admin@empresa.com",
-                "senha": "SenhaForte123!",
+                "email": "test@test.com",
+                "senha": "test1234",
             }
         }
     )
@@ -50,24 +56,37 @@ class UsuarioCreate(UsuarioBase):
 class UsuarioRead(UsuarioBase):
     """
     Formato de resposta da API para Usuário (exclui a senha).
+
+    Attributes:
+        id (int): ID único do usuário.
+        empresa_id (Optional[int]): ID da empresa à qual o usuário está vinculado. Pode ser None.
+        ativo (bool): Status de ativo/inativo do usuário.
+        is_master (bool): Indica se o usuário é o Master/Administrador da empresa.
     """
     id: int = Field(..., description="ID do usuário")
-    empresa_id: int = Field(..., description="ID da empresa")
+    empresa_id: Optional[int] = Field(None, description="ID da empresa")
     ativo: bool = Field(..., description="Status de ativo/inativo")
     is_master: bool = Field(..., description="Define se é o usuário Master da empresa")
-    # data_criacao poderia ser adicionada se estiver presente no modelo ORM
+    # Nota: data_criacao é comum em retornos, mantive o comentário.
 
 # =========================
 # Update (Edição Parcial)
 # =========================
 class UsuarioUpdate(BaseModel):
     """
-    Campos opcionais para edição parcial (PUT/PATCH).
+    Campos opcionais para edição parcial do usuário (PUT/PATCH).
+
+    Attributes:
+        nome (Optional[str]): Novo nome completo.
+        email (Optional[EmailStr]): Novo e-mail de login.
+        senha (Optional[str]): Nova senha (será hashada, se fornecida).
     """
-    nome: Optional[str] = Field(None, max_length=255)
-    email: Optional[EmailStr] = Field(None, max_length=255)
-    senha: Optional[str] = Field(None, min_length=8, description="Nova senha (opcional)")
-    is_master: Optional[bool] = Field(None)
-    ativo: Optional[bool] = Field(None)
+    nome: Optional[str] = Field(None, max_length=255, description="Novo nome")
+    email: Optional[EmailStr] = Field(None, max_length=255, description="Novo e-mail")
+    senha: Optional[str] = Field(
+        None, 
+        min_length=8, 
+        description="Nova senha (opcional)"
+    )
 
     model_config = ConfigDict(from_attributes=True)

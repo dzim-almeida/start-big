@@ -1,210 +1,140 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: endpoints/servico.py
-# DESCRIÇÃO: Define os endpoints (rotas) da API para operações CRUD
-#            relacionadas a Serviços.
+# MÓDULO: Interface de API (Controller)
+# DESCRIÇÃO: Gerencia as ofertas de serviços (ex: Mão de obra, Consultoria).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
+from fastapi import APIRouter, Depends, status, Path, Query
 from sqlalchemy.orm import Session
-from typing import Sequence
+from typing import Sequence, Optional
 
-from app.core.depends import get_token
+from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-
 from app.schemas.servico import ServicoCreate, ServicoRead, ServicoUpdate
-from app.services import servico as service_services
+from app.services import servico as servico_service
 
-# Cria um roteador específico para este módulo
 router = APIRouter()
 
-# =========================
-# Endpoint: Criar Serviço
-# =========================
+# ===========================================================================
+# ROTAS DE CRIAÇÃO (POST)
+# ===========================================================================
+
 @router.post(
     "/",
     response_model=ServicoRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Cria uma nova oferta de serviço."
+    summary="Cadastrar Novo Serviço",
+    description="Cria uma nova oferta de serviço no sistema."
 )
-def create_service(
-    service: ServicoCreate, # Valida o corpo da requisição com o schema
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+def create_servico(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    *,
+    servico_to_add: ServicoCreate,
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para criar um novo Serviço.
-
-    Recebe um payload com os dados do serviço e gerencia
-    a transação do banco de dados (commit/rollback).
-    """
-    try:
-        # 1. TENTA EXECUTAR A LÓGICA DE NEGÓCIO
-        # Delega a criação para a camada de serviço
-        new_service = service_services.create_service(db, service)
-        
-        # 2. CAMINHO FELIZ: Comita a transação
-        db.commit()
-        
-        # 3. Retorna o novo serviço criado
-        return new_service
-
-    except HTTPException as http_exce:
-        # 4A. CAMINHO TRISTE (Erro de Negócio):
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise http_exce
+    Registra um novo serviço.
     
-    except Exception as e:
-        # 4B. CAMINHO TRISTE (Erro Inesperado):
-        print(f"Erro inesperado ao cadastrar serviço: {e}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
+    Args:
+        servico_to_add (ServicoCreate): Dados do serviço (Descrição, Valor, etc).
+        db (Session): Sessão de banco de dados.
 
-# =========================
-# Endpoint: Buscar TODOS os Serviços
-# =========================
-@router.get(
-    "/a",
-    response_model=Sequence[ServicoRead],
-    status_code=status.HTTP_200_OK,
-    summary="Retorna todos os serviços cadastrados" # <-- Corrigido
-)
-def get_all_services(
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
-):
+    Returns:
+        ServicoRead: O serviço criado com ID gerado.
     """
-    Endpoint para buscar TODOS os serviços cadastrados no sistema.
-    (Nota: Rota de utilidade, sem paginação)
-    """
-    # Delega a busca para a camada de serviço
-    services_in_db = service_services.get_all_services(db)
-    # Retorna a lista de serviços
-    return services_in_db
+    return _handle_db_transaction(
+        db,
+        servico_service.create_servico,
+        servico_to_add
+    )
 
-# =========================
-# Endpoint: Buscar Serviços (Search)
-# =========================
+# ===========================================================================
+# ROTAS DE LEITURA (GET)
+# ===========================================================================
+
 @router.get(
     "/",
-    response_model=Sequence[ServicoRead], # A resposta é uma lista de serviços
+    response_model=Sequence[ServicoRead],
     status_code=status.HTTP_200_OK,
-    summary="Buscar um serviço através da descrição."
+    summary="Listar ou Buscar Serviços",
+    description="Retorna serviços ativos. Permite filtro por descrição."
 )
-def get_service(
-    # Define 'buscar' como um parâmetro de query (ex: /servicos/?buscar=...)
-    buscar: str = Query(
-        ..., # Indica que o parâmetro é obrigatório
+def get_servico(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    *,
+    buscar: Optional[str] = Query(
+        None,
         max_length=255,
-        description="Termo de busca do serviço."
+        description="Termo de busca (Descrição do serviço)."
     ),
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para buscar serviços pela sua descrição.
-    Retorna uma lista de serviços ou uma lista vazia.
-    """
-    # Delega a lógica de busca para o serviço
-    services_in_db = service_services.get_service_by_search(db, search=buscar)
-    
-    # Retorna a lista de resultados
-    return services_in_db
+    Busca serviços cadastrados.
 
-# =========================
-# Endpoint: Atualizar Serviço (PUT)
-# =========================
+    Args:
+        buscar (str, optional): Texto para filtrar por descrição.
+        db (Session): Sessão do banco.
+    """
+    return _handle_db_transaction(
+        db,
+        servico_service.get_servico_by_search,
+        buscar
+    )
+
+# ===========================================================================
+# ROTAS DE ATUALIZAÇÃO (PUT)
+# ===========================================================================
+
 @router.put(
-    "/{id}", # Recebe o ID do serviço na URL
-    response_model=ServicoRead, # Retorna o serviço atualizado
+    "/{servico_id}",
+    response_model=ServicoRead,
     status_code=status.HTTP_200_OK,
-    summary="Edita atributos de um serviço existente."
+    summary="Atualizar Serviço",
+    description="Altera dados de um serviço existente."
 )
-def update_service(
-    # Extrai o ID da URL, valida se é um inteiro
-    id: int = Path(
-        ...,
-        description="ID único do servico a ser editado."
-    ),
-    *, # Força os parâmetros seguintes a serem nomeados (keyword-only)
-    
-    # Valida o corpo da requisição (JSON) com o schema de atualização
-    service: ServicoUpdate,
-    
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+def update_servico(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    servico_id: int = Path(..., description="ID do serviço", ge=1),
+    *,
+    servico_to_update: ServicoUpdate,
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para atualizar um serviço existente pelo seu ID.
-    Gerencia a transação (commit/rollback).
-    """
-    try:
-        # Delega a lógica de atualização para o serviço
-        updated_service = service_services.update_service(db, id, service)
-        
-        # Comita a transação se o serviço foi bem-sucedido
-        db.commit()
-        
-        # Retorna o serviço atualizado
-        return updated_service
-    
-    except HTTPException as http_exce:
-        # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise http_exce
-    
-    except Exception as e:
-        # Captura erros inesperados
-        print(f"Erro inesperado ao atualizar serviço: {e}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
+    Atualiza atributos de um serviço.
 
-# =========================
-# Endpoint: Deletar Serviço (DELETE)
-# =========================
-@router.delete(
-    "/{id}",
-    status_code=status.HTTP_204_NO_CONTENT, # Define o status de sucesso
-    summary="Delete um serviço ofertado."
+    Args:
+        servico_id (int): ID do serviço na URL.
+        servico_to_update (ServicoUpdate): Payload com novos dados.
+    """
+    return _handle_db_transaction(
+       db, 
+       servico_service.update_servico_by_id,
+       servico_id,
+       servico_to_update
+   )
+
+@router.put(
+    "/toggle_ativo/{service_id}",
+    response_model=ServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Ativar/Desativar Serviço",
+    description="Alterna o status lógico (Soft Delete)."
 )
-def delete_service(
-    # Extrai o ID da URL, valida se é um inteiro
-    id: int = Path(
-        ...,
-        description="ID único do servico a ser excluído."
-    ),
-    token: dict = Depends(get_token), # Garante autenticação
-    db: Session = Depends(get_db) # Injeta a sessão do banco
+def toggle_status_servico(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    service_id: int = Path(..., description="ID do serviço", ge=1),
+    *,
+    db: Session = Depends(get_db)
 ):
     """
-    Endpoint para deletar um serviço existente pelo seu ID.
-    Gerencia a transação (commit/rollback).
-    """
-    try:
-        # Delega a lógica de deleção para o serviço
-        service_services.delete_service(db, id)
-        
-        # Comita a transação
-        db.commit()
-        
-    except HTTPException as http_exce:
-        # Captura erros de negócio (ex: 404 Not Found)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise http_exce
+    Ativa ou desativa um serviço.
     
-    except Exception as e:
-        # Captura erros inesperados
-        print(f"Erro inesperado ao deletar serviço: {e}")
-        db.rollback() # Desfaz quaisquer alterações pendentes
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
+    Nota: A função chamada foi ajustada para 'toggle_active_disable_servico_by_id'
+    para manter a consistência com os outros módulos.
+    """
+    return _handle_db_transaction(
+        db,
+        servico_service.toggle_active_disable_servico_by_id,
+        service_id
+    )

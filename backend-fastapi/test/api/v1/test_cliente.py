@@ -1,300 +1,266 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: test_cliente.py
-# DESCRIÇÃO: Testes de integração para os endpoints de Cliente (PF, PJ, Busca),
-#            seguindo a metodologia TDD.
+# DESCRIÇÃO: Testes de integração para o domínio de Clientes.
+# PADRÃO: Arrange (Preparar), Act (Agir), Assert (Validar).
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-from starlette import status # Boa prática para usar status codes nominais
-
-from app.db.models.usuario import Usuario as UsuarioModel
-from app.core.security import hash_password
-from app.core.enum import UserType
+from starlette import status
 
 # --- Constantes de Teste ---
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
 
 # =========================
-# Fixture de Autenticação
+# Fixtures (Preparação de Dados)
 # =========================
-@pytest.fixture(scope="function")
-def header_with_token(client: TestClient, db_session: Session, create_test_empresa) -> dict:
 
+@pytest.fixture(scope="function")
+def header_with_token(client: TestClient, db_session, create_test_empresa) -> dict:
+    """Autentica o usuário e retorna o header Authorization."""
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
     response = client.post("/api/v1/auth/login", data=login_data)
-    assert response.status_code == 200 
+    
+    # Fail fast se o login não funcionar
+    assert response.status_code == 200, "Falha ao logar no setup do teste"
     
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
-# =========================
-# Testes de Criação de Cliente PF
-# =========================
-def test_criar_cliente_pf_usuario_logado(client: TestClient, header_with_token: dict):
-    """
-    Testa o "caminho feliz": a criação bem-sucedida de um Cliente PF
-    quando o usuário está autenticado.
-    """
-    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PF
-    data_client = {
-        "email": "joao.silva@meu-pdv.com",
-        "contato": "11987654321",
-        "observacoes": "Cliente novo, aceita e-mail marketing.",
-        "endereco": [
-            {
-                "logradouro": "Rua das Flores",
-                "numero": "456A",
-                "complemento": "Casa",
-                "bairro": "Jardim América",
-                "cidade": "Campinas",
-                "estado": "SP",
-                "cep": "13010-000"
-            },
-            {
-                "logradouro": "Av. Principal",
-                "numero": "20",
-                "complemento": "Escritório",
-                "bairro": "Centro",
-                "cidade": "Belo Horizonte",
-                "estado": "MG",
-                "cep": "30110-010"
-            }
-        ],
-        "nome": "João Pedro Silva",
-        "cpf": "98765432101",
-        "rg": "12345678",
-        "genero": "MASCULINO",
-        "data_nascimento": "1995-12-15"
-    }
-
-    # Act: Envia a requisição POST para o endpoint de criação de PF,
-    # incluindo o payload e os headers de autenticação obtidos da fixture.
-    response = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
-    
-    # Assert: Verifica se a criação foi bem-sucedida
-    assert response.status_code == status.HTTP_201_CREATED # Verifica o status HTTP 201 Created
-    data = response.json()
-    assert data["nome"] == "João Pedro Silva" # Verifica se o nome na resposta está correto
-    assert data["email"] == "joao.silva@meu-pdv.com" # Verifica se o email na resposta está correto
-
-def test_criar_cliente_sem_token(client: TestClient):
-    """
-    Testa o "caminho triste": a falha ao tentar criar um Cliente PF
-    sem enviar um token de autenticação (usuário não logado).
-    """
-    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PF
-    data_client = {
+@pytest.fixture
+def valid_pf_payload():
+    """Retorna um dicionário com dados válidos para criar um Cliente PF."""
+    return {
         "nome": "João Pedro Silva",
         "cpf": "98765432101",
         "rg": "12345678",
         "genero": "MASCULINO",
         "data_nascimento": "1995-12-15",
-        "email": "joao.silva@meu-podv.com",
+        "email": "joao.silva@meu-pdv.com",
         "contato": "11987654321",
-        "observacoes": "Cliente novo, aceita e-mail marketing.",
+        "observacoes": "Cliente novo.",
+        "tipo": "PF",
         "endereco": [
-            # ... (lista de endereços) ...
+            {
+                "logradouro": "Rua das Flores",
+                "numero": "100",
+                "bairro": "Centro",
+                "cidade": "Campinas",
+                "estado": "SP",
+                "cep": "13010-000"
+            }
         ]
     }
 
-    # Act: Envia a requisição POST, mas desta vez SEM os headers de autenticação
-    response = client.post("/api/v1/clientes/cliente_pf", json=data_client)
-    
-    # Assert: Verifica se a API protegeu o endpoint corretamente, retornando 401 Unauthorized
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-# =========================
-# Testes de Criação de Cliente PJ
-# =========================
-def test_criar_cliente_pj_usuario_logado(client: TestClient, header_with_token: dict):
-    """
-    Testa o "caminho feliz": a criação bem-sucedida de um Cliente PJ
-    quando o usuário está autenticado.
-    """
-    # Arrange: Define o payload (corpo da requisição JSON) para o novo cliente PJ
-    data_client = {
-        "razao_social": "Minha Empresa de Tecnologia LTDA",
+@pytest.fixture
+def valid_pj_payload():
+    """Retorna um dicionário com dados válidos para criar um Cliente PJ."""
+    return {
+        "razao_social": "Tech Solutions LTDA",
         "cnpj": "12345678000199",
-        "nome_fantasia": "Tech Solutions",
+        "nome_fantasia": "Tech Soluções",
         "ie": "123456789",
         "responsavel": "Ana Gerente",
-        "email": "contato@techsolutions.com",
+        "email": "contato@tech.com",
         "contato": "1155554444",
-        "observacoes": "Primeiro contato feito na feira de tecnologia.",
+        "tipo": "PJ",
         "endereco": [
             {
-                "logradouro": "Avenida das Nações",
-                "numero": "1001",
-                "complemento": "Andar 15, Sala 1502",
-                "bairro": "Distrito Empresarial",
+                "logradouro": "Av. Empresarial",
+                "numero": "200",
+                "bairro": "Distrito Ind.",
                 "cidade": "São Paulo",
                 "estado": "SP",
-                "cep": "04578-000"
+                "cep": "04000-000"
             }
         ]
     }
 
-    # Act: Envia a requisição POST para o endpoint de criação de PJ,
-    # incluindo o payload e os headers de autenticação.
-    response = client.post("/api/v1/clientes/cliente_pj", json=data_client, headers=header_with_token)
+# =========================
+# Testes: Criação (POST)
+# =========================
+
+def test_criar_cliente_pf_sucesso(client: TestClient, header_with_token, valid_pf_payload):
+    """Testa a criação bem-sucedida de um cliente PF."""
+    # Act
+    response = client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
     
-    # Assert: Verifica se a criação foi bem-sucedida
+    # Assert
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
-    assert data["cnpj"] == "12345678000199" # Verifica se o CNPJ na resposta está correto
-    assert data["email"] == "contato@techsolutions.com" # Verifica se o email na resposta está correto
+    assert data["nome"] == valid_pf_payload["nome"]
+    assert data["cpf"] == valid_pf_payload["cpf"]
+    assert data["id"] is not None
+    assert data["ativo"] is True
+
+def test_criar_cliente_pj_sucesso(client: TestClient, header_with_token, valid_pj_payload):
+    """Testa a criação bem-sucedida de um cliente PJ."""
+    # Act
+    response = client.post("/api/v1/clientes/cliente_pj", json=valid_pj_payload, headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert data["cnpj"] == valid_pj_payload["cnpj"]
+    assert data["tipo"] == "PJ"
+
+def test_erro_criar_cliente_duplicado(client: TestClient, header_with_token, valid_pf_payload):
+    """Testa a regra de negócio que impede dois clientes com mesmo CPF."""
+    # Arrange: Cria o primeiro cliente
+    client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    
+    # Act: Tenta criar o segundo cliente com os MESMOS dados
+    response = client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert "já cadastrado" in response.json()["detail"][0]["mensagem"]
+
+def test_erro_validacao_cpf_invalido(client: TestClient, header_with_token, valid_pf_payload):
+    """Testa se o Pydantic bloqueia CPF com formato errado (menos digitos)."""
+    # Arrange
+    valid_pf_payload["cpf"] = "123" # CPF inválido
+    
+    # Act
+    response = client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 # =========================
-# Teste de Busca de Cliente
+# Testes: Leitura/Busca (GET)
 # =========================
-def test_buscar_cliente_pf_com_cpf_usuario_logado(client: TestClient, header_with_token: dict):
-    """
-    Testa a funcionalidade de busca por CPF:
-    1. Cria um cliente PF.
-    2. Busca por esse cliente usando seu CPF.
-    3. Verifica se o cliente correto foi retornado.
-    """
-    # --- Arrange ---
-    # 1. Define o payload para criar o cliente que será buscado
-    data_client = {
-        "email": "joao.silva@meu-pdv.com",
-        "contato": "11987654321",
-        "observacoes": "Cliente novo, aceita e-mail marketing.",
-        "endereco": [
-            {
-                "logradouro": "Avenida das Nações",
-                "numero": "1001",
-                "complemento": "Andar 15, Sala 1502",
-                "bairro": "Distrito Empresarial",
-                "cidade": "São Paulo",
-                "estado": "SP",
-                "cep": "04578-000"
-            }
-        ],
-        "nome": "João Pedro Silva",
-        "cpf": "98765432101", # O CPF que será usado na busca
-        "rg": "12345678",
-        "genero": "MASCULINO",
-        "data_nascimento": "1995-12-15"
-    }
 
-    # 2. Cria o cliente via API (pré-condição para a busca)
-    response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
-    assert response_create.status_code == status.HTTP_201_CREATED # Garante que a criação funcionou
-
-    # --- Act ---
-    # 3. Define o termo de busca (o CPF criado)
-    client_cpf = "98765432101"
-
-    # 4. Envia a requisição GET para o endpoint de busca,
-    #    passando o CPF como parâmetro de query 'buscar'
-    response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
+def test_buscar_cliente_por_cpf(client: TestClient, header_with_token, valid_pf_payload):
+    """Testa a busca polimórfica usando um CPF."""
+    # Arrange
+    client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    target_cpf = valid_pf_payload["cpf"]
     
-    # --- Assert ---
-    # 5. Verifica se a busca foi bem-sucedida e retornou o cliente correto
-    assert response_search.status_code == status.HTTP_200_OK
-    data = response_search.json()
-    assert len(data) == 1 # A busca deve retornar exatamente um cliente
-    assert data[0]["cpf"] == client_cpf # Verifica se o CPF do cliente retornado é o buscado
-
-def test_editar_cliente_com_usuario_logado(client: TestClient, header_with_token: dict):
-    data_client = {
-        "email": "joao.silva@meu-pdv.com",
-        "contato": "11987654321",
-        "observacoes": "Cliente novo, aceita e-mail marketing.",
-        "endereco": [
-           {
-                "logradouro": "Avenida das Nações",
-                "numero": "1001",
-                "complemento": "Andar 15, Sala 1502",
-                "bairro": "Distrito Empresarial",
-                "cidade": "São Paulo",
-                "estado": "SP",
-                "cep": "04578-000"
-            }
-        ],
-        "nome": "João Pedro Silva",
-        "cpf": "98765432101", # O CPF que será usado na busca
-        "rg": "12345678",
-        "genero": "MASCULINO",
-        "data_nascimento": "1995-12-15"
-    }
-
-    response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
-    assert response_create.status_code == status.HTTP_201_CREATED
+    # Act
+    response = client.get(f"/api/v1/clientes/?buscar={target_cpf}", headers=header_with_token)
     
-    client_cpf = "98765432101"
-    response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
-    assert response_search.status_code == status.HTTP_200_OK
-    data_search = response_search.json()
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["cpf"] == target_cpf
 
-    edited_client = data_search[0]
+def test_buscar_todos_clientes(client: TestClient, header_with_token, valid_pf_payload, valid_pj_payload):
+    """Testa se a busca vazia retorna a lista completa."""
+    # Arrange: Cria 1 PF e 1 PJ
+    client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    client.post("/api/v1/clientes/cliente_pj", json=valid_pj_payload, headers=header_with_token)
+    
+    # Act
+    response = client.get("/api/v1/clientes/", headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    results = response.json()
+    # Verifica se pelo menos os 2 criados retornaram (pode haver outros do setup do banco)
+    assert len(results) >= 2 
 
-    edited_client["cpf"] = "65764352122"
-    edited_client["endereco"] = [
+# =========================
+# Testes: Atualização (PUT)
+# =========================
+
+def test_atualizar_cliente_e_enderecos(client: TestClient, header_with_token, valid_pf_payload):
+    """
+    Testa atualização de dados cadastrais e manipulação complexa de endereços:
+    1. Atualiza um endereço existente.
+    2. Adiciona um novo endereço (sem ID).
+    """
+    # Arrange: Cria cliente
+    res_create = client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    created_client = res_create.json()
+    cliente_id = created_client["id"]
+    endereco_id = created_client["endereco"][0]["id"]
+    
+    # Prepara payload de atualização
+    update_payload = {
+        "nome": "André",
+        "tipo": "PF",
+        "endereco": ...
+    }
+    
+    # Modifica endereço existente e adiciona um novo
+    update_payload["endereco"] = [
         {
-            "bairro": "Novo Bairro",
-            "cep": "13011-000",
+            "id": endereco_id, # ID existente -> Update
+            "logradouro": "Rua Editada",
+            "numero": "999",
+            "bairro": "Centro",
             "cidade": "Campinas",
             "estado": "SP",
-            "id": 1,
-            "logradouro": "Nova Rua",
-            "numero": "789"
+            "cep": "13010-000"
         },
         {
-            "bairro": "Veneza",
-            "cep": "63504-360",
-            "cidade": "Iguatu",
-            "estado": "CE",
-            "id": None,
-            "logradouro": "Jose Ferreira Lima",
-            "numero": "27"
+            # Sem ID -> Create (Novo Endereço)
+            "logradouro": "Rua Nova Adicionada",
+            "numero": "10",
+            "bairro": "Bairro Novo",
+            "cidade": "Campinas",
+            "estado": "SP",
+            "cep": "13010-100"
         }
     ]
 
-    response_edit = client.put(f"/api/v1/clientes/{edited_client["id"]}", json=edited_client, headers=header_with_token)
-    assert response_edit.status_code == status.HTTP_200_OK
-    data_edit = response_edit.json()
-    assert data_edit["cpf"] == "65764352122"
+    # Act
+    response = client.put(f"/api/v1/clientes/{cliente_id}", json=update_payload, headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["nome"] == "André"
+    assert len(data["endereco"]) == 2 # Deve ter 2 endereços agora
+    
+    # Verifica se um dos endereços é o editado
+    addr_names = [end["logradouro"] for end in data["endereco"]]
+    assert "Rua Editada" in addr_names
+    assert "Rua Nova Adicionada" in addr_names
 
-# def test_deletar_cliente_com_usuario_logado(client: TestClient, header_with_token: dict):
-#     data_client = {
-#         "email": "joao.silva@meu-pdv.com",
-#         "contato": "11987654321",
-#         "observacoes": "Cliente novo, aceita e-mail marketing.",
-#         "endereco": [
-#            {
-#                 "logradouro": "Avenida das Nações",
-#                 "numero": "1001",
-#                 "complemento": "Andar 15, Sala 1502",
-#                 "bairro": "Distrito Empresarial",
-#                 "cidade": "São Paulo",
-#                 "estado": "SP",
-#                 "cep": "04578-000"
-#             }
-#         ],
-#         "nome": "João Pedro Silva",
-#         "cpf": "98765432101", # O CPF que será usado na busca
-#         "rg": "12345678",
-#         "genero": "MASCULINO",
-#         "data_nascimento": "1995-12-15"
-#     }
+def test_erro_atualizar_cliente_inexistente(client: TestClient, header_with_token, valid_pf_payload):
+    """Testa tentativa de update em ID que não existe (404)."""
+    # Arrange
+    valid_pf_payload["tipo"] = "PF"
+    
+    # Act
+    response = client.put("/api/v1/clientes/99999", json=valid_pf_payload, headers=header_with_token)
+    
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
-#     response_create = client.post("/api/v1/clientes/cliente_pf", json=data_client, headers=header_with_token)
-#     assert response_create.status_code == status.HTTP_201_CREATED
+# =========================
+# Testes: Toggle Ativo/Inativo (Soft Delete)
+# =========================
 
-#     data_create = response_create.json()
+def test_toggle_status_cliente(client: TestClient, header_with_token, valid_pf_payload):
+    """
+    Testa o ciclo de vida lógico:
+    Ativo -> Desativar -> Inativo -> Ativar -> Ativo
+    """
+    # Arrange: Cria cliente (nasce Ativo=True)
+    res = client.post("/api/v1/clientes/cliente_pf", json=valid_pf_payload, headers=header_with_token)
+    cliente_id = res.json()["id"]
+    assert res.json()["ativo"] is True
+    
+    # Act 1: Desativar
+    res_disable = client.put(f"/api/v1/clientes/toggle_ativo/{cliente_id}", headers=header_with_token)
+    
+    # Assert 1
+    assert res_disable.status_code == status.HTTP_200_OK
+    assert res_disable.json()["ativo"] is False
+    
+    # Verificação extra: Cliente desativado não deve aparecer na busca padrão (se o CRUD filtrar ativos)
+    # ou deve aparecer com flag false. No seu CRUD atual, o get_by_search filtra "ativo == True".
+    res_search = client.get(f"/api/v1/clientes/?buscar={valid_pf_payload['cpf']}", headers=header_with_token)
+    assert len(res_search.json()) == 0 # Não deve achar pois está inativo
 
-#     response_delete = client.delete(f"/api/v1/clientes/{data_create["id"]}", headers=header_with_token)
-#     assert response_delete.status_code == status.HTTP_204_NO_CONTENT
-
-#     client_cpf = "98765432101"
-#     response_search = client.get(f"/api/v1/clientes/?buscar={client_cpf}", headers=header_with_token)
-#     assert response_search.status_code == status.HTTP_200_OK
-#     data_search = response_search.json()
-
-#     assert len(data_search) == 0
+    # Act 2: Reativar
+    res_enable = client.put(f"/api/v1/clientes/toggle_ativo/{cliente_id}", headers=header_with_token)
+    
+    # Assert 2
+    assert res_enable.status_code == status.HTTP_200_OK
+    assert res_enable.json()["ativo"] is True

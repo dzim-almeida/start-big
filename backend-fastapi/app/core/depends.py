@@ -1,155 +1,197 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: depends.py
-# DESCRIÇÃO: Define dependências reutilizáveis para os endpoints da API,
-#            incluindo autenticação, autorização (permissão) e transação DB.
+# ARQUIVO: app/core/depends.py
+# DESCRIÇÃO: Dependências (Middlewares) para proteção de rotas.
 # ---------------------------------------------------------------------------
 
-from typing import Callable, Dict
+from typing import Callable, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import verify_token_data
+from app.services import usuario as usuario
 from app.db.crud import token as token_crud
-from app.db.crud import usuario as user_crud
 from app.db.session import get_db
-from app.db.models.usuario import Usuario as UsuarioModel
 
-# Define o esquema de autenticação OAuth2.
-# O 'tokenUrl' aponta para o endpoint de login.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-# =========================
-# Dependência 1: Obter e Validar Token (Autenticação)
-# =========================
 
+def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Busca os dados mais recentes do usuário no banco (re-hidratação) e atualiza o payload.
+    
+    Isso previne que um token tenha informações desatualizadas (e.g., status 'ativo' mudou).
+
+    Args:
+        db (Session): Sessão de banco de dados.
+        usuario_token (Dict[str, Any]): O payload decodificado do token (contém 'sub').
+
+    Raises:
+        HTTPException 403 FORBIDDEN: Se o usuário (sub) não for encontrado no banco.
+
+    Returns:
+        Dict[str, Any]: O payload do token atualizado com dados recentes do ORM.
+    """
+    try:
+        # Busca o usuário no banco para obter os dados mais atuais
+        usuario_in_db = usuario.get_usuario_by_id(
+            db, 
+            usuario_id=int(usuario_token["sub"])
+        )
+    except HTTPException as http_exce:
+        # Erro 404 do service (Usuário não encontrado) é transformado em 403 (Token Inválido)
+        # REGRA 4 aplicada: Mais específico, não printa exceção de segurança no console de prod
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token inválido. Usuário associado ao token não existe ou está inativo."
+        )
+    
+    # REGRA 4 aplicada: O token é atualizado com dados de permissão/status frescos
+    usuario_token["ativo"] = usuario_in_db.ativo
+    usuario_token["is_master"] = usuario_in_db.is_master
+    usuario_token["empresa_id"] = usuario_in_db.empresa_id
+    
+    # Pega as permissões do cargo, ou um dicionário vazio se não houver cargo/funcionário
+    if usuario_in_db.funcionario and usuario_in_db.funcionario.cargo:
+        usuario_token["permissoes"] = usuario_in_db.funcionario.cargo.permissoes or {}
+        usuario_token["cargo"] = usuario_in_db.funcionario.cargo.nome
+    else:
+        usuario_token["permissoes"] = {}
+        usuario_token["cargo"] = "Sem Cargo" # Define um valor padrão
+        
+    return usuario_token
+    
+    
+# =========================
+# 1. Validação Técnica (Assinatura e Blocklist)
+# =========================
 def get_token(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
-) -> UsuarioModel:
+) -> Dict[str, Any]:
     """
-    Dependência que valida o JWT, verifica a blocklist e busca o Usuário no BD.
+    Dependência principal: Decodifica o token, valida a assinatura e verifica a blocklist.
 
-    Retorna o objeto UsuarioModel se o token for válido e o usuário existir.
+    Args:
+        db (Session): Sessão de banco de dados.
+        token (str): O token JWT extraído do cabeçalho 'Authorization'.
+
+    Raises:
+        HTTPException 401 UNAUTHORIZED: Se a assinatura for inválida ou o token tiver sido revogado.
+
+    Returns:
+        Dict[str, Any]: O payload decodificado e validado do token.
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Não foi possível validar as credenciais",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    # 1. Valida a assinatura e expiração do token, e obtém os dados.
+    # Valida assinatura e decodifica. Se falhar, levanta 401.
     token_data = verify_token_data(token)
 
-    # 2. Extrai o JTI (JWT ID) para verificação da blocklist.
-    token_jti = token_data.get("jti")
-
-    # 3. VERIFICAÇÃO DA BLOCKLIST: Checa se o token foi revogado.
-    revoke_token = token_crud.get_revoke_token(db, token_jti)
-    if revoke_token:
-        raise credentials_exception
-
-    # 4. Extrai o ID do usuário ('sub').
-    user_id = token_data.get("sub")
-
-    # 5. Busca o usuário correspondente no banco de dados.
-    # Nota: O retorno é o objeto UsuarioModel, e não apenas o payload do token.
-    user = user_crud.get_user_by_id(db, id=int(user_id))
-
-    # 6. Se o usuário não existir (ex: deletado após o token), nega.
-    if not user:
-        raise credentials_exception
-
-    return user
-
-# =========================
-# Dependência 2: Obter Usuário Ativo
-# =========================
-
-def get_current_user(
-    usuario_in_db: UsuarioModel = Depends(get_token)
-) -> UsuarioModel:
-    """
-    Garante que o usuário autenticado esteja ativo.
-    """
-    inactive_user_exception = HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Usuário inativo. O acesso foi revogado.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    if not usuario_in_db.ativo:
-        # Se inativo, lança a exceção e nega o acesso
-        raise inactive_user_exception
-    
-    return usuario_in_db
-
-def get_current_active_user(
-    current_user: UsuarioModel = Depends(get_current_user)
-) -> UsuarioModel:
-    """Dependência padrão que garante usuário autenticado e ativo."""
-    return current_user
-
-# =========================
-# Dependência 3: Verificação de Usuário Master
-# =========================
-
-def get_current_master_user(
-    current_user: UsuarioModel = Depends(get_current_user)
-) -> UsuarioModel:
-    """Garante que o usuário logado é o Master da empresa (Super Admin da loja)."""
-    if not current_user.is_master:
+    # Valida Blocklist (Logout)
+    if token_crud.get_revoke_token(db, token_data.get("jti")):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado. Apenas o usuário Master pode realizar esta ação.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessão encerrada ou token inválido. Faça login novamente.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    return current_user
+
+    # Re-hidrata e atualiza o payload com dados frescos do banco
+    return data_token_validation(db, usuario_token=token_data)
 
 # =========================
-# Dependência 4: Verificação de Permissão (Autorização)
+# 2. Validação de Negócio (Ativo?)
 # =========================
-
-def check_permission(required_permission: str) -> Callable[[UsuarioModel], Dict[str, int]]:
+def get_current_user(usuario_token: Dict[str, Any] = Depends(get_token)) -> Dict[str, Any]:
     """
-    Cria uma dependência que verifica se o usuário possui a permissão necessária
-    através da sua relação com Funcionário -> Cargo (JSON de Permissões).
+    Garante que o usuário está ativo no sistema.
+
+    Args:
+        usuario_token (Dict[str, Any]): O payload do token validado.
+
+    Raises:
+        HTTPException 403 FORBIDDEN: Se o status 'ativo' for False.
+
+    Returns:
+        Dict[str, Any]: O payload do token, confirmando o usuário ativo.
     """
-    def permission_dependency(
-        current_user: UsuarioModel = Depends(get_current_active_user)
-    ) -> Dict[str, int]:
-
-        # REGRA DE MESTRE: O Master User tem todas as permissões.
-        if current_user.is_master:
-            return {
-                "user_id": current_user.id,
-                "empresa_id": current_user.empresa_id,
-            }
-        
-        # 1. Acesso ao Funcionario (garantir relação 1:1)
-        # Nota: Assume-se que o modelo Usuario tem o atributo `funcionario` (backref/relationship).
-        funcionario = current_user.funcionario 
-        if not funcionario:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário sem vínculo de funcionário.")
-
-        # 2. Acesso ao Cargo
-        cargo = funcionario.cargo
-        if not cargo:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Funcionário sem cargo atribuído.")
-        
-        # 3. Verificação da Permissão no JSON do Cargo
-        # Nota: Assume-se que Cargo.permissoes é um campo JSON/Dict com chaves booleanas.
-        permissoes = cargo.permissoes
-        
-        # Checa se a chave da permissão requerida existe e se o valor é True.
-        if permissoes.get(required_permission, False) is True:
-            # Retorna o user_id e empresa_id para a camada de serviço (Multi-tenancy)
-            return {
-                "user_id": current_user.id,
-                "empresa_id": current_user.empresa_id,
-            }
-
+    # Checagem estrita de Booleano (REGRA 4: Robustez)
+    if usuario_token.get("ativo") is not True:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Acesso negado. Requer permissão de '{required_permission}'.",
+            detail="Usuário inativo. Acesso negado."
+        )
+    return usuario_token
+
+# Alias para clareza
+def get_current_active_user(usuario_token: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """Retorna o usuário ativo (Alias)."""
+    return usuario_token
+
+def get_current_master_user(usuario_token: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """
+    Garante que o usuário ativo possui o papel de Master.
+
+    Args:
+        usuario_token (Dict[str, Any]): O payload do token validado.
+
+    Raises:
+        HTTPException 403 FORBIDDEN: Se 'is_master' for False.
+
+    Returns:
+        Dict[str, Any]: O payload do token, confirmando o usuário Master.
+    """
+    # Checagem estrita de Booleano (REGRA 4: Robustez)
+    if usuario_token.get("is_master") is not True:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Acesso exclusivo para Master."
+        )
+    return usuario_token
+
+# =========================
+# 3. Validação de Autorização (Permissões)
+# =========================
+def check_permission(required_permission: str) -> Callable:
+    """
+    Factory de dependência para verificar permissões finas (Baseado em Claims/ACL).
+    
+    Args:
+        required_permission (str): A string da permissão necessária (ex: 'produto_write').
+
+    Returns:
+        Callable: A função de dependência que executa a verificação.
+    """
+    
+    def permission_dependency(usuario_token: Dict[str, Any] = Depends(get_current_active_user), db: Session = Depends(get_db)):
+        """
+        Função de dependência que verifica o Tenant e a Permissão específica.
+        """
+        
+        # 3.1 Validação de Tenant (Empresa)
+        if not usuario_token.get("empresa_id"):
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuário sem empresa vinculada (Tenant). Acesso negado."
+            )
+
+        # 3.2 Superusuário (Master) passa direto
+        if usuario_token.get("is_master") is True:
+            return usuario_token
+
+        # 3.3 Validação de Cargo
+        if usuario_token.get("cargo") == "Sem Cargo":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Funcionário ainda não possui cargo para obter permissões."
+            )
+        
+        # 3.4 Validação da Permissão Fina
+        # A re-hidratação já garante que 'permissoes' é um dict, mas esta é uma checagem de segurança
+        permissoes = usuario_token.get("permissoes", {})
+        
+        if permissoes.get(required_permission) is True:
+            return usuario_token
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"Permissão negada. Requer: '{required_permission}'"
         )
     
     return permission_dependency

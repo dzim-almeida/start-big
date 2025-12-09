@@ -1,128 +1,117 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: funcionario_schema.py
-# DESCRIÇÃO: Schemas Pydantic para dados de RH e perfil de funcionário.
+# ARQUIVO: schemas/funcionario_schema.py
+# MÓDULO: Schemas Pydantic (DTOs)
+# DESCRIÇÃO: Definição de contratos de entrada e saída para Funcionários.
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List
-# Importa os schemas aninhados
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 from app.schemas.usuario import UsuarioCreate, UsuarioRead
 
-# =========================
-# Schema Base
-# =========================
+# ===========================================================================
+# SCHEMA BASE
+# ===========================================================================
+
 class FuncionarioBase(BaseModel):
-    """
-    Campos comuns e documentos do funcionário.
-    """
-    nome: str = Field(..., max_length=255)
-    contato: Optional[str] = Field(None, max_length=20)
-    # Validação de email aqui pode ser opcional, pois o Usuário já tem
-    email: Optional[EmailStr] = Field(None, description="Email de contato do funcionário")
+    """Atributos comuns do perfil de Funcionário."""
+    
+    nome: str = Field(..., max_length=255, description="Nome completo.")
+    contato: Optional[str] = Field(None, max_length=20, description="Telefone ou celular.")
+    email: Optional[EmailStr] = Field(None, description="Email corporativo ou pessoal.")
 
     # Documentos
-    # Validação de 11 dígitos estrita para o CPF
-    cpf: str = Field(..., pattern=r"^\d{11}$", description="CPF (apenas números)")
-    rg: Optional[str] = Field(None, max_length=20)
-    carteira_trabalho: Optional[str] = Field(None, max_length=50)
-    cnh: Optional[str] = Field(None, max_length=20)
+    cpf: str = Field(..., pattern=r"^\d{11}$", description="CPF (11 dígitos numéricos).")
+    rg: Optional[str] = Field(None, max_length=20, description="Registro Geral.")
+    carteira_trabalho: Optional[str] = Field(None, max_length=50, description="Número da CTPS.")
+    cnh: Optional[str] = Field(None, max_length=20, description="Carteira de Motorista.")
 
-    # Dados Bancários
+    # Financeiro
     banco: Optional[str] = Field(None, max_length=50)
     agencia: Optional[str] = Field(None, max_length=10)
     conta: Optional[str] = Field(None, max_length=20)
 
-    # Filiação / Obs
-    mae: Optional[str] = Field(None, max_length=255)
-    pai: Optional[str] = Field(None, max_length=255)
+    # Pessoal
+    mae: Optional[str] = Field(None, max_length=255, description="Nome da mãe.")
+    pai: Optional[str] = Field(None, max_length=255, description="Nome do pai.")
     observacao: Optional[str] = Field(None, max_length=500)
 
     model_config = ConfigDict(from_attributes=True)
 
-# =========================
-# Create (Entrada)
-# =========================
+# ===========================================================================
+# CREATE (Entrada)
+# ===========================================================================
+
 class FuncionarioCreate(FuncionarioBase):
-    """
-    Criação aninhada: inclui os dados de Usuário de acesso e Endereço(s).
-    """
-    # Aninhamento do schema de criação de Usuário
-    usuario: UsuarioCreate = Field(
-        ...,
-        description="Dados do Usuário de acesso (login e senha) associado ao funcionário."
-    )
+    """Payload para criação de novo funcionário."""
     
-    # Campo obrigatório para Multi-tenancy (empresa à qual o funcionário pertence)
-    empresa_id: int = Field(...)
-
-    cargo_id: Optional[int] = Field(None, description="ID do Cargo (Permissões)")
-
-    # Aninhamento do schema de Endereço (lista)
-    endereco: Optional[List[Endereco]] = Field(None)
+    usuario: UsuarioCreate = Field(..., description="Dados para criar o login do funcionário.")
+    cargo_id: Optional[int] = Field(None, description="ID do cargo inicial (opcional).")
+    endereco: Optional[List[Endereco]] = Field(None, description="Lista de endereços residenciais.")
 
     model_config = ConfigDict(
-        # Exemplo de payload mantido
         json_schema_extra={
             "example": {
-                "nome": "João Vendedor",
+                "nome": "João Silva",
                 "cpf": "12345678901",
-                "email": "funcionario@empresa.com",
                 "usuario": {
-                    "nome": "João",
-                    "email": "funcionario@empresa.com",
-                    "senha": "SenhaForte123!",
+                    "nome": "joao.silva",
+                    "email": "joao@empresa.com",
+                    "senha": "SenhaForte123!"
                 },
-                "empresa_id": 1,
-                "cargo_id": None,
-                "endereco": [{"logradouro": "Rua 1", "cep": "60000-000", "numero": "10", "bairro": "Centro", "cidade": "Fortaleza", "estado": "CE"}]
+                "endereco": [
+                    {
+                        "logradouro": "Rua Teste Unitario",
+                        "numero": "123",
+                        "cep": "12345-678",
+                        "bairro": "Centro",
+                        "cidade": "Lab City",
+                        "estado": "SP"
+                    }
+                ]
             }
         }
     )
 
-# =========================
-# Read (Saída)
-# =========================
+# ===========================================================================
+# READ (Saída)
+# ===========================================================================
+
 class FuncionarioRead(FuncionarioBase):
-    """
-    Formato de resposta da API para Funcionário, incluindo as relações.
-    """
-    id: int
-    ativo: bool
-    cargo_id: Optional[int] 
-
-    # Aninhamento do schema de leitura de Usuário
-    usuario: UsuarioRead = Field(
-        ...,
-        description="Usuário de acesso anexado ao funcionário"
-    )
+    """Payload de resposta com dados persistidos."""
     
-    # Aninhamento do schema de leitura de Endereços
-    enderecos: Optional[List[EnderecoRead]] = Field(None, alias="enderecos")
+    id: int = Field(..., description="ID único do funcionário.")
+    ativo: bool = Field(..., description="Status do cadastro.")
+    cargo_id: Optional[int] = Field(None)
 
-# =========================
-# Update (Edição Parcial)
-# =========================
+    usuario: UsuarioRead = Field(..., description="Dados do usuário de login associado.")
+    endereco: Optional[List[EnderecoRead]] = Field(None, description="Endereços vinculados.")
+
+# ===========================================================================
+# UPDATE (Edição)
+# ===========================================================================
+
 class FuncionarioUpdate(BaseModel):
-    """
-    Campos opcionais para atualização parcial do funcionário.
-    """
-    # Campos simples (opcionais)
+    """Payload para atualização parcial (PATCH behavior)."""
+    
     nome: Optional[str] = Field(None, max_length=255)
     email: Optional[EmailStr] = Field(None)
     contato: Optional[str] = Field(None)
-    cargo_id: Optional[int] = Field(None, description="Atualizar cargo")
+    cargo_id: Optional[int] = Field(None)
     
-    # Documentos e Bancários (opcionais)
     rg: Optional[str] = Field(None)
     cnh: Optional[str] = Field(None)
     carteira_trabalho: Optional[str] = Field(None)
+    
     banco: Optional[str] = Field(None)
     agencia: Optional[str] = Field(None)
     conta: Optional[str] = Field(None)
+    
     ativo: Optional[bool] = Field(None)
 
-    # Permite enviar uma lista de atualizações/criações/deleções de endereço
-    endereco: Optional[List[EnderecoUpdate]] = Field(None)
+    endereco: Optional[List[EnderecoUpdate]] = Field(
+        None, 
+        description="Lista de endereços. Envie ID para editar, sem ID para criar."
+    )
 
     model_config = ConfigDict(from_attributes=True)

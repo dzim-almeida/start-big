@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: auth.py (endpoints)
-# DESCRIÇÃO: Define os endpoints para autenticação (login e logout).
+# ARQUIVO: routers/auth.py
+# MÓDULO: Interface de API (Router)
+# DESCRIÇÃO: Define os endpoints públicos e protegidos para autenticação.
+#            Gerencia o ciclo de vida do Token (emissão e revogação).
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, Depends, status
@@ -14,31 +16,71 @@ from app.services import auth as auth_service
 
 router = APIRouter()
 
-@router.post("/login", response_model=UsuarioLoginResponse, status_code=status.HTTP_200_OK, summary="Realizar login e obter token de acesso")
-def login_to_access_token(user_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """
-    Endpoint para autenticar um usuário via form data (username/password) e
-    retornar um token de acesso.
-    """
-    # Converte os dados do formulário para o schema Pydantic esperado pelo serviço.
-    user = UsuarioLogin(
-        email=user_data.username,
-        senha=user_data.password
-    )
-    # Chama o serviço de login para validar as credenciais e gerar o token.
-    return auth_service.login_service(db, user)
+# ===========================================================================
+# EMISSÃO DE TOKEN (LOGIN)
+# ===========================================================================
 
-@router.post("/logout", status_code=status.HTTP_200_OK, summary="Realizar logout e revogar o token")
-def logout_to_revoke_token(token: dict = Depends(get_token), db: Session = Depends(get_db)):
+@router.post(
+    "/login",
+    response_model=UsuarioLoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Login para receber Token",
+    description="Recebe email e senha (OAuth2 Form), valida credenciais e retorna o Token JWT."
+)
+def login_to_access_token(
+    login_usuario: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
     """
-    Endpoint para invalidar o token de acesso atual do usuário.
-    O token é adicionado a uma blocklist e não poderá mais ser usado.
+    Realiza a autenticação do usuário.
+
+    Converte o formulário padrão OAuth2 (username/password) para o schema interno
+    e delega a verificação de hash e geração de JWT para o serviço.
+
+    Args:
+        login_usuario (OAuth2PasswordRequestForm): Dados do formulário (username=email).
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        UsuarioLoginResponse: Objeto contendo o access_token e o token_type.
+    """
+    # Mapeia o campo 'username' do form-data para o campo 'email' do nosso schema
+    usuario = UsuarioLogin(
+        email=login_usuario.username,
+        senha=login_usuario.password
+    )
+
+    return auth_service.login(db, login_usuario=usuario)
+
+
+# ===========================================================================
+# REVOGAÇÃO DE TOKEN (LOGOUT)
+# ===========================================================================
+
+@router.post(
+    "/logout", 
+    status_code=status.HTTP_200_OK, 
+    summary="Realizar logout e revogar o token"
+)
+def logout_to_revoke_token(
+    token: dict = Depends(get_token), 
+    db: Session = Depends(get_db)
+):
+    """
+    Invalida o token de acesso atual do usuário.
+
+    O identificador do token (JTI) é adicionado a uma blocklist no banco de dados,
+    impedindo que ele seja utilizado novamente para autenticação, mesmo que
+    ainda esteja dentro do tempo de expiração.
+
+    Args:
+        token (dict): Payload do token atual (extraído via dependência get_token).
+        db (Session): Sessão do banco de dados.
     """
     # Chama o serviço de logout para registrar o 'jti' do token na blocklist.
-    # A dependência 'get_token' já garante que o token é válido antes de chegar aqui.
     auth_service.logout_service(db, token)
 
-    # Comita a transação para salvar permanentemente a revogação do token no banco.
+    # Persiste a revogação no banco imediatamente
     db.commit()
 
     return {"message": "Logout bem-sucedido"}

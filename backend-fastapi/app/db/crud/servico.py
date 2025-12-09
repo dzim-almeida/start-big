@@ -1,171 +1,69 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/servico.py
-# DESCRIÇÃO: Funções de acesso e manipulação da tabela de Serviços (CRUD).
-#            Esta é a camada de acesso direto ao banco de dados.
+# ARQUIVO: servico_crud.py
+# MÓDULO: Acesso a Dados (Repository)
+# DESCRIÇÃO: Executa queries SQL via SQLAlchemy para manipulação de Serviços.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 from typing import Sequence
 
-# Importa o modelo ORM, renomeando para clareza
 from app.db.models.servico import Servico as ServicoModel
 
+# ===========================================================================
+# LEITURA (READ)
+# ===========================================================================
 
-# =========================
-# READ: Buscar por ID
-# =========================
-def get_service_by_id(db: Session, id: int) -> ServicoModel | None:
+def get_servico_by_id(db: Session, servico_id: int) -> ServicoModel | None:
+    """Busca serviço pelo ID (PK)."""
+    stmt = select(ServicoModel).where(ServicoModel.id == servico_id)
+    servico_in_db = db.scalars(stmt).first()
+    return servico_in_db
+
+def get_servico_by_search(db: Session, search: str | None) -> Sequence[ServicoModel]:
     """
-    Busca um serviço específico pelo seu ID (chave primária).
-
-    Args:
-        db (Session): Sessão do banco de dados.
-        id (int): ID do serviço a ser buscado.
-
-    Returns:
-        ServicoModel | None: O objeto modelo do serviço ou None se não encontrado.
-    """
-    # Cria a query: SELECT * FROM servico WHERE id = :id
-    stmt = select(ServicoModel).where(ServicoModel.id == id)
+    Busca Simples de Serviços.
     
-    # Executa a query e retorna o primeiro resultado (ou None)
-    service_in_db = db.scalars(stmt).first()
-    return service_in_db
-
-def get_all_services(db: Session) -> Sequence[ServicoModel]:
-    """
-    Busca TODOS os serviços cadastrados no banco de dados.
+    Retorna serviços cuja descrição comece com o termo pesquisado.
+    Se nenhum termo for fornecido, retorna todos os serviços ativos.
 
     Args:
-        db (Session): A sessão do banco de dados.
-
+        search (str | None): Termo a ser buscado (case sensitive dependendo do DB).
+        
     Returns:
-        Sequence[ServicoModel]: Uma lista (sequência) de todos os serviços.
+        Sequence[ServicoModel]: Lista de serviços que correspondem aos critérios.
     """
-    # Constrói a query: SELECT * FROM servicos
-    stmt = select(ServicoModel)
-    # Executa a query e retorna todos os resultados
-    services_in_db = db.scalars(stmt).all()
-    return services_in_db
+    if not search:
+        stmt = select(ServicoModel).where(ServicoModel.ativo.is_(True))
+    else:
+        stmt = select(ServicoModel).where(
+            and_(
+                ServicoModel.ativo.is_(True),
+                ServicoModel.descricao.ilike(f"{search}%")
+            )
+        )
 
-# =========================
-# READ: Buscar por Termo (Search)
-# =========================
-def get_service_by_search(db: Session, search: str) -> Sequence[ServicoModel]:
-    """
-    Busca serviços cuja descrição começa com o termo de busca.
+    return db.scalars(stmt).all()
 
-    Args:
-        db (Session): Sessão do banco de dados.
-        search (str): Termo de busca (prefixo).
-
-    Returns:
-        Sequence[ServicoModel]: Uma lista (sequência) de serviços
-                                que correspondem à busca.
-    """
-    # Define as condições de busca (atualmente, apenas 'descricao')
-    # O or_ é útil para adicionar mais campos de busca (ex: código, etc.)
-    conditions = or_(
-        ServicoModel.descricao.startswith(search)
-    )
-
-    # Cria a query: SELECT * FROM servico WHERE conditions
-    stmt = select(ServicoModel).where(conditions)
-    
-    # Executa a query e retorna todos os resultados
-    services_in_db = db.scalars(stmt).all()
-    return services_in_db
-
-
-# =========================
-# READ: Buscar por Descrição Exata
-# =========================
-def get_service_by_description(db: Session, description_to_search: str) -> ServicoModel | None:
-    """
-    Busca um serviço pela sua descrição exata.
-    (Usado geralmente para verificar duplicidade antes de criar)
-
-    Args:
-        db (Session): Sessão do banco de dados.
-        description_to_search (str): Descrição exata a ser buscada.
-
-    Returns:
-        ServicoModel | None: O objeto modelo do serviço ou None se não encontrado.
-    """
-    # Cria a query: SELECT * FROM servico WHERE descricao = :description
+def get_servico_by_description(db: Session, description_to_search: str) -> ServicoModel | None:
+    """Busca serviço pela descrição exata (útil para verificar duplicidade)."""
     stmt = select(ServicoModel).where(ServicoModel.descricao == description_to_search)
-    
-    # Executa a query e retorna o primeiro resultado
-    service_in_db = db.scalars(stmt).first()
-    return service_in_db
+    servico_in_db = db.scalars(stmt).first()
+    return servico_in_db
 
+# ===========================================================================
+# ESCRITA (CREATE / UPDATE)
+# ===========================================================================
 
-# =========================
-# CREATE
-# =========================
-def create_service(db: Session, service_to_add: ServicoModel) -> ServicoModel:
-    """
-    Adiciona um novo objeto de serviço à sessão do banco de dados.
+def create_servico(db: Session, servico_to_add: ServicoModel) -> ServicoModel:
+    """Adiciona e persiste um novo serviço no banco."""
+    db.add(servico_to_add)
+    db.flush() # Gera o ID sem comitar a transação final ainda
+    db.refresh(servico_to_add)
+    return servico_to_add
 
-    Args:
-        db (Session): Sessão do banco de dados.
-        service_to_add (ServicoModel): O objeto modelo (preenchido) a ser criado.
-
-    Returns:
-        ServicoModel: O objeto modelo após ser salvo e atualizado (ex: com ID).
-    """
-    # Adiciona o objeto à sessão
-    db.add(service_to_add)
-    
-    # Envia as alterações para o DB (para que o ID seja gerado pela sequence)
+def update_servico(db: Session, servico_to_update: ServicoModel) -> ServicoModel:
+    """Atualiza o estado de um serviço já anexado à sessão."""
     db.flush()
-    
-    # Atualiza o objeto 'service_to_add' com os dados do DB (ex: ID gerado)
-    db.refresh(service_to_add)
-    
-    return service_to_add
-
-
-# =========================
-# UPDATE
-# =========================
-def update_service(db: Session, service_to_update: ServicoModel) -> ServicoModel:
-    """
-    Atualiza um serviço na sessão.
-    Nota: A modificação dos atributos do objeto 'service_to_update'
-    deve ter sido feita *antes* de chamar esta função (na camada de serviço).
-
-    Args:
-        db (Session): Sessão do banco de dados.
-        service_to_update (ServicoModel): O objeto modelo já modificado em memória.
-
-    Returns:
-        ServicoModel: O objeto modelo atualizado.
-    """
-    # Envia as alterações (updates) para o DB
-    # O SQLAlchemy já sabe que o objeto 'service_to_update' está "sujo" (dirty)
-    db.flush()
-    
-    # Atualiza o objeto com quaisquer triggers/defaults que possam ter mudado no DB
-    db.refresh(service_to_update)
-    
-    return service_to_update
-
-
-# =========================
-# DELETE
-# =========================
-def delete_service(db: Session, service_to_delete: ServicoModel) -> None:
-    """
-    Remove um serviço da sessão do banco de dados.
-
-    Args:
-        db (Session): Sessão do banco de dados.
-        service_to_delete (ServicoModel): O objeto modelo a ser deletado.
-    """
-    # Marca o objeto para deleção
-    db.delete(service_to_delete)
-    
-    # Envia a operação de 'DELETE' para o DB
-    db.flush()
+    db.refresh(servico_to_update)
+    return servico_to_update

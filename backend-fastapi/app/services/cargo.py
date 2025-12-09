@@ -58,11 +58,11 @@ def create_cargo_funcionario(db: Session, user_token: Dict[str, int], new_cargo:
 # =========================
 # Serviço: Buscar Todos os Cargos
 # =========================
-def get_all_cargo_funcionario(db: Session) -> Sequence[CargoModel]:
+def get_cargos_funcionario(db: Session, cargo_search: str | None) -> Sequence[CargoModel]:
     """
     Retorna todos os cargos. (Delega para o CRUD).
     """
-    return cargo_crud.get_all_cargos_funcionario(db)
+    return cargo_crud.get_cargos_funcionario(db, cargo_search)
 
 
 # =========================

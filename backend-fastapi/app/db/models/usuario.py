@@ -31,7 +31,7 @@ class Usuario(Base):
     empresa_id: Mapped[int] = mapped_column(
         Integer, 
         ForeignKey("empresas.id"), 
-        nullable=False, 
+        nullable=True, 
         index=True, 
         doc="ID da empresa à qual o usuário pertence (Chave Estrangeira)"
     )

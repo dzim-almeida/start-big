@@ -22,13 +22,16 @@ def get_cargo_funcionario_by_name(db: Session, name_cargo: str) -> CargoModel | 
     cargo_in_db = db.scalars(stmt).first()
     return cargo_in_db
 
-def get_all_cargos_funcionario(db: Session) -> Sequence[CargoModel]:
+def get_cargos_funcionario(db: Session, cargo_search: str | None) -> Sequence[CargoModel]:
     """
     Busca e retorna todos os registros de cargos.
     """
     stmt = select(CargoModel)
-    cargos_in_db = db.scalars(stmt).all()
-    return cargos_in_db
+
+    if cargo_search:
+        stmt = stmt.where(CargoModel.nome.ilike(f"{cargo_search}%"))
+
+    return db.scalars(stmt).all()
 
 def get_cargo_funcionario_by_id(db: Session, cargo_id: int) -> CargoModel | None:
     """

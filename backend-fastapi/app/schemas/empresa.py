@@ -4,10 +4,15 @@
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
-from typing import Optional, List
-# Importa os schemas aninhados
+from typing import Optional, List, Type # Importamos Type para a reconstrução (melhor prática em v2)
+
+# NOTA ARQUITETURA:
+# Para evitar referências circulares em schemas aninhados, usamos o nome
+# da classe como string literal ("NomeDaClasse").
+# É necessário importar os schemas abaixo para que o Pydantic os encontre
+# e use no tempo de execução.
 from app.schemas.endereco import Endereco, EnderecoRead
-from app.schemas.usuario import UsuarioCreate, UsuarioRead
+from app.schemas.usuario import UsuarioRead
 
 # =========================
 # Schema Base
@@ -15,6 +20,17 @@ from app.schemas.usuario import UsuarioCreate, UsuarioRead
 class EmpresaBase(BaseModel):
     """
     Campos comuns para criar ou ler uma empresa.
+
+    Attributes:
+        razao_social (str): Razão Social da empresa (obrigatório).
+        nome_fantasia (Optional[str]): Nome Fantasia (comercial).
+        cnpj (str): CNPJ (apenas números, 14 dígitos, obrigatório).
+        inscricao_estadual (Optional[str]): Inscrição Estadual.
+        inscricao_municipal (Optional[str]): Inscrição Municipal.
+        regime_tributario (Optional[str]): Regime Tributário (ex: Simples Nacional).
+        telefone (Optional[str]): Telefone fixo.
+        celular (Optional[str]): Celular / WhatsApp.
+        url_logo (Optional[str]): URL ou caminho relativo da logo da empresa.
     """
     razao_social: str = Field(
         ..., 
@@ -26,7 +42,6 @@ class EmpresaBase(BaseModel):
         max_length=255, 
         description="Nome Fantasia (comercial)"
     )
-    # Validação estrita de 14 dígitos para o CNPJ (apenas números)
     cnpj: str = Field(
         ..., 
         pattern=r"^\d{14}$", 
@@ -57,7 +72,6 @@ class EmpresaBase(BaseModel):
         max_length=20, 
         description="Celular / WhatsApp"
     )
-    # Nota: O uso de `str` em vez de `HttpUrl` é apropriado para caminhos relativos de imagem
     url_logo: Optional[str] = Field(
         None, 
         max_length=255, 
@@ -72,15 +86,13 @@ class EmpresaBase(BaseModel):
 class EmpresaCreate(EmpresaBase):
     """
     Dados necessários para cadastrar uma nova empresa (processo de Sign Up).
-    Aninha o Usuário Master e os Endereços.
+    Aninha a lista opcional de endereços.
+
+    Attributes:
+        endereco (Optional[List[Endereco]]): Lista opcional de endereços da empresa.
     """
-    # Aninhamento do schema de criação de Usuário Master (obrigatório)
-    usuario: UsuarioCreate = Field(
-        ...,
-        description="Usuário Master/Responsável pela empresa (credenciais de login)."
-    )
     
-    # Aninhamento do schema de Endereço (lista opcional)
+    # Referência de string para Endereco (Forward Reference)
     endereco: Optional[List["Endereco"]] = Field(
         None,
         description="Lista de endereços da empresa (Principal, Entrega, etc)"
@@ -92,11 +104,6 @@ class EmpresaCreate(EmpresaBase):
             "example": {
                 "razao_social": "Tech Soluções LTDA",
                 "cnpj": "12345678000199",
-                "usuario": {
-                    "nome": "Admin Master",
-                    "email": "admin@empresa.com",
-                    "senha": "SenhaForte123!",
-                }
             }
         }
     )
@@ -106,13 +113,24 @@ class EmpresaCreate(EmpresaBase):
 # =========================
 class EmpresaRead(EmpresaBase):
     """
-    Formato de resposta da API para Empresa.
+    Formato de resposta da API para Empresa. Inclui dados internos (id, ativo)
+    e listas aninhadas de endereços e usuários.
+
+    Attributes:
+        id (int): ID único da empresa.
+        ativo (bool): Status de ativo/inativo da empresa.
+        enderecos (Optional[List[EnderecoRead]]): Lista de endereços cadastrados, incluindo seus IDs.
+        usuarios (List[UsuarioRead]): Lista de usuários vinculados a essa empresa.
     """
     id: int = Field(..., description="ID único da empresa")
     ativo: bool = Field(..., description="Status da empresa")
 
-    # Retorna os endereços completos (com ID)
+    # Referência de string para EnderecoRead e UsuarioRead
     enderecos: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
 
-    # Retorna a lista de usuários (para visualização dos usuários vinculados)
-    usuarios: list[UsuarioRead] = Field(..., description="Usuários vinculados a essa empresa")
+    # Corrigido o tipo para List nativo (List[UsuarioRead] é preferencial em v2)
+    usuarios: List["UsuarioRead"] = Field(..., description="Usuários vinculados a essa empresa")
+    
+# Notifica o Pydantic para resolver as referências de string (melhor prática)
+EmpresaCreate.model_rebuild()
+EmpresaRead.model_rebuild()

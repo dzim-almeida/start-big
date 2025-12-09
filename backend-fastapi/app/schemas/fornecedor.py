@@ -80,6 +80,10 @@ class FornecedorRead(FornecedorCreate):
         ..., # Obrigatório na resposta
         description="ID do fornecedor"
     )
+    ativo: bool = Field(
+        ...,
+        description="Detalhe do status do fornecedor"
+    )
     # Sobrescreve 'endereco' para usar o schema 'EnderecoRead' (que inclui ID)
     endereco: Optional[List[EnderecoRead]] = Field(
         None, 

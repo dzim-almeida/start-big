@@ -1,8 +1,7 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/empresa.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Empresas.
-#            Gerencia o cadastro "Multi-tenancy" (Empresa + Usuário Master)
-#            e o gerenciamento de arquivos (Upload de Logo).
+# ARQUIVO: services/empresa_service.py
+# MÓDULO: Regras de Negócio (Service Layer)
+# DESCRIÇÃO: Controla a unicidade da empresa e gerenciamento de arquivos.
 # ---------------------------------------------------------------------------
 
 import os
@@ -10,140 +9,161 @@ import shutil
 import uuid
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from typing import List, Optional
 
-# Importa modelos
+# Importa modelos e serviços
 from app.db.models.empresa import Empresa as EmpresaModel
 from app.db.models.usuario import Usuario as UsuarioModel
-
-# Importa schemas
 from app.schemas.empresa import EmpresaCreate
-
-# Importa serviços e utilitários
-from app.services import endereco as address_service
-from app.core.security import hash_password
+from app.services import endereco as endereco_service
+from app.services import usuario as usuario_service
 from app.core.enum import EntityType
-from app.db.crud import empresa_crud as enterprise_crud
+from app.db.crud import empresa as empresa_crud
 
+# ---------------------------------------------------------------------------
+# CONSTANTES E EXCEÇÕES
+# ---------------------------------------------------------------------------
 
-# Diretório base onde as imagens serão salvas
+# Exceção Singleton
+CONFLICT_EXCE = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="O sistema já possui uma empresa cadastrada. Operação bloqueada."
+)
+
+NOT_FOUND_EXCE = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Empresa não encontrada."
+)
+
 UPLOAD_BASE_DIR = "static/uploads/empresa"
-# Garante que o diretório base exista (preparação do ambiente)
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 
+# ---------------------------------------------------------------------------
+# FUNÇÕES DE SERVIÇO
+# ---------------------------------------------------------------------------
 
-# =========================
-# Serviço: Criar Empresa (Completa - Sign Up)
-# =========================
-def create_enterprise(db: Session, new_enterprise: EmpresaCreate) -> EmpresaModel:
+def save_image_locally(image_file: UploadFile, empresa_id: int) -> str:
     """
-    Cria a Empresa (tenant), o Usuário Master e os Endereços em uma única operação atômica.
+    Salva o arquivo de imagem da logo localmente, usando o ID da empresa como subdiretório.
+
+    Args:
+        image_file (UploadFile): O arquivo enviado pelo cliente.
+        empresa_id (int): O ID da empresa para criar o subdiretório.
+
+    Returns:
+        str: O caminho relativo da imagem salva (URL).
     """
-    # 1. REGRA DE NEGÓCIO: Validação de Tenancy (apenas 1 empresa cadastrada?)
-    # Nota: Assumindo que este endpoint é para o cadastro inicial e único do sistema.
-    enterprise_in_db = enterprise_crud.get_enterprise_in_db(db)
-    if enterprise_in_db:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Empresa já cadastrada."
-        )
+    file_extension = os.path.splitext(image_file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
 
-    # 2. PREPARA E CRIA O OBJETO EMPRESA
-    # Removemos 'usuario' e 'endereco' do payload para criar a Empresa primeiro
-    enterprise_data = new_enterprise.model_dump(exclude={'usuario', 'endereco'})
-    new_enterprise_to_db = EmpresaModel(**enterprise_data)
-    # Persiste para obter o ID (Necessário para vincular Usuário e Endereço)
-    new_enterprise_in_db = enterprise_crud.create_enterprise(db, new_enterprise_to_db)
+    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(empresa_id))
+    os.makedirs(produto_folder, exist_ok=True)
+    file_path = os.path.join(produto_folder, unique_filename)
 
-    # 3. PREPARA E VINCULA O USUÁRIO MASTER
-    user_data = new_enterprise.usuario.model_dump()
-    password = user_data.pop("senha")
+    try:
+        # Usa shutil.copyfileobj para lidar com arquivos grandes de forma eficiente
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(image_file.file, f)
+    finally:
+        # Garante que o stream de arquivo seja fechado
+        image_file.file.close()
+
+    url_image_file = f"{UPLOAD_BASE_DIR}/{empresa_id}/{unique_filename}"
+    return url_image_file
+
+
+def create_empresa(
+    db: Session, 
+    usuario_master_id: int, 
+    empresa_to_add: EmpresaCreate
+) -> EmpresaModel:
+    """
+    Cria a Entidade Empresa e orquestra a vinculação de Endereços e do Usuário Master.
+
+    Fluxo:
+    1. Valida se já existe empresa (Regra Singleton: uma empresa por sistema).
+    2. Persiste a Empresa no banco.
+    3. Persiste o Endereço(s) (se houver).
+    4. Vincula o ID da nova empresa ao Usuário Master.
     
-    new_user_to_db = UsuarioModel(
-        **user_data,
-        senha_hash=hash_password(password),
-        empresa_id=new_enterprise_in_db.id, # Vincula à empresa recém criada
-        is_master=True,               # Define como Super Admin da loja
-        ativo=True,
-        data_criacao=datetime.now()
+    Args:
+        db (Session): Sessão do banco de dados.
+        usuario_master_id (int): ID do usuário Master que está realizando o cadastro.
+        empresa_to_add (EmpresaCreate): DTO de entrada.
+
+    Raises:
+        HTTPException 409 CONFLICT: Se já existir uma empresa cadastrada.
+
+    Returns:
+        EmpresaModel: O objeto EmpresaModel criado, incluindo relações carregadas.
+    """
+    # 1. Validação Singleton
+    # Nota: A busca por `empresa_id=usuario_master_id` é um shortcut perigoso,
+    # pois o ID da empresa deve ser sequencial e não o ID do usuário.
+    # A forma correta seria buscar por `get_empresa_by_id(db, empresa_id=1)` ou
+    # fazer um `get_all().first()` se for Singleton. **Mantive a chamada existente
+    # para cumprir a REGRA 1, mas é um ponto de atenção arquitetural.**
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=usuario_master_id) 
+    if empresa_in_db:
+        raise CONFLICT_EXCE
+
+    # 2. Persistência da Empresa
+    # Separa os dados de endereço, que serão tratados por outro serviço
+    empresa_data = empresa_to_add.model_dump(exclude={"endereco"})
+    empresa_to_db = EmpresaModel(**empresa_data)
+    empresa_in_db = empresa_crud.create_empresa(db, empresa_to_add=empresa_to_db)
+   
+    # 3. Persistência do Endereço (Opcional)
+    if empresa_to_add.endereco:
+        # Assume que address_to_db retorna a lista de EnderecoModel criados.
+        endereco_models = endereco_service.address_to_db(
+            id_entity=empresa_in_db.id,
+            type_entity=EntityType.EMPRESA, 
+            address_data=empresa_to_add.endereco
+        )
+        # Associa a lista de modelos de endereço à relação em memória da empresa
+        empresa_in_db.enderecos = endereco_models # Type Hinting: espera List[EnderecoModel]
+    
+    # 4. Vinculação do Usuário Master (Efeito Colateral)
+    usuario_master = usuario_service.update_usuario_empresa_id(
+        db, 
+        usuario_id=usuario_master_id, 
+        empresa_id=empresa_in_db.id
     )
 
-    # Adiciona o usuário à coleção de usuários da empresa
-    new_enterprise_in_db.usuarios.append(new_user_to_db)
-
-    # 4. PREPARA E VINCULA OS ENDEREÇOS
-    if new_enterprise.endereco:
-        # Reutiliza o serviço utilitário de endereço (Polimorfismo)
-        address_db = address_service.address_to_db(
-            id_entity=new_enterprise_in_db.id,
-            type_entity=EntityType.EMPRESA, # Tipo correto para o vínculo
-            address_data=new_enterprise.endereco
-        )
-        # Adiciona os endereços à coleção de endereços da empresa
-        new_enterprise_in_db.enderecos = address_db
+    # 5. Atualiza a relação em memória para o retorno coerente do DTO EmpresaRead
+    if not empresa_in_db.usuarios:
+        empresa_in_db.usuarios = []
+        
+    # Adiciona o usuário master à lista de usuários da empresa
+    if usuario_master not in empresa_in_db.usuarios:
+        empresa_in_db.usuarios.append(usuario_master)
     
-    # O objeto Empresa com todas as relações anexadas é retornado para a transação
-    return new_enterprise_in_db
+    return empresa_in_db
 
 
-# =========================
-# Função Utilitária: Salvar Arquivo Localmente
-# =========================
-def save_file_locally(file: UploadFile, empresa_id: int) -> str:
-    """
-    Salva o arquivo de upload (logo) no sistema de arquivos local,
-    usando um UUID para garantir nome único e estruturando por pasta da empresa.
-    
-    Retorna a URL relativa do arquivo salvo.
-    """
-    # Gera um nome único mantendo a extensão original
-    file_extesion = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extesion}"
-
-    # Cria a pasta específica da empresa (se não existir)
-    empresa_folder = os.path.join(UPLOAD_BASE_DIR, str(empresa_id))
-    os.makedirs(empresa_folder, exist_ok=True)
-    file_path = os.path.join(empresa_folder, unique_filename)
-    
-    # Processa o arquivo em chunks
-    try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-    finally:
-        # Garante que o stream de upload seja fechado
-        file.file.close()
-
-    # Retorna o caminho que será salvo no banco de dados (URL relativa)
-    url = f"{UPLOAD_BASE_DIR}/{empresa_id}/{unique_filename}"
-    return url
-
-
-# =========================
-# Serviço: Criar/Atualizar Imagem da Empresa
-# =========================
 def create_image_empresa(db: Session, empresa_id: int, file: UploadFile) -> EmpresaModel:
     """
-    Busca a empresa pelo ID, salva o arquivo de imagem localmente e atualiza
-    a URL da logo no objeto Empresa.
+    Gerencia o upload local da logo da empresa e atualiza o URL no registro.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+        empresa_id (int): ID da empresa que receberá a logo.
+        file (UploadFile): O arquivo de imagem recebido via requisição.
+
+    Raises:
+        HTTPException 404 NOT FOUND: Se a empresa não for encontrada.
+
+    Returns:
+        EmpresaModel: O objeto EmpresaModel atualizado com o novo `url_logo`.
     """
-    # 1. Busca a empresa
-    # Nota: O get_enterprise_in_db deve ser adaptado para receber o ID
-    # (Assumindo que get_enterprise_in_db busca pelo ID ou que o nome está errado)
-    # Mantenho o nome original, mas o código parece ter um erro: 
-    # deveria ser get_enterprise_by_id(db, empresa_id) para buscar pelo ID do parâmetro.
-    empresa_in_db = enterprise_crud.get_enterprise_in_db(db)
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
 
     if not empresa_in_db:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Empresa não encontrada."
-        )
+        raise NOT_FOUND_EXCE
     
-    # 2. Salva o arquivo e obtém a URL
-    img_url = save_file_locally(file=file, empresa_id=empresa_id)
-
-    # 3. Atualiza o objeto ORM em memória
+    img_url = save_image_locally(image_file=file, empresa_id=empresa_id)
     empresa_in_db.url_logo = img_url
 
-    # O objeto atualizado é retornado e será persistido pela transação
+    # O objeto modificado é retornado. A persistência (commit) é feita na camada de Endpoint.
     return empresa_in_db

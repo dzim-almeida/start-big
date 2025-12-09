@@ -7,21 +7,21 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-
-from app.db.models.usuario import Usuario as UsuarioModel
-from app.core.security import hash_password
-from app.core.enum import UserType
+from app.db.models.fornecedor import Fornecedor as FornecedorModel # Adicionado import do modelo para fixtures
 
 # --- Constantes de Teste ---
+TEST_CNPJ = "72345734000132"
+TEST_NOME = "Alan Amorim ME"
+TEST_IE = "123456789012"
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
 
 # =========================
-# Fixture de Autenticação
+# Fixture de Autenticação (Mantido)
 # =========================
 @pytest.fixture(scope="function")
 def header_with_token(client: TestClient, db_session: Session, create_test_empresa) -> dict:
-
+    # ... (lógica de login) ...
     login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
     response = client.post("/api/v1/auth/login", data=login_data)
     assert response.status_code == 200 
@@ -30,148 +30,163 @@ def header_with_token(client: TestClient, db_session: Session, create_test_empre
     return {"Authorization": f"Bearer {token}"}
 
 # =========================
-# Testes de Criação de Fornecedor
+# Fixture de Dados de Criação
 # =========================
-def test_criar_forncedor_com_usuario_logado(client: TestClient, header_with_token: dict):
-    """
-    Testa o "caminho feliz": a criação bem-sucedida de um Fornecedor
-    quando o usuário está autenticado.
-    """
-    # Arrange: Define o payload (corpo da requisição JSON) para o novo fornecedor
-    data_supplier = {
-        "nome": "Alan Amorim ME",
-        "cnpj": "72345734000132",
+@pytest.fixture
+def base_fornecedor_data():
+    """Retorna o payload base para criação de fornecedor."""
+    return {
+        "nome": TEST_NOME,
+        "cnpj": TEST_CNPJ,
         "nome_fantasia": "BigTech",
-        "ie": None
+        "ie": TEST_IE
     }
 
-    # Act: Envia a requisição POST para o endpoint de criação de fornecedores
-    response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
+# =========================
+# Testes de Criação (Caminhos Felizes e Tristes)
+# =========================
+def test_criar_fornecedor_caminho_feliz(client: TestClient, header_with_token: dict, base_fornecedor_data: dict):
+    """
+    Testa a criação bem-sucedida de um Fornecedor.
+    """
+    response = client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
     
-    # Assert: Verifica se a criação foi bem-sucedida
     assert response.status_code == 201
-    assert response.json()["nome"] == "Alan Amorim ME"
-    
-def test_criar_fornecedor_sem_token(client: TestClient):
-    """
-    Testa o "caminho triste": a falha ao tentar criar um Fornecedor
-    sem enviar um token de autenticação (usuário não logado).
-    """
-    # Arrange: Define o payload
-    data_supplier = {
-        "nome": "Alan Amorim ME",
-        "cpnj": "72345734000132", # (Mantido erro de digitação original 'cpnj')
-        "nome_fantasia": "BigTech",
-        "ie": None
-    }
+    assert response.json()["nome"] == TEST_NOME
+    assert response.json()["cnpj"] == TEST_CNPJ
 
-    # Act: Envia a requisição POST, mas SEM os headers de autenticação
-    response = client.post("/api/v1/fornecedores/", json=data_supplier)
+def test_criar_fornecedor_com_cnpj_duplicado(client: TestClient, header_with_token: dict, base_fornecedor_data: dict):
+    """
+    Testa a falha ao tentar criar um fornecedor com CNPJ já existente (caminho triste 409).
+    """
+    # Arrange 1: Cria o primeiro fornecedor
+    client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
     
-    # Assert: Verifica se a API protegeu o endpoint, retornando 401 Unauthorized
+    # Arrange 2: Novo fornecedor com o mesmo CNPJ, mas nome diferente
+    data_supplier_duplicate = {**base_fornecedor_data, "nome": "Outro Nome"}
+
+    # Act: Tenta criar o duplicado
+    response = client.post("/api/v1/fornecedores/", json=data_supplier_duplicate, headers=header_with_token)
+    
+    # Assert: Deve falhar com 409 CONFLICT
+    assert response.status_code == 409
+    assert "cnpj" in response.json()["detail"][0]["campo"]
+
+def test_criar_fornecedor_com_cnpj_desativado(client: TestClient, header_with_token: dict, db_session: Session, base_fornecedor_data: dict):
+    """
+    Testa a falha ao tentar criar um fornecedor com CNPJ que pertence a um registro inativo.
+    A API deve retornar uma mensagem específica de reativação.
+    """
+    # Arrange 1: Insere o registro diretamente no banco como INATIVO
+    fornecedor_inativo = FornecedorModel(
+        nome="Inativo Corp", 
+        cnpj=TEST_CNPJ, 
+        nome_fantasia="Inativo",
+        ativo=False # Chave de teste
+    )
+    db_session.add(fornecedor_inativo)
+    db_session.commit()
+    db_session.refresh(fornecedor_inativo)
+
+    # Act: Tenta criar um novo fornecedor com o mesmo CNPJ
+    response = client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
+
+    # Assert: Deve falhar com 409 e mensagem de reativação
+    assert response.status_code == 409
+    assert "desabilitado com este CPF/CNPJ" in response.json()["detail"]
+
+
+# ... (test_criar_fornecedor_sem_token - Mantido) ...
+def test_criar_fornecedor_sem_token(client: TestClient):
+    # ... (lógica) ...
+    response = client.post("/api/v1/fornecedores/", json={
+        "nome": "X",
+        "cnpj": "12345678000100"
+    })
     assert response.status_code == 401
 
 # =========================
-# Teste de Busca de Fornecedor
+# Testes de Busca
 # =========================
-def test_buscar_fornecedor_por_cnpj(client: TestClient, header_with_token: dict):
+def test_buscar_fornecedor_por_cnpj_parcial(client: TestClient, header_with_token: dict, base_fornecedor_data: dict):
     """
-    Testa a funcionalidade de busca por CNPJ:
-    1. Cria um fornecedor.
-    2. Busca por esse fornecedor usando seu CNPJ.
-    3. Verifica se o fornecedor correto foi retornado.
+    Testa a busca parcial (search) por CNPJ.
     """
-    # --- Arrange 1: Criar o Fornecedor ---
-    data_supplier = {
-        "nome": "Alan Amorim ME",
-        "cnpj": "72345734000132",
-        "nome_fantasia": "BigTech",
-        "ie": None
-    }
+    # Arrange: Cria o Fornecedor
+    client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
 
-    create_response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
-    assert create_response.status_code == 201
-
-    # --- Arrange 2: Definir termo de busca ---
-    search_cnpj = "72345734000132"
+    # Act: Busca usando apenas os primeiros 5 dígitos do CNPJ
+    search_cnpj_parcial = TEST_CNPJ[:5] 
+    search_response = client.get(f"/api/v1/fornecedores/?buscar={search_cnpj_parcial}", headers=header_with_token)
     
-    # --- Act: Buscar o Fornecedor ---
-    search_response = client.get(f"/api/v1/fornecedores/?buscar={search_cnpj}", headers=header_with_token)
-    
-    # --- Assert: Verificar o resultado da busca ---
+    # Assert
     assert search_response.status_code == 200
     search_data = search_response.json()
-    assert search_data[0]["nome"] == "Alan Amorim ME"
+    assert len(search_data) == 1
+    assert search_data[0]["nome"] == TEST_NOME
 
 # =========================
-# Teste de Edição de Fornecedor
+# Testes de Edição (PUT/Update)
 # =========================
-def test_editar_fornecedor(client: TestClient, header_with_token: dict):
+def test_editar_fornecedor_caminho_feliz(client: TestClient, header_with_token: dict, base_fornecedor_data: dict):
     """
-    Testa a funcionalidade de edição (PUT) de um fornecedor existente:
-    1. Cria um fornecedor.
-    2. Modifica o 'nome_fantasia' no objeto retornado.
-    3. Envia uma requisição PUT para atualizar o fornecedor.
-    4. Verifica se a atualização foi bem-sucedida (status 200) e se o dado foi alterado.
+    Testa a edição de um fornecedor existente.
     """
-    # --- Arrange 1: Criar o Fornecedor ---
-    data_supplier = {
-        "nome": "Alan Amorim ME",
-        "cnpj": "72345734000132",
-        "nome_fantasia": "BigTech",
-        "ie": None
-    }
-    
-    create_response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
-    assert create_response.status_code == 201
+    # Arrange 1: Cria o Fornecedor
+    create_response = client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
+    fornecedor_id = create_response.json()["id"]
 
-    # --- Arrange 2: Preparar dados para edição ---
-    edited_response = create_response.json()
-    edited_response["nome_fantasia"] = "BigTech Editada"
+    # Arrange 2: Payload para atualização (apenas o nome fantasia)
+    update_payload = {"nome_fantasia": "BigTech Editada S/A"}
 
-    # --- Act: Enviar a Requisição de Edição (PUT) ---
-    update_response = client.put(f"/api/v1/fornecedores/{edited_response['id']}", json=edited_response, headers=header_with_token)
+    # Act: Enviar a Requisição de Edição (PUT)
+    update_response = client.put(f"/api/v1/fornecedores/{fornecedor_id}", json=update_payload, headers=header_with_token)
     
-    # --- Assert: Verificar o resultado da edição ---
+    # Assert
     assert update_response.status_code == 200
-    assert update_response.json()["nome_fantasia"] == "BigTech Editada"
+    assert update_response.json()["nome_fantasia"] == "BigTech Editada S/A"
+    assert update_response.json()["nome"] == TEST_NOME # Nome original deve ser mantido
+
+def test_editar_fornecedor_nao_encontrado(client: TestClient, header_with_token: dict):
+    """
+    Testa a falha ao tentar editar um fornecedor com ID inexistente.
+    """
+    inexistent_id = 99999
+    update_payload = {"nome_fantasia": "Inexistente"}
+
+    response = client.put(f"/api/v1/fornecedores/{inexistent_id}", json=update_payload, headers=header_with_token)
+    
+    assert response.status_code == 404
+    assert "Fornecedor não encontrado" in response.json()["detail"]
+
 
 # =========================
-# Teste de Deleção de Fornecedor
+# Testes de Ativação/Desativação (Toggle Ativo)
 # =========================
-# def test_deletar_fornecedor(client: TestClient, header_with_token: dict):
-#     """
-#     Testa a funcionalidade de deleção (DELETE) de um fornecedor existente:
-#     1. Cria um fornecedor.
-#     2. Envia uma requisição DELETE para excluir o fornecedor pelo ID.
-#     3. Verifica se a deleção foi bem-sucedida (status 204).
-#     4. Tenta buscar o fornecedor deletado e verifica se a busca retorna uma lista vazia.
-#     """
-#     # --- Arrange 1: Criar o Fornecedor ---
-#     data_supplier = {
-#         "nome": "Alan Amorim ME",
-#         "cnpj": "72345734000132",
-#         "nome_fantasia": "BigTech",
-#         "ie": None
-#     }
+def test_toggle_status_desativar_e_ativar(client: TestClient, header_with_token: dict, base_fornecedor_data: dict):
+    """
+    Testa o ciclo completo de desativação (ativo=False) e reativação (ativo=True).
+    """
+    # 1. Arrange: Criar o Fornecedor (ativo=True)
+    create_response = client.post("/api/v1/fornecedores/", json=base_fornecedor_data, headers=header_with_token)
+    fornecedor_id = create_response.json()["id"]
+    assert create_response.json()["ativo"] is True
+
+    # 2. Act 1: Desativar (toggle ativo)
+    disable_response = client.put(f"/api/v1/fornecedores/toggle_ativo/{fornecedor_id}", headers=header_with_token)
     
-#     create_response = client.post("/api/v1/fornecedores/", json=data_supplier, headers=header_with_token)
-#     assert create_response.status_code == 201
+    # 3. Assert 1: Deve desativar
+    assert disable_response.status_code == 200
+    assert disable_response.json()["ativo"] is False
 
-#     supplier_id = create_response.json()["id"]
+    # 4. Act 2: Ativar (toggle ativo novamente)
+    enable_response = client.put(f"/api/v1/fornecedores/toggle_ativo/{fornecedor_id}", headers=header_with_token)
 
-#     # --- Act: Enviar a Requisição de Deleção (DELETE) ---
-#     delete_response = client.delete(f"/api/v1/fornecedores/{supplier_id}", headers=header_with_token)
-    
-#     # --- Assert 1: Verificar o Resultado da Deleção ---
-#     assert delete_response.status_code == 204
+    # 5. Assert 2: Deve reativar
+    assert enable_response.status_code == 200
+    assert enable_response.json()["ativo"] is True
 
-#     # --- Assert 2: Verificar se o Fornecedor Foi Deletado ---
-#     # Tenta buscar o fornecedor pelo CNPJ que acabou de ser deletado
-#     search_cnpj = "72345734000132"
-#     search_response = client.get(f"/api/v1/fornecedores/?buscar={search_cnpj}", headers=header_with_token)
-#     assert search_response.status_code == 200 # A busca deve ser bem-sucedida (200 OK)
-#     search_data = search_response.json()
+# O endpoint DELETE é um Update Lógico (toggle_ativo), então o teste DELETE original
+# não é necessário. Se fosse implementado o DELETE Hard, o teste seria o seguinte:
 
-#     # A lista de resultados da busca DEVE estar vazia agora
-#     assert len(search_data) == 0
+# def test_delete_fornecedor_hard_delete(...) - Seria implementado se houvesse a rota DELETE /fornecedores/{id}
