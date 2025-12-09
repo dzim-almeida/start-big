@@ -1,213 +1,179 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: funcionario_service.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Funcionários.
-#            Lida com a criação, validação e atualização do Funcionario
-#            e seus endereços.
+# ARQUIVO: services/funcionario_service.py
+# MÓDULO: Regras de Negócio (Service Layer)
+# DESCRIÇÃO: Orquestra a criação complexa de Funcionário + Usuário + Endereço.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Sequence, List
+from typing import Sequence
 
-# Importa os schemas Pydantic
 from app.schemas.funcionario import FuncionarioCreate, FuncionarioUpdate
-# Importa o modelo ORM
 from app.db.models.funcionario import Funcionario as FuncionarioModel
-# Importa a camada de acesso a dados (CRUD)
-from app.db.crud import funcionario as employee_crud
-# Importa o serviço de endereço para reutilização da lógica
-from app.services import endereco as address_service
-# Importa os Enums para tipagem de entidade
+from app.db.crud import funcionario as funcionario_crud
+from app.services import usuario as usuario_service
+from app.services import endereco as endereco_service
 from app.core.enum import EntityType
 
+# Exceções Padronizadas
+conflict_funcionario_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="Funcionário já cadastrado no sistema"
+)
 
-# =========================
-# Serviço: Criar Funcionário
-# =========================
-def create_employee(db: Session, new_employee: FuncionarioCreate) -> FuncionarioModel:
-    """
-    Serviço para criar um novo funcionário, validar conflitos e estabelecer
-    a relação 1:1 com o usuário logado (user_id).
-    """
+not_found_exce = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Funcionário não encontrado no sistema"
+)
 
+validation_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="Erro de validação de dados únicos"
+)
+
+# Configuração de validadores de unicidade
+unique_fields = ["cpf", "email", "rg", "cnh", "carteira_trabalho"]
+validators = {
+    "cpf": funcionario_crud.get_funcionario_by_cpf,
+    "email": funcionario_crud.get_funcionario_by_email,
+    "rg": funcionario_crud.get_funcionario_by_rg,
+    "cnh": funcionario_crud.get_funcionario_by_cnh,
+    "carteira_trabalho": funcionario_crud.get_funcionario_by_ctps
+}
+
+# ===========================================================================
+# LÓGICA DE CRIAÇÃO (CREATE)
+# ===========================================================================
+
+def create_funcionario(db: Session, empresa_id: int, funcionario_to_add: FuncionarioCreate) -> FuncionarioModel:
+    """
+    Realiza o cadastro completo (Onboarding).
+    
+    Processo Atômico:
+    1. Valida unicidade de documentos (CPF, RG, etc).
+    2. Cria o Usuário de acesso (Login/Senha).
+    3. Cria o Funcionário vinculado ao Usuário e Empresa.
+    4. Salva os Endereços vinculados ao Funcionário.
+    """
     validation_errors = []
 
-    # 1. REGRA DE NEGÓCIO: Verificar restrição 1:1 com Usuário
-    existing_employee_by_user = employee_crud.get_employee_by_user_id(db, new_employee.usuario_id)
-    if existing_employee_by_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="O usuário já está associado a um registro de funcionário."
-        )
+    # Separa dados do funcionário dos dados aninhados
+    funcionario_data = funcionario_to_add.model_dump(exclude={"usuario", "endereco"}, exclude_unset=True)
 
-    # 2. Validações de Conflito (CPF, Email, RG, etc.)
-    
-    # Validação de CPF
-    error_cpf = employee_crud.verify_employee_conflict(
-        db, new_employee.cpf, employee_crud.get_employee_by_cpf, "CPF"
-    )
-    if error_cpf:
-        if error_cpf == "disabled employee":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Funcionário desabilitado com este CPF. Por favor, reative o cadastro."
+    # 1. Validação de Conflitos
+    for field in unique_fields:
+        value = funcionario_data.get(field)
+        if value is not None:
+            error = funcionario_crud.verify_funcionario_conflict(
+                db, value, validators[field], field
             )
-        validation_errors.append({"campo": "cpf", "mensagem": error_cpf})
-
-    # Validação de Email
-    if new_employee.email: # Só valida se o email for fornecido (nullable=True no modelo)
-        error_email = employee_crud.verify_employee_conflict(
-            db, new_employee.email, employee_crud.get_employee_by_email, "Email"
-        )
-        if error_email:
-            validation_errors.append({"campo": "email", "mensagem": error_email})
-            
-    # Validação de RG (Se existir a regra UNIQUE no modelo, deve ser validado)
-    if new_employee.rg:
-        error_rg = employee_crud.verify_employee_conflict(
-            db, new_employee.rg, employee_crud.get_employee_by_rg, "RG"
-        )
-        if error_rg:
-            validation_errors.append({"campo": "rg", "mensagem": error_rg})
+            if error:
+                if error == "disabled funcionario":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Funcionário desabilitado com este {field.upper()}. Reative o cadastro existente."
+                    )
+                validation_errors.append({"campo": field, "mensagem": error})
     
     if validation_errors:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=validation_errors
-        )
-
-    # 3. MAPEAMENTO: Cria a instância do modelo SQLAlchemy
-    employee_to_db = FuncionarioModel(
-        # Dados do Funcionario
-        nome=new_employee.nome,
-        email=new_employee.email,
-        contato=new_employee.contato,
-        observacao=new_employee.observacao,
-        cpf=new_employee.cpf,
-        rg=new_employee.rg,
-        carteira_trabalho=new_employee.carteira_trabalho,
-        cnh=new_employee.cnh,
-        funcao=new_employee.funcao,
-        mae=new_employee.mae,
-        pai=new_employee.pai,
-        banco=new_employee.banco,
-        agencia=new_employee.agencia,
-        conta=new_employee.conta,
-        
-        # Chave Estrangeira (FK)
-        usuario_id=new_employee.usuario_id
+        validation_exce.detail = validation_errors
+        raise validation_exce
+    
+    # 2. Criação do Usuário (Delegate)
+    usuario_to_add = funcionario_to_add.usuario
+    usuario_in_db = usuario_service.create_usuario(
+        db,
+        usuario_to_add=usuario_to_add,
+        empresa_id=empresa_id
     )
 
-    # 4. CHAMA A CAMADA CRUD (para obter o ID)
-    new_employee_in_db = employee_crud.create_employee(db, employee_to_db)
+    # 3. Criação do Funcionário
+    funcionario_to_db = FuncionarioModel(
+        **funcionario_data,
+        usuario_id=usuario_in_db.id, # Foreign Key
+        empresa_id=empresa_id
+    )
+    funcionario_in_db = funcionario_crud.create_funcionario(db, funcionario_to_add=funcionario_to_db)
 
-    # 5. PREPARA E VINCULA OS ENDEREÇOS (Polimórfico)
-    if new_employee.endereco:
-        new_address_employee_to_db = address_service.address_to_db(
-            new_employee_in_db.id,
-            EntityType.FUNCIONARIO, # Uso do Enum correto
-            new_employee.endereco
+    # 4. Vinculação de Endereços
+    if funcionario_to_add.endereco:
+        endereco_funcionario_to_db = endereco_service.address_to_db(
+            id_entity=funcionario_in_db.id,
+            type_entity=EntityType.FUNCIONARIO, 
+            address_data=funcionario_to_add.endereco
         )
-        new_employee_in_db.endereco = new_address_employee_to_db
+        funcionario_in_db.endereco = endereco_funcionario_to_db
     
-    # 6. RETORNA O OBJETO PERSISTIDO
-    return new_employee_in_db
+    return funcionario_in_db
 
+# ===========================================================================
+# LÓGICA DE LEITURA (READ)
+# ===========================================================================
 
-# =========================
-# Serviço: Buscar TODOS os Funcionários
-# =========================
-def get_all_employees(db: Session) -> Sequence[FuncionarioModel]:
-    """
-    Busca TODOS os funcionários ativos. (Delega para o CRUD).
-    """
-    return employee_crud.get_all_employees(db)
+def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[FuncionarioModel]:
+    """Delega busca para o CRUD."""
+    return funcionario_crud.get_funcionario_by_search(db, search=search)
 
+# ===========================================================================
+# LÓGICA DE ATUALIZAÇÃO (UPDATE)
+# ===========================================================================
 
-# =========================
-# Serviço: Buscar Funcionários por Termo
-# =========================
-def get_employee_by_search(db: Session, search: str) -> Sequence[FuncionarioModel]:
-    """
-    Busca funcionários por nome, CPF, email, etc. (Delega para o CRUD).
-    """
-    return employee_crud.get_employee_by_search(db, search)
-
-
-# =========================
-# Serviço: Atualizar Funcionário
-# =========================
-def update_employee_by_id(db: Session, employee_id: int, employee: FuncionarioUpdate) -> FuncionarioModel:
-    """
-    Atualiza um funcionário existente pelo ID.
-    Aplica atualizações parciais (patch) e lida com a lista de endereços.
-    """
+def update_funcionario_by_id(db: Session, funcionario_id: int, funcionario_to_update: FuncionarioUpdate) -> FuncionarioModel:
+    """Atualiza dados cadastrais e endereços."""
     
-    # 1. Busca o funcionário existente no banco pelo ID
-    update_employee = employee_crud.get_employee_by_id(db, employee_id)
-
-    if not update_employee:
-         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Funcionário não encontrado")
+    funcionario_in_db = funcionario_crud.get_funcionario_by_id(db, funcionario_id=funcionario_id)
+    if not funcionario_in_db:
+         raise not_found_exce
     
-    # 2. Extrai apenas os dados enviados na requisição (para atualização parcial)
-    update_data = employee.model_dump(exclude_unset=True)
+    funcionario_data_to_update = funcionario_to_update.model_dump(exclude_unset=True)
     
-    # 3. Tratamento especial para atualizar/substituir a lista de endereços
-    if "endereco" in update_data and update_data["endereco"] is not None:
-        updated_addresses = address_service.update_address_in_db(
-            update_employee.endereco, # Lista atual do ORM
-            employee.endereco,        # Lista nova/editada do Pydantic
-            update_employee.id,
-            EntityType.FUNCIONARIO
+    # Atualização de Endereços (Delegate)
+    if "endereco" in funcionario_data_to_update and funcionario_data_to_update["endereco"] is not None:
+        updated_enderecos = endereco_service.update_address_in_db(
+            address_in_db=funcionario_in_db.endereco,
+            address_to_update=funcionario_to_update.endereco,
+            id_entity=funcionario_in_db.id,
+            type_entity=EntityType.FUNCIONARIO
         )
-        update_employee.endereco = updated_addresses
-        # Remove 'endereco' do dict principal para evitar conflito com relacionamento ORM
-        del update_data["endereco"]
+        funcionario_in_db.endereco = updated_enderecos
+        del funcionario_data_to_update["endereco"]
     
-    # 4. Itera sobre os dados restantes (simples) e atualiza o objeto SQLAlchemy
-    for key, value in update_data.items():
-        # A FK usuario_id é mantida (não está no schema de update)
-        setattr(update_employee, key, value)
+    # Atualização de Campos Simples
+    for key, value in funcionario_data_to_update.items():
+        setattr(funcionario_in_db, key, value)
     
-    # 5. Chama o CRUD para persistir as alterações
-    return employee_crud.update_employee_in_db(db, update_employee)
+    return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)
 
-
-# =========================
-# Serviço: Ativar Funcionário
-# =========================
-def active_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
-    """
-    Serviço para ativar um funcionário pelo seu ID.
-    """
-    # 1. Busca o funcionário
-    existing_employee = employee_crud.get_employee_by_id(db, employee_id)
-
-    if not existing_employee:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Funcionário não encontrado")
+def update_cargo_funcionario(db: Session, funcionario_id: int, cargo_id: int) -> FuncionarioModel:
+    """Atualiza apenas a FK de cargo."""
+    funcionario_in_db = funcionario_crud.get_funcionario_by_id(db, funcionario_id)
+    if not funcionario_in_db:
+        raise not_found_exce
     
-    # 2. Atualiza o objeto em memória
-    existing_employee.ativo = True
+    funcionario_in_db.cargo_id = cargo_id
+    return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)
 
-    # 3. Delega a ativação para o CRUD e retorna o objeto
-    return employee_crud.active_employee_by_id(db, existing_employee)
+# ===========================================================================
+# LÓGICA DE STATUS (TOGGLE)
+# ===========================================================================
 
-
-# =========================
-# Serviço: Desativar Funcionário
-# =========================
-def disable_employee_by_id(db: Session, employee_id: int) -> FuncionarioModel:
+def toggle_active_disable_funcionario_by_id(db: Session, funcionario_id: int) -> FuncionarioModel:
     """
-    Serviço para desativar um funcionário pelo seu ID (Soft Delete).
+    Soft Delete/Undelete.
+    IMPORTANTE: Sincroniza o status do Usuário com o do Funcionário.
+    Se o funcionário é desativado, o login (Usuário) também é bloqueado.
     """
-    # 1. Busca o funcionário
-    existing_employee = employee_crud.get_employee_by_id(db, employee_id)
+    funcionario_in_db = funcionario_crud.get_funcionario_by_id(db, funcionario_id=funcionario_id)
 
-    if not existing_employee:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Funcionário não encontrado")
+    if not funcionario_in_db:
+        raise not_found_exce
     
-    # 2. Atualiza o objeto em memória
-    existing_employee.ativo = False
+    # Inverte status
+    novo_status = not funcionario_in_db.ativo
+    funcionario_in_db.ativo = novo_status
+    
+    # Cascata para o Usuário
+    if funcionario_in_db.usuario:
+        funcionario_in_db.usuario.ativo = novo_status
 
-    # 3. Delega a desativação para o CRUD e retorna o objeto
-    return employee_crud.disable_employee_by_id(db, existing_employee)
+    return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)

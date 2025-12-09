@@ -15,6 +15,9 @@ from app.db.models.usuario import Usuario
 # Configuração do banco de dados de teste (SQLite em memória)
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
+TEST_USER_EMAIL = "teste.funcionario@example.com"
+TEST_USER_PASSWORD = "senhaSegura456"
+
 # Criando a engine de teste
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
@@ -57,3 +60,64 @@ def db_session():
     # Dropar todas as tabelas
     Base.metadata.drop_all(bind=engine)
 
+def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
+    """
+    Gera um payload válido combinando dados da Empresa e do Usuário Master.
+    Permite sufixos para criar dados únicos nos testes.
+    """
+    return {
+        # --- Dados da Empresa (EmpresaCreate) ---
+        "razao_social": f"Empresa Teste {cnpj_suffix} LTDA",
+        "nome_fantasia": "Tech Teste",
+        "cnpj": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
+        "regime_tributario": "Simples Nacional",
+        "celular": "11999998888",
+        
+        # --- Endereço Inicial (Opcional) ---
+        "endereco": [
+            {
+                "logradouro": "Av. Paulista",
+                "numero": "1000",
+                "bairro": "Bela Vista",
+                "cidade": "São Paulo",
+                "estado": "SP",
+                "cep": "01310-100"
+            }
+        ]
+    }
+
+def get_usuario_payload_valido():
+    return {
+        "nome": "Admin Master",
+        "email": TEST_USER_EMAIL,
+        "senha": TEST_USER_PASSWORD
+    }
+
+@pytest.fixture(scope="function")
+def create_test_empresa(client: TestClient):
+
+    usuario_payload = get_usuario_payload_valido()
+    empresa_payload = get_empresa_payload_valido()
+    
+    request_usuario_url = "/api/v1/usuarios/"
+    request_empresa_url = "/api/v1/empresas/"
+
+    usuario_response = client.post(
+        request_usuario_url,
+        json=usuario_payload
+    )
+
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    response = client.post("/api/v1/auth/login", data=login_data)
+    
+    token = response.json()["access_token"]
+
+    header_with_token = {"Authorization": f"Bearer {token}"}
+
+    empresa_response = client.post(
+        request_empresa_url,
+        json=empresa_payload,
+        headers=header_with_token
+    )
+
+    assert empresa_response.status_code == 201

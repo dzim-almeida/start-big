@@ -1,267 +1,205 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: endpoints/produto.py
-# DESCRIÇÃO: Define os endpoints (rotas) da API para operações CRUD
-#            relacionadas a Produtos (Criar, Buscar, Atualizar, Deletar),
-#            incluindo uploads de fotos.
-#            Rotas: /produtos, /produtos/{id}, /produtos/{id}/fotos, etc.
+# MÓDULO: Interface de API (Controller)
+# DESCRIÇÃO: Define rotas para manipulação de Produtos e Imagens.
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, HTTPException, Query, Path, UploadFile, File, Form, Response
+from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form, Response
 from sqlalchemy.orm import Session
-from typing import Sequence, List, Optional
+from typing import Sequence, Optional
 
-# Importa os schemas Pydantic de entrada (Create/Update) e saída (Read)
 from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
-
-# Importa as dependências de autenticação e sessão (Injeção de Dependência)
-from app.core.depends import get_token
+from app.core.depends import check_permission, get_token, _handle_db_transaction
 from app.db.session import get_db
-# Importa a camada de serviço que contém a lógica de negócio
-from app.services import produto as product_service
-from app.services import produto_fotos as product_image_service
+from app.services import produto as produto_service
 
-# Cria um roteador específico. Assume que a URL base é /produtos
 router = APIRouter()
 
-# Função auxiliar para padronizar o tratamento de transações e exceções (Recomendado: Mover para um módulo 'utils' ou 'core')
-def _handle_db_transaction(db: Session, func, *args, **kwargs):
-    """Executa a lógica de serviço, gerencia a transação e trata exceções."""
-    try:
-        result = func(db, *args, **kwargs)
-        db.commit()
-        return result
-    except HTTPException as http_exce:
-        # Erros de negócio (ex: 404 Not Found, 409 Conflict)
-        print(f"Erro de negócio: {http_exce.detail}")
-        db.rollback()
-        raise http_exce
-    except Exception as e:
-        # Erros inesperados (ex: falha de conexão, erro de lógica no serviço)
-        print(f"Erro inesperado: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor."
-        )
+# ===========================================================================
+# ROTAS DE CRIAÇÃO (POST)
+# ===========================================================================
 
-# =========================
-# Endpoint: Criar Produto (POST)
-# Rota: POST /produtos
-# =========================
 @router.post(
     "/",
     response_model=ProdutoRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Cria um novo produto e associa um registro de estoque"
+    summary="Cadastrar Novo Produto",
+    description="Cria um produto e seu estoque inicial. Valida duplicidade de código."
 )
-def create_product(
-    product: ProdutoCreate,
-    token: dict = Depends(get_token), # Injeção de dependência: Autenticação
-    db: Session = Depends(get_db) # Injeção de dependência: Sessão de BD
+def create_new_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    *,
+    produto_to_add: ProdutoCreate,
+    db: Session = Depends(get_db)
 ):
     """
-    Cria um novo Produto, incluindo seu registro de Estoque inicial.
-    Utiliza a função auxiliar para gerenciar a transação.
+    Endpoint para cadastro de produtos.
+
+    Args:
+        produto_to_add (ProdutoCreate): Payload com dados do produto e estoque.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        ProdutoRead: O produto criado com IDs gerados.
     """
     return _handle_db_transaction(
         db,
-        product_service.create_product,
-        product
+        produto_service.create_produto,
+        produto_to_add
     )
-    
-# =========================
-# Endpoint: Buscar TODOS os Produtos (Sem Paginação)
-# Rota: GET /produtos/all
-# =========================
+
+# ===========================================================================
+# ROTAS DE LEITURA (GET)
+# ===========================================================================
+
 @router.get(
-    "/all", # Padrão mais legível que '/a'
+    "/",
     response_model=Sequence[ProdutoRead],
     status_code=status.HTTP_200_OK,
-    summary="Retorna todos os produtos cadastrados (rota de utilidade)"
+    summary="Listar ou Buscar Produtos",
+    description="Retorna produtos ativos. Permite filtro por nome ou código."
 )
-def get_all_products(
-    token: dict = Depends(get_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Busca e retorna a lista completa de produtos.
-    """
-    # A busca (READ) não requer transação/commit/rollback
-    return product_service.get_all_products(db)
-
-# =========================
-# Endpoint: Buscar Produtos (Search)
-# Rota: GET /produtos/
-# =========================
-@router.get(
-    "/",
-    response_model=List[ProdutoRead],
-    status_code=status.HTTP_200_OK,
-    summary="Buscar produtos por nome ou código"
-)
-def get_product_by_search(
-    # Uso de Query(...) com '...' (obrigatório) e metadados de documentação
-    buscar: str = Query(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="Entrada deve ser nome ou código do produto."
-    ),
-    token: dict = Depends(get_token),
-    db: Session = Depends(get_db)
-):
-    """
-    Busca produtos pelo nome ou código.
-    Retorna uma lista de produtos ou uma lista vazia.
-    """
-    # A busca (READ) não requer transação/commit/rollback
-    return product_service.get_product_by_search(db, buscar)
-
-# =========================
-# Endpoint: Atualizar Produto (PUT)
-# Rota: PUT /produtos/{id}
-# =========================
-@router.put(
-    "/{id}",
-    response_model=ProdutoRead,
-    status_code=status.HTTP_200_OK,
-    summary="Atualiza um produto e/ou seu estoque pelo ID"
-)
-def put_product_by_id(
-    id: int = Path(..., description="ID do produto a ser editado", ge=1), # Validação de Path
+def get_produto_by_search( 
+    user_token: dict = Depends(check_permission(required_permission="produto")),
     *,
-    edit_product: ProdutoUpdate,
-    token: dict = Depends(get_token),
+    buscar: Optional[str] = Query(
+        None,
+        description="Termo de busca (Nome ou Código SKU). Se vazio, retorna todos."
+    ),
     db: Session = Depends(get_db)
 ):
     """
-    Atualiza um produto existente (e/ou seu estoque) pelo ID.
+    Endpoint de busca polivalente.
+
+    Args:
+        buscar (Optional[str]): String parcial para nome ou código.
+        db (Session): Sessão de banco de dados.
     """
+    # CORREÇÃO: Passando a referência da função (sem parênteses)
     return _handle_db_transaction(
-        db,
-        product_service.update_product_by_id,
-        id,
-        edit_product
-    )
-    
-# =========================
-# Endpoint: Ativar Produto (Update Lógico)
-# Rota: PUT /produtos/ativa/{id}
-# =========================
+       db,
+       produto_service.get_produto_by_search,
+       buscar 
+   )
+
+# ===========================================================================
+# ROTAS DE ATUALIZAÇÃO (PUT)
+# ===========================================================================
+
 @router.put(
-    "/ativa/{id}",
+    "/{produto_id}",
     response_model=ProdutoRead,
     status_code=status.HTTP_200_OK,
-    summary="Ativa um produto logicamente no BD"
+    summary="Atualizar Produto Completo",
+    description="Atualiza dados cadastrais e/ou estoque de um produto pelo ID."
 )
-def active_product_by_id(
-    id: int = Path(..., description="ID do produto a ser ativado", ge=1),
-    # Uso de Optional[str] com Query(None, ...) para campo opcional na URL
-    codigo_produto: Optional[str] = Query(
-        None, 
-        description="Novo código do produto a ser ativado (opcional)"
-    ), 
-    token: dict = Depends(get_token),
+def update_produto_by_id(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto a ser editado", ge=1),
+    *,
+    produto_to_update: ProdutoUpdate,
     db: Session = Depends(get_db)
 ):
     """
-    Ativa um produto existente pelo seu ID, permitindo a redefinição de seu código.
+    Atualiza um produto existente.
+
+    Args:
+        produto_id (int): ID do produto na URL.
+        produto_to_update (ProdutoUpdate): Payload com dados a atualizar.
     """
-    # A lógica de ativação/atualização de código é executada atomicamente
     return _handle_db_transaction(
         db,
-        product_service.active_product_by_id,
-        id,
-        codigo_produto
+        produto_service.update_produto_by_id,
+        produto_id,
+        produto_to_update
     )
 
-# =========================
-# Endpoint: Desativar Produto (Update Lógico)
-# Rota: PUT /produtos/desativa/{id}
-# =========================
 @router.put(
-    "/desativa/{id}",
-    status_code=status.HTTP_204_NO_CONTENT, # Padrão RESTful para deleção/desativação sem corpo de resposta
-    summary="Desativa um produto logicamente no BD (Soft Delete)"
+    "/toggle_ativo/{produto_id}",
+    response_model=ProdutoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Ativar/Desativar Produto",
+    description="Alterna o status lógico (Soft Delete). Permite redefinir código na reativação."
 )
-def disable_product_by_id(
-    id: int = Path(..., description="ID do produto a ser desativado", ge=1),
-    # Parâmetro booleano obrigatório na Query String
-    deletar_codigo: bool = Query(..., description="Define se o código do produto desativado deve ser removido."),
-    token: dict = Depends(get_token),
+def toggle_status_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto alvo", ge=1),
+    *,
+    novo_codigo_produto: str | None = Query(
+        None,
+        description="Novo código obrigatório caso o atual esteja em conflito na reativação."
+    ),
     db: Session = Depends(get_db)
 ):
     """
-    Desativa um produto existente pelo seu ID.
-    O parâmetro `deletar_codigo` controla se o código do produto deve ser removido.
-    Retorna 204 No Content.
+    Realiza o Soft Delete ou Reativação de um produto.
     """
-    # Executa o serviço e garante o rollback em caso de falha
-    _handle_db_transaction(
+    return _handle_db_transaction(
         db,
-        product_service.disable_product_by_id,
-        id,
-        deletar_codigo
+        produto_service.toggle_active_disable_produto_by_id,
+        produto_id,
+        novo_codigo_produto
     )
-    # Retorna Response vazia 204 NO CONTENT
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-    
-# =========================
-# Endpoint: Upload de Foto
-# Rota: POST /produtos/{product_id}/fotos
-# =========================
+
+# ===========================================================================
+# ROTAS DE IMAGEM (UPLOAD/DELETE)
+# ===========================================================================
+
 @router.post(
-    "/{product_id}/fotos",
+    "/{produto_id}/fotos",
     response_model=ProdutoFotoRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Faz upload de uma imagem e associa ao produto"
+    summary="Upload de Foto do Produto"
 )
-def upload_product_image(
-    product_id: int = Path(..., description="ID do produto a receber a foto."),
-    # Uso de File e Form para requisições multipart/form-data (upload de arquivo)
-    file: UploadFile = File(..., description="O arquivo de imagem a ser carregado."),
-    principal: bool = Form(False, description="Define se esta é a foto principal do produto."),
-    token: dict = Depends(get_token),
+def upload_produto_image(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(
+        ...,
+        description="ID do produto alvo."
+    ),
+    *,
+    image_file: UploadFile = File(
+        ...,
+        description="Arquivo de imagem (JPEG, PNG)."
+    ),
+    principal: bool = Form(
+        False,
+        description="Define se é a foto de capa."
+    ),
     db: Session = Depends(get_db)
 ):
     """
-    Realiza o upload de uma foto, associando-a a um produto existente.
-    A requisição deve ser enviada no formato multipart/form-data.
+    Recebe um arquivo de imagem e o associa ao produto.
     """
-    # A lógica de serviço deve salvar o arquivo e persistir os metadados
     return _handle_db_transaction(
         db,
-        product_image_service.create_product_image,
-        product_id, 
-        file, 
+        produto_service.create_produto_image,
+        produto_id, 
+        image_file, 
         principal
     )
-    
-# =========================
-# Endpoint: Deletar Foto Específica
-# Rota: DELETE /produtos/fotos/{image_id}
-# =========================
+
 @router.delete(
     "/fotos/{image_id}",
-    status_code=status.HTTP_204_NO_CONTENT, # Padrão RESTful para deleção
-    summary="Deleta uma imagem específica do produto"
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover Foto"
 )
-def delete_product_image(
-    image_id: int = Path(..., description="ID único da imagem a ser deletada"),
-    token: dict = Depends(get_token),
+def delete_produto_image(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    image_id: int = Path(
+        ...,
+        description="ID da imagem a ser removida."
+    ),
+    *,
     db: Session = Depends(get_db)
 ):
     """
-    Deleta uma foto específica do produto pelo seu ID,
-    incluindo a exclusão do arquivo físico (lógica no serviço).
-    Retorna 204 No Content.
+    Remove o registro da foto e apaga o arquivo físico.
     """
-    # Executa o serviço e garante o rollback em caso de falha
     _handle_db_transaction(
         db,
-        product_image_service.delete_product_image,
+        produto_service.delete_produto_image,
         image_id
     )
-    # Retorna Response vazia 204 NO CONTENT
     return Response(status_code=status.HTTP_204_NO_CONTENT)

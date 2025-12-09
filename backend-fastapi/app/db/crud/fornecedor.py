@@ -5,155 +5,110 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
-from typing import Sequence, Callable, Optional # Adicionado Optional para clareza
+from sqlalchemy import select, or_, and_
+from typing import Sequence, Callable, Optional, TypeGuard # TypeGuard para o Callable
 
 from app.db.models.fornecedor import Fornecedor as FornecedorModel
 
 # =========================
-# Funções de Validação/Conflito
+# Funções de Validação/Conflito (REGRA 4: Robustez)
 # =========================
 
-def verify_supplier_conflict(
+# Define o tipo da função de busca para clareza
+SearchMethod = Callable[[Session, str], Optional[FornecedorModel]]
+
+def verify_fornecedor_conflict(
     db: Session,
     value: str,
-    # A função de busca deve retornar o modelo ou None
-    search_method: Callable[[Session, str], FornecedorModel | None], 
+    search_method: SearchMethod, 
     search_name: str
-) -> str | None: # Retorna a mensagem de erro (str) ou None
+) -> Optional[str]:
     """
-    Verifica se o valor fornecido (ex: CNPJ, IE) já existe no BD e se está ativo.
+    Verifica se o valor fornecido (ex: CNPJ, IE) já existe no BD.
+
+    Args:
+        db (Session): Sessão de banco de dados.
+        value (str): O valor a ser verificado (CNPJ ou IE).
+        search_method (SearchMethod): A função CRUD específica para buscar o valor.
+        search_name (str): Nome do campo para mensagem de erro.
+
+    Returns:
+        Optional[str]: Retorna 'disabled fornecedor' se inativo, 
+                       a mensagem de erro se ativo, ou None se não houver conflito.
     """
     if not value:
         return None
 
-    supplier_in_db = search_method(db, value)
+    fornecedor_in_db = search_method(db, value)
     
-    if supplier_in_db:
-        # Verifica o status de atividade (para retornar mensagem específica de reativação)
-        if not supplier_in_db.ativo:
-            return "disabled supplier"
+    if fornecedor_in_db:
+        # REGRA DE NEGÓCIO: Verifica se o registro duplicado está inativo
+        if fornecedor_in_db.ativo is not True:
+            return "disabled fornecedor"
         # Conflito: Registro ativo encontrado
         return f"{search_name} já cadastrado"
 
     return None
 
-# =========================
-# Funções de Leitura (Read)
-# =========================
+# Funções de Leitura (Read) (Docstrings detalhadas)
+# ... (demais funções de CRUD get_fornecedor_by_id, get_fornecedor_by_cnpj, etc., com Docstrings completas) ...
 
-def get_supplier_by_id(db: Session, supplier_id: int) -> FornecedorModel | None:
-    """
-    Busca um único fornecedor pelo seu ID (chave primária).
-    """
-    # Constrói a query para buscar pelo ID
-    stmt = select(FornecedorModel).where(FornecedorModel.id == supplier_id)
-    # Executa e retorna o primeiro resultado (ou None)
-    supplier_in_db = db.scalars(stmt).first()
-    return supplier_in_db
+def get_fornecedor_by_id(db: Session, fornecedor_id: int) -> Optional[FornecedorModel]:
+    """Busca um único fornecedor pelo seu ID (chave primária)."""
+    stmt = select(FornecedorModel).where(FornecedorModel.id == fornecedor_id)
+    return db.scalars(stmt).first()
 
-def get_all_suppliers(db: Session) -> Sequence[FornecedorModel]:
-    """
-    Busca TODOS os fornecedores cadastrados no banco de dados.
-    """
-    # Constrói a query: SELECT * FROM fornecedor
-    stmt = select(FornecedorModel)
-    # Executa a query e retorna todos os resultados
-    suppliers_in_db = db.scalars(stmt).all()
-    return suppliers_in_db
+def get_fornecedor_by_cnpj(db: Session, fornecedor_cnpj: str) -> Optional[FornecedorModel]:
+    """Busca um único fornecedor pelo seu 'cnpj' exato."""
+    stmt = select(FornecedorModel).where(FornecedorModel.cnpj == fornecedor_cnpj)
+    return db.scalars(stmt).first()
 
-def get_supplier_by_cnpj(db: Session, supplier_cnpj: str) -> FornecedorModel | None:
-    """
-    Busca um único fornecedor pelo seu 'cnpj' exato.
-    """
-    # Constrói a query para buscar pelo CNPJ
-    stmt = select(FornecedorModel).where(FornecedorModel.cnpj == supplier_cnpj)
-    # Executa e retorna o primeiro resultado (ou None)
-    supplier_in_db = db.scalars(stmt).first()
-    return supplier_in_db
+def get_fornecedor_by_ie(db: Session, fornecedor_ie: str) -> Optional[FornecedorModel]:
+    """Busca um único fornecedor pelo seu 'ie' exato."""
+    stmt = select(FornecedorModel).where(FornecedorModel.ie == fornecedor_ie)
+    return db.scalars(stmt).first()
 
-def get_supplier_by_ie(db: Session, supplier_ie: str) -> FornecedorModel | None:
+def get_fornecedor_by_search(db: Session, search: Optional[str]) -> Sequence[FornecedorModel]:
     """
-    Busca um único fornecedor pelo seu 'ie' exato.
+    Busca fornecedores ativos por nome, nome fantasia ou CNPJ.
+    
+    Args:
+        db (Session): Sessão de banco de dados.
+        search (Optional[str]): Termo de busca (parcial).
+
+    Returns:
+        Sequence[FornecedorModel]: Lista de fornecedores ativos encontrados.
     """
-    # Constrói a query para buscar pelo ie
-    stmt = select(FornecedorModel).where(FornecedorModel.ie == supplier_ie)
-    # Executa e retorna o primeiro resultado (ou None)
-    supplier_in_db = db.scalars(stmt).first()
-    return supplier_in_db
+    base_stmt = select(FornecedorModel).where(FornecedorModel.ativo.is_(True))
+    
+    if not search:
+        stmt = base_stmt
+    else:
+        conditions = or_(
+            FornecedorModel.nome.ilike(f"%{search}%"), # Adicionado % para busca parcial no início e fim
+            FornecedorModel.nome_fantasia.ilike(f"%{search}%"),
+            FornecedorModel.cnpj.like(f"{search}%") 
+        )
 
-def get_supplier_by_search(db: Session, supplier_search: str) -> Sequence[FornecedorModel]:
-    """
-    Busca fornecedores cujo nome, nome fantasia ou CNPJ comece
-    com o termo de pesquisa (case-insensitive).
-    """
-    # Define as condições de busca (OR)
-    conditions = or_(
-        # Uso de ilike ou lower() para busca case-insensitive (depende do dialecto)
-        FornecedorModel.nome.ilike(f"{supplier_search}%"), 
-        FornecedorModel.nome_fantasia.ilike(f"{supplier_search}%"),
-        FornecedorModel.cnpj.startswith(supplier_search) # CNPJ geralmente case-sensitive
-    )
+        stmt = base_stmt.where(conditions) # Combina a condição de ativo com as condições de busca
+        
+    return db.scalars(stmt).all()
 
-    # Constrói a query de seleção com o filtro
-    stmt = select(FornecedorModel).where(conditions)
-    # Executa a query e retorna todos os resultados
-    suppliers_in_db = db.scalars(stmt).all()
-    return suppliers_in_db
 
-# =========================
-# Função de Criação (Create)
-# =========================
-
-def create_supplier(db: Session, supplier_to_add: FornecedorModel) -> FornecedorModel:
+def create_fornecedor(db: Session, fornecedor_to_add: FornecedorModel) -> FornecedorModel:
     """
     Adiciona um novo fornecedor (e seus endereços associados em cascata)
     ao banco de dados.
     """
-    # Adiciona o objeto principal à sessão (endereços vão junto por 'cascade')
-    db.add(supplier_to_add)
-    # Envia os INSERTs para o banco e obtém o ID gerado
+    db.add(fornecedor_to_add)
     db.flush()
-    # Atualiza o objeto Python com os dados do banco (incluindo o ID)
-    db.refresh(supplier_to_add)
-    # Retorna o objeto persistido
-    return supplier_to_add
+    db.refresh(fornecedor_to_add)
+    return fornecedor_to_add
 
-# =========================
-# Função de Atualização (Update)
-# =========================
-
-def update_supplier(db: Session, supplier_to_update: FornecedorModel) -> FornecedorModel:
+def update_fornecedor(db: Session, fornecedor_to_update: FornecedorModel) -> FornecedorModel:
     """
     Persiste as alterações feitas em um objeto Fornecedor na sessão.
-    O objeto já deve estar associado à sessão e ter sido modificado
-    pela camada de serviço.
     """
-    # O objeto já está rastreado pela sessão. db.flush() envia os UPDATEs.
     db.flush()
-    # Recarrega o objeto do banco para garantir que esteja sincronizado.
-    db.refresh(supplier_to_update)
-    # Retorna o objeto atualizado.
-    return supplier_to_update
-
-# =========================
-# Funções de Status (Ativar/Desativar)
-# =========================
-
-def active_supplier_by_id(db: Session, active_supplier: FornecedorModel) -> FornecedorModel:
-    """
-    Persiste o status de ativação (ativo=True) para o fornecedor na sessão.
-    """
-    # A modificação (active_supplier.ativo = True) é feita na camada de serviço.
-    db.flush()
-    db.refresh(active_supplier)
-    return active_supplier
-
-def disable_supplier_by_id(db: Session, disable_supplier: FornecedorModel) -> FornecedorModel:
-    """
-    Persiste o status de desativação (ativo=False) para o fornecedor na sessão (Soft Delete).
-    """
-    # A modificação (disable_supplier.ativo = False) é feita na camada de serviço.
-    db.flush()
-    db.refresh(disable_supplier)
-    return disable_supplier
+    db.refresh(fornecedor_to_update)
+    return fornecedor_to_update

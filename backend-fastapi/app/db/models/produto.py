@@ -4,7 +4,7 @@
 #            os dados de um produto no sistema.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, Boolean, ForeignKey, CheckConstraint
+from sqlalchemy import Index, Column, Integer, String, Boolean, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.db.base import Base
@@ -26,7 +26,7 @@ class Produto(Base):
     # Campos de dados do produto
     nome: Mapped[str] = mapped_column(String(255), index=True, nullable=False, doc="Nome completo do produto")
     # O Código_produto é nullable=True na coluna, mas a restrição de tabela garante que seja NULL se ativo=False
-    codigo_produto: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, nullable=True, doc="Código único (SKU, EAN, etc.) para identificação")
+    codigo_produto: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True, doc="Código único (SKU, EAN, etc.) para identificação")
     unidade_medida: Mapped[str | None] = mapped_column(String(25), nullable=True, doc="Unidade de medida (ex: UN, KG, CX)")
     observacao: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o produto")
     nota_fiscal: Mapped[str | None] = mapped_column(String(100), nullable=True, doc="Referência de nota fiscal de entrada ou origem")
@@ -74,4 +74,10 @@ class Produto(Base):
             "(NOT ativo) OR (codigo_produto IS NOT NULL)", 
             name='ck_codigo_produto_ativo_obrigatorio' 
         ),
+        Index(
+            'ix_produto_codigo_unico_ativo',
+            'codigo_produto',
+            unique=True,
+            sqlite_where=(Column('ativo').is_(True))
+        )
     )

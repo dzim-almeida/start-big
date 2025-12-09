@@ -1,19 +1,52 @@
-# Endpoint de Usuários
+# ---------------------------------------------------------------------------
+# ARQUIVO: endpoints/usuario_endpoint.py
+# MÓDULO: Interface de API (Controller)
+# DESCRIÇÃO: Rotas para gerenciamento de contas de acesso (Usuários).
+# ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status  # type: ignore
-from sqlalchemy.orm import Session  # type: ignore
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
-from app.schemas.usuario import UsuarioCreate, UsuarioRead # Importa os modelos Pydantic
-from app.db.session import get_db  # Função para obter a sessão do banco de dados
-from app.services import usuario as user_service
-from app.core.depends import get_token
+from app.schemas.usuario import UsuarioCreate, UsuarioRead
+from app.core.depends import _handle_db_transaction
+from app.db.session import get_db
+from app.services import usuario as usuario_service
 
 router = APIRouter()
 
-@router.post("/", response_model=UsuarioRead, status_code=status.HTTP_201_CREATED, summary="Criar um novo usuário")
-def create_user(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    return user_service.create_user_admin_service(db, usuario)
-   
-@router.get("/me", response_model=UsuarioRead, summary="Retornar o usuário")
-def get_user(token: dict = Depends(get_token), db: Session = Depends(get_db)):
-    return user_service.get_user_by_id(db, int(token.get("sub")))
+# ===========================================================================
+# ROTAS DE CRIAÇÃO (POST)
+# ===========================================================================
+
+@router.post(
+    "/",
+    response_model=UsuarioRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cadastrar Usuário Master",
+    description="Endpoint exclusivo para o Setup Inicial. Cria o primeiro administrador do sistema."
+)
+def create_usuario_master(
+    usuario_master_to_add: UsuarioCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Cria o Usuário Master (Admin) do sistema.
+    
+    Regra de Negócio:
+    - Este endpoint deve ser usado apenas na instalação do sistema (Onboarding).
+    - O serviço validará se já existe um Master cadastrado para evitar duplicidade.
+    
+    Args:
+        usuario_master_to_add (UsuarioCreate): Payload com email, senha e nome.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        UsuarioRead: O usuário criado (sem a senha hashada).
+    """
+    return _handle_db_transaction(
+        db,
+        usuario_service.create_usuario,
+        usuario_master_to_add,
+        empresa_id=None, # Master inicial não tem empresa até criar uma
+        is_master=True   # Flag que ativa a regra de unicidade de Master
+    )

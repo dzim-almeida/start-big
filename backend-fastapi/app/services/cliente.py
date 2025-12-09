@@ -1,253 +1,226 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/cliente.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Clientes.
-#            Implementa a criação polimórfica de Clientes Pessoa Física
-#            e Pessoa Jurídica, busca, atualização e deleção.
+# ARQUIVO: cliente_service.py
+# MÓDULO: Regras de Negócio (Service Layer)
+# DESCRIÇÃO: Orquestra validações, verificação de conflitos e persistência.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Sequence, List
 
-# Importa os modelos ORM necessários
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-# Importa os schemas Pydantic de entrada/atualização
-from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePFUpdate, ClientePJCreate, ClientePJUpdate
-# Importa a camada de acesso a dados (CRUD)
-from app.db.crud import cliente as client_crud
-# Importa o serviço de endereço para reutilização da lógica
+from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePFUpdate, ClientePJCreate
+from app.db.crud import cliente as cliente_crud
 from app.services import endereco as address_service
-# Importa os Enums para conversão de tipo
 from app.core.enum import Gender, EntityType
 
+# Definição de exceções padrão para reutilização
+conflict_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="Cliente já cadastrado no sistema"
+)
 
-# =========================
-# Serviço: Criar Cliente PF
-# =========================
-def create_client_pf(db: Session, new_client_pf: ClientePFCreate) -> ClientePFModel:
-    """
-    Serviço para criar um novo cliente Pessoa Física completo.
-    """
+not_found_exce = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Cliente não encontrado no sistema"
+)
 
+validation_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail=...
+)
+
+# Campos que exigem verificação de unicidade no banco
+unique_fields = ["cpf", "cnpj", "email", "rg", "ie"]
+
+# Mapa de validadores mapeando campo -> função de busca no CRUD
+validators = {
+    "cpf": cliente_crud.get_cliente_by_cpf,
+    "cnpj": cliente_crud.get_cliente_by_cnpj,
+    "email": cliente_crud.get_cliente_by_email,
+    "rg": cliente_crud.get_cliente_by_rg,
+    "ie": cliente_crud.get_cliente_by_ie
+}
+
+# ===========================================================================
+# LÓGICA DE CRIAÇÃO (CREATE)
+# ===========================================================================
+
+def create_cliente_pf(db: Session, cliente_pf_to_add: ClientePFCreate) -> ClientePFModel:
+    """
+    Aplica regras de negócio para criação de Pessoa Física.
+    
+    1. Verifica conflitos de dados únicos (CPF, RG, Email).
+    2. Instancia o modelo ORM.
+    3. Persiste o cliente.
+    4. Processa e vincula os endereços.
+    """
     validation_errors = []
+    
+    # Extrai dicionário excluindo endereços (tratados separadamente) e campos não setados
+    cliente_data = cliente_pf_to_add.model_dump(exclude={"endereco"}, exclude_unset=True)
 
-    # 1. Validações de Conflito (CPF, Email, RG)
-    error_cpf = client_crud.verify_client_conflict(
-        db, new_client_pf.cpf, client_crud.get_client_by_cpf, "CPF"
-    )
-    if error_cpf:
-        if error_cpf == "disabled client":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cliente desabilitado com este CPF. Por favor, reative o cadastro."
+    # Loop de validação de unicidade
+    for field in unique_fields:
+        value = cliente_data.get(field)
+        if value is not None:
+            error = cliente_crud.verify_cliente_conflict(
+                db, value, validators[field], field
             )
-        validation_errors.append({"campo": "cpf", "mensagem": error_cpf})
-
-    error_email = client_crud.verify_client_conflict(
-        db, new_client_pf.email, client_crud.get_client_by_email, "Email"
-    )
-    if error_email:
-        validation_errors.append({"campo": "email", "mensagem": error_email})
-
-    error_rg = client_crud.verify_client_conflict(
-        db, new_client_pf.rg, client_crud.get_client_by_rg, "RG"
-    )
-    if error_rg:
-        validation_errors.append({"campo": "rg", "mensagem": error_rg})
+            if error:
+                # Tratamento especial para cliente desativado
+                if error == "disabled cliente":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="cliente desabilitado com este CPF. Por favor, reative o cadastro."
+                    )
+                validation_errors.append({"campo": field, "mensagem": error})
     
     if validation_errors:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, # Alterado para 422
-            detail=validation_errors
+        validation_exce.detail = validation_errors
+        raise validation_exce
+
+    # Instanciação do Modelo
+    cliente_pf_to_db = ClientePFModel(**cliente_data)
+    
+    # Persistência do Pai (Cliente)
+    cliente_pf_in_db = cliente_crud.create_cliente(db, cliente_to_add=cliente_pf_to_db)
+
+    # Persistência dos Filhos (Endereços)
+    if cliente_pf_to_add.endereco:
+        address_cliente_to_db = address_service.address_to_db(
+            id_entity=cliente_pf_in_db.id,
+            type_entity=EntityType.CLIENTE,
+            address_data=cliente_pf_to_add.endereco
         )
-
-    # 2. PREPARA O OBJETO PRINCIPAL (ClientePFModel)
-    new_client_pf_to_db = ClientePFModel(
-        email=new_client_pf.email,
-        contato=new_client_pf.contato,
-        observacoes=new_client_pf.observacoes,
-        nome=new_client_pf.nome,
-        cpf=new_client_pf.cpf,
-        rg=new_client_pf.rg,
-        # Conversão de Enum
-        genero=Gender(new_client_pf.genero) if new_client_pf.genero else None, 
-        data_nascimento=new_client_pf.data_nascimento,
-    )
     
-    # 3. CHAMA A CAMADA CRUD (para obter o ID)
-    new_client_pf_in_db = client_crud.create_client_pf(db, new_client_pf_to_db)
-
-    # 4. PREPARA E VINCULA OS ENDEREÇOS
-    new_address_client_to_db = address_service.address_to_db(
-        new_client_pf_in_db.id,
-        EntityType.CLIENTE,
-        new_client_pf.endereco
-    )
+        cliente_pf_in_db.endereco = address_cliente_to_db
     
-    new_client_pf_in_db.endereco = new_address_client_to_db
-    
-    # 5. RETORNA O OBJETO PERSISTIDO
-    return new_client_pf_in_db
+    return cliente_pf_in_db
 
 
-# =========================
-# Serviço: Criar Cliente PJ
-# =========================
-def create_client_pj(db: Session, new_client_pj: ClientePJCreate) -> ClientePJModel:
+def create_cliente_pj(db: Session, cliente_pj_to_add: ClientePJCreate) -> ClientePJModel:
     """
-    Serviço para criar um novo cliente Pessoa Jurídica completo.
+    Aplica regras de negócio para criação de Pessoa Jurídica.
+    Semelhante ao fluxo de PF, mas valida CNPJ/IE/Razão Social.
     """
-
     validation_errors = []
 
-    # 1. Validações de Conflito (CNPJ, IE)
-    error_cnpj = client_crud.verify_client_conflict(
-        db, new_client_pj.cnpj, client_crud.get_client_by_cnpj, "CNPJ"
-    )
-    if error_cnpj:
-        if error_cnpj == "disabled client":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cliente desabilitado com este CNPJ. Por favor, reative o cadastro."
-            )
-        validation_errors.append({"campo": "cnpj", "mensagem": error_cnpj})
+    cliente_data = cliente_pj_to_add.model_dump(exclude={"endereco"}, exclude_unset=True)
 
-    error_ie = client_crud.verify_client_conflict(
-        db, new_client_pj.ie, client_crud.get_client_by_ie, "Inscrição Estadual"
-    )
-    if error_ie:
-        validation_errors.append({"campo": "ie", "mensagem": error_ie})
+    for field in unique_fields:
+        value = cliente_data.get(field)
+        if value is not None:
+            error = cliente_crud.verify_cliente_conflict(
+                db, value, validators[field], field
+            )
+            if error:
+                if error == "disabled cliente":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="cliente desabilitado com este CNPJ. Por favor, reative o cadastro."
+                    )
+                validation_errors.append({"campo": field, "mensagem": error})
     
     if validation_errors:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, # Alterado para 422
-            detail=validation_errors
-        )
+        validation_exce.detail = validation_errors
+        raise validation_exce
 
-    # 2. PREPARA O OBJETO PRINCIPAL (ClientePJModel)
-    new_client_pj_to_db = ClientePJModel(
-        email=new_client_pj.email,
-        contato=new_client_pj.contato,
-        observacoes=new_client_pj.observacoes,
-        razao_social=new_client_pj.razao_social,
-        cnpj=new_client_pj.cnpj,
-        nome_fantasia=new_client_pj.nome_fantasia,
-        ie=new_client_pj.ie,
-        responsavel=new_client_pj.responsavel,
-    )
+    new_cliente_pj_to_db = ClientePJModel(**cliente_data)
 
-    # 3. CHAMA A CAMADA CRUD (para obter o ID)
-    new_client_pj_in_db = client_crud.create_client_pj(db, new_client_pj_to_db)
+    new_cliente_pj_in_db = cliente_crud.create_cliente(db, cliente_to_add=new_cliente_pj_to_db)
 
-    # 4. PREPARA E VINCULA OS ENDEREÇOS
-    new_address_client_to_db = address_service.address_to_db(
-        new_client_pj_in_db.id,
-        EntityType.CLIENTE,
-        new_client_pj.endereco
+    address_cliente_to_db = address_service.address_to_db(
+        id_entity=new_cliente_pj_in_db.id,
+        type_entity=EntityType.CLIENTE,
+        address_data=cliente_pj_to_add.endereco
     )
     
-    new_client_pj_in_db.endereco = new_address_client_to_db
+    new_cliente_pj_in_db.endereco = address_cliente_to_db
 
-    # 5. RETORNA O OBJETO PERSISTIDO
-    return new_client_pj_in_db
+    return new_cliente_pj_in_db
 
-# =========================
-# Serviço: Buscar TODOS os Clientes
-# =========================
-def get_all_clients(db: Session) -> Sequence[ClienteModel]:
-    """
-    Busca TODOS os clientes cadastrados. (Apenas delega para o CRUD).
-    """
-    return client_crud.get_all_clients(db)
+# ===========================================================================
+# LÓGICA DE LEITURA (READ)
+# ===========================================================================
 
-# =========================
-# Serviço: Buscar Clientes
-# =========================
-def get_client_by_search(db: Session, search: str) -> Sequence[ClienteModel]: # Corrigido retorno
+def get_cliente_by_search(db: Session, search: str | None) -> Sequence[ClienteModel]: 
     """
-    Busca clientes (PF ou PJ) de forma polimórfica usando a camada CRUD.
+    Intermediário para busca de clientes.
+    Repassa a query string para o CRUD realizar a filtragem polimórfica.
     """
-    return client_crud.get_client_by_search(db, search)
+    return cliente_crud.get_cliente_by_search(db, search=search)
 
-# =========================
-# Serviço: Atualizar Cliente
-# =========================
-def update_client_by_id(db: Session, id: int, client: ClienteUpdate) -> ClienteModel:
+# ===========================================================================
+# LÓGICA DE ATUALIZAÇÃO (UPDATE)
+# ===========================================================================
+
+def update_cliente_by_id(db: Session, cliente_id: int, cliente_to_update: ClienteUpdate) -> ClienteModel:
     """
-    Atualiza um cliente existente (PF ou PJ) pelo ID.
+    Atualiza dados de um cliente existente.
+    Suporta atualização parcial (PATCH behavior via PUT).
+    Gerencia a lógica complexa de atualização de lista de endereços.
     """
+    validation_errors = []
     
-    # 1. Busca o cliente existente no banco pelo ID
-    update_client = client_crud.get_client_by_id(db, id)
+    # Recupera o registro atual
+    cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id)
+    if not cliente_in_db:
+         raise not_found_exce
+    
+    data_to_update = cliente_to_update.model_dump(exclude_unset=True)
 
-    if not update_client:
-         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    # Validação de conflitos para campos que estão sendo alterados
+    for field in unique_fields:
+        value = data_to_update.get(field)
+        if value is not None:
+            error = cliente_crud.verify_cliente_conflict(
+                db, value, validators[field], field
+            )
+            if error:
+                validation_errors.append({"campo": field, "mensagem": error})
+
+    if validation_errors:
+        validation_exce.detail = validation_errors
+        raise validation_exce
     
-    # 2. Extrai apenas os dados enviados na requisição (para atualização parcial)
-    update_data = client.model_dump(exclude_unset=True)
-    
-    # 3. Tratamento especial para atualizar/substituir a lista de endereços
-    if "endereco" in update_data and update_data["endereco"] is not None:
+    # Atualização de Endereços (Delega para serviço específico)
+    if "endereco" in data_to_update:
         updated_addresses = address_service.update_address_in_db(
-            update_client.endereco,
-            client.endereco,
-            update_client.id,
-            EntityType.CLIENTE
+            address_in_db=cliente_in_db.endereco,
+            address_to_update=cliente_to_update.endereco,
+            id_entity=cliente_in_db.id,
+            type_entity=EntityType.CLIENTE
         )
-        update_client.endereco = updated_addresses
-        # Remove 'endereco' do dict principal para evitar a atualização de relacionamento
-        del update_data["endereco"]
+        cliente_in_db.endereco = updated_addresses
+        del data_to_update["endereco"]
     
-    # 4. Itera sobre os dados restantes (simples) e atualiza o objeto SQLAlchemy
-    for key, value in update_data.items():
-        # Pula 'tipo' (não deve ser atualizado)
+    # Atualização de Campos Escalares
+    for key, value in data_to_update.items():
         if key == "tipo":
             continue
             
-        # Converte Enum de Gênero, se for um ClientePF e o campo existir
-        if key == "genero" and value is not None and isinstance(client, ClientePFUpdate):
+        # Cast de Enum se necessário
+        if key == "genero" and value is not None and isinstance(cliente_to_update, ClientePFUpdate):
             value = Gender(value)
             
-        # Define o novo valor no objeto SQLAlchemy
-        setattr(update_client, key, value)
+        setattr(cliente_in_db, key, value)
     
-    # 5. Chama o CRUD para persistir as alterações
-    return client_crud.update_client_in_db(db, update_client)
+    return cliente_crud.update_cliente_in_db(db, cliente_to_update=cliente_in_db)
 
-# =========================
-# Serviço: Ativar Cliente
-# =========================
-def active_client_by_id(db: Session, client_id: int) -> ClienteModel: # Corrigido retorno
-    """
-    Serviço para ativar um cliente pelo seu ID.
-    """
-    # 1. Busca o cliente
-    existing_client = client_crud.get_client_by_id(db, client_id)
+# ===========================================================================
+# LÓGICA DE STATUS (TOGGLE)
+# ===========================================================================
 
-    if not existing_client:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+def toggle_active_disable_cliente_by_id(db: Session, cliente_id: int) -> ClienteModel:
+    """
+    Inverte o status 'ativo' do cliente (True <-> False).
+    """
+    cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+
+    if not cliente_in_db:
+        raise not_found_exce
     
-    # 2. Atualiza o objeto em memória
-    existing_client.ativo = True
+    cliente_in_db.ativo = not cliente_in_db.ativo
 
-    # 3. Delega a ativação para o CRUD e retorna o objeto
-    return client_crud.active_client_by_id(db, existing_client)
-
-# =========================
-# Serviço: Desativar Cliente
-# =========================
-def disable_client_by_id(db: Session, client_id: int) -> ClienteModel: # Corrigido retorno
-    """
-    Serviço para desativar um cliente pelo seu ID.
-    """
-    # 1. Busca o cliente
-    existing_client = client_crud.get_client_by_id(db, client_id)
-
-    if not existing_client:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
-    
-    # 2. Atualiza o objeto em memória
-    existing_client.ativo = False
-
-    # 3. Delega a desativação para o CRUD e retorna o objeto
-    return client_crud.disable_client_by_id(db, existing_client)
+    return cliente_crud.update_cliente_in_db(db, cliente_to_update=cliente_in_db)

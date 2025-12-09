@@ -1,188 +1,80 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: schemas/produto_schema.py
+# MÓDULO: Schemas Pydantic (DTOs)
+# ---------------------------------------------------------------------------
+
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Sequence
-
-
 from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
 
 class ProdutoCreate(BaseModel):
-    """
-    Schema para validar os dados de ENTRADA ao criar um novo Produto.
-    Os campos correspondem diretamente ao diagrama de Produto.
-    """
+    """Modelo de entrada para criação de Produto."""
     
-    # 1. Identificação Principal
-    nome: str = Field(
-        ..., 
-        max_length=255, 
-        description="Nome comercial do produto (obrigatório)."
-    )
+    nome: str = Field(..., max_length=255, description="Nome comercial.")
+    codigo_produto: str = Field(..., max_length=50, description="Código SKU único.")
+    
+    unidade_medida: Optional[str] = Field(None, max_length=10)
+    observacao: Optional[str] = Field(None, max_length=500)
+    
+    nota_fiscal: Optional[str] = Field(None, max_length=100, description="NCM ou referência fiscal.")
+    categoria: Optional[str] = Field(None, max_length=100)
+    marca: Optional[str] = Field(None, max_length=100)
+    
+    fornecedor_id: Optional[int] = Field(None, description="ID do fornecedor vinculado.")
 
-    codigo_produto: str = Field(
-        ..., 
-        max_length=50, 
-        description="Código interno ou SKU do produto."
-    )
-    
-    # 2. Atributos de Controle e Medida
-    unidade_medida: Optional[str] = Field(
-        None, 
-        max_length=10, 
-        description="Unidade de medida (Ex: UN, KG, LT)."
-    )
-    
-    observacao: Optional[str] = Field(
-        None, 
-        max_length=500, 
-        description="Observações internas sobre o produto."
-    )
-    
-    # 3. Atributos de Classificação
-    nota_fiscal: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Referência de nota fiscal ou NCM."
-    )
-    
-    categoria: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Categoria de classificação do produto."
-    )
-    
-    marca: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Marca do produto."
-    )
-
-    # 4. Relacionamento (Chave Estrangeira - FK)
-    # Assumimos que o ID do fornecedor é um inteiro.
-    fornecedor_id: Optional[int] = Field(
-        None, 
-        description="ID do fornecedor (Chave Estrangeira)."
-    )
-
-    estoque: EstoqueCreate = Field(
-        ...,
-        description="Dados de estoque associados ao produto (obrigatório na criação)"
-    )
+    estoque: EstoqueCreate = Field(..., description="Dados iniciais de estoque.")
 
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            # Exemplo de payload atualizado
             "example": {
-                "nome": "Café Gourmet Moído 500g",
+                "nome": "Café Gourmet 500g",
                 "codigo_produto": "CFG-001",
                 "unidade_medida": "UN",
-                "observacao": "Armazenar em local seco.",
-                "nota_fiscal": "1004.22.99",
                 "categoria": "Bebidas",
-                "marca": "Fazenda Boa Vista",
-                "fornecedor_id": None,
-                # Objeto de estoque aninhado
                 "estoque": {
                     "valor_varejo": 2999,
                     "quantidade": 100,
-                    "valor_entrada": 1500,
-                    "valor_atacado": 2500,
                     "quantidade_minima": 20
                 }
             }
         }
     )
 
-
 class ProdutoRead(ProdutoCreate):
-    id: int = Field(
-        ...,
-        description="ID do produto"
-    )
-
-    fotos: Optional[Sequence[ProdutoFotoRead]] = Field(
-        ...,
-        description="Fotos do produto"
-    )
-
-    estoque: EstoqueRead = Field(
-        ...,
-        description="Dados de estoque associados ao produto"
-    )
+    """Modelo de saída (Response) para Produto."""
+    
+    id: int = Field(..., description="ID único do sistema.")
+    fotos: Optional[Sequence[ProdutoFotoRead]] = Field(default=[], description="Galeria de imagens.")
+    estoque: EstoqueRead = Field(..., description="Dados atuais de estoque.")
+    ativo: bool = Field(..., description="Estado do produto no sistema.")
 
 class ProdutoUpdate(BaseModel):
-    """
-    Schema para ATUALIZAR um Produto existente.
-    Todos os campos, incluindo o estoque, são opcionais.
-    """
+    """Modelo de entrada para atualização parcial de Produto."""
     
-    # 1. Identificação Principal
-    nome: Optional[str] = Field(
-        None, 
-        max_length=255, 
-        description="Novo nome comercial do produto."
-    )
-    codigo_produto: Optional[str] = Field(
-        None, 
-        max_length=50, 
-        description="Novo código interno ou SKU."
-    )
+    nome: Optional[str] = Field(None, max_length=255)
+    codigo_produto: Optional[str] = Field(None, max_length=50)
     
-    # 2. Atributos de Controle e Medida
-    unidade_medida: Optional[str] = Field(
-        None, 
-        max_length=10, 
-        description="Nova unidade de medida."
-    )
+    unidade_medida: Optional[str] = Field(None, max_length=10)
+    observacao: Optional[str] = Field(None, max_length=500)
     
-    observacao: Optional[str] = Field(
-        None, 
-        max_length=500, 
-        description="Nova observação interna."
-    )
+    nota_fiscal: Optional[str] = Field(None, max_length=100)
+    categoria: Optional[str] = Field(None, max_length=100)
+    marca: Optional[str] = Field(None, max_length=100)
     
-    # 3. Atributos de Classificação
-    nota_fiscal: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Nova referência de nota fiscal ou NCM."
-    )
-    categoria: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Nova categoria."
-    )
-    marca: Optional[str] = Field(
-        None, 
-        max_length=100, 
-        description="Nova marca."
-    )
+    fornecedor_id: Optional[int] = Field(None)
 
-    # 4. Relacionamento (Chave Estrangeira - FK)
-    fornecedor_id: Optional[int] = Field(
-        None, 
-        description="Novo ID do fornecedor."
-    )
-
-    # 5. DADOS DE ESTOQUE (ANINHADOS E OPCIONAIS)
-    # Na atualização, o estoque é opcional e usa o schema EstoqueUpdate
-    estoque: Optional[EstoqueUpdate] = Field(
-        None,
-        description="Novos dados de estoque para atualizar (parcial)."
-    )
-
+    estoque: Optional[EstoqueUpdate] = Field(None, description="Atualização parcial de estoque.")
+    
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            # Exemplo de payload de atualização parcial
             "example": {
-                "nome": "Café Super Gourmet Torrado 1kg",
-                "observacao": "Revisar preço de atacado.",
+                "nome": "Café Premium 500g",
                 "estoque": {
-                    "valor_varejo": 3999,
-                    "quantidade_minima": 10
+                    "valor_varejo": 3500
                 }
-                # Apenas os campos a serem alterados são enviados
             }
         }
     )

@@ -1,63 +1,107 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: usuario.py (dentro da pasta crud)
-# DESCRIÇÃO: Este módulo contém as funções de CRUD (Create, Read, Update,
-#            Delete) para interagir com a tabela de usuários no banco de dados.
+# ARQUIVO: crud/usuario_crud.py
+# MÓDULO: Acesso a Dados (Repository)
+# DESCRIÇÃO: Queries SQL otimizadas para a tabela de usuários.
 # ---------------------------------------------------------------------------
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from typing import Sequence, Optional
 
 from app.db.models.usuario import Usuario as UsuarioModel
 
-def get_user_by_email(db: Session, email: str) -> UsuarioModel | None:
+# ===========================================================================
+# LEITURA (READ)
+# ===========================================================================
+
+def get_usuario_by_email(db: Session, usuario_email: str) -> Optional[UsuarioModel]:
     """
-    Busca um único usuário no banco de dados pelo seu endereço de email.
+    Busca exata por e-mail no banco de dados.
 
     Args:
-        db (Session): A sessão do banco de dados.
-        email (str): O email do usuário a ser pesquisado.
+        db (Session): Sessão de banco de dados ativa.
+        usuario_email (str): O e-mail do usuário a ser buscado.
 
     Returns:
-        UsuarioModel | None: O objeto do usuário se encontrado, caso contrário None.
+        Optional[UsuarioModel]: O objeto UsuarioModel se encontrado, ou None.
     """
-    return db.query(UsuarioModel).filter(UsuarioModel.email == email).first()
+    stmt = select(UsuarioModel).where(UsuarioModel.email == usuario_email)
+    return db.scalars(stmt).first()
 
-def get_user_by_id(db: Session, id: int) -> UsuarioModel | None:
+def get_usuario_by_id(db: Session, usuario_id: int) -> Optional[UsuarioModel]:
     """
-    Busca um único usuário no banco de dados pelo seu ID.
+    Busca um usuário pela Chave Primária (ID).
 
     Args:
-        db (Session): A sessão do banco de dados.
-        id (int): O ID do usuário a ser pesquisado.
+        db (Session): Sessão de banco de dados ativa.
+        usuario_id (int): O ID do usuário (PK).
 
     Returns:
-        UsuarioModel | None: O objeto do usuário se encontrado, caso contrário None.
+        Optional[UsuarioModel]: O objeto UsuarioModel se encontrado, ou None.
     """
-    return db.query(UsuarioModel).filter(UsuarioModel.id == id).first()
+    stmt = select(UsuarioModel).where(UsuarioModel.id == usuario_id)
+    return db.scalars(stmt).first()
 
-def create_user(db: Session, new_user: UsuarioModel) -> UsuarioModel:
+def get_usuario_master(db: Session) -> Optional[UsuarioModel]:
     """
-    Cria um novo registro de usuário no banco de dados.
-
-    Esta função adiciona o novo usuário à sessão e usa 'flush' para que o
-    ID gerado pelo banco de dados seja retornado no objeto, mas NÃO 'commita'
-    a transação. O commit deve ser feito na camada de endpoint para garantir
-    a atomicidade das operações.
+    Verifica se existe algum usuário com a flag 'is_master' como True no sistema.
 
     Args:
-        db (Session): A sessão do banco de dados.
-        usuario_schema (UsuarioCreateSchema): O objeto Pydantic com os dados do novo usuário.
+        db (Session): Sessão de banco de dados ativa.
 
     Returns:
-        UsuarioModel: O objeto SQLAlchemy do usuário recém-criado, já com o ID.
+        Optional[UsuarioModel]: O primeiro objeto UsuarioModel mestre encontrado, ou None.
     """
-    # Converte o schema Pydantic para um modelo SQLAlchemy
+    # REGRA 4 aplicada: Uso correto do .is_(True) do SQLAlchemy
+    stmt = select(UsuarioModel).where(UsuarioModel.is_master.is_(True))
+    return db.scalars(stmt).first()
 
-    db.add(new_user)
-    db.commit()  # Envia as instruções para o DB, o que permite obter o ID gerado.
-    db.refresh(new_user) # Atualiza o objeto com os dados do DB (como o ID).
+def get_usuario_by_search(db: Session, usuario_search: str | None) -> Sequence[UsuarioModel]:
+    """
+    Lista usuários ativos com filtro opcional por nome ou e-mail (busca parcial).
+
+    Args:
+        db (Session): Sessão de banco de dados ativa.
+        usuario_search (str | None): Termo de busca (nome, e-mail) ou None para listar todos ativos.
+
+    Returns:
+        Sequence[UsuarioModel]: Uma sequência (lista) de objetos UsuarioModel que correspondem ao filtro.
+    """
+    # A base da query é sempre buscar usuários ativos.
+    base_stmt = select(UsuarioModel).where(UsuarioModel.ativo.is_(True))
     
-    return new_user
+    if usuario_search:
+        # Nota: Usando ilike para busca case-insensitive e % para busca parcial
+        # O uso do 'and' implícito do where é correto para múltiplos filtros
+        # mas para clareza em SQLA 2.0, o '&' é mais explícito.
+        stmt = base_stmt.where(
+            (UsuarioModel.nome.ilike(f"%{usuario_search}%")) |
+            (UsuarioModel.email.ilike(f"%{usuario_search}%")) # Adicionei filtro por e-mail para robustez
+        )
+    else:
+        stmt = base_stmt
+        
+    return db.scalars(stmt).all()
 
-# NOTA: Funções para atualizar (update) e deletar (delete) um usuário seguiriam
-# a mesma lógica, recebendo a sessão do DB e os dados necessários, e
-# seriam adicionadas aqui conforme a necessidade do seu projeto.
+# ===========================================================================
+# ESCRITA (CREATE)
+# ===========================================================================    
+
+def create_user(db: Session, usuario_to_add: UsuarioModel) -> UsuarioModel:
+    """
+    Persiste um novo objeto Usuário no banco de dados.
+
+    Args:
+        db (Session): Sessão de banco de dados ativa.
+        usuario_to_add (UsuarioModel): O objeto ORM de usuário a ser adicionado.
+
+    Returns:
+        UsuarioModel: O objeto UsuarioModel recém-criado, após refresh.
+    """
+    db.add(usuario_to_add)
+    # db.flush() e db.refresh() garantem que o ID (PK) seja populado no objeto
+    # antes do retorno. O flush pode ser omitido se o refresh for chamado logo após o add,
+    # mas mantê-lo é claro em sua intenção.
+    db.flush() 
+    db.refresh(usuario_to_add)
+    return usuario_to_add

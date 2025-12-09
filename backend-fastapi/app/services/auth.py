@@ -1,86 +1,110 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: auth.py (dentro da pasta services)
-# DESCRIÇÃO: Módulo responsável pela lógica de negócio da autenticação,
-#            como a validação de credenciais e a geração de tokens de acesso.
+# ARQUIVO: app/services/auth_service.py
+# DESCRIÇÃO: Lógica de Login e Logout, geração e revogação de tokens.
 # ---------------------------------------------------------------------------
 
+from typing import Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-# Importa o schema Pydantic para os dados de login.
 from app.schemas.auth import UsuarioLogin
-# Importa o models SQLAlchemy para os tokens revogados.
-from app.db.models.token import TokenBlocklist
-# Importa as funções de segurança para verificar senha e criar token.
 from app.core.security import verify_password, create_access_token
-# Importa a variável de EXPIRE_TOKEN
 from app.core.config import settings
-# Importa as funções de acesso ao banco de dados para usuários.
-from app.db.crud import usuario as user_crud
+from app.services import usuario
 from app.db.crud import token as token_crud
+from app.db.models.token import TokenBlocklist
 
-def login_service(db: Session, user_data: UsuarioLogin) -> dict:
+# ---------------------------------------------------------------------------
+# EXCEÇÃO PADRONIZADA
+# ---------------------------------------------------------------------------
+
+UNAUTHORIZED_EXCE = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Email ou senha incorretos",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+# ---------------------------------------------------------------------------
+# FUNÇÕES DE SERVIÇO
+# ---------------------------------------------------------------------------
+
+def login(db: Session, login_usuario: UsuarioLogin) -> Dict[str, Any]:
     """
-    Valida as credenciais de um usuário e gera um token de acesso.
+    Autentica o usuário, verifica a senha e gera o token de acesso (JWT).
 
     Args:
-        db (Session): A sessão do banco de dados.
-        user_data (UsuarioLogin): Os dados de login (email e senha).
+        db (Session): Sessão do banco de dados.
+        login_usuario (UsuarioLogin): DTO com email e senha em texto plano.
 
     Raises:
-        HTTPException: Lança um erro 401 se as credenciais forem inválidas.
+        HTTPException 401 UNAUTHORIZED: Se o e-mail ou a senha estiverem incorretos.
 
     Returns:
-        dict: Um dicionário contendo o token de acesso e informações relacionadas.
+        Dict[str, Any]: Dicionário contendo o access_token, token_type e expires_in.
     """
-    # 1. Busca o usuário no banco de dados pelo e-mail fornecido.
-    user = user_crud.get_user_by_email(db, email=user_data.email)
+    # 1. Busca Usuário
+    usuario_in_db = usuario.get_usuario_by_email(db, login_usuario.email)
 
-    # 2. Verifica se o usuário existe E se a senha fornecida corresponde ao hash salvo.
-    if not user or not verify_password(user_data.senha, user.senha_hash):
-        # Se a validação falhar, lança uma exceção de "Não Autorizado".
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha inválidos",
-            # O header 'WWW-Authenticate' é uma boa prática para esquemas de autenticação Bearer.
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # 2. Validação de Credenciais (REGRA 4: Segurança/Robustez)
+    # A verificação de `usuario_in_db` deve ocorrer antes de tentar acessar `usuario_in_db.senha_hash`
+    if not usuario_in_db or not verify_password(login_usuario.senha, usuario_in_db.senha_hash):
+        raise UNAUTHORIZED_EXCE
     
-    # 3. Prepara o payload (os dados) que serão incluídos dentro do token.
+    # 3. Definição de Cargo e Permissões (Lógica de Negócio)
+    position_name = "Master"
+    permission = {"all": True} # Default para Master
+    
+    if not usuario_in_db.is_master:
+        # Assumindo que a relação 'funcionario' está carregada no modelo ORM (lazy loading)
+        # É uma boa prática usar `is not None` para checar Optional/None.
+        if usuario_in_db.funcionario is not None and usuario_in_db.funcionario.cargo is not None:
+            position_name = usuario_in_db.funcionario.cargo.nome
+            # Garante que `permissoes` seja um dicionário, mesmo que seja None no banco.
+            permission = usuario_in_db.funcionario.cargo.permissoes or {}
+        else:
+            position_name = "Sem cargo"
+            permission = {}
+
+    # 4. Criação do Payload (Claims)
     data_to_token = {
-        "sub": str(user.id),      # 'sub' (subject) é o padrão para identificar o dono do token.
-        "roles": str(user.tipo),  # Incluir o 'role' (tipo) é útil para controle de acesso.
+        "sub": str(usuario_in_db.id),
+        "empresa_id": usuario_in_db.empresa_id, # Já é Optional[int] no modelo
+        "ativo": usuario_in_db.ativo,
+        "is_master": usuario_in_db.is_master,
+        "cargo": position_name,
+        "permissoes": permission
     }
 
-    # 4. Cria o token JWT usando a função de segurança.
+    # 5. Geração do Token
     access_token = create_access_token(data=data_to_token)
-    
-    # 5. Retorna o token no formato esperado pelo padrão OAuth2.
-    return {"access_token": access_token, "token_type": "bearer", "expires_in": (settings.ACCESS_TOKEN_EXPIRE_MINUTES*60)}
 
-def logout_service(db: Session, token: dict) -> None:
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    }
+
+def logout_service(db: Session, token: Dict[str, Any]) -> None:
     """
-    Prepara e solicita a adição de um token à blocklist.
+    Revoga o token JWT, adicionando seu JTI (ID) à Blocklist.
 
     Args:
-        db (Session): A sessão do banco de dados.
-        token (dict): O payload do token JWT decodificado.
+        db (Session): Sessão do banco de dados.
+        token (Dict[str, Any]): O payload decodificado do token, contendo 'jti' (ID) e 'exp' (expiração).
+
+    Returns:
+        None: A operação é concluída ou falha silenciosamente.
     """
-    # Extrai o 'jti' (ID único) e 'exp' (timestamp de expiração) do token.
     jti = token.get("jti")
     exp = token.get("exp")
-
-    # Converte o timestamp de expiração para um objeto datetime ciente do fuso horário.
-    exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
-
-    # Cria a instância do modelo SQLAlchemy para a blocklist.
-    revoke_token = TokenBlocklist(
-        jti=jti,
-        exp=exp_datetime
-    )
-
-    # Chama a função CRUD para adicionar o token à sessão do banco de dados.
-    # O commit será realizado na camada de endpoint.
-    token_crud.create_revoke_token(db, revoke_token)
-
+    
+    if jti and exp:
+        # Converte o timestamp de expiração (UTC) para datetime
+        exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
+        
+        # Cria o modelo para persistência
+        revoke_token = TokenBlocklist(jti=jti, exp=exp_datetime)
+        
+        # Persiste a revogação (o CRUD deve fazer o flush/commit)
+        token_crud.create_revoke_token(db, revoke_token)

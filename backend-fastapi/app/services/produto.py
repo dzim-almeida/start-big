@@ -1,193 +1,231 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: services/produto.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Produtos,
-#            incluindo a criação, busca, atualização e deleção
-#            de Produtos e seus Estoques associados.
+# MÓDULO: Regras de Negócio (Service Layer)
+# DESCRIÇÃO: Lógica para criação, atualização e controle de estado de produtos.
 # ---------------------------------------------------------------------------
 
-from fastapi import HTTPException, status
+import os
+import uuid
+import shutil
+from datetime import datetime
+from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
-from typing import Sequence, List, Optional # Adicionado Optional
+from typing import Sequence, Optional
 
-# Importa os schemas Pydantic (Create para entrada, Read para saída)
 from app.schemas.produto import ProdutoCreate, ProdutoUpdate
-# Importa os modelos ORM (Produto e Estoque)
 from app.db.models.produto import Produto as ProdutoModel
+from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
-# Importa a camada de acesso a dados (CRUD)
-from app.db.crud import produto as product_crud
+from app.db.crud import produto as produto_crud
 
-# =========================
-# Serviço: Criar Produto
-# =========================
-def create_product(db: Session, product_to_add: ProdutoCreate) -> ProdutoModel:
+# Diretório base onde as imagens serão salvas
+UPLOAD_BASE_DIR = "static/uploads/produtos"
+# Garante que o diretório base exista
+os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
+
+# Exceções reutilizáveis
+conflict_codigo_produto_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail={
+        "campo": "codigo_produto",
+        "mensagem": "Código de produto já cadastrado no sistema"
+    }
+)
+
+not_found_exce = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="Produto não encontrado no sistema"
+)
+
+internal_error_exce = HTTPException(
+    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    detail="Erro em cumprir a requisição. Tente novamente mais tarde."
+)
+
+# ===========================================================================
+# LÓGICA DE SALVAMENTO FÍSICO
+# ===========================================================================
+
+def save_image_locally(image_file: UploadFile, produto_id: int) -> str:
+    file_extension = os.path.splitext(image_file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+
+    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(produto_id))
+    os.makedirs(produto_folder, exist_ok=True)
+    file_path = os.path.join(produto_folder, unique_filename)
+
+    try:
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(image_file.file, f)
+    finally:
+        image_file.file.close()
+
+    url_image_file = f"{UPLOAD_BASE_DIR}/{produto_id}/{unique_filename}"
+    return url_image_file
+
+def delete_image_locally(file_path: str) -> bool:
+    if not os.path.exists(file_path):
+        return False
+    
+    try:
+        os.remove(file_path)
+    except OSError as e_os:
+        print(f"Erro ao deletar o arquivo {file_path}: {e_os}")
+        return False
+    
+    image_folder = os.path.dirname(file_path)
+    try:
+        os.rmdir(image_folder)
+        print(f"Diretório do produto removido: {image_folder}")
+    except OSError as e_os:
+        if "Directory not empty" in str(e_os):
+             print(f"Diretório do produto {image_folder} não vazio, mantido.")
+        else:
+             print(f"Erro ao tentar remover o diretório {image_folder}: {e_os}")
+
+    return True
+
+# ===========================================================================
+# LÓGICA DE CRIAÇÃO (CREATE)
+# ===========================================================================
+
+def create_produto(db: Session, produto_to_add: ProdutoCreate) -> ProdutoModel:
     """
-    Serviço para criar um novo Produto e seu registro de Estoque associado.
+    Orquestra a criação de um novo produto.
+    
+    1. Verifica unicidade do código.
+    2. Separa dados de Produto e Estoque.
+    3. Cria instâncias ORM e vincula.
+    4. Persiste.
     """
+    # Verifica duplicidade
+    produto_in_db = produto_crud.get_produto_by_code(db, produto_to_add.codigo_produto)
     
-    # 1. REGRA DE NEGÓCIO: Valida se o código do produto já existe
-    existing_product = product_crud.get_product_by_code(db, product_to_add.codigo_produto)
+    if produto_in_db and produto_in_db.ativo:
+        raise conflict_codigo_produto_exce
     
-    if existing_product:
-        # Lança um erro de conflito se o código for duplicado
-        if not existing_product.ativo:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Produto desabilitado com este Código. Por favor, reative o cadastro."
-            )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail= {
-                "campo": "codigo_produto",
-                "mensagem": "Código de produto já cadastrado"
-            }
-        )
+    # Prepara dados (separa estoque do produto principal)
+    produto_data = produto_to_add.model_dump(exclude={"estoque"})
+    produto_to_db = ProdutoModel(**produto_data)
+
+    estoque_data = produto_to_add.estoque.model_dump()
+    estoque_for_produto = EstoqueModel(**estoque_data)
+
+    # Vincula estoque ao produto (Relacionamento 1:1)
+    produto_to_db.estoque = estoque_for_produto
+
+    return produto_crud.create_produto(db, produto_to_add=produto_to_db)
+
+def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool) -> ProdutoFotoModel:
     
-    # 2. MAPEAMENTO: Cria a instância do modelo SQLAlchemy 'ProdutoModel'
-    new_product_to_db = ProdutoModel(
-        nome=product_to_add.nome,
-        codigo_produto=product_to_add.codigo_produto,
-        unidade_medida=product_to_add.unidade_medida,
-        observacao=product_to_add.observacao,
-        nota_fiscal=product_to_add.nota_fiscal,
-        categoria=product_to_add.categoria,
-        marca=product_to_add.marca,
-        fornecedor_id=product_to_add.fornecedor_id
+    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+
+    if not produto_in_db:
+        raise not_found_exce
+    
+    image_url = save_image_locally(image_file=image_file, produto_id=produto_id)
+
+    produto_image_to_db = ProdutoFotoModel(
+        produto_id=produto_id,
+        url=image_url,
+        nome_arquivo=image_file.filename,
+        principal=primary_image,
+        data_upload=datetime.now()
     )
 
-    # 3. MAPEAMENTO e CONEXÃO (GRAPH): Estoque
-    new_product_storage = product_to_add.estoque
+    return produto_crud.create_produto_image(db, produto_image_to_db)
 
-    new_storage_for_product = EstoqueModel(
-        quantidade=new_product_storage.quantidade,
-        quantidade_ideal=new_product_storage.quantidade_ideal,
-        quantidade_minima=new_product_storage.quantidade_minima,
-        valor_entrada=new_product_storage.valor_entrada,
-        valor_varejo=new_product_storage.valor_varejo,
-        valor_atacado=new_product_storage.valor_atacado
-    )
+# ===========================================================================
+# LÓGICA DE LEITURA (READ)
+# ===========================================================================
 
-    new_product_to_db.estoque = new_storage_for_product
+def get_produto_by_search(db: Session, produto_search: str | None) -> Sequence[ProdutoModel]:
+    """Intermediário para busca de produtos via CRUD."""
+    return produto_crud.get_produto_by_search(db, search=produto_search)
 
-    # 4. PERSISTÊNCIA
-    return product_crud.create_product(db, new_product_to_db)
+# ===========================================================================
+# LÓGICA DE ATUALIZAÇÃO (UPDATE)
+# ===========================================================================
 
-# =========================
-# Serviço: Buscar TODOS os Produtos
-# =========================
-def get_all_products(db: Session) -> Sequence[ProdutoModel]:
+def update_produto_by_id(db: Session, produto_id: int, produto_to_update: ProdutoUpdate) -> ProdutoModel:
     """
-    Busca TODOS os produtos cadastrados. (Apenas delega para o CRUD).
+    Atualiza produto e dados de estoque aninhados.
     """
-    return product_crud.get_all_products(db)
-
-# =========================
-# Serviço: Buscar Produtos
-# =========================
-def get_product_by_search(db: Session, search_product: str) -> Sequence[ProdutoModel]: # Corrigido: Usando Sequence
-    """
-    Busca produtos usando a camada CRUD.
-    """
-    return product_crud.get_product_by_search(db, search_product)
-
-# =========================
-# Serviço: Atualizar Produto
-# =========================
-def update_product_by_id(db: Session, id: int, product: ProdutoUpdate) -> ProdutoModel:
-    """
-    Atualiza um produto existente e/ou seu estoque associado pelo ID.
-    """
+    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     
-    # 1. Busca o produto
-    product_to_update = product_crud.get_product_by_id(db, id)
+    if not produto_in_db:
+        raise not_found_exce
     
-    if not product_to_update:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Produto não encontrado"
-        )
-    
-    # 2. Extrai dados para atualização parcial
-    update_product_data = product.model_dump(exclude_unset=True)
+    data_to_update = produto_to_update.model_dump(exclude_unset=True)
 
-    # 3. Lógica de atualização aninhada para 'estoque'
-    if "estoque" in update_product_data and update_product_data["estoque"] is not None:
+    # Tratamento para atualização de Estoque (Tabela Filha)
+    if "estoque" in data_to_update:
+        storage_data_to_update = produto_to_update.estoque.model_dump(exclude_unset=True)
         
-        # Extrai os dados aninhados de estoque (do schema Pydantic 'product')
-        # Correção: O product_to_update.estoque já existe.
-        update_storage_data = product.estoque.model_dump(exclude_unset=True)
+        # Atualiza atributos do objeto Estoque já existente na sessão
+        for key, value in storage_data_to_update.items():
+            setattr(produto_in_db.estoque, key, value)
         
-        # Itera sobre os dados do estoque e aplica ao objeto ORM
-        for key, value in update_storage_data.items():
-            # Aplica a atualização no objeto SQLAlchemy 'product_to_update.estoque'
-            setattr(product_to_update.estoque, key, value)
+        # Remove do dicionário principal para evitar erro de atribuição direta
+        del data_to_update["estoque"]
+
+    # Atualiza atributos do Produto (Tabela Pai)
+    for key, value in data_to_update.items():
+        setattr(produto_in_db, key, value)
+
+    return produto_crud.update_produto(db, produto_in_db)
+
+# ===========================================================================
+# LÓGICA DE STATUS (TOGGLE)
+# ===========================================================================
+
+def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None) -> ProdutoModel:
+    """
+    Alterna status Ativo/Inativo.
+    Se estiver reativando, verifica conflito de código e permite atualização.
+    """
+    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    
+    if not produto_in_db:
+        raise not_found_exce
+    
+    # Lógica de Reativação (Inativo -> Ativo)
+    if not produto_in_db.ativo:
         
-        # Remove 'estoque' do dict principal para não tentar atualizar o atributo de relacionamento
-        del update_product_data["estoque"]
+        # Define qual código validar (o novo sugerido ou o atual existente)
+        codigo_to_verify = new_produto_code if new_produto_code else produto_in_db.codigo_produto
+        
+        # Busca conflitos
+        produto_with_same_code_in_db = produto_crud.get_produto_by_code(db, produto_code=codigo_to_verify)
 
-    # 4. Itera sobre os dados restantes (nível Produto) e aplica
-    # Correção: Este loop agora é executado independentemente do loop de 'estoque'.
-    for key, value in update_product_data.items():
-        setattr(product_to_update, key, value)
+        # Se existe conflito e não é o mesmo produto
+        if produto_with_same_code_in_db and produto_with_same_code_in_db.id != produto_in_db.id:
+            conflict_codigo_produto_exce.detail["mensagem"] = f"Código '{codigo_to_verify}' já cadastrado. Envie um novo código."
+            raise conflict_codigo_produto_exce
+        
+        # Se forneceu código novo e passou na validação, atualiza
+        if new_produto_code:
+            produto_in_db.codigo_produto = new_produto_code
+                
+    # Inverte o status
+    produto_in_db.ativo = not produto_in_db.ativo
 
-    # 5. Chama o CRUD para persistir as alterações
-    return product_crud.update_product(db, product_to_update)
+    return produto_crud.update_produto(db, produto_to_update=produto_in_db)
+
+# ===========================================================================
+# LÓGICA DE DELEÇÃO (DELETE)
+# ===========================================================================
+
+def delete_produto_image(db: Session, image_id: int):
     
-# =========================
-# Serviço: Ativar Produto
-# =========================
-def active_product_by_id(db: Session, product_id: int, product_code: Optional[str]) -> ProdutoModel: # Corrigido retorno e tipagem
-    """
-    Serviço para ativar um produto pelo seu ID, opcionalmente redefinindo o código.
-    """
-    # 1. Busca o produto
-    existing_product = product_crud.get_product_by_id(db, product_id)
+    image_in_db = produto_crud.get_produto_image_by_id(db, image_id=image_id)
 
-    if not existing_product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
+    if not image_in_db:
+        raise not_found_exce
     
-    # 2. Regras de negócio para o código
-    if existing_product.codigo_produto is None and product_code is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Código do produto é necessário para ativação, pois o campo está vazio."
-        )
-    elif existing_product.codigo_produto and product_code:
-        # Se o produto JÁ tem código, e um NOVO código foi enviado na query, verifica conflito
-        if existing_product.codigo_produto != product_code and product_crud.get_product_by_code(db, product_code):
-             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="O novo Código de produto fornecido já está em uso por outro produto ativo."
-            )
-        # Se for o mesmo código, ignora a atualização. Se for diferente e não tem conflito, aplica.
+    file_path = image_in_db.url
     
-    # 3. Aplica modificações no objeto
-    existing_product.ativo = True
+    if not delete_image_locally(file_path=file_path):
+        raise internal_error_exce
     
-    if product_code:
-        existing_product.codigo_produto = product_code
-
-    # 4. Delega a ativação para o CRUD e retorna o objeto
-    return product_crud.active_product_by_id(db, existing_product)
-
-# =========================
-# Serviço: Desativar produto
-# =========================
-def disable_product_by_id(db: Session, product_id: int, delete_product_code: bool) -> ProdutoModel: # Corrigido retorno
-    """
-    Serviço para desativar um produto pelo seu ID (Soft Delete).
-    """
-    # 1. Busca o produto
-    existing_product = product_crud.get_product_by_id(db, product_id)
-
-    if not existing_product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado")
-    
-    # 2. Aplica modificações no objeto
-    existing_product.ativo = False
-
-    if delete_product_code:
-        existing_product.codigo_produto = None # Atribui None se a flag for True
-
-    # 3. Delega a desativação para o CRUD e retorna o objeto
-    return product_crud.disable_product_by_id(db, existing_product)
+    return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)

@@ -50,6 +50,11 @@ class ServicoRead(ServicoCreate):
         ..., # O ID é sempre esperado em uma resposta de leitura
         description="ID único de cada serviço."
     )
+
+    ativo: bool = Field(
+        ...,
+        description="Status de persistência do produto."
+    )
     
     # Nota: O 'model_config' e o 'example' são herdados de ServicoCreate
     # e podem ser sobrescritos aqui se necessário.
