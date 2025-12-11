@@ -22,10 +22,15 @@ class ClienteBase(BaseModel):
         max_length=255,
         description="Endereço de e-mail principal para contato."
     )
-    contato: Optional[str] = Field(
+    telefone: Optional[str] = Field(
         None,
         max_length=255,
-        description="Telefone ou celular principal."
+        description="Telefone principal."
+    )
+    celular: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Celular principal."
     )
     observacoes: Optional[str] = Field(
         None,
@@ -79,7 +84,7 @@ class ClientePFCreate(ClienteBase):
                 "genero": "MASCULINO",
                 "data_nascimento": "1995-12-15",
                 "email": "joao.silva@meu-pdv.com",
-                "contato": "11987654321",
+                "celular": "11987654321",
                 "observacoes": "Cliente novo.",
                 "tipo": "PF",
                 "endereco": [
@@ -130,6 +135,8 @@ class ClientePJCreate(ClienteBase):
     cnpj: str = Field(..., pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
     nome_fantasia: str = Field(..., max_length=255, description="Nome Fantasia / Marca.")
     ie: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Estadual.")
+    im: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Municipal.")
+    regime_tributario: Optional[str] = Field(None, description="Código do Regime Tributário.")
     responsavel: Optional[str] = Field(None, max_length=255, description="Pessoa de contato na empresa.")
 
     model_config = ConfigDict(
@@ -139,9 +146,11 @@ class ClientePJCreate(ClienteBase):
                 "cnpj": "12345678000199",
                 "nome_fantasia": "Tech Soluções",
                 "ie": "123456789",
+                "im": "234567654344",
+                "regime_tributario": "Simples Nacional",
                 "responsavel": "Ana Gerente",
                 "email": "contato@tech.com",
-                "contato": "1155554444",
+                "telefone": "1155554444",
                 "tipo": "PJ",
                 "endereco": [
                     {

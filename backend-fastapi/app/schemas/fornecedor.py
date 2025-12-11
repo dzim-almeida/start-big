@@ -38,6 +38,22 @@ class FornecedorCreate(BaseModel):
         max_length=14,
         description="Inscrição Estadual do fornecedor"
     )
+    telefone: Optional[str] = Field(
+        None,
+        description="Telefone para contato"
+    )
+    celular: Optional[str] = Field(
+        None,
+        description="Celular para contato"
+    ),
+    email: Optional[str] = Field(
+        None,
+        description="Email para contato"
+    )
+    representante: Optional[str] = Field(
+        None,
+        description="Nome do representante da empresa fornecedora"
+    )
     # Na criação, espera uma lista de schemas 'Endereco' (sem ID)
     endereco: Optional[List[Endereco]] = Field(
         None,
@@ -53,6 +69,8 @@ class FornecedorCreate(BaseModel):
                 "cnpj": "72345734000132",
                 "nome_fantasia": "BigTech Componentes",
                 "ie": "123456789012",
+                "telefone": "8535667788",
+                "representante": "Mauro Filho",
                 "endereco": [
                     {
                         "logradouro": "Rua dos Fornecedores",

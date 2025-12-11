@@ -42,7 +42,11 @@ class EmpresaBase(BaseModel):
         max_length=255, 
         description="Nome Fantasia (comercial)"
     )
-    cnpj: str = Field(
+    is_cnpj: bool = Field(
+        ...,
+        description="Define se o documento é um CPF ou CNPJ"
+    )
+    documento: str = Field(
         ..., 
         pattern=r"^\d{14}$", 
         description="CNPJ (apenas números, 14 dígitos)"
@@ -102,8 +106,26 @@ class EmpresaCreate(EmpresaBase):
         # Exemplo de payload mantido
         json_schema_extra={
             "example": {
-                "razao_social": "Tech Soluções LTDA",
-                "cnpj": "12345678000199",
+                "razao_social": "Soluções Tecnológicas Alpha S.A.",
+                "nome_fantasia": "Alpha Tech",
+                "is_cnpj": True,
+                "documento": "68056674073060",
+                "inscricao_estadual": "ISENTA",
+                "inscricao_municipal": "001.234/2025-0",
+                "regime_tributario": "Simples Nacional",
+                "telefone": "6832104000",
+                "celular": "68999887766",
+                "enderecos": [
+                    {
+                        "logradouro": "Avenida Cícero Pompeu",
+                        "numero": "1500",
+                        "bairro": "Centro",
+                        "cidade": "Rio Branco",
+                        "estado": "AC",
+                        "cep": "69900-000",
+                        "complemento": "Sala 101, Prédio Comercial"
+                    }
+                ]
             }
         }
     )

@@ -39,7 +39,9 @@ def base_fornecedor_data():
         "nome": TEST_NOME,
         "cnpj": TEST_CNPJ,
         "nome_fantasia": "BigTech",
-        "ie": TEST_IE
+        "ie": TEST_IE,
+        "telefone": "8535667788",
+        "representante": "Mauro Filho",
     }
 
 # =========================

@@ -1,4 +1,5 @@
-from sqlalchemy import Integer, String, Boolean, ForeignKey, DateTime
+from datetime import datetime
+from sqlalchemy import Integer, String, Boolean, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.db.base import Base
@@ -18,7 +19,7 @@ class ProdutoFoto(Base):
     nome_arquivo: Mapped[str] = mapped_column(String(255), nullable=True, doc="Nome do arquivo armazenado")
     url: Mapped[str] = mapped_column(String, nullable=False, doc="Caminho para a foto")
     principal: Mapped[Boolean] = mapped_column(Boolean, nullable=False, doc="Define se a foto é a principal")
-    data_upload: Mapped[DateTime] = mapped_column(DateTime, nullable=False, doc="Data e horário em que o arquivo foi armazenado")
+    data_upload: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data e horário em que o arquivo foi armazenado")
     
     # Relação ORM
     produto = relationship(
