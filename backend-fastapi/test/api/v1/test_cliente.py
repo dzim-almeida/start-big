@@ -38,7 +38,7 @@ def valid_pf_payload():
         "genero": "MASCULINO",
         "data_nascimento": "1995-12-15",
         "email": "joao.silva@meu-pdv.com",
-        "contato": "11987654321",
+        "celular": "11987654321",
         "observacoes": "Cliente novo.",
         "tipo": "PF",
         "endereco": [
@@ -63,7 +63,7 @@ def valid_pj_payload():
         "ie": "123456789",
         "responsavel": "Ana Gerente",
         "email": "contato@tech.com",
-        "contato": "1155554444",
+        "telefone": "1155554444",
         "tipo": "PJ",
         "endereco": [
             {

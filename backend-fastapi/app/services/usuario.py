@@ -4,7 +4,6 @@
 # DESCRIÇÃO: Lógica de autenticação, hashing de senhas e regras de criação.
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -88,8 +87,6 @@ def create_usuario(
         empresa_id=empresa_id,
         is_master=is_master,
         ativo=True,
-        # Nota: O ideal é que o modelo SQLAlchemy defina o default para `data_criacao`
-        data_criacao=datetime.now() 
     )
 
     # 4. Persistência

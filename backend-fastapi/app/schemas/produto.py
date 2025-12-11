@@ -13,11 +13,11 @@ class ProdutoCreate(BaseModel):
     
     nome: str = Field(..., max_length=255, description="Nome comercial.")
     codigo_produto: str = Field(..., max_length=50, description="Código SKU único.")
+    codigo_barras: Optional[str] = Field(None, description="Código de barras para NF-e")
     
     unidade_medida: Optional[str] = Field(None, max_length=10)
     observacao: Optional[str] = Field(None, max_length=500)
     
-    nota_fiscal: Optional[str] = Field(None, max_length=100, description="NCM ou referência fiscal.")
     categoria: Optional[str] = Field(None, max_length=100)
     marca: Optional[str] = Field(None, max_length=100)
     
@@ -31,6 +31,7 @@ class ProdutoCreate(BaseModel):
             "example": {
                 "nome": "Café Gourmet 500g",
                 "codigo_produto": "CFG-001",
+                
                 "unidade_medida": "UN",
                 "categoria": "Bebidas",
                 "estoque": {

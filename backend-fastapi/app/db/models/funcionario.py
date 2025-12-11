@@ -5,7 +5,8 @@
 #            e o vínculo com o Cargo e a conta de Usuário (1:1).
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, and_
+from datetime import date
+from sqlalchemy import Date, String, Integer, Boolean, ForeignKey, and_
 from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from typing import Optional, TYPE_CHECKING
 from app.db.base import Base
@@ -48,14 +49,16 @@ class Funcionario(Base):
     
     # --- Dados Pessoais/Gerais ---
     nome: Mapped[str] = mapped_column(String(255), nullable=False, doc="Nome completo do funcionário")
-    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, doc="E-mail de contato pessoal/profissional")
-    contato: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Telefone de contato")
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="E-mail de contato pessoal/profissional")
+    telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Número do telefone fixo para contato")
+    celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Número do celular para contato")
     
     # --- Documentos ---
     cpf: Mapped[str] = mapped_column(String(11), unique=True, nullable=False, doc="CPF (11 dígitos, único)")
     rg: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="RG")
     carteira_trabalho: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True, doc="Número da Carteira de Trabalho")
     cnh: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="Número da CNH")
+    tipo_contrato: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Tipo de contrato do funcionário")
     
     # --- Dados Hierárquicos/Estruturais ---
     cargo_id: Mapped[Optional[int]] = mapped_column(
@@ -71,6 +74,7 @@ class Funcionario(Base):
     banco: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Nome do Banco")
 
     # --- Outros ---
+    data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de nascimento do funcionário")
     mae: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome completo da mãe")
     pai: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome completo do pai")
     observacao: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações internas/RH")

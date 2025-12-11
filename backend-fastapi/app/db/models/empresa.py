@@ -4,8 +4,9 @@
 #            Representa a entidade principal do sistema (Tenant).
 # ---------------------------------------------------------------------------
 
-from typing import List, Optional
-from sqlalchemy import Integer, String, Boolean, ForeignKey, and_
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, and_, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from app.db.base import Base
 
@@ -25,7 +26,8 @@ class Empresa(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, doc="ID único da empresa (Chave primária)")
     razao_social: Mapped[str] = mapped_column(String(255), nullable=False, doc="Razão social registrada")
     nome_fantasia: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome comercial da empresa")
-    cnpj: Mapped[str] = mapped_column(String(18), unique=True, nullable=False, index=True, doc="CNPJ (incluindo máscara/formato)")
+    is_cnpj: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Indica se o documento é CPF ou CNPJ")
+    documento: Mapped[str] = mapped_column(String(14), unique=True, nullable=False, index=True, doc="CNPJ (incluindo máscara/formato)")
     
     # --- Dados Fiscais ---
     inscricao_estadual: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Estadual (IE)")
@@ -33,12 +35,15 @@ class Empresa(Base):
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
 
     # --- Contato e Visual ---
-    telefone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Telefone principal de contato")
-    celular: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Celular de contato")
+    telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")
+    celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Celular de contato")
     url_logo: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Caminho/URL da imagem da logo para uso no PDV/Relatórios")
     
     # --- Status ---
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, doc="Status de ativo/inativo no sistema")
+    
+    # --- Metadados ----
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), doc="Data de criação da empresa no banco de dados")
 
     # =========================
     # RELACIONAMENTOS (Um-para-Muitos)

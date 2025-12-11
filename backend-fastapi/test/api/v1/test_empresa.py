@@ -36,7 +36,8 @@ def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
         # --- Dados da Empresa (EmpresaCreate) ---
         "razao_social": f"Empresa Teste {cnpj_suffix} LTDA",
         "nome_fantasia": "Tech Teste",
-        "cnpj": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
+        "is_cnpj": True,
+        "documento": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
         "regime_tributario": "Simples Nacional",
         "celular": "11999998888",
         # --- Endereço Inicial (Opcional) ---
@@ -122,11 +123,11 @@ def test_criar_empresa_com_usuario_master_sucesso(client: TestClient, db_session
     
     # 3. Verifica retorno da API
     assert "id" in data
-    assert data["cnpj"] == empresa_payload["cnpj"]
+    assert data["documento"] == empresa_payload["documento"]
     assert data["ativo"] is True
 
     # 4. Verificação profunda no Banco de Dados (Garante a integridade)
-    empresa_db = db_session.query(Empresa).filter(Empresa.cnpj == empresa_payload["cnpj"]).first()
+    empresa_db = db_session.query(Empresa).filter(Empresa.documento == empresa_payload["documento"]).first()
     assert empresa_db is not None
 
 def test_adiconar_imagem_a_uma_empresa_existente(client: TestClient, db_session: Session, header_with_token):

@@ -5,9 +5,10 @@
 #            utilizando Herança de Tabela Unida.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, Boolean, Date, ForeignKey, Enum as SqlAlchemyEnum, and_
+from datetime import date, datetime
+from sqlalchemy import DateTime, Integer, String, Boolean, Date, ForeignKey, Enum as SqlAlchemyEnum, and_, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column, foreign
-from typing import List
+from typing import List, Optional
 
 from app.db.base import Base
 from app.core.enum import Gender, ClientType
@@ -34,9 +35,13 @@ class Cliente(Base):
     tipo: Mapped[ClientType] = mapped_column(SqlAlchemyEnum(ClientType), nullable=False, doc="Tipo de cliente (PF ou PJ)")
     
     # Campos comuns
-    email: Mapped[str | None] = mapped_column(String(255, collation="NOCASE"), unique=True, nullable=True, doc="Email do cliente")
-    contato: Mapped[str | None] = mapped_column(String(20), nullable=True, doc="Telefone de contato do cliente")
-    observacoes: Mapped[str | None] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o cliente")
+    email: Mapped[Optional[str]] = mapped_column(String(255, collation="NOCASE"), unique=True, nullable=True, doc="Email do cliente")
+    telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone de contato do cliente")
+    celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Ceular para contato")
+    observacoes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o cliente")
+
+    # Metadados
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criação do cliente")
     
     # Relação 1-para-Muitos com Endereco (Polimórfica)
     # Tipagem: Lista de objetos Endereco
@@ -72,9 +77,9 @@ class ClientePF(Cliente): # Herda da classe base 'Cliente'
     # Campos específicos de PF
     nome: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome completo do cliente")
     cpf: Mapped[str] = mapped_column(String(11), unique=True, index=True, nullable=False, doc="CPF do cliente (11 dígitos)")
-    rg: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, doc="RG do cliente")
-    genero: Mapped[Gender | None] = mapped_column(SqlAlchemyEnum(Gender), nullable=True, doc="Gênero do cliente")
-    data_nascimento: Mapped[Date | None] = mapped_column(Date, nullable=True, doc="Data de nascimento do cliente")
+    rg: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="RG do cliente")
+    genero: Mapped[Optional[Gender]] = mapped_column(SqlAlchemyEnum(Gender), nullable=True, doc="Gênero do cliente")
+    data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de nascimento do cliente")
 
     # CONFIGURAÇÃO DO POLIMORFISMO PARA A CLASSE FILHA
     __mapper_args__ = {
@@ -98,8 +103,10 @@ class ClientePJ(Cliente): # Herda da classe base 'Cliente'
     razao_social: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Razão social da empresa")
     cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True, nullable=False, doc="CNPJ da empresa (14 dígitos)")
     nome_fantasia: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome fantasia da empresa")
-    ie: Mapped[str | None] = mapped_column(String(14), unique=True, nullable=True, doc="Inscrição Estadual (IE) da empresa")
-    responsavel: Mapped[str | None] = mapped_column(String(255, collation="NOCASE"), nullable=True, doc="Nome do responsável ou contato principal")
+    ie: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, doc="Inscrição Estadual (IE) da empresa")
+    im: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, doc="Inscrição Municipal (IM) da empresa")
+    regime_tributario: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Regime tributário do jurídico")
+    responsavel: Mapped[Optional[str]] = mapped_column(String(255, collation="NOCASE"), nullable=True, doc="Nome do responsável ou contato principal")
 
     # CONFIGURAÇÃO DO POLIMORFISMO PARA A CLASSE FILHA
     __mapper_args__ = {

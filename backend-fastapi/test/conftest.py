@@ -69,7 +69,8 @@ def get_empresa_payload_valido(cnpj_suffix="000199", email_prefix="admin"):
         # --- Dados da Empresa (EmpresaCreate) ---
         "razao_social": f"Empresa Teste {cnpj_suffix} LTDA",
         "nome_fantasia": "Tech Teste",
-        "cnpj": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
+        "is_cnpj": True,
+        "documento": f"12345678{cnpj_suffix}", # Deve ter 14 dígitos (Regex)
         "regime_tributario": "Simples Nacional",
         "celular": "11999998888",
         

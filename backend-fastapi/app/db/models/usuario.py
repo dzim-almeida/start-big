@@ -5,7 +5,7 @@
 #            vinculada obrigatoriamente a uma empresa (Multi-tenancy).
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Integer, String, DateTime, ForeignKey, Boolean, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from app.db.base import Base
@@ -51,7 +51,7 @@ class Usuario(Base):
 
     # --- Metadados ---
     # Nota: A data_criacao deve ser default para a hora atual se o ORM não fizer isso
-    data_criacao: Mapped[datetime] = mapped_column(DateTime, doc="Data de criação do usuário no sistema")
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), doc="Data de criação do usuário no sistema")
     
     # =========================
     # RELACIONAMENTOS

@@ -7,7 +7,6 @@
 import os
 import uuid
 import shutil
-from datetime import datetime
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
@@ -130,7 +129,6 @@ def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, p
         url=image_url,
         nome_arquivo=image_file.filename,
         principal=primary_image,
-        data_upload=datetime.now()
     )
 
     return produto_crud.create_produto_image(db, produto_image_to_db)

@@ -4,6 +4,7 @@
 # DESCRIÇÃO: Definição de contratos de entrada e saída para Funcionários.
 # ---------------------------------------------------------------------------
 
+from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
@@ -17,7 +18,8 @@ class FuncionarioBase(BaseModel):
     """Atributos comuns do perfil de Funcionário."""
     
     nome: str = Field(..., max_length=255, description="Nome completo.")
-    contato: Optional[str] = Field(None, max_length=20, description="Telefone ou celular.")
+    telefone: Optional[str] = Field(None, max_length=20, description="Telefone para contato")
+    celular: Optional[str] = Field(None, max_length=20, description="Celular para contato.")
     email: Optional[EmailStr] = Field(None, description="Email corporativo ou pessoal.")
 
     # Documentos
@@ -25,13 +27,15 @@ class FuncionarioBase(BaseModel):
     rg: Optional[str] = Field(None, max_length=20, description="Registro Geral.")
     carteira_trabalho: Optional[str] = Field(None, max_length=50, description="Número da CTPS.")
     cnh: Optional[str] = Field(None, max_length=20, description="Carteira de Motorista.")
-
+    tipo_contrato: Optional[str] = Field(None, description="Tipo de contrato do funcionário.")
+ 
     # Financeiro
     banco: Optional[str] = Field(None, max_length=50)
     agencia: Optional[str] = Field(None, max_length=10)
     conta: Optional[str] = Field(None, max_length=20)
 
     # Pessoal
+    data_nascimento: Optional[date] = Field(None, description="Data de nascimento do funcionário.")
     mae: Optional[str] = Field(None, max_length=255, description="Nome da mãe.")
     pai: Optional[str] = Field(None, max_length=255, description="Nome do pai.")
     observacao: Optional[str] = Field(None, max_length=500)
