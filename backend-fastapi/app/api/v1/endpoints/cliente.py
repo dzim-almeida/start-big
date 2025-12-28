@@ -46,7 +46,7 @@ def create_new_cliente_pf(
     return _handle_db_transaction(
         db, 
         cliente_service.create_cliente_pf, 
-        cliente_pf_to_add
+        cliente_pf_to_add,
     )
 
 
@@ -131,7 +131,7 @@ def update_client_by_id(
     user_token: dict = Depends(check_permission(required_permission="cliente")),
     cliente_id: int = Path(..., description="ID do cliente a ser editado", ge=1),
     *,
-    client_to_udate: ClienteUpdate,
+    client_to_update: ClienteUpdate,
     db: Session = Depends(get_db)
 ):
     """
@@ -149,7 +149,7 @@ def update_client_by_id(
         db, 
         cliente_service.update_cliente_by_id, 
         cliente_id, 
-        client_to_udate
+        client_to_update
     )
 
 

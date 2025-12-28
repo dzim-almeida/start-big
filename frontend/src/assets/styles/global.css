@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+@theme {
+  --color-brand-primary: #045ca1;
+  --color-brand-secondary: #5590bf;
+  --color-brand-action: #151515;
+  --color-brand-grey: #e9e9e9;
+  --color-brand-off-white: #f8f7ff;
+
+  --font-poppins: 'Poppins', sans-serif;
+}
+
+@layer base {
+  :root {
+    /* Define a Poppins como fonte padrão do projeto usando a variável do tema */
+    font-family: var(--font-poppins);
+  }
+
+  * {
+    box-sizing: border-box;
+    /* Removido o font-family daqui para permitir que classes de peso funcionem */
+  }
+
+  body {
+    /* Garante que o antialiasing esteja ativo para melhor leitura da Poppins */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+}

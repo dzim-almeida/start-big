@@ -28,7 +28,8 @@ router = APIRouter()
     description="Recebe email e senha (OAuth2 Form), valida credenciais e retorna o Token JWT."
 )
 def login_to_access_token(
-    login_usuario: OAuth2PasswordRequestForm = Depends(),
+    # login_usuario: OAuth2PasswordRequestForm = Depends(),
+    usuario: UsuarioLogin,
     db: Session = Depends(get_db)
 ):
     """
@@ -45,10 +46,10 @@ def login_to_access_token(
         UsuarioLoginResponse: Objeto contendo o access_token e o token_type.
     """
     # Mapeia o campo 'username' do form-data para o campo 'email' do nosso schema
-    usuario = UsuarioLogin(
-        email=login_usuario.username,
-        senha=login_usuario.password
-    )
+    # usuario = UsuarioLogin(
+    #     email=login_usuario.username,
+    #     senha=login_usuario.password
+    # )
 
     return auth_service.login(db, login_usuario=usuario)
 
