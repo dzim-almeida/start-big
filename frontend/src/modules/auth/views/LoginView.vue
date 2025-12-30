@@ -6,11 +6,12 @@
  * e formulário de autenticação à direita.
  */
 
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
 import BaseCheckbox from '@/shared/components/BaseCheckbox/BaseCheckbox.vue';
 import BaseTab from '@/shared/components/BaseTab/BaseTab.vue';
+
 import { useLogin } from '../composables/useLogin';
 import { useRegister } from '../composables/useRegister';
 import type { AuthTab } from '../types/auth.types';
@@ -25,8 +26,30 @@ const authTabs = [
   { id: 'cadastrar', label: 'Cadastrar' },
 ];
 
-const { loginData, rememberMe, errors: loginErrors, apiError: loginApiError, isLoading: loginIsLoading, loginSubmit, submitCount: loginSubmitCount } = useLogin();
-const { registerData, errors: registerErrors, apiError: registerApiError, isLoading: registerIsLoading,  registerSubmit, submitCount: registerSubmitCount } = useRegister();
+const {
+  loginData,
+  savedEmail,
+  rememberMe,
+  errors: loginErrors,
+  apiError: loginApiError,
+  isLoading: loginIsLoading,
+  loginSubmit,
+  submitCount: loginSubmitCount,
+} = useLogin();
+const {
+  registerData,
+  errors: registerErrors,
+  apiError: registerApiError,
+  isLoading: registerIsLoading,
+  registerSubmit,
+  submitCount: registerSubmitCount,
+} = useRegister(activeTab);
+
+onMounted(() => {
+  if (savedEmail.value) {
+    loginData.email = savedEmail.value;
+  }
+});
 </script>
 
 <template>
@@ -40,7 +63,7 @@ const { registerData, errors: registerErrors, apiError: registerApiError, isLoad
       />
     </div>
 
-    <!-- Lado direito - Formulário -->
+    <!-- Lado direito - Login e Cadastro - Formulário -->
     <div
       class="w-full lg:w-5/10 flex flex-col items-center justify-between px-6 py-8 bg-white drop-shadow-xl shadow-brand-action overflow-y-scroll"
     >
@@ -150,7 +173,12 @@ const { registerData, errors: registerErrors, apiError: registerApiError, isLoad
 
             <!-- Botão de Cadastro -->
             <div class="pt-2">
-              <BaseButton type="submit" size="md" :is-loading="registerIsLoading" class="w-full">
+              <BaseButton
+                type="submit"
+                size="md"
+                :is-loading="registerIsLoading"
+                class="w-full"
+              >
                 Cadastrar
               </BaseButton>
             </div>

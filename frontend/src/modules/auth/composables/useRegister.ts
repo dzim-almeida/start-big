@@ -4,26 +4,30 @@
  * do formulário de cadastro utilizando Vee-Validate e Vue Query.
  */
 
-import { ref, reactive } from 'vue';
+import { ref, reactive, Ref } from 'vue';
 import { useForm } from 'vee-validate';
 import { useMutation } from '@tanstack/vue-query';
 import { registerValidationSchema, type RegisterFormData } from '../schemas/register.schema';
 import { register } from '../services/auth.service';
 import type { RegisterResponse } from '../types/auth.types';
 import type { ApiError } from '@/shared/types/axios.types';
+import { getErrorMessage, isConflictError } from '@/shared/utils/error.utils';
+import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
+import type { AuthTab } from '../types/auth.types';
 
 /**
  * Composable que gerencia o formulário de cadastro
  * @returns Objeto com estados e métodos para o formulário
  */
-export function useRegister() {
+export function useRegister(activeTab?: Ref<AuthTab>) {
+  const toast = useToast();
   const apiError = ref<string | null>(null);
 
   /**
    * Configuração do formulário com Vee-Validate
    */
-  const { handleSubmit, errors, defineField, submitCount } = useForm<RegisterFormData>({
+  const { handleSubmit, errors, defineField, submitCount, resetForm } = useForm<RegisterFormData>({
     validationSchema: registerValidationSchema,
   });
 
@@ -47,12 +51,19 @@ export function useRegister() {
         email: data.email,
         senha: data.senha,
       }),
-    onSuccess: (response) => {
-      console.log(response);
+    onSuccess: () => {
+      toast.success('Cadastro realizado com sucesso!', 'Você já pode fazer login.');
+      resetForm();
+      if (activeTab) {
+        activeTab.value = 'entrar';
+      }
     },
     onError: (error) => {
-      const errorData = error.response?.data;
-      apiError.value = errorData?.detail || errorData?.message || 'Erro ao realizar o cadastro';
+      if (isConflictError(error)) {
+        apiError.value = 'Usuário master da empresa já cadastrado.';
+        return;
+      }
+      apiError.value = getErrorMessage(error, 'Erro ao realizar o cadastro');
     },
   });
 

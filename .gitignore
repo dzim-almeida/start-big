@@ -5,6 +5,7 @@ venv/
 frontend/*
 !frontend/src/
 
+
 # 2. Python Bytecode e Cache
 # Ignora o cache de bytecode (arquivos .pyc e a pasta __pycache__)
 __pycache__/
@@ -30,3 +31,4 @@ pdv.db
 backend-fastapi/pdv.db
 backend-fastapi/nota.txt
 /backend-fastapi/static
+/.claude

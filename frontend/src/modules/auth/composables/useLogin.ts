@@ -4,10 +4,10 @@
  * do formulário de login utilizando Vee-Validate e Vue Query.
  */
 
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import { useForm } from 'vee-validate';
 import { useMutation } from '@tanstack/vue-query';
-import { useRouter } from 'vue-router';
+// import { useRouter } from 'vue-router';
 import { loginValidationSchema, type LoginFormData } from '../schemas/login.schema';
 import {
   login,
@@ -18,6 +18,8 @@ import {
 } from '../services/auth.service';
 import type { LoginResponse } from '../types/auth.types';
 import type { ApiError } from '@/shared/types/axios.types';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
 
 /**
@@ -25,8 +27,10 @@ import type { AxiosError } from 'axios';
  * @returns Objeto com estados e métodos para o formulário
  */
 export function useLogin() {
-  const router = useRouter();
+  // const router = useRouter();
+  const toast = useToast();
   const rememberMe = ref(false);
+  const savedEmail = ref<string | null>(null);
   const apiError = ref<string | null>(null);
 
   /**
@@ -34,10 +38,6 @@ export function useLogin() {
    */
   const { handleSubmit, errors, defineField, resetForm, submitCount } = useForm<LoginFormData>({
     validationSchema: loginValidationSchema,
-    initialValues: {
-      email: '',
-      senha: '',
-    },
   });
 
   /**
@@ -45,16 +45,16 @@ export function useLogin() {
    */
   const loginData: LoginFormData = reactive({
     email: defineField('email')[0],
-    senha: defineField('senha')[0]
-  })
+    senha: defineField('senha')[0],
+  });
 
   /**
    * Mutation do Vue Query para login
    */
   const loginMutation = useMutation<LoginResponse, AxiosError<ApiError>, LoginFormData>({
     mutationFn: (data) => login({ email: data.email, senha: data.senha }),
-    onSuccess: (data) => {
-      saveToken(data.access_token, data.token_type);
+    onSuccess: (response) => {
+      saveToken(response.access_token, response.token_type);
 
       if (rememberMe.value && loginData.email) {
         saveRememberMe(loginData.email);
@@ -63,11 +63,10 @@ export function useLogin() {
       }
 
       apiError.value = null;
-      router.push('/dashboard');
+      toast.success('Login realizado com sucesso!');
     },
     onError: (error) => {
-      const errorData = error.response?.data;
-      apiError.value = errorData?.detail || errorData?.message || 'Erro ao realizar login';
+      apiError.value = getErrorMessage(error, 'Erro ao realizar login');
     },
   });
 
@@ -83,9 +82,8 @@ export function useLogin() {
    * Carrega email salvo se "lembrar-me" estava ativo
    */
   onMounted(() => {
-    const savedEmail = getRememberedEmail();
-    if (savedEmail) {
-      loginData.email = savedEmail;
+    savedEmail.value = getRememberedEmail();
+    if (savedEmail.value) {
       rememberMe.value = true;
     }
   });
@@ -93,6 +91,7 @@ export function useLogin() {
   return {
     // Campos do formulário
     loginData,
+    savedEmail,
     rememberMe,
 
     // Estado de erros

@@ -5,9 +5,6 @@
  */
 
 import axios from 'axios';
-import { useRouter } from 'vue-router';
-
-const router = useRouter()
 
 /**
  * Instância do Axios configurada com a URL base da API
@@ -41,10 +38,25 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      router.push({ name: 'login.user' })
+    // Erro de rede - sem resposta do servidor
+    if (!error.response) {
+      console.error('[API] Erro de rede:', error.message);
+      return Promise.reject(error);
     }
+
+    const { status } = error.response;
+
+    // Token expirado ou inválido - limpa autenticação
+    if (status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token_type');
+    }
+
+    // Log de erros do servidor para debug
+    if (status >= 500) {
+      console.error('[API] Erro do servidor:', status, error.response?.data);
+    }
+
     return Promise.reject(error);
   }
 );

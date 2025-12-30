@@ -13,21 +13,22 @@ interface CheckboxProps {
 
 const props = defineProps<CheckboxProps>();
 
-const value = defineModel<boolean>();
+const uniqueId = props.id || `checkbox-${Math.random().toString(36).slice(2, 7)}`;
+const value = defineModel<boolean>({default: false});
 </script>
 
 <template>
   <div class="flex items-center gap-1.5">
     <input
       v-model="value"
-      :id="id || label"
+      :id="uniqueId"
       type="checkbox"
       :disabled="disabled"
       class="w-3.5 h-3.5 border-gray-300 rounded text-brand-primary focus:ring-brand-primary focus:ring-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
     />
     <label
       v-if="label"
-      :for="id || label"
+      :for="uniqueId"
       class="text-xs text-gray-600 cursor-pointer select-none"
       :class="{ 'opacity-50 cursor-not-allowed': disabled }"
     >

@@ -43,3 +43,33 @@ export interface RegisterResponse {
  * Tipo para as abas de autenticação
  */
 export type AuthTab = 'entrar' | 'cadastrar';
+
+/**
+ * Payload de requisição para verificação de e-mail
+ */
+export interface VerifyEmailRequest {
+  email: string;
+  code: string;
+}
+
+/**
+ * Resposta da API após verificação de e-mail
+ */
+export interface VerifyEmailResponse {
+  message: string;
+  verified: boolean;
+}
+
+/**
+ * Payload de requisição para reenvio de código
+ */
+export interface ResendCodeRequest {
+  email: string;
+}
+
+/**
+ * Resposta da API após reenvio de código
+ */
+export interface ResendCodeResponse {
+  message: string;
+}

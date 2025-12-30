@@ -21,9 +21,10 @@ const props = withDefaults(defineProps<InputProps>(), {
   type: 'text'
 });
 
-const value = defineModel();
+const model = defineModel();
 
 const showPassword = ref(false);
+const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
 
 const inputType = computed(() => {
   if (props.type === 'password') {
@@ -50,16 +51,17 @@ function togglePasswordVisibility() {
 
 <template>
   <div class="w-full">
-    <label v-if="label" :for="id || label" class="block select-none text-xs font-medium text-gray-700 mb-1">
+    <label v-if="label" :for="uniqueId" class="block select-none text-xs font-medium text-gray-700 mb-1">
       {{ label }}
     </label>
 
     <div class="relative">
       <input
+        v-model="model"
         v-maska
         :data-maska="mask"
-        @maska="value = $event.detail.unmasked"
-        :id="id || label"
+        @maska="model = $event.detail.unmasked"
+        :id="uniqueId"
         :type="inputType"
         :placeholder="placeholder"
         :disabled="disabled"

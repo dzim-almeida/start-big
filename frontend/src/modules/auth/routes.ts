@@ -6,6 +6,11 @@ const routes: RouteRecordRaw[] = [
     name: 'login.user',
     component: () => import('./views/LoginView.vue'),
   },
+  {
+    path: '/verify-email',
+    name: 'verify.email',
+    component: () => import('./views/VerifyEmailView.vue'),
+  },
 ];
 
 export default routes;
