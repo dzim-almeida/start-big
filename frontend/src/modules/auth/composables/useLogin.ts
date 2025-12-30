@@ -7,7 +7,7 @@
 import { ref, onMounted, reactive } from 'vue';
 import { useForm } from 'vee-validate';
 import { useMutation } from '@tanstack/vue-query';
-// import { useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { loginValidationSchema, type LoginFormData } from '../schemas/login.schema';
 import {
   login,
@@ -27,7 +27,7 @@ import type { AxiosError } from 'axios';
  * @returns Objeto com estados e métodos para o formulário
  */
 export function useLogin() {
-  // const router = useRouter();
+  const router = useRouter();
   const toast = useToast();
   const rememberMe = ref(false);
   const savedEmail = ref<string | null>(null);
@@ -64,6 +64,7 @@ export function useLogin() {
 
       apiError.value = null;
       toast.success('Login realizado com sucesso!');
+      router.push({ name: 'onboarding' })
     },
     onError: (error) => {
       apiError.value = getErrorMessage(error, 'Erro ao realizar login');

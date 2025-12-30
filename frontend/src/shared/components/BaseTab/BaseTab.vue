@@ -14,7 +14,7 @@ interface TabProps {
   tabs: Tab[];
 }
 
-const props = defineProps<TabProps>();
+defineProps<TabProps>();
 
 const activeTab = defineModel<string>({ required: true });
 
