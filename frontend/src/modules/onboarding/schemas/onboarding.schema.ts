@@ -6,6 +6,7 @@
 
 import { z } from 'zod';
 import { toTypedSchema } from '@vee-validate/zod';
+import { cpf, cnpj } from 'cpf-cnpj-validator'
 
 /**
  * Segmentos válidos
@@ -54,7 +55,7 @@ export const companySchema = z.object({
   celular: z
     .string({ required_error: 'Celular é obrigatório' })
     .min(14, 'Celular inválido')
-    .max(15, 'Celular inválido'),
+    .max(16, 'Celular inválido'),
   email: z
     .string({ required_error: 'E-mail é obrigatório' })
     .email('E-mail inválido')
@@ -64,7 +65,17 @@ export const companySchema = z.object({
     .max(14, 'Telefone inválido')
     .optional()
     .or(z.literal('')),
-});
+}).refine(
+  // Verifica se o CPF ou CNPJ são válidos
+  (data)=> {
+  if (data.tipoDocumento === 'CPF') return cpf.isValid(data.documento);
+  return cnpj.isValid(data.documento);
+  },
+  {
+    message: `Documento inválido`,
+    path: ['documento'],
+  }
+);
 
 export const companyValidationSchema = toTypedSchema(companySchema);
 export type CompanyFormData = z.infer<typeof companySchema>;
@@ -81,9 +92,11 @@ export const addressSchema = z.object({
     .min(3, 'Logradouro deve ter no mínimo 3 caracteres')
     .max(200, 'Logradouro deve ter no máximo 200 caracteres'),
   numero: z
-    .string({ required_error: 'Número é obrigatório' })
+    .string()
     .min(1, 'Número é obrigatório')
-    .max(10, 'Número deve ter no máximo 10 caracteres'),
+    .max(10, 'Número deve ter no máximo 10 caracteres')
+    .optional()
+    .or(z.literal('')),
   complemento: z
     .string()
     .max(100, 'Complemento deve ter no máximo 100 caracteres')

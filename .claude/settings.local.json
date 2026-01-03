@@ -4,7 +4,8 @@
       "Bash(tree:*)",
       "Bash(npx vue-tsc:*)",
       "Bash(cat:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(rm:*)"
     ]
   }
 }

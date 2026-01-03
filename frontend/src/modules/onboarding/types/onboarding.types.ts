@@ -57,7 +57,7 @@ export interface AddressData {
   cep: string;
   logradouro: string;
   numero: string;
-  complemento: string;
+  complemento?: string;
   bairro: string;
   cidade: string;
   estado: string;
@@ -93,18 +93,13 @@ export interface CreateCompanyRequest {
   razao_social: string;
   nome_fantasia: string;
   tipo_documento: DocumentType;
+  is_cnpj: boolean;
   documento: string;
   segmento: BusinessSegment;
   celular: string;
   email: string;
   telefone?: string;
-  cep: string;
-  logradouro: string;
-  numero: string;
-  complemento?: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
+  endereco?: AddressData[];
 }
 
 /**

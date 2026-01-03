@@ -6,50 +6,34 @@
  */
 
 import { computed } from 'vue';
-import { useForm } from 'vee-validate';
 import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
 import SegmentIcons from '../icons/SegmentIcons.vue';
+import { useCompanyForm } from '../../composables/useEmpresaForm';
 import { useOnboarding } from '../../composables/useOnboarding';
-import { companyValidationSchema, type CompanyFormData } from '../../schemas/onboarding.schema';
 import { getSegmentById } from '../../constants/segments';
 import type { DocumentType } from '../../types/onboarding.types';
+import Icons from '../icons/Icons.vue';
+import SelectInput from '../commons/SelectInput.vue';
 
+const { onboardingData, previousStep } = useOnboarding();
+
+/**
+ * Dados para formulários
+ */
 const {
-  onboardingData,
-  updateCompanyData,
-  updateContactData,
-  setDocumentType,
-  nextStep,
-  previousStep,
-} = useOnboarding();
-
-/**
- * Configuração do formulário
- */
-const { handleSubmit, errors, defineField, submitCount, setFieldValue } = useForm<CompanyFormData>({
-  validationSchema: companyValidationSchema,
-  initialValues: {
-    razaoSocial: onboardingData.company.razaoSocial,
-    nomeFantasia: onboardingData.company.nomeFantasia,
-    tipoDocumento: onboardingData.company.tipoDocumento,
-    documento: onboardingData.company.documento,
-    celular: onboardingData.contact.celular,
-    email: onboardingData.contact.email,
-    telefone: onboardingData.contact.telefone,
-  },
-});
-
-/**
- * Definição dos campos
- */
-const [razaoSocial] = defineField('razaoSocial');
-const [nomeFantasia] = defineField('nomeFantasia');
-const [tipoDocumento] = defineField('tipoDocumento');
-const [documento] = defineField('documento');
-const [celular] = defineField('celular');
-const [email] = defineField('email');
-const [telefone] = defineField('telefone');
+  razaoSocial,
+  nomeFantasia,
+  tipoDocumento,
+  documento,
+  celular,
+  email,
+  telefone,
+  errors,
+  onSubmit,
+  submitCount,
+  handleDocumentTypeChange,
+} = useCompanyForm()
 
 /**
  * Segmento selecionado
@@ -60,57 +44,29 @@ const selectedSegment = computed(() => {
 });
 
 /**
- * Máscara do documento baseada no tipo
+ * Opções para selecionar no campo documento
  */
-const documentMask = computed(() => {
-  return tipoDocumento.value === 'CNPJ' ? '##.###.###/####-##' : '###.###.###-##';
-});
+const selectDocumentOptions = [
+  {
+    label: 'CNPJ',
+    value: 'CNPJ'
+  },
+  {
+    label: 'CPF',
+    value: 'CPF'
+  },
+];
 
 /**
- * Handler para mudança de tipo de documento
+ * Emit para select
  */
-function handleDocumentTypeChange(type: DocumentType) {
-  setFieldValue('tipoDocumento', type);
-  setFieldValue('documento', '');
-  setDocumentType(type);
+function changeSelect(document: string) {
+  handleDocumentTypeChange(document as DocumentType)
 }
-
-/**
- * Handler de submit
- */
-const onSubmit = handleSubmit((formData) => {
-  updateCompanyData({
-    razaoSocial: formData.razaoSocial,
-    nomeFantasia: formData.nomeFantasia,
-    tipoDocumento: formData.tipoDocumento,
-    documento: formData.documento,
-  });
-
-  updateContactData({
-    celular: formData.celular,
-    email: formData.email,
-    telefone: formData.telefone || '',
-  });
-
-  nextStep();
-});
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto">
-    <!-- Header da etapa -->
-    <div class="text-center mb-8">
-      <p class="text-brand-primary font-medium text-sm mb-2">
-        Etapa 2 de 4 - Dados da Empresa
-      </p>
-      <h1 class="text-2xl lg:text-3xl font-bold text-brand-action mb-3">
-        Configuração Inicial
-      </h1>
-      <p class="text-gray-500 text-sm max-w-md mx-auto">
-        Configure sua empresa para começar a usar o sistema
-      </p>
-    </div>
-
+  <div>
     <form @submit.prevent="onSubmit" class="space-y-8">
       <!-- Seção: Dados da Empresa -->
       <section>
@@ -127,6 +83,7 @@ const onSubmit = handleSubmit((formData) => {
             v-model="razaoSocial"
             label="Razão Social"
             placeholder="Digite a razão social"
+            :required="true"
             :error="submitCount > 0 ? errors.razaoSocial : ''"
           />
 
@@ -140,30 +97,21 @@ const onSubmit = handleSubmit((formData) => {
 
           <!-- Documento (CNPJ/CPF) -->
           <div class="space-y-1">
-            <label class="block text-xs font-medium text-gray-700">Documento</label>
+            <label class="block text-xs font-medium text-gray-700">Documento <span class="text-red-600">*</span></label>
             <div class="flex gap-2">
               <!-- Seletor de tipo -->
-              <div class="relative">
-                <select
-                  :value="tipoDocumento"
-                  @change="handleDocumentTypeChange(($event.target as HTMLSelectElement).value as DocumentType)"
-                  class="h-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm text-gray-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary cursor-pointer appearance-none pr-8"
-                >
-                  <option value="CNPJ">CNPJ</option>
-                  <option value="CPF">CPF</option>
-                </select>
-                <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-
+              <SelectInput
+                :options="selectDocumentOptions"
+                @select="changeSelect"
+              />
               <!-- Input do documento -->
               <div class="flex-1">
                 <BaseInput
                   v-model="documento"
                   type="text"
                   :placeholder="tipoDocumento === 'CNPJ' ? 'XX.XXX.XXX/XXXX-XX' : 'XXX.XXX.XXX-XX'"
-                  :mask="documentMask"
+                  :required="true"
+                  :mask="tipoDocumento === 'CNPJ' ? '##.###.###/####-##' : '###.###.###-##'"
                   :error="submitCount > 0 ? errors.documento : ''"
                 />
               </div>
@@ -184,10 +132,8 @@ const onSubmit = handleSubmit((formData) => {
       <!-- Seção: Contatos -->
       <section>
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-            <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
+          <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+            <Icons icon="phone" />
           </div>
           <h2 class="text-lg font-semibold text-brand-action">Contatos</h2>
         </div>
@@ -199,6 +145,7 @@ const onSubmit = handleSubmit((formData) => {
             type="tel"
             label="Celular"
             placeholder="(XX) X.XXXX-XXXX"
+            :required="true"
             mask="(##) #.####-####"
             :error="submitCount > 0 ? errors.celular : ''"
           />
@@ -209,6 +156,7 @@ const onSubmit = handleSubmit((formData) => {
             type="email"
             label="E-mail"
             placeholder="empresa@empresa.com"
+            :required="true"
             :error="submitCount > 0 ? errors.email : ''"
           />
 
@@ -233,9 +181,7 @@ const onSubmit = handleSubmit((formData) => {
           class="flex-1"
           @click="previousStep"
         >
-          <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-          </svg>
+          <Icons icon="back" />
           Voltar
         </BaseButton>
 
@@ -245,9 +191,7 @@ const onSubmit = handleSubmit((formData) => {
           class="flex-1"
         >
           Salvar
-          <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
+          <Icons icon="next" />
         </BaseButton>
       </div>
     </form>

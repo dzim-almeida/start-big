@@ -11,6 +11,7 @@ interface InputProps {
   type?: 'text' | 'email' | 'password' | 'number' | 'tel';
   label?: string;
   placeholder?: string;
+  required?: boolean;
   mask?: string;
   error?: string;
   disabled?: boolean;
@@ -18,7 +19,8 @@ interface InputProps {
 }
 
 const props = withDefaults(defineProps<InputProps>(), {
-  type: 'text'
+  type: 'text',
+  required: false,
 });
 
 const model = defineModel();
@@ -46,13 +48,22 @@ const inputClasses = computed(() => [
 function togglePasswordVisibility() {
   showPassword.value = !showPassword.value;
 }
-
 </script>
 
 <template>
   <div class="w-full">
-    <label v-if="label" :for="uniqueId" class="block select-none text-xs font-medium text-gray-700 mb-1">
+    <label
+      v-if="label"
+      :for="uniqueId"
+      class="block select-none text-xs font-medium text-gray-700 mb-1"
+    >
       {{ label }}
+      <span
+        v-if="required"
+        class="text-red-600"
+      >
+         *
+      </span>
     </label>
 
     <div class="relative">
@@ -60,10 +71,10 @@ function togglePasswordVisibility() {
         v-model="model"
         v-maska
         :data-maska="mask"
-        @maska="model = $event.detail.unmasked"
         :id="uniqueId"
         :type="inputType"
         :placeholder="placeholder"
+        :required="required"
         :disabled="disabled"
         :class="inputClasses"
       />

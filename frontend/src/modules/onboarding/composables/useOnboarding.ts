@@ -85,7 +85,7 @@ export function useOnboarding() {
    * Avança para a próxima etapa
    */
   function nextStep(): void {
-    if (currentStep.value < 4) {
+    if (!isLastStep.value) {
       currentStep.value = (currentStep.value + 1) as OnboardingStep;
     }
   }
@@ -94,7 +94,7 @@ export function useOnboarding() {
    * Volta para a etapa anterior
    */
   function previousStep(): void {
-    if (currentStep.value > 0) {
+    if (canGoBack) {
       currentStep.value = (currentStep.value - 1) as OnboardingStep;
     }
   }

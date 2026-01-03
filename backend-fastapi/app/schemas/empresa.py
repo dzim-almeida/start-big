@@ -48,7 +48,7 @@ class EmpresaBase(BaseModel):
     )
     documento: str = Field(
         ..., 
-        pattern=r"^\d{14}$", 
+        pattern=r"^\d{11,14}$", 
         description="CNPJ (apenas números, 14 dígitos)"
     )
     inscricao_estadual: Optional[str] = Field(
@@ -115,7 +115,7 @@ class EmpresaCreate(EmpresaBase):
                 "regime_tributario": "Simples Nacional",
                 "telefone": "6832104000",
                 "celular": "68999887766",
-                "enderecos": [
+                "endereco": [
                     {
                         "logradouro": "Avenida Cícero Pompeu",
                         "numero": "1500",
