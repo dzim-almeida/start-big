@@ -11,6 +11,7 @@ import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
 import BaseCheckbox from '@/shared/components/BaseCheckbox/BaseCheckbox.vue';
 import BaseTab from '@/shared/components/BaseTab/BaseTab.vue';
+import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
 
 import { useLogin } from '../composables/useLogin';
 import { useRegister } from '../composables/useRegister';
@@ -187,17 +188,9 @@ onMounted(() => {
       </div>
 
       <!-- Footer -->
-      <div class="text-center text-[10px] text-gray-400 space-y-0.5 mt-4">
-        <p>
-          Copyright &copy; {{ new Date().getFullYear() }} Start Big, LLC. Start Big&trade; is a
-          trademark of BigTec, LLC.
-        </p>
-        <div class="flex justify-center gap-3">
-          <a href="#" class="hover:underline">Termos de Serviço</a>
-          <span>|</span>
-          <a href="#" class="hover:underline">Política de Privacidade</a>
-        </div>
-      </div>
+      <footer class="mt-2">
+        <BaseFooter />
+      </footer>
     </div>
   </div>
 </template>

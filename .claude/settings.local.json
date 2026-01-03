@@ -3,7 +3,9 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(npx vue-tsc:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(rm:*)"
     ]
   }
 }
