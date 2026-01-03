@@ -1,7 +1,43 @@
 <script setup lang="ts">
-defineProps<{
-  icon: string;
-}>();
+/**
+ * @component Icons
+ * @description Componente que renderiza ícones SVG utilitários para navegação e UI.
+ * Suporta ícones de navegação, informação e funcionalidades.
+ */
+
+/* ============================================
+   Types
+   ============================================ */
+
+/**
+ * Tipos de ícones disponíveis no componente
+ */
+type IconType =
+  | 'next'
+  | 'back'
+  | 'confirm'
+  | 'info'
+  | 'info-red'
+  | 'select'
+  | 'phone'
+  | 'light'
+  | 'chart'
+  | 'clock'
+  | 'shield';
+
+/* ============================================
+   Props
+   ============================================ */
+
+/**
+ * Props do componente Icons
+ * @property {IconType} icon - Identificador do ícone a ser renderizado
+ */
+interface Props {
+  icon: IconType;
+}
+
+defineProps<Props>();
 </script>
 <template>
   <!-- Next icon -->

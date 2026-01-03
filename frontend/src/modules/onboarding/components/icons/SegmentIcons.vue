@@ -5,16 +5,53 @@
  * Utiliza ícones coloridos e estilizados para uma aparência profissional.
  */
 
+/* ============================================
+   Types
+   ============================================ */
+
+/**
+ * Tipos de ícones de segmento disponíveis
+ */
+type SegmentIconType =
+  | 'computer'
+  | 'wrench'
+  | 'store'
+  | 'hammer'
+  | 'bolt'
+  | 'grid'
+  | 'building';
+
+/**
+ * Tamanhos disponíveis para os ícones
+ */
+type IconSize = 'sm' | 'md' | 'lg';
+
+/* ============================================
+   Props
+   ============================================ */
+
+/**
+ * Props do componente SegmentIcons
+ * @property {SegmentIconType} icon - Identificador do ícone do segmento
+ * @property {IconSize} [size='md'] - Tamanho do ícone
+ */
 interface Props {
-  icon: string;
-  size?: 'sm' | 'md' | 'lg';
+  icon: SegmentIconType;
+  size?: IconSize;
 }
 
 withDefaults(defineProps<Props>(), {
   size: 'md',
 });
 
-const sizeClasses: Record<string, string> = {
+/* ============================================
+   Constants
+   ============================================ */
+
+/**
+ * Mapeamento de tamanhos para classes CSS
+ */
+const sizeClasses: Record<IconSize, string> = {
   sm: 'w-5 h-5',
   md: 'w-10 h-10',
   lg: 'w-16 h-16',

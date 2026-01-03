@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Composables para formulários do onboarding
+ * @description Gerencia os formulários de empresa, endereço e confirmação
+ * de cadastro usando vee-validate e vue-query.
+ */
+
 import { ref, watch } from 'vue';
 import { useForm } from 'vee-validate';
 import { useOnboarding } from './useOnboarding';
@@ -7,31 +13,40 @@ import {
   CompanyFormData,
   companyValidationSchema,
 } from '../schemas/onboarding.schema';
-import { CreateCompanyRequest, CreateCompanyResponse, DocumentType } from '../types/onboarding.types';
+import type { CreateCompanyRequest, CreateCompanyResponse, DocumentType } from '../types/onboarding.types';
 import { useCepQuery } from './useCepLookup';
-import { ApiError } from '@/shared/types/axios.types';
+import type { ApiError } from '@/shared/types/axios.types';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { useMutation } from '@tanstack/vue-query';
-import { AxiosError } from 'axios';
+import type { AxiosError } from 'axios';
 import { createCompany } from '../services/onboarding.service';
 import { useToast } from '@/shared/composables/useToast';
 import { useRouter } from 'vue-router';
 import { unmaskCep, unmaskDocument, unmaskPhone } from '@/shared/utils/unmask.utils';
 
-const {
-  onboardingData,
-  nextStep,
-  updateCompanyData,
-  updateContactData,
-  updateAddressData,
-  setDocumentType,
-  resetOnboarding
-} = useOnboarding();
+/* ============================================
+   useCompanyForm
+   ============================================ */
 
-// Formulário com dados da empresa
+/**
+ * Composable para gerenciar o formulário de dados da empresa (Step 2)
+ * @returns Campos do formulário, erros e métodos de manipulação
+ */
 export function useCompanyForm() {
+  const {
+    onboardingData,
+    nextStep,
+    updateCompanyData,
+    updateContactData,
+    setDocumentType,
+  } = useOnboarding();
+
+  /* ============================================
+     Form Configuration
+     ============================================ */
+
   /**
-   * Configuração do formulário
+   * Configuração do formulário com vee-validate
    */
   const { handleSubmit, errors, defineField, submitCount, setFieldValue } =
     useForm<CompanyFormData>({
@@ -47,9 +62,10 @@ export function useCompanyForm() {
       },
     });
 
-  /**
-   * Definição dos campos
-   */
+  /* ============================================
+     Field Definitions
+     ============================================ */
+
   const [razaoSocial] = defineField('razaoSocial');
   const [nomeFantasia] = defineField('nomeFantasia');
   const [tipoDocumento] = defineField('tipoDocumento');
@@ -58,8 +74,13 @@ export function useCompanyForm() {
   const [email] = defineField('email');
   const [telefone] = defineField('telefone');
 
+  /* ============================================
+     Handlers
+     ============================================ */
+
   /**
-   * Handler de submit
+   * Handler de submit do formulário
+   * Atualiza os dados no estado global e avança para próxima etapa
    */
   const onSubmit = handleSubmit((formData) => {
     updateCompanyData({
@@ -79,16 +100,17 @@ export function useCompanyForm() {
   });
 
   /**
-   * Handler para mudança de tipo de documento
+   * Handler para mudança de tipo de documento (CNPJ/CPF)
+   * @param {DocumentType} type - Novo tipo de documento
    */
-  function handleDocumentTypeChange(type: DocumentType) {
+  function handleDocumentTypeChange(type: DocumentType): void {
     setFieldValue('tipoDocumento', type);
     setFieldValue('documento', '');
     setDocumentType(type);
   }
 
   return {
-    //Campos do formulário
+    // Campos do formulário
     razaoSocial,
     nomeFantasia,
     tipoDocumento,
@@ -97,36 +119,52 @@ export function useCompanyForm() {
     email,
     telefone,
 
-    //Erros
+    // Erros
     errors,
 
-    //Métodos
+    // Métodos
     onSubmit,
     submitCount,
     handleDocumentTypeChange,
   };
 }
 
+/* ============================================
+   useAddressForm
+   ============================================ */
+
+/**
+ * Composable para gerenciar o formulário de endereço (Step 3)
+ * @returns Campos do formulário, estados de loading e métodos
+ */
 export function useAddressForm() {
-  /**
-   * Configuração do formulário
-   */
-  const { handleSubmit, errors, defineField, submitCount, setValues } = useForm<AddressFormData>({
-    validationSchema: addressValidationSchema,
-    initialValues: {
-      cep: onboardingData.address.cep,
-      logradouro: onboardingData.address.logradouro,
-      numero: onboardingData.address.numero,
-      complemento: onboardingData.address.complemento,
-      bairro: onboardingData.address.bairro,
-      cidade: onboardingData.address.cidade,
-      estado: onboardingData.address.estado,
-    },
-  });
+  const { onboardingData, nextStep, updateAddressData } = useOnboarding();
+
+  /* ============================================
+     Form Configuration
+     ============================================ */
 
   /**
-   * Definição dos campos
+   * Configuração do formulário com vee-validate
    */
+  const { handleSubmit, errors, defineField, submitCount, setValues } =
+    useForm<AddressFormData>({
+      validationSchema: addressValidationSchema,
+      initialValues: {
+        cep: onboardingData.address.cep,
+        logradouro: onboardingData.address.logradouro,
+        numero: onboardingData.address.numero,
+        complemento: onboardingData.address.complemento,
+        bairro: onboardingData.address.bairro,
+        cidade: onboardingData.address.cidade,
+        estado: onboardingData.address.estado,
+      },
+    });
+
+  /* ============================================
+     Field Definitions
+     ============================================ */
+
   const [cep] = defineField('cep');
   const [logradouro] = defineField('logradouro');
   const [numero] = defineField('numero');
@@ -135,8 +173,43 @@ export function useAddressForm() {
   const [cidade] = defineField('cidade');
   const [estado] = defineField('estado');
 
+  /* ============================================
+     CEP Query
+     ============================================ */
+
   /**
-   * Handler de submit
+   * Query para busca automática de endereço por CEP
+   */
+  const { data: cepData, isLoading: cepIsLoading, isError: cepIsError } = useCepQuery(cep);
+
+  /* ============================================
+     Watchers
+     ============================================ */
+
+  /**
+   * Watch para preenchimento automático ao buscar CEP
+   */
+  watch(cepData, (data) => {
+    if (data) {
+      setValues({
+        cep: cep.value,
+        logradouro: data.logradouro || '',
+        bairro: data.bairro || '',
+        cidade: data.localidade || '',
+        estado: data.uf || '',
+        numero: '',
+        complemento: data.complemento || '',
+      });
+    }
+  });
+
+  /* ============================================
+     Handlers
+     ============================================ */
+
+  /**
+   * Handler de submit do formulário
+   * Atualiza os dados no estado global e avança para próxima etapa
    */
   const onSubmit = handleSubmit((formData) => {
     updateAddressData({
@@ -152,30 +225,8 @@ export function useAddressForm() {
     nextStep();
   });
 
-  /**
-   * Watch para busca automática de CEP
-   */
-  const { data: cepData, isLoading: cepIsLoading, isError: cepIsError } = useCepQuery(cep);
-
-  watch(cepData, (data) => {
-    if (data) {
-      setValues({
-        cep: cep.value,
-        logradouro: data.logradouro || '',
-        bairro: data.bairro || '',
-        cidade: data.localidade || '',
-        estado: data.uf || '',
-        numero: '',
-        complemento: data.complemento || '',
-      });
-    }
-  });
-
-  /**
-   * Busca automática do cep
-   */
   return {
-    //Campos do formulário
+    // Campos do formulário
     cep,
     logradouro,
     numero,
@@ -189,21 +240,44 @@ export function useAddressForm() {
     cepIsLoading,
     cepIsError,
 
-    //Métodos
+    // Métodos
     onSubmit,
     submitCount,
   };
 }
 
+/* ============================================
+   useConfirmRegisterEmpresa
+   ============================================ */
+
+/**
+ * Composable para gerenciar a confirmação e envio do cadastro (Step 4)
+ * @returns Estado de loading, erro e método de confirmação
+ */
 export function useConfirmRegisterEmpresa() {
-  const router = useRouter()
+  const router = useRouter();
   const toast = useToast();
+  const { onboardingData, resetOnboarding } = useOnboarding();
+
+  /* ============================================
+     State
+     ============================================ */
+
+  /** Mensagem de erro da API */
   const apiError = ref<string | null>(null);
 
+  /* ============================================
+     Mutation
+     ============================================ */
+
   /**
-   * Mutation para criar empresa
+   * Mutation para criar empresa via API
    */
-  const createCompanyMutation = useMutation<CreateCompanyResponse, AxiosError<ApiError>, CreateCompanyRequest>({
+  const createCompanyMutation = useMutation<
+    CreateCompanyResponse,
+    AxiosError<ApiError>,
+    CreateCompanyRequest
+  >({
     mutationFn: createCompany,
     onSuccess: () => {
       toast.success(
@@ -218,7 +292,15 @@ export function useConfirmRegisterEmpresa() {
     },
   });
 
-  function confirmSubmit() {
+  /* ============================================
+     Handlers
+     ============================================ */
+
+  /**
+   * Confirma e envia os dados para criação da empresa
+   * Valida se o segmento foi selecionado antes de enviar
+   */
+  function confirmSubmit(): void {
     if (!onboardingData.company.segmento) return;
 
     apiError.value = null;
@@ -232,7 +314,9 @@ export function useConfirmRegisterEmpresa() {
       segmento: onboardingData.company.segmento,
       celular: unmaskPhone(onboardingData.contact.celular),
       email: onboardingData.contact.email,
-      telefone: onboardingData.contact.telefone ? unmaskPhone(onboardingData.contact.telefone) : undefined,
+      telefone: onboardingData.contact.telefone
+        ? unmaskPhone(onboardingData.contact.telefone)
+        : undefined,
       endereco: [
         {
           cep: unmaskCep(onboardingData.address.cep),
@@ -243,18 +327,18 @@ export function useConfirmRegisterEmpresa() {
           cidade: onboardingData.address.cidade,
           estado: onboardingData.address.estado,
         }
-      ] 
+      ]
     };
 
     createCompanyMutation.mutate(request);
   }
 
   return {
-    // Estados
-    isPending: createCompanyMutation.isPending.value,
+    // Estados (mantendo reatividade)
+    isPending: createCompanyMutation.isPending,
     apiError,
 
     // Métodos
     confirmSubmit,
-  }
+  };
 }

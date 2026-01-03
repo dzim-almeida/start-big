@@ -1,8 +1,25 @@
 <script setup lang="ts">
-defineProps<{
+/**
+ * @component FeaturesCard
+ * @description Card reutilizável para exibir funcionalidades/recursos do sistema.
+ * Apresenta um ícone via slot, título e descrição com animação de hover.
+ */
+
+/* ============================================
+   Props
+   ============================================ */
+
+/**
+ * Props do componente FeaturesCard
+ * @property {string} title - Título da funcionalidade exibido em destaque
+ * @property {string} description - Descrição breve da funcionalidade
+ */
+interface Props {
   title: string;
   description: string;
-}>();
+}
+
+defineProps<Props>();
 </script>
 
 <template>

@@ -8,10 +8,37 @@
 import SegmentIcons from './icons/SegmentIcons.vue';
 import type { BusinessSegment } from '../types/onboarding.types';
 
+/* ============================================
+   Types
+   ============================================ */
+
+/**
+ * Tipos de ícones de segmento disponíveis
+ */
+type SegmentIconType =
+  | 'computer'
+  | 'wrench'
+  | 'store'
+  | 'hammer'
+  | 'bolt'
+  | 'grid'
+  | 'building';
+
+/* ============================================
+   Props
+   ============================================ */
+
+/**
+ * Props do componente SegmentCard
+ * @property {BusinessSegment} id - Identificador único do segmento
+ * @property {string} label - Texto exibido no card
+ * @property {SegmentIconType} icon - Ícone do segmento a ser exibido
+ * @property {boolean} [selected=false] - Indica se o card está selecionado
+ */
 interface Props {
   id: BusinessSegment;
   label: string;
-  icon: string;
+  icon: SegmentIconType;
   selected?: boolean;
 }
 
@@ -19,11 +46,27 @@ const props = withDefaults(defineProps<Props>(), {
   selected: false,
 });
 
+/* ============================================
+   Emits
+   ============================================ */
+
+/**
+ * Eventos emitidos pelo componente
+ * @event select - Emitido quando o card é clicado, passa o id do segmento
+ */
 const emit = defineEmits<{
   select: [id: BusinessSegment];
 }>();
 
-function handleClick() {
+/* ============================================
+   Methods
+   ============================================ */
+
+/**
+ * Handler de clique no card
+ * Emite o evento de seleção com o id do segmento
+ */
+function handleClick(): void {
   emit('select', props.id);
 }
 </script>

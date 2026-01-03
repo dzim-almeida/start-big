@@ -1,3 +1,11 @@
+<script setup lang="ts">
+/**
+ * @component RocketAnimation
+ * @description Animação decorativa de foguete para a tela de boas-vindas.
+ * Inclui efeitos de pulse e bounce para partículas decorativas.
+ */
+</script>
+
 <template>
   <div class="w-32 h-32 mx-auto relative">
     <!-- Círculo de fundo animado -->

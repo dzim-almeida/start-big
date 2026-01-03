@@ -1,20 +1,61 @@
 <script setup lang="ts">
+/**
+ * @component SelectInput
+ * @description Componente de select customizado com ícone de seta.
+ * Emite eventos de seleção para o componente pai.
+ */
+
 import Icons from '../icons/Icons.vue';
 
-interface option {
+/* ============================================
+   Types
+   ============================================ */
+
+/**
+ * Interface para opções do select
+ * @property {string} label - Texto exibido na opção
+ * @property {string} value - Valor da opção
+ */
+interface SelectOption {
   label: string;
   value: string;
 }
 
-defineProps<{
-  options: option[];
-}>();
+/* ============================================
+   Props
+   ============================================ */
 
+/**
+ * Props do componente SelectInput
+ * @property {SelectOption[]} options - Lista de opções disponíveis
+ */
+interface Props {
+  options: SelectOption[];
+}
+
+defineProps<Props>();
+
+/* ============================================
+   Emits
+   ============================================ */
+
+/**
+ * Eventos emitidos pelo componente
+ * @event select - Emitido quando uma opção é selecionada
+ */
 const emit = defineEmits<{
   select: [value: string];
 }>();
 
-function changeSelect(value: string) {
+/* ============================================
+   Methods
+   ============================================ */
+
+/**
+ * Handler para mudança de seleção
+ * @param {string} value - Valor da opção selecionada
+ */
+function changeSelect(value: string): void {
   emit('select', value);
 }
 </script>
