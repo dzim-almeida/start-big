@@ -167,3 +167,6 @@ def create_image_empresa(db: Session, empresa_id: int, file: UploadFile) -> Empr
 
     # O objeto modificado é retornado. A persistência (commit) é feita na camada de Endpoint.
     return empresa_in_db
+
+def get_empresa_by_id(db: Session, empresa_id: int) -> EmpresaModel:
+    return empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)

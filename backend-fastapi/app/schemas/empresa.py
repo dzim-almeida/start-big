@@ -131,9 +131,9 @@ class EmpresaCreate(EmpresaBase):
     )
 
 # =========================
-# Read (Saída)
+# Admin Read (Saída)
 # =========================
-class EmpresaRead(EmpresaBase):
+class EmpresaAdminRead(EmpresaBase):
     """
     Formato de resposta da API para Empresa. Inclui dados internos (id, ativo)
     e listas aninhadas de endereços e usuários.
@@ -148,11 +148,34 @@ class EmpresaRead(EmpresaBase):
     ativo: bool = Field(..., description="Status da empresa")
 
     # Referência de string para EnderecoRead e UsuarioRead
-    enderecos: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
+    endereco: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
 
     # Corrigido o tipo para List nativo (List[UsuarioRead] é preferencial em v2)
     usuarios: List["UsuarioRead"] = Field(..., description="Usuários vinculados a essa empresa")
-    
-# Notifica o Pydantic para resolver as referências de string (melhor prática)
+
+# =========================
+# User Read (Saída)
+# =========================
+class EmpresaUserRead(BaseModel):
+    ativo: bool = Field(
+        ...,
+        description="Status da empresa"
+    )
+    razao_social: str = Field(
+        ..., 
+        max_length=255, 
+        description="Razão Social da empresa"
+    )
+    nome_fantasia: Optional[str] = Field(
+        None, 
+        max_length=255, 
+        description="Nome Fantasia (comercial)"
+    )
+    url_logo: Optional[str] = Field(
+        None, 
+        max_length=255, 
+        description="URL ou caminho da logo da empresa"
+    )
+
 EmpresaCreate.model_rebuild()
-EmpresaRead.model_rebuild()
+EmpresaAdminRead.model_rebuild()
