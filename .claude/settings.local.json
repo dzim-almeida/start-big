@@ -5,7 +5,9 @@
       "Bash(npx vue-tsc:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm install:*)",
+      "Bash(git -C /c/dev/BigPDV status --porcelain)"
     ]
   }
 }
