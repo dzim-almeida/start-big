@@ -7,10 +7,10 @@
  */
 
 import { onMounted, ref } from 'vue';
-import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import BaseCheckbox from '@/shared/components/BaseCheckbox/BaseCheckbox.vue';
-import BaseTab from '@/shared/components/BaseTab/BaseTab.vue';
+import BaseInput from '@/shared/components/commons/BaseInput/BaseInput.vue';
+import BaseButton from '@/shared/components/commons/BaseButton/BaseButton.vue';
+import BaseCheckbox from '@/shared/components/commons/BaseCheckbox/BaseCheckbox.vue';
+import BaseTab from '@/shared/components/commons/BaseTab/BaseTab.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
 
 import { useLogin } from '../composables/useLogin';
@@ -37,6 +37,7 @@ const {
   loginSubmit,
   submitCount: loginSubmitCount,
 } = useLogin();
+
 const {
   registerData,
   errors: registerErrors,

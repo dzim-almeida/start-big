@@ -6,7 +6,7 @@
  */
 
 import { computed } from 'vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
+import BaseButton from '@/shared/components/commons/BaseButton/BaseButton.vue';
 import { useOnboarding } from '../../composables/useOnboarding';
 import RocketAnimation from '../animations/RocketAnimation.vue';
 import FeaturesCard from '../FeaturesCard.vue';

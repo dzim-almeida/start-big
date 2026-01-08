@@ -11,7 +11,6 @@ const routes: RouteRecordRaw[] = [
     name: 'onboarding',
     component: () => import('./views/OnboardingView.vue'),
     meta: {
-      title: 'Configuração Inicial - Start Big',
       requiresAuth: true,
     },
   },

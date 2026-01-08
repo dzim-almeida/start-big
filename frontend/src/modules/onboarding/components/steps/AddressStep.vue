@@ -5,9 +5,9 @@
  * Formulário com busca automática de CEP via ViaCEP.
  */
 
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
-import BaseSelect from '@/shared/components/BaseSelect/BaseSelect.vue';
+import BaseButton from '@/shared/components/commons/BaseButton/BaseButton.vue';
+import BaseInput from '@/shared/components/commons/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/commons/BaseSelect/BaseSelect.vue';
 import SegmentIcons from '../icons/SegmentIcons.vue';
 import { useOnboarding } from '../../composables/useOnboarding';
 import { useAddressForm } from '../../composables/useEmpresaForm';

@@ -1,4 +1,4 @@
-import type { SelectOption } from '@/shared/components/BaseSelect/BaseSelect.vue';
+import type { SelectOption } from "../types/select.types";
 
 export const ESTADOS_BRASILEIROS: SelectOption[] = [
   { value: 'AC', label: 'AC - Acre' },

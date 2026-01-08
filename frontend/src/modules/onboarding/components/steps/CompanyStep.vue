@@ -6,8 +6,8 @@
  */
 
 import { computed } from 'vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
+import BaseButton from '@/shared/components/commons/BaseButton/BaseButton.vue';
+import BaseInput from '@/shared/components/commons/BaseInput/BaseInput.vue';
 import SegmentIcons from '../icons/SegmentIcons.vue';
 import { useCompanyForm } from '../../composables/useEmpresaForm';
 import { useOnboarding } from '../../composables/useOnboarding';

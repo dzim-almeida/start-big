@@ -6,7 +6,7 @@
  */
 
 import { computed } from 'vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
+import BaseButton from '@/shared/components/commons/BaseButton/BaseButton.vue';
 import SegmentCard from '../SegmentCard.vue';
 import Icons from '../icons/Icons.vue';
 

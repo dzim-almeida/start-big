@@ -10,18 +10,6 @@
    ============================================ */
 
 /**
- * Tipos de ícones de segmento disponíveis
- */
-type SegmentIconType =
-  | 'computer'
-  | 'wrench'
-  | 'store'
-  | 'hammer'
-  | 'bolt'
-  | 'grid'
-  | 'building';
-
-/**
  * Tamanhos disponíveis para os ícones
  */
 type IconSize = 'sm' | 'md' | 'lg';
@@ -32,11 +20,10 @@ type IconSize = 'sm' | 'md' | 'lg';
 
 /**
  * Props do componente SegmentIcons
- * @property {SegmentIconType} icon - Identificador do ícone do segmento
  * @property {IconSize} [size='md'] - Tamanho do ícone
  */
 interface Props {
-  icon: SegmentIconType;
+  icon: string;
   size?: IconSize;
 }
 

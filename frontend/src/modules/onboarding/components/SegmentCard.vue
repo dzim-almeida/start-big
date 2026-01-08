@@ -9,22 +9,6 @@ import SegmentIcons from './icons/SegmentIcons.vue';
 import type { BusinessSegment } from '../types/onboarding.types';
 
 /* ============================================
-   Types
-   ============================================ */
-
-/**
- * Tipos de ícones de segmento disponíveis
- */
-type SegmentIconType =
-  | 'computer'
-  | 'wrench'
-  | 'store'
-  | 'hammer'
-  | 'bolt'
-  | 'grid'
-  | 'building';
-
-/* ============================================
    Props
    ============================================ */
 
@@ -32,13 +16,12 @@ type SegmentIconType =
  * Props do componente SegmentCard
  * @property {BusinessSegment} id - Identificador único do segmento
  * @property {string} label - Texto exibido no card
- * @property {SegmentIconType} icon - Ícone do segmento a ser exibido
  * @property {boolean} [selected=false] - Indica se o card está selecionado
  */
 interface Props {
   id: BusinessSegment;
   label: string;
-  icon: SegmentIconType;
+  icon: string;
   selected?: boolean;
 }
 

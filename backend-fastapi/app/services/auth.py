@@ -69,6 +69,7 @@ def login(db: Session, login_usuario: UsuarioLogin) -> Dict[str, Any]:
     # 4. Criação do Payload (Claims)
     data_to_token = {
         "sub": str(usuario_in_db.id),
+        "nome": usuario_in_db.nome,
         "empresa_id": usuario_in_db.empresa_id, # Já é Optional[int] no modelo
         "ativo": usuario_in_db.ativo,
         "is_master": usuario_in_db.is_master,

@@ -6,26 +6,6 @@
  */
 
 /* ============================================
-   Types
-   ============================================ */
-
-/**
- * Tipos de ícones disponíveis no componente
- */
-type IconType =
-  | 'next'
-  | 'back'
-  | 'confirm'
-  | 'info'
-  | 'info-red'
-  | 'select'
-  | 'phone'
-  | 'light'
-  | 'chart'
-  | 'clock'
-  | 'shield';
-
-/* ============================================
    Props
    ============================================ */
 
@@ -34,7 +14,7 @@ type IconType =
  * @property {IconType} icon - Identificador do ícone a ser renderizado
  */
 interface Props {
-  icon: IconType;
+  icon: string;
 }
 
 defineProps<Props>();

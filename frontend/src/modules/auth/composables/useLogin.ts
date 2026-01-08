@@ -11,22 +11,24 @@ import { useRouter } from 'vue-router';
 import { loginValidationSchema, type LoginFormData } from '../schemas/login.schema';
 import {
   login,
-  saveToken,
   saveRememberMe,
   clearRememberMe,
   getRememberedEmail,
-} from '../services/auth.service';
+} from '../services/login.service';
 import type { LoginResponse } from '../types/auth.types';
+import { useAuthStore } from '@/shared/store/auth.store';
 import type { ApiError } from '@/shared/types/axios.types';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
+import { saveItem } from '@/shared/services/localStorage.service';
 
 /**
  * Composable que gerencia o formulário de login
  * @returns Objeto com estados e métodos para o formulário
  */
 export function useLogin() {
+  const authStore = useAuthStore();
   const router = useRouter();
   const toast = useToast();
   const rememberMe = ref(false);
@@ -54,7 +56,8 @@ export function useLogin() {
   const loginMutation = useMutation<LoginResponse, AxiosError<ApiError>, LoginFormData>({
     mutationFn: (data) => login({ email: data.email, senha: data.senha }),
     onSuccess: (response) => {
-      saveToken(response.access_token, response.token_type);
+      authStore.setAuth(response);
+      saveItem('token', response.access_token)
 
       if (rememberMe.value && loginData.email) {
         saveRememberMe(loginData.email);
@@ -64,7 +67,11 @@ export function useLogin() {
 
       apiError.value = null;
       toast.success('Login realizado com sucesso!');
-      router.push({ name: 'onboarding' })
+      if (authStore.user?.empresa_id) {
+        router.push({ name: 'home' })
+      } else {
+        router.push({ name: 'onboarding' })
+      }
     },
     onError: (error) => {
       apiError.value = getErrorMessage(error, 'Erro ao realizar login');
