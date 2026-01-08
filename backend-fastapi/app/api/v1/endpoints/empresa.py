@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, File, Path, UploadFile, HTTPException, s
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.schemas.empresa import EmpresaCreate, EmpresaRead
+from app.schemas.empresa import EmpresaCreate, EmpresaAdminRead, EmpresaUserRead
 from app.db.models.usuario import Usuario as UsuarioModel
-from app.core.depends import get_current_master_user, _handle_db_transaction
+from app.core.depends import get_current_master_user, get_current_user, _handle_db_transaction
 from app.db.session import get_db
 from app.services import empresa as empresa_service
 
@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.post(
     "/",
-    response_model=EmpresaRead,
+    response_model=EmpresaAdminRead,
     status_code=status.HTTP_201_CREATED,
     summary="Inicializar Empresa (Setup)",
     description="Cria a empresa única do sistema e vincula o usuário Master logado a ela."
@@ -59,7 +59,7 @@ def create_empresa(
 
 @router.post(
     "/imagem/",
-    response_model=EmpresaRead,
+    response_model=EmpresaAdminRead,
     status_code=status.HTTP_201_CREATED,
     summary="Upload de Logomarca",
     description="Armazena a imagem enviada e atualiza a URL da logo da empresa."
@@ -96,4 +96,20 @@ def create_image_empresa(
         empresa_service.create_image_empresa,
         empresa_id, # Passa o ID da empresa do token
         file
+    )
+
+@router.get(
+    "/",
+    response_model=EmpresaUserRead,
+    status_code=status.HTTP_200_OK,
+    summary="Retorna os dados da empresa cadastrada!",
+)
+def get_empresa_data(
+    user_token: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        empresa_service.get_empresa_by_id,
+        user_token.get('empresa_id'),
     )
