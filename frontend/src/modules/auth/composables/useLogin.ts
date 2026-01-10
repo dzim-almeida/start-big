@@ -7,7 +7,6 @@
 import { ref, onMounted, reactive } from 'vue';
 import { useForm } from 'vee-validate';
 import { useMutation } from '@tanstack/vue-query';
-import { useRouter } from 'vue-router';
 import { loginValidationSchema, type LoginFormData } from '../schemas/login.schema';
 import {
   login,
@@ -22,6 +21,7 @@ import { getErrorMessage } from '@/shared/utils/error.utils';
 import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
 import { saveItem } from '@/shared/services/localStorage.service';
+import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 
 /**
  * Composable que gerencia o formulário de login
@@ -29,7 +29,7 @@ import { saveItem } from '@/shared/services/localStorage.service';
  */
 export function useLogin() {
   const authStore = useAuthStore();
-  const router = useRouter();
+  const { goToHome, goToEnterpriseRegister } = useAppNavigation();
   const toast = useToast();
   const rememberMe = ref(false);
   const savedEmail = ref<string | null>(null);
@@ -68,9 +68,9 @@ export function useLogin() {
       apiError.value = null;
       toast.success('Login realizado com sucesso!');
       if (authStore.user?.empresa_id) {
-        router.push({ name: 'home' })
+        goToHome();
       } else {
-        router.push({ name: 'onboarding' })
+        goToEnterpriseRegister();
       }
     },
     onError: (error) => {

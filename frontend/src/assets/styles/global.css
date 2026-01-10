@@ -33,3 +33,25 @@
     display: none;
   }
 }
+
+@layer utilities {
+  .custom-scrollbar {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #837e7e transparent; /* gray-700 */
+
+    /* Chrome, Edge e Safari */
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: #151515; /* gray-700 */
+      border-radius: 20px;
+    }
+  }
+}

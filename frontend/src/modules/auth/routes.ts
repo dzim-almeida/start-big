@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'login.user',
+    name: 'auth.user',
     component: () => import('./views/LoginView.vue'),
   },
 ];

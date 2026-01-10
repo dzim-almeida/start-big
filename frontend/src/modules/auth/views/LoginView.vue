@@ -57,7 +57,7 @@ onMounted(() => {
 <template>
   <div class="h-screen flex overflow-hidden">
     <!-- Lado esquerdo - Background decorativo -->
-    <div class="hidden lg:flex lg:w-full relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-full relative overflow-hidden select-none">
       <img
         :src="backgroundImage"
         alt="Background decorativo"
@@ -161,7 +161,7 @@ onMounted(() => {
               type="password"
               label="Senha"
               placeholder="Digite sua senha"
-              :error="registerSubmitCount > 0 ? registerErrors.senha : ''"
+              :error="registerErrors.senha"
             />
 
             <!-- Campo Confirme Senha -->

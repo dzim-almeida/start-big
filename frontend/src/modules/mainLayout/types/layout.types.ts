@@ -15,14 +15,26 @@ export type sidebarLabelOptions =
     | 'Catálogo'
     | 'Dados da Empresa'
     | 'Funcionários'
+
+export type requiredPermission =
+    | 'view_dashboard'
+    | 'view_sales'
+    | 'view_services'
+    | 'view_customers'
+    | 'view_products'
+    | 'view_storage'
+    | 'view_catalog'
+    | 'view_enterprise'
+    | 'view_employees'
     
-export interface sidebarOption {
+export interface SidebarOption {
     id: string;
     icon: Component;
     label: sidebarLabelOptions;
+    requiredPermission: requiredPermission;
 }
 
-export interface sidebarSection {
+export interface SidebarSection {
     title: sidebarTitles;
-    options: sidebarOption[];
+    options: SidebarOption[];
 }

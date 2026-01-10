@@ -48,6 +48,7 @@ class Usuario(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True, doc="E-mail único usado para login")
     senha_hash: Mapped[str] = mapped_column(String(255), nullable=False, doc="Hash da senha para autenticação")
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, doc="Status de ativo/inativo para acesso")
+    url_perfil: Mapped[str] = mapped_column(String, nullable=True, doc="Caminho/URL para imagens de perfil do usuário")
 
     # --- Metadados ---
     # Nota: A data_criacao deve ser default para a hora atual se o ORM não fizer isso

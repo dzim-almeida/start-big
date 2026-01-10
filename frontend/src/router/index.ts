@@ -1,4 +1,5 @@
 // import { useAuthStore } from '@/shared/store/auth.store';
+import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
 const modules = import.meta.glob('@/modules/**/routes.ts', { eager: true });
@@ -24,5 +25,10 @@ const router = createRouter({
 //     }
 //   }
 // });
+
+router.afterEach((to) => {
+  const layoutStore = useLayoutStore();
+  layoutStore.updatePageInfo(to);
+});
 
 export default router;

@@ -1,49 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 import { Bell, Search, Menu } from 'lucide-vue-next';
-import { useSidebar } from '../composables/useSidebar';
+import { useLayoutStore } from '../store/layout.store';
+import { storeToRefs } from 'pinia';
 
-const route = useRoute();
-const { isMobile, openSidebar } = useSidebar();
-
-// Configuração de títulos por rota
-const routeTitles: Record<string, { title: string; subtitle: string }> = {
-  home: {
-    title: 'Início',
-    subtitle: 'Resumo geral de pendências e faturamento',
-  },
-  sales: {
-    title: 'Vendas',
-    subtitle: 'Gerencie suas vendas e pedidos',
-  },
-  storage: {
-    title: 'Estoque',
-    subtitle: 'Controle de produtos e inventário',
-  },
-  customers: {
-    title: 'Clientes',
-    subtitle: 'Cadastro e gestão de clientes',
-  },
-  statics: {
-    title: 'Estatísticas',
-    subtitle: 'Relatórios e análises de desempenho',
-  },
-  config: {
-    title: 'Configurações',
-    subtitle: 'Preferências e ajustes do sistema',
-  },
-};
-
-const currentRouteInfo = computed(() => {
-  const routeName = route.name as string;
-  return (
-    routeTitles[routeName] || {
-      title: 'BigPDV',
-      subtitle: 'Sistema de Ponto de Venda',
-    }
-  );
-});
+const layoutStore = useLayoutStore();
+const {
+  pageTitle,
+  pageSubtitle,
+  isMobile,
+} = storeToRefs(layoutStore);
 </script>
 
 <template>
@@ -56,7 +21,7 @@ const currentRouteInfo = computed(() => {
       <button
         v-if="isMobile"
         class="p-2 -ml-2 text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
-        @click="openSidebar"
+        @click="layoutStore.toggleSidebar"
         aria-label="Abrir menu"
       >
         <Menu :size="24" />
@@ -65,10 +30,10 @@ const currentRouteInfo = computed(() => {
       <!-- Page Title -->
       <div class="flex flex-col">
         <h1 class="text-lg md:text-2xl text-brand-primary font-extrabold leading-tight">
-          {{ currentRouteInfo.title }}
+          {{ pageTitle }}
         </h1>
         <p class="text-[10px] md:text-xs text-zinc-400 font-medium hidden sm:block">
-          {{ currentRouteInfo.subtitle }}
+          {{ pageSubtitle }}
         </p>
       </div>
     </div>

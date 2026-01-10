@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { StatCard, RecentTransactions, QuickActions } from '../components/dashboard';
-import { useDashboard } from '../composables';
+import StatCard from '../components/dashboard/StatCard.vue';
+import RecentTransactions from '../components/dashboard/RecentTransactions.vue';
+import { useDashboard } from '../composables/useDashboard';
 import type { PeriodFilter } from '../types/dashboard.types';
+import { useUserDataQuery } from '@/modules/mainLayout/composables/useUserData';
+import { useAuthStore } from '@/shared/store/auth.store';
 
-const { activePeriod, stats, transactions, quickActions, lowStockCount, setPeriod } =
-  useDashboard();
+const { activePeriod, stats, transactions, setPeriod } = useDashboard();
 
-const employee = {
-  name: 'Gabriel',
-};
+const { user } = useAuthStore();
+
+const { data: userData, isLoading } = useUserDataQuery(user?.sub);
 
 const periods: { id: PeriodFilter; label: string }[] = [
   { id: 'today', label: 'Hoje' },
@@ -21,10 +23,9 @@ const periods: { id: PeriodFilter; label: string }[] = [
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <!-- Welcome Header -->
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-      <div>
-        <h2 class="text-xl md:text-2xl font-bold text-zinc-900">
-          Olá, {{ employee.name }}
-        </h2>
+      <div v-if="isLoading" class="py-5 w-80 bg-zinc-500 rounded-md animate-pulse"></div>
+      <div v-else>
+        <h2 class="text-xl md:text-2xl font-bold text-zinc-900">Olá, {{ userData?.nome }}</h2>
         <p class="text-zinc-500 text-xs md:text-sm mt-0.5">
           Confira os resultados da loja para hoje.
         </p>
@@ -66,13 +67,8 @@ const periods: { id: PeriodFilter; label: string }[] = [
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
       <!-- Recent Transactions (2 columns) -->
-      <div class="lg:col-span-2">
+      <div class="lg:col-span-3">
         <RecentTransactions :transactions="transactions" />
-      </div>
-
-      <!-- Quick Actions (1 column) -->
-      <div class="lg:col-span-1">
-        <QuickActions :actions="quickActions" :low-stock-count="lowStockCount" />
       </div>
     </div>
   </div>

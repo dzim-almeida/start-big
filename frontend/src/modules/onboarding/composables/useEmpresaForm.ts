@@ -21,8 +21,8 @@ import { useMutation } from '@tanstack/vue-query';
 import type { AxiosError } from 'axios';
 import { createCompany } from '../services/onboarding.service';
 import { useToast } from '@/shared/composables/useToast';
-import { useRouter } from 'vue-router';
 import { unmaskCep, unmaskDocument, unmaskPhone } from '@/shared/utils/unmask.utils';
+import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 
 /* ============================================
    useCompanyForm
@@ -255,7 +255,7 @@ export function useAddressForm() {
  * @returns Estado de loading, erro e método de confirmação
  */
 export function useConfirmRegisterEmpresa() {
-  const router = useRouter();
+  const { goToHome } = useAppNavigation();
   const toast = useToast();
   const { onboardingData, resetOnboarding } = useOnboarding();
 
@@ -285,7 +285,7 @@ export function useConfirmRegisterEmpresa() {
         'Sua configuração inicial foi concluída. Bem-vindo ao Start Big!'
       );
       resetOnboarding();
-      router.push('/');
+      goToHome();
     },
     onError: (error) => {
       apiError.value = getErrorMessage(error, 'Erro ao cadastrar empresa');

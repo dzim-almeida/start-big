@@ -11,7 +11,7 @@ const STORAGE_KEY = 'token';
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(getItem('token'));
-  const user = ref<TokenUser | null>(jwtDecode((token.value) ?? ''));
+  const user = ref<TokenUser | null>(jwtDecode(token.value as string));
 
   const isAuthenticated = computed(() => !!token.value);
 

@@ -4,6 +4,7 @@
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from app.schemas.empresa import EmpresaUserRead
 from typing import Optional
 from datetime import datetime
 
@@ -59,14 +60,15 @@ class UsuarioRead(UsuarioBase):
 
     Attributes:
         id (int): ID único do usuário.
-        empresa_id (Optional[int]): ID da empresa à qual o usuário está vinculado. Pode ser None.
         ativo (bool): Status de ativo/inativo do usuário.
         is_master (bool): Indica se o usuário é o Master/Administrador da empresa.
+        empresa (EmpresaUserRead) : Dados da empresa.
     """
     id: int = Field(..., description="ID do usuário")
-    empresa_id: Optional[int] = Field(None, description="ID da empresa")
     ativo: bool = Field(..., description="Status de ativo/inativo")
     is_master: bool = Field(..., description="Define se é o usuário Master da empresa")
+    url_perfil: Optional[str] = Field(None, description="URL da foto de perfil")
+    empresa: Optional[EmpresaUserRead] = Field(None, description="Dados da empresa do usuario")
     # Nota: data_criacao é comum em retornos, mantive o comentário.
 
 # =========================

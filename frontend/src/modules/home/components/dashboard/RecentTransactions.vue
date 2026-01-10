@@ -43,7 +43,7 @@ function getInitial(name: string): string {
 
     <!-- Table -->
     <div class="overflow-x-auto">
-      <table class="w-full text-left min-w-[500px]">
+      <table class="w-full text-left min-w-125">
         <thead>
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
@@ -75,7 +75,7 @@ function getInitial(name: string): string {
                 >
                   {{ getInitial(transaction.customer) }}
                 </div>
-                <span class="truncate max-w-[120px] md:max-w-none">{{
+                <span class="truncate max-w-30 md:max-w-none">{{
                   transaction.customer
                 }}</span>
               </div>

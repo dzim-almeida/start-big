@@ -1,34 +1,42 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 
-import { useMainLayoutStore } from '@/shared/store/mainLayout.store';
+import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/store/auth.store';
 
 import SidebarItem from './SidebarItem.vue';
-import { useSidebar } from '../../composables/useSidebar';
-import { ShoppingCart, LogOut } from 'lucide-vue-next';
-import { SIDEBAR_SECTIONS } from '@/shared/constants/mainLayout.constants';
+import CompanyCard from '../commons/CompanyCard.vue';
+import UserCard from '../commons/UserCard.vue';
+import SidebarSectionSkeleton from './SidebarSectionSkeleton.vue';
 
-const router = useRouter();
+import { useUserDataQuery } from '../../composables/useUserData';
+import { SIDEBAR_SECTIONS } from '@/modules/mainLayout/constants/layout.constants';
+import { computed, onMounted, onUnmounted } from 'vue';
+import { useCheckPermission } from '../../composables/useCheckPermission';
 
-const { setActiveTab } = useMainLayoutStore();
-const { activeTab } = storeToRefs(useMainLayoutStore());
+const layoutStore = useLayoutStore();
+const { activeTab, isMobile, isMobileOpen } = storeToRefs(layoutStore);
 
-const { user } = storeToRefs(useAuthStore())
+const { user: userToken } = storeToRefs(useAuthStore());
 
-const { isMobile, isMobileOpen } = useSidebar();
+const { data: userData, isLoading } = useUserDataQuery(userToken.value?.sub);
 
-const employee = {
-  name: 'Gabriel Santos',
-  role: 'Gerente de Vendas',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Gabriel',
-};
+const { hasPermission } = useCheckPermission();
 
-function handleLogout(): void {
-  // TODO: Implementar logout real
-  router.push({ name: 'login' });
-}
+const filteredSidebar = computed(() => {
+  return SIDEBAR_SECTIONS.map((section) => ({
+    ...section,
+    options: section.options.filter((opt) => hasPermission(opt.requiredPermission)),
+  })).filter((section) => section.options.length > 0);
+});
+
+onMounted(() => {
+  layoutStore.init();
+});
+
+onUnmounted(() => {
+  layoutStore.close();
+});
 </script>
 
 <template>
@@ -43,32 +51,22 @@ function handleLogout(): void {
     >
       <!-- Company Header -->
       <div class="p-6">
-        <div
-          class="flex items-center space-x-3 bg-zinc-900/50 p-3 rounded-2xl border border-zinc-800"
-        >
-          <div
-            class="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center shadow-inner"
-          >
-            <ShoppingCart :size="22" class="text-white" />
-          </div>
-          <div class="flex-1">
-            <h1 class="text-sm font-bold -tracking-normal uppercase -mb-1">BigTec</h1>
-            <div class="flex justify-start items-center space-x-1 mt-1">
-              <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-              <span class="text-[10px] text-zinc-500 font-medium">SISTEMA ATIVO</span>
-            </div>
-          </div>
-        </div>
+        <CompanyCard
+          :company-name="userData?.empresa.nome_fantasia ?? 'Erro'"
+          :image-url="userData?.empresa.url_logo"
+          :status="userData?.empresa.ativo ?? false"
+          :is-loading="isLoading"
+        />
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 px-4 space-y-4 mt-2 overflow-y-auto">
-        <div
-          v-for="(section, index) in SIDEBAR_SECTIONS"
-          :key="index"
-        >
+      <nav class="flex-1 px-4 space-y-4 mt-2 mb-4 overflow-y-auto custom-scrollbar">
+
+        <SidebarSectionSkeleton v-if="isLoading" />
+
+        <div v-else v-for="(section, index) in filteredSidebar" :key="index" class="space-y-1">
           <p class="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">
-            {{section.title}}
+            {{ section.title }}
           </p>
           <SidebarItem
             v-for="option in section.options"
@@ -77,39 +75,19 @@ function handleLogout(): void {
             :icon="option.icon"
             :label="option.label"
             :active="activeTab === option.id"
-            :route="option.id"
-            @click-tab="setActiveTab"
           />
         </div>
       </nav>
 
       <!-- User Profile -->
       <div class="p-4 mt-auto border-t border-zinc-700/50">
-        <div
-          class="flex items-center space-x-3 p-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 transition-colors cursor-pointer group"
-        >
-          <img
-            :src="employee.avatar"
-            alt="Foto do usuário"
-            class="w-10 h-10 rounded-xl bg-zinc-700 p-0.5"
-          />
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold truncate group-hover:text-blue-400 transition-colors">
-              {{ user?.nome }}
-            </p>
-            <p class="text-[11px] text-zinc-500 font-medium">{{ user?.cargo }}</p>
-          </div>
-          <button
-            class="p-2 rounded-lg hover:bg-zinc-700 transition-colors group/logout"
-            @click.stop="handleLogout"
-            aria-label="Sair da conta"
-          >
-            <LogOut
-              :size="16"
-              class="text-zinc-600 group-hover/logout:text-red-400 transition-colors"
-            />
-          </button>
-        </div>
+        <UserCard
+          :user-name="userData?.nome"
+          :user-cargo="userToken?.cargo"
+          :image-url="userData?.url_perfil"
+          :status="userToken?.ativo"
+          :is-loading="isLoading"
+        />
       </div>
     </aside>
   </Transition>

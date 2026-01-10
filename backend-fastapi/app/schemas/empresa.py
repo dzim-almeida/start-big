@@ -12,7 +12,6 @@ from typing import Optional, List, Type # Importamos Type para a reconstrução 
 # É necessário importar os schemas abaixo para que o Pydantic os encontre
 # e use no tempo de execução.
 from app.schemas.endereco import Endereco, EnderecoRead
-from app.schemas.usuario import UsuarioRead
 
 # =========================
 # Schema Base
@@ -131,9 +130,9 @@ class EmpresaCreate(EmpresaBase):
     )
 
 # =========================
-# Read (Saída)
+# Admin Read (Saída)
 # =========================
-class EmpresaRead(EmpresaBase):
+class EmpresaAdminRead(EmpresaBase):
     """
     Formato de resposta da API para Empresa. Inclui dados internos (id, ativo)
     e listas aninhadas de endereços e usuários.
@@ -142,17 +141,40 @@ class EmpresaRead(EmpresaBase):
         id (int): ID único da empresa.
         ativo (bool): Status de ativo/inativo da empresa.
         enderecos (Optional[List[EnderecoRead]]): Lista de endereços cadastrados, incluindo seus IDs.
-        usuarios (List[UsuarioRead]): Lista de usuários vinculados a essa empresa.
     """
     id: int = Field(..., description="ID único da empresa")
     ativo: bool = Field(..., description="Status da empresa")
 
     # Referência de string para EnderecoRead e UsuarioRead
-    enderecos: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
+    endereco: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
 
-    # Corrigido o tipo para List nativo (List[UsuarioRead] é preferencial em v2)
-    usuarios: List["UsuarioRead"] = Field(..., description="Usuários vinculados a essa empresa")
-    
-# Notifica o Pydantic para resolver as referências de string (melhor prática)
+# =========================
+# User Read (Saída)
+# =========================
+class EmpresaUserRead(BaseModel):
+    id: int = Field(
+        ...,
+        description="ID unico da empresa"
+    )
+    ativo: bool = Field(
+        ...,
+        description="Status da empresa"
+    )
+    razao_social: str = Field(
+        ..., 
+        max_length=255, 
+        description="Razão Social da empresa"
+    )
+    nome_fantasia: Optional[str] = Field(
+        None, 
+        max_length=255, 
+        description="Nome Fantasia (comercial)"
+    )
+    url_logo: Optional[str] = Field(
+        None, 
+        max_length=255, 
+        description="URL ou caminho da logo da empresa"
+    )
+
 EmpresaCreate.model_rebuild()
-EmpresaRead.model_rebuild()
+EmpresaAdminRead.model_rebuild()

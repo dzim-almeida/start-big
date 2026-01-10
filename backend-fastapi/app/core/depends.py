@@ -13,7 +13,7 @@ from app.services import usuario as usuario
 from app.db.crud import token as token_crud
 from app.db.session import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login_data")
 
 
 def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[str, Any]:
