@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 
-import { sidebarLabelOptions } from '@/modules/mainLayout/types/layout.types';
+import { SidebarLabelOptions } from '@/modules/mainLayout/types/layout.types';
 import type { Component } from 'vue';
 
 const props = defineProps<{
   id: string;
   icon: Component;
-  label: sidebarLabelOptions;
+  label: SidebarLabelOptions;
   active: boolean;
 }>();
 

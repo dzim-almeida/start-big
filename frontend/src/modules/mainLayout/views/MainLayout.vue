@@ -2,9 +2,9 @@
 import { Zap } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core'
 
-import BaseSidebar from '../components/BaseSidebar/BaseSidebar.vue';
-import BaseHeader from '../components/BaseHeader.vue';
-import QuickActions from '../components/commons/QuickActions.vue';
+import BaseSidebar from '../components/layout/sidebar/BaseSidebar.vue';
+import BaseHeader from '../components/layout/BaseHeader.vue';
+import QuickActions from '../components/ui/QuickActions.vue';
 
 import { useDashboard } from '@/modules/home/composables/useDashboard';
 import { useLayoutStore } from '../store/layout.store';

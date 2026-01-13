@@ -32,8 +32,3 @@ export const ESTADOS_BRASILEIROS: SelectOption[] = [
   { value: 'SE', label: 'SE - Sergipe' },
   { value: 'TO', label: 'TO - Tocantins' },
 ];
-
-export const TIPO_DOCUMENTO: SelectOption[] = [
-  { value: 'cnpj', label: 'CNPJ' },
-  { value: 'cpf', label: 'CPF' }
-]

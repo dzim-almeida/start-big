@@ -5,8 +5,10 @@
  * Permite buscar e filtrar opções conforme o usuário digita.
  */
 
-import Icons from '@/modules/onboarding/components/icons/Icons.vue';
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+
+import LucideIcon from '../../icons/LucideIcon.vue';
+import { ChevronDown } from 'lucide-vue-next';
 
 export interface SelectOption {
   value: string;
@@ -200,7 +202,7 @@ onUnmounted(() => {
       <div
         class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
       >
-        <Icons icon="select" />
+        <LucideIcon :icon="ChevronDown" />
       </div>
 
       <Transition

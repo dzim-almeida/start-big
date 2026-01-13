@@ -5,13 +5,13 @@ import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
 import SidebarItem from './SidebarItem.vue';
-import CompanyCard from '../commons/CompanyCard.vue';
-import UserCard from '../commons/UserCard.vue';
+import CompanyCard from '../../ui/CompanyCard.vue';
+import UserCard from '../../ui/UserCard.vue';
 import SidebarSectionSkeleton from './SidebarSectionSkeleton.vue';
 
 import { SIDEBAR_SECTIONS } from '@/modules/mainLayout/constants/layout.constants';
 import { computed, onMounted, onUnmounted } from 'vue';
-import { useCheckPermission } from '../../composables/useCheckPermission';
+import { useCheckPermission } from '@/modules/mainLayout/composables/useCheckPermission';
 
 const layoutStore = useLayoutStore();
 const { activeTab, isMobile, isMobileOpen } = storeToRefs(layoutStore);

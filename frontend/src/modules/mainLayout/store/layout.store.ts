@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { RouteLocationNormalized, useRoute } from 'vue-router';
 
-import { sidebarLabelOptions } from '../types/layout.types';
+import { SidebarLabelOptions } from '../types/layout.types';
 
 export const useLayoutStore = defineStore('layout', () => {
   //Constantes
@@ -26,7 +26,7 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   //Menu geral
-  const pageTitle = ref<sidebarLabelOptions>('Início');
+  const pageTitle = ref<SidebarLabelOptions>('Início');
   const pageSubtitle = ref<string>('');
   const activeTab = ref<string>('');
   
@@ -45,7 +45,7 @@ export const useLayoutStore = defineStore('layout', () => {
    //Metodos
   function updatePageInfo(route: RouteLocationNormalized) {
     const { meta } = route;
-    pageTitle.value = meta.title as sidebarLabelOptions;
+    pageTitle.value = meta.title as SidebarLabelOptions;
     pageSubtitle.value = meta.subtitle || '';
     activeTab.value = meta.tabId || '';
   }

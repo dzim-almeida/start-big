@@ -5,8 +5,8 @@
  * Apresenta ícone, label e estado selecionado com animações suaves.
  */
 
-import SegmentIcons from './icons/SegmentIcons.vue';
-import type { BusinessSegment } from '../types/onboarding.types';
+import SegmentIcons from '../icons/SegmentIcons.vue';
+import type { BusinessSegment } from '../../types/onboarding.types';
 
 /* ============================================
    Props

@@ -5,10 +5,13 @@
  * full-screen e card centralizado flutuante.
  */
 import { ref, watch, nextTick } from 'vue';
-import backgroundImage from '@/assets/images/login/background.png';
-import logoImage from '@/assets/images/login/start-logo.png';
+
+import backgroundImage from '@/shared/assets/images/login/background.png';
+import logoImage from '@/shared/assets/images/login/start-logo.png';
+
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
-import { useOnboarding } from '../composables/useOnboarding';
+
+import { useOnboarding } from '../../composables/useOnboarding';
 
 const { currentStep } = useOnboarding();
 
@@ -20,7 +23,7 @@ watch(currentStep, async () => {
   if (scrollContainer.value) {
     scrollContainer.value.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
   }
 });

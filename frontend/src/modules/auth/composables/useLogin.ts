@@ -13,7 +13,7 @@ import {
   saveRememberMe,
   clearRememberMe,
   getRememberedEmail,
-} from '../services/login.service';
+} from '../services/auth.service';
 import type { LoginResponse } from '../types/auth.types';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import type { ApiError } from '@/shared/types/axios.types';
@@ -57,14 +57,13 @@ export function useLogin() {
   const loginMutation = useMutation<LoginResponse, AxiosError<ApiError>, LoginFormData>({
     mutationFn: (data) => login({ email: data.email, senha: data.senha }),
     onSuccess: async () => {
-
       // 1. Força a atualização e AGUARDA terminar
       await authStore.revalidateUser();
 
       // 2. Verificação de segurança: Se após revalidar, o usuário ainda for null, algo falhou.
       if (!userData.value) {
         apiError.value = 'Erro ao recuperar sessão. Verifique os cookies.';
-        authStore.logoutUser()
+        authStore.logoutUser();
         return;
       }
 

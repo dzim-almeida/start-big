@@ -6,7 +6,7 @@
  */
 
 import { computed } from 'vue';
-import OnboardingLayout from '../components/OnboardingLayout.vue';
+import OnboardingLayout from '../components/ui/OnboardingLayout.vue';
 import WelcomeStep from '../components/steps/WelcomeStep.vue';
 import SegmentStep from '../components/steps/SegmentStep.vue';
 import CompanyStep from '../components/steps/CompanyStep.vue';

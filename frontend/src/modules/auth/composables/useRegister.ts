@@ -4,11 +4,11 @@
  * do formulário de cadastro utilizando Vee-Validate e Vue Query.
  */
 
-import { ref, reactive, Ref} from 'vue';
+import { ref, reactive, Ref } from 'vue';
 import { useForm } from 'vee-validate';
 import { useMutation } from '@tanstack/vue-query';
 import { registerValidationSchema, type RegisterFormData } from '../schemas/register.schema';
-import { register } from '../services/login.service';
+import { register } from '../services/auth.service';
 import type { AuthTab, RegisterResponse } from '../types/auth.types';
 import type { ApiError } from '@/shared/types/axios.types';
 import { getErrorMessage, isConflictError } from '@/shared/utils/error.utils';
@@ -68,7 +68,7 @@ export function useRegister(activeTab?: Ref<AuthTab>) {
 
   const registerSubmit = handleSubmit((values) => {
     apiError.value = null;
-    registerMutation.mutate(values)
+    registerMutation.mutate(values);
   });
 
   return {

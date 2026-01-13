@@ -4,6 +4,8 @@
  * da empresa no sistema Start Big.
  */
 
+import type { Component } from "vue";
+
 /**
  * Segmentos de negócio disponíveis para seleção
  */
@@ -27,6 +29,12 @@ export interface SegmentOption {
   id: BusinessSegment;
   label: string;
   icon: string;
+  description: string;
+}
+
+export interface FeaturesOptions {
+  icon: Component;
+  title: string;
   description: string;
 }
 

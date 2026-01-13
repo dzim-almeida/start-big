@@ -5,7 +5,7 @@
  * Emite eventos de seleção para o componente pai.
  */
 
-import Icons from '../icons/Icons.vue';
+import { ChevronDown } from 'lucide-vue-next';
 
 /* ============================================
    Types
@@ -72,7 +72,7 @@ function changeSelect(value: string): void {
       </option>
     </select>
     <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-      <Icons icon="select" />
+      <ChevronDown :size="20" />
     </div>
   </div>
 </template>

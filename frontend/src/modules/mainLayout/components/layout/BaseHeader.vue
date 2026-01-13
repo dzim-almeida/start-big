@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Bell, Search, Menu } from 'lucide-vue-next';
-import { useLayoutStore } from '../store/layout.store';
+import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
 
 const layoutStore = useLayoutStore();

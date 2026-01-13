@@ -1,4 +1,5 @@
 export type Permissions =
+  | 'all'
   | 'view_dashboard'
   | 'view_sales'
   | 'view_storage'
