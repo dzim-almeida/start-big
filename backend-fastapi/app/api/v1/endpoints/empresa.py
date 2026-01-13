@@ -58,7 +58,7 @@ def create_empresa(
     )
 
 @router.post(
-    "/imagem/",
+    "/imagem",
     response_model=EmpresaAdminRead,
     status_code=status.HTTP_201_CREATED,
     summary="Upload de Logomarca",

@@ -12,7 +12,6 @@ from typing import Optional, List, Type # Importamos Type para a reconstrução 
 # É necessário importar os schemas abaixo para que o Pydantic os encontre
 # e use no tempo de execução.
 from app.schemas.endereco import Endereco, EnderecoRead
-from app.schemas.usuario import UsuarioRead
 
 # =========================
 # Schema Base
@@ -142,7 +141,6 @@ class EmpresaAdminRead(EmpresaBase):
         id (int): ID único da empresa.
         ativo (bool): Status de ativo/inativo da empresa.
         enderecos (Optional[List[EnderecoRead]]): Lista de endereços cadastrados, incluindo seus IDs.
-        usuarios (List[UsuarioRead]): Lista de usuários vinculados a essa empresa.
     """
     id: int = Field(..., description="ID único da empresa")
     ativo: bool = Field(..., description="Status da empresa")
@@ -150,13 +148,14 @@ class EmpresaAdminRead(EmpresaBase):
     # Referência de string para EnderecoRead e UsuarioRead
     endereco: Optional[List["EnderecoRead"]] = Field(None, description="Endereços cadastrados")
 
-    # Corrigido o tipo para List nativo (List[UsuarioRead] é preferencial em v2)
-    usuarios: List["UsuarioRead"] = Field(..., description="Usuários vinculados a essa empresa")
-
 # =========================
 # User Read (Saída)
 # =========================
 class EmpresaUserRead(BaseModel):
+    id: int = Field(
+        ...,
+        description="ID unico da empresa"
+    )
     ativo: bool = Field(
         ...,
         description="Status da empresa"
@@ -176,6 +175,8 @@ class EmpresaUserRead(BaseModel):
         max_length=255, 
         description="URL ou caminho da logo da empresa"
     )
+
+    model_config = ConfigDict(from_attributes=True)
 
 EmpresaCreate.model_rebuild()
 EmpresaAdminRead.model_rebuild()

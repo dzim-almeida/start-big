@@ -6,13 +6,16 @@
  */
 
 import { computed } from 'vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import SegmentCard from '../SegmentCard.vue';
-import Icons from '../icons/Icons.vue';
+
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
+import { ArrowRight, ArrowLeft, Info } from 'lucide-vue-next';
 
 import { useOnboarding } from '../../composables/useOnboarding';
 import { BUSINESS_SEGMENTS } from '../../constants/segments';
 import type { BusinessSegment } from '../../types/onboarding.types';
+
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import SegmentCard from '../ui/SegmentCard.vue';
 
 const { onboardingData, setSegment, nextStep, previousStep } = useOnboarding();
 
@@ -56,13 +59,15 @@ function handleSegmentSelect(id: BusinessSegment) {
       v-if="onboardingData.company.segmento"
       class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3"
     >
-      <div class="w-8 h-8 bg-brand-primary/10 rounded-full flex items-center justify-center shrink-0">
-        <Icons icon="info" />
+      <div
+        class="w-8 h-8 bg-brand-primary/10 rounded-full flex items-center justify-center shrink-0"
+      >
+        <LucideIcon :icon="Info" />
       </div>
       <p class="text-sm text-gray-600">
         O sistema será personalizado para
         <strong class="text-brand-primary">
-          {{ BUSINESS_SEGMENTS.find(s => s.id === onboardingData.company.segmento)?.label }}
+          {{ BUSINESS_SEGMENTS.find((s) => s.id === onboardingData.company.segmento)?.label }}
         </strong>
         com campos e recursos específicos para seu segmento.
       </p>
@@ -70,24 +75,14 @@ function handleSegmentSelect(id: BusinessSegment) {
 
     <!-- Botões de navegação -->
     <div class="flex gap-4">
-      <BaseButton
-        variant="secondary"
-        size="lg"
-        class="flex-1"
-        @click="previousStep"
-      >
-        <Icons icon="back" />
+      <BaseButton variant="secondary" size="lg" class="flex-1" @click="previousStep">
+        <LucideIcon :icon="ArrowLeft" />
         Voltar
       </BaseButton>
 
-      <BaseButton
-        size="lg"
-        class="flex-1"
-        :disabled="!canProceed"
-        @click="nextStep"
-      >
+      <BaseButton size="lg" class="flex-1" :disabled="!canProceed" @click="nextStep">
         Salvar
-        <Icons icon="next" />
+        <LucideIcon :icon="ArrowRight" />
       </BaseButton>
     </div>
   </div>

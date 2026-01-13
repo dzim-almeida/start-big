@@ -7,18 +7,18 @@
  */
 
 import { onMounted, ref } from 'vue';
-import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import BaseCheckbox from '@/shared/components/BaseCheckbox/BaseCheckbox.vue';
-import BaseTab from '@/shared/components/BaseTab/BaseTab.vue';
+import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
+import BaseTab from '@/shared/components/ui/BaseTab/BaseTab.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
 
 import { useLogin } from '../composables/useLogin';
 import { useRegister } from '../composables/useRegister';
 import type { AuthTab } from '../types/auth.types';
 
-import backgroundImage from '@/assets/images/login/background.png';
-import logoImage from '@/assets/images/login/start-logo.png';
+import backgroundImage from '@/shared/assets/images/login/background.png';
+import logoImage from '@/shared/assets/images/login/start-logo.png';
 
 const activeTab = ref<AuthTab>('entrar');
 
@@ -37,6 +37,7 @@ const {
   loginSubmit,
   submitCount: loginSubmitCount,
 } = useLogin();
+
 const {
   registerData,
   errors: registerErrors,
@@ -56,7 +57,7 @@ onMounted(() => {
 <template>
   <div class="h-screen flex overflow-hidden">
     <!-- Lado esquerdo - Background decorativo -->
-    <div class="hidden lg:flex lg:w-full relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-full relative overflow-hidden select-none">
       <img
         :src="backgroundImage"
         alt="Background decorativo"
@@ -160,7 +161,7 @@ onMounted(() => {
               type="password"
               label="Senha"
               placeholder="Digite sua senha"
-              :error="registerSubmitCount > 0 ? registerErrors.senha : ''"
+              :error="registerErrors.senha"
             />
 
             <!-- Campo Confirme Senha -->
@@ -174,12 +175,7 @@ onMounted(() => {
 
             <!-- Botão de Cadastro -->
             <div class="pt-2">
-              <BaseButton
-                type="submit"
-                size="md"
-                :is-loading="registerIsLoading"
-                class="w-full"
-              >
+              <BaseButton type="submit" size="md" :is-loading="registerIsLoading" class="w-full">
                 Cadastrar
               </BaseButton>
             </div>

@@ -4,14 +4,24 @@
 # DESCRIÇÃO: Lógica de autenticação, hashing de senhas e regras de criação.
 # ---------------------------------------------------------------------------
 
-from fastapi import HTTPException, status
+import os
+import shutil
+import uuid
+from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.models.usuario import Usuario as UsuarioModel
+from app.schemas.usuario import UsuarioRead
 from app.schemas.usuario import UsuarioCreate
 from app.core.security import hash_password
 from app.db.crud import usuario as usuario_crud
+
+# ---------------------------------------------------------------------------
+# CONSTANTES
+# ---------------------------------------------------------------------------
+
+UPLOAD_BASE_DIR = "static/uploads/usuarios"
 
 # ---------------------------------------------------------------------------
 # EXCEÇÕES CONTEXTUALIZADAS (REGRA 4: Robustez)
@@ -34,6 +44,23 @@ def _get_conflict_exception(detail: str = "Email de usuário já cadastrado no s
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO
 # ---------------------------------------------------------------------------
+def save_image_locally(img_file: UploadFile, usuario_id: int) -> str:
+    file_extension = os.path.splitext(img_file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+
+    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(usuario_id))
+    os.makedirs(produto_folder, exist_ok=True)
+    file_path = os.path.join(produto_folder, unique_filename)
+
+    try:
+        with open(file_path, 'wb') as f:
+            shutil.copyfileobj(img_file.file, f)
+    finally:
+        img_file.file.close()
+
+    url_image_file = f"{UPLOAD_BASE_DIR}/{usuario_id}/{unique_filename}"
+    return url_image_file
+
 
 def create_usuario(
     db: Session, 
@@ -92,6 +119,52 @@ def create_usuario(
     # 4. Persistência
     return usuario_crud.create_user(db, usuario_to_add=usuario_to_db)
 
+def create_image_usuario(db: Session, usuario_id: int, img_file: UploadFile) -> UsuarioModel:
+    
+    usuario_in_db = usuario_crud.get_usuario_by_id(db, usuario_id=usuario_id)
+
+    if not usuario_in_db:
+        raise _get_not_found_exception
+    
+    saved_file_url = save_image_locally(
+        img_file=img_file,
+        usuario_id=usuario_in_db.id
+    )
+    
+    usuario_in_db.url_perfil = saved_file_url
+    return usuario_in_db
+
+def get_usuario_me_by_id(db: Session, usuario_id: int) -> UsuarioRead:
+    
+    usuario_in_db = usuario_crud.get_usuario_by_id(db, usuario_id=usuario_id)
+
+    if not usuario_in_db:
+        raise _get_not_found_exception
+    
+    if (usuario_in_db.is_master):
+        cargo_data = {
+            "nome": "Master",
+            "permissoes": {"all": True}
+        }
+    elif (usuario_in_db.funcionario is not None and usuario_in_db.funcionario.cargo is not None):
+        cargo_data = usuario_in_db.funcionario.cargo
+    else:
+        cargo_data = {
+            "nome": "Sem cargo atribuído",
+            "permissoes": {}
+        }
+
+    return UsuarioRead(
+        id=usuario_in_db.id,
+        nome=usuario_in_db.nome,
+        email=usuario_in_db.email,
+        url_perfil=usuario_in_db.url_perfil,
+        ativo=usuario_in_db.ativo,
+        empresa=usuario_in_db.empresa,
+        cargo=cargo_data
+    )
+
+
 def get_usuario_by_id(db: Session, usuario_id: int) -> UsuarioModel:
     """
     Busca um usuário pelo ID e levanta 404 se não encontrado.
@@ -106,11 +179,7 @@ def get_usuario_by_id(db: Session, usuario_id: int) -> UsuarioModel:
     Returns:
         UsuarioModel: O objeto UsuarioModel encontrado.
     """
-    usuario_in_db = usuario_crud.get_usuario_by_id(db, usuario_id=usuario_id)
-    if not usuario_in_db:
-        raise _get_not_found_exception()
-
-    return usuario_in_db
+    return usuario_crud.get_usuario_by_id(db, usuario_id=usuario_id)
 
 def get_usuario_by_email(db: Session, usuario_email: str) -> Optional[UsuarioModel]:
     """

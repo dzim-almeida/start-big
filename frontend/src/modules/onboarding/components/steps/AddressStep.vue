@@ -2,17 +2,20 @@
 /**
  * @component AddressStep
  * @description Tela de endereço da empresa (Step 3).
- * Formulário com busca automática de CEP via ViaCEP.
  */
+// Ícones
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
+import { Building2, Lightbulb, ArrowLeft, ArrowRight } from 'lucide-vue-next';
 
-import BaseButton from '@/shared/components/BaseButton/BaseButton.vue';
-import BaseInput from '@/shared/components/BaseInput/BaseInput.vue';
-import BaseSelect from '@/shared/components/BaseSelect/BaseSelect.vue';
-import SegmentIcons from '../icons/SegmentIcons.vue';
+// Composables e Constantes
 import { useOnboarding } from '../../composables/useOnboarding';
 import { useAddressForm } from '../../composables/useEmpresaForm';
-import Icons from '../icons/Icons.vue';
-import { ESTADOS_BRASILEIROS } from '@/shared/constants/estados.constant';
+import { ESTADOS_BRASILEIROS } from '@/shared/constants/locations.constants';
+
+// Componentes Base
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
 const { previousStep } = useOnboarding();
 
@@ -35,17 +38,17 @@ const {
 <template>
   <div>
     <form @submit.prevent="onSubmit" class="space-y-6">
-      <!-- Seção: Endereço -->
       <section>
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-            <SegmentIcons icon="building" size="sm" />
+          <div
+            class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+          >
+            <LucideIcon :icon="Building2" />
           </div>
           <h2 class="text-lg font-semibold text-brand-action">Endereço</h2>
         </div>
 
         <div class="grid grid-cols-12 gap-4">
-          <!-- CEP -->
           <div class="col-span-12 md:col-span-3">
             <div class="relative">
               <BaseInput
@@ -57,24 +60,31 @@ const {
                 :error="submitCount > 0 ? errors.cep : ''"
                 :disabled="cepIsLoading"
               />
-              <!-- Loading indicator -->
-              <div
-                v-if="cepIsLoading"
-                class="absolute right-3 top-8"
-              >
-                <svg class="animate-spin h-4 w-4 text-brand-primary" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <div v-if="cepIsLoading" class="absolute right-3 top-8">
+                <svg
+                  class="animate-spin h-4 w-4 text-brand-primary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
               </div>
             </div>
-            <!-- Erro do CEP -->
-            <p v-if="cepIsError" class="mt-1 text-xs text-amber-600">
-              CEP não encontrado
-            </p>
+            <p v-if="cepIsError" class="mt-1 text-xs text-amber-600">CEP não encontrado</p>
           </div>
 
-          <!-- Logradouro -->
           <div class="col-span-12 md:col-span-7">
             <BaseInput
               v-model="logradouro"
@@ -85,7 +95,6 @@ const {
             />
           </div>
 
-          <!-- Número -->
           <div class="col-span-12 md:col-span-2">
             <BaseInput
               v-model="numero"
@@ -95,7 +104,6 @@ const {
             />
           </div>
 
-          <!-- Complemento -->
           <div class="col-span-12 md:col-span-6">
             <BaseInput
               v-model="complemento"
@@ -105,7 +113,6 @@ const {
             />
           </div>
 
-          <!-- Bairro -->
           <div class="col-span-12 md:col-span-6">
             <BaseInput
               v-model="bairro"
@@ -116,7 +123,6 @@ const {
             />
           </div>
 
-          <!-- Cidade -->
           <div class="col-span-12 md:col-span-8">
             <BaseInput
               v-model="cidade"
@@ -127,7 +133,6 @@ const {
             />
           </div>
 
-          <!-- Estado -->
           <div class="col-span-12 md:col-span-4">
             <BaseSelect
               v-model="estado"
@@ -141,17 +146,17 @@ const {
         </div>
       </section>
 
-      <!-- Dica -->
       <div class="p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
-        <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
-          <Icons icon="light" />
+        <div
+          class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center shrink-0 text-amber-600"
+        >
+          <LucideIcon :icon="Lightbulb" />
         </div>
         <p class="text-sm text-amber-800">
           <strong>Dica:</strong> Digite o CEP e os campos serão preenchidos automaticamente!
         </p>
       </div>
 
-      <!-- Botões de navegação -->
       <div class="flex gap-4 pt-4">
         <BaseButton
           type="button"
@@ -160,17 +165,12 @@ const {
           class="flex-1"
           @click="previousStep"
         >
-          <Icons icon="back" />
+          <LucideIcon :icon="ArrowLeft" />
           Voltar
         </BaseButton>
-
-        <BaseButton
-          type="submit"
-          size="lg"
-          class="flex-1"
-        >
+        <BaseButton type="submit" size="lg" class="flex-1">
           Salvar
-          <Icons icon="next" />
+          <LucideIcon :icon="ArrowRight" />
         </BaseButton>
       </div>
     </form>

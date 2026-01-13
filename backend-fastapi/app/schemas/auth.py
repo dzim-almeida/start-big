@@ -28,8 +28,8 @@ class UsuarioLogin(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "email": "teste@gmail.com",
-                "senha": "string123"
+                "email": "test@test.com",
+                "senha": "test1234"
             }
         }
     )

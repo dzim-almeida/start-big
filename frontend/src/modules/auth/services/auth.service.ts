@@ -4,7 +4,8 @@
  * autenticação da API (login, logout, etc.).
  */
 
-import api from '@/shared/libs/axios';
+import api from '@/api/axios';
+
 import type {
   LoginRequest,
   LoginResponse,
@@ -13,13 +14,10 @@ import type {
 } from '../types/auth.types';
 
 /**
- * Chaves utilizadas para armazenamento local
+ * Chave utilizadas para armazenamento local
  */
-const STORAGE_KEYS = {
-  ACCESS_TOKEN: 'access_token',
-  TOKEN_TYPE: 'token_type',
-  REMEMBER_ME: 'remember_me',
-} as const;
+const REMEMBER_ME = 'rememberMe';
+
 
 /**
  * Realiza o login do usuário
@@ -27,14 +25,14 @@ const STORAGE_KEYS = {
  * @returns Promise com os dados de resposta do login
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const response = await api.post<LoginResponse>('auth/login', credentials);
-  return response.data;
+    const response = await api.post<LoginResponse>('auth/login', credentials);
+    return response.data;
 }
 
 /**
  * Realiza o cadastro do usuário
  * @param data - Dados de cadastro (nome, email, senha)
- * @returns Promise com os dados de resposta do casdatro
+ * @returns Promise com os dados de resposta do cadastro
  */
 export async function register(registerData: RegisterRequest): Promise<RegisterResponse> {
   const response = await api.post<RegisterResponse>('usuarios/', registerData);
@@ -42,45 +40,11 @@ export async function register(registerData: RegisterRequest): Promise<RegisterR
 }
 
 /**
- * Armazena o token de acesso no localStorage
- * @param token - Token JWT retornado pela API
- * @param tokenType - Tipo do token (geralmente "bearer")
- */
-export function saveToken(token: string, tokenType: string): void {
-  localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
-  localStorage.setItem(STORAGE_KEYS.TOKEN_TYPE, tokenType);
-}
-
-/**
- * Recupera o token de acesso armazenado
- * @returns Token de acesso ou null se não existir
- */
-export function getToken(): string | null {
-  return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-}
-
-/**
- * Remove os dados de autenticação do localStorage
- */
-export function clearAuth(): void {
-  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-  localStorage.removeItem(STORAGE_KEYS.TOKEN_TYPE);
-}
-
-/**
- * Verifica se o usuário está autenticado
- * @returns true se houver um token armazenado
- */
-export function isAuthenticated(): boolean {
-  return !!getToken();
-}
-
-/**
  * Salva a preferência de "lembrar-me" do usuário
  * @param email - Email a ser lembrado
  */
 export function saveRememberMe(email: string): void {
-  localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, email);
+  localStorage.setItem(REMEMBER_ME, email);
 }
 
 /**
@@ -88,12 +52,12 @@ export function saveRememberMe(email: string): void {
  * @returns Email salvo ou null
  */
 export function getRememberedEmail(): string | null {
-  return localStorage.getItem(STORAGE_KEYS.REMEMBER_ME);
+  return localStorage.getItem(REMEMBER_ME);
 }
 
 /**
  * Remove a preferência de "lembrar-me"
  */
 export function clearRememberMe(): void {
-  localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+  localStorage.removeItem(REMEMBER_ME);
 }
