@@ -19,7 +19,7 @@ import type { AxiosError } from 'axios';
  * Composable que gerencia o formulário de cadastro
  * @returns Objeto com estados e métodos para o formulário
  */
-export function useRegister(acitveTab?: Ref<AuthTab>) {
+export function useRegister(activeTab?: Ref<AuthTab>) {
   const toast = useToast();
   const apiError = ref<string | null>(null);
 
@@ -53,8 +53,8 @@ export function useRegister(acitveTab?: Ref<AuthTab>) {
     onSuccess: () => {
       toast.success('Cadastro realizado com sucesso!', 'Você já pode fazer login.');
       resetForm();
-      if (acitveTab?.value) {
-        acitveTab.value = 'entrar';
+      if (activeTab?.value) {
+        activeTab.value = 'entrar';
       }
     },
     onError: (error) => {

@@ -4,7 +4,8 @@
  * autenticação da API (login, logout, etc.).
  */
 
-import api from '@/shared/libs/axios';
+import api from '@/api/axios';
+
 import type {
   LoginRequest,
   LoginResponse,
@@ -24,14 +25,14 @@ const REMEMBER_ME = 'rememberMe';
  * @returns Promise com os dados de resposta do login
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const response = await api.post<LoginResponse>('auth/login', credentials);
-  return response.data;
+    const response = await api.post<LoginResponse>('auth/login', credentials);
+    return response.data;
 }
 
 /**
  * Realiza o cadastro do usuário
  * @param data - Dados de cadastro (nome, email, senha)
- * @returns Promise com os dados de resposta do casdatro
+ * @returns Promise com os dados de resposta do cadastro
  */
 export async function register(registerData: RegisterRequest): Promise<RegisterResponse> {
   const response = await api.post<RegisterResponse>('usuarios/', registerData);

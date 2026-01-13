@@ -1,22 +1,24 @@
-import { useRouter } from "vue-router";
+import router from '@/router';
+import { useAuthStore } from '../stores/auth.store';
 
 export function useAppNavigation() {
-    const router = useRouter();
-    
-    const goToLogin = () => router.push({ name: 'auth.user' });
-    
-    const goToEnterpriseRegister = () => router.push({ name: 'onboarding' });
+  const authStore = useAuthStore();
 
-    const goToHome = () => router.push({ name: 'home' });
+  const goToLogin = () => router.push({ name: 'auth.user' });
 
-    const logoutAndRedirect = () => {
-        router.replace({ name: 'auth.user' })
-    }
+  const goToEnterpriseRegister = () => router.push({ name: 'onboarding' });
 
-    return {
-        goToLogin,
-        goToEnterpriseRegister,
-        goToHome,
-        logoutAndRedirect
-    }
+  const goToHome = () => router.push({ name: 'home' });
+
+  const logoutAndRedirect = () => {
+    authStore.logoutUser();
+    router.replace({ name: 'auth.user' });
+  };
+
+  return {
+    goToLogin,
+    goToEnterpriseRegister,
+    goToHome,
+    logoutAndRedirect,
+  };
 }

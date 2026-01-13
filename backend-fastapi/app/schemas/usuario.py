@@ -5,8 +5,8 @@
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.schemas.empresa import EmpresaUserRead
+from app.schemas.cargo import CargoBase
 from typing import Optional
-from datetime import datetime
 
 # =========================
 # Schema Base
@@ -60,15 +60,18 @@ class UsuarioRead(UsuarioBase):
 
     Attributes:
         id (int): ID único do usuário.
+        nome (str): Nome do usuario.
+        email (str): Email do usuário.
+        url_perfil (str): localização da foto de perfil.
         ativo (bool): Status de ativo/inativo do usuário.
-        is_master (bool): Indica se o usuário é o Master/Administrador da empresa.
         empresa (EmpresaUserRead) : Dados da empresa.
+        cargo (CargoBase): Cargo com nome e permissão.
     """
     id: int = Field(..., description="ID do usuário")
-    ativo: bool = Field(..., description="Status de ativo/inativo")
-    is_master: bool = Field(..., description="Define se é o usuário Master da empresa")
     url_perfil: Optional[str] = Field(None, description="URL da foto de perfil")
+    ativo: bool = Field(..., description="Status de ativo/inativo")
     empresa: Optional[EmpresaUserRead] = Field(None, description="Dados da empresa do usuario")
+    cargo: Optional[CargoBase] = Field(None, description="Cargo com nome e permissoes")
     # Nota: data_criacao é comum em retornos, mantive o comentário.
 
 # =========================

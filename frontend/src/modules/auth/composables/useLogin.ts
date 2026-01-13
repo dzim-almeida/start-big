@@ -15,13 +15,13 @@ import {
   getRememberedEmail,
 } from '../services/login.service';
 import type { LoginResponse } from '../types/auth.types';
-import { useAuthStore } from '@/shared/store/auth.store';
+import { useAuthStore } from '@/shared/stores/auth.store';
 import type { ApiError } from '@/shared/types/axios.types';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
-import { saveItem } from '@/shared/services/localStorage.service';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
+import { storeToRefs } from 'pinia';
 
 /**
  * Composable que gerencia o formulário de login
@@ -29,6 +29,7 @@ import { useAppNavigation } from '@/shared/composables/useAppNavigation';
  */
 export function useLogin() {
   const authStore = useAuthStore();
+  const { userData } = storeToRefs(authStore);
   const { goToHome, goToEnterpriseRegister } = useAppNavigation();
   const toast = useToast();
   const rememberMe = ref(false);
@@ -55,10 +56,19 @@ export function useLogin() {
    */
   const loginMutation = useMutation<LoginResponse, AxiosError<ApiError>, LoginFormData>({
     mutationFn: (data) => login({ email: data.email, senha: data.senha }),
-    onSuccess: (response) => {
-      authStore.setAuth(response);
-      saveItem('token', response.access_token)
+    onSuccess: async () => {
 
+      // 1. Força a atualização e AGUARDA terminar
+      await authStore.revalidateUser();
+
+      // 2. Verificação de segurança: Se após revalidar, o usuário ainda for null, algo falhou.
+      if (!userData.value) {
+        apiError.value = 'Erro ao recuperar sessão. Verifique os cookies.';
+        authStore.logoutUser()
+        return;
+      }
+
+      // Lógica do Lembrar-me
       if (rememberMe.value && loginData.email) {
         saveRememberMe(loginData.email);
       } else {
@@ -67,7 +77,9 @@ export function useLogin() {
 
       apiError.value = null;
       toast.success('Login realizado com sucesso!');
-      if (authStore.user?.empresa_id) {
+
+      // 3. Redirecionamento seguro
+      if (userData.value.empresa) {
         goToHome();
       } else {
         goToEnterpriseRegister();

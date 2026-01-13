@@ -176,5 +176,7 @@ class EmpresaUserRead(BaseModel):
         description="URL ou caminho da logo da empresa"
     )
 
+    model_config = ConfigDict(from_attributes=True)
+
 EmpresaCreate.model_rebuild()
 EmpresaAdminRead.model_rebuild()

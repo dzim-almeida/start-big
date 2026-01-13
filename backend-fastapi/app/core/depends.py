@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------
 
 from typing import Callable, Dict, Any
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -66,7 +66,9 @@ def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[st
 # 1. Validação Técnica (Assinatura e Blocklist)
 # =========================
 def get_token(
-    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db),
+    token: str | None = Cookie(default=None, alias="access_token")
+    # token: str | None = Depends(oauth2_scheme)
 ) -> Dict[str, Any]:
     """
     Dependência principal: Decodifica o token, valida a assinatura e verifica a blocklist.
@@ -81,6 +83,11 @@ def get_token(
     Returns:
         Dict[str, Any]: O payload decodificado e validado do token.
     """
+
+    # verificar se um token foi enviado na requisição
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais Inválidas")
+
     # Valida assinatura e decodifica. Se falhar, levanta 401.
     token_data = verify_token_data(token)
 

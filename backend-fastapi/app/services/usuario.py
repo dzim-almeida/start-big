@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.models.usuario import Usuario as UsuarioModel
+from app.schemas.usuario import UsuarioRead
 from app.schemas.usuario import UsuarioCreate
 from app.core.security import hash_password
 from app.db.crud import usuario as usuario_crud
@@ -132,6 +133,37 @@ def create_image_usuario(db: Session, usuario_id: int, img_file: UploadFile) -> 
     
     usuario_in_db.url_perfil = saved_file_url
     return usuario_in_db
+
+def get_usuario_me_by_id(db: Session, usuario_id: int) -> UsuarioRead:
+    
+    usuario_in_db = usuario_crud.get_usuario_by_id(db, usuario_id=usuario_id)
+
+    if not usuario_in_db:
+        raise _get_not_found_exception
+    
+    if (usuario_in_db.is_master):
+        cargo_data = {
+            "nome": "Master",
+            "permissoes": {"all": True}
+        }
+    elif (usuario_in_db.funcionario is not None and usuario_in_db.funcionario.cargo is not None):
+        cargo_data = usuario_in_db.funcionario.cargo
+    else:
+        cargo_data = {
+            "nome": "Sem cargo atribuído",
+            "permissoes": {}
+        }
+
+    return UsuarioRead(
+        id=usuario_in_db.id,
+        nome=usuario_in_db.nome,
+        email=usuario_in_db.email,
+        url_perfil=usuario_in_db.url_perfil,
+        ativo=usuario_in_db.ativo,
+        empresa=usuario_in_db.empresa,
+        cargo=cargo_data
+    )
+
 
 def get_usuario_by_id(db: Session, usuario_id: int) -> UsuarioModel:
     """

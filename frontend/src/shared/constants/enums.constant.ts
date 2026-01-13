@@ -1,4 +1,7 @@
-import type { SelectOption } from "../types/select.types";
+interface SelectOption {
+  value: string;
+  label: string;
+}
 
 export const ESTADOS_BRASILEIROS: SelectOption[] = [
   { value: 'AC', label: 'AC - Acre' },
@@ -29,3 +32,8 @@ export const ESTADOS_BRASILEIROS: SelectOption[] = [
   { value: 'SE', label: 'SE - Sergipe' },
   { value: 'TO', label: 'TO - Tocantins' },
 ];
+
+export const TIPO_DOCUMENTO: SelectOption[] = [
+  { value: 'cnpj', label: 'CNPJ' },
+  { value: 'cpf', label: 'CPF' }
+]

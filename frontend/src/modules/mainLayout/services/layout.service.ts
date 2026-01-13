@@ -1,4 +1,4 @@
-import api from "@/shared/libs/axios";
+import api from "@/api/axios";
 import { UserDataResponse } from "../types/user.types";
 
 export async function getUserData(): Promise<UserDataResponse> {

@@ -2,7 +2,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 const homeRoutes: RouteRecordRaw[] = [
   {
-    path: '/home',
+    path: '/',
     component: () => import('@/modules/mainLayout/views/MainLayout.vue'),
     meta: {
       requiresAuth: true,
@@ -15,7 +15,8 @@ const homeRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'Início',
           subtitle: 'Resumo de vendas e pendencias',
-          tabId: 'home'
+          tabId: 'home',
+          requiresAuth: true
         }
       },
       {
@@ -25,7 +26,8 @@ const homeRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'Vendas',
           subtitle: 'Resumo de vendas do sistema',
-          tabId: 'sales'
+          tabId: 'sales',
+          requiresAuth: true
         }
       },
     ],

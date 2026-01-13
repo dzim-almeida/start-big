@@ -15,6 +15,7 @@ import { getSegmentById } from '../../constants/segments';
 import type { DocumentType } from '../../types/onboarding.types';
 import Icons from '../icons/Icons.vue';
 import SelectInput from '../commons/SelectInput.vue';
+import { TIPO_DOCUMENTO } from '@/shared/constants/enums.constant';
 
 const { onboardingData, previousStep } = useOnboarding();
 
@@ -42,20 +43,6 @@ const selectedSegment = computed(() => {
   if (!onboardingData.company.segmento) return null;
   return getSegmentById(onboardingData.company.segmento);
 });
-
-/**
- * Opções para selecionar no campo documento
- */
-const selectDocumentOptions = [
-  {
-    label: 'CNPJ',
-    value: 'CNPJ'
-  },
-  {
-    label: 'CPF',
-    value: 'CPF'
-  },
-];
 
 /**
  * Emit para select
@@ -101,7 +88,7 @@ function changeSelect(document: string) {
             <div class="flex gap-2">
               <!-- Seletor de tipo -->
               <SelectInput
-                :options="selectDocumentOptions"
+                :options="TIPO_DOCUMENTO"
                 @select="changeSelect"
               />
               <!-- Input do documento -->
@@ -120,7 +107,7 @@ function changeSelect(document: string) {
 
           <!-- Segmento (readonly) -->
           <div class="space-y-1">
-            <label class="block text-xs font-medium text-gray-700">Seguimento</label>
+            <label class="block text-xs font-medium text-gray-700">Segmento</label>
             <div class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-md bg-gray-50">
               <SegmentIcons v-if="selectedSegment" :icon="selectedSegment.icon" size="sm" />
               <span class="text-sm text-gray-700">{{ selectedSegment?.label || 'Não selecionado' }}</span>

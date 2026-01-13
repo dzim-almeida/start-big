@@ -12,7 +12,7 @@ import SegmentIcons from '../icons/SegmentIcons.vue';
 import { useOnboarding } from '../../composables/useOnboarding';
 import { useAddressForm } from '../../composables/useEmpresaForm';
 import Icons from '../icons/Icons.vue';
-import { ESTADOS_BRASILEIROS } from '@/shared/constants/estados.constant';
+import { ESTADOS_BRASILEIROS } from '@/shared/constants/enums.constant';
 
 const { previousStep } = useOnboarding();
 

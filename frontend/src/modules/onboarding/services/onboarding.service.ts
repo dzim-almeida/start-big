@@ -4,7 +4,7 @@
  * configuração inicial da empresa e consulta de CEP.
  */
 
-import api from '@/shared/libs/axios';
+import api from '@/api/axios';
 import type {
   CreateCompanyRequest,
   CreateCompanyResponse,

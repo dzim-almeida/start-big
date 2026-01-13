@@ -84,7 +84,7 @@ def get_usuario_me(
 ):
     return _handle_db_transaction(
         db,
-        usuario_service.get_usuario_by_id,
+        usuario_service.get_usuario_me_by_id,
         token_user.get("sub"),
     )
     

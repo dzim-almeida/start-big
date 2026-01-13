@@ -3,14 +3,13 @@ import StatCard from '../components/dashboard/StatCard.vue';
 import RecentTransactions from '../components/dashboard/RecentTransactions.vue';
 import { useDashboard } from '../composables/useDashboard';
 import type { PeriodFilter } from '../types/dashboard.types';
-import { useUserDataQuery } from '@/modules/mainLayout/composables/useUserData';
-import { useAuthStore } from '@/shared/store/auth.store';
+import { useAuthStore } from '@/shared/stores/auth.store';
+import { storeToRefs } from 'pinia';
 
 const { activePeriod, stats, transactions, setPeriod } = useDashboard();
 
-const { user } = useAuthStore();
-
-const { data: userData, isLoading } = useUserDataQuery(user?.sub);
+const authStore = useAuthStore();
+const { userData, isLoading } = storeToRefs(authStore)
 
 const periods: { id: PeriodFilter; label: string }[] = [
   { id: 'today', label: 'Hoje' },

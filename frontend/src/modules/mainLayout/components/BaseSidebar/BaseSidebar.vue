@@ -2,14 +2,13 @@
 import { storeToRefs } from 'pinia';
 
 import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
-import { useAuthStore } from '@/shared/store/auth.store';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 import SidebarItem from './SidebarItem.vue';
 import CompanyCard from '../commons/CompanyCard.vue';
 import UserCard from '../commons/UserCard.vue';
 import SidebarSectionSkeleton from './SidebarSectionSkeleton.vue';
 
-import { useUserDataQuery } from '../../composables/useUserData';
 import { SIDEBAR_SECTIONS } from '@/modules/mainLayout/constants/layout.constants';
 import { computed, onMounted, onUnmounted } from 'vue';
 import { useCheckPermission } from '../../composables/useCheckPermission';
@@ -17,9 +16,8 @@ import { useCheckPermission } from '../../composables/useCheckPermission';
 const layoutStore = useLayoutStore();
 const { activeTab, isMobile, isMobileOpen } = storeToRefs(layoutStore);
 
-const { user: userToken } = storeToRefs(useAuthStore());
-
-const { data: userData, isLoading } = useUserDataQuery(userToken.value?.sub);
+const authStore = useAuthStore()
+const { userData, isLoading } = storeToRefs(authStore);
 
 const { hasPermission } = useCheckPermission();
 
@@ -52,16 +50,15 @@ onUnmounted(() => {
       <!-- Company Header -->
       <div class="p-6">
         <CompanyCard
-          :company-name="userData?.empresa.nome_fantasia ?? 'Erro'"
-          :image-url="userData?.empresa.url_logo"
-          :status="userData?.empresa.ativo ?? false"
+          :company-name="userData?.empresa?.nome_fantasia || userData?.empresa?.razao_social || 'Error'"
+          :image-url="userData?.empresa?.url_logo"
+          :status="userData?.empresa?.ativo ?? false"
           :is-loading="isLoading"
         />
       </div>
 
       <!-- Navigation -->
       <nav class="flex-1 px-4 space-y-4 mt-2 mb-4 overflow-y-auto custom-scrollbar">
-
         <SidebarSectionSkeleton v-if="isLoading" />
 
         <div v-else v-for="(section, index) in filteredSidebar" :key="index" class="space-y-1">
@@ -83,9 +80,9 @@ onUnmounted(() => {
       <div class="p-4 mt-auto border-t border-zinc-700/50">
         <UserCard
           :user-name="userData?.nome"
-          :user-cargo="userToken?.cargo"
+          :user-cargo="userData?.cargo?.nome"
           :image-url="userData?.url_perfil"
-          :status="userToken?.ativo"
+          :status="userData?.ativo"
           :is-loading="isLoading"
         />
       </div>
