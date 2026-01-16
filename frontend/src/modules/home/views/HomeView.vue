@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import StatCard from '../components/dashboard/StatCard.vue';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-vue-next';
+
+import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
 import RecentTransactions from '../components/dashboard/RecentTransactions.vue';
 import { useDashboard } from '../composables/useDashboard';
+
 import type { PeriodFilter } from '../types/dashboard.types';
+
+import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+
 import { useAuthStore } from '@/shared/stores/auth.store';
+
 import { storeToRefs } from 'pinia';
 
 const { activePeriod, stats, transactions, setPeriod } = useDashboard();
 
 const authStore = useAuthStore();
-const { userData, isLoading } = storeToRefs(authStore)
+const { userData, isLoading } = storeToRefs(authStore);
 
 const periods: { id: PeriodFilter; label: string }[] = [
   { id: 'today', label: 'Hoje' },
@@ -22,13 +29,11 @@ const periods: { id: PeriodFilter; label: string }[] = [
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <!-- Welcome Header -->
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-      <div v-if="isLoading" class="py-5 w-80 bg-zinc-500 rounded-md animate-pulse"></div>
-      <div v-else>
-        <h2 class="text-xl md:text-2xl font-bold text-zinc-900">Olá, {{ userData?.nome }}</h2>
-        <p class="text-zinc-500 text-xs md:text-sm mt-0.5">
-          Confira os resultados da loja para hoje.
-        </p>
-      </div>
+      <PageReview
+        :title="`Olá, ${userData?.nome}`"
+        description="Confira os resultados da loja para hoje."
+        :is-loading="isLoading"
+      />
 
       <!-- Period Filter -->
       <div
@@ -52,15 +57,26 @@ const periods: { id: PeriodFilter; label: string }[] = [
 
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-      <StatCard
+      <BaseStatsCard
         v-for="stat in stats"
         :key="stat.id"
         :icon="stat.icon"
         :label="stat.label"
         :value="stat.value"
-        :change="stat.change"
-        :is-positive="stat.isPositive"
-      />
+      >
+        <template #badge>
+          <div
+            :class="[
+              'flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] md:text-[11px] font-bold transition-transform group-hover:scale-105',
+              stat.isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
+            ]"
+          >
+            <ArrowUpRight v-if="stat.isPositive" :size="14" />
+            <ArrowDownRight v-else :size="14" />
+            <span>{{ stat.change }}</span>
+          </div>
+        </template>
+      </BaseStatsCard>
     </div>
 
     <!-- Main Content Grid -->

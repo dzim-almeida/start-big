@@ -10,15 +10,15 @@ defineProps<Props>();
 const statusConfig = {
   completed: {
     label: 'Concluído',
-    class: 'bg-emerald-50 text-emerald-600',
+    class: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
   },
   pending: {
     label: 'Pendente',
-    class: 'bg-amber-50 text-amber-600',
+    class: 'bg-amber-50 text-amber-600 border border-amber-200',
   },
   cancelled: {
     label: 'Cancelado',
-    class: 'bg-red-50 text-red-600',
+    class: 'bg-red-50 text-red-600 border border-red-200',
   },
 };
 
