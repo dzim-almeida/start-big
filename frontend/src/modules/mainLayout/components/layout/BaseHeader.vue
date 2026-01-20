@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { Bell, Search, Menu } from 'lucide-vue-next';
+import { Bell, Search, Menu, Settings } from 'lucide-vue-next';
 import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
+import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 
 const layoutStore = useLayoutStore();
-const {
-  pageTitle,
-  pageSubtitle,
-  isMobile,
-} = storeToRefs(layoutStore);
+const { pageTitle, pageSubtitle, isMobile } = storeToRefs(layoutStore);
 </script>
 
 <template>
@@ -41,22 +38,13 @@ const {
     <!-- Right Section: Actions -->
     <div class="flex flex-1 items-center justify-end xl:max-w-2xl lg:max-w-md gap-2 md:gap-4">
       <!-- Center Section: Search (Hidden on small mobile) -->
-      <div class="hidden md:flex flex-1 justify-center mx-4">
-        <div class="relative w-full">
-          <Search
-            class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
-            :size="18"
-          />
-          <input
-            type="text"
-            placeholder="Buscar produtos, vendas ou clientes..."
-            class="w-full bg-zinc-100 border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand-primary/30 focus:bg-white transition-all outline-none placeholder:text-zinc-400"
-          />
-        </div>
+      <div v-if="pageTitle === 'Início'" class="hidden md:flex flex-1 justify-center mx-4">
+        <BaseSearchInput placeholder="Buscar cliente, vendas ou produtos..." />
       </div>
 
       <!-- Search Icon (Mobile) -->
       <button
+        v-if="pageTitle === 'Início'"
         class="md:hidden p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors"
         aria-label="Buscar"
       >
@@ -65,13 +53,21 @@ const {
 
       <!-- Notifications -->
       <button
-        class="relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors"
+        class="relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
         aria-label="Notificações"
       >
         <Bell :size="20" />
         <span
           class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full"
         ></span>
+      </button>
+
+      <!-- Settings Icon -->
+      <button
+        class="relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+        aria-label="Configurações"
+      >
+        <Settings :size="20" />
       </button>
     </div>
   </header>

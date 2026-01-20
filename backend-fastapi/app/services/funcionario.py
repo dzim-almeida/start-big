@@ -65,7 +65,7 @@ def create_funcionario(db: Session, empresa_id: int, funcionario_to_add: Funcion
         value = funcionario_data.get(field)
         if value is not None:
             error = funcionario_crud.verify_funcionario_conflict(
-                db, value, validators[field], field
+                db=db, value=value, funcionario_id=None, search_method=validators[field], search_name=field
             )
             if error:
                 if error == "disabled funcionario":
@@ -120,6 +120,30 @@ def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[Funci
 
 def update_funcionario_by_id(db: Session, funcionario_id: int, funcionario_to_update: FuncionarioUpdate) -> FuncionarioModel:
     """Atualiza dados cadastrais e endereços."""
+
+    validation_errors = []
+
+    # Separa dados do funcionário dos dados aninhados
+    funcionario_data = funcionario_to_update.model_dump(exclude={"endereco"}, exclude_unset=True)
+
+    # 1. Validação de Conflitos
+    for field in unique_fields:
+        value = funcionario_data.get(field)
+        if value is not None:
+            error = funcionario_crud.verify_funcionario_conflict(
+                db, funcionario_id, value, validators[field], field
+            )
+            if error:
+                if error == "disabled funcionario":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Funcionário desabilitado com este {field.upper()}. Reative o cadastro existente."
+                    )
+                validation_errors.append({"campo": field, "mensagem": error})
+    
+    if validation_errors:
+        validation_exce.detail = validation_errors
+        raise validation_exce
     
     funcionario_in_db = funcionario_crud.get_funcionario_by_id(db, funcionario_id=funcionario_id)
     if not funcionario_in_db:

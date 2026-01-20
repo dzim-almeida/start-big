@@ -30,6 +30,17 @@ const homeRoutes: RouteRecordRaw[] = [
           requiresAuth: true
         }
       },
+      {
+        path: '/equipes',
+        name: 'employees',
+        component: () => import('@/modules/employees/views/EmployeesView.vue'),
+        meta: {
+          title: 'Gestão de Equipe',
+          subtitle: 'Gerencie os colaboradores da sua organização de forma centralizada.',
+          tabId: 'employees',
+          requiresAuth: true
+        }
+      }
     ],
   },
 ];

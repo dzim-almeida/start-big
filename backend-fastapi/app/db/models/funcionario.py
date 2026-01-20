@@ -6,10 +6,11 @@
 # ---------------------------------------------------------------------------
 
 from datetime import date
-from sqlalchemy import Date, String, Integer, Boolean, ForeignKey, and_
+from sqlalchemy import Date, String, Integer, Boolean, Enum as SqlAlchemyEnum, ForeignKey, and_
 from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from typing import Optional, TYPE_CHECKING
 from app.db.base import Base
+from app.core.enum import Gender, BankAccountType
 
 # Importa o modelo Endereco para o relacionamento polimórfico
 from app.db.models.endereco import Endereco 
@@ -53,12 +54,12 @@ class Funcionario(Base):
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Número do telefone fixo para contato")
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Número do celular para contato")
     
-    # --- Documentos ---
+    # --- Documentos e Identidade ---
     cpf: Mapped[str] = mapped_column(String(11), unique=True, nullable=False, doc="CPF (11 dígitos, único)")
     rg: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="RG")
     carteira_trabalho: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True, doc="Número da Carteira de Trabalho")
     cnh: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="Número da CNH")
-    tipo_contrato: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Tipo de contrato do funcionário")
+    genero: Mapped[Optional[Gender]] = mapped_column(SqlAlchemyEnum(Gender), nullable=True, doc="Gênero do funcionário")
     
     # --- Dados Hierárquicos/Estruturais ---
     cargo_id: Mapped[Optional[int]] = mapped_column(
@@ -69,16 +70,22 @@ class Funcionario(Base):
     )
     
     # --- Dados Bancários ---
+    titular_conta: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome do titular da conta bancária")
     agencia: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Número da agência para pagamento")
     conta: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Número da conta para pagamento")
     banco: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Nome do Banco")
+    tipo_conta: Mapped[Optional[BankAccountType]] = mapped_column(SqlAlchemyEnum(BankAccountType), nullable=True, doc="Tipo da conta do banco")
 
-    # --- Outros ---
+    # --- Dados da Empresa ---
+    jornada_trabalho: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Jornada de trabalho do funcionário")
+    salario_bruto: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, doc="Salário bruto mensal")
+    tipo_contrato: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Tipo de contrato do funcionário")
+    data_admissao: Mapped[Optional[Date]] = mapped_column(Date, nullable=True, doc="Data de admissão no cargo")
+     # --- Outros ---
     data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de nascimento do funcionário")
     mae: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome completo da mãe")
     pai: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome completo do pai")
     observacao: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações internas/RH")
-    
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status de ativo/inativo na empresa")
 
     # =========================

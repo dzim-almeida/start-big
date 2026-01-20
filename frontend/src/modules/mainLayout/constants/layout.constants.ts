@@ -72,7 +72,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
       {
         id: 'employees',
         icon: IdCard,
-        label: 'Funcionários',
+        label: 'Gestão de Equipe',
         requiredPermission: 'view_employees',
       },
     ],

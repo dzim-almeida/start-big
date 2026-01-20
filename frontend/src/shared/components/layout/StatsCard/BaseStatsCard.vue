@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { ArrowUpRight, ArrowDownRight } from 'lucide-vue-next';
 import type { Component } from 'vue';
 
 interface Props {
   icon: Component;
   label: string;
   value: string;
-  change: string;
-  isPositive: boolean;
 }
 
 defineProps<Props>();
@@ -15,7 +12,7 @@ defineProps<Props>();
 
 <template>
   <div
-    class="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 group"
+    class="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-zinc-200 hover:border-brand-secondary shadow-sm hover:shadow-md hover:shadow-brand-primary/10 transition-all duration-300 hover:-translate-y-0.5 group"
   >
     <!-- Header: Icon + Change Badge -->
     <div class="flex items-center justify-between mb-4">
@@ -24,16 +21,7 @@ defineProps<Props>();
       >
         <component :is="icon" :size="20" class="text-zinc-900 md:w-6 md:h-6" />
       </div>
-      <div
-        :class="[
-          'flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] md:text-[11px] font-bold transition-transform group-hover:scale-105',
-          isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
-        ]"
-      >
-        <ArrowUpRight v-if="isPositive" :size="14" />
-        <ArrowDownRight v-else :size="14" />
-        <span>{{ change }}</span>
-      </div>
+      <slot name="badge" />
     </div>
 
     <!-- Label -->

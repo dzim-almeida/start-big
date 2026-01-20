@@ -48,6 +48,7 @@ api.interceptors.response.use(
         router.replace({ name: 'auth.user' });
         return Promise.reject(error);
       }
+
       // Log de erros do servidor para debug
       if (status >= 500) {
         console.error('[API] Erro do servidor:', status, error.response?.data);

@@ -200,7 +200,7 @@ onUnmounted(() => {
       />
 
       <div
-        class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+        class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
       >
         <LucideIcon :icon="ChevronDown" />
       </div>
@@ -215,7 +215,7 @@ onUnmounted(() => {
       >
         <div
           v-if="isOpen"
-          class="absolute z-50 w-full h-40 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+          class="absolute z-50 w-full h-fit mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
         >
           <ul v-if="filteredOptions.length > 0" class="py-1">
             <li

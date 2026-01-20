@@ -50,17 +50,16 @@ whenever(Ctrl_K, () => {
       <Transition name="pop" mode="out-in">
         <button
           v-if="!isQuickOpen"
-          class="fixed z-10 right-8 bottom-8 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
+          class="fixed z-10 right-5 bottom-5 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
           @click="layoutStore.toggleQuick"
         >
           <Zap :size="24" fill="white" />
         </button>
         
-        <div v-else class="fixed bottom-8 right-8 z-50">
+        <div v-else class="fixed bottom-5 right-5 z-50">
           <QuickActions @clicked="layoutStore.toggleQuick" :actions="quickActions" :low-stock-count="lowStockCount" />
         </div>
       </Transition>
-
     </main>
   </div>
 </template>
