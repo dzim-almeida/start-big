@@ -16,6 +16,7 @@ from app.db.models.funcionario import Funcionario as FuncionarioModel
 
 def verify_funcionario_conflict(
     db: Session,
+    funcionario_id: Optional[int],
     value: str,
     search_method: Callable[[Session, str], FuncionarioModel | None],
     search_name: str
@@ -25,11 +26,15 @@ def verify_funcionario_conflict(
         return None
 
     funcionario_in_db = search_method(db, value)
+
+    if funcionario_id and funcionario_in_db.id == funcionario_id:
+        return None
     
     if funcionario_in_db:
         if not funcionario_in_db.ativo: 
             return "disabled funcionario"
-        return f"{search_name} já cadastrado"
+        formated_search = search_name.replace("_", " ")
+        return f"{formated_search.upper()} já cadastrado"
 
     return None
 
@@ -75,7 +80,8 @@ def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[Funci
     
     # 1. Se NÃO tem termo de busca, traz todos os ativos
     if not search:
-        stmt = select(FuncionarioModel).where(FuncionarioModel.ativo.is_(True))
+        stmt = select(FuncionarioModel)
+        # .where(FuncionarioModel.ativo.is_(True))
         
     # 2. Se TEM termo, filtra por campos chave
     else:
@@ -88,7 +94,7 @@ def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[Funci
 
         stmt = select(FuncionarioModel).where(
             and_(
-                FuncionarioModel.ativo.is_(True), # Correção do erro de operador
+                # FuncionarioModel.ativo.is_(True), # Correção do erro de operador
                 conditions
             )
         )

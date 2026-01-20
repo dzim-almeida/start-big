@@ -56,3 +56,8 @@ export const ERROR_MESSAGES: Record<number, string> = {
  * Mensagem padrão para erros de rede
  */
 export const NETWORK_ERROR_MESSAGE = 'Erro de conexão. Verifique sua internet e tente novamente.';
+
+export interface ConflictedData {
+  campo: string,
+  mensagem: string,
+}

@@ -5,7 +5,7 @@
 
 import type { AxiosError } from 'axios';
 import type { ApiError, ValidationError } from '@/shared/types/axios.types';
-import { ERROR_MESSAGES, NETWORK_ERROR_MESSAGE } from '@/shared/types/axios.types';
+import { ERROR_MESSAGES, NETWORK_ERROR_MESSAGE, ConflictedData } from '@/shared/types/axios.types';
 
 /**
  * Extrai a mensagem de erro de um ValidationError[]
@@ -39,8 +39,8 @@ function formatValidationErrors(errors: ValidationError[]): string {
  */
 export function getErrorMessage(
   error: AxiosError<ApiError>,
-  defaultMessage = 'Ocorreu um erro inesperado. Tente novamente.'
-): string {
+  defaultMessage = 'Ocorreu um erro inesperado. Tente novamente.',
+): Record<string, string> | string {
   // Erro de rede (sem resposta do servidor)
   if (!error.response) {
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
@@ -75,6 +75,26 @@ export function getErrorMessage(
   }
 
   return defaultMessage;
+}
+
+export function getConflictErrors(error: AxiosError<ApiError>): Record<string, string> | null {
+  const data = error.response?.data;
+
+  if (Array.isArray(data?.detail)) {
+    const conflictedData: ConflictedData[] = data.detail as unknown as ConflictedData[];
+    return conflictedData.reduce(
+      (acc, curr) => {
+        if (curr.campo && curr.mensagem) {
+          acc[curr.campo] = curr.mensagem;
+        }
+        console.log(acc);
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+  }
+
+  return null;
 }
 
 /**

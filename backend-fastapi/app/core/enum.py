@@ -49,12 +49,6 @@ class State(str, enum.Enum):
     SERGIPE = "SE"
     TOCANTINS = "TO"
 
-class UserType(str, enum.Enum):
-    """Define os níveis de permissão ou tipos de usuário no sistema."""
-    # Nota: Este Enum parece redundante se a permissão for baseada em Cargo/JSON.
-    ADMIN = "ADMIN"
-    USER = "USER"
-
 class EntityType(str, enum.Enum):
     """
     Define os tipos de entidades polimórficas no sistema.
@@ -66,3 +60,7 @@ class EntityType(str, enum.Enum):
     FORNECEDOR = "FORNECEDOR"
     FUNCIONARIO = "FUNCIONARIO"
     EMPRESA = "EMPRESA"
+
+class BankAccountType(str, enum.Enum):
+    POUPANCA = "POUPANCA"
+    CORRENTE = "CORRENTE"
