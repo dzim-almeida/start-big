@@ -13,7 +13,7 @@ import EmployeeTable from '../components/EmployeeTable.vue';
 import EmployeeModal from '../components/EmployeeModal.vue';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
-import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
+import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
 import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -76,10 +76,10 @@ function handleAddClick() {
       />
 
       <div class="flex gap-5">
-        <BaseFilter :options="TAB_OPTIONS" v-model="activeTeam" />
+        <BaseTab2 :options="TAB_OPTIONS" v-model="activeTeam" />
         <BaseButton
           variant="primary"
-          size="sm"
+          size="md"
           type="button"
           class="flex gap-1"
           @click="handleAddClick"

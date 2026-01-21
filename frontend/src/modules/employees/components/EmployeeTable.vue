@@ -7,12 +7,10 @@
 import { ref, computed } from 'vue';
 import {
   Ellipsis,
-  Funnel,
   Mail,
   Eye,
   Pencil,
   Power,
-  Check,
   AlertCircle,
 } from 'lucide-vue-next';
 
@@ -20,6 +18,7 @@ import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchIn
 import type { FuncionarioRead, EmployeeStatus } from '../types/employees.types';
 import { useEmployeeModal } from '../composables/useEmployeeModal';
 import { useToggleEmployeeActiveMutation } from '../composables/useEmployeesQuery';
+import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 
 // =============================================
 // Props & Emits
@@ -49,18 +48,21 @@ const toggleActiveMutation = useToggleEmployeeActiveMutation();
 // Status Configuration
 // =============================================
 
-const statusConfig: Record<EmployeeStatus, { label: string; class: string }> = {
+const statusConfig: Record<EmployeeStatus, { label: string; class: string, color: string }> = {
   active: {
     label: 'Ativo',
     class: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+    color: 'bg-emerald-500'
   },
   vacation: {
     label: 'Ferias',
     class: 'bg-amber-50 text-amber-600 border border-amber-200',
+    color: 'bg-amber-500'
   },
   inactive: {
     label: 'Desativado',
     class: 'bg-red-50 text-red-600 border border-red-200',
+    color: 'bg-red-500'
   },
 };
 
@@ -69,7 +71,6 @@ const statusConfig: Record<EmployeeStatus, { label: string; class: string }> = {
 // =============================================
 
 const selectedStatus = ref<EmployeeStatus | null>(null);
-const isFilterMenuOpen = ref(false);
 
 // =============================================
 // Computed
@@ -127,15 +128,6 @@ function getEmployeeRole(employee: FuncionarioRead): string {
 // Handlers
 // =============================================
 
-function toggleFilterMenu() {
-  isFilterMenuOpen.value = !isFilterMenuOpen.value;
-}
-
-function selectFilter(statusKey: EmployeeStatus | null) {
-  selectedStatus.value = statusKey;
-  isFilterMenuOpen.value = false;
-}
-
 function handleView(employee: FuncionarioRead) {
   openViewModal(employee);
 }
@@ -163,74 +155,10 @@ function handleToggleActive(employee: FuncionarioRead) {
         placeholder="Buscar por nome, email ou CPF..."
       />
 
-      <div class="relative">
-        <button
-          @click="toggleFilterMenu"
-          :class="[
-            'flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer select-none',
-            selectedStatus
-              ? 'bg-brand-primary/10 text-brand-primary border-brand-primary'
-              : 'text-zinc-600 border-brand-grey hover:text-brand-primary/80 hover:border-brand-primary/80',
-          ]"
-        >
-          <Funnel :size="20" />
-          Filtros
-          <span
-            v-if="selectedStatus"
-            class="ml-1 w-2 h-2 rounded-full bg-brand-primary"
-          ></span>
-        </button>
-
-        <!-- Filter Dropdown -->
-        <div
-          v-if="isFilterMenuOpen"
-          class="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-zinc-100 z-50 p-2"
-        >
-          <div
-            class="text-[10px] uppercase font-bold text-zinc-400 px-2 py-2"
-          >
-            Filtrar por Status
-          </div>
-
-          <button
-            @click="selectFilter(null)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
-          >
-            Todos
-            <Check
-              v-if="selectedStatus === null"
-              :size="16"
-              class="text-brand-primary"
-            />
-          </button>
-
-          <button
-            v-for="(config, key) in statusConfig"
-            :key="key"
-            @click="selectFilter(key as EmployeeStatus)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
-          >
-            <div class="flex items-center gap-2">
-              <span
-                :class="[
-                  'w-2 h-2 rounded-full',
-                  key === 'active'
-                    ? 'bg-emerald-500'
-                    : key === 'vacation'
-                      ? 'bg-amber-500'
-                      : 'bg-red-500',
-                ]"
-              ></span>
-              {{ config.label }}
-            </div>
-            <Check
-              v-if="selectedStatus === key"
-              :size="16"
-              class="text-brand-primary"
-            />
-          </button>
-        </div>
-      </div>
+      <BaseFilter
+        v-model="selectedStatus"
+        :filterConfig="statusConfig"
+      />
     </div>
 
     <!-- Loading State -->
@@ -388,7 +316,7 @@ function handleToggleActive(employee: FuncionarioRead) {
     <!-- Footer with Pagination -->
     <div
       v-if="!isLoading && !isError && filteredEmployees.length > 0"
-      class="px-6 py-5 border-t border-zinc-100 bg-white flex flex-col md:flex-row items-center justify-between gap-4 mt-auto"
+      class="px-6 py-5 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-4 mt-auto"
     >
       <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">
         {{ filteredEmployees.length }} Registros

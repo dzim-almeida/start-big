@@ -23,6 +23,8 @@ class ProdutoCreate(BaseModel):
     
     fornecedor_id: Optional[int] = Field(None, description="ID do fornecedor vinculado.")
 
+    localizacao_estoque: Optional[str] = Field(None, max_length=100)
+
     estoque: EstoqueCreate = Field(..., description="Dados iniciais de estoque.")
 
     model_config = ConfigDict(
