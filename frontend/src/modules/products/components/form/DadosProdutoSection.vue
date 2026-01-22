@@ -1,0 +1,189 @@
+<script setup lang="ts">
+/**
+ * @component DadosProdutoSection
+ * @description Form section for product basic data
+ */
+
+import { ref } from 'vue';
+import { Package } from 'lucide-vue-next';
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
+import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import ImageUploadSection from './ImageUploadSection.vue';
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+
+// =============================================
+// Props
+// =============================================
+
+interface Props {
+  submitCount: number;
+  disabled?: boolean;
+}
+
+const props = defineProps<Props>();
+
+// =============================================
+// Constants
+// =============================================
+
+const UNIDADE_MEDIDA_OPTIONS = [
+  { value: 'UN', label: 'Unidade (UN)' },
+  { value: 'KG', label: 'Quilograma (KG)' },
+  { value: 'G', label: 'Grama (G)' },
+  { value: 'L', label: 'Litro (L)' },
+  { value: 'ML', label: 'Mililitro (ML)' },
+  { value: 'M', label: 'Metro (M)' },
+  { value: 'CM', label: 'Centímetro (CM)' },
+  { value: 'CX', label: 'Caixa (CX)' },
+  { value: 'PC', label: 'Peça (PC)' },
+  { value: 'PCT', label: 'Pacote (PCT)' },
+];
+
+// =============================================
+// Form Fields (Temporary - will be replaced with composable)
+// =============================================
+
+// TODO: Replace with useProductForm composable
+const nome = ref('');
+const codigo_produto = ref('');
+const codigo_barras = ref('');
+const unidade_medida = ref('');
+const categoria = ref('');
+const marca = ref('');
+const fornecedor_id = ref('');
+const localizacao_estoque = ref('');
+const observacao = ref('');
+const errors = ref<Record<string, string>>({});
+</script>
+
+<template>
+  <section>
+    <!-- Section Header -->
+    <div class="flex items-center gap-3 mb-6">
+      <div
+        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-brand-primary"
+      >
+        <LucideIcon :icon="Package" />
+      </div>
+      <h3 class="text-lg font-semibold text-zinc-800">Dados do Produto</h3>
+    </div>
+
+    <div class="md:flex gap-8">
+      <div class="flex items-start justify-center mb-8">
+        <ImageUploadSection :disabled="disabled" />
+      </div>
+      <div class="grid grid-cols-12 gap-4">
+        <!-- Row 1: Nome, Código Produto -->
+
+        <div class="col-span-12 md:col-span-7">
+          <BaseInput
+            v-model="nome"
+            label="Nome do Produto"
+            placeholder="Digite o nome comercial do produto"
+            :required="true"
+            :error="submitCount > 0 ? errors.nome : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-5">
+          <BaseInput
+            v-model="codigo_produto"
+            label="Código SKU"
+            placeholder="Ex: PRD-001"
+            :required="true"
+            :error="submitCount > 0 ? errors.codigo_produto : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div>
+          <BaseButton
+            variant="primary"
+            label="Gerar SKU"
+            :disabled="disabled"
+          />
+        </div>
+        <!-- Row 2: Código Barras, Unidade Medida, Categoria -->
+        <div class="col-span-12 md:col-span-4">
+          <BaseInput
+            v-model="codigo_barras"
+            label="Código de Barras"
+            placeholder="EAN-13 ou similar"
+            :error="submitCount > 0 ? errors.codigo_barras : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-4">
+          <BaseSelect
+            v-model="unidade_medida"
+            label="Unidade de Medida"
+            placeholder="Selecione"
+            :options="UNIDADE_MEDIDA_OPTIONS"
+            :error="submitCount > 0 ? errors.unidade_medida : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-4">
+          <BaseInput
+            v-model="categoria"
+            label="Categoria"
+            placeholder="Ex: Bebidas, Alimentos"
+            :error="submitCount > 0 ? errors.categoria : ''"
+            :disabled="disabled"
+          />
+        </div>
+
+        <!-- Row 3: Marca, Fornecedor, Localização -->
+        <div class="col-span-12 md:col-span-4">
+          <BaseInput
+            v-model="marca"
+            label="Marca"
+            placeholder="Nome da marca"
+            :error="submitCount > 0 ? errors.marca : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-4">
+          <BaseInput
+            v-model="fornecedor_id"
+            label="Fornecedor"
+            placeholder="Selecione o fornecedor"
+            :error="submitCount > 0 ? errors.fornecedor_id : ''"
+            :disabled="disabled"
+          />
+        </div>
+        <div class="col-span-12 md:col-span-4">
+          <BaseInput
+            v-model="localizacao_estoque"
+            label="Localização no Estoque"
+            placeholder="Ex: Corredor A, Prateleira 3"
+            :error="submitCount > 0 ? errors.localizacao_estoque : ''"
+            :disabled="disabled"
+          />
+        </div>
+
+        <!-- Row 4: Observações -->
+        <div class="col-span-12">
+          <label class="block select-none text-xs font-medium text-gray-700 mb-1">
+            Observações
+          </label>
+          <textarea
+            v-model="observacao"
+            placeholder="Informações adicionais sobre o produto..."
+            :disabled="disabled"
+            :maxlength="500"
+            rows="3"
+            class="w-full px-3 py-2 border rounded-md transition-colors duration-200 outline-none text-sm placeholder:text-gray-400 text-gray-700 border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary resize-none"
+            :class="{ 'bg-gray-100 cursor-not-allowed': disabled, 'bg-white': !disabled }"
+          ></textarea>
+          <div class="flex justify-between items-center mt-1">
+            <p v-if="submitCount > 0 && errors.observacao" class="select-none text-xs text-red-500">
+              {{ errors.observacao }}
+            </p>
+            <p class="text-xs text-gray-500 ml-auto">{{ observacao.length }}/500</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
