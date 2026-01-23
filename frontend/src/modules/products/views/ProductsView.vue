@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Plus } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
@@ -8,80 +8,97 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import ProductCard from '@/modules/products/components/ProductCard.vue';
-import ProductModal from '@/modules/products/components/ProductModal.vue';  
+import ProductModal from '@/modules/products/components/ProductModal.vue';
 
 import { FILTER_CONFIG, TAB_OPTIONS } from '@/modules/products/constants/product.constants';
 import { useProductModal } from '../composables/useProductModal';
+import { useProductsQuery, useToggleProductActiveMutation } from '../composables/useProductsQuery';
+import type { ProdutoRead } from '../types/products.types';
 
-const { openModal } = useProductModal();
+const { openCreateModal, openEditModal, openViewModal } = useProductModal();
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const activeTab = ref('product');
-const searchTerm = ref<string | null>(null);
+const searchTerm = ref<string | null>('');
 const selectedFilter = ref<string | null>(null);
 
-// Mock product data
-const products = ref([
-  {
-    id: 1,
-    name: 'Mouse Gamer 12000 DPI',
-    description: '6 Botões programáveis, sensor óptico de alta precisão.',
-    category: 'PERIFÉRICOS',
-    price: 120.0,
-    storage: 45,
-    image_url: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400&h=400&fit=crop',
-    status: true,
-  },
-  {
-    id: 2,
-    name: 'Monitor 27" IPS 144Hz',
-    description: '1ms de resposta, HDR10, bordas ultrafinas.',
-    category: 'ELETRÔNICOS',
-    price: 1400.0,
-    storage: 2,
-    image_url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&h=400&fit=crop',
-    status: true,
-  },
-  {
-    id: 3,
-    name: 'Headset Wireless 7.1',
-    description: 'Cancelamento de ruído, bateria de 20h.',
-    category: 'PERIFÉRICOS',
-    price: 550.0,
-    storage: 0,
-    image_url: 'https://images.unsplash.com/photo-1599669454699-248893623440?w=400&h=400&fit=crop',
-    status: false,
-  },
-  {
-    id: 4,
-    name: 'Teclado Mecânico RGB',
-    description: 'Switch blue, iluminação personalizável, ABNT2.',
-    category: 'PERIFÉRICOS',
-    price: 350.0,
-    storage: 18,
-    image_url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&h=400&fit=crop',
-    status: true,
-  },
-  {
-    id: 5,
-    name: 'Webcam Full HD 1080p',
-    description: 'Microfone integrado, foco automático, 60fps.',
-    category: 'ELETRÔNICOS',
-    price: 280.0,
-    storage: 8,
-    image_url: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=400&fit=crop',
-    status: true,
-  },
-  {
-    id: 6,
-    name: 'SSD NVMe 1TB',
-    description: 'Leitura 3500MB/s, escrita 3000MB/s, M.2.',
-    category: 'HARDWARE',
-    price: 450.0,
-    storage: 25,
-    image_url: 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?w=400&h=400&fit=crop',
-    status: true,
-  },
-]);
+const { data: products } = useProductsQuery(searchTerm);
+const toggleMutation = useToggleProductActiveMutation();
+
+const localOverrides = ref<Record<number, ProdutoRead>>({});
+
+const mergedProducts = computed(() => {
+  const base = products.value || [];
+  const overrides = Object.values(localOverrides.value);
+  const overridesById = new Map(overrides.map((item) => [item.id, item]));
+  const merged = base.map((item) => overridesById.get(item.id) || item);
+  const baseIds = new Set(base.map((item) => item.id));
+  overrides.forEach((item) => {
+    if (!baseIds.has(item.id)) merged.push(item);
+  });
+  return merged;
+});
+
+const filteredProducts = computed(() => {
+  const term = (searchTerm.value || '').trim().toLowerCase();
+  let list = mergedProducts.value;
+
+  if (term) {
+    list = list.filter((product) => {
+      const nameMatch = product.nome?.toLowerCase().includes(term);
+      const codeMatch = product.codigo_produto?.toLowerCase().startsWith(term);
+      return nameMatch || codeMatch;
+    });
+  }
+
+  if (selectedFilter.value === 'active') {
+    list = list.filter((product) => product.ativo);
+  } else if (selectedFilter.value === 'inactive') {
+    list = list.filter((product) => !product.ativo);
+  }
+
+  return list;
+});
+
+function getProductById(id: number) {
+  return mergedProducts.value.find((product) => product.id === id);
+}
+
+function getProductImage(product: ProdutoRead) {
+  const primary = product.fotos?.find((foto) => foto.principal);
+  if (primary?.url) return primary.url;
+  return product.fotos?.[0]?.url || '';
+}
+
+function handleAddClick() {
+  if (activeTab.value === 'product') {
+    openCreateModal();
+  } else {
+    console.log('Abrir modal de fornecedor');
+  }
+}
+
+function handleViewProduct(id: number) {
+  const product = getProductById(id);
+  if (product) openViewModal(product);
+}
+
+function handleEditProduct(id: number) {
+  const product = getProductById(id);
+  if (product) openEditModal(product);
+}
+
+function handleToggleProduct(id: number) {
+  toggleMutation.mutate(id, {
+    onSuccess: (data) => {
+      localOverrides.value = {
+        ...localOverrides.value,
+        [data.id]: data,
+      };
+    },
+  });
+}
 </script>
 
 <template>
@@ -94,7 +111,13 @@ const products = ref([
 
       <div class="flex gap-5">
         <BaseTab2 :options="TAB_OPTIONS" v-model="activeTab" />
-        <BaseButton variant="primary" size="md" type="button" class="flex gap-1" @click="openModal">
+        <BaseButton
+          variant="primary"
+          size="md"
+          type="button"
+          class="flex gap-1"
+          @click="handleAddClick"
+        >
           <Plus :size="20" />
           {{ activeTab === 'product' ? 'Adicionar Produto' : 'Adicionar Fornecedor' }}
         </BaseButton>
@@ -113,15 +136,19 @@ const products = ref([
     <!-- Products Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <ProductCard
-        v-for="product in products"
+        v-for="product in filteredProducts"
         :key="product.id"
-        :name="product.name"
-        :description="product.description"
-        :category="product.category"
-        :price="product.price"
-        :storage="product.storage"
-        :image_url="product.image_url"
-        :status="product.status"
+        :id="product.id"
+        :name="product.nome"
+        :description="product.observacao || 'Sem descrição cadastrada'"
+        :category="product.categoria || 'SEM CATEGORIA'"
+        :price="product.estoque.valor_varejo / 100"
+        :storage="product.estoque.quantidade || 0"
+        :image_url="`${API_BASE_URL}/${getProductImage(product)}`"
+        :status="product.ativo"
+        @view="handleViewProduct"
+        @edit="handleEditProduct"
+        @toggle="handleToggleProduct"
       />
     </div>
 

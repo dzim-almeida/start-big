@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue';
 import { X, Image as ImageIcon } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
+import { useProductForm } from '../../composables/useProductForm';
 
 // =============================================
 // Props
@@ -21,6 +22,8 @@ const props = defineProps<Props>();
 // =============================================
 // State
 // =============================================
+
+const { imageFile } = useProductForm();
 
 const imagePreview = ref<string | null>(null);
 const fileName = ref<string>('');
@@ -54,6 +57,7 @@ function handleDrop(event: DragEvent) {
 
 function processFile(file: File) {
   fileName.value = file.name;
+  imageFile.value = file;
   const reader = new FileReader();
   reader.onload = (e) => {
     imagePreview.value = e.target?.result as string;
@@ -80,7 +84,7 @@ function handleDragLeave() {
   <div>
     <!-- Upload Area -->
     <div
-      class="relative w-full aspect-square max-w-[280px] rounded-2xl border-2 transition-all duration-300 ease-in-out overflow-hidden"
+      class="relative w-full aspect-square max-w-70 rounded-2xl border-2 transition-all duration-300 ease-in-out overflow-hidden"
       :class="[
         hasImage
           ? 'border-solid border-slate-200 bg-white'

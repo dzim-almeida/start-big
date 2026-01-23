@@ -4,11 +4,12 @@
  * @description Form section for stock and pricing data
  */
 
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { TrendingUp, DollarSign } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import { useProductForm } from '../../composables/useProductForm';
 
 // =============================================
 // Props
@@ -22,29 +23,32 @@ interface Props {
 const props = defineProps<Props>();
 
 // =============================================
-// Form Fields (Temporary - will be replaced with composable)
+// Form Fields
 // =============================================
 
-// TODO: Replace with useProductForm composable
-const valor_varejo = ref(0);
-const valor_entrada = ref(0);
-const valor_atacado = ref(0);
-const quantidade = ref('');
-const quantidade_minima = ref('');
-const quantidade_ideal = ref('');
+const {
+  valor_varejo,
+  valor_entrada,
+  valor_atacado,
+  quantidade,
+  quantidade_minima,
+  quantidade_ideal,
+  errors,
+} = useProductForm();
+
 const lucro_varejo = computed(() => {
   if (valor_varejo.value > valor_entrada.value) {
-    return valor_varejo.value - valor_entrada.value
+    return valor_varejo.value - valor_entrada.value;
   }
-  return 0
-})
+  return 0;
+});
+
 const lucro_atacado = computed(() => {
   if (valor_atacado.value > valor_entrada.value) {
-    return valor_atacado.value - valor_entrada.value
+    return valor_atacado.value - valor_entrada.value;
   }
-  return 0
-})
-const errors = ref<Record<string, string>>({});
+  return 0;
+});
 </script>
 
 <template>

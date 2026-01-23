@@ -4,13 +4,13 @@
  * @description Form section for product basic data
  */
 
-import { ref } from 'vue';
 import { Package } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import ImageUploadSection from './ImageUploadSection.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import { useProductForm } from '../../composables/useProductForm';
 
 // =============================================
 // Props
@@ -41,20 +41,27 @@ const UNIDADE_MEDIDA_OPTIONS = [
 ];
 
 // =============================================
-// Form Fields (Temporary - will be replaced with composable)
+// Form Fields
 // =============================================
 
-// TODO: Replace with useProductForm composable
-const nome = ref('');
-const codigo_produto = ref('');
-const codigo_barras = ref('');
-const unidade_medida = ref('');
-const categoria = ref('');
-const marca = ref('');
-const fornecedor_id = ref('');
-const localizacao_estoque = ref('');
-const observacao = ref('');
-const errors = ref<Record<string, string>>({});
+const {
+  nome,
+  codigo_produto,
+  codigo_barras,
+  unidade_medida,
+  categoria,
+  marca,
+  fornecedor_id,
+  localizacao_estoque,
+  observacao,
+  errors,
+} = useProductForm();
+
+function handleGenerateSku() {
+  if (!codigo_produto.value) {
+    codigo_produto.value = `PRD-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  }
+}
 </script>
 
 <template>
@@ -87,21 +94,27 @@ const errors = ref<Record<string, string>>({});
           />
         </div>
         <div class="col-span-12 md:col-span-5">
-          <BaseInput
+          <div class="flex items-end gap-2">
+            <BaseInput
             v-model="codigo_produto"
             label="Código SKU"
             placeholder="Ex: PRD-001"
             :required="true"
             :error="submitCount > 0 ? errors.codigo_produto : ''"
             :disabled="disabled"
+            class="flex-1"
           />
-        </div>
-        <div>
+          <div>
           <BaseButton
+            v-if="!disabled"
             variant="primary"
-            label="Gerar SKU"
-            :disabled="disabled"
-          />
+            :disabled="codigo_produto.length > 0"
+            @click="handleGenerateSku"
+          >
+            Gerar
+          </BaseButton>
+          </div>
+        </div>
         </div>
         <!-- Row 2: Código Barras, Unidade Medida, Categoria -->
         <div class="col-span-12 md:col-span-4">

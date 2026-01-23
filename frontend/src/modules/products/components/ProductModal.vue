@@ -4,10 +4,11 @@
  * @description Modal for creating/editing products with multi-section form and image upload
  */
 
-import { watch, onMounted, onUnmounted, ref } from 'vue';
+import { watch, onMounted, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import { useProductModal } from '../composables/useProductModal';
+import { useProductFormProvider } from '../composables/useProductForm';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -18,34 +19,25 @@ import DadosEstoqueSection from './form/DadosEstoqueSection.vue';
 // Modal State
 // =============================================
 
-const { isModalOpen, closeModal } = useProductModal();
+const {
+  isOpen,
+  isCreateMode,
+  isViewMode,
+  modalTitle,
+  closeModal,
+} = useProductModal();
 
-// Temporary state - will be replaced with proper composable
-const isCreateMode = ref(true);
-const isViewMode = ref(false);
-const isPending = ref(false);
-const submitCount = ref(0);
-const apiError = ref('');
-const modalTitle = ref('Novo Produto');
+const { onSubmit, isPending, submitCount, apiError } = useProductFormProvider();
 
 // =============================================
 // Event Handlers
 // =============================================
 
 /**
- * Handle form submission
- */
-function onSubmit() {
-  submitCount.value++;
-  // TODO: Implement form submission logic
-  console.log('Form submitted');
-}
-
-/**
  * Handle ESC key to close modal
  */
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && isModalOpen.value) {
+  if (event.key === 'Escape' && isOpen.value) {
     closeModal();
   }
 }
@@ -72,7 +64,7 @@ onUnmounted(() => {
 });
 
 // Prevent body scroll when modal is open
-watch(isModalOpen, (open) => {
+watch(isOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : '';
 });
 </script>
@@ -88,7 +80,7 @@ watch(isModalOpen, (open) => {
       leave-to-class="opacity-0"
     >
       <div
-        v-if="isModalOpen"
+        v-if="isOpen"
         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         @click="handleBackdropClick"
       >
@@ -101,7 +93,7 @@ watch(isModalOpen, (open) => {
           leave-to-class="opacity-0 scale-95 translate-y-4"
         >
           <div
-            v-if="isModalOpen"
+            v-if="isOpen"
             class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
           >
             <!-- Header -->
@@ -129,7 +121,10 @@ watch(isModalOpen, (open) => {
               </div>
 
               <form id="product-form" @submit.prevent="onSubmit" class="space-y-8">
-                <DadosProdutoSection :submit-count="submitCount" :disabled="isViewMode" />
+                <DadosProdutoSection
+                  :submit-count="submitCount"
+                  :disabled="isViewMode"
+                />
 
                 <!-- Divider -->
                 <div class="relative">
@@ -146,7 +141,10 @@ watch(isModalOpen, (open) => {
                 </div>
 
                 <!-- Stock & Pricing Data -->
-                <DadosEstoqueSection :submit-count="submitCount" :disabled="isViewMode" />
+                <DadosEstoqueSection
+                  :submit-count="submitCount"
+                  :disabled="isViewMode"
+                />
               </form>
             </div>
 

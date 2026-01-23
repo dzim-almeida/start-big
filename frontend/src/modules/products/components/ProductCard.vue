@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Eye, Pencil, Trash2, Box, AlertTriangle } from 'lucide-vue-next';
+import { Eye, Pencil, Power, Box, AlertTriangle } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
+  id: number;
   name: string;
   description: string;
   category: string;
@@ -13,9 +14,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+  (e: 'view', id: number): void;
+  (e: 'edit', id: number): void;
+  (e: 'toggle', id: number): void;
+}>();
 
 const stockStatus = computed(() => {
-  if (props.storage === 0) {
+  if (!props.status) {
+    return {
+      icon: Box,
+      label: 'INATIVO',
+      class: 'bg-gray-500',
+    };
+  } else if (props.storage === 0) {
     return {
       icon: Box,
       label: 'SEM ESTOQUE',
@@ -47,6 +59,8 @@ const stockTextColor = computed(() => {
   if (props.storage <= 10) return 'text-amber-600';
   return 'text-gray-600';
 });
+
+const isInactive = computed(() => !props.status);
 </script>
 
 <template>
@@ -56,6 +70,7 @@ const stockTextColor = computed(() => {
     <!-- Image Container -->
     <div class="relative w-full h-48 bg-linear-to-br from-gray-50 to-gray-100 overflow-hidden">
       <img
+        v-if="image_url"
         :src="image_url"
         :alt="name"
         class="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
@@ -108,22 +123,25 @@ const stockTextColor = computed(() => {
       <!-- Action Buttons -->
       <div class="flex gap-2 pt-2">
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md"
+          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
           title="Visualizar"
+          @click="emit('view', id)"
         >
           <Eye :size="18" />
         </button>
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:border-blue-600 hover:shadow-lg hover:shadow-blue-200"
+          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:border-blue-600 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
           title="Editar"
+          @click="emit('edit', id)"
         >
           <Pencil :size="18" />
         </button>
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-red-50 text-red-600 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-200"
-          title="Excluir"
+          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-red-50 text-red-600 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-200 cursor-pointer"
+          :title="isInactive ? 'Ativar' : 'Desativar'"
+          @click="emit('toggle', id)"
         >
-          <Trash2 :size="18" />
+          <Power :size="18" />
         </button>
       </div>
     </div>
