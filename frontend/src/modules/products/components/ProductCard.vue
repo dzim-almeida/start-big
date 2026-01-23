@@ -130,7 +130,7 @@ const isInactive = computed(() => !props.status);
           <Eye :size="18" />
         </button>
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:border-blue-600 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
+          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-brand-primary text-white border-blue-500 hover:bg-blue-950 hover:border-blue-950 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
           title="Editar"
           @click="emit('edit', id)"
         >

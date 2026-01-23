@@ -4,13 +4,15 @@
  */
 
 import api from '@/api/axios';
+import { ENDPOINT_PERMISSION_MAP } from '@/shared/constants/permissions.constants';
 import type {
   FuncionarioCreate,
   FuncionarioRead,
   FuncionarioUpdate,
 } from '../types/employees.types';
 
-const BASE_URL = 'funcionarios';
+const BASE_URL = 'funcionarios' as const;
+export const EMPLOYEE_PERMISSION = ENDPOINT_PERMISSION_MAP[BASE_URL];
 
 /**
  * Lista todos os funcionarios ativos ou busca por termo

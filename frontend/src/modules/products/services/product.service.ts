@@ -4,13 +4,15 @@
  */
 
 import api from '@/api/axios';
+import { ENDPOINT_PERMISSION_MAP } from '@/shared/constants/permissions.constants';
 import type {
   ProdutoCreate,
   ProdutoRead,
   ProdutoUpdate,
 } from '../types/products.types';
 
-const BASE_URL = 'produtos';
+const BASE_URL = 'produtos' as const;
+export const PRODUCT_PERMISSION = ENDPOINT_PERMISSION_MAP[BASE_URL];
 
 /**
  * Lista produtos ativos ou busca por termo

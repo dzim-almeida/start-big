@@ -178,7 +178,7 @@ function handleGenerateSku() {
         <!-- Row 4: Observações -->
         <div class="col-span-12">
           <label class="block select-none text-xs font-medium text-gray-700 mb-1">
-            Observações
+            Descrição
           </label>
           <textarea
             v-model="observacao"

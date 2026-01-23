@@ -16,6 +16,7 @@ import {
 
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import type { FuncionarioRead, EmployeeStatus } from '../types/employees.types';
+import type { CargoRead } from '../types/positions.types';
 import { useEmployeeModal } from '../composables/useEmployeeModal';
 import { useToggleEmployeeActiveMutation } from '../composables/useEmployeesQuery';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
@@ -28,11 +29,13 @@ interface Props {
   employees: FuncionarioRead[];
   isLoading?: boolean;
   isError?: boolean;
+  positions?: CargoRead[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   isError: false,
+  positions: () => [],
 });
 
 const search = defineModel<string>('search', { default: '' });
@@ -71,6 +74,10 @@ const statusConfig: Record<EmployeeStatus, { label: string; class: string, color
 // =============================================
 
 const selectedStatus = ref<EmployeeStatus | null>(null);
+
+const positionsById = computed(() => {
+  return new Map((props.positions || []).map((position) => [position.id, position]));
+});
 
 // =============================================
 // Computed
@@ -120,7 +127,10 @@ function getInitials(name: string): string {
 }
 
 function getEmployeeRole(employee: FuncionarioRead): string {
-  // Would need cargo data from backend - for now use tipo_contrato or default
+  if (employee.cargo_id) {
+    const cargo = positionsById.value.get(employee.cargo_id);
+    if (cargo?.nome) return cargo.nome;
+  }
   return employee.tipo_contrato || 'Funcionario';
 }
 
@@ -185,7 +195,7 @@ function handleToggleActive(employee: FuncionarioRead) {
       class="p-8 text-center text-red-500 flex flex-col items-center gap-2"
     >
       <AlertCircle :size="32" />
-      <p class="text-sm">Erro ao carregar funcionarios.</p>
+      <p class="text-sm">Erro ao carregar funcionários.</p>
       <p class="text-xs text-zinc-400">Verifique sua conexao e tente novamente.</p>
     </div>
 
@@ -196,11 +206,11 @@ function handleToggleActive(employee: FuncionarioRead) {
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
           >
-            <th class="px-4 md:px-6 py-3 md:py-4">Funcionario</th>
+            <th class="px-4 md:px-6 py-3 md:py-4">Funcionário</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Cargo</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Status</th>
             <th class="px-4 md:px-6 py-3 md:py-4 text-right min-w-40">
-              Acoes Rapidas
+              Ações Rapidas
             </th>
           </tr>
         </thead>
@@ -208,7 +218,8 @@ function handleToggleActive(employee: FuncionarioRead) {
           <tr
             v-for="employee in filteredEmployees"
             :key="employee.id"
-            class="hover:bg-zinc-50/50 transition-colors group"
+            class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
+            @click="handleView(employee)"
           >
             <!-- Employee Info -->
             <td
@@ -266,14 +277,14 @@ function handleToggleActive(employee: FuncionarioRead) {
                   <button
                     title="Visualizar Detalhes"
                     class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
-                    @click="handleView(employee)"
+                    @click.stop="handleView(employee)"
                   >
                     <Eye :size="18" />
                   </button>
                   <button
                     title="Editar"
                     class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
-                    @click="handleEdit(employee)"
+                    @click.stop="handleEdit(employee)"
                   >
                     <Pencil :size="18" />
                   </button>
@@ -285,7 +296,7 @@ function handleToggleActive(employee: FuncionarioRead) {
                         ? 'text-zinc-400 hover:text-red-600 hover:bg-red-50'
                         : 'text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50',
                     ]"
-                    @click="handleToggleActive(employee)"
+                    @click.stop="handleToggleActive(employee)"
                   >
                     <Power :size="18" />
                   </button>

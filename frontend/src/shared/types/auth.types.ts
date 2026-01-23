@@ -1,14 +1,6 @@
-export type Permissions =
-  | 'all'
-  | 'view_dashboard'
-  | 'view_sales'
-  | 'view_storage'
-  | 'view_services'
-  | 'view_customers'
-  | 'view_products'
-  | 'view_catalog'
-  | 'view_enterprise'
-  | 'view_employees';
+import type { PermissionKey } from '@/shared/constants/permissions.constants';
+
+export type Permissions = PermissionKey;
 
 export interface Company {
   id: number;
@@ -20,7 +12,7 @@ export interface Company {
 
 export interface Position {
   nome: string;
-  permissoes: Record<Permissions, boolean>;
+  permissoes: Record<string, boolean>;
 }
 
 export interface User {

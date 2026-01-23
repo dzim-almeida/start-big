@@ -55,7 +55,7 @@ const DEFAULT_FORM_VALUES: EmployeeFormData = {
   email: '',
   cargo_id: null,
   cnh: '',
-  salario_bruto: '',
+  salario_bruto: 0,
   tipo_contrato: '',
   data_admissao: '',
   mae: '',
@@ -100,13 +100,6 @@ function convertDateFromISO(dateStr: string | undefined): string {
   return `${day}/${month}/${year}`;
 }
 
-function parseSalary(salaryStr: string): number | undefined {
-  if (!salaryStr) return undefined;
-  const cleaned = salaryStr.replace(/\D/g, '');
-  const value = parseInt(cleaned, 10);
-  return isNaN(value) ? undefined : value;
-}
-
 // =============================================
 // Types for Injection
 // =============================================
@@ -124,7 +117,7 @@ export interface EmployeeFormContext {
   email: Ref<string>;
   cargo_id: Ref<number | null>;
   cnh: Ref<string>;
-  salario_bruto: Ref<string>;
+  salario_bruto: Ref<number>;
   tipo_contrato: Ref<string>;
   data_admissao: Ref<string>;
   mae: Ref<string>;
@@ -247,7 +240,7 @@ export function useEmployeeFormProvider() {
       email: employee.email || '',
       cargo_id: employee.cargo_id,
       cnh: employee.cnh || '',
-      salario_bruto: employee.salario_bruto?.toString() || '',
+      salario_bruto: employee.salario_bruto || 0,
       tipo_contrato: employee.tipo_contrato || '',
       data_admissao: convertDateFromISO(employee.data_admissao),
       mae: employee.mae || '',
@@ -266,7 +259,7 @@ export function useEmployeeFormProvider() {
           cidade: e.cidade,
           estado: e.estado,
         })) || [],
-      titular_conta: employee.titular_conta,
+      titular_conta: employee.titular_conta || '',
       tipo_conta: employee.tipo_conta || '',
       banco: employee.banco || '',
       agencia: employee.agencia || '',
@@ -310,7 +303,7 @@ export function useEmployeeFormProvider() {
       pai: formData.pai || undefined,
       observacao: formData.observacao || undefined,
       jornada_trabalho: formData.jornada_trabalho || undefined,
-      salario_bruto: parseSalary(formData.salario_bruto),
+      salario_bruto: formData.salario_bruto || undefined,
       tipo_contrato: formData.tipo_contrato || undefined,
       data_admissao: convertDateToISO(formData.data_admissao),
       cargo_id: formData.cargo_id || undefined,
@@ -383,7 +376,7 @@ export function useEmployeeFormProvider() {
           agencia: formData.agencia || undefined,
           conta: formData.conta || undefined,
           tipo_conta: formData.tipo_conta || undefined,
-          salario_bruto: parseSalary(formData.salario_bruto),
+          salario_bruto: formData.salario_bruto || undefined,
 
           // Empresa
           cargo_id: formData.cargo_id || undefined,

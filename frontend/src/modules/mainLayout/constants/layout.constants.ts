@@ -11,6 +11,7 @@ import {
 } from 'lucide-vue-next';
 
 import { SidebarSection } from '../types/layout.types';
+import { PERMISSIONS } from '@/shared/constants/permissions.constants';
 
 export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
@@ -20,43 +21,43 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         id: 'home',
         icon: LayoutDashboard,
         label: 'Início',
-        requiredPermission: 'view_dashboard',
+        requiredPermission: PERMISSIONS.dashboard,
       },
       {
         id: 'sales',
         icon: ShoppingCart,
         label: 'Vendas',
-        requiredPermission: 'view_sales',
+        requiredPermission: PERMISSIONS.sales,
       },
       {
         id: 'storage',
         icon: Package,
         label: 'Estoque',
-        requiredPermission: 'view_storage',
+        requiredPermission: PERMISSIONS.storage,
       },
       {
         id: 'services',
         icon: Wrench,
         label: 'Serviços',
-        requiredPermission: 'view_services',
+        requiredPermission: PERMISSIONS.services,
       },
       {
         id: 'customers',
         icon: Users,
         label: 'Clientes',
-        requiredPermission: 'view_customers',
+        requiredPermission: PERMISSIONS.customers,
       },
       {
         id: 'products',
         icon: Tags,
         label: 'Produtos',
-        requiredPermission: 'view_products',
+        requiredPermission: PERMISSIONS.products,
       },
       {
         id: 'catalog',
         icon: BookOpen,
         label: 'Catálogo',
-        requiredPermission: 'view_catalog',
+        requiredPermission: PERMISSIONS.catalog,
       },
     ],
   },
@@ -67,13 +68,13 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         id: 'enterprise',
         icon: Building,
         label: 'Dados da Empresa',
-        requiredPermission: 'view_enterprise',
+        requiredPermission: PERMISSIONS.enterprise,
       },
       {
         id: 'employees',
         icon: IdCard,
         label: 'Gestão de Equipe',
-        requiredPermission: 'view_employees',
+        requiredPermission: PERMISSIONS.employees,
       },
     ],
   },

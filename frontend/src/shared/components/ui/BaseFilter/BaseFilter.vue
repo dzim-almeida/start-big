@@ -5,10 +5,15 @@ import { FilterOption } from '@/shared/types/filter.types';
 import { ref } from 'vue';
 
 interface Props {
-    filterConfig: Record<string, FilterOption>;
+  filterConfig: Record<string, FilterOption>;
+  title?: string;
+  buttonLabel?: string;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  title: 'Filtrar por Status',
+  buttonLabel: 'Filtros',
+});
 
 const selectedFilter = defineModel<string | null>();
 
@@ -36,7 +41,7 @@ function selectFilter(filter: string | null) {
       ]"
     >
       <Funnel :size="20" />
-      Filtros
+      {{ props.buttonLabel }}
       <span v-if="selectedFilter" class="ml-1 w-2 h-2 rounded-full bg-brand-primary"></span>
     </button>
 
@@ -45,7 +50,9 @@ function selectFilter(filter: string | null) {
       v-if="isFilterMenuOpen"
       class="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-zinc-100 z-50 p-2"
     >
-      <div class="text-[10px] uppercase font-bold text-zinc-400 px-2 py-2">Filtrar por Status</div>
+      <div class="text-[10px] uppercase font-bold text-zinc-400 px-2 py-2">
+        {{ props.title }}
+      </div>
 
       <button
         @click="selectFilter(null)"

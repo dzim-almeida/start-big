@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Plus } from 'lucide-vue-next';
+import { PackageSearch, Plus } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
@@ -61,6 +61,27 @@ const filteredProducts = computed(() => {
   return list;
 });
 
+const isSearchActive = computed(() => (searchTerm.value || '').trim().length > 0);
+const isFilterActive = computed(() => !!selectedFilter.value);
+
+const emptyState = computed(() => {
+  if (isSearchActive.value || isFilterActive.value) {
+    return {
+      title: 'Nenhum produto encontrado',
+      description: 'Ajuste a busca ou os filtros para ver outros resultados.',
+      actionLabel: 'Limpar filtros',
+      actionType: 'clear',
+    };
+  }
+
+  return {
+    title: 'Nenhum produto cadastrado',
+    description: 'Comece cadastrando seu primeiro produto no catalogo.',
+    actionLabel: 'Cadastrar produto',
+    actionType: 'create',
+  };
+});
+
 function getProductById(id: number) {
   return mergedProducts.value.find((product) => product.id === id);
 }
@@ -99,6 +120,16 @@ function handleToggleProduct(id: number) {
     },
   });
 }
+
+function handleEmptyAction() {
+  if (emptyState.value.actionType === 'clear') {
+    searchTerm.value = '';
+    selectedFilter.value = null;
+    return;
+  }
+
+  handleAddClick();
+}
 </script>
 
 <template>
@@ -124,7 +155,7 @@ function handleToggleProduct(id: number) {
       </div>
     </div>
 
-    <div class="flex gap-5 justify-between p-4 bg-white rounded-2xl">
+    <div class="flex gap-5 p-4 bg-white rounded-2xl">
       <BaseSearchInput
         class="md:max-w-2/3 lg:max-w-1/2"
         v-model="searchTerm"
@@ -150,6 +181,35 @@ function handleToggleProduct(id: number) {
         @edit="handleEditProduct"
         @toggle="handleToggleProduct"
       />
+    </div>
+
+    <div
+      v-if="filteredProducts.length === 0"
+      class="rounded-2xl border border-dashed border-zinc-200 bg-white p-10 text-center"
+    >
+      <div
+        class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary"
+      >
+        <PackageSearch :size="28" />
+      </div>
+      <h3 class="text-base font-semibold text-zinc-800">
+        {{ emptyState.title }}
+      </h3>
+      <p class="mt-1 text-sm text-zinc-400">
+        {{ emptyState.description }}
+      </p>
+      <div class="mt-6 flex items-center justify-center">
+        <BaseButton
+          variant="primary"
+          size="md"
+          type="button"
+          class="flex items-center gap-2"
+          @click="handleEmptyAction"
+        >
+          <Plus v-if="emptyState.actionType === 'create'" :size="18" />
+          {{ emptyState.actionLabel }}
+        </BaseButton>
+      </div>
     </div>
 
     <ProductModal />

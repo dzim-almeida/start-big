@@ -11,7 +11,7 @@ import LucideIcon from '../../icons/LucideIcon.vue';
 import { ChevronDown } from 'lucide-vue-next';
 
 export interface SelectOption {
-  value: string;
+  value: string | number;
   label: string;
 }
 
@@ -32,7 +32,7 @@ const props = withDefaults(defineProps<SelectProps>(), {
   emptyMessage: 'Nenhuma opção encontrada',
 });
 
-const model = defineModel<string>();
+const model = defineModel<string | number>();
 
 const searchQuery = ref('');
 const isOpen = ref(false);
@@ -50,13 +50,12 @@ const filteredOptions = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return props.options.filter(
     (option) =>
-      option.label.toLowerCase().includes(query) ||
-      option.value.toLowerCase().includes(query)
+      option.label.toLowerCase().includes(query)
   );
 });
 
 const selectedOption = computed(() => {
-  return props.options.find((opt) => opt.value === model.value);
+  return props.options.find((opt) => String(opt.value) === String(model.value));
 });
 
 const displayValue = computed(() => {

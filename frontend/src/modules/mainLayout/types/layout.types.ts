@@ -22,7 +22,7 @@ export interface SidebarOption {
     id: string;
     icon: Component;
     label: SidebarLabelOptions;
-    requiredPermission: Permissions;
+    requiredPermission?: Permissions;
 }
 
 export interface SidebarSection {
