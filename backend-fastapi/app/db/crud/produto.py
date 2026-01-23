@@ -26,7 +26,7 @@ def get_produto_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
         Sequence[ProdutoModel]: Lista de produtos encontrados.
     """
     if not search:
-        stmt = select(ProdutoModel).where(ProdutoModel.ativo.is_(True))
+        stmt = select(ProdutoModel)
     else:
         conditions = or_(
             ProdutoModel.nome.ilike(f"{search}%"),
@@ -35,7 +35,6 @@ def get_produto_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
         
         stmt = select(ProdutoModel).where(
             and_(
-                ProdutoModel.ativo.is_(True),
                 conditions
             )
         )

@@ -40,6 +40,28 @@ const homeRoutes: RouteRecordRaw[] = [
           tabId: 'employees',
           requiresAuth: true
         }
+      },
+      {
+        path: '/produtos',
+        name: 'products',
+        component: () => import('@/modules/products/views/ProductsView.vue'),
+        meta: {
+          title: 'Produtos',
+          subtitle: 'Gerencie os produtos da sua organização de forma centralizada.',
+          tabId: 'products',
+          requiresAuth: true
+        }
+      },
+      {
+        path: '/clientes',
+        name: 'customers',
+        component: () => import('@/modules/customers/views/CustomersView.vue'),
+        meta: {
+          title: 'Clientes',
+          subtitle: 'Gerencie os clientes da sua organização de forma centralizada.',
+          tabId: 'customers',
+          requiresAuth: true
+        }
       }
     ],
   },

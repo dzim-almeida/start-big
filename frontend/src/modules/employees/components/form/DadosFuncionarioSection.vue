@@ -4,12 +4,15 @@
  * @description Form section for employee personal data
  */
 
+import { computed } from 'vue';
 import { User, KeyRound } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
 import { useEmployeeForm } from '../../composables/useEmployeeForm';
+import { usePositionsQuery } from '../../composables/usePositionsQuery';
 import {
   GENDER_OPTIONS,
   TIPO_CONTRATO_OPTIONS,
@@ -42,6 +45,7 @@ const {
   telefone,
   celular,
   email,
+  cargo_id,
   cnh,
   salario_bruto,
   tipo_contrato,
@@ -54,6 +58,24 @@ const {
   usuario_senha,
   errors,
 } = useEmployeeForm();
+
+const { data: positions, isLoading: isPositionsLoading } = usePositionsQuery();
+
+const cargoOptions = computed(() => [
+  ...(positions.value || []).map((position) => ({
+    value: position.id,
+    label: position.nome,
+  })),
+]);
+
+const selectedCargo = computed({
+  get() {
+    return cargo_id.value ? String(cargo_id.value) : '';
+  },
+  set(value: string) {
+    cargo_id.value = value ? Number(value) : null;
+  },
+});
 </script>
 
 <template>
@@ -187,7 +209,7 @@ const {
 
       <!-- Row 4: Salario, Tipo Contrato, Data Admissao -->
       <div class="col-span-12 md:col-span-3">
-        <BaseInput
+        <MoneyInput
           v-model="salario_bruto"
           label="Salario Bruto"
           placeholder="R$ 0,00"
@@ -216,7 +238,14 @@ const {
         />
       </div>
       <div class="col-span-12 md:col-span-3">
-        <!-- Placeholder for alignment -->
+        <BaseSelect
+          v-model="selectedCargo"
+          label="Cargo"
+          placeholder="Selecione"
+          :options="cargoOptions"
+          :disabled="disabled || isPositionsLoading"
+          :empty-message="isPositionsLoading ? 'Carregando cargos...' : undefined"
+        />
       </div>
 
       <!-- Row 5: Mae, Pai -->

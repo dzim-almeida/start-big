@@ -40,7 +40,6 @@ def login_to_acess_cookie(
         httponly=True,  # JS não pode ler
         secure=False,   # True apenas em produção
         samesite="lax",
-        max_age=1800
     )
 
     return {"message": "Login bem-sucedido!"}

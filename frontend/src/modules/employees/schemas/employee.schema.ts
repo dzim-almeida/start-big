@@ -65,7 +65,7 @@ export const employeeSchema = z
     email: z.string().email('Email invalido').optional().or(z.literal('')),
     cargo_id: z.number().nullable().optional(),
     cnh: z.string().max(20).optional().or(z.literal('')),
-    salario_bruto: z.string().optional().or(z.literal('')),
+    salario_bruto: z.number().optional(),
     tipo_contrato: z.string().max(50).optional().or(z.literal('')),
     data_admissao: z.string().optional().or(z.literal('')),
     mae: z.string().max(255).optional().or(z.literal('')),
@@ -75,20 +75,18 @@ export const employeeSchema = z
     // Usuario (required only in create mode - validated conditionally)
     usuario_nome: z
       .string()
-      .max(255)
-      .optional()
-      .or(z.literal('')),
+      .min(3, 'Nome do usuário deve ter no mínimo 3 caracteres')
+      .max(255),
     usuario_email: z
       .string()
-      .email('Email do usuario invalido')
-      .max(255)
-      .optional()
-      .or(z.literal('')),
+      .email('Email do usuario inválido')
+      .max(255),
     usuario_senha: z
       .string()
+      .min(8, 'A senha deve ter no mínimo 8 caracteres')
       .max(72)
-      .optional()
-      .or(z.literal('')),
+      .regex(/[A-Z]/, 'A senha deve conter ao menos uma letra maiúscula')
+      .regex(/[0-9]/, 'A senha deve conter ao menos um número'),
 
     // Enderecos (optional array)
     enderecos: z.array(enderecoSchema).optional().default([]),

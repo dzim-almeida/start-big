@@ -7,19 +7,19 @@
 import { ref, computed } from 'vue';
 import {
   Ellipsis,
-  Funnel,
   Mail,
   Eye,
   Pencil,
   Power,
-  Check,
   AlertCircle,
 } from 'lucide-vue-next';
 
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import type { FuncionarioRead, EmployeeStatus } from '../types/employees.types';
+import type { CargoRead } from '../types/positions.types';
 import { useEmployeeModal } from '../composables/useEmployeeModal';
 import { useToggleEmployeeActiveMutation } from '../composables/useEmployeesQuery';
+import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 
 // =============================================
 // Props & Emits
@@ -29,11 +29,13 @@ interface Props {
   employees: FuncionarioRead[];
   isLoading?: boolean;
   isError?: boolean;
+  positions?: CargoRead[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   isError: false,
+  positions: () => [],
 });
 
 const search = defineModel<string>('search', { default: '' });
@@ -49,18 +51,21 @@ const toggleActiveMutation = useToggleEmployeeActiveMutation();
 // Status Configuration
 // =============================================
 
-const statusConfig: Record<EmployeeStatus, { label: string; class: string }> = {
+const statusConfig: Record<EmployeeStatus, { label: string; class: string, color: string }> = {
   active: {
     label: 'Ativo',
     class: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+    color: 'bg-emerald-500'
   },
   vacation: {
     label: 'Ferias',
     class: 'bg-amber-50 text-amber-600 border border-amber-200',
+    color: 'bg-amber-500'
   },
   inactive: {
     label: 'Desativado',
     class: 'bg-red-50 text-red-600 border border-red-200',
+    color: 'bg-red-500'
   },
 };
 
@@ -69,7 +74,10 @@ const statusConfig: Record<EmployeeStatus, { label: string; class: string }> = {
 // =============================================
 
 const selectedStatus = ref<EmployeeStatus | null>(null);
-const isFilterMenuOpen = ref(false);
+
+const positionsById = computed(() => {
+  return new Map((props.positions || []).map((position) => [position.id, position]));
+});
 
 // =============================================
 // Computed
@@ -119,22 +127,16 @@ function getInitials(name: string): string {
 }
 
 function getEmployeeRole(employee: FuncionarioRead): string {
-  // Would need cargo data from backend - for now use tipo_contrato or default
+  if (employee.cargo_id) {
+    const cargo = positionsById.value.get(employee.cargo_id);
+    if (cargo?.nome) return cargo.nome;
+  }
   return employee.tipo_contrato || 'Funcionario';
 }
 
 // =============================================
 // Handlers
 // =============================================
-
-function toggleFilterMenu() {
-  isFilterMenuOpen.value = !isFilterMenuOpen.value;
-}
-
-function selectFilter(statusKey: EmployeeStatus | null) {
-  selectedStatus.value = statusKey;
-  isFilterMenuOpen.value = false;
-}
 
 function handleView(employee: FuncionarioRead) {
   openViewModal(employee);
@@ -163,74 +165,10 @@ function handleToggleActive(employee: FuncionarioRead) {
         placeholder="Buscar por nome, email ou CPF..."
       />
 
-      <div class="relative">
-        <button
-          @click="toggleFilterMenu"
-          :class="[
-            'flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer select-none',
-            selectedStatus
-              ? 'bg-brand-primary/10 text-brand-primary border-brand-primary'
-              : 'text-zinc-600 border-brand-grey hover:text-brand-primary/80 hover:border-brand-primary/80',
-          ]"
-        >
-          <Funnel :size="20" />
-          Filtros
-          <span
-            v-if="selectedStatus"
-            class="ml-1 w-2 h-2 rounded-full bg-brand-primary"
-          ></span>
-        </button>
-
-        <!-- Filter Dropdown -->
-        <div
-          v-if="isFilterMenuOpen"
-          class="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-zinc-100 z-50 p-2"
-        >
-          <div
-            class="text-[10px] uppercase font-bold text-zinc-400 px-2 py-2"
-          >
-            Filtrar por Status
-          </div>
-
-          <button
-            @click="selectFilter(null)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
-          >
-            Todos
-            <Check
-              v-if="selectedStatus === null"
-              :size="16"
-              class="text-brand-primary"
-            />
-          </button>
-
-          <button
-            v-for="(config, key) in statusConfig"
-            :key="key"
-            @click="selectFilter(key as EmployeeStatus)"
-            class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
-          >
-            <div class="flex items-center gap-2">
-              <span
-                :class="[
-                  'w-2 h-2 rounded-full',
-                  key === 'active'
-                    ? 'bg-emerald-500'
-                    : key === 'vacation'
-                      ? 'bg-amber-500'
-                      : 'bg-red-500',
-                ]"
-              ></span>
-              {{ config.label }}
-            </div>
-            <Check
-              v-if="selectedStatus === key"
-              :size="16"
-              class="text-brand-primary"
-            />
-          </button>
-        </div>
-      </div>
+      <BaseFilter
+        v-model="selectedStatus"
+        :filterConfig="statusConfig"
+      />
     </div>
 
     <!-- Loading State -->
@@ -257,7 +195,7 @@ function handleToggleActive(employee: FuncionarioRead) {
       class="p-8 text-center text-red-500 flex flex-col items-center gap-2"
     >
       <AlertCircle :size="32" />
-      <p class="text-sm">Erro ao carregar funcionarios.</p>
+      <p class="text-sm">Erro ao carregar funcionários.</p>
       <p class="text-xs text-zinc-400">Verifique sua conexao e tente novamente.</p>
     </div>
 
@@ -268,11 +206,11 @@ function handleToggleActive(employee: FuncionarioRead) {
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
           >
-            <th class="px-4 md:px-6 py-3 md:py-4">Funcionario</th>
+            <th class="px-4 md:px-6 py-3 md:py-4">Funcionário</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Cargo</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Status</th>
             <th class="px-4 md:px-6 py-3 md:py-4 text-right min-w-40">
-              Acoes Rapidas
+              Ações Rapidas
             </th>
           </tr>
         </thead>
@@ -280,7 +218,8 @@ function handleToggleActive(employee: FuncionarioRead) {
           <tr
             v-for="employee in filteredEmployees"
             :key="employee.id"
-            class="hover:bg-zinc-50/50 transition-colors group"
+            class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
+            @click="handleView(employee)"
           >
             <!-- Employee Info -->
             <td
@@ -338,14 +277,14 @@ function handleToggleActive(employee: FuncionarioRead) {
                   <button
                     title="Visualizar Detalhes"
                     class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
-                    @click="handleView(employee)"
+                    @click.stop="handleView(employee)"
                   >
                     <Eye :size="18" />
                   </button>
                   <button
                     title="Editar"
                     class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
-                    @click="handleEdit(employee)"
+                    @click.stop="handleEdit(employee)"
                   >
                     <Pencil :size="18" />
                   </button>
@@ -357,7 +296,7 @@ function handleToggleActive(employee: FuncionarioRead) {
                         ? 'text-zinc-400 hover:text-red-600 hover:bg-red-50'
                         : 'text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50',
                     ]"
-                    @click="handleToggleActive(employee)"
+                    @click.stop="handleToggleActive(employee)"
                   >
                     <Power :size="18" />
                   </button>
@@ -388,7 +327,7 @@ function handleToggleActive(employee: FuncionarioRead) {
     <!-- Footer with Pagination -->
     <div
       v-if="!isLoading && !isError && filteredEmployees.length > 0"
-      class="px-6 py-5 border-t border-zinc-100 bg-white flex flex-col md:flex-row items-center justify-between gap-4 mt-auto"
+      class="px-6 py-5 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-4 mt-auto"
     >
       <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">
         {{ filteredEmployees.length }} Registros

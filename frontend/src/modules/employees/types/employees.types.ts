@@ -159,7 +159,7 @@ export interface EmployeeFormData {
   email: string;
   cargo_id: number | null;
   cnh: string;
-  salario_bruto: string;
+  salario_bruto: number;
   tipo_contrato: string;
   data_admissao: string;
   mae: string;
