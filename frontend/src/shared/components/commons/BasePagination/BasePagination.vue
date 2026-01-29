@@ -16,7 +16,7 @@
  * ===========================================================================
  */
 
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
+// No icon imports needed - using text buttons
 
 interface Props {
   currentPage: number;
@@ -66,32 +66,44 @@ function nextPage() {
 </script>
 
 <template>
-  <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+  <div class="px-6 py-5 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-4">
     <!-- Total de Itens (Esquerda) -->
-    <span class="text-xs font-medium text-slate-500">
-      {{ totalItems }} {{ getItemLabel() }} cadastrado{{ totalItems !== 1 ? 's' : '' }}
+    <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">
+      {{ totalItems }} {{ getItemLabel() }}
     </span>
 
-    <!-- Paginação (Direita) - sempre visível se tiver itens -->
+    <!-- Paginação (Direita) -->
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="p-2 rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="h-9 px-4 rounded-lg text-xs font-bold transition-colors"
+        :class="[
+          currentPage <= 1
+            ? 'text-zinc-400 bg-zinc-50 cursor-not-allowed'
+            : 'text-zinc-700 bg-white border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 shadow-sm cursor-pointer'
+        ]"
         :disabled="currentPage <= 1"
         @click="prevPage"
       >
-        <ChevronLeft :size="18" />
+        Anterior
       </button>
-      <span class="text-xs font-medium text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-        Página {{ currentPage }} de {{ totalPages }}
-      </span>
+      <button
+        class="h-9 w-9 rounded-lg bg-brand-primary text-white text-xs font-bold shadow-sm shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all cursor-pointer"
+      >
+        {{ currentPage }}
+      </button>
       <button
         type="button"
-        class="p-2 rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="h-9 px-4 rounded-lg text-xs font-bold transition-colors"
+        :class="[
+          currentPage >= totalPages
+            ? 'text-zinc-400 bg-zinc-50 cursor-not-allowed'
+            : 'text-zinc-700 bg-white border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 shadow-sm cursor-pointer'
+        ]"
         :disabled="currentPage >= totalPages"
         @click="nextPage"
       >
-        <ChevronRight :size="18" />
+        Proximo
       </button>
     </div>
   </div>

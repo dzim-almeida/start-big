@@ -83,24 +83,6 @@ const DEFAULT_FORM_VALUES: EmployeeFormData = {
 };
 
 // =============================================
-// Helper Functions
-// =============================================
-
-function convertDateToISO(dateStr: string): string | undefined {
-  if (!dateStr || dateStr.length !== 10) return undefined;
-  const [day, month, year] = dateStr.split('/');
-  if (!day || !month || !year) return undefined;
-  return `${year}-${month}-${day}`;
-}
-
-function convertDateFromISO(dateStr: string | undefined): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  if (!day || !month || !year) return '';
-  return `${day}/${month}/${year}`;
-}
-
-// =============================================
 // Types for Injection
 // =============================================
 
@@ -231,7 +213,7 @@ export function useEmployeeFormProvider() {
     setValues({
       nome: employee.nome,
       cpf: employee.cpf,
-      data_nascimento: convertDateFromISO(employee.data_nascimento),
+      data_nascimento: employee.data_nascimento || undefined,
       jornada_trabalho: employee.jornada_trabalho || '',
       genero: employee.genero || '',
       rg: employee.rg || '',
@@ -242,7 +224,7 @@ export function useEmployeeFormProvider() {
       cnh: employee.cnh || '',
       salario_bruto: employee.salario_bruto || 0,
       tipo_contrato: employee.tipo_contrato || '',
-      data_admissao: convertDateFromISO(employee.data_admissao),
+      data_admissao: employee.data_admissao || undefined,
       mae: employee.mae || '',
       pai: employee.pai || '',
       carteira_trabalho: employee.carteira_trabalho || '',
@@ -298,14 +280,14 @@ export function useEmployeeFormProvider() {
       agencia: formData.agencia || undefined,
       conta: formData.conta || undefined,
       tipo_conta: formData.tipo_conta || undefined,
-      data_nascimento: convertDateToISO(formData.data_nascimento),
+      data_nascimento: formData.data_nascimento || undefined,
       mae: formData.mae || undefined,
       pai: formData.pai || undefined,
       observacao: formData.observacao || undefined,
       jornada_trabalho: formData.jornada_trabalho || undefined,
       salario_bruto: formData.salario_bruto || undefined,
       tipo_contrato: formData.tipo_contrato || undefined,
-      data_admissao: convertDateToISO(formData.data_admissao),
+      data_admissao: formData.data_admissao || undefined,
       cargo_id: formData.cargo_id || undefined,
       usuario: {
         nome: formData.usuario_nome,
@@ -366,7 +348,7 @@ export function useEmployeeFormProvider() {
           cnh: formData.cnh || undefined,
           carteira_trabalho: formData.carteira_trabalho || undefined,
           genero: formData.genero || undefined,
-          data_nascimento: convertDateToISO(formData.data_nascimento),
+          data_nascimento: formData.data_nascimento || undefined,
           mae: formData.mae || undefined,
           pai: formData.pai || undefined,
 
@@ -382,7 +364,7 @@ export function useEmployeeFormProvider() {
           cargo_id: formData.cargo_id || undefined,
           jornada_trabalho: formData.jornada_trabalho || undefined,
           tipo_contrato: formData.tipo_contrato || undefined,
-          data_admissao: convertDateToISO(formData.data_admissao),
+          data_admissao: formData.data_admissao || undefined,
 
           // Observações
           observacao: formData.observacao || undefined,

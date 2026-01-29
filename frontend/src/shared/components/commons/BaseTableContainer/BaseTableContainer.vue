@@ -10,10 +10,12 @@
  * - default: Conteudo da tabela
  * - empty: Estado vazio customizado
  * - loading: Estado de loading customizado
+ * - error: Estado de erro customizado
  *
  * USO:
  * <BaseTableContainer
  *   :is-loading="isLoading"
+ *   :is-error="isError"
  *   :is-empty="items.length === 0"
  *   :current-page="currentPage"
  *   :total-pages="totalPages"
@@ -33,11 +35,12 @@
  * ===========================================================================
  */
 
-import { Search } from 'lucide-vue-next';
+import { Search, AlertCircle } from 'lucide-vue-next';
 import BasePagination from '../BasePagination/BasePagination.vue';
 
 interface Props {
   isLoading?: boolean;
+  isError?: boolean;
   isEmpty?: boolean;
   // Paginação
   currentPage?: number;
@@ -48,10 +51,14 @@ interface Props {
   // Empty State
   emptyTitle?: string;
   emptyDescription?: string;
+  // Error State
+  errorTitle?: string;
+  errorDescription?: string;
 }
 
 withDefaults(defineProps<Props>(), {
   isLoading: false,
+  isError: false,
   isEmpty: false,
   currentPage: 1,
   totalPages: 1,
@@ -60,6 +67,8 @@ withDefaults(defineProps<Props>(), {
   itemLabelPlural: '',
   emptyTitle: 'Nenhum registro encontrado',
   emptyDescription: '',
+  errorTitle: 'Erro ao carregar dados',
+  errorDescription: 'Verifique sua conexão e tente novamente.',
 });
 
 const emit = defineEmits<{
@@ -68,22 +77,44 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden">
+  <div class="bg-white border border-zinc-200 rounded-2xl md:rounded-3xl shadow-sm flex flex-col h-full">
     <!-- Toolbar -->
     <div
       v-if="$slots.toolbar"
-      class="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50"
+      class="p-4 md:p-6 md:max-w-2/3 lg:max-w-1/2 border-b border-zinc-100 flex gap-4 items-center"
     >
       <slot name="toolbar" />
     </div>
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="flex-1 flex items-center justify-center py-12">
+    <div v-if="isLoading" class="flex-1 p-8">
       <slot name="loading">
-        <div class="flex flex-col items-center gap-3">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
-          <span class="text-sm text-slate-400">Carregando...</span>
+        <div class="space-y-4">
+          <div
+            v-for="i in 5"
+            :key="i"
+            class="flex items-center gap-4 animate-pulse"
+          >
+            <div class="w-10 h-10 bg-zinc-200 rounded-full"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 bg-zinc-200 rounded w-1/3"></div>
+              <div class="h-3 bg-zinc-100 rounded w-1/4"></div>
+            </div>
+            <div class="h-6 bg-zinc-200 rounded-full w-16"></div>
+          </div>
         </div>
+      </slot>
+    </div>
+
+    <!-- Error State -->
+    <div
+      v-else-if="isError"
+      class="flex-1 p-8 text-center text-red-500 flex flex-col items-center gap-2"
+    >
+      <slot name="error">
+        <AlertCircle :size="32" />
+        <p class="text-sm">{{ errorTitle }}</p>
+        <p class="text-xs text-zinc-400">{{ errorDescription }}</p>
       </slot>
     </div>
 
@@ -91,11 +122,11 @@ const emit = defineEmits<{
     <div v-else-if="isEmpty" class="flex-1 flex items-center justify-center py-12">
       <slot name="empty">
         <div class="flex flex-col items-center gap-2 text-center px-4">
-          <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-2">
-            <Search :size="24" class="text-slate-300" />
+          <div class="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mb-2">
+            <Search :size="24" class="text-zinc-300" />
           </div>
-          <span class="text-sm font-medium text-slate-500">{{ emptyTitle }}</span>
-          <span v-if="emptyDescription" class="text-xs text-slate-400">{{ emptyDescription }}</span>
+          <span class="text-sm font-medium text-zinc-500">{{ emptyTitle }}</span>
+          <span v-if="emptyDescription" class="text-xs text-zinc-400">{{ emptyDescription }}</span>
         </div>
       </slot>
     </div>
@@ -107,7 +138,7 @@ const emit = defineEmits<{
 
     <!-- Pagination Footer -->
     <BasePagination
-      v-if="!isLoading && !isEmpty && totalItems > 0"
+      v-if="!isLoading && !isError && !isEmpty && totalItems > 0"
       :current-page="currentPage"
       :total-pages="totalPages"
       :total-items="totalItems"

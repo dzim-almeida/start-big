@@ -35,7 +35,7 @@ class Cliente(Base):
     tipo: Mapped[ClientType] = mapped_column(SqlAlchemyEnum(ClientType), nullable=False, doc="Tipo de cliente (PF ou PJ)")
     
     # Campos comuns
-    email: Mapped[Optional[str]] = mapped_column(String(255, collation="NOCASE"), unique=True, nullable=True, doc="Email do cliente")
+    email: Mapped[Optional[str]] = mapped_column(String(255, collation="NOCASE"), nullable=True, doc="Email do cliente")
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone de contato do cliente")
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Ceular para contato")
     observacoes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o cliente")

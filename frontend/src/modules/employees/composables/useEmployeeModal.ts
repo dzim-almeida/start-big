@@ -56,7 +56,6 @@ export function useEmployeeModal() {
     // Delay reset to allow animation to complete
     setTimeout(() => {
       selectedEmployee.value = null;
-      mode.value = 'create';
     }, 300);
   }
 

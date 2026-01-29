@@ -31,13 +31,12 @@ validation_exce = HTTPException(
 )
 
 # Campos que exigem verificação de unicidade no banco
-unique_fields = ["cpf", "cnpj", "email", "rg", "ie"]
+unique_fields = ["cpf", "cnpj", "rg", "ie"]
 
 # Mapa de validadores mapeando campo -> função de busca no CRUD
 validators = {
     "cpf": cliente_crud.get_cliente_by_cpf,
     "cnpj": cliente_crud.get_cliente_by_cnpj,
-    "email": cliente_crud.get_cliente_by_email,
     "rg": cliente_crud.get_cliente_by_rg,
     "ie": cliente_crud.get_cliente_by_ie
 }
@@ -65,7 +64,7 @@ def create_cliente_pf(db: Session, cliente_pf_to_add: ClientePFCreate) -> Client
         value = cliente_data.get(field)
         if value is not None:
             error = cliente_crud.verify_cliente_conflict(
-                db, value, validators[field], field
+                db=db, value=value, search_method=validators[field], search_name=field
             )
             if error:
                 # Tratamento especial para cliente desativado
@@ -112,7 +111,7 @@ def create_cliente_pj(db: Session, cliente_pj_to_add: ClientePJCreate) -> Client
         value = cliente_data.get(field)
         if value is not None:
             error = cliente_crud.verify_cliente_conflict(
-                db, value, validators[field], field
+                db=db, value=value, search_method=validators[field], search_name=field
             )
             if error:
                 if error == "disabled cliente":
@@ -175,7 +174,7 @@ def update_cliente_by_id(db: Session, cliente_id: int, cliente_to_update: Client
         value = data_to_update.get(field)
         if value is not None:
             error = cliente_crud.verify_cliente_conflict(
-                db, value, validators[field], field
+                db=db, cliente_id=cliente_id, value=value, search_method=validators[field], search_name=field
             )
             if error:
                 validation_errors.append({"campo": field, "mensagem": error})

@@ -4,7 +4,7 @@ import { TabOption } from "../types/products.types";
 export const TAB_OPTIONS: TabOption[] = [
     {
         id: 'product',
-        label: 'Produtos',
+        label: 'Estoque',
     },
     {
         id: 'supplier',

@@ -158,7 +158,7 @@ function handleRemove(position: CargoRead) {
         v-model="selectedLevel"
         :filter-config="POSITION_LEVEL_FILTERS"
         title="Filtrar por nivel"
-        button-label="Filtro"
+        button-label="Filtros"
       />
     </div>
 

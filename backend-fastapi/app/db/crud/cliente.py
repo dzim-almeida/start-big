@@ -18,7 +18,8 @@ def verify_cliente_conflict(
     db: Session,
     value: str,
     search_method: Callable[[Session, str], ClienteModel | None],
-    search_name: str
+    search_name: str,
+    cliente_id: Optional[id] = None,
 ) -> str | None:
     """
     Verifica se um valor único (CPF, CNPJ, Email) já existe no banco.
@@ -31,6 +32,9 @@ def verify_cliente_conflict(
         return None
 
     cliente_in_db = search_method(db, value)
+
+    if cliente_id and cliente_in_db.id == cliente_id:
+        return None
     
     if cliente_in_db:
         # Se existe mas está inativo, retorna mensagem específica para reativação
@@ -101,7 +105,7 @@ def get_cliente_by_search(db: Session, search: str | None) -> Sequence[ClienteMo
         Sequence[ClienteModel]: Lista de clientes que correspondem aos critérios.
     """
     if not search:
-        stmt = select(ClienteModel).where(ClienteModel.ativo.is_(True))
+        stmt = select(ClienteModel)
     else:
         # Aliases permitem referenciar as tabelas filhas na cláusula WHERE
         pf_alias = aliased(ClientePFModel)
@@ -123,7 +127,6 @@ def get_cliente_by_search(db: Session, search: str | None) -> Sequence[ClienteMo
         
         stmt = stmt.where(
             and_(
-                ClienteModel.ativo.is_(True),
                 conditions
             )
         )

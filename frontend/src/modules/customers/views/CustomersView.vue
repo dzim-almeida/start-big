@@ -1,129 +1,107 @@
 <script setup lang="ts">
 /**
- * ===========================================================================
- * ARQUIVO: ClientesView.vue
- * MODULO: Clientes
- * DESCRICAO: Pagina principal do modulo de clientes.
- * ===========================================================================
+ * @component CustomersView
+ * @description Main page for the customers module.
+ * Displays customer list with stats, filtering, and CRUD operations.
  */
 
-import { ref, computed } from 'vue';
-import { UserPlus } from 'lucide-vue-next';
+import { Plus } from 'lucide-vue-next';
 
-import { ClientStats, ClientTable } from '../components/listagem';
-import ClientFormModal from '../components/cadastro/ClientFormModal.vue';
-import { useClientes } from '../composables';
-import { useClienteActions } from '@/shared/composables/cliente/useClienteActions';
-import type { Cliente, FilterTipo } from '../types/clientes.types';
+import { CARDS_INFO } from '../constants/clientes.constants';
+
+import CustomerTable from '../components/CustomerTable.vue';
+import CustomerFormModal from '../components/CustomerFormModal.vue';
+
+import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
-// ===========================================================================
-// COMPOSABLES
-// ===========================================================================
+import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+
+import { useCustomers } from '../composables/useCustomers';
+import { useCustomerModal } from '../composables/useCustomerModal';
+import { useClienteActions } from '@/shared/composables/cliente/useClienteActions';
+
+import type { Cliente } from '../types/clientes.types';
+
+// =============================================
+// Composables
+// =============================================
 
 const {
-  clientes,
+  customers,
   stats,
   activeFilterTipo,
-  activeFilterStatus,
   searchQuery,
   isLoading,
-  setFilterTipo,
-  setFilterStatus,
-  setSearch,
   currentPage,
   totalPages,
   totalItems,
-  setPage
-} = useClientes();
+  setPage,
+} = useCustomers();
 
+const { openCreateModal, openViewModal, openEditModal } = useCustomerModal();
 const { toggleAtivoMutation } = useClienteActions();
 
-// ===========================================================================
-// ESTADOS DO MODAL
-// ===========================================================================
+// =============================================
+// Handlers
+// =============================================
 
-const showModal = ref(false);
-const clienteParaEditar = ref<Cliente | null>(null);
-
-// ===========================================================================
-// COMPUTED
-// ===========================================================================
-
-const filterLabels: Record<FilterTipo, string> = {
-  todos: 'Todos os Clientes',
-  PF: 'Clientes Pessoa Fisica',
-  PJ: 'Clientes Pessoa Juridica',
-};
-
-const headerTitle = computed(() => {
-  if (searchQuery.value) {
-    return `Resultados para: "${searchQuery.value}"`;
-  }
-  return filterLabels[activeFilterTipo.value];
-});
-
-// ===========================================================================
-// HANDLERS
-// ===========================================================================
-
-function openNewClientModal() {
-  clienteParaEditar.value = null;
-  showModal.value = true;
+function handleView(customer: Cliente) {
+  openViewModal(customer);
 }
 
-function openEditClientModal(cliente: Cliente) {
-  clienteParaEditar.value = cliente;
-  showModal.value = true;
+function handleEdit(customer: Cliente) {
+  openEditModal(customer);
 }
 
-function closeModal() {
-  showModal.value = false;
-  clienteParaEditar.value = null;
-}
-
-function handleToggleStatus(cliente: Cliente) {
-  toggleAtivoMutation.mutate(cliente.id);
+function handleToggleStatus(customer: Cliente) {
+  toggleAtivoMutation.mutate(customer.id);
 }
 </script>
 
 <template>
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
-    <!-- Header com Filtro Selecionado e Botao Novo Cliente -->
+    <!-- Header with Filter Title and New Customer Button -->
     <div class="flex items-center justify-between">
-      <!-- Texto do Filtro Selecionado -->
-      <h2 class="text-lg md:text-xl font-bold text-zinc-800">
-        {{ headerTitle }}
-      </h2>
+      <!-- Filter Title -->
+      <PageReview
+        title="Clientes Cadastrados"
+        description="Gerencie as informacoes dos seus clientes"
+      />
 
-      <!-- Botao Novo Cliente -->
-      <BaseButton @click="openNewClientModal">
-        <UserPlus :size="18" />
-        Novo Cliente
+      <!-- New Customer Button -->
+      <BaseButton @click="openCreateModal">
+        <Plus :size="20" class="mr-2" />
+        Adicionar Cliente
       </BaseButton>
     </div>
 
     <!-- Stats Cards -->
-    <ClientStats :stats="stats" :loading="isLoading" />
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6">
+      <BaseStatsCard
+        v-for="item in CARDS_INFO"
+        :key="item.key"
+        :icon="item.icon"
+        :label="item.label"
+        :value="String(stats[item.key])"
+      />
+    </div>
 
-    <!-- Tabela de Clientes (com busca e filtro integrados) -->
-    <ClientTable
-      :clientes="clientes"
+    <!-- Customer Table (with integrated search and filters) -->
+    <CustomerTable
+      v-model:searchQuery="searchQuery"
+      v-model:activeFilter="activeFilterTipo"
+      :customers="customers"
       :is-loading="isLoading"
-      :search-query="searchQuery"
-      :active-filter="activeFilterTipo"
-      :active-filter-status="activeFilterStatus"
       :current-page="currentPage"
       :total-pages="totalPages"
       :total-items="totalItems"
       @update:current-page="setPage"
-      @edit="openEditClientModal"
+      @view="handleView"
+      @edit="handleEdit"
       @toggle-status="handleToggleStatus"
-      @search="setSearch"
-      @filter-change="setFilterTipo"
-      @filter-status-change="setFilterStatus"
     />
 
-    <!-- Modal de Cadastro/Edicao -->
-    <ClientFormModal :is-open="showModal" :cliente="clienteParaEditar" @close="closeModal" />
+    <!-- Create/Edit Modal -->
+    <CustomerFormModal />
   </div>
 </template>

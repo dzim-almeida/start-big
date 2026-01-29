@@ -25,9 +25,9 @@ const variants: Record<string, string> = {
 };
 
 const sizes: Record<string, string> = {
-  sm: 'px-3 py-1 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-5 py-2.5 text-base',
+  sm: 'px-3 py-1 text-xs min-h-9',
+  md: 'px-4 py-2 text-sm min-h-11',
+  lg: 'px-5 py-2.5 text-base min-h-13',
 };
 
 const buttonClasses = computed(() => {
