@@ -136,8 +136,8 @@ function handleEmptyAction() {
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview
-        title="Catálogo de Produtos"
-        description="Gerencie seu catálogo de produtos e fornecedores."
+        title="Estoque"
+        description="Gerencia os produtos no seu estoque"
       />
 
       <div class="flex gap-5">

@@ -117,8 +117,8 @@ const selectedCargo = computed({
         <BaseInput
           v-model="data_nascimento"
           label="Data Nascimento"
+          type="date"
           placeholder="DD/MM/AAAA"
-          mask="##/##/####"
           :error="submitCount > 0 ? errors.data_nascimento : ''"
           :disabled="disabled"
         />
@@ -231,8 +231,8 @@ const selectedCargo = computed({
         <BaseInput
           v-model="data_admissao"
           label="Data Admissao"
+          type="date"
           placeholder="DD/MM/AAAA"
-          mask="##/##/####"
           :error="submitCount > 0 ? errors.data_admissao : ''"
           :disabled="disabled"
         />

@@ -8,18 +8,19 @@ import { ref, computed } from 'vue';
 import {
   Ellipsis,
   Mail,
-  Eye,
   Pencil,
   Power,
-  AlertCircle,
 } from 'lucide-vue-next';
 
+import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
+import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
+import { getInitials } from '@/shared/utils/string.utils';
+
 import type { FuncionarioRead, EmployeeStatus } from '../types/employees.types';
 import type { CargoRead } from '../types/positions.types';
 import { useEmployeeModal } from '../composables/useEmployeeModal';
 import { useToggleEmployeeActiveMutation } from '../composables/useEmployeesQuery';
-import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 
 // =============================================
 // Props & Emits
@@ -87,7 +88,6 @@ const positionsById = computed(() => {
  * Maps FuncionarioRead to status for display
  */
 function getEmployeeStatus(employee: FuncionarioRead): EmployeeStatus {
-  // Map ativo to status (vacation would need backend support)
   return employee.ativo ? 'active' : 'inactive';
 }
 
@@ -98,14 +98,12 @@ const filteredEmployees = computed(() => {
   if (!props.employees) return [];
 
   return props.employees.filter((employee) => {
-    // Text search (name or email)
     const searchLower = search.value.toLowerCase();
     const matchesSearch =
       employee.nome.toLowerCase().includes(searchLower) ||
       (employee.email?.toLowerCase().includes(searchLower) ?? false) ||
       employee.cpf.includes(searchLower);
 
-    // Status filter
     const status = getEmployeeStatus(employee);
     const matchesStatus = selectedStatus.value
       ? status === selectedStatus.value
@@ -114,17 +112,6 @@ const filteredEmployees = computed(() => {
     return matchesSearch && matchesStatus;
   });
 });
-
-// =============================================
-// Helpers
-// =============================================
-
-function getInitials(name: string): string {
-  const parts = name.split(' ').filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-}
 
 function getEmployeeRole(employee: FuncionarioRead): string {
   if (employee.cargo_id) {
@@ -152,16 +139,23 @@ function handleToggleActive(employee: FuncionarioRead) {
 </script>
 
 <template>
-  <div
-    class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-visible"
+  <BaseTableContainer
+    :is-loading="isLoading"
+    :is-error="isError"
+    :is-empty="filteredEmployees.length === 0"
+    :total-items="filteredEmployees.length"
+    :current-page="1"
+    :total-pages="1"
+    item-label="funcionário"
+    empty-title="Nenhum funcionário encontrado"
+    :empty-description="employees.length > 0 ? 'Tente ajustar os filtros de busca.' : 'Cadastre seu primeiro funcionário.'"
+    error-title="Erro ao carregar funcionários"
+    error-description="Verifique sua conexão e tente novamente."
   >
-    <!-- Header with Search and Filter -->
-    <div
-      class="p-4 md:p-6 border-b border-zinc-100 flex items-center gap-5 relative"
-    >
+    <!-- Toolbar -->
+    <template #toolbar>
       <BaseSearchInput
         v-model="search"
-        class="md:max-w-2/3 lg:max-w-1/2"
         placeholder="Buscar por nome, email ou CPF..."
       />
 
@@ -169,38 +163,10 @@ function handleToggleActive(employee: FuncionarioRead) {
         v-model="selectedStatus"
         :filterConfig="statusConfig"
       />
-    </div>
+    </template>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="p-8">
-      <div class="space-y-4">
-        <div
-          v-for="i in 5"
-          :key="i"
-          class="flex items-center gap-4 animate-pulse"
-        >
-          <div class="w-10 h-10 bg-zinc-200 rounded-full"></div>
-          <div class="flex-1 space-y-2">
-            <div class="h-4 bg-zinc-200 rounded w-1/3"></div>
-            <div class="h-3 bg-zinc-100 rounded w-1/4"></div>
-          </div>
-          <div class="h-6 bg-zinc-200 rounded-full w-16"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Error State -->
-    <div
-      v-else-if="isError"
-      class="p-8 text-center text-red-500 flex flex-col items-center gap-2"
-    >
-      <AlertCircle :size="32" />
-      <p class="text-sm">Erro ao carregar funcionários.</p>
-      <p class="text-xs text-zinc-400">Verifique sua conexao e tente novamente.</p>
-    </div>
-
-    <!-- Table -->
-    <div v-else class="overflow-x-auto">
+    <!-- Table Content -->
+    <div class="overflow-x-auto">
       <table class="w-full text-left min-w-125">
         <thead>
           <tr
@@ -275,13 +241,6 @@ function handleToggleActive(employee: FuncionarioRead) {
                   class="hidden group-hover:flex items-center justify-end gap-1 transition-all duration-200"
                 >
                   <button
-                    title="Visualizar Detalhes"
-                    class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
-                    @click.stop="handleView(employee)"
-                  >
-                    <Eye :size="18" />
-                  </button>
-                  <button
                     title="Editar"
                     class="p-2 text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors cursor-pointer"
                     @click.stop="handleEdit(employee)"
@@ -312,45 +271,5 @@ function handleToggleActive(employee: FuncionarioRead) {
         </tbody>
       </table>
     </div>
-
-    <!-- Empty State -->
-    <div
-      v-if="!isLoading && !isError && filteredEmployees.length === 0"
-      class="p-8 text-center text-zinc-400 text-sm"
-    >
-      <span v-if="employees.length > 0"
-        >Nenhum funcionario encontrado com estes filtros.</span
-      >
-      <span v-else>Nenhum funcionario cadastrado.</span>
-    </div>
-
-    <!-- Footer with Pagination -->
-    <div
-      v-if="!isLoading && !isError && filteredEmployees.length > 0"
-      class="px-6 py-5 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-4 mt-auto"
-    >
-      <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">
-        {{ filteredEmployees.length }} Registros
-      </span>
-
-      <div class="flex items-center gap-2">
-        <button
-          class="h-9 px-4 rounded-lg text-xs font-bold text-zinc-400 bg-zinc-50 cursor-not-allowed transition-colors"
-          disabled
-        >
-          Anterior
-        </button>
-        <button
-          class="h-9 w-9 rounded-lg bg-brand-primary text-white text-xs font-bold shadow-sm shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all cursor-pointer"
-        >
-          1
-        </button>
-        <button
-          class="h-9 px-4 rounded-lg text-xs font-bold text-zinc-700 bg-white border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all shadow-sm cursor-pointer"
-        >
-          Proximo
-        </button>
-      </div>
-    </div>
-  </div>
+  </BaseTableContainer>
 </template>

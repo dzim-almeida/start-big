@@ -35,7 +35,7 @@ import type { Component } from 'vue';
  * Tipo do cliente - Pessoa Fisica ou Pessoa Juridica
  * Usado para discriminar qual interface usar
  */
-export type TipoCliente = 'PF' | 'PJ';
+export type CustomersTypes = 'PF' | 'PJ' | 'active' | 'inactive' | null;
 
 /**
  * Genero do cliente (apenas para PF)
@@ -54,7 +54,7 @@ export type FilterStatus = 'todos' | 'ativos' | 'inativos';
  * - 'PF': Apenas Pessoa Fisica
  * - 'PJ': Apenas Pessoa Juridica
  */
-export type FilterTipo = 'todos' | TipoCliente;
+export type FilterTipo = CustomersTypes;
 
 // ===========================================================================
 // STATS - Tipos para estatisticas do modulo
@@ -121,21 +121,6 @@ export interface EnderecoRead extends EnderecoCreate {
   tipo_entidade: string; // Tipo da entidade (CLIENTE, EMPRESA, etc)
 }
 
-/**
- * Interface para ATUALIZAR endereco
- * Todos os campos sao opcionais. O ID identifica qual endereco atualizar
- */
-export interface EnderecoUpdate {
-  id?: number;          // ID do endereco (se for atualizar existente)
-  logradouro?: string;
-  numero?: string;
-  bairro?: string;
-  cidade?: string;
-  estado?: State;
-  cep?: string;
-  complemento?: string;
-}
-
 // ===========================================================================
 // CLIENTE BASE - Campos comuns entre PF e PJ
 // ===========================================================================
@@ -145,7 +130,7 @@ export interface EnderecoUpdate {
  */
 export interface ClienteBase {
   id: number;
-  tipo: TipoCliente;
+  tipo: CustomersTypes;
   email?: string;
   celular?: string;
   telefone?: string;
@@ -343,12 +328,14 @@ export interface EquipamentoHistorico {
 /**
  * Filtro por tipo de cliente na listagem
  */
-export type ClienteFilterTipo = 'todos' | TipoCliente;
+export type ClienteFilterTipo = CustomersTypes;
 
 /**
  * Filtro por status (ativo/inativo) na listagem
  */
 export type ClienteFilterStatus = 'todos' | 'ativos' | 'inativos';
+
+export type CustomersStatus = 'PF' | 'PJ' | 'active' | 'inactive'
 
 /**
  * Configuracao de uma acao rapida
@@ -365,40 +352,6 @@ export interface ClienteAction {
 // ===========================================================================
 // CONSTANTES - Listas fixas para selects e validacoes
 // ===========================================================================
-
-/**
- * Lista de estados brasileiros para selects
- * Ordenados alfabeticamente pela sigla
- */
-export const ESTADOS_BRASIL: { value: State; label: string }[] = [
-  { value: 'AC', label: 'Acre' },
-  { value: 'AL', label: 'Alagoas' },
-  { value: 'AP', label: 'Amapá' },
-  { value: 'AM', label: 'Amazonas' },
-  { value: 'BA', label: 'Bahia' },
-  { value: 'CE', label: 'Ceará' },
-  { value: 'DF', label: 'Distrito Federal' },
-  { value: 'ES', label: 'Espírito Santo' },
-  { value: 'GO', label: 'Goiás' },
-  { value: 'MA', label: 'Maranhão' },
-  { value: 'MT', label: 'Mato Grosso' },
-  { value: 'MS', label: 'Mato Grosso do Sul' },
-  { value: 'MG', label: 'Minas Gerais' },
-  { value: 'PA', label: 'Pará' },
-  { value: 'PB', label: 'Paraíba' },
-  { value: 'PR', label: 'Paraná' },
-  { value: 'PE', label: 'Pernambuco' },
-  { value: 'PI', label: 'Piauí' },
-  { value: 'RJ', label: 'Rio de Janeiro' },
-  { value: 'RN', label: 'Rio Grande do Norte' },
-  { value: 'RS', label: 'Rio Grande do Sul' },
-  { value: 'RO', label: 'Rondônia' },
-  { value: 'RR', label: 'Roraima' },
-  { value: 'SC', label: 'Santa Catarina' },
-  { value: 'SP', label: 'São Paulo' },
-  { value: 'SE', label: 'Sergipe' },
-  { value: 'TO', label: 'Tocantins' },
-];
 
 /**
  * Opcoes de genero para clientes PF
