@@ -9,12 +9,10 @@ import shutil
 import uuid
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
 
 # Importa modelos e serviços
 from app.db.models.empresa import Empresa as EmpresaModel
-from app.db.models.usuario import Usuario as UsuarioModel
-from app.schemas.empresa import EmpresaCreate
+from app.schemas.empresa import EmpresaCreate, EmpresaUpdate
 from app.services import endereco as endereco_service
 from app.services import usuario as usuario_service
 from app.core.enum import EntityType
@@ -170,3 +168,29 @@ def create_image_empresa(db: Session, empresa_id: int, file: UploadFile) -> Empr
 
 def get_empresa_by_id(db: Session, empresa_id: int) -> EmpresaModel:
     return empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+
+def update_empresa(db: Session, empresa_id: int, update_empresa: EmpresaUpdate) -> EmpresaModel:
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+
+    if not empresa_in_db:
+        raise NOT_FOUND_EXCE
+    
+    data_to_update = update_empresa.model_dump(exclude_unset=True)
+
+    if "endereco" in data_to_update:
+        updated_addresses = endereco_service.update_address_in_db(
+            address_in_db=empresa_in_db.enderecos,
+            address_to_update=update_empresa.endereco,
+            id_entity=empresa_in_db.id,
+            type_entity=EntityType.EMPRESA
+        )
+        empresa_in_db.enderecos = updated_addresses
+        del data_to_update['endereco']
+
+    for key, value in data_to_update.items():
+        setattr(empresa_in_db, key, value)
+
+    return empresa_crud.update_empresa(db, empresa_to_update=empresa_in_db)
+
+    
+    

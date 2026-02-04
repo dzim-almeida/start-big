@@ -168,13 +168,6 @@ export function useCustomerFormProvider() {
   // Customer type state
   const customerType = ref<TipoCliente>('PF');
 
-  // Get validation schema based on customer type
-  const getValidationSchema = () => {
-    return customerType.value === 'PF'
-      ? customerPFValidationSchema
-      : customerPJValidationSchema;
-  };
-
   // Initialize PF form
   const pfForm = useForm({
     validationSchema: customerPFValidationSchema,

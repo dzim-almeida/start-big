@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Path, UploadFile, HTTPException, s
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.schemas.empresa import EmpresaCreate, EmpresaAdminRead, EmpresaUserRead
+from app.schemas.empresa import EmpresaCreate, EmpresaAdminRead, EmpresaUpdate
 from app.db.models.usuario import Usuario as UsuarioModel
 from app.core.depends import get_current_master_user, get_current_user, _handle_db_transaction
 from app.db.session import get_db
@@ -100,7 +100,7 @@ def create_image_empresa(
 
 @router.get(
     "/",
-    response_model=EmpresaUserRead,
+    response_model=EmpresaAdminRead,
     status_code=status.HTTP_200_OK,
     summary="Retorna os dados da empresa cadastrada!",
 )
@@ -112,4 +112,25 @@ def get_empresa_data(
         db,
         empresa_service.get_empresa_by_id,
         user_token.get('empresa_id'),
+    )
+
+@router.put(
+    '/',
+    response_model=EmpresaAdminRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualiza os dados de empresa"
+)
+def update_empresa(
+    user_token: dict = Depends(get_current_master_user),
+    *,
+    empresa_update_data: EmpresaUpdate,
+    db: Session = Depends(get_db),
+):
+    empresa_id = user_token['empresa_id']
+
+    return _handle_db_transaction(
+        db,
+        empresa_service.update_empresa,
+        empresa_id,
+        empresa_update_data
     )

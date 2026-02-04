@@ -62,6 +62,17 @@ const homeRoutes: RouteRecordRaw[] = [
           tabId: 'customers',
           requiresAuth: true
         }
+      },
+      {
+        path: '/empresa',
+        name: 'enterprise',
+        component: () => import ('@/modules/enterprise/views/EmpresaView.vue'),
+        meta: {
+          title: 'Empresa',
+          subtitle: 'Gerencie a empresa da sua organização de forma centralizada.',
+          tabId: 'enterprise',
+          requiresAuth: true
+        }
       }
     ],
   },

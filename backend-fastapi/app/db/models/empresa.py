@@ -33,10 +33,12 @@ class Empresa(Base):
     inscricao_estadual: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Estadual (IE)")
     inscricao_municipal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Municipal (IM)")
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
+    cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
 
     # --- Contato e Visual ---
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Celular de contato")
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Email de contato principal")
     url_logo: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Caminho/URL da imagem da logo para uso no PDV/Relatórios")
     
     # --- Status ---

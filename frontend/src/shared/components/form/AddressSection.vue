@@ -165,7 +165,7 @@ function handleCepFocus(index: number) {
               v-if="cepIsError && activeCepIndex === index"
               class="mt-1 text-xs text-amber-600"
             >
-              CEP nao encontrado
+              CEP não encontrado
             </p>
           </div>
 
