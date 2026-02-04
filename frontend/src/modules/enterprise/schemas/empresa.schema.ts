@@ -1,6 +1,20 @@
 import { z } from 'zod';
+import { cpf, cnpj } from 'cpf-cnpj-validator';
 
-// Schemas de validação
+// =============================================
+// Helpers de normalização
+// =============================================
+
+/**
+ * Remove todos os caracteres não numéricos
+ * Usado para normalizar documento, telefone, CEP, etc.
+ */
+const normalizeDigits = (val: unknown): string =>
+  typeof val === 'string' ? val.replace(/\D/g, '') : String(val ?? '');
+
+// =============================================
+// Schemas de Domínio (Backend Shape)
+// =============================================
 
 export const EnderecoSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -52,6 +66,214 @@ export const EmpresaSchema = z.object({
   fiscal_settings: FiscalSettingsSchema.optional(),
   enderecos: z.array(EnderecoSchema).optional(),
 }).passthrough();
+
+// =============================================
+// Schemas de Formulário - Validação (VeeValidate)
+// =============================================
+// NOTA: Schemas de validação NÃO usam z.preprocess para evitar
+// que o isDirty do VeeValidate fique sempre true
+
+/**
+ * Schema de endereço para validação (VeeValidate)
+ * - Aceita CEP com ou sem máscara
+ * - NÃO normaliza (para preservar isDirty)
+ */
+export const EnderecoFormValidationSchema = z.object({
+  id: z.number().int().positive().optional(),
+  cep: z.string().optional().or(z.literal('')),
+  logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+  numero: z.string().min(1, 'Número é obrigatório'),
+  bairro: z.string().min(1, 'Bairro é obrigatório'),
+  cidade: z.string().min(1, 'Cidade é obrigatória'),
+  estado: z.string().length(2, 'Estado deve ter 2 caracteres'),
+  complemento: z.string().optional().or(z.literal('')),
+  codigo_ibge: z.string().optional().or(z.literal('')),
+});
+
+/**
+ * Schema de endereço para normalização (submit)
+ * - Normaliza CEP para dígitos apenas
+ */
+export const EnderecoFormSchema = z.object({
+  id: z.number().int().positive().optional(),
+  cep: z.preprocess(
+    normalizeDigits,
+    z.string().max(8).optional().or(z.literal(''))
+  ),
+  logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+  numero: z.string().min(1, 'Número é obrigatório'),
+  bairro: z.string().min(1, 'Bairro é obrigatório'),
+  cidade: z.string().min(1, 'Cidade é obrigatória'),
+  estado: z.string().length(2, 'Estado deve ter 2 caracteres'),
+  complemento: z.string().optional().or(z.literal('')),
+  codigo_ibge: z.string().optional().or(z.literal('')),
+});
+
+/**
+ * Schema de configurações fiscais para formulário
+ * - Usa z.coerce para converter strings de inputs para números
+ */
+export const FiscalSettingsFormSchema = z.object({
+  id: z.number().int().positive().optional(),
+  company_id: z.number().int().positive().optional(),
+  ambiente_emissao: z.number().int().min(1).max(2).default(2),
+  serie_nfe: z.coerce.number().int().nonnegative().default(1),
+  ultimo_numero_nfe: z.coerce.number().int().nonnegative().default(0),
+  serie_nfce: z.coerce.number().int().nonnegative().default(1),
+  ultimo_numero_nfce: z.coerce.number().int().nonnegative().default(0),
+  csc_token: z.string().optional().or(z.literal('')),
+  csc_id: z.string().optional().or(z.literal('')),
+  rps_serie: z.string().optional().or(z.literal('')),
+  rps_ultimo_numero: z.coerce.number().int().nonnegative().optional(),
+  prefeitura_login: z.string().optional().or(z.literal('')),
+  prefeitura_senha: z.string().optional().or(z.literal('')),
+  prefeitura_token_api: z.string().optional().or(z.literal('')),
+  regime_tributacao_iss: z.coerce.number().int().min(1).max(6).optional(),
+  tipo_certificado: z.enum(['ARQUIVO', 'WINDOWS']).default('ARQUIVO'),
+  certificado_digital_path: z.string().optional().or(z.literal('')),
+  certificado_validade: z.string().optional().or(z.literal('')),
+  certificado_thumbprint: z.string().optional().or(z.literal('')),
+});
+
+/**
+ * Schema de validação do formulário (VeeValidate)
+ * - NÃO usa z.preprocess para preservar o isDirty
+ * - Validações básicas de formato
+ */
+export const EmpresaFormValidationSchema = z.object({
+  // Identificação
+  razao_social: z.string().min(1, 'Razão Social é obrigatória'),
+  nome_fantasia: z.string().optional().or(z.literal('')),
+  is_cnpj: z.boolean().default(true),
+  documento: z.string().min(1, 'Documento é obrigatório'),
+  cnae_principal: z.string().optional().or(z.literal('')),
+  url_logo: z.string().optional().or(z.literal('')),
+
+  // Contato
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  telefone: z.string().optional().or(z.literal('')),
+  celular: z.string().optional().or(z.literal('')),
+
+  // Dados Fiscais
+  inscricao_estadual: z.string().optional().or(z.literal('')),
+  inscricao_municipal: z.string().optional().or(z.literal('')),
+  regime_tributario: z.string().optional().or(z.literal('')),
+
+  // Endereço Principal (nested - singular, não array)
+  endereco_principal: EnderecoFormValidationSchema.partial(),
+
+  // Configurações Fiscais (nested)
+  fiscal_settings: FiscalSettingsFormSchema.partial(),
+
+  // Campo apenas do form
+  certificado_senha: z.string().optional().or(z.literal('')),
+});
+
+/**
+ * Schema principal do formulário de empresa (para normalização no submit)
+ * - Usa z.preprocess para normalizar documento, telefone, celular
+ * - Validações condicionais via superRefine
+ * - Usado apenas no runtime validation antes de enviar para API
+ */
+export const EmpresaFormSchema = z.object({
+  // Identificação
+  razao_social: z.string().min(1, 'Razão Social é obrigatória'),
+  nome_fantasia: z.string().optional().or(z.literal('')),
+  is_cnpj: z.boolean().default(true),
+  documento: z.preprocess(
+    normalizeDigits,
+    z.string().min(11, 'Documento inválido').max(14, 'Documento inválido')
+  ),
+  cnae_principal: z.string().optional().or(z.literal('')),
+  url_logo: z.string().optional().or(z.literal('')),
+
+  // Contato
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  telefone: z.preprocess(normalizeDigits, z.string().optional().or(z.literal(''))),
+  celular: z.preprocess(normalizeDigits, z.string().optional().or(z.literal(''))),
+
+  // Dados Fiscais
+  inscricao_estadual: z.string().optional().or(z.literal('')),
+  inscricao_municipal: z.string().optional().or(z.literal('')),
+  regime_tributario: z.string().optional().or(z.literal('')),
+
+  // Endereço Principal (nested - singular, não array)
+  endereco_principal: EnderecoFormSchema.partial(),
+
+  // Configurações Fiscais (nested)
+  fiscal_settings: FiscalSettingsFormSchema.partial(),
+
+  // Campo apenas do form (não vai para API diretamente no payload principal)
+  certificado_senha: z.string().optional().or(z.literal('')),
+})
+.superRefine((data, ctx) => {
+  // ========== 1. Validação de documento por tipo (CNPJ/CPF) ==========
+  const docDigits = data.documento || '';
+
+  if (data.is_cnpj) {
+    if (docDigits.length !== 14) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CNPJ deve ter 14 dígitos',
+        path: ['documento'],
+      });
+    } else if (!cnpj.isValid(docDigits)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CNPJ inválido',
+        path: ['documento'],
+      });
+    }
+  } else {
+    if (docDigits.length !== 11) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CPF deve ter 11 dígitos',
+        path: ['documento'],
+      });
+    } else if (!cpf.isValid(docDigits)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'CPF inválido',
+        path: ['documento'],
+      });
+    }
+  }
+
+  // ========== 2. Certificado ARQUIVO requer senha quando há arquivo ==========
+  const settings = data.fiscal_settings;
+  if (
+    settings?.tipo_certificado === 'ARQUIVO' &&
+    settings.certificado_digital_path &&
+    !data.certificado_senha
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Senha do certificado é obrigatória para certificado A1',
+      path: ['certificado_senha'],
+    });
+  }
+
+  // ========== 3. Certificado WINDOWS requer thumbprint ==========
+  // Nota: Esta validação só é acionada se tipo_certificado === 'WINDOWS'
+  // e não há thumbprint selecionado
+  // if (settings?.tipo_certificado === 'WINDOWS' && !settings.certificado_thumbprint) {
+  //   ctx.addIssue({
+  //     code: z.ZodIssueCode.custom,
+  //     message: 'Selecione um certificado do Windows',
+  //     path: ['fiscal_settings', 'certificado_thumbprint'],
+  //   });
+  // }
+
+  // ========== 4. Ambiente produção requer CSC ==========
+  if (settings?.ambiente_emissao === 1 && (!settings.csc_id || !settings.csc_token)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'CSC (ID e Token) são obrigatórios para ambiente de produção',
+      path: ['fiscal_settings', 'csc_id'],
+    });
+  }
+});
 
 export const WindowsCertificateSchema = z.object({
   thumbprint: z.string(),
@@ -107,11 +329,18 @@ import { toTypedSchema } from '@vee-validate/zod';
 
 /**
  * Schema de validação para VeeValidate
- * Converte Zod schema para formato compatível com VeeValidate
+ * Usa EmpresaFormValidationSchema (sem preprocess) para preservar isDirty
+ * O EmpresaFormSchema (com preprocess) é usado apenas no submit para normalização
  */
-export const empresaValidationSchema = toTypedSchema(EmpresaSchema);
+export const empresaValidationSchema = toTypedSchema(EmpresaFormValidationSchema);
 
 /**
- * Type inference do schema
+ * Type inference do schema de domínio
  */
 export type EmpresaSchemaData = z.infer<typeof EmpresaSchema>;
+
+/**
+ * Type inference do schema de formulário
+ * Usado para tipagem do VeeValidate e valores do form
+ */
+export type EmpresaFormSchemaData = z.infer<typeof EmpresaFormSchema>;

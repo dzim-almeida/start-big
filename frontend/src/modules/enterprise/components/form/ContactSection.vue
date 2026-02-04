@@ -54,7 +54,7 @@ const {
           type="email"
           placeholder="contato@suaempresa.com.br"
           :disabled="disabled"
-          :error="submitCount > 0 ? errors.email_comercial : ''"
+          :error="submitCount > 0 ? errors.email : ''"
         />
       </div>
 

@@ -1,6 +1,6 @@
 import { ref, computed, watch, provide, inject, type InjectionKey } from 'vue';
 import { useForm } from 'vee-validate';
-import { empresaValidationSchema } from '../schemas/empresa.schema';
+import { empresaValidationSchema, EmpresaFormSchema } from '../schemas/empresa.schema';
 import {
   useEmpresaQuery,
   useUpdateEmpresaMutation,
@@ -25,6 +25,7 @@ import type {
   EmpresaFormData,
   EmpresaFormContext,
   EmpresaUpdate,
+  EmpresaRead,
   Endereco,
 } from '../types/empresa.types';
 
@@ -70,7 +71,16 @@ function formatDocumento(documento: string, isCnpj: boolean | undefined): string
   return documento;
 }
 
-function normalizeEmpresaToForm(data: any): EmpresaFormData {
+/**
+ * Normaliza dados da API para formato do formulário
+ * - Adiciona máscaras de formatação (CNPJ, telefone, CEP)
+ * - Extrai primeiro endereço como endereco_principal
+ * - Aplica valores default para campos ausentes
+ *
+ * @param data - Dados da empresa vindos da API
+ * @returns Dados formatados para o formulário VeeValidate
+ */
+function normalizeEmpresaToForm(data: EmpresaRead): EmpresaFormData {
   const telefone = data.telefone ? formatTelefone(data.telefone) : '';
   const celular = data.celular ? formatTelefone(data.celular) : '';
   const enderecoPrincipal = data.enderecos?.[0];
@@ -213,20 +223,27 @@ export function useEmpresaFormProvider() {
 
   /**
    * Transforma dados do form para payload da API
+   * NOTA: Quando chamado após EmpresaFormSchema.parse(), os campos
+   * documento, telefone, celular e cep já estão normalizados (sem máscaras)
+   *
+   * @param formData - Dados do formulário (normalizados ou não)
+   * @returns Payload formatado para a API
    */
   function transformToUpdatePayload(formData: EmpresaFormData): EmpresaUpdate {
+    // Os dados podem vir já normalizados do Zod ou com máscaras (para outros usos)
+    // Por segurança, aplicamos unmask caso ainda tenham máscaras
     const payload: EmpresaUpdate = {
       razao_social: formData.razao_social,
-      nome_fantasia: formData.nome_fantasia,
+      nome_fantasia: formData.nome_fantasia || undefined,
       documento: formData.documento ? unmaskDocument(formData.documento) : undefined,
       is_cnpj: formData.is_cnpj,
-      email: formData.email,
+      email: formData.email || undefined,
       telefone: formData.telefone ? unmaskPhone(formData.telefone) : undefined,
       celular: formData.celular ? unmaskPhone(formData.celular) : undefined,
-      inscricao_estadual: formData.inscricao_estadual,
-      inscricao_municipal: formData.inscricao_municipal,
-      regime_tributario: formData.regime_tributario,
-      cnae_principal: formData.cnae_principal,
+      inscricao_estadual: formData.inscricao_estadual || undefined,
+      inscricao_municipal: formData.inscricao_municipal || undefined,
+      regime_tributario: formData.regime_tributario || undefined,
+      cnae_principal: formData.cnae_principal || undefined,
     };
 
     // Transform endereco_principal -> endereco[]
@@ -299,12 +316,24 @@ export function useEmpresaFormProvider() {
     async (formData) => {
       apiError.value = null;
 
+      // ========== RUNTIME VALIDATION (HARD GATE) ==========
+      // Mesmo com VeeValidate validando, fazemos uma verificação final
+      // para garantir que dados programáticos/edge cases passem pelo Zod
+      const parseResult = EmpresaFormSchema.safeParse(formData);
+      if (!parseResult.success) {
+        const firstError = parseResult.error.errors[0];
+        apiError.value = firstError.message;
+        console.error('[Zod Validation Failed]', parseResult.error.errors);
+        return;
+      }
+
       if (!empresaId.value) {
         apiError.value = 'ID da empresa não encontrado';
         return;
       }
 
-      const payload = transformToUpdatePayload(formData);
+      // Usar dados já normalizados pelo Zod parse
+      const payload = transformToUpdatePayload(parseResult.data as EmpresaFormData);
 
       updateMutation.mutate(
         { data: payload },
@@ -316,7 +345,7 @@ export function useEmpresaFormProvider() {
       );
     },
     (validationErrors) => {
-      console.log('[DEBUG] Validation errors:', validationErrors);
+      console.log('[DEBUG] VeeValidate errors:', validationErrors);
     },
   );
 

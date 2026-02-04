@@ -14,8 +14,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import IdentificationSection from './form/IdentificationSection.vue';
 import AddressSection from './form/AddressSection.vue';
 import TaxDataSection from './form/TaxDataSection.vue';
-import FiscalSettingsSection from './form/FiscalSettingsSection.vue';
-import NfseSection from './form/NfseSection.vue';
+import EmissaoSection from './form/EmissaoSection.vue';
 import CertificateSection from './form/CertificateSection.vue';
 import ContactSection from './form/ContactSection.vue';
 
@@ -103,8 +102,7 @@ const {
           <IdentificationSection />
           <AddressSection />
           <TaxDataSection />
-          <FiscalSettingsSection />
-          <NfseSection />
+          <EmissaoSection />
           <CertificateSection />
           <ContactSection />
         </div>

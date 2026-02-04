@@ -123,6 +123,7 @@ export interface ConnectionTestResponse {
 
 /**
  * Dados do formulário de empresa (VeeValidate)
+ * Esta interface representa a estrutura do formulário com campos formatados (máscaras)
  */
 export interface EmpresaFormData {
   razao_social: string;
@@ -141,6 +142,15 @@ export interface EmpresaFormData {
   endereco_principal: Partial<Endereco>;
   certificado_senha: string;
 }
+
+/**
+ * Tipo inferido do EmpresaFormSchema (Zod)
+ * Representa os dados após normalização do Zod (sem máscaras)
+ *
+ * NOTA: Para usar este tipo, importe de '../schemas/empresa.schema':
+ * import type { EmpresaFormSchemaData } from '../schemas/empresa.schema';
+ */
+// Re-export será feito no schema para evitar dependência circular
 
 /**
  * Context do formulário de empresa (provide/inject)
