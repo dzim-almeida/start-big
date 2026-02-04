@@ -9,7 +9,7 @@ import type { Ref, ComputedRef } from 'vue';
 // Tipos auxiliares
 // =============================================
 
-export type TipoCertificado = 'ARQUIVO' | 'WINDOWS';
+export type TipoCertificado = 'ARQUIVO' | 'WINDOWS' | 'NENHUM';
 export type AmbienteEmissao = 1 | 2;
 export type RegimeTributario = 1 | 2 | 3;
 export type RegimeTributacaoISS = 1 | 2 | 3 | 4 | 5 | 6;
@@ -23,7 +23,7 @@ export type RegimeTributacaoISS = 1 | 2 | 3 | 4 | 5 | 6;
  */
 export interface FiscalSettings {
   id?: number;
-  company_id?: number;
+  empresa_id?: number;
   ambiente_emissao: number;
   serie_nfe: number;
   ultimo_numero_nfe: number;
@@ -40,6 +40,7 @@ export interface FiscalSettings {
   tipo_certificado: TipoCertificado;
   certificado_digital_path?: string;
   certificado_validade?: string;
+  certificado_subject?: string;
   certificado_thumbprint?: string;
 }
 

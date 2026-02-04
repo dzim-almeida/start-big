@@ -67,20 +67,46 @@ export async function updateEmpresa(payload: EmpresaUpdate): Promise<EmpresaRead
 // =============================================
 
 /**
- * Faz upload do certificado digital A1
+ * Faz upload do certificado digital A1 (PKCS#12)
+ *
+ * IMPORTANTE: A senha é enviada apenas nesta requisição para validação.
+ * Ela NÃO é persistida no banco de dados.
+ *
  * @param file - Arquivo .pfx ou .p12
+ * @param senha - Senha do certificado (usada apenas para validação)
  * @returns Empresa com certificado atualizado
  * @example
  * const file = event.target.files[0];
- * const empresa = await uploadCertificado(file);
- * console.log(empresa.fiscal_settings?.certificado_digital_path);
+ * const empresa = await uploadCertificado(file, 'minhaSenha123');
+ * console.log(empresa.fiscal_settings?.certificado_validade);
  */
-export async function uploadCertificado(file: File): Promise<Empresa> {
+export async function uploadCertificado(file: File, senha: string): Promise<EmpresaRead> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('senha', senha);
 
-  const { data } = await api.post<Empresa>(`${BASE_URL}/certificado/`, formData, {
+  const { data } = await api.post<EmpresaRead>(`${BASE_URL}/certificado-a1`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return data;
+}
+
+/**
+ * Vincula um certificado do Windows Certificate Store à empresa
+ *
+ * O certificado é identificado pelo thumbprint (hash único).
+ * Não há upload de arquivo - o certificado deve estar instalado no Windows.
+ *
+ * @param thumbprint - Identificador único do certificado no Windows
+ * @returns Empresa atualizada com o certificado vinculado
+ * @example
+ * const empresa = await vincularCertificadoWindows('ABC123...');
+ * console.log(empresa.fiscal_settings?.certificado_thumbprint);
+ */
+export async function vincularCertificadoWindows(thumbprint: string): Promise<EmpresaRead> {
+  const { data } = await api.post<EmpresaRead>(`${BASE_URL}/certificado-windows`, {
+    thumbprint,
   });
 
   return data;
@@ -95,11 +121,11 @@ export async function uploadCertificado(file: File): Promise<Empresa> {
  * const empresa = await uploadLogo(file);
  * console.log(empresa.url_logo);
  */
-export async function uploadLogo(file: File): Promise<Empresa> {
+export async function uploadLogo(file: File): Promise<EmpresaRead> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const { data } = await api.post<Empresa>(`${BASE_URL}/imagem/`, formData, {
+  const { data } = await api.post<EmpresaRead>(`${BASE_URL}/imagem/`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 

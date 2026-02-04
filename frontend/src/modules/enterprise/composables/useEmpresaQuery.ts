@@ -12,6 +12,7 @@ import {
   uploadCertificado,
   uploadLogo,
   getWindowsCertificates,
+  vincularCertificadoWindows,
   testSefazConnection,
   testPrefeituraConnection,
 } from '../services/empresa.service';
@@ -89,28 +90,71 @@ export function useUpdateEmpresaMutation() {
 }
 
 // =============================================
-// Mutation: Upload de certificado
+// Mutation: Upload de certificado A1
 // =============================================
 
 /**
- * Mutation para upload de certificado digital
+ * Interface para payload de upload de certificado
+ */
+interface UploadCertificadoPayload {
+  file: File;
+  senha: string;
+}
+
+/**
+ * Mutation para upload de certificado digital A1
+ *
+ * IMPORTANTE: A senha é enviada apenas para validação do certificado.
+ * Ela NÃO é persistida no banco de dados.
+ *
  * @returns Mutation com função mutate e estados
  * @example
  * const { mutate, isPending } = useUploadCertificadoMutation();
- * mutate(file);
+ * mutate({ file, senha: 'minhaSenha123' });
  */
 export function useUploadCertificadoMutation() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  return useMutation<EmpresaRead, AxiosError, File>({
-    mutationFn: uploadCertificado,
+  return useMutation<EmpresaRead, AxiosError, UploadCertificadoPayload>({
+    mutationFn: ({ file, senha }) => uploadCertificado(file, senha),
     onSuccess: () => {
       toast.success(MESSAGES.success.uploadCert);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.empresa] });
     },
-    onError: () => {
-      toast.error(MESSAGES.error.uploadCert);
+    onError: (error) => {
+      // Exibe mensagem detalhada do backend (ex: "Senha incorreta")
+      const message = (error.response?.data as any)?.detail || MESSAGES.error.uploadCert;
+      toast.error(message);
+    },
+  });
+}
+
+// =============================================
+// Mutation: Vincular certificado Windows
+// =============================================
+
+/**
+ * Mutation para vincular certificado do Windows Certificate Store
+ *
+ * @returns Mutation com função mutate e estados
+ * @example
+ * const { mutate, isPending } = useVincularCertificadoWindowsMutation();
+ * mutate('ABC123...'); // thumbprint do certificado
+ */
+export function useVincularCertificadoWindowsMutation() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation<EmpresaRead, AxiosError, string>({
+    mutationFn: vincularCertificadoWindows,
+    onSuccess: () => {
+      toast.success('Certificado Windows vinculado com sucesso!');
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.empresa] });
+    },
+    onError: (error) => {
+      const message = (error.response?.data as any)?.detail || 'Erro ao vincular certificado';
+      toast.error(message);
     },
   });
 }

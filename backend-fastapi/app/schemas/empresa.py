@@ -3,11 +3,104 @@
 # DESCRICAO: Schemas Pydantic para validacao de dados de Empresa.
 # ---------------------------------------------------------------------------
 
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
+
+
+# =========================
+# Fiscal Settings Schemas
+# =========================
+
+class FiscalSettingsBase(BaseModel):
+    """
+    Campos comuns para configurações fiscais.
+    Usados para leitura e atualização.
+    """
+    ambiente_emissao: int = Field(
+        default=2,
+        ge=1,
+        le=2,
+        description="Ambiente: 1=Produção, 2=Homologação"
+    )
+    serie_nfe: int = Field(default=1, ge=0, description="Série da NFe")
+    ultimo_numero_nfe: int = Field(default=0, ge=0, description="Último número NFe")
+    serie_nfce: int = Field(default=1, ge=0, description="Série da NFCe")
+    ultimo_numero_nfce: int = Field(default=0, ge=0, description="Último número NFCe")
+    csc_token: Optional[str] = Field(None, max_length=100, description="Token CSC para NFCe")
+    csc_id: Optional[str] = Field(None, max_length=10, description="ID do Token CSC")
+    rps_serie: Optional[str] = Field(None, max_length=10, description="Série do RPS")
+    rps_ultimo_numero: int = Field(default=0, ge=0, description="Último número RPS")
+    prefeitura_login: Optional[str] = Field(None, max_length=50, description="Login prefeitura")
+    prefeitura_senha: Optional[str] = Field(None, max_length=100, description="Senha prefeitura")
+    prefeitura_token_api: Optional[str] = Field(None, max_length=200, description="Token API prefeitura")
+    regime_tributacao_iss: Optional[int] = Field(None, ge=1, le=6, description="Regime ISS (1-6)")
+    tipo_certificado: str = Field(default="ARQUIVO", description="Tipo: ARQUIVO, WINDOWS, NENHUM")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FiscalSettingsUpdate(BaseModel):
+    """
+    Schema para atualização parcial de configurações fiscais.
+    Todos os campos são opcionais.
+    """
+    ambiente_emissao: Optional[int] = Field(None, ge=1, le=2)
+    serie_nfe: Optional[int] = Field(None, ge=0)
+    ultimo_numero_nfe: Optional[int] = Field(None, ge=0)
+    serie_nfce: Optional[int] = Field(None, ge=0)
+    ultimo_numero_nfce: Optional[int] = Field(None, ge=0)
+    csc_token: Optional[str] = Field(None, max_length=100)
+    csc_id: Optional[str] = Field(None, max_length=10)
+    rps_serie: Optional[str] = Field(None, max_length=10)
+    rps_ultimo_numero: Optional[int] = Field(None, ge=0)
+    prefeitura_login: Optional[str] = Field(None, max_length=50)
+    prefeitura_senha: Optional[str] = Field(None, max_length=100)
+    prefeitura_token_api: Optional[str] = Field(None, max_length=200)
+    regime_tributacao_iss: Optional[int] = Field(None, ge=1, le=6)
+    tipo_certificado: Optional[str] = Field(None)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FiscalSettingsRead(FiscalSettingsBase):
+    """
+    Schema de leitura completo das configurações fiscais.
+    Inclui metadados read-only do certificado.
+    """
+    id: int = Field(..., description="ID único das configurações")
+    empresa_id: int = Field(..., description="ID da empresa")
+    certificado_digital_path: Optional[str] = Field(None, description="Caminho do certificado A1")
+    certificado_validade: Optional[datetime] = Field(None, description="Validade do certificado")
+    certificado_subject: Optional[str] = Field(None, description="Subject/CN do certificado")
+    certificado_thumbprint: Optional[str] = Field(None, description="Thumbprint (Windows)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WindowsCertificateRead(BaseModel):
+    """
+    DTO para listagem de certificados do Windows Certificate Store.
+    Read-only - não persiste no banco.
+    """
+    thumbprint: str = Field(..., description="Identificador único do certificado")
+    subject: str = Field(..., description="Subject/CN do certificado")
+    friendly_name: str = Field(..., description="Nome amigável")
+    issuer: str = Field(..., description="Autoridade certificadora emissora")
+    valid_until: Optional[str] = Field(None, description="Data de validade (ISO format)")
+    serial_number: str = Field(..., description="Número de série")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CertificadoWindowsVincular(BaseModel):
+    """
+    Schema para vincular certificado Windows por thumbprint.
+    """
+    thumbprint: str = Field(..., min_length=40, max_length=64, description="Thumbprint do certificado")
 
 # NOTA ARQUITETURA:
 # Para evitar referencias circulares em schemas aninhados, usamos o nome
@@ -233,6 +326,11 @@ class EmpresaUpdate(BaseModel):
         description="Lista de enderecos da empresa para atualizacao",
     )
 
+    fiscal_settings: Optional["FiscalSettingsUpdate"] = Field(
+        None,
+        description="Configurações fiscais para atualização",
+    )
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -251,6 +349,12 @@ class EmpresaUpdate(BaseModel):
                         "complemento": "Sala 101",
                     }
                 ],
+                "fiscal_settings": {
+                    "ambiente_emissao": 2,
+                    "serie_nfe": 1,
+                    "csc_token": "ABC123",
+                    "csc_id": "000001"
+                }
             }
         },
     )
@@ -260,13 +364,14 @@ class EmpresaUpdate(BaseModel):
 # =========================
 class EmpresaAdminRead(EmpresaBase):
     """
-    Formato de resposta da API para Empresa. Inclui dados internos (id, ativo)
-    e lista aninhada de enderecos.
+    Formato de resposta da API para Empresa. Inclui dados internos (id, ativo),
+    lista aninhada de enderecos e configurações fiscais.
 
     Attributes:
         id (int): ID unico da empresa.
         ativo (bool): Status de ativo/inativo da empresa.
-        endereco (Optional[List[EnderecoRead]]): Enderecos cadastrados (com IDs).
+        enderecos (Optional[List[EnderecoRead]]): Enderecos cadastrados (com IDs).
+        fiscal_settings (Optional[FiscalSettingsRead]): Configurações fiscais da empresa.
     """
 
     id: int = Field(..., description="ID unico da empresa")
@@ -274,6 +379,10 @@ class EmpresaAdminRead(EmpresaBase):
     enderecos: Optional[List["EnderecoRead"]] = Field(
         None,
         description="Enderecos cadastrados",
+    )
+    fiscal_settings: Optional["FiscalSettingsRead"] = Field(
+        None,
+        description="Configurações fiscais (NFe, NFCe, NFSe, certificados)",
     )
 
 # =========================
@@ -306,3 +415,4 @@ class EmpresaUserRead(BaseModel):
 EmpresaCreate.model_rebuild()
 EmpresaUpdate.model_rebuild()
 EmpresaAdminRead.model_rebuild()
+FiscalSettingsRead.model_rebuild()

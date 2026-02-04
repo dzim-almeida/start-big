@@ -29,25 +29,26 @@ export const EnderecoSchema = z.object({
 });
 
 export const FiscalSettingsSchema = z.object({
-  id: z.number().int().positive().optional(),
-  company_id: z.number().int().positive().optional(),
+  id: z.number().int().positive().nullish(),
+  empresa_id: z.number().int().positive().nullish(),
   ambiente_emissao: z.number().int().min(1).max(2).default(2),
   serie_nfe: z.number().int().nonnegative().default(1),
   ultimo_numero_nfe: z.number().int().nonnegative().default(0),
   serie_nfce: z.number().int().nonnegative().default(1),
   ultimo_numero_nfce: z.number().int().nonnegative().default(0),
-  csc_token: z.string().optional(),
-  csc_id: z.string().optional(),
-  rps_serie: z.string().optional(),
-  rps_ultimo_numero: z.number().int().nonnegative().optional(),
-  prefeitura_login: z.string().optional(),
-  prefeitura_senha: z.string().optional(),
-  prefeitura_token_api: z.string().optional(),
-  regime_tributacao_iss: z.number().int().min(1).max(6).optional(),
-  tipo_certificado: z.enum(['ARQUIVO', 'WINDOWS']).default('ARQUIVO'),
-  certificado_digital_path: z.string().optional(),
-  certificado_validade: z.string().optional(),
-  certificado_thumbprint: z.string().optional(),
+  csc_token: z.string().nullish(),
+  csc_id: z.string().nullish(),
+  rps_serie: z.string().nullish(),
+  rps_ultimo_numero: z.number().int().nonnegative().nullish(),
+  prefeitura_login: z.string().nullish(),
+  prefeitura_senha: z.string().nullish(),
+  prefeitura_token_api: z.string().nullish(),
+  regime_tributacao_iss: z.number().int().min(1).max(6).nullish(),
+  tipo_certificado: z.enum(['ARQUIVO', 'WINDOWS', 'NENHUM']).nullish().default('ARQUIVO'),
+  certificado_digital_path: z.string().nullish(),
+  certificado_validade: z.string().nullish(),
+  certificado_subject: z.string().nullish(),
+  certificado_thumbprint: z.string().nullish(),
 });
 
 export const EmpresaSchema = z.object({
@@ -112,27 +113,29 @@ export const EnderecoFormSchema = z.object({
 /**
  * Schema de configurações fiscais para formulário
  * - Usa z.coerce para converter strings de inputs para números
+ * - Usa .nullish() para aceitar null, undefined e o tipo esperado
  */
 export const FiscalSettingsFormSchema = z.object({
-  id: z.number().int().positive().optional(),
-  company_id: z.number().int().positive().optional(),
+  id: z.number().int().positive().nullish(),
+  empresa_id: z.number().int().positive().nullish(),
   ambiente_emissao: z.number().int().min(1).max(2).default(2),
   serie_nfe: z.coerce.number().int().nonnegative().default(1),
   ultimo_numero_nfe: z.coerce.number().int().nonnegative().default(0),
   serie_nfce: z.coerce.number().int().nonnegative().default(1),
   ultimo_numero_nfce: z.coerce.number().int().nonnegative().default(0),
-  csc_token: z.string().optional().or(z.literal('')),
-  csc_id: z.string().optional().or(z.literal('')),
-  rps_serie: z.string().optional().or(z.literal('')),
-  rps_ultimo_numero: z.coerce.number().int().nonnegative().optional(),
-  prefeitura_login: z.string().optional().or(z.literal('')),
-  prefeitura_senha: z.string().optional().or(z.literal('')),
-  prefeitura_token_api: z.string().optional().or(z.literal('')),
-  regime_tributacao_iss: z.coerce.number().int().min(1).max(6).optional(),
-  tipo_certificado: z.enum(['ARQUIVO', 'WINDOWS']).default('ARQUIVO'),
-  certificado_digital_path: z.string().optional().or(z.literal('')),
-  certificado_validade: z.string().optional().or(z.literal('')),
-  certificado_thumbprint: z.string().optional().or(z.literal('')),
+  csc_token: z.string().nullish().or(z.literal('')),
+  csc_id: z.string().nullish().or(z.literal('')),
+  rps_serie: z.string().nullish().or(z.literal('')),
+  rps_ultimo_numero: z.coerce.number().int().nonnegative().nullish(),
+  prefeitura_login: z.string().nullish().or(z.literal('')),
+  prefeitura_senha: z.string().nullish().or(z.literal('')),
+  prefeitura_token_api: z.string().nullish().or(z.literal('')),
+  regime_tributacao_iss: z.coerce.number().int().min(1).max(6).nullish(),
+  tipo_certificado: z.enum(['ARQUIVO', 'WINDOWS', 'NENHUM']).nullish().default('ARQUIVO'),
+  certificado_digital_path: z.string().nullish().or(z.literal('')),
+  certificado_validade: z.string().nullish().or(z.literal('')),
+  certificado_subject: z.string().nullish().or(z.literal('')),
+  certificado_thumbprint: z.string().nullish().or(z.literal('')),
 });
 
 /**

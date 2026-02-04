@@ -280,22 +280,36 @@ export function useEmpresaFormProvider() {
     });
   }
 
+  /**
+   * Upload de certificado A1 com validação de senha.
+   *
+   * IMPORTANTE: A senha é passada como parâmetro e NÃO é persistida no state do form.
+   * Ela trafega apenas nesta requisição para validação do certificado.
+   *
+   * @param file - Arquivo .pfx ou .p12
+   * @param senha - Senha do certificado (usada apenas para validação)
+   */
   function handleCertUpload(file: File, senha: string) {
-    // Update senha local
-    certificado_senha.value = senha;
-
-    // Upload file
-    uploadCertMutation.mutate(file, {
-      onSuccess: (updatedEmpresa) => {
-        if (updatedEmpresa.fiscal_settings) {
-          fiscal_settings.value = {
-            ...fiscal_settings.value,
-            certificado_digital_path: updatedEmpresa.fiscal_settings.certificado_digital_path,
-            certificado_validade: updatedEmpresa.fiscal_settings.certificado_validade,
-          };
-        }
-      },
-    });
+    // Senha é passada diretamente para a mutation, não armazenada no state
+    uploadCertMutation.mutate(
+      { file, senha },
+      {
+        onSuccess: (updatedEmpresa) => {
+          if (updatedEmpresa.fiscal_settings) {
+            fiscal_settings.value = {
+              ...fiscal_settings.value,
+              tipo_certificado: updatedEmpresa.fiscal_settings.tipo_certificado,
+              certificado_digital_path: updatedEmpresa.fiscal_settings.certificado_digital_path,
+              certificado_validade: updatedEmpresa.fiscal_settings.certificado_validade,
+              certificado_subject: updatedEmpresa.fiscal_settings.certificado_subject,
+              certificado_thumbprint: undefined, // Limpar Windows se estava usando
+            };
+          }
+          // Limpar senha do formulário após upload bem sucedido
+          certificado_senha.value = '';
+        },
+      }
+    );
   }
 
   function handleTestSefaz() {

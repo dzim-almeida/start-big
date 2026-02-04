@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, and_, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from app.db.base import Base
@@ -14,6 +14,9 @@ from app.db.base import Base
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
 from app.db.models.endereco import Endereco
+
+if TYPE_CHECKING:
+    from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 
 class Empresa(Base):
     """
@@ -75,4 +78,13 @@ class Empresa(Base):
         cascade="all, delete-orphan",
         overlaps="endereco",
         doc="Lista de endereços da empresa (pode ser sede, filiais, etc.)"
+    )
+
+    # Relacionamento 1:1 com Configurações Fiscais
+    fiscal_settings: Mapped[Optional["EmpresaFiscalSettings"]] = relationship(
+        "EmpresaFiscalSettings",
+        back_populates="empresa",
+        uselist=False,  # 1:1 - Uma empresa tem apenas uma configuração fiscal
+        cascade="all, delete-orphan",
+        doc="Configurações fiscais da empresa (NFe, NFCe, NFSe, certificados)"
     )
