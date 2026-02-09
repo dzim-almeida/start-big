@@ -16,8 +16,8 @@ const homeRoutes: RouteRecordRaw[] = [
           title: 'Início',
           subtitle: 'Resumo de vendas e pendencias',
           tabId: 'home',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: '/vendas',
@@ -27,8 +27,8 @@ const homeRoutes: RouteRecordRaw[] = [
           title: 'Vendas',
           subtitle: 'Resumo de vendas do sistema',
           tabId: 'sales',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: '/equipes',
@@ -38,8 +38,8 @@ const homeRoutes: RouteRecordRaw[] = [
           title: 'Gestão de Equipe',
           subtitle: 'Gerencie os colaboradores da sua organização de forma centralizada.',
           tabId: 'employees',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: '/produtos',
@@ -49,8 +49,8 @@ const homeRoutes: RouteRecordRaw[] = [
           title: 'Produtos',
           subtitle: 'Gerencie os produtos da sua organização de forma centralizada.',
           tabId: 'products',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: '/clientes',
@@ -60,20 +60,31 @@ const homeRoutes: RouteRecordRaw[] = [
           title: 'Clientes',
           subtitle: 'Gerencie os clientes da sua organização de forma centralizada.',
           tabId: 'customers',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: '/empresa',
         name: 'enterprise',
-        component: () => import ('@/modules/enterprise/views/EmpresaView.vue'),
+        component: () => import('@/modules/enterprise/views/EmpresaView.vue'),
         meta: {
           title: 'Empresa',
           subtitle: 'Gerencie a empresa da sua organização de forma centralizada.',
           tabId: 'enterprise',
-          requiresAuth: true
-        }
-      }
+          requiresAuth: true,
+        },
+      },
+      {
+        path: '/servicos',
+        name: 'services',
+        component: () => import('@/modules/order-service/views/OrdemServicoView.vue'),
+        meta: {
+          title: 'Serviços',
+          subtitle: 'Gerencie os serviços da sua organização de forma centralizada.',
+          tabId: 'services',
+          requiresAuth: true,
+        },
+      },
     ],
   },
 ];
