@@ -219,7 +219,7 @@ const onConfirm = () => {
                   type="button"
                   class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
                   title="Editar cliente"
-                  @click="handleEdit(customer)"
+                  @click.stop="handleEdit(customer)"
                 >
                   <Pencil :size="18" />
                 </button>
@@ -234,7 +234,7 @@ const onConfirm = () => {
                       : 'text-zinc-400 hover:text-emerald-500 hover:bg-emerald-50',
                   ]"
                   :title="customer.ativo ? 'Desativar cliente' : 'Ativar cliente'"
-                  @click="handleToggleStatus(customer)"
+                  @click.stop="handleToggleStatus(customer)"
                 >
                   <Power :size="18" />
                 </button>

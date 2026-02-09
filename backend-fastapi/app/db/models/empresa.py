@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, and_, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, foreign
 from app.db.base import Base
@@ -14,6 +14,9 @@ from app.db.base import Base
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
 from app.db.models.endereco import Endereco
+
+if TYPE_CHECKING:
+    from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 
 class Empresa(Base):
     """
@@ -33,10 +36,12 @@ class Empresa(Base):
     inscricao_estadual: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Estadual (IE)")
     inscricao_municipal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Municipal (IM)")
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
+    cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
 
     # --- Contato e Visual ---
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Celular de contato")
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Email de contato principal")
     url_logo: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Caminho/URL da imagem da logo para uso no PDV/Relatórios")
     
     # --- Status ---
@@ -73,4 +78,13 @@ class Empresa(Base):
         cascade="all, delete-orphan",
         overlaps="endereco",
         doc="Lista de endereços da empresa (pode ser sede, filiais, etc.)"
+    )
+
+    # Relacionamento 1:1 com Configurações Fiscais
+    fiscal_settings: Mapped[Optional["EmpresaFiscalSettings"]] = relationship(
+        "EmpresaFiscalSettings",
+        back_populates="empresa",
+        uselist=False,  # 1:1 - Uma empresa tem apenas uma configuração fiscal
+        cascade="all, delete-orphan",
+        doc="Configurações fiscais da empresa (NFe, NFCe, NFSe, certificados)"
     )

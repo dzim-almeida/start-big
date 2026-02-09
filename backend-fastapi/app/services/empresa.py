@@ -7,14 +7,21 @@
 import os
 import shutil
 import uuid
+import platform
+from datetime import datetime
+from typing import List, Optional
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
 
 # Importa modelos e serviços
 from app.db.models.empresa import Empresa as EmpresaModel
-from app.db.models.usuario import Usuario as UsuarioModel
-from app.schemas.empresa import EmpresaCreate
+from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
+from app.schemas.empresa import (
+    EmpresaCreate,
+    EmpresaUpdate,
+    FiscalSettingsUpdate,
+    WindowsCertificateRead,
+)
 from app.services import endereco as endereco_service
 from app.services import usuario as usuario_service
 from app.core.enum import EntityType
@@ -37,6 +44,10 @@ NOT_FOUND_EXCE = HTTPException(
 
 UPLOAD_BASE_DIR = "static/uploads/empresa"
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
+
+# Diretório seguro para certificados (fora de static para não expor publicamente)
+CERT_UPLOAD_DIR = "secure_storage/certificates"
+os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO
@@ -170,3 +181,283 @@ def create_image_empresa(db: Session, empresa_id: int, file: UploadFile) -> Empr
 
 def get_empresa_by_id(db: Session, empresa_id: int) -> EmpresaModel:
     return empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+
+def update_empresa(db: Session, empresa_id: int, update_empresa: EmpresaUpdate) -> EmpresaModel:
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+
+    if not empresa_in_db:
+        raise NOT_FOUND_EXCE
+
+    data_to_update = update_empresa.model_dump(exclude_unset=True)
+
+    # Handle endereco updates
+    if "endereco" in data_to_update:
+        updated_addresses = endereco_service.update_address_in_db(
+            address_in_db=empresa_in_db.enderecos,
+            address_to_update=update_empresa.endereco,
+            id_entity=empresa_in_db.id,
+            type_entity=EntityType.EMPRESA
+        )
+        empresa_in_db.enderecos = updated_addresses
+        del data_to_update['endereco']
+
+    # Handle fiscal_settings updates (nested upsert)
+    if "fiscal_settings" in data_to_update:
+        fiscal_data = data_to_update.pop("fiscal_settings")
+        if fiscal_data:
+            update_fiscal_settings(
+                db,
+                empresa_id=empresa_id,
+                update_data=FiscalSettingsUpdate(**fiscal_data)
+            )
+
+    for key, value in data_to_update.items():
+        setattr(empresa_in_db, key, value)
+
+    return empresa_crud.update_empresa(db, empresa_to_update=empresa_in_db)
+
+
+# ---------------------------------------------------------------------------
+# FUNÇÕES DE CONFIGURAÇÕES FISCAIS
+# ---------------------------------------------------------------------------
+
+def get_or_create_fiscal_settings(db: Session, empresa_id: int) -> EmpresaFiscalSettings:
+    """
+    Garante que fiscal_settings sempre existe para uma empresa.
+    Se não existir, cria com valores padrão.
+
+    Args:
+        db: Sessão do banco de dados.
+        empresa_id: ID da empresa.
+
+    Returns:
+        EmpresaFiscalSettings: Configurações fiscais da empresa.
+    """
+    settings = db.query(EmpresaFiscalSettings).filter(
+        EmpresaFiscalSettings.empresa_id == empresa_id
+    ).first()
+
+    if not settings:
+        settings = EmpresaFiscalSettings(empresa_id=empresa_id)
+        db.add(settings)
+        db.flush()
+        db.refresh(settings)
+
+    return settings
+
+
+def update_fiscal_settings(
+    db: Session,
+    empresa_id: int,
+    update_data: FiscalSettingsUpdate
+) -> EmpresaFiscalSettings:
+    """
+    Atualiza configurações fiscais (upsert).
+
+    Args:
+        db: Sessão do banco de dados.
+        empresa_id: ID da empresa.
+        update_data: Dados para atualização.
+
+    Returns:
+        EmpresaFiscalSettings: Configurações atualizadas.
+    """
+    settings = get_or_create_fiscal_settings(db, empresa_id)
+
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(settings, field, value)
+
+    db.flush()
+    db.refresh(settings)
+    return settings
+
+
+# ---------------------------------------------------------------------------
+# FUNÇÕES DE CERTIFICADO DIGITAL
+# ---------------------------------------------------------------------------
+
+def upload_certificado_a1(
+    db: Session,
+    empresa_id: int,
+    file: UploadFile,
+    senha: str
+) -> EmpresaModel:
+    """
+    Upload e validação de certificado A1 (PKCS#12).
+
+    IMPORTANTE: A senha NÃO é persistida no banco de dados.
+    Ela é usada apenas para validar o certificado e extrair metadados.
+
+    Args:
+        db: Sessão do banco de dados.
+        empresa_id: ID da empresa.
+        file: Arquivo do certificado (.pfx ou .p12).
+        senha: Senha do certificado para validação.
+
+    Raises:
+        HTTPException 400: Se a senha estiver incorreta ou certificado inválido.
+        HTTPException 404: Se a empresa não for encontrada.
+
+    Returns:
+        EmpresaModel: Empresa atualizada com os dados do certificado.
+    """
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.hazmat.backends import default_backend
+
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+    if not empresa_in_db:
+        raise NOT_FOUND_EXCE
+
+    # 1. Ler arquivo em memória
+    file_content = file.file.read()
+
+    # 2. Validar certificado com a senha
+    try:
+        private_key, certificate, chain = pkcs12.load_key_and_certificates(
+            file_content,
+            senha.encode('utf-8'),
+            default_backend()
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Senha incorreta ou certificado inválido"
+        )
+    finally:
+        file.file.close()
+
+    if certificate is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Certificado não encontrado no arquivo"
+        )
+
+    # 3. Extrair metadados
+    cert_subject = certificate.subject.rfc4514_string()
+    cert_validade = certificate.not_valid_after_utc
+
+    # 4. Verificar se não está expirado
+    if cert_validade < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Certificado expirado em {cert_validade.strftime('%d/%m/%Y')}"
+        )
+
+    # 5. Salvar arquivo em diretório seguro
+    cert_folder = os.path.join(CERT_UPLOAD_DIR, str(empresa_id))
+    os.makedirs(cert_folder, exist_ok=True)
+    file_path = os.path.join(cert_folder, "certificado.pfx")
+
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+
+    # 6. Atualizar configurações fiscais (sem senha!)
+    settings = get_or_create_fiscal_settings(db, empresa_id)
+    settings.tipo_certificado = "ARQUIVO"
+    settings.certificado_digital_path = file_path
+    settings.certificado_validade = cert_validade
+    settings.certificado_subject = cert_subject
+    settings.certificado_thumbprint = None  # Limpar Windows se estava usando
+
+    db.flush()
+    db.refresh(empresa_in_db)
+
+    return empresa_in_db
+
+
+def list_windows_certificates() -> List[WindowsCertificateRead]:
+    """
+    Lista certificados digitais do Windows Certificate Store.
+
+    NOTA: O backend deve rodar no mesmo usuário do SO que possui os certificados.
+    Esta função só funciona em Windows.
+
+    Returns:
+        Lista de certificados válidos (não expirados).
+    """
+    if platform.system() != "Windows":
+        return []
+
+    try:
+        import wincertstore
+    except ImportError:
+        # wincertstore não instalado
+        return []
+
+    certificates = []
+    now = datetime.now()
+
+    try:
+        with wincertstore.CertSystemStore("MY") as store:
+            for cert in store.itercerts():
+                # Filtrar certificados expirados
+                if hasattr(cert, 'not_valid_after') and cert.not_valid_after:
+                    if cert.not_valid_after < now:
+                        continue
+
+                certificates.append(WindowsCertificateRead(
+                    thumbprint=cert.get_thumbprint() if hasattr(cert, 'get_thumbprint') else "",
+                    subject=str(cert.get_name()) if hasattr(cert, 'get_name') else "",
+                    friendly_name=getattr(cert, 'friendly_name', "") or str(cert.get_name()) if hasattr(cert, 'get_name') else "",
+                    issuer=str(cert.get_issuer()) if hasattr(cert, 'get_issuer') else "",
+                    valid_until=cert.not_valid_after.isoformat() if hasattr(cert, 'not_valid_after') and cert.not_valid_after else None,
+                    serial_number=str(cert.get_serial_number()) if hasattr(cert, 'get_serial_number') else ""
+                ))
+    except Exception as e:
+        # Log error but return empty list
+        print(f"[WARN] Erro ao listar certificados Windows: {e}")
+
+    return certificates
+
+
+def vincular_certificado_windows(
+    db: Session,
+    empresa_id: int,
+    thumbprint: str
+) -> EmpresaModel:
+    """
+    Vincula um certificado do Windows Certificate Store à empresa.
+
+    Args:
+        db: Sessão do banco de dados.
+        empresa_id: ID da empresa.
+        thumbprint: Thumbprint (identificador) do certificado.
+
+    Raises:
+        HTTPException 404: Se a empresa ou certificado não for encontrado.
+
+    Returns:
+        EmpresaModel: Empresa atualizada.
+    """
+    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
+    if not empresa_in_db:
+        raise NOT_FOUND_EXCE
+
+    # Validar existência no store
+    certs = list_windows_certificates()
+    cert = next((c for c in certs if c.thumbprint == thumbprint), None)
+
+    if not cert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Certificado não encontrado no Windows Certificate Store"
+        )
+
+    # Atualizar configurações fiscais
+    settings = get_or_create_fiscal_settings(db, empresa_id)
+    settings.tipo_certificado = "WINDOWS"
+    settings.certificado_thumbprint = thumbprint
+    settings.certificado_subject = cert.subject
+    settings.certificado_validade = (
+        datetime.fromisoformat(cert.valid_until) if cert.valid_until else None
+    )
+    settings.certificado_digital_path = None  # Limpar arquivo se estava usando
+
+    db.flush()
+    db.refresh(empresa_in_db)
+
+    return empresa_in_db
+
+    
+    

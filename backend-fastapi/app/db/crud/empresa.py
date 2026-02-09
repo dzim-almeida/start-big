@@ -47,3 +47,10 @@ def create_empresa(db: Session, empresa_to_add: EmpresaModel) -> EmpresaModel:
     db.flush()
     db.refresh(empresa_to_add)
     return empresa_to_add
+
+def update_empresa(db: Session, empresa_to_update: EmpresaModel) -> EmpresaModel:
+    db.flush()
+    db.refresh(empresa_to_update)
+    return empresa_to_update
+    
+    
