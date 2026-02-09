@@ -6,6 +6,7 @@
  */
 
 import { Settings, Shield } from 'lucide-vue-next';
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import { SECTION_LABELS } from '../../constants/empresa.constants';
@@ -48,12 +49,14 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
 <template>
   <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <!-- Header -->
-    <h3
-      class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6 pb-2 border-b border-gray-50 flex items-center gap-2"
-    >
-      <Settings :size="18" class="text-gray-400" />
-      {{ SECTION_LABELS.configuracoes }}
-    </h3>
+    <div class="flex items-center gap-3 mb-6">
+      <div
+        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+      >
+        <LucideIcon :icon="Settings"/>
+      </div>
+      <h3 class="text-lg font-semibold text-zinc-800">{{ SECTION_LABELS.configuracoes }}</h3>
+    </div>
 
     <!-- SEÇÃO ESTADUAL -->
     <div>

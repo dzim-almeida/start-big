@@ -6,6 +6,7 @@
  */
 
 import { Landmark } from 'lucide-vue-next';
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { SECTION_LABELS, REGIME_TRIBUTARIO_OPTIONS } from '../../constants/empresa.constants';
@@ -39,12 +40,14 @@ const {
 <template>
   <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <!-- Header -->
-    <h3
-      class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6 pb-2 border-b border-gray-50 flex items-center gap-2"
-    >
-      <Landmark :size="18" class="text-gray-400" />
-      {{ SECTION_LABELS.dadosFiscais }}
-    </h3>
+    <div class="flex items-center gap-3 mb-6">
+      <div
+        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+      >
+        <LucideIcon :icon="Landmark"/>
+      </div>
+      <h3 class="text-lg font-semibold text-zinc-800">{{ SECTION_LABELS.dadosFiscais }}</h3>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Inscrição Estadual -->

@@ -185,7 +185,7 @@ watch(isOpen, (open) => {
                 type="button"
                 variant="secondary"
                 :disabled="isPending"
-                @click="closeModal"
+                @click.stop="closeModal"
               >
                 {{ isViewMode ? 'Fechar' : 'Cancelar' }}
               </BaseButton>
@@ -193,7 +193,7 @@ watch(isOpen, (open) => {
                 v-if="!isViewMode"
                 type="button"
                 :is-loading="isPending"
-                @click="onSubmit"
+                @click.stop="onSubmit"
               >
                 {{ isCreateMode ? 'Cadastrar' : 'Salvar Alterações' }}
               </BaseButton>

@@ -29,3 +29,4 @@ backend-fastapi/pdv.db
 backend-fastapi/nota.txt
 /.claude
 /node_modules
+/backend-fastapi/static

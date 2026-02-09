@@ -35,7 +35,10 @@ import type { Component } from 'vue';
  * Tipo do cliente - Pessoa Fisica ou Pessoa Juridica
  * Usado para discriminar qual interface usar
  */
-export type CustomersTypes = 'PF' | 'PJ' | 'active' | 'inactive' | null;
+
+export type TipoCliente = 'PF' | 'PJ';
+
+export type  CustomersTypes= 'PF' | 'PJ' | 'active' | 'inactive' | null;
 
 /**
  * Genero do cliente (apenas para PF)

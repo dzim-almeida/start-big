@@ -23,6 +23,7 @@ import { createCompany } from '../services/onboarding.service';
 import { useToast } from '@/shared/composables/useToast';
 import { unmaskCep, unmaskDocument, unmaskPhone } from '@/shared/utils/unmask.utils';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 /* ============================================
    useCompanyForm
@@ -258,6 +259,7 @@ export function useConfirmRegisterEmpresa() {
   const { goToHome } = useAppNavigation();
   const toast = useToast();
   const { onboardingData, resetOnboarding } = useOnboarding();
+  const authStore = useAuthStore();
 
   /* ============================================
      State
@@ -285,10 +287,11 @@ export function useConfirmRegisterEmpresa() {
         'Sua configuração inicial foi concluída. Bem-vindo ao Start Big!'
       );
       resetOnboarding();
+      authStore.revalidateUser();
       goToHome();
     },
     onError: (error) => {
-      apiError.value = getErrorMessage(error, 'Erro ao cadastrar empresa');
+      apiError.value = getErrorMessage(error, 'Erro ao cadastrar empresa') as string;
     },
   });
 

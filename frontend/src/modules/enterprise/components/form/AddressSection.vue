@@ -7,6 +7,7 @@
 
 import { computed, ref, watch } from 'vue';
 import { MapPin, Loader2 } from 'lucide-vue-next';
+import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { SECTION_LABELS } from '../../constants/empresa.constants';
@@ -85,12 +86,14 @@ watch(codigoIbge, (code) => {
 <template>
   <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <!-- Header -->
-    <h3
-      class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6 pb-2 border-b border-gray-50 flex items-center gap-2"
-    >
-      <MapPin :size="18" class="text-gray-400" />
-      {{ SECTION_LABELS.endereco }}
-    </h3>
+    <div class="flex items-center gap-3 mb-6">
+      <div
+        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+      >
+        <LucideIcon :icon="MapPin"/>
+      </div>
+      <h3 class="text-lg font-semibold text-zinc-800">{{ SECTION_LABELS.endereco }}</h3>
+    </div>
 
     <!-- Grid de campos -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
