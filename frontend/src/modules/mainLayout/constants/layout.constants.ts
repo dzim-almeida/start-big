@@ -1,7 +1,6 @@
 import {
   ShoppingCart,
   LayoutDashboard,
-  Package,
   Tags,
   Users,
   BookOpen,
@@ -28,12 +27,6 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         icon: ShoppingCart,
         label: 'Vendas',
         requiredPermission: PERMISSIONS.sales,
-      },
-      {
-        id: 'storage',
-        icon: Package,
-        label: 'Estoque',
-        requiredPermission: PERMISSIONS.storage,
       },
       {
         id: 'services',
