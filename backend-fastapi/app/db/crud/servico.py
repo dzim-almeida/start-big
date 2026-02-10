@@ -42,7 +42,7 @@ def get_servico_by_search(
         query = select(ServicoModel)
     else:
         query = select(ServicoModel).where(
-            ServicoModel.descricao.ilike(f"{search}%")
+            ServicoModel.descricao.ilike(f"%{search}%")
         )
 
     # Conta o total de registros antes da repartição

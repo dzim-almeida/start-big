@@ -21,8 +21,6 @@ from app.db.models.produto_fotos import ProdutoFoto
 from app.db.models.empresa import Empresa
 from app.db.models.cargo import Cargo
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="BigPDV Backend API",
     description="Sistema de Ponto de Venda (PDV) - API",

@@ -30,3 +30,6 @@ backend-fastapi/nota.txt
 /.claude
 /node_modules
 /backend-fastapi/static
+/backend-fastapi/alembic
+backend-fastapi/alembic.ini
+backend-fastapi/seeds/
