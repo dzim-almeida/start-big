@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Ellipsis, Pencil, Power } from 'lucide-vue-next';
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -38,32 +37,16 @@ const statusBadgeConfig = {
     class: 'bg-red-50 text-red-600 border border-red-200',
   },
 } as const;
-
-const visibleServicos = computed(() => {
-  const normalizedSearch = search.value.trim().toLowerCase();
-
-  return props.servicos.filter((servico) => {
-    const matchesSearch =
-      normalizedSearch.length === 0 ||
-      servico.descricao.toLowerCase().includes(normalizedSearch);
-
-    const matchesStatus =
-      !statusFilter.value ||
-      (statusFilter.value === 'ativos' ? servico.ativo : !servico.ativo);
-
-    return matchesSearch && matchesStatus;
-  });
-});
 </script>
 
 <template>
   <BaseTableContainer
     :is-loading="isLoading"
     :is-error="isError"
-    :is-empty="visibleServicos.length === 0"
+    :is-empty="servicos.length === 0"
     :current-page="1"
     :total-pages="1"
-    :total-items="visibleServicos.length"
+    :total-items="servicos.length"
     item-label="serviço"
     empty-title="Nenhum serviço encontrado"
     :empty-description="servicos.length > 0 ? 'Tente ajustar os filtros de busca.' : 'Cadastre seu primeiro serviço.'"
@@ -95,7 +78,7 @@ const visibleServicos = computed(() => {
         </thead>
         <tbody class="divide-y divide-zinc-100">
           <tr
-            v-for="servico in visibleServicos"
+            v-for="servico in servicos"
             :key="servico.id"
             class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
             @click="emit('view', servico)"

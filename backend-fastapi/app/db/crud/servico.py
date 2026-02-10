@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_, and_
+from sqlalchemy import select, func
 from typing import Sequence
 
 from app.db.models.servico import Servico as ServicoModel
@@ -20,7 +20,12 @@ def get_servico_by_id(db: Session, servico_id: int) -> ServicoModel | None:
     servico_in_db = db.scalars(stmt).first()
     return servico_in_db
 
-def get_servico_by_search(db: Session, search: str | None) -> Sequence[ServicoModel]:
+def get_servico_by_search(
+    db: Session,
+    search: str | None,
+    skip: int,
+    limit: int = 20
+) -> tuple[Sequence[ServicoModel], int]:
     """
     Busca Simples de Serviços.
     
@@ -34,16 +39,20 @@ def get_servico_by_search(db: Session, search: str | None) -> Sequence[ServicoMo
         Sequence[ServicoModel]: Lista de serviços que correspondem aos critérios.
     """
     if not search:
-        stmt = select(ServicoModel).where(ServicoModel.ativo.is_(True))
+        query = select(ServicoModel)
     else:
-        stmt = select(ServicoModel).where(
-            and_(
-                ServicoModel.ativo.is_(True),
-                ServicoModel.descricao.ilike(f"{search}%")
-            )
+        query = select(ServicoModel).where(
+            ServicoModel.descricao.ilike(f"{search}%")
         )
 
-    return db.scalars(stmt).all()
+    # Conta o total de registros antes da repartição
+    count_stmt = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    stmt = query.offset(skip).limit(limit)
+    servicos = db.scalars(stmt).all()
+
+    return servicos, total
 
 def get_servico_by_description(db: Session, description_to_search: str) -> ServicoModel | None:
     """Busca serviço pela descrição exata (útil para verificar duplicidade)."""

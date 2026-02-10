@@ -12,7 +12,7 @@ const { openCreateModal } = useServicoModal();
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview
-        title="Serviços"
+        title="Serviços Prestados"
         description="Gerencie o catálogo de serviços da sua organização."
       />
 

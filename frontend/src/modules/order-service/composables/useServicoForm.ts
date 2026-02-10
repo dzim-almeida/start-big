@@ -12,7 +12,7 @@ import { useForm } from 'vee-validate';
 import type { ServicoCreate, ServicoFormData, ServicoUpdate } from '../types/servicos.types';
 import { servicoFormValidationSchema } from '../schemas/servicos.schema';
 import { toCents } from '../utils/servicos.utils';
-import { useServicoActions } from './useServicoActions';
+import { useServicoActions } from './useServiceQuery';
 import { useServicoModal } from './useServicoModal';
 
 const DEFAULT_FORM_VALUES: ServicoFormData = {

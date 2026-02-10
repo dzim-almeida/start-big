@@ -9,8 +9,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Sequence
 
-# Schemas Pydantic (para validação de entrada)
-from app.schemas.servico import ServicoCreate, ServicoUpdate
+# Schemas Pydantic (para validação de entrada e saída)
+from app.schemas.servico import ServicoCreate, ServicoUpdate, ServicoQuery
+from app.schemas.pagination import PaginationBase as Pagination
 # Modelo SQLAlchemy (para mapeamento do DB)
 from app.db.models.servico import Servico as ServicoModel
 # Camada CRUD (para acesso direto ao DB)
@@ -56,12 +57,40 @@ def create_servico(db: Session, servico_to_add: ServicoCreate) -> ServicoModel:
 # LÓGICA DE LEITURA (READ)
 # ===========================================================================
 
-def get_servico_by_search(db: Session, search: str | None) -> Sequence[ServicoModel]:
+def get_servico_by_search(db: Session, search: str | None, page: int, limit: int) -> ServicoQuery:
     """
     Intermediário para busca de serviços.
     Repassa a query string para o CRUD realizar a filtragem.
     """
-    return servico_crud.get_servico_by_search(db, search=search)
+
+    # Quantidades de Elementos Desnecessários
+    skip = (page - 1) * limit
+
+    (servicos_in_db, total_items) = servico_crud.get_servico_by_search(db, search=search, skip=skip, limit=limit)
+
+    total_pages = (
+        # Retorna total_items // limit se resto 0
+        total_items // limit
+        if total_items % limit == 0 
+        # Caso contrário, retorna resultado + 1
+        else total_items // limit + 1
+    )
+
+    # Paginação
+    pagination = Pagination(
+        items=len(servicos_in_db),
+        total_items=total_items,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+    )
+
+    servicos_query = ServicoQuery(
+        servicos=servicos_in_db,
+        pagination=pagination,
+    )
+
+    return servicos_query
 
 
 # ===========================================================================

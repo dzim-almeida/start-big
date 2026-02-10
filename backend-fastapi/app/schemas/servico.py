@@ -5,7 +5,8 @@
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Sequence
+from app.schemas.pagination import PaginationBase as Pagination
 
 # =========================
 # Schema: Criar Serviço
@@ -58,6 +59,17 @@ class ServicoRead(ServicoCreate):
     
     # Nota: O 'model_config' e o 'example' são herdados de ServicoCreate
     # e podem ser sobrescritos aqui se necessário.
+
+class ServicoQuery(BaseModel):
+    servicos: Sequence[ServicoRead]
+    pagination: Pagination = Field(
+        ...,
+        description="Informações sobre paginação"
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
 # =========================
 # Schema: Atualizar Serviço

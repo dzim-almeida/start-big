@@ -10,7 +10,7 @@ from typing import Sequence, Optional
 
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.servico import ServicoCreate, ServicoRead, ServicoUpdate
+from app.schemas.servico import ServicoCreate, ServicoRead, ServicoQuery, ServicoUpdate
 from app.services import servico as servico_service
 
 router = APIRouter()
@@ -54,7 +54,7 @@ def create_servico(
 
 @router.get(
     "/",
-    response_model=Sequence[ServicoRead],
+    response_model=ServicoQuery,
     status_code=status.HTTP_200_OK,
     summary="Listar ou Buscar Serviços",
     description="Retorna serviços ativos. Permite filtro por descrição."
@@ -65,6 +65,16 @@ def get_servico(
     buscar: Optional[str] = Query(
         None,
         max_length=255,
+        description="Termo de busca (Descrição do serviço)."
+    ),
+    page: int = Query(
+        1,
+        ge=1,
+        description="Termo de busca (Descrição do serviço)."
+    ), 
+    limit: int = Query(
+        20,
+        ge=0,
         description="Termo de busca (Descrição do serviço)."
     ),
     db: Session = Depends(get_db)
@@ -79,7 +89,9 @@ def get_servico(
     return _handle_db_transaction(
         db,
         servico_service.get_servico_by_search,
-        buscar
+        buscar,
+        page,
+        limit
     )
 
 # ===========================================================================

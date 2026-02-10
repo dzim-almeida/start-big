@@ -1,45 +1,45 @@
 import { z } from 'zod';
 import { toTypedSchema } from '@vee-validate/zod';
 
-export const ServicoReadSchema = z.object({
+export const ServiceReadSchema = z.object({
   id: z.number().int().positive(),
   descricao: z.string().min(1, 'Descrição é obrigatória'),
   valor: z.number().int().nonnegative(),
   ativo: z.boolean(),
 });
 
-export const ServicoCreateSchema = z.object({
+export const ServiceCreateSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória').max(255),
   valor: z.number().int().nonnegative(),
 });
 
-export const ServicoUpdateSchema = z.object({
+export const ServiceUpdateSchema = z.object({
   descricao: z.string().min(1).max(255).optional(),
   valor: z.number().int().nonnegative().optional(),
 });
 
-export const ServicoFormSchema = z.object({
+export const ServiceFormSchema = z.object({
   descricao: z
-    .string({ required_error: 'Descricao e obrigatoria' })
-    .min(3, 'Descricao deve ter no minimo 3 caracteres')
-    .max(255, 'Descricao deve ter no maximo 255 caracteres'),
+    .string({ required_error: 'Descrição é obrigatória' })
+    .min(3, 'Descrição deve ter no mínimo 3 caracteres')
+    .max(255, 'Descrição deve ter no máximo 255 caracteres'),
   valor: z
-    .number({ required_error: 'Valor e obrigatorio' })
-    .nonnegative('Valor nao pode ser negativo'),
+    .number({ required_error: 'Valor é obrigatório' })
+    .nonnegative('Valor não pode ser negativo'),
 });
 
-export const PaginatedServicosSchema = z.object({
-  items: z.array(ServicoReadSchema),
+export const PaginatedServicesSchema = z.object({
+  items: z.array(ServiceReadSchema),
   total: z.number().int().nonnegative(),
   page: z.number().int().positive(),
   limit: z.number().int().positive(),
   pages: z.number().int().nonnegative(),
 });
 
-export type ServicoReadZod = z.infer<typeof ServicoReadSchema>;
-export type ServicoCreateZod = z.infer<typeof ServicoCreateSchema>;
-export type ServicoUpdateZod = z.infer<typeof ServicoUpdateSchema>;
-export type ServicoFormZod = z.infer<typeof ServicoFormSchema>;
-export type PaginatedServicosZod = z.infer<typeof PaginatedServicosSchema>;
+export type ServiceReadZod = z.infer<typeof ServiceReadSchema>;
+export type ServiceCreateZod = z.infer<typeof ServiceCreateSchema>;
+export type ServiceUpdateZod = z.infer<typeof ServiceUpdateSchema>;
+export type ServiceFormZod = z.infer<typeof ServiceFormSchema>;
+export type PaginatedServicesZod = z.infer<typeof PaginatedServicesSchema>;
 
-export const servicoFormValidationSchema = toTypedSchema(ServicoFormSchema);
+export const servicoFormValidationSchema = toTypedSchema(ServiceFormSchema);

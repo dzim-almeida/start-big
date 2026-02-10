@@ -5,7 +5,7 @@ import ServicoStats from '../../components/servicos/ServicoStats.vue';
 import ServicoTable from '../../components/servicos/ServicoTable.vue';
 import ServicoFormModal from '../../components/servicos/ServicoFormModal.vue';
 import { useServicos } from '../../composables/useServicos';
-import { useToggleServicoAtivoMutation } from '../../composables/useServicoActions';
+import { useToggleServicoAtivoMutation } from '../../composables/useServiceQuery';
 import { useServicoModal } from '../../composables/useServicoModal';
 import type { ServicoRead } from '../../types/servicos.types';
 
