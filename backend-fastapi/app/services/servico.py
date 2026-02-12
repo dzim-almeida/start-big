@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 # Schemas Pydantic (para validação de entrada e saída)
-from app.schemas.servico import ServicoCreate, ServicoUpdate, ServicoQuery
+from app.schemas.servico import ServicoCreate, ServicoUpdate, ServicoQuery, ServicoStats
 # Modelo SQLAlchemy (para mapeamento do DB)
 from app.db.models.servico import Servico as ServicoModel
 # Camada CRUD (para acesso direto ao DB)
@@ -96,6 +96,12 @@ def get_servico_by_search(db: Session, filters: dict, page: int, limit: int) -> 
     )
 
     return servicos_query
+
+
+def get_servico_stats(db: Session) -> ServicoStats:
+    """Retorna estatísticas agregadas dos serviços."""
+    stats_data = servico_crud.get_servico_stats(db)
+    return ServicoStats(**stats_data)
 
 
 # ===========================================================================

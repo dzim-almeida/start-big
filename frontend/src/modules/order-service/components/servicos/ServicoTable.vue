@@ -12,17 +12,24 @@ interface Props {
   servicos: ServiceReadZod[];
   isLoading?: boolean;
   isError?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  totalItems?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   isError: false,
+  currentPage: 1,
+  totalPages: 1,
+  totalItems: 0,
 });
 
 const emit = defineEmits<{
   view: [servico: ServiceReadZod];
   edit: [servico: ServiceReadZod];
   toggleStatus: [servico: ServiceReadZod];
+  'update:currentPage': [page: number];
 }>();
 
 const search = defineModel<string>('search', { default: '' });
@@ -45,14 +52,15 @@ const statusBadgeConfig = {
     :is-loading="isLoading"
     :is-error="isError"
     :is-empty="servicos.length === 0"
-    :current-page="1"
-    :total-pages="1"
-    :total-items="servicos.length"
+    :current-page="currentPage"
+    :total-pages="totalPages"
+    :total-items="totalItems"
     item-label="serviço"
     empty-title="Nenhum serviço encontrado"
-    :empty-description="servicos.length > 0 ? 'Tente ajustar os filtros de busca.' : 'Cadastre seu primeiro serviço.'"
+    empty-description="Cadastre seu primeiro serviço."
     error-title="Erro ao carregar serviços"
     error-description="Verifique sua conexão e tente novamente."
+    @update:current-page="emit('update:currentPage', $event)"
   >
     <template #toolbar>
       <BaseSearchInput

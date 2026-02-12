@@ -12,10 +12,11 @@ import type { ApiError } from '@/shared/types/axios.types';
 import {
   createServico,
   getServicos,
+  getServicosStats,
   toggleServicoAtivo,
   updateServico,
 } from '../services/servicos.service';
-import { SERVICOS_QUERY_KEY, SERVICOS_STALE_TIME } from '../constants/servicos.constants';
+import { SERVICOS_QUERY_KEY, SERVICOS_STATS_QUERY_KEY, SERVICOS_STALE_TIME } from '../constants/servicos.constants';
 
 import type {
   ServiceCreateZod,
@@ -30,12 +31,22 @@ export function useService() {
   const searchQuery = ref<string | undefined>(undefined);
   const debouncedSearchQuery = refDebounced(searchQuery, 1000);
   const activeFilterQuery = ref<StatusFilter | null>(null)
+  const currentPage = ref(1);
 
   const filterQuery = computed<boolean | undefined>(() => {
     if (activeFilterQuery.value === 'ativos') return true
     if (activeFilterQuery.value === 'inativos') return false
     return
   })
+
+  function setPage(page: number) {
+    currentPage.value = page;
+  }
+
+  // Resetar pagina ao mudar filtros
+  watch([debouncedSearchQuery, filterQuery], () => {
+    currentPage.value = 1;
+  });
 
   function useCreateServicoMutation(setErrors?: any) {
     const toast = useToast();
@@ -46,6 +57,7 @@ export function useService() {
       onSuccess: () => {
         toast.success('Serviço cadastrado com sucesso!');
         queryClient.invalidateQueries({ queryKey: [SERVICOS_QUERY_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SERVICOS_STATS_QUERY_KEY] });
       },
       onError: (error) => {
         if (isConflictError(error) && setErrors) {
@@ -75,6 +87,7 @@ export function useService() {
       onSuccess: () => {
         toast.success('Serviço atualizado com sucesso!');
         queryClient.invalidateQueries({ queryKey: [SERVICOS_QUERY_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SERVICOS_STATS_QUERY_KEY] });
       },
       onError: (error) => {
         if (isConflictError(error) && setErrors) {
@@ -101,6 +114,7 @@ export function useService() {
         const status = data.ativo ? 'ativado' : 'desativado';
         toast.success(`Serviço ${status} com sucesso!`);
         queryClient.invalidateQueries({ queryKey: [SERVICOS_QUERY_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SERVICOS_STATS_QUERY_KEY] });
       },
       onError: (error) => {
         toast.error(getErrorMessage(error, 'Erro ao alterar status do serviço') as string);
@@ -108,41 +122,66 @@ export function useService() {
     });
   }
 
+  function useServicosStatsQuery() {
+    const query = useQuery({
+      queryKey: [SERVICOS_STATS_QUERY_KEY],
+      queryFn: getServicosStats,
+      staleTime: SERVICOS_STALE_TIME,
+    });
+
+    const stats = computed(() => ({
+      total: query.data.value?.total ?? 0,
+      ativos: query.data.value?.ativos ?? 0,
+      inativos: query.data.value?.inativos ?? 0,
+      mediaValor: query.data.value?.media_valor ?? 0,
+    }));
+
+    return {
+      stats,
+      isLoading: query.isLoading,
+    };
+  }
+
   function useServicesQuery(params?: QueryParams) {
-  const query = useQuery({
-    // Importante: debouncedSearchQuery.value aqui garante que a query
-    // mude sempre que o usuário parar de digitar
-    queryKey: [SERVICOS_QUERY_KEY, debouncedSearchQuery, filterQuery], 
-    queryFn: () => getServicos({ search: debouncedSearchQuery.value, active: filterQuery.value,  ...params }),
-    staleTime: SERVICOS_STALE_TIME,
-  });
+    const query = useQuery({
+      queryKey: [SERVICOS_QUERY_KEY, debouncedSearchQuery, filterQuery, currentPage],
+      queryFn: () => getServicos({
+        search: debouncedSearchQuery.value,
+        active: filterQuery.value,
+        page: currentPage.value,
+        ...params,
+      }),
+      staleTime: SERVICOS_STALE_TIME,
+    });
 
-  // Usamos computed para que 'services' continue reagindo a mudanças no data do useQuery
-  const services = computed(() => query.data.value?.items ?? []);
+    const services = computed(() => query.data.value?.items ?? []);
+    const totalPages = computed(() => query.data.value?.total_pages ?? 1);
+    const totalItems = computed(() => query.data.value?.total_items ?? 0);
 
-  watch(query.data, () => {
-    console.log(query.data.value?.items)
-  })
+    return {
+      services,
+      totalPages,
+      totalItems,
+      isLoading: query.isLoading,
+      isError: query.isError,
+      error: query.error,
+      refetch: query.refetch,
+    };
+  }
 
   return {
-    services,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch
-  };
-}
 
-  return {
-
-    //Refs
+    // Refs
     searchQuery,
     activeFilterQuery,
+    currentPage,
 
     // Métodos
+    setPage,
     useCreateServicoMutation,
     useUpdateServicoMutation,
     useToggleServicoAtivoMutation,
-    useServicesQuery
+    useServicesQuery,
+    useServicosStatsQuery
   }
 }

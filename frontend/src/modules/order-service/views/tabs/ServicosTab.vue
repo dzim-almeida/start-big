@@ -8,9 +8,10 @@ import { useService } from '../../composables/useService';
 import { useServicoModal } from '../../composables/useServicoModal';
 import type { ServiceReadZod } from '../../schemas/servicos.schema';
 
-const { searchQuery, activeFilterQuery, useServicesQuery, useToggleServicoAtivoMutation } = useService();
+const { searchQuery, activeFilterQuery, currentPage, setPage, useServicesQuery, useServicosStatsQuery, useToggleServicoAtivoMutation } = useService();
 
-const { services, isLoading, isError } = useServicesQuery();
+const { services, totalPages, totalItems, isLoading, isError } = useServicesQuery();
+const { stats, isLoading: isStatsLoading } = useServicosStatsQuery();
 const { openEditModal, openViewModal } = useServicoModal();
 const toggleAtivoMutation = useToggleServicoAtivoMutation();
 
@@ -48,16 +49,22 @@ function handleConfirmStatusToggle() {
 
 <template>
   <div class="space-y-6">
-  
+
+    <ServicoStats :stats="stats" :loading="isStatsLoading" />
+
     <ServicoTable
       :servicos="services ?? []"
       :is-loading="isLoading"
       :is-error="isError"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :total-items="totalItems"
       v-model:search="searchQuery"
       v-model:status-filter="activeFilterQuery"
       @view="handleView"
       @edit="handleEdit"
       @toggle-status="handleToggleStatus"
+      @update:current-page="setPage"
     />
 
     <ServicoFormModal />

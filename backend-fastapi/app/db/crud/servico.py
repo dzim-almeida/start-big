@@ -55,6 +55,23 @@ def get_servico_by_search(
 
     return servicos, total
 
+def get_servico_stats(db: Session) -> dict:
+    """Retorna estatísticas agregadas dos serviços."""
+    stmt = select(
+        func.count(ServicoModel.id).label("total"),
+        func.count(ServicoModel.id).filter(ServicoModel.ativo == True).label("ativos"),
+        func.count(ServicoModel.id).filter(ServicoModel.ativo == False).label("inativos"),
+        func.coalesce(func.avg(ServicoModel.valor), 0).label("media_valor"),
+    )
+    result = db.execute(stmt).one()
+    return {
+        "total": result.total,
+        "ativos": result.ativos,
+        "inativos": result.inativos,
+        "media_valor": int(result.media_valor),
+    }
+
+
 def get_servico_by_description(db: Session, description_to_search: str) -> ServicoModel | None:
     """Busca serviço pela descrição exata (útil para verificar duplicidade)."""
     stmt = select(ServicoModel).where(ServicoModel.descricao == description_to_search)

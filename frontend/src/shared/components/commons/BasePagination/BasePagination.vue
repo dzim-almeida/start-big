@@ -1,30 +1,12 @@
 <script setup lang="ts">
-/**
- * ===========================================================================
- * COMPONENTE: BasePagination
- * DESCRICAO: Footer padrao de tabelas com total de itens e paginacao
- * ===========================================================================
- *
- * USO:
- * <BasePagination
- *   :current-page="currentPage"
- *   :total-pages="totalPages"
- *   :total-items="totalItems"
- *   item-label="cliente"
- *   @update:current-page="setPage"
- * />
- * ===========================================================================
- */
-
-// No icon imports needed - using text buttons
+import { computed } from 'vue';
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 interface Props {
   currentPage: number;
   totalPages: number;
   totalItems: number;
-  /** Label do item no singular (ex: "cliente", "orçamento", "OS") */
   itemLabel?: string;
-  /** Label do item no plural (ex: "clientes", "orçamentos", "OS") - se não informado, adiciona 's' ao singular */
   itemLabelPlural?: string;
 }
 
@@ -41,69 +23,117 @@ const emit = defineEmits<{
 // COMPUTED
 // ===========================================================================
 
-function getItemLabel(): string {
-  if (props.totalItems === 1) {
-    return props.itemLabel;
-  }
+const itemLabel = computed(() => {
+  if (props.totalItems === 1) return props.itemLabel;
   return props.itemLabelPlural || `${props.itemLabel}s`;
-}
+});
+
+const hasPrev = computed(() => props.currentPage > 1);
+const hasNext = computed(() => props.currentPage < props.totalPages);
+
+const visiblePages = computed<(number | 'ellipsis')[]>(() => {
+  const total = props.totalPages;
+  const current = props.currentPage;
+
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages: (number | 'ellipsis')[] = [1];
+
+  if (current > 3) {
+    pages.push('ellipsis');
+  }
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  if (current < total - 2) {
+    pages.push('ellipsis');
+  }
+
+  pages.push(total);
+
+  return pages;
+});
 
 // ===========================================================================
 // HANDLERS
 // ===========================================================================
 
-function prevPage() {
-  if (props.currentPage > 1) {
-    emit('update:currentPage', props.currentPage - 1);
-  }
-}
-
-function nextPage() {
-  if (props.currentPage < props.totalPages) {
-    emit('update:currentPage', props.currentPage + 1);
+function goToPage(page: number) {
+  if (page >= 1 && page <= props.totalPages && page !== props.currentPage) {
+    emit('update:currentPage', page);
   }
 }
 </script>
 
 <template>
-  <div class="px-6 py-5 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-4">
-    <!-- Total de Itens (Esquerda) -->
-    <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">
-      {{ totalItems }} {{ getItemLabel() }}
+  <div class="px-6 py-4 border-t border-zinc-100 bg-white rounded-b-2xl md:rounded-b-3xl flex flex-col md:flex-row items-center justify-between gap-3">
+    <!-- Total de Itens -->
+    <span class="text-xs text-zinc-400 font-medium tabular-nums">
+      {{ totalItems }} {{ itemLabel }}
     </span>
 
-    <!-- Paginação (Direita) -->
-    <div class="flex items-center gap-2">
+    <!-- Controles de Paginação -->
+    <div v-if="totalPages > 1" class="flex items-center gap-1">
+      <!-- Anterior -->
       <button
         type="button"
-        class="h-9 px-4 rounded-lg text-xs font-bold transition-colors"
+        class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
         :class="[
-          currentPage <= 1
-            ? 'text-zinc-400 bg-zinc-50 cursor-not-allowed'
-            : 'text-zinc-700 bg-white border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 shadow-sm cursor-pointer'
+          hasPrev
+            ? 'text-zinc-600 hover:bg-zinc-100 cursor-pointer'
+            : 'text-zinc-300 cursor-not-allowed'
         ]"
-        :disabled="currentPage <= 1"
-        @click="prevPage"
+        :disabled="!hasPrev"
+        @click="goToPage(currentPage - 1)"
       >
-        Anterior
+        <ChevronLeft :size="14" />
+        <span class="hidden sm:inline">Anterior</span>
       </button>
-      <button
-        class="h-9 w-9 rounded-lg bg-brand-primary text-white text-xs font-bold shadow-sm shadow-brand-primary/20 hover:bg-brand-primary/90 transition-all cursor-pointer"
-      >
-        {{ currentPage }}
-      </button>
+
+      <!-- Números de Página -->
+      <template v-for="(page, index) in visiblePages" :key="index">
+        <span
+          v-if="page === 'ellipsis'"
+          class="h-8 w-8 flex items-center justify-center text-xs text-zinc-300 select-none"
+        >
+          ...
+        </span>
+        <button
+          v-else
+          type="button"
+          class="h-8 w-8 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+          :class="[
+            page === currentPage
+              ? 'bg-zinc-800 text-white'
+              : 'text-zinc-500 hover:bg-zinc-100'
+          ]"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+      </template>
+
+      <!-- Próximo -->
       <button
         type="button"
-        class="h-9 px-4 rounded-lg text-xs font-bold transition-colors"
+        class="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
         :class="[
-          currentPage >= totalPages
-            ? 'text-zinc-400 bg-zinc-50 cursor-not-allowed'
-            : 'text-zinc-700 bg-white border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 shadow-sm cursor-pointer'
+          hasNext
+            ? 'text-zinc-600 hover:bg-zinc-100 cursor-pointer'
+            : 'text-zinc-300 cursor-not-allowed'
         ]"
-        :disabled="currentPage >= totalPages"
-        @click="nextPage"
+        :disabled="!hasNext"
+        @click="goToPage(currentPage + 1)"
       >
-        Proximo
+        <span class="hidden sm:inline">Próximo</span>
+        <ChevronRight :size="14" />
       </button>
     </div>
   </div>

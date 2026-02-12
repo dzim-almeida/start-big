@@ -1,6 +1,6 @@
 import api from '@/api/axios';
 
-import { ServiceCreateZod, ServiceUpdateZod, PaginatedServicesZod, PaginatedServicesSchema, ServiceReadZod } from '../schemas/servicos.schema';
+import { ServiceCreateZod, ServiceUpdateZod, PaginatedServicesZod, PaginatedServicesSchema, ServiceReadZod, ServiceStatsZod, ServiceStatsSchema } from '../schemas/servicos.schema';
 
 import { ServicosQuerySearch } from '../types/servicos.types';
 
@@ -37,4 +37,9 @@ export async function updateServico(
 export async function toggleServicoAtivo(id: number): Promise<ServiceReadZod> {
   const { data } = await api.put<ServiceReadZod>(`${BASE_URL}toggle_ativo/${id}`);
   return data;
+}
+
+export async function getServicosStats(): Promise<ServiceStatsZod> {
+  const { data } = await api.get<ServiceStatsZod>(`${BASE_URL}stats`);
+  return ServiceStatsSchema.parse(data);
 }

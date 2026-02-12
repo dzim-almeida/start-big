@@ -10,7 +10,7 @@ from typing import Sequence, Optional
 
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.servico import ServicoCreate, ServicoRead, ServicoFilterParams, ServicoQuery, ServicoUpdate
+from app.schemas.servico import ServicoCreate, ServicoRead, ServicoFilterParams, ServicoQuery, ServicoUpdate, ServicoStats
 from app.services import servico as servico_service
 
 router = APIRouter()
@@ -51,6 +51,24 @@ def create_servico(
 # ===========================================================================
 # ROTAS DE LEITURA (GET)
 # ===========================================================================
+
+@router.get(
+    "/stats",
+    response_model=ServicoStats,
+    status_code=status.HTTP_200_OK,
+    summary="Estatísticas dos Serviços",
+    description="Retorna estatísticas agregadas dos serviços cadastrados."
+)
+def get_servico_stats(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    *,
+    db: Session = Depends(get_db)
+):
+    """Retorna total, ativos, inativos e ticket médio dos serviços."""
+    return _handle_db_transaction(
+        db,
+        servico_service.get_servico_stats,
+    )
 
 @router.get(
     "/",

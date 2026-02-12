@@ -79,6 +79,16 @@ class ServicoQuery(Pagination):
     items: Sequence[ServicoRead]
 
 # =========================
+# Schema: Estatísticas
+# =========================
+class ServicoStats(BaseModel):
+    """Estatísticas agregadas dos serviços."""
+    total: int = Field(..., description="Total de serviços cadastrados")
+    ativos: int = Field(..., description="Serviços ativos")
+    inativos: int = Field(..., description="Serviços inativos")
+    media_valor: int = Field(..., description="Valor médio dos serviços (em centavos)")
+
+# =========================
 # Schema: Atualizar Serviço
 # =========================
 class ServicoUpdate(BaseModel):

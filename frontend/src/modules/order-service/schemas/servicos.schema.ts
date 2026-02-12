@@ -42,6 +42,14 @@ export const PaginatedServicesSchema = z.object({
   total_pages: z.number().int().nonnegative(),
 });
 
+export const ServiceStatsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  ativos: z.number().int().nonnegative(),
+  inativos: z.number().int().nonnegative(),
+  media_valor: z.number().int().nonnegative(),
+});
+
+export type ServiceStatsZod = z.infer<typeof ServiceStatsSchema>;
 export type ServiceReadZod = z.infer<typeof ServiceReadSchema>;
 export type ServiceCreateZod = z.infer<typeof ServiceCreateSchema>;
 export type ServiceUpdateZod = z.infer<typeof ServiceUpdateSchema>;
