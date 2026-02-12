@@ -4,16 +4,28 @@
 # DESCRIÇÃO: Define regras de validação, tipos e documentação OpenAPI.
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
 
 # ===========================================================================
 # SCHEMA BASE
 # ===========================================================================
 
+class Links(BaseModel):
+    next: Optional[str] = Field(
+        None,
+        description="Link para a próxima página"
+    )
+    prev: Optional[str] = Field(
+        None,
+        description="Link para a página anterior"
+    )
+
+
 class PaginationBase(BaseModel):
-    items: int = Field(
+    filters: dict = Field(
         ...,
-        description="Descreve a quantidade de itens retornados"
+        description="Tipos de filtros para busca"
     )
     total_items: int = Field(
         ...,
@@ -31,5 +43,15 @@ class PaginationBase(BaseModel):
         ...,
         description="Descreve a quantidade total de páginas"
     )
+    links: Optional[Links] = Field(
+        None,
+        description="Links para paginação"
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+    
 
 

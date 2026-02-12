@@ -5,10 +5,11 @@ import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchIn
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import { STATUS_FILTER_CONFIG } from '../../constants/servicos.constants';
 import { formatCentavosToBRL } from '../../utils/servicos.utils';
-import type { ServicoRead, StatusFilter } from '../../types/servicos.types';
+import type { StatusFilter } from '../../types/servicos.types';
+import type { ServiceReadZod } from '../../schemas/servicos.schema';
 
 interface Props {
-  servicos: ServicoRead[];
+  servicos: ServiceReadZod[];
   isLoading?: boolean;
   isError?: boolean;
 }
@@ -19,9 +20,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  view: [servico: ServicoRead];
-  edit: [servico: ServicoRead];
-  toggleStatus: [servico: ServicoRead];
+  view: [servico: ServiceReadZod];
+  edit: [servico: ServiceReadZod];
+  toggleStatus: [servico: ServiceReadZod];
 }>();
 
 const search = defineModel<string>('search', { default: '' });

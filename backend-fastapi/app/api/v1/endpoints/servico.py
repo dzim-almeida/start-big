@@ -10,7 +10,7 @@ from typing import Sequence, Optional
 
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.servico import ServicoCreate, ServicoRead, ServicoQuery, ServicoUpdate
+from app.schemas.servico import ServicoCreate, ServicoRead, ServicoFilterParams, ServicoQuery, ServicoUpdate
 from app.services import servico as servico_service
 
 router = APIRouter()
@@ -62,11 +62,7 @@ def create_servico(
 def get_servico(
     user_token: dict = Depends(check_permission(required_permission="servico")),
     *,
-    buscar: Optional[str] = Query(
-        None,
-        max_length=255,
-        description="Termo de busca (Descrição do serviço)."
-    ),
+    filters: ServicoFilterParams = Depends(),
     page: int = Query(
         1,
         ge=1,
@@ -86,10 +82,11 @@ def get_servico(
         buscar (str, optional): Texto para filtrar por descrição.
         db (Session): Sessão do banco.
     """
+    filters = filters.model_dump(exclude_unset=True)
     return _handle_db_transaction(
         db,
         servico_service.get_servico_by_search,
-        buscar,
+        filters,
         page,
         limit
     )

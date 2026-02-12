@@ -9,11 +9,14 @@ import {
   type Ref,
 } from 'vue';
 import { useForm } from 'vee-validate';
-import type { ServicoCreate, ServicoFormData, ServicoUpdate } from '../types/servicos.types';
+import type { ServiceCreateZod, ServiceUpdateZod } from '../schemas/servicos.schema';
+import { ServicoFormData } from '../types/servicos.types';
 import { servicoFormValidationSchema } from '../schemas/servicos.schema';
 import { toCents } from '../utils/servicos.utils';
-import { useServicoActions } from './useServiceQuery';
+import { useService } from './useService';
 import { useServicoModal } from './useServicoModal';
+
+const { useCreateServicoMutation, useUpdateServicoMutation } = useService();
 
 const DEFAULT_FORM_VALUES: ServicoFormData = {
   descricao: '',
@@ -41,7 +44,9 @@ export function useServicoFormProvider() {
       initialValues: { ...DEFAULT_FORM_VALUES },
     });
 
-  const { createMutation, updateMutation } = useServicoActions(setErrors);
+  const createMutation = useCreateServicoMutation(setErrors);
+  const updateMutation = useUpdateServicoMutation(setErrors);
+
   const apiError = ref<string | null>(null);
 
   const [descricao] = defineField('descricao');
@@ -61,14 +66,14 @@ export function useServicoFormProvider() {
 
   watch(selectedServico, populateForm, { immediate: true });
 
-  function transformToCreateRequest(formData: ServicoFormData): ServicoCreate {
+  function transformToCreateRequest(formData: ServicoFormData): ServiceCreateZod {
     return {
       descricao: formData.descricao.trim(),
       valor: toCents(formData.valor) || 0,
     };
   }
 
-  function transformToUpdateRequest(formData: ServicoFormData): ServicoUpdate {
+  function transformToUpdateRequest(formData: ServicoFormData): ServiceUpdateZod {
     return {
       descricao: formData.descricao.trim(),
       valor: toCents(formData.valor),

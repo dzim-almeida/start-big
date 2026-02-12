@@ -60,16 +60,23 @@ class ServicoRead(ServicoCreate):
     # Nota: O 'model_config' e o 'example' são herdados de ServicoCreate
     # e podem ser sobrescritos aqui se necessário.
 
-class ServicoQuery(BaseModel):
-    servicos: Sequence[ServicoRead]
-    pagination: Pagination = Field(
-        ...,
-        description="Informações sobre paginação"
+class ServicoFilterParams(BaseModel):
+    search: Optional[str] = Field(
+        None,
+        description="Query de Busca"
+    )
+    active: Optional[bool] = Field(
+        None,
+        description="Filtro de status ativo/inativo"
     )
 
     model_config = ConfigDict(
         from_attributes=True,
     )
+
+class ServicoQuery(Pagination):
+    filters: ServicoFilterParams
+    items: Sequence[ServicoRead]
 
 # =========================
 # Schema: Atualizar Serviço

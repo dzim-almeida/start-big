@@ -13,24 +13,17 @@ export interface ServicosStats {
   media_valor: number;
 }
 
-export interface ServicoCreate {
-  descricao: string;
-  valor: number;
-}
-
-export interface ServicoRead {
-  id: number;
-  descricao: string;
-  valor: number;
-  ativo: boolean;
-}
-
-export interface ServicoUpdate {
-  descricao?: string;
-  valor?: number;
-}
-
 export interface ServicoFormData {
   descricao: string;
   valor: number;
+}
+
+export interface QueryParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface ServicosQuerySearch extends QueryParams {
+  search?: string;
+  active?: boolean;
 }

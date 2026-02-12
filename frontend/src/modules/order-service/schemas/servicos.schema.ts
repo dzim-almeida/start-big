@@ -28,12 +28,18 @@ export const ServiceFormSchema = z.object({
     .nonnegative('Valor não pode ser negativo'),
 });
 
+const FiltersServiceSchema = z.object({
+  search: z.string().nullable(),
+  active: z.boolean().nullable()
+})
+
 export const PaginatedServicesSchema = z.object({
+  filters: FiltersServiceSchema,
   items: z.array(ServiceReadSchema),
-  total: z.number().int().nonnegative(),
+  total_items: z.number().int().nonnegative(),
   page: z.number().int().positive(),
   limit: z.number().int().positive(),
-  pages: z.number().int().nonnegative(),
+  total_pages: z.number().int().nonnegative(),
 });
 
 export type ServiceReadZod = z.infer<typeof ServiceReadSchema>;

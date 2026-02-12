@@ -4,27 +4,28 @@ import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseC
 import ServicoStats from '../../components/servicos/ServicoStats.vue';
 import ServicoTable from '../../components/servicos/ServicoTable.vue';
 import ServicoFormModal from '../../components/servicos/ServicoFormModal.vue';
-import { useServicos } from '../../composables/useServicos';
-import { useToggleServicoAtivoMutation } from '../../composables/useServiceQuery';
+import { useService } from '../../composables/useService';
 import { useServicoModal } from '../../composables/useServicoModal';
-import type { ServicoRead } from '../../types/servicos.types';
+import type { ServiceReadZod } from '../../schemas/servicos.schema';
 
-const { servicos, stats, searchQuery, statusFilter, isLoading, isError } = useServicos();
+const { searchQuery, activeFilterQuery, useServicesQuery, useToggleServicoAtivoMutation } = useService();
+
+const { services, isLoading, isError } = useServicesQuery();
 const { openEditModal, openViewModal } = useServicoModal();
 const toggleAtivoMutation = useToggleServicoAtivoMutation();
 
 const isStatusModalOpen = ref(false);
-const servicoToToggle = ref<ServicoRead | null>(null);
+const servicoToToggle = ref<ServiceReadZod | null>(null);
 
-function handleEdit(servico: ServicoRead) {
+function handleEdit(servico: ServiceReadZod) {
   openEditModal(servico);
 }
 
-function handleView(servico: ServicoRead) {
+function handleView(servico: ServiceReadZod) {
   openViewModal(servico);
 }
 
-function handleToggleStatus(servico: ServicoRead) {
+function handleToggleStatus(servico: ServiceReadZod) {
   servicoToToggle.value = servico;
   isStatusModalOpen.value = true;
 }
@@ -47,14 +48,13 @@ function handleConfirmStatusToggle() {
 
 <template>
   <div class="space-y-6">
-    <ServicoStats :stats="stats" :loading="isLoading" />
-
+  
     <ServicoTable
-      :servicos="servicos"
+      :servicos="services ?? []"
       :is-loading="isLoading"
       :is-error="isError"
       v-model:search="searchQuery"
-      v-model:status-filter="statusFilter"
+      v-model:status-filter="activeFilterQuery"
       @view="handleView"
       @edit="handleEdit"
       @toggle-status="handleToggleStatus"

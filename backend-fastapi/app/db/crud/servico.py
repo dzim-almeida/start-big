@@ -9,6 +9,8 @@ from sqlalchemy import select, func
 from typing import Sequence
 
 from app.db.models.servico import Servico as ServicoModel
+from app.schemas.servico import ServicoFilterParams
+
 
 # ===========================================================================
 # LEITURA (READ)
@@ -22,33 +24,32 @@ def get_servico_by_id(db: Session, servico_id: int) -> ServicoModel | None:
 
 def get_servico_by_search(
     db: Session,
-    search: str | None,
+    filters: dict, 
     skip: int,
     limit: int = 20
 ) -> tuple[Sequence[ServicoModel], int]:
     """
-    Busca Simples de Serviços.
-    
-    Retorna serviços cuja descrição comece com o termo pesquisado.
-    Se nenhum termo for fornecido, retorna todos os serviços ativos.
-
-    Args:
-        search (str | None): Termo a ser buscado (case sensitive dependendo do DB).
-        
-    Returns:
-        Sequence[ServicoModel]: Lista de serviços que correspondem aos critérios.
+    Busca Avançada de Serviços com filtros dinâmicos.
     """
-    if not search:
-        query = select(ServicoModel)
-    else:
-        query = select(ServicoModel).where(
-            ServicoModel.descricao.ilike(f"%{search}%")
-        )
+    query = select(ServicoModel)
 
-    # Conta o total de registros antes da repartição
+    # Filtro de texto (Descrição)
+    search = filters.get("search")
+    if search:
+        query = query.where(ServicoModel.descricao.ilike(f"%{search}%"))
+
+    # Filtro de status (Trata explicitamente True/False)
+    active = filters.get("active")
+    if active is not None:
+        query = query.where(ServicoModel.ativo == active)
+
+    query = query.order_by(ServicoModel.id.desc())
+
+    # Conta o total com os filtros aplicados
     count_stmt = select(func.count()).select_from(query.subquery())
     total = db.scalar(count_stmt) or 0
 
+    # Aplica paginação
     stmt = query.offset(skip).limit(limit)
     servicos = db.scalars(stmt).all()
 

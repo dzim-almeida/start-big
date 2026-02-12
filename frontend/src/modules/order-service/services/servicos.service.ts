@@ -1,25 +1,28 @@
 import api from '@/api/axios';
 
-import type { PaginatedResponse } from '@/shared/types/axios.types';
+import { ServiceCreateZod, ServiceUpdateZod, PaginatedServicesZod, PaginatedServicesSchema, ServiceReadZod } from '../schemas/servicos.schema';
 
-import { ServiceCreateZod, ServiceUpdateZod, ServiceReadZod } from '../schemas/servicos.schema';
+import { ServicosQuerySearch } from '../types/servicos.types';
 
-const BASE_URL = 'servicos' as const;
-
-type ServicosListResponse = ServiceReadZod[] | PaginatedResponse<ServiceReadZod>;
+const BASE_URL = 'servicos/' as const;
 
 
-function normalizeServicosListResponse(data: ServicosListResponse): ServiceReadZod[] {
-  return Array.isArray(data) ? data : data.items;
-}
 
-export async function getServicos(): Promise<ServiceReadZod[]> {
-  const { data } = await api.get<ServicosListResponse>(`${BASE_URL}/`);
-  return normalizeServicosListResponse(data);
+export async function getServicos(query: ServicosQuerySearch): Promise<PaginatedServicesZod> {
+
+  let request_url = `${BASE_URL}?`
+  if (query.search) request_url += `search=${query.search}&`
+  if (query.active !== undefined) request_url += `active=${query.active}&`
+  if (query.page) request_url += `page=${query.page}&`
+  if (query.limit) request_url += `limit=${query.limit}&`
+  
+  const { data } = await api.get<PaginatedServicesZod>(request_url);
+  const parsedData = PaginatedServicesSchema.parse(data);
+  return parsedData;
 }
 
 export async function createServico(servico: ServiceCreateZod): Promise<ServiceReadZod> {
-  const { data } = await api.post<ServiceReadZod>(`${BASE_URL}/`, servico);
+  const { data } = await api.post<ServiceReadZod>(`${BASE_URL}`, servico);
   return data;
 }
 
@@ -27,11 +30,11 @@ export async function updateServico(
   id: number,
   servico: ServiceUpdateZod,
 ): Promise<ServiceReadZod> {
-  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}/${id}`, servico);
+  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}${id}`, servico);
   return data;
 }
 
 export async function toggleServicoAtivo(id: number): Promise<ServiceReadZod> {
-  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}/toggle_ativo/${id}`);
+  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}toggle_ativo/${id}`);
   return data;
 }
