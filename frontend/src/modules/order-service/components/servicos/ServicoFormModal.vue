@@ -7,7 +7,7 @@ import { useServicoFormProvider } from '../../composables/useServicoForm';
 import ServicoDadosSection from './form/ServicoDadosSection.vue';
 
 const { isOpen, isCreateMode, isViewMode, modalTitle, closeModal } = useServicoModal();
-const { onSubmit, isPending, apiError } = useServicoFormProvider();
+const { onSubmit, isPending, submitCount, apiError } = useServicoFormProvider();
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && isOpen.value) {
@@ -59,7 +59,7 @@ watch(isOpen, (open) => {
         >
           <div
             v-if="isOpen"
-            class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
           >
             <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
               <h2 class="text-xl font-bold text-zinc-800">
@@ -82,8 +82,8 @@ watch(isOpen, (open) => {
                 {{ apiError }}
               </div>
 
-              <form id="servico-form" @submit.prevent="onSubmit" class="space-y-6">
-                <ServicoDadosSection :disabled="isViewMode" />
+              <form id="servico-form" @submit.prevent="onSubmit" class="space-y-8">
+                <ServicoDadosSection :submit-count="submitCount" :disabled="isViewMode" />
               </form>
             </div>
 
