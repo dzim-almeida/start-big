@@ -64,3 +64,20 @@ class EntityType(str, enum.Enum):
 class BankAccountType(str, enum.Enum):
     POUPANCA = "POUPANCA"
     CORRENTE = "CORRENTE"
+
+class OrdemServicoStatus(str, enum.Enum):
+    """Status possíveis de uma Ordem de Serviço."""
+    ABERTA = "ABERTA"
+    EM_ANDAMENTO = "EM_ANDAMENTO"
+    AGUARDANDO_PECAS = "AGUARDANDO_PECAS"
+    AGUARDANDO_APROVACAO = "AGUARDANDO_APROVACAO"
+    AGUARDANDO_RETIRADA = "AGUARDANDO_RETIRADA"
+    FINALIZADA = "FINALIZADA"
+    CANCELADA = "CANCELADA"
+
+class OrdemServicoPrioridade(str, enum.Enum):
+    """Prioridades possíveis de uma Ordem de Serviço."""
+    BAIXA = "BAIXA"
+    NORMAL = "NORMAL"
+    ALTA = "ALTA"
+    URGENTE = "URGENTE"

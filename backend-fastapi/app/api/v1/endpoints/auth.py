@@ -39,7 +39,8 @@ def login_to_acess_cookie(
         value=token_value,
         httponly=True,  # JS não pode ler
         secure=False,   # True apenas em produção
-        samesite="lax",
+        samesite="Lax",
+        expires=6400
     )
 
     return {"message": "Login bem-sucedido!"}
