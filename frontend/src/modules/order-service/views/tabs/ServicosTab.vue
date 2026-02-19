@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
-import ServicoStats from '../../servicos/components/ServicoStats.vue';
-import ServicoTable from '../../servicos/components/ServicoTable.vue';
-import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
-import { useServicosQuery, useServicosStatsQuery } from '../../servicos/composables/useServicosQuery';
-import { useToggleServicoAtivoMutation } from '../../servicos/composables/useServicosMutations';
-import { useServicoModal } from '../../servicos/composables/useServicoModal';
-import type { ServiceReadZod } from '../../servicos/schemas/servicos.schema';
+import ServicoStats from '../../components/servicos/ServicoStats.vue';
+import ServicoTable from '../../components/servicos/ServicoTable.vue';
+import ServicoFormModal from '../../components/servicos/ServicoFormModal.vue';
+import { useService } from '../../composables/useService';
+import { useServicoModal } from '../../composables/useServicoModal';
+import type { ServiceReadZod } from '../../schemas/servicos.schema';
 
-const { searchQuery, activeFilterQuery, currentPage, setPage, services, totalPages, totalItems, isLoading, isError } = useServicosQuery();
+const { searchQuery, activeFilterQuery, currentPage, setPage, useServicesQuery, useServicosStatsQuery, useToggleServicoAtivoMutation } = useService();
+
+const { services, totalPages, totalItems, isLoading, isError } = useServicesQuery();
 const { stats, isLoading: isStatsLoading } = useServicosStatsQuery();
 const { openEditModal, openViewModal } = useServicoModal();
 const toggleAtivoMutation = useToggleServicoAtivoMutation();

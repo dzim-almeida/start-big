@@ -33,3 +33,4 @@ backend-fastapi/nota.txt
 /backend-fastapi/alembic
 backend-fastapi/alembic.ini
 backend-fastapi/seeds/
+/integrations

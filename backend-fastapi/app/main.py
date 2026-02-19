@@ -20,10 +20,6 @@ from app.db.models.servico import Servico
 from app.db.models.produto_fotos import ProdutoFoto
 from app.db.models.empresa import Empresa
 from app.db.models.cargo import Cargo
-from app.db.models.ordem_servico import OrdemServico
-from app.db.models.ordem_servico_item import OrdemServicoItem
-from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento
-from app.db.models.ordem_servico_foto import OrdemServicoFoto
 
 app = FastAPI(
     title="BigPDV Backend API",
@@ -33,8 +29,7 @@ app = FastAPI(
 
 origins = [
     "http://localhost:1420",  # URL Tauri/Vite
-    "http://127.0.0.1:1420",
-    "https://softball-nil-cordless-terrace.trycloudflare.com",
+    "http://127.0.0.1:1420"
 ]
 
 app.add_middleware(

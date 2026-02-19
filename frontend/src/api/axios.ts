@@ -14,7 +14,6 @@ import { useAuthStore } from '@/shared/stores/auth.store';
  * Instância do Axios configurada com a URL base da API
  */
 export const api = axios.create({
-  // baseURL: "https://attorney-constitutes-attempts-congressional.trycloudflare.com/api/v1",
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   withCredentials: true,
 });
