@@ -84,7 +84,7 @@ def get_ordens_servico(
     *,
     filters: OrdemServicoFilterParams = Depends(),
     page: int = Query(1, ge=1, description="Pagina atual"),
-    limit: int = Query(10, ge=1, le=100, description="Itens por pagina"),
+    limit: int = Query(20, ge=1, le=100, description="Itens por pagina"),
     db: Session = Depends(get_db)
 ):
     filters_dict = filters.model_dump(exclude_unset=True)

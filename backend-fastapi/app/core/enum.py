@@ -81,3 +81,13 @@ class OrdemServicoPrioridade(str, enum.Enum):
     NORMAL = "NORMAL"
     ALTA = "ALTA"
     URGENTE = "URGENTE"
+
+class TipoEquipamento(str, enum.Enum):
+    COMPUTADOR = "COMPUTADOR"
+    CELULAR = "CELULAR"
+    TABLET = "TABLET"
+    IMPRESSORA = "IMPRESSORA"
+    MONITOR = "MONITOR"
+    PRINTER = "PRINTER"
+    SCANNER = "SCANNER"
+    OUTROS = "OUTROS"
