@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, type Component } from 'vue';
+import { Smartphone, ClipboardList, Package } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 
@@ -25,7 +26,6 @@ import type { ClienteSearchResult } from '@/shared/services/cliente.service';
 import { getClientEquipments } from '@/modules/customers/services/cliente.service';
 
 import { useOSForm } from '../composables/useOSForm';
-import { formatCurrency } from '@/shared/utils/finance';
 
 interface Props {
   isOpen: boolean;
@@ -132,10 +132,10 @@ function handleSaveItem(item: OrdemServicoItemCreate) {
 type TabType = 'equipamento' | 'diagnostico' | 'servicos';
 const activeTab = ref<TabType>('equipamento');
 
-const tabs: { id: TabType; label: string }[] = [
-  { id: 'equipamento', label: 'Equipamento' },
-  { id: 'diagnostico', label: 'Diagnostico' },
-  { id: 'servicos', label: 'Serviços e Peças' },
+const tabs: { id: TabType; label: string; icon: Component }[] = [
+  { id: 'equipamento', label: 'Equipamento',     icon: Smartphone    },
+  { id: 'diagnostico', label: 'Diagnóstico',      icon: ClipboardList },
+  { id: 'servicos',    label: 'Serviços e Peças', icon: Package       },
 ];
 
 const nextOSNumber = ref<string | null>(null);
@@ -352,23 +352,22 @@ function applyEquipamentoHistorico() {
         </div>
       </fieldset>
 
-      <div class="border-b border-slate-200">
-        <nav class="flex gap-0">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            type="button"
-            :class="[
-              'px-5 py-3 text-sm font-bold transition-all border-b-2 -mb-px',
-              activeTab === tab.id
-                ? 'text-slate-900 border-blue-600'
-                : 'text-slate-400 border-transparent hover:text-slate-600',
-            ]"
-            @click="activeTab = tab.id"
-          >
-            {{ tab.label }}
-          </button>
-        </nav>
+      <div class="flex p-1 mt-2 mb-4 bg-slate-100 rounded-xl gap-1">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          @click="activeTab = tab.id"
+          :class="[
+            'flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-bold rounded-lg transition-all',
+            activeTab === tab.id
+              ? 'bg-white text-brand-primary shadow-sm'
+              : 'text-slate-500 hover:text-slate-700',
+          ]"
+        >
+          <component :is="tab.icon" :size="14" />
+          {{ tab.label }}
+        </button>
       </div>
 
       <fieldset :disabled="isStructureLocked" class="contents">
@@ -404,7 +403,7 @@ function applyEquipamentoHistorico() {
             :subtotal="subtotal"
             :valor-desconto="valorDesconto"
             :valor-total="valorTotal"
-            :valor-entrada="form.valor_entrada"
+            :valor-entrada="Number(form.valor_entrada) || 0"
             @add-item="openAddItemModal"
             @edit-item="openEditItemModal"
             @remove-item="removeItem"

@@ -63,12 +63,11 @@ export function useOrdensServico() {
 
   const stats = computed(() => {
     const s = statsData.value || {};
-    const total = Object.values(s).reduce((acc: number, val: number) => acc + (Number(val) || 0), 0);
     return {
-      total,
-      abertas: (s['ABERTA'] || 0),
-      emAndamento: (s['EM_ANDAMENTO'] || 0) + (s['AGUARDANDO_PECAS'] || 0) + (s['AGUARDANDO_APROVACAO'] || 0) + (s['AGUARDANDO_RETIRADA'] || 0),
-      finalizadas: (s['FINALIZADA'] || 0),
+      total: s['total'] || 0,
+      abertas: s['abertas'] || 0,
+      emAndamento: s['em_andamento'] || 0,
+      finalizadas: s['finalizadas'] || 0,
     };
   });
 

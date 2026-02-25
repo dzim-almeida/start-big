@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from .usuario import Usuario
     from .empresa import Empresa
     from .cargo import Cargo
+    from .ordem_servico import OrdemServico
 
 class Funcionario(Base):
     """
@@ -116,4 +117,10 @@ class Funcionario(Base):
         primaryjoin=lambda: and_(foreign(Endereco.id_entidade) == Funcionario.id, foreign(Endereco.tipo_entidade) == 'FUNCIONARIO'),
         cascade="all, delete-orphan", 
         doc="Lista de endereços associados a este funcionário (residencial, etc.)"
+    )
+
+    ordens_servico: Mapped[list["OrdemServico"]] = relationship(
+        back_populates="funcionario",
+        cascade="all, delete-orphan",
+        doc="Lista de ordens de serviço associadas a este funcionário"
     )

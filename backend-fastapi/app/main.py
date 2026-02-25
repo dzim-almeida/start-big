@@ -25,6 +25,8 @@ from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
 from app.db.models.ordem_servico_item import OrdemServicoItem
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento
 from app.db.models.ordem_servico_foto import OrdemServicoFoto
+from app.db.models.forma_pagamento import FormaPagamento
+from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 
 app = FastAPI(
     title="BigPDV Backend API",

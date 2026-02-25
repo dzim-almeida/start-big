@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import date
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 from app.schemas.usuario import UsuarioCreate, UsuarioRead
@@ -21,7 +21,7 @@ class FuncionarioBase(BaseModel):
     nome: str = Field(..., max_length=255, description="Nome completo.")
     telefone: Optional[str] = Field(None, max_length=20, description="Telefone para contato")
     celular: Optional[str] = Field(None, max_length=20, description="Celular para contato.")
-    email: Optional[EmailStr] = Field(None, description="Email corporativo ou pessoal.")
+    email: Optional[str] = Field(None, description="Email corporativo ou pessoal.")
 
     # Documentos e identidade
     cpf: str = Field(..., pattern=r"^\d{11}$", description="CPF (11 dígitos numéricos).")
@@ -70,7 +70,7 @@ class FuncionarioCreate(FuncionarioBase):
                 "email": "ricardo.santos@empresa.com.br",
                 "telefone": "1133445566",
                 "celular": "11988776655",
-                "genero": "Masculino",
+                "genero": "MASCULINO",
                 "data_nascimento": "1990-05-15",
                 "jornada_trabalho": "44h semanais",
                 "salario_bruto": 4500,
@@ -79,7 +79,7 @@ class FuncionarioCreate(FuncionarioBase):
                 "banco": "Banco do Brasil",
                 "agencia": "1234",
                 "conta": "56789-0",
-                "tipo_conta": "Corrente",
+                "tipo_conta": "CORRENTE",
                 "usuario": {
                     "nome": "ricardo.santos",
                     "email": "ricardo.santos@empresa.com.br",
@@ -125,7 +125,7 @@ class FuncionarioUpdate(BaseModel):
     nome: Optional[str] = Field(None, max_length=255)
     telefone: Optional[str] = Field(None, max_length=20)
     celular: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = Field(None)
+    email: Optional[str] = Field(None)
     
     # Documentos e Identidade
     cpf: Optional[str] = Field(None, pattern=r"^\d{11}$")

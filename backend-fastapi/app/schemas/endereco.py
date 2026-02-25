@@ -5,7 +5,7 @@
 #            e atualização (EnderecoUpdate).
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from app.core.enum import State  # Importa o Enum de Estados (UF)
 
@@ -27,6 +27,11 @@ class Endereco(BaseModel):
     
     # Campo opcional (definido com None)
     complemento: Optional[str] = Field(None, max_length=100, description="Complemento do endereço")
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
 
 # =========================
 # Schema Pydantic: EnderecoRead (Leitura/Resposta)

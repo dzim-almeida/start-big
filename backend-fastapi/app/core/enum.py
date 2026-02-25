@@ -82,6 +82,10 @@ class OrdemServicoPrioridade(str, enum.Enum):
     ALTA = "ALTA"
     URGENTE = "URGENTE"
 
+class OrdemServicoItemTipo(str, enum.Enum):
+    PRODUTO = "PRODUTO"
+    SERVICO = "SERVICO"  
+
 class TipoEquipamento(str, enum.Enum):
     COMPUTADOR = "COMPUTADOR"
     CELULAR = "CELULAR"
@@ -90,4 +94,20 @@ class TipoEquipamento(str, enum.Enum):
     MONITOR = "MONITOR"
     PRINTER = "PRINTER"
     SCANNER = "SCANNER"
+    OUTROS = "OUTROS"
+
+class UnidadeMedida(str, enum.Enum):
+    """Define as unidades de medida para produtos e serviços."""
+    UNIDADE = "UN"
+    KILO = "KG"
+    GRAMA = "G"
+    LITRO = "L"
+    MILILITRO = "ML"
+    METRO = "M"
+    CENTIMETRO = "CM"
+    METRO_QUADRADO = "M2"
+    METRO_CUBICO = "M3"
+    HORA = "H"
+    DIA = "D"
+    MES = "MES"
     OUTROS = "OUTROS"

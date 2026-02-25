@@ -1,293 +1,366 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: schemas/ordem_servico.py
-# DESCRICAO: Schemas Pydantic para validacao de entrada e saida da API
-#            de Ordens de Servico.
+# DESCRICAO: Schemas Pydantic para Ordens de Serviço (OS).
+#
+# Hierarquia de schemas:
+#   OSItemCreate/Read/Update    → itens de peças e serviços dentro de uma OS
+#   OSEquipamentoCreate/Read    → equipamento registrado no ato de abertura
+#   OSEquipamentoUpdate         → atualização parcial do equipamento/cliente
+#   OSPagamentoCreate/Read      → pagamentos criados apenas ao finalizar
+#   OSFotoRead                  → fotos de diagnóstico
+#   OrdemServicoBase            → campos comuns a criação e leitura
+#   OrdemServicoCreate          → payload de abertura de OS
+#   OrdemServicoUpdate          → atualização parcial da OS
+#   OrdemServicoRead            → resposta completa com relacionamentos
+#   OrdemServicoFinalizar       → payload de finalização com pagamentos
+#   OrdemServicoCancelar        → payload de cancelamento
+#   OrdemServicoFilterParams    → query params de listagem
+#   OrdemServicoQuery           → resposta paginada
+#   OrdemServicoStats           → estatísticas agregadas
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Sequence
 from datetime import datetime
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, Sequence, List
 
-from app.core.enum import OrdemServicoStatus, OrdemServicoPrioridade
-from app.schemas.pagination import PaginationBase
+from app.core.enum import (
+    OrdemServicoItemTipo,
+    UnidadeMedida,
+    OrdemServicoStatus,
+    TipoEquipamento,
+    OrdemServicoPrioridade
+)
+
+from app.schemas.cliente import ClienteRead
+from app.schemas.funcionario import FuncionarioRead
+from app.schemas.forma_pagamento import FormaPagamentoRead
+from app.schemas.pagination import PaginationBase as Pagination
+
+from app.schemas.examples.os_payload import os_example
 
 
 # ===========================================================================
-# SCHEMAS DE ITEM
+# ITENS DA OS
 # ===========================================================================
 
-class OrdemServicoItemCreate(BaseModel):
-    """Schema para criar um item dentro de uma OS."""
-    servico_id: Optional[int] = Field(None, description="ID do servico do catalogo (nullable para itens customizados)")
-    descricao: str = Field(..., max_length=255, description="Descricao do item/servico")
-    quantidade: int = Field(..., ge=1, description="Quantidade")
-    valor_unitario: int = Field(..., ge=0, description="Valor unitario (centavos)")
+class OSItemBase(BaseModel):
+    """Payload para adicionar um item (produto ou serviço) a uma OS."""
+    tipo: OrdemServicoItemTipo = Field(..., description="Tipo do item: PRODUTO ou SERVICO")
+    nome: str = Field(..., max_length=255, min_length=3, description="Descrição do item")
+    unidade_medida: UnidadeMedida = Field(..., description="Unidade de medida")
+    quantidade: int = Field(..., gt=0, description="Quantidade")
+    valor_unitario: int = Field(..., gt=0, description="Valor unitário em centavos")
+
+    model_config = ConfigDict(from_attributes=True)
+
+class OSItemCreate(OSItemBase):
+    item_id: Optional[int] = Field(None, description="ID do item no catálogo (produto ou serviço). None para item avulso.")
+
+class OSItemRead(OSItemBase):
+    """Resposta de um item de OS. Inclui IDs de referência no catálogo."""
+    id: int = Field(..., description="ID único do item na OS")
+    ordem_servico_id: int = Field(..., description="ID da OS à qual o item pertence")
+    produto_id: Optional[int] = Field(None, description="ID do produto no catálogo (se tipo=PRODUTO)")
+    servico_id: Optional[int] = Field(None, description="ID do serviço no catálogo (se tipo=SERVICO)")
+    valor_total: int = Field(..., description="Valor total do item (quantidade × valor_unitario) em centavos")
+
+
+class OSItemUpdate(BaseModel):
+    """Payload para atualização parcial de um item de OS. Todos os campos são opcionais."""
+    nome: Optional[str] = Field(None, max_length=255, min_length=3, description="Nova descrição")
+    unidade_medida: Optional[UnidadeMedida] = Field(None, description="Nova unidade de medida")
+    quantidade: Optional[int] = Field(None, gt=0, description="Nova quantidade")
+    valor_unitario: Optional[int] = Field(None, gt=0, description="Novo valor unitário em centavos")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class OrdemServicoItemRead(OrdemServicoItemCreate):
-    """Schema para leitura de um item de OS."""
-    id: int = Field(..., description="ID do item")
-    ordem_servico_id: int = Field(..., description="ID da OS")
-    valor_total: int = Field(..., description="Valor total (centavos)")
+# ===========================================================================
+# EQUIPAMENTO DA OS
+# ===========================================================================
+
+class OSEquipamentoCreate(BaseModel):
+    """Payload para registrar um equipamento ao abrir uma OS."""
+    tipo_equipamento: TipoEquipamento = Field(..., description="Tipo do equipamento")
+    marca: str = Field(..., max_length=100, description="Marca do equipamento")
+    modelo: str = Field(..., max_length=100, description="Modelo do equipamento")
+    numero_serie: str = Field(..., max_length=100, description="Número de série")
+    imei: str = Field(..., max_length=20, description="IMEI (use '0' para equipamentos sem IMEI)")
+    cor: Optional[str] = Field(None, max_length=50, description="Cor do equipamento")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
-class OrdemServicoItemUpdate(BaseModel):
-    """Schema para atualizar um item de OS."""
-    id: Optional[int] = Field(None, description="ID do item existente (null para novo item)")
-    servico_id: Optional[int] = Field(None, description="ID do servico do catalogo")
-    descricao: Optional[str] = Field(None, max_length=255, description="Descricao")
-    quantidade: Optional[int] = Field(None, ge=1, description="Quantidade")
-    valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitario (centavos)")
+class OSEquipamentoRead(OSEquipamentoCreate):
+    """Resposta completa do equipamento de uma OS."""
+    id: int = Field(..., description="ID único do equipamento")
+    cliente_id: int = Field(..., description="ID do cliente proprietário do equipamento")
+    ativo: bool = Field(..., description="Status ativo do equipamento")
+    data_criacao: datetime = Field(..., description="Data de cadastro")
+    data_atualizacao: datetime = Field(..., description="Data da última atualização")
+
+
+class OSEquipamentoUpdate(BaseModel):
+    """
+    Payload para atualização parcial do equipamento de uma OS.
+    Permite também trocar o cliente proprietário via cliente_id.
+    Somente aplicável em OS com status não-finalizado e não-cancelado.
+    """
+    tipo_equipamento: Optional[TipoEquipamento] = Field(None, description="Novo tipo de equipamento")
+    marca: Optional[str] = Field(None, max_length=100, description="Nova marca")
+    modelo: Optional[str] = Field(None, max_length=100, description="Novo modelo")
+    numero_serie: Optional[str] = Field(None, max_length=100, description="Novo número de série")
+    imei: Optional[str] = Field(None, max_length=20, description="Novo IMEI")
+    cor: Optional[str] = Field(None, max_length=50, description="Nova cor")
+    cliente_id: Optional[int] = Field(None, description="Novo ID do cliente proprietário do equipamento")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # ===========================================================================
-# SCHEMAS DE PAGAMENTO
+# PAGAMENTOS DA OS
 # ===========================================================================
 
 class OSPagamentoCreate(BaseModel):
-    """Schema para registrar um pagamento na finalizacao."""
-    forma_pagamento_id: int = Field(..., description="ID da forma de pagamento")
-    valor: int = Field(..., ge=0, description="Valor pago (centavos)")
-    parcelas: int = Field(1, ge=1, description="Numero de parcelas")
-    bandeira_cartao: Optional[str] = Field(None, max_length=50, description="Bandeira do cartao")
-    detalhes: Optional[dict] = Field(None, description="Detalhes adicionais")
+    """
+    Payload para registrar um pagamento.
+    Pagamentos são criados exclusivamente no ato de finalização da OS.
+    Uma OS pode ter múltiplos pagamentos (ex: parte em Dinheiro + parte em PIX).
+    A soma dos valores deve ser exatamente igual ao valor_total da OS.
+    """
+    forma_pagamento_id: int = Field(..., description="ID da forma de pagamento do catálogo")
+    valor: int = Field(..., gt=0, description="Valor pago nesta forma de pagamento (centavos)")
+    parcelas: int = Field(1, ge=1, description="Número de parcelas (mínimo 1)")
+    bandeira_cartao: Optional[str] = Field(None, max_length=50, description="Bandeira do cartão (VISA, MASTERCARD, etc.)")
+    detalhes: Optional[dict] = Field(None, description="Dados adicionais do pagamento em formato JSON")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class OSPagamentoRead(OSPagamentoCreate):
-    """Schema para leitura de um pagamento."""
-    id: int = Field(..., description="ID do pagamento")
+class OSPagamentoRead(BaseModel):
+    """Resposta de um pagamento de OS. Inclui dados aninhados da forma de pagamento."""
+    id: int = Field(..., description="ID único do pagamento")
+    ordem_servico_id: int = Field(..., description="ID da OS associada")
+    forma_pagamento: FormaPagamentoRead = Field(..., description="Forma de pagamento utilizada")
+    valor: int = Field(..., description="Valor pago (centavos)")
+    parcelas: int = Field(..., description="Número de parcelas")
+    bandeira_cartao: Optional[str] = Field(None, description="Bandeira do cartão")
+    detalhes: Optional[dict] = Field(None, description="Dados adicionais")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===========================================================================
-# SCHEMAS DE FOTO
+# FOTOS DA OS
 # ===========================================================================
 
-class OrdemServicoFotoRead(BaseModel):
-    """Schema para leitura de uma foto de OS."""
-    id: int = Field(..., description="ID da foto")
-    ordem_servico_id: int = Field(..., description="ID da OS")
-    nome_arquivo: str = Field(..., description="Nome original do arquivo")
-    url: str = Field(..., description="URL/caminho do arquivo")
+class OSFotoRead(BaseModel):
+    """Resposta de uma foto de diagnóstico de OS."""
+    id: int = Field(..., description="ID único da foto")
+    ordem_servico_id: int = Field(..., description="ID da OS associada")
+    nome_arquivo: str = Field(..., description="Nome original do arquivo enviado")
+    url: str = Field(..., description="Caminho/URL do arquivo no servidor")
     data_criacao: datetime = Field(..., description="Data de upload")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 # ===========================================================================
-# SCHEMAS DE CLIENTE/FUNCIONARIO RESUMO (para leitura aninhada)
+# ORDEM DE SERVICO — BASE, CREATE, UPDATE, READ
 # ===========================================================================
 
-class ClienteResumoRead(BaseModel):
-    """Resumo do cliente para exibicao na OS."""
-    id: int
-    tipo: str
-    nome: Optional[str] = None
-    cpf: Optional[str] = None
-    razao_social: Optional[str] = None
-    cnpj: Optional[str] = None
-    nome_fantasia: Optional[str] = None
-    celular: Optional[str] = None
-    telefone: Optional[str] = None
+class OrdemServicoBase(BaseModel):
+    """Campos base compartilhados entre criação e leitura de OS."""
+
+    # Status e prioridade
+    prioridade: OrdemServicoPrioridade = Field(..., description="Prioridade da OS: BAIXA, NORMAL, ALTA ou URGENTE")
+
+    # Descrição técnica
+    defeito_relatado: str = Field(..., max_length=500, description="Defeito descrito pelo cliente")
+    diagnostico: Optional[str] = Field(None, max_length=500, description="Diagnóstico técnico realizado")
+    solucao: Optional[str] = Field(None, max_length=500, description="Solução aplicada")
+
+    # Observações operacionais
+    senha_aparelho: Optional[str] = Field(None, max_length=100, description="Senha de desbloqueio do aparelho")
+    acessorios: Optional[str] = Field(None, max_length=500, description="Acessórios entregues junto ao equipamento")
+    condicoes_aparelho: Optional[str] = Field(None, max_length=500, description="Estado físico do aparelho na entrada")
+    observacoes: Optional[str] = Field(None, max_length=500, description="Observações gerais")
+
+    # Financeiro
+    desconto: Optional[int] = Field(None, ge=0, description="Desconto aplicado em centavos")
+
+    # Prazos e garantia
+    garantia: Optional[str] = Field(None, max_length=20, description="Prazo de garantia (ex: '90 dias')")
+    data_previsao: Optional[datetime] = Field(None, description="Data prevista para conclusão")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class FuncionarioResumoRead(BaseModel):
-    """Resumo do funcionario para exibicao na OS."""
-    id: int
-    nome: str
-    cargo_id: Optional[int] = None
-    ativo: bool
+class OrdemServicoCreate(OrdemServicoBase):
+    """
+    Payload completo para abertura de uma nova OS.
+    Cria a OS, o equipamento associado e os itens iniciais em uma única transação.
+    """
+    # Vínculos
+    cliente_id: int = Field(..., description="ID do cliente que trouxe o equipamento")
+    funcionario_id: Optional[int] = Field(None, description="ID do funcionário responsável. Se omitido, fica sem responsável.")
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ===========================================================================
-# SCHEMAS DE ORDEM DE SERVICO
-# ===========================================================================
-
-class OrdemServicoCreate(BaseModel):
-    """Schema para criar uma nova OS."""
-    cliente_id: int = Field(..., description="ID do cliente")
-    funcionario_id: Optional[int] = Field(None, description="ID do funcionario responsavel")
-    prioridade: Optional[OrdemServicoPrioridade] = Field(OrdemServicoPrioridade.NORMAL, description="Prioridade da OS")
-    equipamento: str = Field(..., max_length=255, description="Nome/tipo do equipamento")
-    marca: Optional[str] = Field(None, max_length=100, description="Marca do equipamento")
-    modelo: Optional[str] = Field(None, max_length=100, description="Modelo do equipamento")
-    numero_serie: Optional[str] = Field(None, max_length=100, description="Numero de serie")
-    imei: Optional[str] = Field(None, max_length=20, description="IMEI do aparelho")
-    cor: Optional[str] = Field(None, max_length=50, description="Cor do equipamento")
-    senha_aparelho: Optional[str] = Field(None, max_length=100, description="Senha do aparelho")
-    acessorios: Optional[str] = Field(None, description="Acessorios entregues")
-    condicoes_aparelho: Optional[str] = Field(None, description="Condicoes fisicas do aparelho")
-    defeito_relatado: str = Field(..., description="Defeito relatado pelo cliente")
-    diagnostico: Optional[str] = Field(None, description="Diagnostico tecnico")
-    observacoes: Optional[str] = Field(None, description="Observacoes gerais")
-    data_previsao: Optional[datetime] = Field(None, description="Data prevista para conclusao")
-    desconto: Optional[int] = Field(0, ge=0, description="Desconto (centavos)")
-    valor_entrada: Optional[int] = Field(0, ge=0, description="Valor de entrada (centavos)")
-    forma_pagamento: Optional[str] = Field(None, max_length=50, description="Forma de pagamento")
-    garantia: Optional[str] = Field(None, max_length=20, description="Garantia em dias")
-    itens: Optional[list[OrdemServicoItemCreate]] = Field(None, description="Itens/servicos da OS")
+    # Dados aninhados criados junto com a OS
+    equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
+    itens: Sequence[OSItemCreate] = Field(..., min_length=1, description="Lista de itens/serviços da OS (mínimo 1)")
 
     model_config = ConfigDict(
-        from_attributes=True,
+        json_schema_extra=os_example,
+    )
+
+
+class OrdemServicoUpdate(BaseModel):
+    """
+    Payload para atualização parcial da OS. Todos os campos são opcionais.
+    Não é permitido atualizar OS com status FINALIZADA ou CANCELADA.
+
+    Para alterar o funcionário responsável, informe funcionario_id.
+    Para alterar status de forma manual (ex: ABERTA → EM_ANDAMENTO), informe status.
+    Transições FINALIZADA e CANCELADA têm endpoints dedicados: /finalizar e /cancelar.
+    """
+    # Status e prioridade
+    prioridade: Optional[OrdemServicoPrioridade] = Field(None, description="Nova prioridade")
+    status: Optional[OrdemServicoStatus] = Field(
+        None,
+        description="Novo status manual. Não use FINALIZADA ou CANCELADA aqui — use /finalizar ou /cancelar."
+    )
+
+    # Descrição técnica
+    defeito_relatado: Optional[str] = Field(None, max_length=500, description="Novo defeito relatado")
+    diagnostico: Optional[str] = Field(None, max_length=500, description="Novo diagnóstico")
+    solucao: Optional[str] = Field(None, max_length=500, description="Nova solução")
+
+    # Observações
+    senha_aparelho: Optional[str] = Field(None, max_length=100, description="Nova senha do aparelho")
+    acessorios: Optional[str] = Field(None, max_length=500, description="Novos acessórios")
+    condicoes_aparelho: Optional[str] = Field(None, max_length=500, description="Novas condições do aparelho")
+    observacoes: Optional[str] = Field(None, max_length=500, description="Novas observações gerais")
+
+    # Financeiro e datas
+    desconto: Optional[int] = Field(None, ge=0, description="Novo desconto em centavos (recalcula valor_total automaticamente)")
+    garantia: Optional[str] = Field(None, max_length=20, description="Nova garantia")
+    data_previsao: Optional[datetime] = Field(None, description="Nova data prevista")
+    funcionario_id: Optional[int] = Field(None, description="ID do novo funcionário responsável")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrdemServicoRead(OrdemServicoBase):
+    """Resposta completa de uma OS com todos os relacionamentos carregados."""
+
+    # Identificação
+    id: int = Field(..., description="ID interno da OS")
+    numero_os: str = Field(..., description="Número sequencial público (ex: OS-2026-000001)")
+
+    # Estado
+    status: OrdemServicoStatus = Field(..., description="Status atual da OS")
+
+    # Financeiro
+    valor_bruto: int = Field(..., description="Soma dos valores dos itens antes do desconto (centavos)")
+    valor_total: int = Field(..., description="Valor final após desconto (centavos)")
+
+    # Datas
+    data_finalizacao: Optional[datetime] = Field(None, description="Data de finalização efetiva")
+    data_criacao: datetime = Field(..., description="Data de abertura da OS")
+    data_atualizacao: datetime = Field(..., description="Data da última modificação")
+
+    # Status lógico
+    ativo: bool = Field(..., description="Indica se a OS está ativa (False = cancelada/desativada)")
+
+    # Relacionamentos
+    cliente: ClienteRead = Field(..., description="Cliente proprietário do equipamento")
+    funcionario: Optional[FuncionarioRead] = Field(None, description="Funcionário responsável")
+    equipamento: OSEquipamentoRead = Field(..., description="Equipamento em serviço")
+    itens: Sequence[OSItemRead] = Field(..., description="Itens e serviços da OS")
+    pagamentos: Sequence[OSPagamentoRead] = Field(default=[], description="Pagamentos registrados (populado após finalização)")
+    fotos: Sequence[OSFotoRead] = Field(default=[], description="Fotos de diagnóstico da OS")
+
+
+# ===========================================================================
+# AÇÕES DE STATUS
+# ===========================================================================
+
+class OrdemServicoFinalizar(BaseModel):
+    """
+    Payload para finalizar uma OS.
+
+    Regras de negócio:
+    - A soma de todos os pagamentos.valor deve ser igual ao valor_total da OS.
+    - Cada forma_pagamento_id deve existir e estar ativo no catálogo.
+    - A OS não pode estar com status FINALIZADA ou CANCELADA.
+    - Uma OS só é finalizada se for integralmente paga.
+    """
+    solucao: str = Field(..., min_length=5, max_length=500, description="Descrição da solução aplicada")
+    observacoes: Optional[str] = Field(None, max_length=500, description="Observações adicionais de finalização")
+    desconto: Optional[int] = Field(None, ge=0, description="Desconto final em centavos (recalcula valor_total se informado)")
+    pagamentos: List[OSPagamentoCreate] = Field(
+        ...,
+        min_length=1,
+        description="Lista de pagamentos. A soma dos valores deve ser igual ao valor_total da OS."
+    )
+
+    model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "cliente_id": 1,
-                "equipamento": "iPhone 15 Pro Max",
-                "defeito_relatado": "Tela trincada e bateria viciada",
-                "prioridade": "NORMAL",
-                "itens": [
-                    {"descricao": "Troca de tela", "quantidade": 1, "valor_unitario": 35000}
+                "solucao": "Substituição do módulo frontal e reconexão do flex do display.",
+                "observacoes": "Testado e aprovado pelo cliente.",
+                "desconto": 0,
+                "pagamentos": [
+                    {"forma_pagamento_id": 1, "valor": 45000, "parcelas": 1},
+                    {"forma_pagamento_id": 2, "valor": 12000, "parcelas": 1}
                 ]
             }
         }
     )
 
 
-class OrdemServicoRead(BaseModel):
-    """Schema completo para leitura de uma OS (com todos os relacionamentos)."""
-    id: int
-    numero: str
-    cliente_id: int
-    funcionario_id: Optional[int] = None
-    status: OrdemServicoStatus
-    prioridade: OrdemServicoPrioridade
-    equipamento: str
-    marca: Optional[str] = None
-    modelo: Optional[str] = None
-    numero_serie: Optional[str] = None
-    imei: Optional[str] = None
-    cor: Optional[str] = None
-    senha_aparelho: Optional[str] = None
-    acessorios: Optional[str] = None
-    condicoes_aparelho: Optional[str] = None
-    defeito_relatado: str
-    diagnostico: Optional[str] = None
-    solucao: Optional[str] = None
-    observacoes: Optional[str] = None
-    valor_total: int
-    desconto: int
-    valor_entrada: int
-    forma_pagamento: Optional[str] = None
-    garantia: Optional[str] = None
-    data_previsao: Optional[datetime] = None
-    data_finalizacao: Optional[datetime] = None
-    data_criacao: datetime
-    data_atualizacao: datetime
-    ativo: bool
-    cliente: Optional[ClienteResumoRead] = None
-    funcionario: Optional[FuncionarioResumoRead] = None
-    itens: list[OrdemServicoItemRead] = []
-    pagamentos: list[OSPagamentoRead] = []
-    fotos: list[OrdemServicoFotoRead] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class OrdemServicoListRead(BaseModel):
-    """Schema resumido para listagem de OS (sem itens/pagamentos completos)."""
-    id: int
-    numero: str
-    cliente_id: int
-    funcionario_id: Optional[int] = None
-    status: OrdemServicoStatus
-    prioridade: OrdemServicoPrioridade
-    equipamento: str
-    defeito_relatado: str
-    valor_total: int
-    data_previsao: Optional[datetime] = None
-    data_criacao: datetime
-    ativo: bool
-    cliente: Optional[ClienteResumoRead] = None
-    funcionario: Optional[FuncionarioResumoRead] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class OrdemServicoUpdate(BaseModel):
-    """Schema para atualizar uma OS existente."""
-    funcionario_id: Optional[int] = None
-    status: Optional[OrdemServicoStatus] = None
-    prioridade: Optional[OrdemServicoPrioridade] = None
-    equipamento: Optional[str] = Field(None, max_length=255)
-    marca: Optional[str] = Field(None, max_length=100)
-    modelo: Optional[str] = Field(None, max_length=100)
-    numero_serie: Optional[str] = Field(None, max_length=100)
-    imei: Optional[str] = Field(None, max_length=20)
-    cor: Optional[str] = Field(None, max_length=50)
-    senha_aparelho: Optional[str] = Field(None, max_length=100)
-    acessorios: Optional[str] = None
-    condicoes_aparelho: Optional[str] = None
-    defeito_relatado: Optional[str] = None
-    diagnostico: Optional[str] = None
-    solucao: Optional[str] = None
-    observacoes: Optional[str] = None
-    data_previsao: Optional[datetime] = None
-    data_finalizacao: Optional[datetime] = None
-    desconto: Optional[int] = Field(None, ge=0)
-    valor_entrada: Optional[int] = Field(None, ge=0)
-    forma_pagamento: Optional[str] = Field(None, max_length=50)
-    garantia: Optional[str] = Field(None, max_length=20)
-    itens: Optional[list[OrdemServicoItemUpdate]] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class OrdemServicoFinalizar(BaseModel):
-    """Schema para finalizar uma OS."""
-    solucao: str = Field(..., min_length=1, description="Solucao aplicada (obrigatoria)")
-    observacoes: Optional[str] = Field(None, description="Observacoes adicionais")
-    pagamentos: list[OSPagamentoCreate] = Field(..., description="Lista de pagamentos")
-    desconto: Optional[int] = Field(None, ge=0, description="Desconto (centavos)")
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class OrdemServicoCancelar(BaseModel):
-    """Schema para cancelar uma OS."""
-    motivo: Optional[str] = Field(None, description="Motivo do cancelamento")
+    """Payload para cancelar uma OS. O motivo é registrado nas observações da OS."""
+    motivo: Optional[str] = Field(None, max_length=500, description="Motivo do cancelamento (acrescentado às observações)")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço."}}
+    )
 
 
 # ===========================================================================
-# SCHEMAS DE FILTRO E PAGINACAO
+# FILTROS E PAGINAÇÃO
 # ===========================================================================
 
 class OrdemServicoFilterParams(BaseModel):
-    """Parametros de filtro para busca de OS."""
-    buscar: Optional[str] = Field(None, description="Busca por texto")
-    status: Optional[str] = Field(None, description="Filtro de status")
-    cliente_id: Optional[int] = Field(None, description="Filtro por cliente")
-    funcionario_id: Optional[int] = Field(None, description="Filtro por funcionario")
+    """Query parameters para listagem e busca de OS."""
+    search: Optional[str] = Field(
+        None,
+        description="Busca por número da OS, nome ou razão social do cliente"
+    )
+    status: Optional[OrdemServicoStatus] = Field(
+        None,
+        description="Filtro por status: ABERTA, EM_ANDAMENTO, AGUARDANDO_PECAS, AGUARDANDO_APROVACAO, AGUARDANDO_RETIRADA, FINALIZADA ou CANCELADA"
+    )
+    priority_sort: Optional[bool] = Field(
+        None,
+        description="Se true, ordena por prioridade (URGENTE → ALTA → NORMAL → BAIXA)"
+    )
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class OrdemServicoQuery(PaginationBase):
-    """Resposta paginada de OS."""
-    filters: dict = Field(default_factory=dict, description="Filtros aplicados")
-    items: Sequence[OrdemServicoListRead]
+class OrdemServicoQuery(Pagination):
+    """Resposta paginada de listagem de OS."""
+    filters: OrdemServicoFilterParams
+    items: Sequence[OrdemServicoRead]
 
 
 # ===========================================================================
-# SCHEMAS DE ESTATISTICAS
+# ESTATÍSTICAS
 # ===========================================================================
 
 class OrdemServicoStats(BaseModel):
-    """Estatisticas agregadas das OS."""
-    total: int = Field(..., description="Total de OS")
-    abertas: int = Field(..., description="OS abertas")
-    em_andamento: int = Field(..., description="OS em andamento")
-    finalizadas: int = Field(..., description="OS finalizadas")
-    canceladas: int = Field(..., description="OS canceladas")
-
-    model_config = ConfigDict(from_attributes=True)
+    """Estatísticas agregadas das Ordens de Serviço."""
+    total: int = Field(..., description="Total de OS no sistema")
+    abertas: int = Field(..., description="OS com status ABERTA")
+    finalizadas: int = Field(..., description="OS com status FINALIZADA")
+    ticket_medio: int = Field(..., description="Valor médio das OS finalizadas em centavos")

@@ -60,7 +60,7 @@ const saveIcon = computed(() => {
           SALVAR
         </BaseButton>
 
-        <BaseButton variant="slate" @click="emit('close')">
+        <BaseButton variant="secondary" @click="emit('close')">
           FECHAR
         </BaseButton>
       </div>

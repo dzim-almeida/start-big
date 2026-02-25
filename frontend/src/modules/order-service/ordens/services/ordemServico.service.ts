@@ -105,9 +105,13 @@ class OrdemServicoService {
       const response = await api.get<PaginatedResponse<OrdemServicoListRead>>(this.BASE_URL, { params: cleanParams });
       validateResponse(response.data, PaginatedOrdensServicoSchema, 'getAll');
 
+      const rawData = response.data as any;
       return {
-        ...response.data,
-        items: response.data.items.map(os => this._transformDates(os)),
+        items: rawData.items.map((os: OrdemServicoListRead) => this._transformDates(os)),
+        total: rawData.total_items ?? rawData.total ?? 0,
+        page: rawData.page ?? 1,
+        limit: rawData.limit ?? 10,
+        pages: rawData.total_pages ?? rawData.pages ?? 0,
       };
     } catch (error) {
       handleServiceError(error, 'buscar ordens de serviço');

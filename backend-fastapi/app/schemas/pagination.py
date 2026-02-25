@@ -23,10 +23,6 @@ class Links(BaseModel):
 
 
 class PaginationBase(BaseModel):
-    filters: dict = Field(
-        ...,
-        description="Tipos de filtros para busca"
-    )
     total_items: int = Field(
         ...,
         description="Descreve a quantidade total de itens"

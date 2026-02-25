@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Smartphone } from 'lucide-vue-next';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
 
 interface EquipamentoForm {
@@ -36,14 +39,21 @@ const emit = defineEmits<{
   applyHistorico: [];
 }>();
 
+const historicoOptions = computed<SelectOption[]>(() => [
+  { value: '', label: 'Usar anterior...' },
+  ...props.equipamentosHistorico.map((equip, idx) => ({
+    value: String(idx),
+    label: `${equip.equipamento}${equip.numero_serie ? ` (S/N: ${equip.numero_serie})` : ''}`,
+  })),
+]);
+
 function updateField<K extends keyof EquipamentoForm>(field: K, value: EquipamentoForm[K]) {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
 }
 
-function handleHistoricoChange(event: Event) {
-  const target = event.target as HTMLSelectElement;
-  emit('update:selectedHistorico', target.value);
-  if (target.value) {
+function handleHistoricoSelectChange(value: string) {
+  emit('update:selectedHistorico', value);
+  if (value) {
     emit('applyHistorico');
   }
 }
@@ -59,16 +69,12 @@ function handleHistoricoChange(event: Event) {
             Dados do Aparelho
           </div>
           <div v-if="equipamentosHistorico.length > 0 && !isLocked" class="flex items-center gap-2">
-            <select
-              :value="selectedHistorico"
-              class="text-[10px] bg-brand-primary-light text-brand-primary border border-brand-primary-light rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/30 max-w-37.5 truncate"
-              @change="handleHistoricoChange"
-            >
-              <option value="">Usar anterior...</option>
-              <option v-for="(equip, idx) in equipamentosHistorico" :key="idx" :value="idx">
-                {{ equip.equipamento }} {{ equip.numero_serie ? `(S/N: ${equip.numero_serie})` : '' }}
-              </option>
-            </select>
+            <BaseSelect
+              :model-value="selectedHistorico"
+              :options="historicoOptions"
+              class="max-w-37.5"
+              @update:model-value="handleHistoricoSelectChange($event as string)"
+            />
           </div>
         </h5>
 

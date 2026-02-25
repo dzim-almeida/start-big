@@ -36,6 +36,6 @@ export async function toggleServicoAtivo(id: number): Promise<ServiceReadZod> {
 }
 
 export async function getServicosStats(): Promise<ServiceStatsZod> {
-  const { data } = await api.get<ServiceStatsZod>(`${BASE_URL}stats`);
+  const { data } = await api.get<ServiceStatsZod>(`${BASE_URL}/stats`);
   return ServiceStatsSchema.parse(data);
 }

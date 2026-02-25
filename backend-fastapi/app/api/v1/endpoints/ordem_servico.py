@@ -1,26 +1,59 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: endpoints/ordem_servico.py
-# DESCRICAO: Gerencia as Ordens de Servico (OS) do sistema.
+# DESCRICAO: Endpoints para Ordens de Serviço (OS).
+#
+# IMPORTANTE — Ordem de declaração das rotas:
+#   Rotas com paths estáticos (ex: /stats, /finalizar) DEVEM ser declaradas
+#   ANTES de rotas com path parameters (ex: /{os_number}), pois FastAPI
+#   resolve rotas em ordem de declaração e um path param capturaria "stats"
+#   como valor de os_number.
+#
+# Estrutura de endpoints:
+#   POST   /                              → Criar OS
+#   GET    /                              → Listar OS (paginado + filtros)
+#   GET    /stats                         → Estatísticas agregadas
+#   GET    /{os_number}                   → Buscar OS pelo número
+#   PUT    /{os_number}                   → Atualizar dados gerais da OS
+#   PUT    /{os_number}/equipamento       → Atualizar equipamento/cliente
+#   POST   /{os_number}/itens             → Adicionar item
+#   PUT    /{os_number}/itens/{item_id}   → Atualizar item
+#   DELETE /{os_number}/itens/{item_id}   → Remover item
+#   PUT    /{os_number}/finalizar         → Finalizar OS com pagamentos
+#   PUT    /{os_number}/cancelar          → Cancelar OS
+#   PUT    /{os_number}/reabrir           → Reabrir OS finalizada/cancelada
+#   POST   /{os_number}/fotos             → Upload de foto de diagnóstico
+#   DELETE /{os_number}/fotos/{foto_id}   → Remover foto
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Path, Query
+from fastapi import APIRouter, Depends, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
-from typing import Sequence
 
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
-    OrdemServicoCreate, OrdemServicoRead, OrdemServicoListRead,
-    OrdemServicoUpdate, OrdemServicoFinalizar, OrdemServicoCancelar,
-    OrdemServicoFilterParams, OrdemServicoQuery, OrdemServicoStats,
+    OrdemServicoCreate,
+    OrdemServicoRead,
+    OrdemServicoQuery,
+    OrdemServicoStats,
+    OrdemServicoFilterParams,
+    OrdemServicoUpdate,
+    OSEquipamentoUpdate,
+    OSItemCreate,
+    OSItemUpdate,
+    OrdemServicoFinalizar,
+    OrdemServicoCancelar,
+    OSFotoRead,
 )
 from app.services import ordem_servico as os_service
+from app.services import ordem_servico_foto as os_foto_service
 
 router = APIRouter()
 
+module_permission = "order-service"
+
 
 # ===========================================================================
-# ROTAS DE CRIACAO (POST)
+# CRIAÇÃO (POST /)
 # ===========================================================================
 
 @router.post(
@@ -28,10 +61,13 @@ router = APIRouter()
     response_model=OrdemServicoRead,
     status_code=status.HTTP_201_CREATED,
     summary="Criar Nova OS",
-    description="Cria uma nova Ordem de Servico."
+    description=(
+        "Cria uma nova Ordem de Serviço com equipamento e itens em uma única transação. "
+        "O número da OS (ex: OS-2026-000001) é gerado automaticamente."
+    )
 )
 def create_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
     os_data: OrdemServicoCreate,
     db: Session = Depends(get_db)
@@ -40,171 +76,286 @@ def create_ordem_servico(
 
 
 # ===========================================================================
-# ROTAS DE LEITURA (GET)
+# LISTAGEM E ESTATÍSTICAS (GET / e GET /stats)
+# NOTA: Estas rotas estáticas devem estar ANTES de GET /{os_number}
 # ===========================================================================
-
-@router.get(
-    "/estatisticas",
-    response_model=OrdemServicoStats,
-    status_code=status.HTTP_200_OK,
-    summary="Estatisticas das OS",
-    description="Retorna estatisticas agregadas das Ordens de Servico."
-)
-def get_ordem_servico_stats(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    *,
-    db: Session = Depends(get_db)
-):
-    return _handle_db_transaction(db, os_service.get_ordem_servico_stats)
-
-
-@router.get(
-    "/proximo_numero",
-    status_code=status.HTTP_200_OK,
-    summary="Proximo Numero de OS",
-    description="Retorna o proximo numero sequencial para criacao de OS."
-)
-def get_next_numero(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    *,
-    db: Session = Depends(get_db)
-):
-    return _handle_db_transaction(db, os_service.get_next_numero)
-
 
 @router.get(
     "/",
     response_model=OrdemServicoQuery,
     status_code=status.HTTP_200_OK,
     summary="Listar OS",
-    description="Retorna Ordens de Servico com filtros e paginacao."
+    description=(
+        "Retorna lista paginada de OS com suporte a filtros. "
+        "Filtros disponíveis: busca por texto (numero_os, nome do cliente), "
+        "status e ordenação por prioridade."
+    )
 )
 def get_ordens_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
     filters: OrdemServicoFilterParams = Depends(),
-    page: int = Query(1, ge=1, description="Pagina atual"),
-    limit: int = Query(20, ge=1, le=100, description="Itens por pagina"),
+    page: int = Query(1, ge=1, description="Página atual"),
+    limit: int = Query(20, ge=1, le=100, description="Itens por página"),
     db: Session = Depends(get_db)
 ):
     filters_dict = filters.model_dump(exclude_unset=True)
-    return _handle_db_transaction(db, os_service.get_ordens_servico_by_search, filters_dict, page, limit)
+    return os_service.get_ordem_servico_by_search(db, filters=filters_dict, page=page, limit=limit)
 
 
 @router.get(
-    "/cliente/{cliente_id}",
-    response_model=list[OrdemServicoListRead],
+    "/stats",
+    response_model=OrdemServicoStats,
     status_code=status.HTTP_200_OK,
-    summary="OS por Cliente",
-    description="Retorna todas as OS de um cliente."
+    summary="Estatísticas de OS",
+    description="Retorna contadores e ticket médio das OS no sistema."
 )
-def get_ordens_servico_by_cliente(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    cliente_id: int = Path(..., ge=1, description="ID do cliente"),
+def get_ordem_servico_stats(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.get_ordens_servico_by_cliente, cliente_id)
-
-
-@router.get(
-    "/{os_id}",
-    response_model=OrdemServicoRead,
-    status_code=status.HTTP_200_OK,
-    summary="Buscar OS por ID",
-    description="Retorna uma OS completa pelo ID."
-)
-def get_ordem_servico_by_id(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
-    *,
-    db: Session = Depends(get_db)
-):
-    return _handle_db_transaction(db, os_service.get_ordem_servico_by_id, os_id)
+    return os_service.get_ordem_servico_stats(db)
 
 
 # ===========================================================================
-# ROTAS DE ATUALIZACAO (PUT)
+# BUSCA POR NÚMERO (GET /{os_number})
+# NOTA: Declarada APÓS as rotas estáticas para não capturar "stats" como param
+# ===========================================================================
+
+@router.get(
+    "/{os_number}",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Buscar OS pelo Número",
+    description="Retorna a OS completa (com itens, pagamentos e fotos) pelo número sequencial."
+)
+def get_ordem_servico_by_numero(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número sequencial da OS (ex: OS-2026-000001)"),
+    *,
+    db: Session = Depends(get_db)
+):
+    return os_service.get_ordem_servico_by_numero_os(db, numero_os=os_number)
+
+
+# ===========================================================================
+# ATUALIZAÇÃO (PUT /{os_number})
 # ===========================================================================
 
 @router.put(
-    "/{os_id}",
+    "/{os_number}",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
     summary="Atualizar OS",
-    description="Atualiza dados de uma OS existente."
+    description=(
+        "Atualiza campos gerais da OS. Todos os campos são opcionais. "
+        "Não é permitido atualizar OS com status FINALIZADA ou CANCELADA. "
+        "Para alterar o funcionário responsável, inclua funcionario_id. "
+        "Para transições de status FINALIZADA/CANCELADA, use /finalizar e /cancelar."
+    )
 )
 def update_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
     *,
     os_data: OrdemServicoUpdate,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.update_ordem_servico, os_id, os_data)
+    return _handle_db_transaction(db, os_service.update_ordem_servico, os_number, os_data)
+
+
+# ===========================================================================
+# EQUIPAMENTO (PUT /{os_number}/equipamento)
+# ===========================================================================
+
+@router.put(
+    "/{os_number}/equipamento",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar Equipamento da OS",
+    description=(
+        "Atualiza as informações do equipamento associado à OS. "
+        "Permite também trocar o cliente proprietário do equipamento via cliente_id. "
+        "Não é permitido em OS com status FINALIZADA ou CANCELADA."
+    )
+)
+def update_equipamento_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    *,
+    equipamento_data: OSEquipamentoUpdate,
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(db, os_service.update_equipamento_os, os_number, equipamento_data)
+
+
+# ===========================================================================
+# ITENS
+# ===========================================================================
+
+@router.post(
+    "/{os_number}/itens",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Adicionar Item à OS",
+    description=(
+        "Adiciona um produto ou serviço à OS. "
+        "O valor_total da OS é recalculado automaticamente. "
+        "Não é permitido em OS com status FINALIZADA ou CANCELADA."
+    )
+)
+def add_item_to_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    *,
+    item_data: OSItemCreate,
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(db, os_service.add_item_to_os, os_number, item_data)
 
 
 @router.put(
-    "/{os_id}/finalizar",
+    "/{os_number}/itens/{item_id}",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar Item da OS",
+    description=(
+        "Atualiza quantidade, valor unitário ou descrição de um item. "
+        "O valor_total da OS é recalculado automaticamente."
+    )
+)
+def update_item_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    item_id: int = Path(..., ge=1, description="ID do item"),
+    *,
+    item_data: OSItemUpdate,
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(db, os_service.update_item_os, os_number, item_id, item_data)
+
+
+@router.delete(
+    "/{os_number}/itens/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover Item da OS",
+    description="Remove um item da OS e recalcula o valor total."
+)
+def remove_item_from_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    item_id: int = Path(..., ge=1, description="ID do item"),
+    *,
+    db: Session = Depends(get_db)
+):
+    _handle_db_transaction(db, os_service.remove_item_from_os, os_number, item_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# AÇÕES DE STATUS
+# ===========================================================================
+
+@router.put(
+    "/{os_number}/finalizar",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
     summary="Finalizar OS",
-    description="Finaliza uma OS com solucao e pagamentos."
+    description=(
+        "Finaliza a OS registrando a solução e os pagamentos. "
+        "Regras: a soma dos pagamentos deve ser exatamente igual ao valor_total da OS. "
+        "Cada forma_pagamento_id informado deve existir e estar ativo. "
+        "Uma OS só é aceita como finalizada se o pagamento for integral."
+    )
 )
 def finalizar_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
     *,
     data: OrdemServicoFinalizar,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.finalizar_ordem_servico, os_id, data)
+    return _handle_db_transaction(db, os_service.finalizar_ordem_servico, os_number, data)
 
 
 @router.put(
-    "/{os_id}/cancelar",
+    "/{os_number}/cancelar",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
     summary="Cancelar OS",
-    description="Cancela uma OS com motivo opcional."
+    description=(
+        "Cancela a OS. O motivo, se informado, é acrescentado às observações. "
+        "Uma OS já cancelada não pode ser cancelada novamente — use /reabrir primeiro."
+    )
 )
 def cancelar_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
     *,
     data: OrdemServicoCancelar,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.cancelar_ordem_servico, os_id, data)
+    return _handle_db_transaction(db, os_service.cancelar_ordem_servico, os_number, data)
 
 
 @router.put(
-    "/{os_id}/reabrir",
+    "/{os_number}/reabrir",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
     summary="Reabrir OS",
-    description="Reabre uma OS finalizada ou cancelada."
+    description=(
+        "Reabre uma OS FINALIZADA ou CANCELADA. "
+        "Os pagamentos existentes são removidos pois os valores podem ser renegociados. "
+        "O status volta para EM_ANDAMENTO e a data de finalização é limpa."
+    )
 )
 def reabrir_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
     *,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_id)
+    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number)
 
 
-@router.put(
-    "/toggle_ativo/{os_id}",
-    response_model=OrdemServicoRead,
-    status_code=status.HTTP_200_OK,
-    summary="Ativar/Desativar OS",
-    description="Alterna o status logico (Soft Delete) de uma OS."
+# ===========================================================================
+# FOTOS
+# ===========================================================================
+
+@router.post(
+    "/{os_number}/fotos",
+    response_model=OSFotoRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload de Foto da OS",
+    description=(
+        "Faz upload de uma foto de diagnóstico para a OS. "
+        "O arquivo é salvo em static/uploads/ordens-servico/{os_id}/ com nome UUID. "
+        "Formatos aceitos: JPEG, PNG, WEBP."
+    )
 )
-def toggle_ativo_ordem_servico(
-    user_token: dict = Depends(check_permission(required_permission="servico")),
-    os_id: int = Path(..., ge=1, description="ID da OS"),
+def upload_foto_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    *,
+    image_file: UploadFile = File(..., description="Arquivo de imagem (JPEG, PNG, WEBP)"),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(db, os_foto_service.upload_foto_os, os_number, image_file)
+
+
+@router.delete(
+    "/{os_number}/fotos/{foto_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover Foto da OS",
+    description="Remove uma foto de diagnóstico da OS (arquivo físico e registro no banco)."
+)
+def delete_foto_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    os_number: str = Path(..., description="Número da OS"),
+    foto_id: int = Path(..., ge=1, description="ID da foto"),
     *,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.toggle_ativo_ordem_servico, os_id)
+    _handle_db_transaction(db, os_foto_service.delete_foto_os, os_number, foto_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

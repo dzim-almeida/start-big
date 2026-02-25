@@ -293,7 +293,7 @@ function getPaymentIcon(type: string) {
 
         <div class="pt-4 flex gap-3">
           <BaseButton variant="secondary" class="flex-1" @click="showPaymentDetails = false">Cancelar</BaseButton>
-          <BaseButton variant="success" class="flex-1" @click="confirmAddPayment">Confirmar</BaseButton>
+          <BaseButton variant="primary" class="flex-1" @click="confirmAddPayment">Confirmar</BaseButton>
         </div>
       </div>
     </div>

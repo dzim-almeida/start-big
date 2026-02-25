@@ -19,14 +19,14 @@ interface Props {
   subtotal: number;
   valorDesconto: number;
   valorTotal: number;
-  valorEntrada?: string;
+  valorEntrada?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoadingServicos: false,
   isLoadingProdutos: false,
   isLocked: false,
-  valorEntrada: '0',
+  valorEntrada: 0,
 });
 
 const emit = defineEmits<{
@@ -152,9 +152,9 @@ function getItemLabel(item: OSItemForm, index: number) {
             <span class="font-semibold text-red-600">- {{ formatCurrency(valorDesconto) }}</span>
           </div>
 
-          <div v-if="parseFloat(valorEntrada || '0') > 0" class="flex items-center justify-between text-sm">
+          <div v-if="(valorEntrada || 0) > 0" class="flex items-center justify-between text-sm">
             <span class="text-emerald-600">Entrada / Sinal</span>
-            <span class="font-semibold text-emerald-600">- R$ {{ valorEntrada }}</span>
+            <span class="font-semibold text-emerald-600">{{ formatCurrency(valorEntrada || 0) }}</span>
           </div>
 
           <div class="border-t border-slate-300 my-2"></div>

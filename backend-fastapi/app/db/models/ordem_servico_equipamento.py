@@ -29,10 +29,10 @@ class OrdemServicoEquipamento(Base):
     )
 
     tipo_equipamento: Mapped[TipoEquipamento] = mapped_column(SqlAlchemyEnum(TipoEquipamento), default=TipoEquipamento.OUTROS, nullable=False, doc="Nome/tipo do equipamento")
-    marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Marca do equipamento")
-    modelo: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Modelo do equipamento")
-    numero_serie: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Numero de serie")
-    imei: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="IMEI do aparelho")
+    marca: Mapped[str] = mapped_column(String(100), nullable=False, doc="Marca do equipamento")
+    modelo: Mapped[str] = mapped_column(String(100), nullable=False, doc="Modelo do equipamento")
+    numero_serie: Mapped[str] = mapped_column(String(100), nullable=False, doc="Numero de serie")
+    imei: Mapped[str] = mapped_column(String(20), nullable=False, doc="IMEI do aparelho")
     cor: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Cor do equipamento")
     
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status ativo (soft delete)")
@@ -48,6 +48,6 @@ class OrdemServicoEquipamento(Base):
     cliente: Mapped["Cliente"] = relationship("Cliente", back_populates="equipamentos", doc="Cliente dono do equipamento")
     ordens_servico: Mapped[List["OrdemServico"]] = relationship(
         "OrdemServico",
-        back_populates="equipamento_rel",
+        back_populates="equipamento",
         doc="Ordens de servico associadas a este equipamento"
     )

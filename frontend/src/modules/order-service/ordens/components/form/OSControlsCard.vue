@@ -26,7 +26,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="w-full bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4">
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <BaseSelect
         :model-value="status"
         label="Situacao"
@@ -45,7 +45,7 @@ const emit = defineEmits<{
 
     <div class="border-t border-slate-100 my-2"></div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <BaseSelect
         :model-value="prioridade"
         label="Prioridade"

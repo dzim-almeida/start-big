@@ -65,11 +65,11 @@ class OrdemServico(Base):
 
     # --- Financeiro (valores em centavos) ---
     valor_total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor total da OS (centavos)")
+    valor_bruto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada (centavos)")
     desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto aplicado (centavos)")
-    valor_entrada: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada (centavos)")
-    garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")
-
+    
     # --- Datas ---
+    garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")
     data_previsao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, doc="Data prevista para conclusao")
     data_finalizacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, doc="Data de finalizacao efetiva")
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao da OS")
@@ -79,12 +79,12 @@ class OrdemServico(Base):
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status ativo (soft delete)")
 
     # --- Relacionamentos ---
-    funcionario_rel: Mapped[Optional["Funcionario"]] = relationship(
+    funcionario: Mapped[Optional["Funcionario"]] = relationship(
         "Funcionario",
         back_populates="ordens_servico",
         doc="Funcionario responsavel"
     )
-    equipamento_rel: Mapped["OrdemServicoEquipamento"] = relationship(
+    equipamento: Mapped["OrdemServicoEquipamento"] = relationship(
         "OrdemServicoEquipamento",
         back_populates="ordens_servico",
         doc="Equipamento utilizado nesta OS"
@@ -110,4 +110,4 @@ class OrdemServico(Base):
 
     @property
     def cliente(self) -> Optional["Cliente"]:
-        return self.equipamento_rel.cliente if self.equipamento_rel else None
+        return self.equipamento.cliente if self.equipamento else None

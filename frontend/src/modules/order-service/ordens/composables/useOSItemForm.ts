@@ -16,12 +16,12 @@ export function useOSItemForm(props: {
   const servicoId = ref<string | undefined>(undefined);
   const descricao = ref('');
   const quantidade = ref<number>(1);
-  const valorUnitario = ref<string>('0,00');
+  const valorUnitarioNum = ref<number>(0);
 
   const isService = computed(() => type.value === 'servicos');
 
   const valorUnitarioCents = computed(() => {
-    return Math.round(parseFloat(valorUnitario.value.replace(/\./g, '').replace(',', '.')) * 100);
+    return Math.round((valorUnitarioNum.value || 0) * 100);
   });
 
   const total = computed(() => {
@@ -37,7 +37,7 @@ export function useOSItemForm(props: {
     servicoId.value = undefined;
     descricao.value = '';
     quantidade.value = 1;
-    valorUnitario.value = '0,00';
+    valorUnitarioNum.value = 0;
   }
 
   function populate(item: OrdemServicoItemCreate) {
@@ -47,16 +47,7 @@ export function useOSItemForm(props: {
     servicoId.value = item.servico_id ? String(item.servico_id) : undefined;
     descricao.value = item.descricao || '';
     quantidade.value = item.quantidade || 1;
-    valorUnitario.value = (item.valor_unitario / 100).toFixed(2).replace('.', ',');
-  }
-
-  function handleValorInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    let value = target.value.replace(/\D/g, '');
-    if (!value) value = '0';
-
-    const floatVal = parseFloat(value) / 100;
-    valorUnitario.value = floatVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    valorUnitarioNum.value = item.valor_unitario / 100;
   }
 
   watch(servicoId, (newId) => {
@@ -67,7 +58,7 @@ export function useOSItemForm(props: {
 
     if (selected) {
       if (selected.price !== undefined) {
-        valorUnitario.value = (selected.price / 100).toFixed(2).replace('.', ',');
+        valorUnitarioNum.value = selected.price / 100;
       }
 
       const labelParts = selected.label.split(' - R$ ');
@@ -84,13 +75,12 @@ export function useOSItemForm(props: {
     servicoId,
     descricao,
     quantidade,
-    valorUnitario,
+    valorUnitarioNum,
     isService,
     valorUnitarioCents,
     total,
     isValid,
     reset,
     populate,
-    handleValorInput,
   };
 }

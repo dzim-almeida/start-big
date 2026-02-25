@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { watch } from 'vue';
-import { Wrench, ShoppingBag, Plus, Save, Clock, DollarSign, Type } from 'lucide-vue-next';
+import { Wrench, ShoppingBag, Plus, Save } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OrdemServicoItemCreate } from '../../types/ordemServico.types';
@@ -38,14 +39,13 @@ const {
   servicoId,
   descricao,
   quantidade,
-  valorUnitario,
+  valorUnitarioNum,
   isService,
   valorUnitarioCents,
   total,
   isValid,
   reset,
   populate,
-  handleValorInput,
 } = useOSItemForm(props);
 
 watch(() => props.isOpen, (newVal) => {
@@ -144,7 +144,6 @@ function handleClose() {
             v-model="descricao"
             label="Descrição (Op. na OS)"
             placeholder="Detalhes adicionais do serviço ou peça..."
-            :left-icon="Type"
           />
         </div>
 
@@ -154,21 +153,13 @@ function handleClose() {
               v-model.number="quantidade"
               :label="isService ? 'Qtd. / Horas' : 'Quantidade'"
               type="number"
-              :left-icon="Clock"
             />
           </div>
 
-          <div class="space-y-1.5">
-            <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">
-              <DollarSign :size="12" />
-              {{ isService ? 'Valor / Hora' : 'Valor Unitário' }}
-            </label>
-            <BaseInput
-              :model-value="valorUnitario"
-              type="text"
-              @input="handleValorInput"
-            />
-          </div>
+          <BaseMoneyInput
+            v-model="valorUnitarioNum"
+            :label="isService ? 'Valor / Hora' : 'Valor Unitário'"
+          />
         </div>
 
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">

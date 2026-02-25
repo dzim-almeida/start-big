@@ -46,4 +46,4 @@ class OrdemServicoPagamento(Base):
 
     # --- Relacionamentos ---
     ordem_servico: Mapped["OrdemServico"] = relationship(back_populates="pagamentos")
-    forma_pagamento: Mapped["FormaPagamento"] = relationship(back_populates="pagamentos")
+    forma_pagamento: Mapped["FormaPagamento"] = relationship("FormaPagamento", back_populates="pagamentos")
