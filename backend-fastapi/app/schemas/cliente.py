@@ -37,12 +37,12 @@ class ClienteBase(BaseModel):
         max_length=500,
         description="Notas internas ou observações sobre o cliente."
     )
-    endereco: Optional[List[Endereco]] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ===========================================================================
 # PESSOA FÍSICA (PF)
 # ===========================================================================
+
 
 class ClientePFCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Física."""
@@ -70,6 +70,10 @@ class ClientePFCreate(ClienteBase):
     data_nascimento: Optional[date] = Field(
         None,
         description="Data de nascimento (YYYY-MM-DD)."
+    )
+    endereco: Optional[List[Endereco]] = Field(
+        None, 
+        description="Lista de endereços para o cadastro inicial."
     )
 
     model_config = ConfigDict(
@@ -135,7 +139,10 @@ class ClientePJCreate(ClienteBase):
     im: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Municipal.")
     regime_tributario: Optional[str] = Field(None, description="Código do Regime Tributário.")
     responsavel: Optional[str] = Field(None, max_length=255, description="Pessoa de contato na empresa.")
-
+    endereco: Optional[List[Endereco]] = Field(
+        None, 
+        description="Lista de endereços para o cadastro inicial da empresa."
+    )
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -186,6 +193,11 @@ class ClientePJUpdate(ClienteBase):
 # ===========================================================================
 # UNIÕES POLIMÓRFICAS
 # ===========================================================================
+
+ClienteCreate = Annotated[
+    Union[ClientePFCreate, ClientePJCreate],
+    Field(discriminator="tipo")
+]
 
 ClienteRead = Annotated[
     Union[ClientePFRead, ClientePJRead],
