@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, List, Union, Annotated, TYPE_CHECKING
 
 # ===========================================================================
 # SCHEMA BASE
@@ -48,6 +48,16 @@ class PaginationBase(BaseModel):
         from_attributes=True,
     )
 
-    
+
+# ===========================================================================
+# SCHEMAS DE PAGINAÇÃO POR ENTIDADE
+# ===========================================================================
+
+from app.schemas.cliente import ClienteRead  # noqa: E402
+
+
+class ClientePaginationRead(PaginationBase):
+    items: List[ClienteRead] = Field(..., description="Lista de clientes")
+    filters: Optional[dict] = Field(None, description="Filtros aplicados na busca")
 
 
