@@ -7,7 +7,7 @@
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Annotated, Union, Literal
-from app.core.enum import Gender, ClientType, State
+from app.core.enum import Gender, ClientType
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
 # ===========================================================================
@@ -17,7 +17,7 @@ from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 class ClienteBase(BaseModel):
     """Atributos compartilhados entre PF e PJ."""
     
-    email: Optional[str] = Field(
+    email: Optional[EmailStr] = Field(
         None,
         max_length=255,
         description="Endereço de e-mail principal para contato."
@@ -37,11 +37,7 @@ class ClienteBase(BaseModel):
         max_length=500,
         description="Notas internas ou observações sobre o cliente."
     )
-    endereco: Optional[List[Endereco]] = Field(
-        None,
-        description="Lista de endereços vinculados."
-    )
-
+    endereco: Optional[List[Endereco]] = None
     model_config = ConfigDict(from_attributes=True)
 
 # ===========================================================================
@@ -50,7 +46,8 @@ class ClienteBase(BaseModel):
 
 class ClientePFCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Física."""
-    
+    tipo: Literal[ClientType.PF] = ClientType.PF
+
     nome: str = Field(
         ...,
         max_length=255,
@@ -130,7 +127,7 @@ class ClientePFUpdate(ClienteBase):
 
 class ClientePJCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Jurídica."""
-    
+    tipo: Literal[ClientType.PJ] = ClientType.PJ
     razao_social: str = Field(..., max_length=255, description="Razão Social da empresa.")
     cnpj: str = Field(..., pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
     nome_fantasia: str = Field(..., max_length=255, description="Nome Fantasia / Marca.")
