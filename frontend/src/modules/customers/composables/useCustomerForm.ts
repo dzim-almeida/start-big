@@ -30,6 +30,8 @@ import type {
   TipoCliente,
   Gender,
   State,
+  EnderecoCreate,
+  EnderecoUpdate,
 } from '../types/clientes.types';
 import { useCustomerModal } from './useCustomerModal';
 import { useClienteActions } from '@/shared/composables/cliente/useClienteActions';
@@ -98,26 +100,26 @@ export interface CustomerFormContext {
   setCustomerType: (type: TipoCliente) => void;
 
   // PF Fields
-  nome: Ref<string>;
-  cpf: Ref<string>;
-  rg: Ref<string>;
-  genero: Ref<string>;
-  data_nascimento: Ref<string>;
+  nome: Ref<string | undefined>;
+  cpf: Ref<string | undefined>;
+  rg: Ref<string | undefined>;
+  genero: Ref<string | undefined>;
+  data_nascimento: Ref<string | undefined>;
 
   // PJ Fields
-  razao_social: Ref<string>;
-  nome_fantasia: Ref<string>;
-  cnpj: Ref<string>;
-  ie: Ref<string>;
-  im: Ref<string>;
-  regime_tributario: Ref<string>;
-  responsavel: Ref<string>;
+  razao_social: Ref<string | undefined>;
+  nome_fantasia: Ref<string | undefined>;
+  cnpj: Ref<string | undefined>;
+  ie: Ref<string | undefined>;
+  im: Ref<string | undefined>;
+  regime_tributario: Ref<string | undefined>;
+  responsavel: Ref<string | undefined>;
 
   // Common Fields
-  email: Ref<string>;
-  celular: Ref<string>;
-  telefone: Ref<string>;
-  observacoes: Ref<string>;
+  email: Ref<string | undefined>;
+  celular: Ref<string | undefined>;
+  telefone: Ref<string | undefined>;
+  observacoes: Ref<string | undefined>;
 
   // Addresses
   enderecos: Ref<FieldEntry<AddressFormData>[]>;
@@ -142,18 +144,32 @@ export const CUSTOMER_FORM_KEY: InjectionKey<CustomerFormContext> = Symbol('cust
 // Helper Functions
 // =============================================
 
-function prepareAddresses(addresses: AddressFormData[], isUpdate: boolean) {
+function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: true): EnderecoUpdate[] | undefined;
+function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: false): EnderecoCreate[] | undefined;
+function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: boolean): EnderecoCreate[] | EnderecoUpdate[] | undefined {
   if (addresses.length === 0) return undefined;
 
-  return addresses.map((addr) => ({
-    ...(isUpdate && addr.id ? { id: addr.id } : {}),
-    cep: unmaskCep(addr.cep),
-    logradouro: addr.logradouro,
-    numero: addr.numero,
+  if (isUpdate) {
+    return addresses.map((addr): EnderecoUpdate => ({
+      id: addr.id,
+      cep: unmaskCep(addr.cep || ''),
+      logradouro: addr.logradouro || '',
+      numero: addr.numero || '',
+      complemento: addr.complemento || undefined,
+      bairro: addr.bairro || '',
+      cidade: addr.cidade || '',
+      estado: (addr.estado || undefined) as State | undefined,
+    }));
+  }
+
+  return addresses.map((addr): EnderecoCreate => ({
+    cep: unmaskCep(addr.cep || ''),
+    logradouro: addr.logradouro || '',
+    numero: addr.numero || '',
     complemento: addr.complemento || undefined,
-    bairro: addr.bairro,
-    cidade: addr.cidade,
-    estado: addr.estado as State,
+    bairro: addr.bairro || '',
+    cidade: addr.cidade || '',
+    estado: (addr.estado || '') as State,
   }));
 }
 
@@ -346,16 +362,16 @@ export function useCustomerFormProvider() {
     const formData = pfForm.values;
     return {
       tipo: 'PF',
-      nome: formData.nome,
-      cpf: unmaskDocument(formData.cpf) || undefined,
-      rg: formData.rg || undefined,
+      nome: formData.nome!,
+      cpf: unmaskDocument(formData.cpf || '') || undefined,
+      rg: unmaskDocument(formData.rg || '') || undefined,
       genero: (formData.genero as Gender) || undefined,
       data_nascimento: formData.data_nascimento || undefined,
       email: formData.email || undefined,
-      celular: unmaskPhone(formData.celular) || undefined,
-      telefone: unmaskPhone(formData.telefone) || undefined,
+      celular: unmaskPhone(formData.celular || '') || undefined,
+      telefone: unmaskPhone(formData.telefone || '') || undefined,
       observacoes: formData.observacoes || undefined,
-      endereco: prepareAddresses(formData.enderecos, false),
+      endereco: prepareAddresses(formData.enderecos || [], false),
     };
   }
 
@@ -363,18 +379,18 @@ export function useCustomerFormProvider() {
   function transformPJToCreateRequest(): ClientePJCreate {
     const formData = pjForm.values;
     return {
-      razao_social: formData.razao_social,
+      razao_social: formData.razao_social!,
       nome_fantasia: formData.nome_fantasia || undefined,
-      cnpj: unmaskDocument(formData.cnpj) || undefined,
+      cnpj: unmaskDocument(formData.cnpj || '') || undefined,
       ie: formData.ie || undefined,
       im: formData.im || undefined,
       regime_tributario: formData.regime_tributario || undefined,
       responsavel: formData.responsavel || undefined,
       email: formData.email || undefined,
-      celular: unmaskPhone(formData.celular) || undefined,
-      telefone: unmaskPhone(formData.telefone) || undefined,
+      celular: unmaskPhone(formData.celular || '') || undefined,
+      telefone: unmaskPhone(formData.telefone || '') || undefined,
       observacoes: formData.observacoes || undefined,
-      endereco: prepareAddresses(formData.enderecos, false),
+      endereco: prepareAddresses(formData.enderecos || [], false),
     };
   }
 
@@ -383,16 +399,16 @@ export function useCustomerFormProvider() {
     const formData = pfForm.values;
     return {
       tipo: 'PF',
-      nome: formData.nome,
-      cpf: unmaskDocument(formData.cpf) || undefined,
-      rg: formData.rg || undefined,
+      nome: formData.nome!,
+      cpf: unmaskDocument(formData.cpf || '') || undefined,
+      rg: unmaskDocument(formData.rg || '') || undefined,
       genero: (formData.genero as Gender) || undefined,
       data_nascimento: formData.data_nascimento || undefined,
       email: formData.email || undefined,
-      celular: unmaskPhone(formData.celular) || undefined,
-      telefone: unmaskPhone(formData.telefone) || undefined,
+      celular: unmaskPhone(formData.celular || '') || undefined,
+      telefone: unmaskPhone(formData.telefone || '') || undefined,
       observacoes: formData.observacoes || undefined,
-      endereco: prepareAddresses(formData.enderecos, true),
+      endereco: prepareAddresses(formData.enderecos || [], true),
     };
   }
 
@@ -401,18 +417,18 @@ export function useCustomerFormProvider() {
     const formData = pjForm.values;
     return {
       tipo: 'PJ',
-      razao_social: formData.razao_social,
+      razao_social: formData.razao_social!,
       nome_fantasia: formData.nome_fantasia || undefined,
-      cnpj: unmaskDocument(formData.cnpj) || undefined,
+      cnpj: unmaskDocument(formData.cnpj || '') || undefined,
       ie: formData.ie || undefined,
       im: formData.im || undefined,
       regime_tributario: formData.regime_tributario || undefined,
       responsavel: formData.responsavel || undefined,
       email: formData.email || undefined,
-      celular: unmaskPhone(formData.celular) || undefined,
-      telefone: unmaskPhone(formData.telefone) || undefined,
+      celular: unmaskPhone(formData.celular || '') || undefined,
+      telefone: unmaskPhone(formData.telefone || '') || undefined,
       observacoes: formData.observacoes || undefined,
-      endereco: prepareAddresses(formData.enderecos, true),
+      endereco: prepareAddresses(formData.enderecos || [], true),
     };
   }
 
