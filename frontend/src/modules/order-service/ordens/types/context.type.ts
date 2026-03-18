@@ -36,6 +36,7 @@ export interface OSCreateFormContext {
   itens: Ref<FieldEntry<OsItemCreateSchemaDataType>[]>;
   handleAddItem: (item?: Partial<OsItemCreateSchemaDataType>) => void;
   handleRemoveItem: (index: number) => void;
+  handleUpdateItem: (index: number, item: OsItemCreateSchemaDataType) => void;
 
   // Estado do formulário
   errors: Ref<Record<string, string | undefined>>;

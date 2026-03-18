@@ -2,19 +2,12 @@
 import { Plus, Trash2, Package, Wrench, ShoppingBag, Receipt } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
-import type { OSItemForm } from '../../composables/useOSFormState';
+import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
 
-interface SelectOption {
-  value: string;
-  label: string;
-}
+type OsItem = OsItemCreateSchemaDataType | OsItemReadSchemaDataType;
 
 interface Props {
-  itens: OSItemForm[];
-  servicosOptions: SelectOption[];
-  produtosOptions: SelectOption[];
-  isLoadingServicos?: boolean;
-  isLoadingProdutos?: boolean;
+  itens: OsItem[];
   isLocked?: boolean;
   subtotal: number;
   valorDesconto: number;
@@ -23,8 +16,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isLoadingServicos: false,
-  isLoadingProdutos: false,
   isLocked: false,
   valorEntrada: 0,
 });
@@ -35,22 +26,19 @@ const emit = defineEmits<{
   removeItem: [index: number];
 }>();
 
-function getItemIcon(item: OSItemForm) {
-  return props.servicosOptions.some(s => s.value === item.servico_id) ? Wrench : ShoppingBag;
+function getItemIcon(item: OsItem) {
+  return item.tipo === 'SERVICO' ? Wrench : ShoppingBag;
 }
 
-function getItemIconClass(item: OSItemForm) {
-  return props.servicosOptions.some(s => s.value === item.servico_id)
+function getItemIconClass(item: OsItem) {
+  return item.tipo === 'SERVICO'
     ? 'bg-brand-primary-light text-brand-primary'
     : 'bg-orange-50 text-orange-600';
 }
 
-function getItemLabel(item: OSItemForm, index: number) {
-  return (
-    props.servicosOptions.find(o => o.value === item.servico_id)?.label ||
-    props.produtosOptions.find(o => o.value === item.servico_id)?.label ||
-    `Item ${index + 1}`
-  );
+function getItemTotal(item: OsItem): number {
+  if ('valor_total' in item && item.valor_total !== undefined) return item.valor_total;
+  return item.quantidade * item.valor_unitario;
 }
 </script>
 
@@ -74,13 +62,8 @@ function getItemLabel(item: OSItemForm, index: number) {
     </div>
 
     <fieldset :disabled="isLocked" class="contents">
-      <div v-if="isLoadingServicos || isLoadingProdutos" class="flex items-center justify-center py-8 text-slate-400">
-        <div class="animate-spin w-5 h-5 border-2 border-slate-300 border-t-emerald-500 rounded-full mr-2"></div>
-        <span class="text-sm">Carregando catalogo...</span>
-      </div>
-
       <div
-        v-else-if="itens.length === 0"
+        v-if="itens.length === 0"
         class="flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50"
       >
         <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-3">
@@ -101,14 +84,14 @@ function getItemLabel(item: OSItemForm, index: number) {
               <component :is="getItemIcon(item)" :size="18" />
             </div>
             <div class="min-w-0">
-              <p class="text-sm font-bold text-slate-700 truncate">{{ getItemLabel(item, index) }}</p>
-              <p class="text-xs text-slate-500 truncate">{{ item.descricao || 'Sem descricao adicional' }}</p>
+              <p class="text-sm font-bold text-slate-700 truncate">{{ item.nome }}</p>
+              <p class="text-xs text-slate-500 truncate">{{ item.unidade_medida }}</p>
             </div>
           </div>
 
           <div class="flex items-center gap-6 shrink-0">
             <div class="text-right hidden sm:block">
-              <p class="text-xs text-slate-400 font-medium uppercase">Qtd/Hr</p>
+              <p class="text-xs text-slate-400 font-medium uppercase">Qtd</p>
               <p class="text-sm font-bold text-slate-600">{{ item.quantidade }}</p>
             </div>
             <div class="text-right hidden sm:block">
@@ -117,7 +100,7 @@ function getItemLabel(item: OSItemForm, index: number) {
             </div>
             <div class="text-right w-24">
               <p class="text-xs text-slate-400 font-medium uppercase">Total</p>
-              <p class="text-sm font-black text-slate-800">{{ formatCurrency(item.quantidade * item.valor_unitario) }}</p>
+              <p class="text-sm font-black text-slate-800">{{ formatCurrency(getItemTotal(item)) }}</p>
             </div>
 
             <div v-if="!isLocked" class="flex items-center gap-1 pl-2 border-l border-slate-100">

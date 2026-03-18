@@ -18,7 +18,7 @@ export function useOrderServiceDeleteItem() {
   return useMutation<void, AxiosError<ApiError>, OsDeleteItem>({
     mutationFn: deleteItemOS,
     onSuccess: () => {
-      toast.success('Item excluido com sucesso');
+      toast.success('Item excluído com sucesso');
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
     },
     onError: (error) => {

@@ -134,7 +134,7 @@ def get_ordem_servico_stats(db: Session) -> dict:
         "total": result.total or 0,
         "abertas": result.abertas or 0,
         "finalizadas": result.finalizadas or 0,
-        "ticket_medio": result.ticket_medio or 0,
+        "ticket_medio": int(result.ticket_medio) or 0,
     }
 
 

@@ -12,26 +12,46 @@ import OSEquipmentTab from './form/OSEquipmentTab.vue';
 import OSDiagnosticoTab from './form/OSDiagnosticoTab.vue';
 import OSServicesTab from './form/OSServicesTab.vue';
 import OSReopenOptionsModal from './form/OSReopenOptionsModal.vue';
-
 import OSPrintTemplate from './OSPrintTemplate.vue';
 import OSFinalizarModal from './OSFinalizarModal.vue';
-import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
 import OSItemFormModal from './form/OSItemFormModal.vue';
 import OSEquipamentoSelectModal from './form/OSEquipamentoSelectModal.vue';
 
-import type { OrdemServicoRead, OrdemServicoItemCreate } from '../types/ordemServico.types';
-import { useServicoModal } from '../../servicos/composables/useServicoModal';
+import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
+import type { OsItemCreateSchemaDataType } from '../schemas/relationship/osItem.schema';
+import type { OsStatusEnumDataType, OsPriorityEnumDataType } from '../schemas/enums/osEnums.schema';
+import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
-import { getClientEquipments } from '@/modules/customers/services/cliente.service';
+import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
-import { useOSForm } from '../composables/useOSForm';
+import { getClientEquipments } from '@/modules/customers/services/cliente.service';
+import { getUniqueOS } from '../services/orderServiceGet.service';
+
+import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
+import { useOsEmployeesGet } from '../composables/request/relationship/useOSRelationshipGet.queries';
+import { useCreateItemOSMutation } from '../composables/request/useOrderServiceCreate.mutate';
+import { useReopenOrderServiceMutation } from '../composables/request/useOrderServiceUpdate.mutate';
+import { useOrderServiceDeleteItem } from '../composables/request/useOrderServiceDelete.mutate';
+
+import { OS_STATUS_OPTIONS, OS_PRIORIDADE_OPTIONS } from '../constants/ordemServico.constants';
+
+interface EquipamentoForm {
+  equipamento: string;
+  marca: string;
+  modelo: string;
+  numero_serie: string;
+  imei: string;
+  cor: string;
+  senha_aparelho: string;
+  acessorios: string;
+  defeito_relatado: string;
+  condicoes_aparelho: string;
+}
 
 interface Props {
   isOpen: boolean;
-  ordemServico?: OrdemServicoRead | null;
-  selectedCliente?: ClienteSearchResult | null;
-  autoShowReopen?: boolean;
+  ordemServico?: OrderServiceReadDataType | null;
+  selectedCliente?: CustomerUnionReadSchemaDataType | null;
 }
 
 const props = defineProps<Props>();
@@ -39,96 +59,81 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   close: [];
   changeCliente: [];
-  saved: [os: OrdemServicoRead];
 }>();
 
+// ─── 1. PROVIDER (deve ser chamado antes de qualquer await) ───────────────────
+const osNumber = computed(() => props.ordemServico?.numero_os ?? null);
+const isCreateMode = computed(() => !props.ordemServico);
+const savedOS = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA'>('ENTRADA');
-const isFinalizarModalOpen = ref(false);
-const savedOS = ref<OrdemServicoRead | null>(null);
 
-function handlePrint() {
-  const os = savedOS.value || props.ordemServico;
-  if (!os?.id) return;
-  printType.value = 'ENTRADA';
-  setTimeout(() => window.print(), 100);
-}
-
-function onSaved(os: OrdemServicoRead) {
-  if (!props.ordemServico) {
+const form = useOSFormProvider({
+  osNumber,
+  isCreateMode,
+  onCreateSuccess: (os) => {
     savedOS.value = os;
     printType.value = 'ENTRADA';
     setTimeout(() => {
       window.print();
       handleClose();
     }, 100);
-  } else {
-    handleClose();
-  }
+  },
+  onUpdateSuccess: () => handleClose(),
+  onItemSuccess: () => closeItemModal(),
+  onFinalizarSuccess: () => { isFinalizarModalOpen.value = false; },
+});
+
+const isPending = useOSFormPendingState(form);
+
+// ─── 2. Estado derivado ───────────────────────────────────────────────────────
+const isEditMode = computed(() => !isCreateMode.value);
+const isFinalizada = computed(() => props.ordemServico?.status === 'FINALIZADA');
+const isCancelada = computed(() => props.ordemServico?.status === 'CANCELADA');
+const isLocked = computed(() => isFinalizada.value || isCancelada.value);
+const displayOS = computed(() => savedOS.value ?? props.ordemServico ?? null);
+const latestOSData = ref<OrderServiceReadDataType | null>(null);
+const effectiveOS = computed(() => latestOSData.value ?? props.ordemServico ?? null);
+
+// ─── 3. Employees + Options ───────────────────────────────────────────────────
+const employeesQuery = useOsEmployeesGet();
+const funcionariosOptions = computed<SelectOption[]>(() => {
+  const raw = employeesQuery.data.value as unknown;
+  const list = Array.isArray(raw) ? (raw as { id: number; nome: string }[]) : [];
+  return [
+    { value: '', label: '-- Selecione --' },
+    ...list.map(e => ({ value: String(e.id), label: e.nome })),
+  ];
+});
+
+const statusOptions = OS_STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label })) as SelectOption[];
+const prioridadeOptions = OS_PRIORIDADE_OPTIONS.map(o => ({ value: o.value, label: o.label })) as SelectOption[];
+
+// ─── 4. Reopen ────────────────────────────────────────────────────────────────
+const reopenMutation = useReopenOrderServiceMutation();
+const isReopenOptionsOpen = ref(false);
+const reopenMode = ref<'NONE' | 'TEXT_ONLY' | 'FULL'>('NONE');
+const preservedFinalizationDate = ref<string | undefined>(undefined);
+const isStructureLocked = computed(() => isLocked.value && reopenMode.value === 'NONE');
+const isItemsLocked = computed(() => isLocked.value || reopenMode.value === 'TEXT_ONLY');
+
+function handleReopenClick() { isReopenOptionsOpen.value = true; }
+function handleReopenCancel() {
+  isReopenOptionsOpen.value = false;
+  reopenMode.value = 'NONE';
+}
+function handleReopenTextOnly() {
+  preservedFinalizationDate.value = form.atualizarGeral.data_previsao.value;
+  reopenMode.value = 'TEXT_ONLY';
+  isReopenOptionsOpen.value = false;
+  if (osNumber.value) reopenMutation.mutate(osNumber.value);
+}
+function handleReopenFull() {
+  reopenMode.value = 'FULL';
+  isReopenOptionsOpen.value = false;
+  if (osNumber.value) reopenMutation.mutate(osNumber.value);
 }
 
-const osForm = useOSForm(props, emit, { onSuccess: onSaved });
-
-const {
-  form,
-  itens,
-  apiError,
-  isEditMode,
-  servicosOptions,
-  produtosOptions,
-  funcionariosOptions,
-  prioridadeOptions,
-  statusOptions,
-  subtotal,
-  valorDesconto,
-  valorTotal,
-  isPending,
-  isLoadingServicos,
-  isLoadingProdutos,
-  handleClose,
-  handleChangeCliente,
-  handleSubmit,
-  removeItem,
-  reopenOS,
-} = osForm;
-
-const isItemModalOpen = ref(false);
-const editingItemIndex = ref<number | null>(null);
-const editingItem = ref<OrdemServicoItemCreate | null>(null);
-const { openCreateModal: openCreateServicoModal } = useServicoModal();
-
-function openAddItemModal() {
-  editingItemIndex.value = null;
-  editingItem.value = null;
-  isItemModalOpen.value = true;
-}
-
-function openEditItemModal(index: number) {
-  editingItemIndex.value = index;
-  editingItem.value = {
-    ...itens.value[index],
-    servico_id: itens.value[index].servico_id ? Number(itens.value[index].servico_id) : undefined,
-  } as OrdemServicoItemCreate;
-  isItemModalOpen.value = true;
-}
-
-function closeItemModal() {
-  isItemModalOpen.value = false;
-  editingItem.value = null;
-  editingItemIndex.value = null;
-}
-
-function handleSaveItem(item: OrdemServicoItemCreate) {
-  const formItem = {
-    ...item,
-    servico_id: item.servico_id ? String(item.servico_id) : undefined,
-  };
-  if (editingItemIndex.value !== null) {
-    itens.value[editingItemIndex.value] = formItem;
-  } else {
-    itens.value.push(formItem);
-  }
-}
-
+// ─── 5. Tabs ──────────────────────────────────────────────────────────────────
 type TabType = 'equipamento' | 'diagnostico' | 'servicos';
 const activeTab = ref<TabType>('equipamento');
 
@@ -138,153 +143,244 @@ const tabs: { id: TabType; label: string; icon: Component }[] = [
   { id: 'servicos',    label: 'Serviços e Peças', icon: Package       },
 ];
 
-const nextOSNumber = ref<string | null>(null);
+// ─── 6. Itens ─────────────────────────────────────────────────────────────────
+const addItemMutation = useCreateItemOSMutation();
+const deleteItemMutation = useOrderServiceDeleteItem();
 
-const osNumber = computed(() => {
-  const num = props.ordemServico?.numero || nextOSNumber.value;
-  return num ? String(num).replace(/^OS-\d{4}-/, '') : '...';
+const isItemModalOpen = ref(false);
+const editingItemIndex = ref<number | null>(null);
+const editingItem = ref<OsItemCreateSchemaDataType | null>(null);
+const editingItemId = ref<number | null>(null);
+
+const displayItems = computed(() =>
+  isCreateMode.value
+    ? form.criar.itens.value.map(e => e.value)
+    : (effectiveOS.value?.itens ?? [])
+);
+
+function openAddItemModal() {
+  editingItemIndex.value = null;
+  editingItem.value = null;
+  editingItemId.value = null;
+  isItemModalOpen.value = true;
+}
+
+function openEditItemModal(index: number) {
+  const item = displayItems.value[index];
+  if (!item) return;
+  editingItemIndex.value = index;
+  editingItemId.value = 'id' in item ? (item as { id: number }).id : null;
+  editingItem.value = {
+    tipo: item.tipo,
+    nome: item.nome,
+    unidade_medida: item.unidade_medida,
+    quantidade: item.quantidade,
+    valor_unitario: item.valor_unitario,
+  };
+  isItemModalOpen.value = true;
+}
+
+function closeItemModal() {
+  isItemModalOpen.value = false;
+  editingItem.value = null;
+  editingItemIndex.value = null;
+  editingItemId.value = null;
+}
+
+function handleSaveItem(item: OsItemCreateSchemaDataType) {
+  if (isCreateMode.value) {
+    if (editingItemIndex.value !== null) {
+      form.criar.handleUpdateItem(editingItemIndex.value, item);
+    } else {
+      form.criar.handleAddItem(item);
+    }
+    closeItemModal();
+  } else {
+    if (editingItemId.value !== null) {
+      form.item.setEditingItem(editingItemId.value, item);
+      form.item.onSubmit();
+      // closeItemModal chamado via onItemSuccess; re-fetch para atualizar itens
+      if (osNumber.value) {
+        getUniqueOS(osNumber.value).then(os => { latestOSData.value = os; });
+      }
+    } else if (osNumber.value) {
+      addItemMutation.mutate(
+        { osNumber: osNumber.value, osItem: item },
+        { onSuccess: (data) => { latestOSData.value = data; closeItemModal(); } },
+      );
+    }
+  }
+}
+
+function handleRemoveItem(index: number) {
+  if (isCreateMode.value) {
+    form.criar.handleRemoveItem(index);
+  } else {
+    const item = displayItems.value[index] as { id?: number };
+    if (item?.id && osNumber.value) {
+      const osNum = osNumber.value;
+      deleteItemMutation.mutate(
+        { osNumber: osNum, itemOsId: item.id },
+        { onSuccess: () => { getUniqueOS(osNum).then(os => { latestOSData.value = os; }); } },
+      );
+    }
+  }
+}
+
+// ─── 7. Financeiros ───────────────────────────────────────────────────────────
+const displaySubtotal = computed(() => {
+  if (isCreateMode.value) {
+    return form.criar.itens.value.reduce(
+      (sum, e) => sum + e.value.quantidade * e.value.valor_unitario,
+      0,
+    );
+  }
+  return (effectiveOS.value?.itens ?? []).reduce((sum, i) => sum + i.valor_total, 0);
 });
 
-const currentCliente = computed(() => props.selectedCliente || props.ordemServico?.cliente);
-
-const equipamentoFormData = computed({
-  get: () => ({
-    equipamento: form.value.equipamento,
-    marca: form.value.marca,
-    modelo: form.value.modelo,
-    numero_serie: form.value.numero_serie,
-    imei: form.value.imei,
-    cor: form.value.cor,
-    senha_aparelho: form.value.senha_aparelho,
-    acessorios: form.value.acessorios,
-    defeito_relatado: form.value.defeito_relatado,
-    condicoes_aparelho: form.value.condicoes_aparelho,
-  }),
-  set: (val) => Object.assign(form.value, val),
+const displayValorDesconto = computed(() => {
+  if (isCreateMode.value) return form.criar.desconto.value ?? 0;
+  return effectiveOS.value?.desconto ?? 0;
 });
 
-const displayOS = computed(() => savedOS.value || props.ordemServico);
-const isFinalizada = computed(() => props.ordemServico?.status === 'FINALIZADA');
+const displayValorTotal = computed(() => {
+  if (isCreateMode.value) return Math.max(0, displaySubtotal.value - displayValorDesconto.value);
+  return effectiveOS.value?.valor_total ?? 0;
+});
 
-const isReopenOptionsOpen = ref(false);
-const reopenMode = ref<'NONE' | 'TEXT_ONLY' | 'FULL'>('NONE');
-const preservedFinalizationDate = ref<string | undefined>(undefined);
-
-const isStructureLocked = computed(() => isFinalizada.value && reopenMode.value === 'NONE');
-const isItemsLocked = computed(() => isFinalizada.value || reopenMode.value === 'TEXT_ONLY');
-
-function handleReopenClick() { isReopenOptionsOpen.value = true; }
-
-function handleReopenCancel() {
-  isReopenOptionsOpen.value = false;
-  reopenMode.value = 'NONE';
+// ─── 8. Print ─────────────────────────────────────────────────────────────────
+function handlePrint() {
+  printType.value = 'ENTRADA';
+  setTimeout(() => window.print(), 100);
 }
 
-function handleReopenTextOnly() {
-  preservedFinalizationDate.value = form.value.data_finalizacao;
-  reopenMode.value = 'TEXT_ONLY';
-  isReopenOptionsOpen.value = false;
-  reopenOS();
+function handleReprintExit() {
+  printType.value = 'SAIDA';
+  setTimeout(() => window.print(), 100);
 }
 
-function handleReopenFull() {
-  reopenMode.value = 'FULL';
-  isReopenOptionsOpen.value = false;
-  reopenOS();
-}
+// ─── 9. Finalizar ─────────────────────────────────────────────────────────────
+const isFinalizarModalOpen = ref(false);
 
 function handleFinalizarOS() { isFinalizarModalOpen.value = true; }
 
-function handleReprintExit() {
-  savedOS.value = props.ordemServico || null;
-  printType.value = 'SAIDA';
-  handlePrint();
-}
-
-function handleLocalSubmit() {
-  if (reopenMode.value === 'TEXT_ONLY') {
-    form.value.status = 'FINALIZADA';
-    if (preservedFinalizationDate.value) {
-      form.value.data_finalizacao = preservedFinalizationDate.value;
-    }
-  }
-  handleSubmit();
-}
-
-function onFinalized({ os, shouldPrint }: { os: OrdemServicoRead; shouldPrint: boolean }) {
-  savedOS.value = os;
-  if (shouldPrint) {
-    printType.value = 'SAIDA';
-    handlePrint();
-  }
+function onFinalized({ shouldPrint }: { shouldPrint: boolean }) {
+  isFinalizarModalOpen.value = false;
+  if (shouldPrint) handleReprintExit();
   handleClose();
 }
 
-async function handlePhotoChange() {
-  if (props.ordemServico?.id) {
-    const { ordemServicoService } = await import('../services/ordemServico.service');
-    const osUpdated = await ordemServicoService.getById(props.ordemServico.id);
-    savedOS.value = osUpdated;
-    emit('saved', osUpdated);
+// ─── 10. Submit ───────────────────────────────────────────────────────────────
+function handleLocalSubmit() {
+  if (isCreateMode.value) {
+    const clienteId = (props.selectedCliente as { id?: number } | null)?.id;
+    if (clienteId) form.criar.cliente_id.value = clienteId;
+    form.criar.onSubmit();
+  } else if (reopenMode.value === 'TEXT_ONLY') {
+    form.atualizarGeral.status.value = 'FINALIZADA';
+    form.atualizarGeral.onSubmit();
+  } else {
+    form.atualizarGeral.onSubmit();
   }
 }
 
-watch(() => props.isOpen, async (isOpen) => {
+// ─── 11. Close ────────────────────────────────────────────────────────────────
+function handleClose() {
+  form.criar.resetForm();
+  form.atualizarGeral.resetForm();
+  form.atualizarEquipamento.resetForm();
+  form.item.resetForm();
+  reopenMode.value = 'NONE';
+  isReopenOptionsOpen.value = false;
+  savedOS.value = null;
+  latestOSData.value = null;
+  emit('close');
+}
+
+function handleChangeCliente() { emit('changeCliente'); }
+
+// ─── 12. Populate ao abrir ────────────────────────────────────────────────────
+function populateEditForm(os: OrderServiceReadDataType) {
+  form.atualizarGeral.populateForm(os);
+  // Converter data ISO para YYYY-MM-DD (BaseInput type="date")
+  if (os.data_previsao) {
+    form.atualizarGeral.data_previsao.value = os.data_previsao.split('T')[0];
+  }
+  form.atualizarEquipamento.populateForm({
+    tipo_equipamento: os.equipamento.tipo_equipamento,
+    marca: os.equipamento.marca,
+    modelo: os.equipamento.modelo,
+    numero_serie: os.equipamento.numero_serie,
+    imei: os.equipamento.imei,
+    cor: os.equipamento.cor,
+    cliente_id: os.equipamento.cliente_id,
+  });
+}
+
+watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
-    if (props.autoShowReopen && props.ordemServico?.status === 'FINALIZADA') {
-      isReopenOptionsOpen.value = true;
-    }
-    if (!props.ordemServico?.id) {
-      try {
-        const { ordemServicoService } = await import('../services/ordemServico.service');
-        const res = await ordemServicoService.getNextNumber();
-        nextOSNumber.value = res.numero;
-      } catch {
-        nextOSNumber.value = null;
-      }
+    activeTab.value = 'equipamento';
+    if (props.ordemServico) {
+      populateEditForm(props.ordemServico);
+    } else {
+      form.criar.resetForm();
     }
   } else {
-    nextOSNumber.value = null;
-    isReopenOptionsOpen.value = false;
     reopenMode.value = 'NONE';
+    isReopenOptionsOpen.value = false;
+    savedOS.value = null;
   }
 }, { immediate: true });
 
 watch(() => props.ordemServico?.status, (newStatus, oldStatus) => {
-  if (oldStatus === 'FINALIZADA' && newStatus === 'EM_ANDAMENTO' && reopenMode.value === 'FULL') {
-    form.value.status = 'EM_ANDAMENTO';
-    form.value.data_finalizacao = undefined;
+  if ((oldStatus === 'FINALIZADA' || oldStatus === 'CANCELADA') && newStatus === 'EM_ANDAMENTO' && reopenMode.value === 'FULL') {
+    form.atualizarGeral.status.value = 'EM_ANDAMENTO';
   }
 });
 
+watch(() => props.selectedCliente, (cliente) => {
+  if (cliente && isCreateMode.value) {
+    form.criar.cliente_id.value = (cliente as { id?: number }).id;
+  }
+}, { immediate: true });
+
+// ─── 13. Equipamento histórico ────────────────────────────────────────────────
 const equipamentosHistorico = ref<EquipamentoHistorico[]>([]);
 const selectedHistorico = ref<string>('');
 const isEquipSelectModalOpen = ref(false);
 
 async function fetchEquipamentosHistorico() {
-  const clienteId = props.selectedCliente?.id || props.ordemServico?.cliente_id;
-  if (!clienteId) {
-    equipamentosHistorico.value = [];
-    return;
-  }
+  const clienteId =
+    (props.selectedCliente as { id?: number } | null)?.id ??
+    (props.ordemServico?.cliente as { id?: number } | null)?.id;
+  if (!clienteId) { equipamentosHistorico.value = []; return; }
   try {
     const history = await getClientEquipments(clienteId);
     equipamentosHistorico.value = history;
-    if (history.length > 0 && !props.ordemServico?.id && !form.value.equipamento) {
+    if (history.length > 0 && !props.ordemServico && !form.criar.equipamento_tipo_equipamento.value) {
       isEquipSelectModalOpen.value = true;
     }
   } catch {
-    // Equipment history is optional
+    // histórico de equipamentos é opcional
   }
 }
 
-watch(() => [props.selectedCliente?.id, props.ordemServico?.cliente_id], fetchEquipamentosHistorico, { immediate: true });
+watch(
+  () => [
+    (props.selectedCliente as { id?: number } | null)?.id,
+    (props.ordemServico?.cliente as { id?: number } | null)?.id,
+  ],
+  fetchEquipamentosHistorico,
+  { immediate: true },
+);
 
 function handleEquipamentoSelected(equip: EquipamentoHistorico) {
-  form.value.equipamento = equip.equipamento;
-  form.value.marca = equip.marca || '';
-  form.value.modelo = equip.modelo || '';
-  form.value.numero_serie = equip.numero_serie || '';
+  if (isCreateMode.value) {
+    form.criar.equipamento_tipo_equipamento.value = equip.equipamento;
+    form.criar.equipamento_marca.value = equip.marca || '';
+    form.criar.equipamento_modelo.value = equip.modelo || '';
+    form.criar.equipamento_numero_serie.value = equip.numero_serie || '';
+  }
   const idx = equipamentosHistorico.value.findIndex(
     e => e.numero_serie === equip.numero_serie && e.equipamento === equip.equipamento,
   );
@@ -294,35 +390,135 @@ function handleEquipamentoSelected(equip: EquipamentoHistorico) {
 
 function applyEquipamentoHistorico() {
   if (!selectedHistorico.value) return;
-  const index = parseInt(selectedHistorico.value);
-  const equip = equipamentosHistorico.value[index];
+  const equip = equipamentosHistorico.value[parseInt(selectedHistorico.value)];
   if (equip) handleEquipamentoSelected(equip);
 }
+
+// ─── 14. Adapter OSEquipmentTab (v-model EquipamentoForm) ────────────────────
+const equipamentoFormData = computed<EquipamentoForm>({
+  get: () => isCreateMode.value
+    ? {
+        equipamento:      form.criar.equipamento_tipo_equipamento.value ?? '',
+        marca:            form.criar.equipamento_marca.value ?? '',
+        modelo:           form.criar.equipamento_modelo.value ?? '',
+        numero_serie:     form.criar.equipamento_numero_serie.value ?? '',
+        imei:             form.criar.equipamento_imei.value ?? '',
+        cor:              form.criar.equipamento_cor.value ?? '',
+        senha_aparelho:   form.criar.senha_aparelho.value ?? '',
+        acessorios:       form.criar.acessorios.value ?? '',
+        defeito_relatado: form.criar.defeito_relatado.value ?? '',
+        condicoes_aparelho: form.criar.condicoes_aparelho.value ?? '',
+      }
+    : {
+        equipamento:      form.atualizarEquipamento.tipo_equipamento.value ?? '',
+        marca:            form.atualizarEquipamento.marca.value ?? '',
+        modelo:           form.atualizarEquipamento.modelo.value ?? '',
+        numero_serie:     form.atualizarEquipamento.numero_serie.value ?? '',
+        imei:             form.atualizarEquipamento.imei.value ?? '',
+        cor:              form.atualizarEquipamento.cor.value ?? '',
+        senha_aparelho:   form.atualizarGeral.senha_aparelho.value ?? '',
+        acessorios:       form.atualizarGeral.acessorios.value ?? '',
+        defeito_relatado: form.atualizarGeral.defeito_relatado.value ?? '',
+        condicoes_aparelho: form.atualizarGeral.condicoes_aparelho.value ?? '',
+      },
+  set: (val: EquipamentoForm) => {
+    if (isCreateMode.value) {
+      form.criar.equipamento_tipo_equipamento.value = val.equipamento;
+      form.criar.equipamento_marca.value = val.marca;
+      form.criar.equipamento_modelo.value = val.modelo;
+      form.criar.equipamento_numero_serie.value = val.numero_serie;
+      form.criar.equipamento_imei.value = val.imei;
+      form.criar.equipamento_cor.value = val.cor;
+      form.criar.senha_aparelho.value = val.senha_aparelho;
+      form.criar.acessorios.value = val.acessorios;
+      form.criar.defeito_relatado.value = val.defeito_relatado;
+      form.criar.condicoes_aparelho.value = val.condicoes_aparelho;
+    } else {
+      form.atualizarEquipamento.tipo_equipamento.value = val.equipamento;
+      form.atualizarEquipamento.marca.value = val.marca;
+      form.atualizarEquipamento.modelo.value = val.modelo;
+      form.atualizarEquipamento.numero_serie.value = val.numero_serie;
+      form.atualizarEquipamento.imei.value = val.imei;
+      form.atualizarEquipamento.cor.value = val.cor;
+      form.atualizarGeral.senha_aparelho.value = val.senha_aparelho;
+      form.atualizarGeral.acessorios.value = val.acessorios;
+      form.atualizarGeral.defeito_relatado.value = val.defeito_relatado;
+      form.atualizarGeral.condicoes_aparelho.value = val.condicoes_aparelho;
+    }
+  },
+});
+
+// ─── 15. Bindings do OSControlsCard ──────────────────────────────────────────
+const controlsStatus = computed<OsStatusEnumDataType>(() =>
+  isCreateMode.value
+    ? 'ABERTA'
+    : (form.atualizarGeral.status.value as OsStatusEnumDataType | undefined) ?? 'ABERTA'
+);
+
+const controlsFuncionarioId = computed<string>(() =>
+  isCreateMode.value
+    ? String(form.criar.funcionario_id.value ?? '')
+    : String(form.atualizarGeral.funcionario_id.value ?? '')
+);
+
+const controlsPrioridade = computed<OsPriorityEnumDataType>(() =>
+  isCreateMode.value
+    ? (form.criar.prioridade.value as OsPriorityEnumDataType | undefined) ?? 'NORMAL'
+    : (form.atualizarGeral.prioridade.value as OsPriorityEnumDataType | undefined) ?? 'NORMAL'
+);
+
+const controlsDataPrevisao = computed<string>(() =>
+  isCreateMode.value
+    ? (form.criar.data_previsao.value ?? '')
+    : (form.atualizarGeral.data_previsao.value ?? '')
+);
+
+function handleStatusUpdate(value: OsStatusEnumDataType) {
+  if (!isCreateMode.value) form.atualizarGeral.status.value = value;
+}
+function handleFuncionarioIdUpdate(value: string) {
+  const num = Number(value) || undefined;
+  if (isCreateMode.value) form.criar.funcionario_id.value = num;
+  else form.atualizarGeral.funcionario_id.value = num;
+}
+function handlePrioridadeUpdate(value: OsPriorityEnumDataType) {
+  if (isCreateMode.value) form.criar.prioridade.value = value;
+  else form.atualizarGeral.prioridade.value = value;
+}
+function handleDataPrevisaoUpdate(value: string) {
+  if (isCreateMode.value) form.criar.data_previsao.value = value;
+  else form.atualizarGeral.data_previsao.value = value;
+}
+
+// ─── 16. Bindings do OSDiagnosticoTab ────────────────────────────────────────
+const currentDiagnostico = computed<string>(() =>
+  isCreateMode.value
+    ? (form.criar.diagnostico.value ?? '')
+    : (form.atualizarGeral.diagnostico.value ?? '')
+);
+
+function handleDiagnosticoUpdate(value: string) {
+  if (isCreateMode.value) form.criar.diagnostico.value = value;
+  else form.atualizarGeral.diagnostico.value = value;
+}
+
+// ─── 17. Cliente atual ────────────────────────────────────────────────────────
+const currentCliente = computed(() =>
+  props.selectedCliente ?? props.ordemServico?.cliente ?? null
+);
 </script>
 
 <template>
   <BaseModal :is-open="isOpen" title="" size="3xl" @close="handleClose">
     <template #header>
       <OSFormHeader
-        :os-number="osNumber"
-        :os-id="props.ordemServico?.id"
+        :os-number="props.ordemServico?.numero_os ?? '...'"
         :is-finalizada="isFinalizada"
-        :is-pending="isPending"
-        :reopen-mode="reopenMode"
-        @print="handlePrint"
-        @reprint-exit="handleReprintExit"
-        @reopen="handleReopenClick"
-        @save="handleLocalSubmit"
+        :is-cancelada="isCancelada"
+        :is-create-mode="isCreateMode"
         @close="handleClose"
       />
     </template>
-
-    <div
-      v-if="apiError"
-      class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium"
-    >
-      {{ apiError }}
-    </div>
 
     <form class="space-y-4" @submit.prevent="handleLocalSubmit">
       <fieldset :disabled="isStructureLocked" class="contents">
@@ -337,17 +533,17 @@ function applyEquipamentoHistorico() {
             @change-cliente="handleChangeCliente"
           />
           <OSControlsCard
-            :status="form.status"
-            :funcionario-id="form.funcionario_id"
-            :prioridade="form.prioridade"
-            :data-previsao="form.data_previsao"
+            :status="controlsStatus"
+            :funcionario-id="controlsFuncionarioId"
+            :prioridade="controlsPrioridade"
+            :data-previsao="controlsDataPrevisao"
             :status-options="statusOptions"
             :prioridade-options="prioridadeOptions"
             :funcionarios-options="funcionariosOptions"
-            @update:status="form.status = $event"
-            @update:funcionario-id="form.funcionario_id = $event"
-            @update:prioridade="form.prioridade = $event"
-            @update:data-previsao="form.data_previsao = $event"
+            @update:status="handleStatusUpdate"
+            @update:funcionario-id="handleFuncionarioIdUpdate"
+            @update:prioridade="handlePrioridadeUpdate"
+            @update:data-previsao="handleDataPrevisaoUpdate"
           />
         </div>
       </fieldset>
@@ -384,29 +580,24 @@ function applyEquipamentoHistorico() {
 
           <OSDiagnosticoTab
             v-if="activeTab === 'diagnostico'"
-            :diagnostico="form.diagnostico"
-            :os-id="displayOS?.id"
-            :fotos="displayOS?.fotos || []"
+            :diagnostico="currentDiagnostico"
+            :os-numero="displayOS?.numero_os"
+            :fotos="displayOS?.fotos ?? []"
             :is-locked="isStructureLocked"
-            @update:diagnostico="form.diagnostico = $event"
-            @photo-change="handlePhotoChange"
+            @update:diagnostico="handleDiagnosticoUpdate"
+            @photo-change="() => {}"
           />
 
           <OSServicesTab
             v-if="activeTab === 'servicos'"
-            :itens="itens"
-            :servicos-options="servicosOptions"
-            :produtos-options="produtosOptions"
-            :is-loading-servicos="isLoadingServicos"
-            :is-loading-produtos="isLoadingProdutos"
+            :itens="displayItems"
             :is-locked="isItemsLocked"
-            :subtotal="subtotal"
-            :valor-desconto="valorDesconto"
-            :valor-total="valorTotal"
-            :valor-entrada="Number(form.valor_entrada) || 0"
+            :subtotal="displaySubtotal"
+            :valor-desconto="displayValorDesconto"
+            :valor-total="displayValorTotal"
             @add-item="openAddItemModal"
             @edit-item="openEditItemModal"
-            @remove-item="removeItem"
+            @remove-item="handleRemoveItem"
           />
         </div>
       </fieldset>
@@ -414,11 +605,19 @@ function applyEquipamentoHistorico() {
 
     <template #footer>
       <OSFormFooter
-        :valor-total="valorTotal"
+        :valor-total="displayValorTotal"
         :is-finalizada="isFinalizada"
+        :is-cancelada="isCancelada"
         :is-edit-mode="isEditMode"
+        :is-create-mode="isCreateMode"
+        :is-pending="isPending"
         :reopen-mode="reopenMode"
+        :os-id="props.ordemServico?.id"
         @finalizar="handleFinalizarOS"
+        @print="handlePrint"
+        @reprint-exit="handleReprintExit"
+        @reopen="handleReopenClick"
+        @save="handleLocalSubmit"
       />
     </template>
   </BaseModal>
@@ -431,16 +630,15 @@ function applyEquipamentoHistorico() {
   />
 
   <OSPrintTemplate
-    v-if="savedOS || props.ordemServico"
-    :ordem-servico="(savedOS || props.ordemServico) || null"
+    v-if="displayOS"
+    :ordem-servico="displayOS"
     :type="printType"
   />
 
   <OSFinalizarModal
-    v-if="props.ordemServico"
     :is-open="isFinalizarModalOpen"
-    :ordem-servico="props.ordemServico"
-    :valor-total="valorTotal"
+    :os-numero="osNumber"
+    :ordem-servico="props.ordemServico ?? null"
     @close="isFinalizarModalOpen = false"
     @finalized="onFinalized"
   />
@@ -448,16 +646,9 @@ function applyEquipamentoHistorico() {
   <OSItemFormModal
     :is-open="isItemModalOpen"
     :item="editingItem"
-    :servicos-options="servicosOptions"
-    :produtos-options="produtosOptions"
-    :is-loading-servicos="isLoadingServicos"
-    :is-loading-produtos="isLoadingProdutos"
     @close="closeItemModal"
     @save="handleSaveItem"
-    @create-new-service="openCreateServicoModal"
   />
-
-  <ServicoFormModal />
 
   <OSEquipamentoSelectModal
     :is-open="isEquipSelectModalOpen"

@@ -14,12 +14,14 @@ import { BASE_EMPLOYEE_OS_URL, BASE_CUSTOMER_OS_URL } from '../../constants/core
 
 export async function getEmployeesAll(): Promise<EmployeeReadSchemaDataType> {
   const { data } = await api.get<EmployeeReadSchemaDataType>(`${BASE_EMPLOYEE_OS_URL}/`);
-  const validatedData = EmployeeReadSchema.parse(data);
-  return validatedData;
+  return data;
+  // const validatedData = EmployeeReadSchema.parse(data);
+  // return validatedData;
 }
 
 export async function getCustomersAll(): Promise<CustomerUnionReadSchemaDataType> {
   const { data } = await api.get<CustomerUnionReadSchemaDataType>(`${BASE_CUSTOMER_OS_URL}/`);
-  const validatedData = CustomerUnionReadSchema.parse(data);
-  return validatedData;
+  return data;
+  // const validatedData = CustomerUnionReadSchema.parse(data);
+  // return validatedData;
 }

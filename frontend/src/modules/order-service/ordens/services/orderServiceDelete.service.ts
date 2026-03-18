@@ -5,5 +5,5 @@ import { BASE_ORDER_SERVICE_URL } from "../constants/core.constant";
 import { OsDeleteItem } from "../types/requests.type";
 
 export async function deleteItemOS(itemData: OsDeleteItem): Promise<void> {
-    api.delete(`${BASE_ORDER_SERVICE_URL}/${itemData.osNumber}/itens/${itemData.itemOsId}`)
+    return api.delete(`${BASE_ORDER_SERVICE_URL}/${itemData.osNumber}/itens/${itemData.itemOsId}`)
 }

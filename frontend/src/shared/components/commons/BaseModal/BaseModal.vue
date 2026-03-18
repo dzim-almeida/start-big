@@ -1,5 +1,10 @@
+<script lang="ts">
+// Contador global de modais abertos para gerenciar overflow do body
+let openModalCount = 0;
+</script>
+
 <script setup lang="ts">
-import { watch } from 'vue';
+import { watch, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 interface Props {
@@ -30,17 +35,35 @@ function handleClose() {
   emit('close');
 }
 
-// Prevent body scroll when modal is open
+// Gerenciar overflow do body com contador global (suporte a modais aninhados)
+let wasOpen = false;
+
 watch(
   () => props.isOpen,
   (isOpen) => {
-    if (isOpen) {
+    if (isOpen && !wasOpen) {
+      openModalCount++;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      wasOpen = true;
+    } else if (!isOpen && wasOpen) {
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = '';
+      }
+      wasOpen = false;
     }
   }
 );
+
+onUnmounted(() => {
+  if (wasOpen) {
+    openModalCount = Math.max(0, openModalCount - 1);
+    if (openModalCount === 0) {
+      document.body.style.overflow = '';
+    }
+    wasOpen = false;
+  }
+});
 </script>
 
 <template>

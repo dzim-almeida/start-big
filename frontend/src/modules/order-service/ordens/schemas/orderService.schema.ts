@@ -10,26 +10,26 @@ export const OrderServiceBaseSchema = z.object({
   defeito_relatado: z
     .string({ required_error: 'A descrição de defeito é obrigatória' })
     .max(500, 'A descrição de defeito deve ter máximo 500 caracteres'),
-  diagnostico: z.string().max(500, 'O diagnóstico deve ter máximo 500 caracteres').optional(),
-  solucao: z.string().max(500, 'A solução deve ter máximo 500 caracteres').optional(),
+  diagnostico: z.string().max(500, 'O diagnóstico deve ter máximo 500 caracteres').optional().nullable(),
+  solucao: z.string().max(500, 'A solução deve ter máximo 500 caracteres').optional().nullable(),
 
   // Observacoes Operacionais
-  senha_aparelho: z.string().max(100, 'A senha deve ter máximo 100 caracteres').optional(),
+  senha_aparelho: z.string().max(100, 'A senha deve ter máximo 100 caracteres').optional().nullable(),
   acessorios: z
     .string()
     .max(500, 'A observação de acessórios deve ter máximo 500 caracteres')
-    .optional(),
+    .optional().nullable(),
   condicoes_aparelho: z
     .string()
     .max(500, 'A observação de condições do aparelho deve ter máximo 500 caracteres')
-    .optional(),
-  observacoes: z.string().max(500, 'A observação deve ter máximo 500 caracteres').optional(),
+    .optional().nullable(),
+  observacoes: z.string().max(500, 'A observação deve ter máximo 500 caracteres').optional().nullable(),
 
   // Financeiro
-  desconto: z.number().int().optional(),
+  desconto: z.number().int().optional().nullable(),
 
   // Prazos e garantia
-  garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
-  data_previsao: z.string().datetime().optional(),
+  garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional().nullable(),
+  data_previsao: z.string().optional().nullable(),
 });
 

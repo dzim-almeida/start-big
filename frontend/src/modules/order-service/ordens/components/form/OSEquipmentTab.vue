@@ -87,11 +87,11 @@ function handleHistoricoSelectChange(value: string) {
         />
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" @update:model-value="updateField('marca', $event)" />
-          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" @update:model-value="updateField('modelo', $event)" />
+          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" required @update:model-value="updateField('marca', $event)" />
+          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" required @update:model-value="updateField('modelo', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.numero_serie" label="N° Serie" placeholder="Serial Number" @update:model-value="updateField('numero_serie', $event)" />
+        <BaseInput :model-value="modelValue.numero_serie" label="N° Serie" placeholder="Serial Number" required @update:model-value="updateField('numero_serie', $event)" />
       </div>
 
       <div class="space-y-4">
@@ -100,7 +100,7 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" @update:model-value="updateField('imei', $event)" />
+          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" required @update:model-value="updateField('imei', $event)" />
           <BaseInput :model-value="modelValue.cor" label="Cor" placeholder="Ex: Preto" @update:model-value="updateField('cor', $event)" />
         </div>
 

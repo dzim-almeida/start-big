@@ -2,6 +2,7 @@ import { computed, inject, provide } from 'vue';
 import type { ComputedRef, InjectionKey, Ref } from 'vue';
 
 import type { OSFormContext } from '../types/context.type';
+import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { useOSCreateForm } from '../composables/form/useOSCreate.form';
 import { useOSUpdateGeralForm } from '../composables/form/useOSUpdateGeral.form';
 import { useOSUpdateEquipForm } from '../composables/form/useOSUpdateEquip.form';
@@ -14,7 +15,7 @@ export const OS_FORM_CONTEXT_KEY: InjectionKey<OSFormContext> = Symbol('os-form-
 export function useOSFormProvider(opts: {
   osNumber: Ref<string | null>;
   isCreateMode: ComputedRef<boolean>;
-  onCreateSuccess?: () => void;
+  onCreateSuccess?: (os: OrderServiceReadDataType) => void;
   onUpdateSuccess?: () => void;
   onItemSuccess?: () => void;
   onFinalizarSuccess?: () => void;
@@ -32,7 +33,7 @@ export function useOSFormProvider(opts: {
 
   const atualizarEquipamento = useOSUpdateEquipForm({
     osNumber: opts.osNumber,
-    onSuccess: opts.onUpdateSuccess,
+    // sem onSuccess: equip auto-save não fecha o modal
   });
 
 

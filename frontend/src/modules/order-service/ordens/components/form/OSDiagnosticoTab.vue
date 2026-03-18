@@ -2,12 +2,12 @@
 import { ClipboardList } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import OSFotoGallery from './OSFotoGallery.vue';
-import type { OrdemServicoFotoRead } from '../../types/ordemServico.types';
+import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.schema';
 
 interface Props {
   diagnostico: string;
-  osId?: number;
-  fotos: OrdemServicoFotoRead[];
+  osNumero?: string;
+  fotos: OsImageReadDataType[];
   isLocked: boolean;
 }
 
@@ -43,8 +43,8 @@ const emit = defineEmits<{
 
     <div class="pt-4 border-t border-slate-200">
       <OSFotoGallery
-        v-if="osId"
-        :ordem-servico-id="osId"
+        v-if="osNumero"
+        :os-numero="osNumero"
         :fotos="fotos"
         :read-only="isLocked"
         @uploaded="emit('photoChange')"

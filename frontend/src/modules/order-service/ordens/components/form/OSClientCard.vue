@@ -10,13 +10,13 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 
-import type { ClienteResumo, OrdemServicoStatus } from '../../types/ordemServico.types';
-import type { Cliente } from '@/modules/customers/types/clientes.types';
+import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
+import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
 
 interface Props {
-  cliente?: Cliente | ClienteResumo | null;
-  status?: OrdemServicoStatus | null;
+  cliente?: CustomerUnionReadSchemaDataType | null;
+  status?: OsStatusEnumDataType | null;
   dataCriacao?: string | Date;
   dataFinalizacao?: string | Date;
   isEditMode?: boolean;
@@ -29,27 +29,26 @@ const emit = defineEmits<{
   changeCliente: [];
 }>();
 
-const isClientePJ = computed(() => props.cliente?.tipo === 'PJ');
+const isClientePJ = computed(() => {
+  const c = props.cliente as { tipo?: string } | null | undefined;
+  return c?.tipo === 'PJ';
+});
 
 const clienteNome = computed(() => {
   if (!props.cliente) return 'Selecione um cliente';
-  if (props.cliente.tipo === 'PF') {
-    return props.cliente.nome || '-';
-  }
-  const pj = props.cliente as ClienteResumo;
-  return pj.nome_fantasia || pj.razao_social || '-';
+  const c = props.cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
+  if (c.tipo === 'PF') return c.nome || '-';
+  return c.nome_fantasia || c.razao_social || '-';
 });
 
 const formattedAddress = computed(() => {
-  const clienteCompleto = props.cliente as Cliente | undefined;
-  if (clienteCompleto?.endereco?.length) {
-    const end = clienteCompleto.endereco[0];
+  if (!props.cliente) return 'Endereco nao cadastrado';
+  const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
+  if (c.endereco?.logradouro) {
+    const end = c.endereco;
     return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
   }
-  if (props.cliente) {
-    return 'Endereco disponivel no cadastro do cliente';
-  }
-  return 'Endereco nao cadastrado';
+  return 'Endereco disponivel no cadastro do cliente';
 });
 
 const formattedPhone = computed(() => {
@@ -98,7 +97,7 @@ const canChangeCliente = computed(() => {
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-brand-primary/30 transition-colors group relative">
     <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
       <div class="flex items-center gap-2">
-        <Building2 v-if="isClientePJ" :size="14" class="text-orange-600" />
+        <Building2 v-if="isClientePJ" :size="14" class="text-brand-primary" />
         <User v-else :size="14" class="text-brand-primary" />
         <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
           DADOS DO CLIENTE

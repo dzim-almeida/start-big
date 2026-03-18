@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Ellipsis, Pencil, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vue-next';
-import type { OrdemServicoListRead } from '../types/ordemServico.types';
+import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { OS_STATUS_FILTER_CONFIG } from '../constants/ordemServico.constants';
 import { getStatusLabel, getClienteNome } from '../../shared/utils/formatters';
 import { formatCurrency } from '@/shared/utils/finance';
@@ -9,7 +9,7 @@ import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchIn
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 
 interface Props {
-  ordensServico: OrdemServicoListRead[];
+  ordensServico: OrderServiceReadDataType[];
   isLoading?: boolean;
   totalPages?: number;
   currentPage?: number;
@@ -24,12 +24,12 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  view: [os: OrdemServicoListRead];
-  edit: [os: OrdemServicoListRead];
-  finalizar: [os: OrdemServicoListRead];
-  cancelar: [os: OrdemServicoListRead];
-  reabrir: [os: OrdemServicoListRead];
-  print: [os: OrdemServicoListRead];
+  view: [os: OrderServiceReadDataType];
+  edit: [os: OrderServiceReadDataType];
+  finalizar: [os: OrderServiceReadDataType];
+  cancelar: [os: OrderServiceReadDataType];
+  reabrir: [os: OrderServiceReadDataType];
+  print: [os: OrderServiceReadDataType];
   'update:currentPage': [page: number];
 }>();
 
@@ -57,9 +57,9 @@ function getStatusConfig(status: string) {
   return configs[status] || { bg: 'bg-zinc-50', text: 'text-zinc-700' };
 }
 
-function getOSSequence(numero: string): string {
-  if (!numero) return '00';
-  const parts = numero.split('-');
+function getOSSequence(numero_os: string): string {
+  if (!numero_os) return '00';
+  const parts = numero_os.split('-');
   if (parts.length === 3) {
     const seq = parseInt(parts[2], 10);
     return String(seq).padStart(2, '0');
@@ -108,7 +108,7 @@ function getOSSequence(numero: string): string {
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div class="w-10 h-10 bg-brand-primary rounded-xl flex flex-col items-center justify-center text-white">
                 <span class="text-[8px] opacity-70 font-medium leading-none">OS</span>
-                <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero) }}</span>
+                <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero_os) }}</span>
               </div>
             </td>
 
@@ -117,7 +117,7 @@ function getOSSequence(numero: string): string {
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
                   {{ getClienteNome(os.cliente) }}
                 </span>
-                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento }}</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento.tipo_equipamento }}</span>
               </div>
             </td>
 

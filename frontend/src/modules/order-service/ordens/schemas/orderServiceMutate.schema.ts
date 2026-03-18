@@ -20,7 +20,7 @@ export const OrderServiceCreateSchema = z.object({
 
   // Aninhamento
   equipamento: OsEquipCreateSchema,
-  itens: z.array(OsItemCreateSchema),
+  itens: z.array(OsItemCreateSchema).min(1, 'Adicione ao menos um item à OS'),
 });
 
 export const orderServiceCreateValidationSchema = toTypedSchema(OrderServiceCreateSchema)
@@ -59,7 +59,7 @@ export const OrderServiceUpdateSchema = z.object({
 
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
-  data_previsao: z.string().datetime().optional(),
+  data_previsao: z.string().optional(),
 });
 
 export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpdateSchema)

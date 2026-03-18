@@ -24,8 +24,8 @@ export const OsEquipReadSchema = z.object({
   id: z.number().int().positive(),
   cliente_id: z.number().int().positive(),
   ativo: z.boolean(),
-  data_criacao: z.string().datetime(),
-  data_atualizacao: z.string().datetime(),
+  data_criacao: z.string(),
+  data_atualizacao: z.string(),
 });
 
 export const OsEquipUpdateSchema = z.object({
@@ -41,4 +41,6 @@ export const OsEquipUpdateSchema = z.object({
   cliente_id: z.number().int().positive().optional(),
 });
 
+export type OsEquipCreateSchemaDataType = z.infer<typeof OsEquipCreateSchema>
+export type OsEquipReadSchemaDataType = z.infer<typeof OsEquipReadSchema>
 export type OsEquipUpdateSchemaDataType = z.infer<typeof OsEquipUpdateSchema>

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
-import { ClipboardList, Clock, PlayCircle, CheckCircle2 } from 'lucide-vue-next';
+import { ClipboardList, Clock, CheckCircle2, TrendingUp } from 'lucide-vue-next';
 import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
+import { formatCurrency } from '@/shared/utils/finance';
 
 interface Props {
   stats: {
     total: number;
     abertas: number;
-    emAndamento: number;
     finalizadas: number;
+    ticket_medio: number;
   };
   loading?: boolean;
 }
@@ -16,21 +17,23 @@ interface Props {
 const props = defineProps<Props>();
 
 interface CardInfo {
-  key: 'total' | 'abertas' | 'emAndamento' | 'finalizadas';
+  key: 'total' | 'abertas' | 'finalizadas' | 'ticket_medio';
   icon: Component;
   label: string;
+  currency?: boolean;
 }
 
 const CARDS_INFO: CardInfo[] = [
-  { key: 'total',       icon: ClipboardList, label: 'Total de OS'  },
-  { key: 'abertas',     icon: Clock,         label: 'Abertas'      },
-  { key: 'emAndamento', icon: PlayCircle,    label: 'Em Andamento' },
-  { key: 'finalizadas', icon: CheckCircle2,  label: 'Finalizadas'  },
+  { key: 'total',        icon: ClipboardList, label: 'Total de OS'  },
+  { key: 'abertas',      icon: Clock,         label: 'Abertas'      },
+  { key: 'finalizadas',  icon: CheckCircle2,  label: 'Finalizadas'  },
+  { key: 'ticket_medio', icon: TrendingUp,    label: 'Ticket Médio', currency: true },
 ];
 
-function getCardValue(key: CardInfo['key']): string {
+function getCardValue(card: CardInfo): string {
   if (props.loading) return '...';
-  return String(props.stats[key]);
+  if (card.currency) return formatCurrency(props.stats[card.key]);
+  return String(props.stats[card.key]);
 }
 </script>
 
@@ -41,7 +44,7 @@ function getCardValue(key: CardInfo['key']): string {
       :key="item.key"
       :icon="item.icon"
       :label="item.label"
-      :value="getCardValue(item.key)"
+      :value="getCardValue(item)"
     />
   </div>
 </template>

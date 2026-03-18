@@ -45,7 +45,7 @@ export function useCreateItemOSMutation() {
   return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, OsItemCreateRequest>({
     mutationFn: createItemOS,
     onSuccess: (data) => {
-      const lastItem = data.itens.pop();
+      const lastItem = data.itens.at(-1);
       const itemType = lastItem?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço';
       toast.success(`${itemType} adicionado com sucesso na ${data.numero_os}`);
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });

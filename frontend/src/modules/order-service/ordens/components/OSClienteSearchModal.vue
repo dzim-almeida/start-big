@@ -4,9 +4,9 @@ import { UserCircle2, Building2, Plus } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
-import { useOSClientSearch } from '../composables/useOSClientSearch';
+import { useOSClientSearch } from '../composables/request/relationship/useOSClientSearch.queries';
 import { useCustomerModal } from '@/modules/customers/composables/useCustomerModal';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
+import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import { getInitials } from '@/shared/utils/string.utils';
 
 interface Props {
@@ -17,7 +17,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  selectCliente: [cliente: ClienteSearchResult];
+  selectCliente: [cliente: CustomerUnionReadSchemaDataType];
 }>();
 
 const isOpen = toRef(props, 'isOpen');
@@ -35,18 +35,20 @@ watch(lastCreatedId, async (id) => {
   }
 });
 
-function handleSelect(cliente: ClienteSearchResult) {
+function handleSelect(cliente: CustomerUnionReadSchemaDataType) {
   emit('selectCliente', cliente);
   emit('close');
 }
 
-function getClienteNome(cliente: ClienteSearchResult): string {
-  if (cliente.tipo === 'PF') return cliente.nome;
-  return cliente.nome_fantasia || cliente.razao_social || cliente.nome;
+function getClienteNome(cliente: CustomerUnionReadSchemaDataType): string {
+  const c = cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
+  if (c.tipo === 'PF') return c.nome || '-';
+  return c.nome_fantasia || c.razao_social || '-';
 }
 
-function getClienteDocumento(cliente: ClienteSearchResult): string {
-  return cliente.tipo === 'PF' ? (cliente.cpf || '—') : (cliente.cnpj || '—');
+function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
+  const c = cliente as { tipo: string; cpf?: string; cnpj?: string };
+  return c.tipo === 'PF' ? (c.cpf || '—') : (c.cnpj || '—');
 }
 </script>
 
@@ -98,13 +100,13 @@ function getClienteDocumento(cliente: ClienteSearchResult): string {
             <p class="text-sm font-semibold text-zinc-900 truncate">{{ getClienteNome(cliente) }}</p>
             <p class="text-[11px] text-zinc-400 truncate">
               {{ getClienteDocumento(cliente) }}
-              <template v-if="cliente.celular || cliente.telefone">
-                · {{ cliente.celular || cliente.telefone }}
+              <template v-if="(cliente as any).celular || (cliente as any).telefone">
+                · {{ (cliente as any).celular || (cliente as any).telefone }}
               </template>
             </p>
           </div>
           <component
-            :is="cliente.tipo === 'PF' ? UserCircle2 : Building2"
+            :is="(cliente as any).tipo === 'PF' ? UserCircle2 : Building2"
             :size="15"
             class="text-zinc-300 shrink-0"
           />

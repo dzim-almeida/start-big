@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Trash2, Plus, Image as ImageIcon, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
-import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { useToast } from '@/shared/composables/useToast';
-import { ordemServicoService } from '../../services/ordemServico.service';
-import type { OrdemServicoFotoRead } from '../../types/ordemServico.types';
+import { useUploadFotoOSMutation, useDeleteFotoOSMutation } from '../../composables/request/relationship/useOSPhotoMutate.mutate';
+import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.schema';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
 
 interface Props {
-  ordemServicoId: number;
-  fotos: OrdemServicoFotoRead[];
+  osNumero: string;
+  fotos: OsImageReadDataType[];
   readOnly?: boolean;
 }
 
@@ -26,38 +25,34 @@ const emit = defineEmits<{
 }>();
 
 const toast = useToast();
-const queryClient = useQueryClient();
 const fileInput = ref<HTMLInputElement | null>(null);
 const isUploading = ref(false);
 
-const uploadMutation = useMutation({
-  mutationFn: async (file: File) => {
-    return await ordemServicoService.uploadFoto(props.ordemServicoId, file);
-  },
-  onMutate: () => { isUploading.value = true; },
-  onSuccess: () => {
-    toast.success('Foto enviada com sucesso!');
-    emit('uploaded');
-    queryClient.invalidateQueries({ queryKey: ['ordem-servico', props.ordemServicoId] });
-  },
-  onError: () => { toast.error('Erro ao enviar foto.'); },
-  onSettled: () => {
-    isUploading.value = false;
-    if (fileInput.value) fileInput.value.value = '';
-  },
-});
+const uploadMutation = useUploadFotoOSMutation();
+const deleteMutation = useDeleteFotoOSMutation();
 
-const deleteMutation = useMutation({
-  mutationFn: async (fotoId: number) => {
-    return await ordemServicoService.deleteFoto(fotoId);
-  },
-  onSuccess: () => {
-    toast.success('Foto removida com sucesso!');
-    emit('deleted');
-    queryClient.invalidateQueries({ queryKey: ['ordem-servico', props.ordemServicoId] });
-  },
-  onError: () => { toast.error('Erro ao remover foto.'); },
-});
+async function handleFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+  const file = target.files[0];
+  if (!file.type.startsWith('image/')) {
+    toast.error('Selecione apenas arquivos de imagem.');
+    return;
+  }
+  isUploading.value = true;
+  uploadMutation.mutate(
+    { osNumber: props.osNumero, imageFile: file },
+    {
+      onSuccess: () => emit('uploaded'),
+      onSettled: () => {
+        isUploading.value = false;
+        if (fileInput.value) fileInput.value.value = '';
+      },
+    },
+  );
+}
+
+function triggerFileInput() { fileInput.value?.click(); }
 
 const slideshow = ref({ isOpen: false, currentIndex: 0 });
 
@@ -107,24 +102,13 @@ function closeDeleteModal() {
 
 function confirmDelete() {
   if (confirmDeleteModal.value.fotoId) {
-    deleteMutation.mutate(confirmDeleteModal.value.fotoId);
+    deleteMutation.mutate(
+      { osNumber: props.osNumero, fotoId: confirmDeleteModal.value.fotoId },
+      { onSuccess: () => emit('deleted') },
+    );
     closeDeleteModal();
   }
 }
-
-function handleFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    const file = target.files[0];
-    if (!file.type.startsWith('image/')) {
-      toast.error('Selecione apenas arquivos de imagem.');
-      return;
-    }
-    uploadMutation.mutate(file);
-  }
-}
-
-function triggerFileInput() { fileInput.value?.click(); }
 
 function getImageUrl(url: string) {
   const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
