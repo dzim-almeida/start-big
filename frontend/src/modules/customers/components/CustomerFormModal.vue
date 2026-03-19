@@ -23,10 +23,10 @@ import ContactSection from './form/ContactSection.vue';
 import NotesSection from './form/NotesSection.vue';
 
 // =============================================
-// Modal State
+// Modal State/ Gestão das funcionalidades aqui ação da pagina de cadastro do cliente tipo abrir, fechar, editar e etc
 // =============================================
 
-const {
+const { 
   isOpen,
   isCreateMode,
   isEditMode,
@@ -36,7 +36,7 @@ const {
 } = useCustomerModal();
 
 // =============================================
-// Form Management (provider)
+// Form Management (provider)/ Gestão das funcionalidades aqui função mesmo de criar, atualizar e etc da pagina cadastro de cliente 
 // =============================================
 
 const {
@@ -79,6 +79,12 @@ onUnmounted(() => {
 watch(isOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : '';
 });
+
+onUnmounted(()=>{
+  document.removeEventListener('keydown', handleKeydown);
+  document.body.style.overflow = '';
+
+})
 </script>
 
 <template>

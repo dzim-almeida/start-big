@@ -22,7 +22,7 @@ class Endereco(BaseModel):
     numero: str = Field(..., max_length=20, description="Número do endereço")
     bairro: str = Field(..., max_length=100, description="Bairro do endereço")
     cidade: str = Field(..., max_length=100, description="Cidade do endereço")
-    estado: State = Field(..., description="Estado do endereço (UF)")
+    estado: Optional[State] = Field(None, description="Estado do endereço (UF)")
     cep: str = Field(..., max_length=10, description="CEP do endereço")
     
     # Campo opcional (definido com None)

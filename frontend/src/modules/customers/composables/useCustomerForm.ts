@@ -97,7 +97,7 @@ export const GENDER_OPTIONS = [
 export interface CustomerFormContext {
   // Customer type
   customerType: Ref<TipoCliente>;
-  setCustomerType: (type: TipoCliente) => void;
+  setCustomerType: (type: string) => void;
 
   // PF Fields
   nome: Ref<string | undefined>;
@@ -146,11 +146,17 @@ export const CUSTOMER_FORM_KEY: InjectionKey<CustomerFormContext> = Symbol('cust
 
 function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: true): EnderecoUpdate[] | undefined;
 function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: false): EnderecoCreate[] | undefined;
+function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: true): EnderecoUpdate[] | undefined;
+function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: false): EnderecoCreate[] | undefined;
 function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: boolean): EnderecoCreate[] | EnderecoUpdate[] | undefined {
-  if (addresses.length === 0) return undefined;
+  // Filtra endereços completamente vazios (endereço padrão não preenchido)
+  const nonEmpty = addresses.filter(addr =>
+    addr.cep || addr.logradouro || addr.numero || addr.bairro || addr.cidade || addr.estado
+  );
+  if (nonEmpty.length === 0) return undefined;
 
   if (isUpdate) {
-    return addresses.map((addr): EnderecoUpdate => ({
+    return nonEmpty.map((addr): EnderecoUpdate => ({
       id: addr.id,
       cep: unmaskCep(addr.cep || ''),
       logradouro: addr.logradouro || '',
@@ -162,14 +168,14 @@ function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: boole
     }));
   }
 
-  return addresses.map((addr): EnderecoCreate => ({
+  return nonEmpty.map((addr): EnderecoCreate => ({
     cep: unmaskCep(addr.cep || ''),
     logradouro: addr.logradouro || '',
     numero: addr.numero || '',
     complemento: addr.complemento || undefined,
     bairro: addr.bairro || '',
     cidade: addr.cidade || '',
-    estado: (addr.estado || '') as State,
+    estado: (addr.estado || undefined) as State,
   }));
 }
 
@@ -292,8 +298,8 @@ export function useCustomerFormProvider() {
   }
 
   // Set customer type
-  function setCustomerType(type: TipoCliente) {
-    customerType.value = type;
+  function setCustomerType(type: string) {
+    customerType.value = type as TipoCliente;
   }
 
   // Populate form when editing
@@ -433,48 +439,46 @@ export function useCustomerFormProvider() {
   }
 
   // Submit handler
-  const onSubmit = async (e?: Event) => {
-    e?.preventDefault();
+  const onSubmit = (e?: Event) => {
     apiError.value = null;
 
+    // Usa handleSubmit do form ativo para incrementar submitCount e exibir erros de validação
     const activeForm = getActiveForm();
-    const { valid } = await activeForm.validate();
-
-    if (!valid) {
-      return;
-    }
-
-    try {
-      if (isCreateMode.value) {
-        if (customerType.value === 'PF') {
-          const request = transformPFToCreateRequest();
-          await createPFMutation.mutateAsync(request);
-        } else {
-          const request = transformPJToCreateRequest();
-          await createPJMutation.mutateAsync(request);
+    const submitHandler = activeForm.handleSubmit(async () => {
+      try {
+        if (isCreateMode.value) {
+          if (customerType.value === 'PF') {
+            const request = transformPFToCreateRequest();
+            await createPFMutation.mutateAsync(request);
+          } else {
+            const request = transformPJToCreateRequest();
+            await createPJMutation.mutateAsync(request);
+          }
+        } else if (selectedCustomer.value) {
+          if (customerType.value === 'PF') {
+            const request = transformPFToUpdateRequest();
+            await updateMutation.mutateAsync({
+              id: selectedCustomer.value.id,
+              data: request,
+            });
+          } else {
+            const request = transformPJToUpdateRequest();
+            await updateMutation.mutateAsync({
+              id: selectedCustomer.value.id,
+              data: request,
+            });
+          }
         }
-      } else if (selectedCustomer.value) {
-        if (customerType.value === 'PF') {
-          const request = transformPFToUpdateRequest();
-          await updateMutation.mutateAsync({
-            id: selectedCustomer.value.id,
-            data: request,
-          });
-        } else {
-          const request = transformPJToUpdateRequest();
-          await updateMutation.mutateAsync({
-            id: selectedCustomer.value.id,
-            data: request,
-          });
-        }
+
+        closeModal();
+        pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
+        pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
+      } catch (error: any) {
+        apiError.value = error?.response?.data?.detail || 'Erro ao salvar cliente';
       }
+    });
 
-      closeModal();
-      pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
-      pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
-    } catch (error: any) {
-      apiError.value = error?.response?.data?.detail || 'Erro ao salvar cliente';
-    }
+    return submitHandler(e);
   };
 
   const isPending = computed(

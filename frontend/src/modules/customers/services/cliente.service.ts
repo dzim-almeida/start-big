@@ -83,11 +83,14 @@ export async function createClientePJ(data: ClientePJCreate): Promise<ClienteRea
  * @returns Promise com array de clientes
  */
 export async function getClientes(buscar?: string, status: string = 'ativos'): Promise<ClienteRead[]> {
-  const params: Record<string, string> = { status };
+  const params: Record<string, string | boolean | number> = {
+    only_active: status === 'ativos',
+    limit: 100,
+  };
   if (buscar) params.buscar = buscar;
-  
-  const response = await api.get<ClienteRead[]>('/clientes', { params });
-  return response.data;
+
+  const response = await api.get<{ items: ClienteRead[] }>('/clientes/', { params });
+  return response.data.items;
 }
 
 /**

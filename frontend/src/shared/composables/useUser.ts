@@ -5,6 +5,7 @@ export function useUserQuery() {
     return useQuery({
         queryKey: ['user-me'],
         queryFn: () => getUser(),
-        staleTime: 1000 * 60 * 30
+        staleTime: 1000 * 60 * 30,
+        retry: false,
     });
 }
