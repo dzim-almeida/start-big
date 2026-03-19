@@ -17,9 +17,9 @@ import { OsImageReadSchema } from './relationship/osPhoto.schema';
 import { PaginationBaseSchema } from '@/shared/schemas/pagination/pagination.schema';
 
 const OrderServiceParamsSchema = z.object({
-  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional(),
-  status: OsStatusEnum.optional(),
-  priority_sort: z.boolean().optional(),
+  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').nullish(),
+  status: OsStatusEnum.nullish(),
+  priority_sort: z.boolean().nullish(),
 });
 
 export const orderServiceParamsValidationSchema = toTypedSchema(OrderServiceParamsSchema);
@@ -60,7 +60,17 @@ export const orderServiceReadValidationSchema = toTypedSchema(OrderServiceReadSc
 export type OrderServiceReadDataType = z.infer<typeof OrderServiceReadSchema>;
 
 export const OrderServicePaginationSchema = z.object({
-  ...PaginationBaseSchema.shape,
+  total_items: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total_pages: z.number().int().nonnegative(),
+  links: z
+    .object({
+      next: z.string().nullable().optional(),
+      prev: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
   filters: OrderServiceParamsSchema,
   items: z.array(OrderServiceReadSchema),
 });

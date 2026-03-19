@@ -93,7 +93,7 @@ function handleCloseFinalizarModal() {
 
 async function handleView(os: OrdemServicoListRead) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await ordemServicoService.getById(os.numero_os);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
@@ -104,7 +104,7 @@ async function handleView(os: OrdemServicoListRead) {
 
 async function handleEdit(os: OrdemServicoListRead) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await ordemServicoService.getById(os.numero_os);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
@@ -115,7 +115,7 @@ async function handleEdit(os: OrdemServicoListRead) {
 
 async function handleFinalizar(os: OrdemServicoListRead) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await ordemServicoService.getById(os.numero_os);
     selectedOS.value = osCompleta;
     isFinalizarModalOpen.value = true;
   } catch {
@@ -137,7 +137,7 @@ function handleConfirmCancel(payload: { motivo: string; print: boolean }) {
   if (osToCancel.value) {
     const osRef = osToCancel.value;
     cancelarMutation.mutate(
-      { id: osRef.id, motivo: payload.motivo },
+      { id: osRef.numero_os, motivo: payload.motivo },
       {
         onSuccess: () => {
           if (payload.print) {
@@ -152,7 +152,7 @@ function handleConfirmCancel(payload: { motivo: string; print: boolean }) {
 
 async function printCancelamento(os: OrdemServicoListRead, motivo: string) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await ordemServicoService.getById(os.numero_os);
     const osComMotivo = { ...osCompleta, motivo_cancelamento: motivo };
     osToPrint.value = osComMotivo;
     printType.value = 'CANCELAMENTO';
@@ -176,7 +176,7 @@ function handleReabrir(os: OrdemServicoListRead) {
 
 async function handlePrintOS(os: OrdemServicoListRead) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await ordemServicoService.getById(os.numero_os);
     osToPrint.value = osCompleta;
     if (osCompleta.status === 'CANCELADA') {
       printType.value = 'CANCELAMENTO';

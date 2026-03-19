@@ -51,6 +51,7 @@ export function useOrderServiceQueryAll() {
     searchQuery,
     activeStatusFilterQuery,
     activePriorityFilterQuery,
+    currentPage,
     orderServices,
     totalPages,
     totalItems,
