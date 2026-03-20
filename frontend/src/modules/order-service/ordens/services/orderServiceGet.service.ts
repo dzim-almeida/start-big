@@ -17,14 +17,18 @@ export async function getAllOs(
 ): Promise<OrderServicePaginationDataType> {
   const params: Record<string, string | number | boolean> = {};
   if (query.search) params.search = query.search;
-  if (query.priority_sort !== undefined) params.priority_sort = query.priority_sort;
+  if (query.priority_sort != null) params.priority_sort = query.priority_sort;
   if (query.status) params.status = query.status;
 
   const { data } = await api.get<OrderServicePaginationDataType>(`${BASE_ORDER_SERVICE_URL}/`, {
     params,
   });
-  const validatedData = OrderServicePaginationSchema.parse(data);
-  return validatedData;
+  const result = OrderServicePaginationSchema.safeParse(data);
+  if (!result.success) {
+    console.warn('[getAllOs] Zod validation warning:', result.error.issues);
+    return data as OrderServicePaginationDataType;
+  }
+  return result.data;
 }
 
 export async function getUniqueOS(numero_os: string): Promise<OrderServiceReadDataType> {

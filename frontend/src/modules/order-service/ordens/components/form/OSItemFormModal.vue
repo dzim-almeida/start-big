@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { watch, computed } from 'vue';
 import { Wrench, ShoppingBag, Plus, Save } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -32,6 +32,7 @@ const emit = defineEmits<{
   close: [];
   save: [item: OrdemServicoItemCreate];
   'create-new-service': [];
+  'create-new-product': [];
 }>();
 
 const {
@@ -46,7 +47,7 @@ const {
   isValid,
   reset,
   populate,
-} = useOSItemForm(props);
+} = useOSItemForm();
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
@@ -58,13 +59,34 @@ watch(() => props.isOpen, (newVal) => {
   }
 });
 
+const currentOptions = computed(() =>
+  isService.value ? props.servicosOptions : props.produtosOptions,
+);
+
+watch(servicoId, (newId) => {
+  if (!newId) return;
+  const option = currentOptions.value.find((o) => String(o.value) === String(newId));
+  if (option?.preco !== undefined) {
+    valorUnitarioNum.value = option.preco / 100;
+  }
+});
+
 function handleSave() {
   if (!isValid.value) return;
+
+  const options = isService.value ? props.servicosOptions : props.produtosOptions;
+  const selectedOption = options.find((o) => String(o.value) === String(servicoId.value));
+  const nome = selectedOption?.label ?? descricao.value ?? '';
+
   emit('save', {
-    servico_id: servicoId.value ? Number(servicoId.value) : undefined,
+    tipo: isService.value ? 'SERVICO' : 'PRODUTO',
+    nome,
+    servico_id: isService.value && servicoId.value ? Number(servicoId.value) : undefined,
+    produto_id: !isService.value && servicoId.value ? Number(servicoId.value) : undefined,
     descricao: descricao.value,
     quantidade: quantidade.value,
     valor_unitario: valorUnitarioCents.value,
+    unidade_medida: 'UN',
   });
   emit('close');
 }
@@ -85,7 +107,7 @@ function handleClose() {
       <div class="flex p-1 bg-slate-100 rounded-lg">
         <button
           type="button"
-          @click="type = 'servicos'"
+          @click="type = 'SERVICO'"
           :class="[
             'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-md transition-all',
             isService ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
@@ -96,7 +118,7 @@ function handleClose() {
         </button>
         <button
           type="button"
-          @click="type = 'produtos'"
+          @click="type = 'PRODUTO'"
           :class="[
             'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-md transition-all',
             !isService ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
@@ -118,6 +140,14 @@ function handleClose() {
               @click="$emit('create-new-service')"
             >
               <Plus :size="10" /> NOVO SERVIÇO
+            </button>
+            <button
+              v-else
+              type="button"
+              class="text-[10px] text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 bg-brand-primary-light px-2 py-0.5 rounded-full"
+              @click="$emit('create-new-product')"
+            >
+              <Plus :size="10" /> NOVO PRODUTO
             </button>
           </label>
 

@@ -11,12 +11,16 @@ export function useOSClientSearch(isOpen: Ref<boolean>) {
   const debouncedSearch = refDebounced(searchQuery, 400);
   const clientes = ref<ClienteSearchResult[]>([]);
   const isLoading = ref(false);
+  const fetchError = ref<string | null>(null);
 
   async function fetchClientes() {
     isLoading.value = true;
+    fetchError.value = null;
     try {
       clientes.value = await searchClientes(debouncedSearch.value || undefined);
-    } catch {
+    } catch (err: any) {
+      console.error('[useOSClientSearch] Erro ao buscar clientes:', err?.response?.status, err?.response?.data ?? err?.message);
+      fetchError.value = err?.response?.data?.detail ?? err?.message ?? 'Erro desconhecido';
       clientes.value = [];
     } finally {
       isLoading.value = false;
@@ -39,6 +43,7 @@ export function useOSClientSearch(isOpen: Ref<boolean>) {
     searchQuery,
     clientes,
     isLoading,
+    fetchError,
     lastCreatedId,
   };
 }

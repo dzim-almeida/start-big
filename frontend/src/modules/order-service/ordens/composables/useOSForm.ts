@@ -223,10 +223,10 @@ export function useOSForm(
           funcionario_id: form.value.funcionario_id as number,
           equipamento: {
             tipo_equipamento: (form.value.equipamento as any) || 'OUTROS',
-            marca: form.value.marca,
-            modelo: form.value.modelo,
-            numero_serie: form.value.numero_serie,
-            imei: form.value.imei,
+            marca: form.value.marca || 'N/A',
+            modelo: form.value.modelo || 'N/A',
+            numero_serie: form.value.numero_serie || '0',
+            imei: form.value.imei || '0',
             cor: form.value.cor || undefined,
           },
           itens: itens.value.map((item) => ({
@@ -235,7 +235,7 @@ export function useOSForm(
             unidade_medida: (item.unidade_medida as any) ?? 'UN',
             quantidade: item.quantidade,
             valor_unitario: item.valor_unitario,
-            item_id: item.item_id,
+            item_id: item.item_id ?? (item.servico_id ? Number(item.servico_id) : undefined) ?? (item.produto_id ? Number(item.produto_id) : undefined),
           })),
         } as any);
         opts?.onSuccess?.(os);

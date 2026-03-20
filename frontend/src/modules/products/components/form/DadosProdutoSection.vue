@@ -4,6 +4,7 @@
  * @description Form section for product basic data
  */
 
+import { computed } from 'vue';
 import { Package } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -11,6 +12,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import ImageUploadSection from './ImageUploadSection.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useProductForm } from '../../composables/useProductForm';
+import { useFornecedoresQuery } from '../../fornecedores/composables/useFornecedoresQuery';
 
 // =============================================
 // Props
@@ -56,6 +58,14 @@ const {
   observacao,
   errors,
 } = useProductForm();
+
+const { fornecedores } = useFornecedoresQuery();
+const fornecedorOptions = computed(() => [
+  { value: '', label: 'Sem fornecedor' },
+  ...fornecedores.value
+    .filter((f) => f.ativo)
+    .map((f) => ({ value: String(f.id), label: f.nome_fantasia || f.nome })),
+]);
 
 function handleGenerateSku() {
   if (!codigo_produto.value) {
@@ -157,10 +167,11 @@ function handleGenerateSku() {
           />
         </div>
         <div class="col-span-12 md:col-span-4">
-          <BaseInput
+          <BaseSelect
             v-model="fornecedor_id"
             label="Fornecedor"
             placeholder="Selecione o fornecedor"
+            :options="fornecedorOptions"
             :error="submitCount > 0 ? errors.fornecedor_id : ''"
             :disabled="disabled"
           />

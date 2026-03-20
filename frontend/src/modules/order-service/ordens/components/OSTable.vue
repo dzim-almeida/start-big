@@ -106,9 +106,12 @@ function getOSSequence(numero: string): string {
             @click="emit('view', os)"
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
-              <div class="w-10 h-10 bg-brand-primary rounded-xl flex flex-col items-center justify-center text-white">
-                <span class="text-[8px] opacity-70 font-medium leading-none">OS</span>
-                <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero) }}</span>
+              <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-brand-primary rounded-xl flex flex-col items-center justify-center text-white shrink-0">
+                  <span class="text-[8px] opacity-70 font-medium leading-none">OS</span>
+                  <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero_os) }}</span>
+                </div>
+                <span class="text-[10px] font-mono text-zinc-400 hidden md:block">{{ os.numero_os }}</span>
               </div>
             </td>
 
@@ -117,7 +120,9 @@ function getOSSequence(numero: string): string {
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
                   {{ getClienteNome(os.cliente) }}
                 </span>
-                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento }}</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">
+                  {{ os.equipamento.marca }} {{ os.equipamento.modelo }}
+                </span>
               </div>
             </td>
 

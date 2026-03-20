@@ -4,7 +4,7 @@
  * @description Employee list table with search, filter, and actions
  */
 
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   Ellipsis,
   Mail,
@@ -74,7 +74,11 @@ const statusConfig: Record<EmployeeStatus, { label: string; class: string, color
 // Local State
 // =============================================
 
+const ITEMS_PER_PAGE = 10;
+const currentPage = ref(1);
 const selectedStatus = ref<EmployeeStatus | null>(null);
+
+watch([search, selectedStatus], () => { currentPage.value = 1; });
 
 const positionsById = computed(() => {
   return new Map((props.positions || []).map((position) => [position.id, position]));
@@ -91,9 +95,6 @@ function getEmployeeStatus(employee: FuncionarioRead): EmployeeStatus {
   return employee.ativo ? 'active' : 'inactive';
 }
 
-/**
- * Filters employees based on search and status
- */
 const filteredEmployees = computed(() => {
   if (!props.employees) return [];
 
@@ -111,6 +112,13 @@ const filteredEmployees = computed(() => {
 
     return matchesSearch && matchesStatus;
   });
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredEmployees.value.length / ITEMS_PER_PAGE)));
+
+const pagedEmployees = computed(() => {
+  const start = (currentPage.value - 1) * ITEMS_PER_PAGE;
+  return filteredEmployees.value.slice(start, start + ITEMS_PER_PAGE);
 });
 
 function getEmployeeRole(employee: FuncionarioRead): string {
@@ -144,13 +152,14 @@ function handleToggleActive(employee: FuncionarioRead) {
     :is-error="isError"
     :is-empty="filteredEmployees.length === 0"
     :total-items="filteredEmployees.length"
-    :current-page="1"
-    :total-pages="1"
+    :current-page="currentPage"
+    :total-pages="totalPages"
     item-label="funcionário"
     empty-title="Nenhum funcionário encontrado"
     :empty-description="employees.length > 0 ? 'Tente ajustar os filtros de busca.' : 'Cadastre seu primeiro funcionário.'"
     error-title="Erro ao carregar funcionários"
     error-description="Verifique sua conexão e tente novamente."
+    @update:current-page="currentPage = $event"
   >
     <!-- Toolbar -->
     <template #toolbar>
@@ -182,7 +191,7 @@ function handleToggleActive(employee: FuncionarioRead) {
         </thead>
         <tbody class="divide-y divide-zinc-100">
           <tr
-            v-for="employee in filteredEmployees"
+            v-for="employee in pagedEmployees"
             :key="employee.id"
             class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
             @click="handleView(employee)"

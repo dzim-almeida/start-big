@@ -101,7 +101,7 @@ def get_cliente_by_search(
                 poly.ClientePJ.razao_social.ilike(like_search),
                 poly.ClientePJ.nome_fantasia.ilike(like_search),
                 poly.ClientePJ.cnpj.startswith(search),
-                poly.ClienteModel.email.ilike(like_search),
+                poly.email.ilike(like_search),
             )
         )
 

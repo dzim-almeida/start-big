@@ -10,15 +10,16 @@ import {
   RefreshCw,
 } from 'lucide-vue-next';
 
-import type { ClienteResumo, OrdemServicoStatus } from '../../types/ordemServico.types';
+import type { OrdemServicoStatus } from '../../types/ordemServico.types';
 import type { Cliente } from '@/modules/customers/types/clientes.types';
+import type { ClienteSearchResult } from '@/shared/services/cliente.service';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
 
 interface Props {
-  cliente?: Cliente | ClienteResumo | null;
+  cliente?: Cliente | ClienteSearchResult | null;
   status?: OrdemServicoStatus | null;
-  dataCriacao?: string | Date;
-  dataFinalizacao?: string | Date;
+  dataCriacao?: string | Date | null;
+  dataFinalizacao?: string | Date | null;
   isEditMode?: boolean;
   isFinalizada?: boolean;
 }

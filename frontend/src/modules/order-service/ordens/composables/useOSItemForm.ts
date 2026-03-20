@@ -7,21 +7,14 @@ export interface SelectOption {
   preco?: number;
 }
 
-interface UseOSItemFormProps {
-  servicosOptions: SelectOption[];
-  produtosOptions: SelectOption[];
-  isLoadingServicos?: boolean;
-  isLoadingProdutos?: boolean;
-}
-
-export function useOSItemForm(props: UseOSItemFormProps) {
+export function useOSItemForm() {
   const type = ref<string>('SERVICO');
   const servicoId = ref<string | number | undefined>(undefined);
   const descricao = ref<string>('');
   const quantidade = ref<number>(1);
   const valorUnitarioNum = ref<number>(0);
 
-  const isService = computed(() => type.value === 'SERVICO');
+  const isService = computed(() => type.value !== 'PRODUTO');
 
   const valorUnitarioCents = computed(() => Math.round(valorUnitarioNum.value * 100));
 

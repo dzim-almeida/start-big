@@ -2,7 +2,7 @@ import api from '@/api/axios';
 
 import { OrderServiceReadSchema, OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 
-import { OrderServiceUpdateRequest, OsCancelUpdateRequest, OsEquipUpdateResquest, OsItemUpdateRequest, OsReadyUpdateRequest } from '../types/requests.type';
+import { OrderServiceUpdateRequest, OsCancelUpdateRequest, OsEquipUpdateRequest, OsItemUpdateRequest, OsReadyUpdateRequest, OsDeleteItem } from '../types/requests.type';
 
 import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
 
@@ -12,7 +12,7 @@ export async function updateOrderService(orderService: OrderServiceUpdateRequest
     return validatedData
 }
 
-export async function updateEquipOS(equipOs: OsEquipUpdateResquest): Promise<OrderServiceReadDataType> {
+export async function updateEquipOS(equipOs: OsEquipUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${equipOs.osNumber}/equipamento`, equipOs.updatedEquip)
     const validatedData = OrderServiceReadSchema.parse(data)
     return validatedData
@@ -40,5 +40,12 @@ export async function updateReopen(os_number: string): Promise<OrderServiceReadD
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${os_number}/reabrir`)
     const validatedData = OrderServiceReadSchema.parse(data)
     return validatedData
+}
+
+export async function deleteItemOS(deleteItem: OsDeleteItem): Promise<OrderServiceReadDataType> {
+    const { data } = await api.delete<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${deleteItem.osNumber}/itens/${deleteItem.itemOsId}`)
+    const result = OrderServiceReadSchema.safeParse(data)
+    if (!result.success) return data as OrderServiceReadDataType
+    return result.data
 }
 

@@ -16,16 +16,21 @@ import OSReopenOptionsModal from './form/OSReopenOptionsModal.vue';
 import OSPrintTemplate from './OSPrintTemplate.vue';
 import OSFinalizarModal from './OSFinalizarModal.vue';
 import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
+import ProductModal from '@/modules/products/components/ProductModal.vue';
 import OSItemFormModal from './form/OSItemFormModal.vue';
 import OSEquipamentoSelectModal from './form/OSEquipamentoSelectModal.vue';
 
 import type { OrdemServicoRead, OrdemServicoItemCreate } from '../types/ordemServico.types';
 import { useServicoModal } from '../../servicos/composables/useServicoModal';
+import { useProductModal } from '@/modules/products/composables/useProductModal';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
 import type { ClienteSearchResult } from '@/shared/services/cliente.service';
 import { getClientEquipments } from '@/modules/customers/services/cliente.service';
 
 import { useOSForm } from '../composables/useOSForm';
+import { useCreateItemOSMutation } from '../composables/request/useOrderServiceCreate.mutate';
+import { useDeleteItemOSMutation } from '../composables/request/useOrderServiceUpdate.mutate';
+
 
 interface Props {
   isOpen: boolean;
@@ -54,19 +59,12 @@ function handlePrint() {
 }
 
 function onSaved(os: OrdemServicoRead) {
-  if (!props.ordemServico) {
-    savedOS.value = os;
-    printType.value = 'ENTRADA';
-    setTimeout(() => {
-      window.print();
-      handleClose();
-    }, 100);
-  } else {
-    handleClose();
-  }
+  savedOS.value = os;
+  emit('saved', os);
+  handleClose();
 }
 
-const osForm = useOSForm(props, emit, { onSuccess: onSaved });
+const osForm = useOSForm(props, emit as (event: string, ...args: any[]) => void, { onSuccess: onSaved });
 
 const {
   form,
@@ -95,6 +93,10 @@ const isItemModalOpen = ref(false);
 const editingItemIndex = ref<number | null>(null);
 const editingItem = ref<OrdemServicoItemCreate | null>(null);
 const { openCreateModal: openCreateServicoModal } = useServicoModal();
+const { openCreateModal: openCreateProductModal } = useProductModal();
+
+const createItemMutation = useCreateItemOSMutation();
+const deleteItemMutation = useDeleteItemOSMutation();
 
 function openAddItemModal() {
   editingItemIndex.value = null;
@@ -117,7 +119,28 @@ function closeItemModal() {
   editingItemIndex.value = null;
 }
 
-function handleSaveItem(item: OrdemServicoItemCreate) {
+async function handleSaveItem(item: OrdemServicoItemCreate) {
+  if (isEditMode.value && props.ordemServico?.numero_os) {
+    const osItem = {
+      tipo: (item.tipo as any) ?? 'SERVICO',
+      nome: item.nome ?? item.descricao ?? '',
+      unidade_medida: (item.unidade_medida as any) ?? 'UN',
+      quantidade: item.quantidade,
+      valor_unitario: item.valor_unitario,
+      item_id: item.item_id ?? (item.servico_id ? Number(item.servico_id) : undefined) ?? (item.produto_id ? Number(item.produto_id) : undefined),
+    };
+    // If editing an existing item (has id), delete it first then create new
+    const existingId = editingItemIndex.value !== null ? (itens.value[editingItemIndex.value] as any).id : null;
+    if (existingId) {
+      await deleteItemMutation.mutateAsync({ osNumber: props.ordemServico.numero_os, itemOsId: existingId });
+    }
+    const updatedOS = await createItemMutation.mutateAsync({ osNumber: props.ordemServico.numero_os, osItem });
+    itens.value = (updatedOS.itens ?? []).map((i: any) => ({
+      ...i,
+      servico_id: i.servico_id ? String(i.servico_id) : undefined,
+    }));
+    return;
+  }
   const formItem = {
     ...item,
     servico_id: item.servico_id ? String(item.servico_id) : undefined,
@@ -127,6 +150,19 @@ function handleSaveItem(item: OrdemServicoItemCreate) {
   } else {
     itens.value.push(formItem);
   }
+}
+
+async function handleRemoveItem(index: number) {
+  const item = itens.value[index] as any;
+  if (isEditMode.value && props.ordemServico?.numero_os && item.id) {
+    const updatedOS = await deleteItemMutation.mutateAsync({ osNumber: props.ordemServico.numero_os, itemOsId: item.id });
+    itens.value = (updatedOS.itens ?? []).map((i: any) => ({
+      ...i,
+      servico_id: i.servico_id ? String(i.servico_id) : undefined,
+    }));
+    return;
+  }
+  removeItem(index);
 }
 
 type TabType = 'equipamento' | 'diagnostico' | 'servicos';
@@ -141,8 +177,9 @@ const tabs: { id: TabType; label: string; icon: Component }[] = [
 const nextOSNumber = ref<string | null>(null);
 
 const osNumber = computed(() => {
-  const num = props.ordemServico?.numero || nextOSNumber.value;
-  return num ? String(num).replace(/^OS-\d{4}-/, '') : '...';
+  const num = props.ordemServico?.numero_os;
+  if (!num) return 'NOVA';
+  return String(num).replace(/^OS-\d{4}-/, '');
 });
 
 const currentCliente = computed(() => props.selectedCliente || props.ordemServico?.cliente);
@@ -223,7 +260,7 @@ function onFinalized({ os, shouldPrint }: { os: OrdemServicoRead; shouldPrint: b
 async function handlePhotoChange() {
   if (props.ordemServico?.id) {
     const { ordemServicoService } = await import('../services/ordemServico.service');
-    const osUpdated = await ordemServicoService.getById(props.ordemServico.id);
+    const osUpdated = await ordemServicoService.getById(String(props.ordemServico.id));
     savedOS.value = osUpdated;
     emit('saved', osUpdated);
   }
@@ -262,7 +299,7 @@ const selectedHistorico = ref<string>('');
 const isEquipSelectModalOpen = ref(false);
 
 async function fetchEquipamentosHistorico() {
-  const clienteId = props.selectedCliente?.id || props.ordemServico?.cliente_id;
+  const clienteId = props.selectedCliente?.id || (props.ordemServico as any)?.cliente_id || props.ordemServico?.cliente?.id;
   if (!clienteId) {
     equipamentosHistorico.value = [];
     return;
@@ -278,7 +315,7 @@ async function fetchEquipamentosHistorico() {
   }
 }
 
-watch(() => [props.selectedCliente?.id, props.ordemServico?.cliente_id], fetchEquipamentosHistorico, { immediate: true });
+watch(() => [props.selectedCliente?.id, (props.ordemServico as any)?.cliente_id], fetchEquipamentosHistorico, { immediate: true });
 
 function handleEquipamentoSelected(equip: EquipamentoHistorico) {
   form.value.equipamento = equip.equipamento;
@@ -406,7 +443,7 @@ function applyEquipamentoHistorico() {
             :valor-entrada="Number(form.valor_entrada) || 0"
             @add-item="openAddItemModal"
             @edit-item="openEditItemModal"
-            @remove-item="removeItem"
+            @remove-item="handleRemoveItem"
           />
         </div>
       </fieldset>
@@ -455,9 +492,11 @@ function applyEquipamentoHistorico() {
     @close="closeItemModal"
     @save="handleSaveItem"
     @create-new-service="openCreateServicoModal"
+    @create-new-product="openCreateProductModal"
   />
 
   <ServicoFormModal />
+  <ProductModal />
 
   <OSEquipamentoSelectModal
     :is-open="isEquipSelectModalOpen"

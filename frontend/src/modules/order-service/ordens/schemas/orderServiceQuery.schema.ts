@@ -14,8 +14,6 @@ import { OsEquipReadSchema } from './relationship/osEquip.schema';
 import { OsItemReadSchema } from './relationship/osItem.schema';
 import { OsPaymentReadSchema } from './relationship/osPayment.schema';
 import { OsImageReadSchema } from './relationship/osPhoto.schema';
-import { PaginationBaseSchema } from '@/shared/schemas/pagination/pagination.schema';
-
 const OrderServiceParamsSchema = z.object({
   search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').nullish(),
   status: OsStatusEnum.nullish(),
@@ -36,20 +34,20 @@ export const OrderServiceReadSchema = z.object({
   status: OsStatusEnum,
 
   // Financeiro
-  valor_bruto: z.number().int().positive(),
-  valor_total: z.number().int().positive(),
+  valor_bruto: z.number().int().nonnegative(),
+  valor_total: z.number().int().nonnegative(),
 
   // Datas
-  data_finalizacao: z.string().datetime().optional(),
-  data_criacao: z.string().datetime(),
-  data_atualizacao: z.string().datetime(),
+  data_finalizacao: z.string().nullish(),
+  data_criacao: z.string(),
+  data_atualizacao: z.string(),
 
   // Status Lógico
   ativo: z.boolean(),
 
   // Relacionamentos
   cliente: z.union([CustomerPFReadSchema, CustomerPJReadSchema]),
-  funcionario: EmployeeReadSchema,
+  funcionario: EmployeeReadSchema.nullable(),
   equipamento: OsEquipReadSchema,
   itens: z.array(OsItemReadSchema),
   pagamentos: z.array(OsPaymentReadSchema),

@@ -2,13 +2,12 @@
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import type { OrdemServicoStatus, OrdemServicoPrioridade } from '../../types/ordemServico.types';
 
 interface Props {
-  status: OrdemServicoStatus;
-  funcionarioId: string;
-  prioridade: OrdemServicoPrioridade;
-  dataPrevisao: string;
+  status: string;
+  funcionarioId: number | string | undefined;
+  prioridade: string;
+  dataPrevisao: string | undefined;
   statusOptions: SelectOption[];
   prioridadeOptions: SelectOption[];
   funcionariosOptions: SelectOption[];
@@ -17,9 +16,9 @@ interface Props {
 defineProps<Props>();
 
 const emit = defineEmits<{
-  'update:status': [value: OrdemServicoStatus];
+  'update:status': [value: string];
   'update:funcionarioId': [value: string];
-  'update:prioridade': [value: OrdemServicoPrioridade];
+  'update:prioridade': [value: string];
   'update:dataPrevisao': [value: string];
 }>();
 </script>

@@ -7,6 +7,7 @@ from typing import Callable, Dict, Any
 from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core.security import verify_token_data
 from app.services import usuario as usuario
@@ -237,8 +238,24 @@ def _handle_db_transaction(db: Session, func: Callable, *args, **kwargs):
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
+    except IntegrityError as e:
+        # 5. Trata erros de integridade do banco (FK, unique, not null)
+        print(f"Erro de integridade: {e}")
+        db.rollback()
+        detail = "Erro de integridade nos dados."
+        err_str = str(e).lower()
+        if "foreign key" in err_str:
+            detail = "ID de relacionamento inválido. Verifique se o fornecedor ou outro vínculo existe no sistema."
+        elif "unique" in err_str or "duplicate" in err_str:
+            detail = "Já existe um registro com esses dados. Verifique campos únicos como código ou nome."
+        elif "not null" in err_str:
+            detail = "Campo obrigatório não preenchido."
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail
+        )
     except Exception as e:
-        # 5. Trata erros inesperados (internos)
+        # 6. Trata erros inesperados (internos)
         print(f"Erro inesperado: {e}")
         db.rollback()
         raise HTTPException(

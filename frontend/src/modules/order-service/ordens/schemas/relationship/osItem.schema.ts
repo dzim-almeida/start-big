@@ -29,8 +29,8 @@ export const OsItemReadSchema = z.object({
   ...OsItemBaseSchema.shape,
   id: z.number().int().positive(),
   ordem_servico_id: z.number().int().positive(),
-  produto_id: z.number().int().positive().optional(),
-  servico_id: z.number().int().positive().optional(),
+  produto_id: z.number().int().positive().nullish(),
+  servico_id: z.number().int().positive().nullish(),
   valor_total: z.number().int(),
 });
 
