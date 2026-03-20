@@ -10,7 +10,6 @@ import { Plus } from 'lucide-vue-next';
 import { CARDS_INFO } from '../constants/clientes.constants';
 
 import CustomerTable from '../components/CustomerTable.vue';
-import CustomerFormModal from '../components/CustomerFormModal.vue';
 
 import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -18,7 +17,7 @@ import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 
 import { useCustomers } from '../composables/useCustomers';
 import { useCustomerModal } from '../composables/useCustomerModal';
-import { useClienteActions } from '@/shared/composables/cliente/useClienteActions';
+import { useToggleCustomerAtivoMutation } from '../composables/request/useCustomerUpdate.mutate';
 
 import type { Cliente } from '../types/clientes.types';
 
@@ -39,7 +38,7 @@ const {
 } = useCustomers();
 
 const { openCreateModal, openViewModal, openEditModal } = useCustomerModal();
-const { toggleAtivoMutation } = useClienteActions();
+const toggleAtivoMutation = useToggleCustomerAtivoMutation();
 
 // =============================================
 // Handlers
@@ -101,7 +100,5 @@ function handleToggleStatus(customer: Cliente) {
       @toggle-status="handleToggleStatus"
     />
 
-    <!-- Create/Edit Modal -->
-    <CustomerFormModal />
   </div>
 </template>

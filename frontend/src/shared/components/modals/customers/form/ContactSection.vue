@@ -7,7 +7,7 @@
 import { Phone } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
-import { useCustomerForm } from '../../composables/useCustomerForm';
+import { useCustomerForm } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
 
 // =============================================
 // Props

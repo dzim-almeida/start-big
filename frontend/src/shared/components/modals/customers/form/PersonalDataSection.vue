@@ -8,7 +8,8 @@ import { User } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import { useCustomerForm, GENDER_OPTIONS } from '../../composables/useCustomerForm';
+import { useCustomerForm } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
+import { GENDER_OPTIONS } from '@/modules/customers/composables/useCustomerForm';
 
 // =============================================
 // Props

@@ -90,17 +90,16 @@ def get_cliente_by_search(
     if filters.get("only_active", True):
         query = query.where(poly.ativo == True)
 
-    search = filters.get("search", "").strip()
+    search = filters.get("search")
     if search:
-        only_numbers = re.sub(r'\D', '', search)
         like_search = f"%{search}%"
         query = query.where(
             or_(
                 poly.ClientePF.nome.ilike(like_search),
-                poly.ClientePF.cpf.startswith(search),
+                poly.ClientePF.cpf.ilike(like_search),
                 poly.ClientePJ.razao_social.ilike(like_search),
                 poly.ClientePJ.nome_fantasia.ilike(like_search),
-                poly.ClientePJ.cnpj.startswith(search),
+                poly.ClientePJ.cnpj.ilike(like_search),
                 poly.ClienteModel.email.ilike(like_search),
             )
         )
