@@ -7,7 +7,7 @@
 import { Building2 } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
-import { useCustomerForm } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
+import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
 
 // =============================================
 // Props
@@ -17,7 +17,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields
@@ -65,6 +65,7 @@ const {
           v-model="nome_fantasia"
           label="Nome Fantasia"
           placeholder="Digite o nome fantasia"
+          :required="true"
           :error="submitCount > 0 ? errors.nome_fantasia : ''"
           :disabled="disabled"
         />
@@ -77,6 +78,7 @@ const {
           label="CNPJ"
           placeholder="00.000.000/0000-00"
           mask="##.###.###/####-##"
+          :required="true"
           :error="submitCount > 0 ? errors.cnpj : ''"
           :disabled="disabled"
         />

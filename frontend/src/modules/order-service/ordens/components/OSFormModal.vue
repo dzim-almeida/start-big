@@ -24,7 +24,7 @@ import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/cu
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
-import { getClientEquipments } from '@/modules/customers/services/cliente.service';
+import { getClientEquipments } from '@/modules/customers/services/customerGet.service';
 import { getUniqueOS } from '../services/orderServiceGet.service';
 
 import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
@@ -294,6 +294,7 @@ function handleClose() {
   isReopenOptionsOpen.value = false;
   savedOS.value = null;
   latestOSData.value = null;
+  updatedClienteRef.value = null;
   emit('close');
 }
 
@@ -503,9 +504,15 @@ function handleDiagnosticoUpdate(value: string) {
 }
 
 // ─── 17. Cliente atual ────────────────────────────────────────────────────────
+const updatedClienteRef = ref<CustomerUnionReadSchemaDataType | null>(null);
+
 const currentCliente = computed(() =>
-  props.selectedCliente ?? props.ordemServico?.cliente ?? null
+  updatedClienteRef.value ?? props.selectedCliente ?? props.ordemServico?.cliente ?? null
 );
+
+function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
+  updatedClienteRef.value = cliente;
+}
 </script>
 
 <template>
@@ -531,6 +538,7 @@ const currentCliente = computed(() =>
             :is-edit-mode="isEditMode"
             :is-finalizada="isFinalizada"
             @change-cliente="handleChangeCliente"
+            @update-cliente="handleUpdateCliente"
           />
           <OSControlsCard
             :status="controlsStatus"

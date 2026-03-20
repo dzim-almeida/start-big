@@ -8,11 +8,14 @@ import {
   Calendar,
   CheckCircle2,
   RefreshCw,
+  Pencil,
 } from 'lucide-vue-next';
 
 import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
 
 interface Props {
   cliente?: CustomerUnionReadSchemaDataType | null;
@@ -27,7 +30,17 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   changeCliente: [];
+  updateCliente: [cliente: CustomerUnionReadSchemaDataType];
 }>();
+
+const { openEditModalWithCallback } = useCustomerModal();
+
+function handleEditCliente() {
+  if (!props.cliente) return;
+  openEditModalWithCallback(props.cliente as SharedCustomerType, (updated) => {
+    emit('updateCliente', updated as CustomerUnionReadSchemaDataType);
+  });
+}
 
 const isClientePJ = computed(() => {
   const c = props.cliente as { tipo?: string } | null | undefined;
@@ -103,14 +116,24 @@ const canChangeCliente = computed(() => {
           DADOS DO CLIENTE
         </span>
       </div>
-      <button
-        v-if="canChangeCliente"
-        type="button"
-        class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
-        @click="emit('changeCliente')"
-      >
-        <RefreshCw :size="10" /> TROCAR
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          v-if="props.cliente && props.isEditMode"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="handleEditCliente"
+        >
+          <Pencil :size="10" /> EDITAR
+        </button>
+        <button
+          v-if="canChangeCliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="emit('changeCliente')"
+        >
+          <RefreshCw :size="10" /> TROCAR
+        </button>
+      </div>
     </div>
 
     <div class="p-4 pt-3">

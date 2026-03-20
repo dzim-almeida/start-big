@@ -48,7 +48,7 @@ function selectFilter(filter: string | null) {
     <!-- Filter Dropdown -->
     <div
       v-if="isFilterMenuOpen"
-      class="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-zinc-100 z-50 p-2"
+      class="absolute top-full right-0 mt-2 w-auto min-w-56 bg-white rounded-xl shadow-xl border border-zinc-100 z-50 p-2"
     >
       <div class="text-[10px] uppercase font-bold text-zinc-400 px-2 py-2">
         {{ props.title }}
@@ -66,7 +66,7 @@ function selectFilter(filter: string | null) {
         v-for="(config, key) in filterConfig"
         :key="key"
         @click="selectFilter(key)"
-        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-50 transition-colors whitespace-nowrap"
       >
         <div class="flex items-center gap-2">
           <span

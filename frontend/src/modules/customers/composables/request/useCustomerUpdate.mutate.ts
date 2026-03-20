@@ -33,9 +33,6 @@ export function useUpdateCustomerMutation() {
       toast.success('Cliente atualizado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [CUSTOMER_QUERY_KEY] });
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao atualizar cliente') as string);
-    },
   });
 }
 
@@ -57,7 +54,7 @@ export function useToggleCustomerAtivoMutation() {
       queryClient.invalidateQueries({ queryKey: [CUSTOMER_QUERY_KEY] });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao alterar status do cliente') as string);
+      toast.error(getErrorMessage(error, 'Erro ao alterar status do cliente'));
     },
   });
 }

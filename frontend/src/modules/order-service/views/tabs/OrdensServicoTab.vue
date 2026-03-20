@@ -4,7 +4,7 @@ import OSTable from '../../ordens/components/OSTable.vue';
 import OSFormModal from '../../ordens/components/OSFormModal.vue';
 import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/CustomerFormModal.vue';
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
 import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
