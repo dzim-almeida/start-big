@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from 'vee-validate';
 import { customerPJValidationSchema, type AddressFormData } from '@/modules/customers/schemas/customer.schema';
-import { DEFAULT_PJ_VALUES, DEFAULT_ADDRESS } from '../constants/customer.constant';
+import { DEFAULT_PJ_VALUES, DEFAULT_ADDRESS } from '../constants/modal.constant';
 
 export function useCustomerPJForm() {
   const form = useForm({

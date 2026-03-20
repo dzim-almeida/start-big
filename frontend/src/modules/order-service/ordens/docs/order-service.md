@@ -433,7 +433,7 @@ OsEquipTypeEnumDataType    // 'COMPUTADOR' | 'CELULAR' | ...
 OsItemMeasureEnumDataType  // 'UN' | 'KG' | 'H' | ...
 ```
 
-### `schemas/relationship/customer/customer.schema.ts`
+### `shared/schemas/customer/customer.schema.ts`
 ```typescript
 CustomerUnionReadSchemaDataType  // union: CustomerPFReadSchemaDataType | CustomerPJReadSchemaDataType
 ```

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, toRef, nextTick, watch } from 'vue';
+import { toRef } from 'vue';
+
 import { UserCircle2, Building2, Plus } from 'lucide-vue-next';
+
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -8,6 +10,8 @@ import { useOSClientSearch } from '../composables/request/relationship/useOSClie
 import { useCustomerModal } from '@/modules/customers/composables/useCustomerModal';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import { getInitials } from '@/shared/utils/string.utils';
+import { formatCPF, formatCNPJ, formatTelefone } from '@/shared/utils/document.utils';
+import { OS_CUSTOMER_QUERY_KEY } from '../constants/core.constant';
 
 interface Props {
   isOpen: boolean;
@@ -48,7 +52,13 @@ function getClienteNome(cliente: CustomerUnionReadSchemaDataType): string {
 
 function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
   const c = cliente as { tipo: string; cpf?: string; cnpj?: string };
-  return c.tipo === 'PF' ? (c.cpf || '—') : (c.cnpj || '—');
+  if (c.tipo === 'PF') return c.cpf ? formatCPF(c.cpf) : '—';
+  return c.cnpj ? formatCNPJ(c.cnpj) : '—';
+}
+
+function getClienteTelefone(cliente: CustomerUnionReadSchemaDataType): string | null {
+  const phone = (cliente as any).celular || (cliente as any).telefone;
+  return phone ? formatTelefone(phone) : null;
 }
 </script>
 
@@ -61,7 +71,7 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
   >
     <!-- Busca -->
     <BaseSearchInput
-      v-model="searchQuery"
+      v-model="searchCustomer"
       placeholder="Buscar por nome, CPF/CNPJ, telefone..."
     />
 
@@ -79,15 +89,14 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
       </template>
 
       <!-- Lista de clientes -->
-      <template v-else-if="clientes.length > 0">
+      <template v-else-if="customers.length > 0">
         <button
-          v-for="cliente in clientes"
+          v-for="cliente in customers"
           :key="cliente.id"
           :data-id="cliente.id"
           type="button"
           :class="[
             'w-full flex items-center gap-3 px-2 py-3 rounded-xl text-left transition-colors hover:bg-zinc-50 cursor-pointer',
-            lastCreatedId === cliente.id ? 'ring-1 ring-brand-primary bg-brand-primary/5' : '',
           ]"
           @click="handleSelect(cliente)"
         >
@@ -100,8 +109,8 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
             <p class="text-sm font-semibold text-zinc-900 truncate">{{ getClienteNome(cliente) }}</p>
             <p class="text-[11px] text-zinc-400 truncate">
               {{ getClienteDocumento(cliente) }}
-              <template v-if="(cliente as any).celular || (cliente as any).telefone">
-                · {{ (cliente as any).celular || (cliente as any).telefone }}
+              <template v-if="getClienteTelefone(cliente)">
+                · {{ getClienteTelefone(cliente) }}
               </template>
             </p>
           </div>
@@ -117,13 +126,13 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
       <div v-else class="py-10 text-center text-zinc-400">
         <p class="text-sm font-medium">Nenhum cliente encontrado</p>
         <p class="text-xs mt-1">
-          {{ searchQuery ? 'Tente outro termo ou cadastre um novo cliente.' : 'Cadastre o primeiro cliente abaixo.' }}
+          {{ searchCustomer ? 'Tente outro termo ou cadastre um novo cliente.' : 'Cadastre o primeiro cliente abaixo.' }}
         </p>
       </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" class="w-full" @click="openCreateModal()">
+      <BaseButton variant="secondary" class="w-full" @click="handleCadastrarNovo">
         <Plus :size="16" class="mr-1.5" />
         Cadastrar novo cliente
       </BaseButton>

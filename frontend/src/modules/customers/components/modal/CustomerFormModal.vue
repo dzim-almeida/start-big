@@ -17,9 +17,9 @@ import ContactSection from './form/ContactSection.vue';
 import NotesSection from './form/NotesSection.vue';
 
 import type { TipoCliente } from '@/modules/customers/types/clientes.types';
-import { useCustomerModal } from '@/shared/composables/modals/customers/useCustomerModal';
-import { useCustomerFormProvider } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
-import { CUSTOMER_TYPE_TABS } from '@/shared/composables/modals/customers/constants/customer.constant';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import { useCustomerFormProvider } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
+import { CUSTOMER_TYPE_TABS } from '@/modules/customers/composables/modal/constants/modal.constant';
 
 // ── Modal State ────────────────────────────────
 

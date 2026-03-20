@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+<<<<<<< Updated upstream
 import {
   Building2,
   User,
@@ -8,11 +9,18 @@ import {
   Calendar,
   CheckCircle2,
   RefreshCw,
+  Pencil,
 } from 'lucide-vue-next';
+=======
+import { Building2, User, Home, Phone, Calendar, CheckCircle2, RefreshCw, Pencil } from 'lucide-vue-next';
+>>>>>>> Stashed changes
 
+import { useCustomerModal } from '@/modules/customers/composables/useCustomerModal';
 import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
-import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
+import { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/customer.schema';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
 
 interface Props {
   cliente?: CustomerUnionReadSchemaDataType | null;
@@ -27,7 +35,17 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   changeCliente: [];
+  updateCliente: [cliente: CustomerUnionReadSchemaDataType];
 }>();
+
+const { openEditModalWithCallback } = useCustomerModal();
+
+function handleEditCliente() {
+  if (!props.cliente) return;
+  openEditModalWithCallback(props.cliente as SharedCustomerType, (updated) => {
+    emit('updateCliente', updated as CustomerUnionReadSchemaDataType);
+  });
+}
 
 const isClientePJ = computed(() => {
   const c = props.cliente as { tipo?: string } | null | undefined;
@@ -36,14 +54,27 @@ const isClientePJ = computed(() => {
 
 const clienteNome = computed(() => {
   if (!props.cliente) return 'Selecione um cliente';
-  const c = props.cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
+  const c = props.cliente as {
+    tipo: string;
+    nome?: string;
+    nome_fantasia?: string;
+    razao_social?: string;
+  };
   if (c.tipo === 'PF') return c.nome || '-';
   return c.nome_fantasia || c.razao_social || '-';
 });
 
 const formattedAddress = computed(() => {
   if (!props.cliente) return 'Endereco nao cadastrado';
-  const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
+  const c = props.cliente as {
+    endereco?: {
+      logradouro?: string;
+      numero?: string;
+      bairro?: string;
+      cidade?: string;
+      estado?: string;
+    };
+  };
   if (c.endereco?.logradouro) {
     const end = c.endereco;
     return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
@@ -57,14 +88,30 @@ const formattedPhone = computed(() => {
 
 const formattedDataEntrada = computed(() => {
   if (!props.dataCriacao) return '-';
-  const date = typeof props.dataCriacao === 'string' ? new Date(props.dataCriacao) : props.dataCriacao;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const date =
+    typeof props.dataCriacao === 'string' ? new Date(props.dataCriacao) : props.dataCriacao;
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 });
 
 const formattedDataSaida = computed(() => {
   if (!props.dataFinalizacao) return '-';
-  const date = typeof props.dataFinalizacao === 'string' ? new Date(props.dataFinalizacao) : props.dataFinalizacao;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const date =
+    typeof props.dataFinalizacao === 'string'
+      ? new Date(props.dataFinalizacao)
+      : props.dataFinalizacao;
+  return date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 });
 
 const statusLabel = computed(() => {
@@ -91,10 +138,14 @@ const statusColorClass = computed(() => {
 const canChangeCliente = computed(() => {
   return !props.isEditMode && !props.isFinalizada;
 });
+
+const { openEditModal } = useCustomerModal();
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-brand-primary/30 transition-colors group relative">
+  <div
+    class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-brand-primary/30 transition-colors group relative"
+  >
     <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
       <div class="flex items-center gap-2">
         <Building2 v-if="isClientePJ" :size="14" class="text-brand-primary" />
@@ -103,14 +154,43 @@ const canChangeCliente = computed(() => {
           DADOS DO CLIENTE
         </span>
       </div>
-      <button
-        v-if="canChangeCliente"
-        type="button"
-        class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
-        @click="emit('changeCliente')"
-      >
-        <RefreshCw :size="10" /> TROCAR
-      </button>
+<<<<<<< Updated upstream
+      <div class="flex items-center gap-1">
+        <button
+          v-if="props.cliente && props.isEditMode"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="handleEditCliente"
+        >
+          <Pencil :size="10" /> EDITAR
+        </button>
+        <button
+          v-if="canChangeCliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+=======
+      <div class="flex gap-2">
+        <button
+          v-if="canChangeCliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors cursor-pointer"
+>>>>>>> Stashed changes
+          @click="emit('changeCliente')"
+        >
+          <RefreshCw :size="10" /> TROCAR
+        </button>
+<<<<<<< Updated upstream
+=======
+        <button
+          v-if="canChangeCliente && props.cliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors cursor-pointer"
+          @click="openEditModal(props.cliente)"
+        >
+          <Pencil :size="10" /> EDITAR CLIENTE
+        </button>
+>>>>>>> Stashed changes
+      </div>
     </div>
 
     <div class="p-4 pt-3">
@@ -118,7 +198,10 @@ const canChangeCliente = computed(() => {
         <span class="text-base font-bold text-slate-900 leading-tight">{{ clienteNome }}</span>
         <span
           v-if="status"
-          :class="['ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border', statusColorClass]"
+          :class="[
+            'ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border',
+            statusColorClass,
+          ]"
         >
           {{ statusLabel }}
         </span>
@@ -127,7 +210,9 @@ const canChangeCliente = computed(() => {
       <div class="space-y-2">
         <div class="flex items-start gap-2.5">
           <Home :size="14" class="text-slate-400 mt-0.5 shrink-0" />
-          <span class="text-xs text-slate-600 font-medium leading-snug">{{ formattedAddress }}</span>
+          <span class="text-xs text-slate-600 font-medium leading-snug">{{
+            formattedAddress
+          }}</span>
         </div>
         <div class="flex items-center gap-2.5">
           <Phone :size="14" class="text-slate-400 shrink-0" />

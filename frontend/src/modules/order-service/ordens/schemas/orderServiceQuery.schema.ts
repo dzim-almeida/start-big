@@ -5,10 +5,7 @@ import { OrderServiceBaseSchema } from './orderService.schema';
 
 import { OsStatusEnum } from './enums/osEnums.schema';
 
-import {
-  CustomerPFReadSchema,
-  CustomerPJReadSchema,
-} from './relationship/customer/customer.schema';
+import { CustomerUnionReadSchema } from '@/shared/schemas/customer/customer.schema';
 import { EmployeeReadSchema } from './relationship/employee/employee.schema';
 import { OsEquipReadSchema } from './relationship/osEquip.schema';
 import { OsItemReadSchema } from './relationship/osItem.schema';
@@ -48,7 +45,7 @@ export const OrderServiceReadSchema = z.object({
   ativo: z.boolean(),
 
   // Relacionamentos
-  cliente: z.union([CustomerPFReadSchema, CustomerPJReadSchema]),
+  cliente: CustomerUnionReadSchema,
   funcionario: EmployeeReadSchema,
   equipamento: OsEquipReadSchema,
   itens: z.array(OsItemReadSchema),

@@ -4,7 +4,10 @@ import OSTable from '../../ordens/components/OSTable.vue';
 import OSFormModal from '../../ordens/components/OSFormModal.vue';
 import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/CustomerFormModal.vue';
+<<<<<<< Updated upstream
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
+=======
+>>>>>>> Stashed changes
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
 import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
@@ -14,7 +17,7 @@ import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
-import type { CustomerUnionReadSchemaDataType } from '../../ordens/schemas/relationship/customer/customer.schema';
+import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/customer.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
 import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
@@ -290,6 +293,5 @@ defineExpose({ handleOpenNovaOS });
       :type="printType || 'SAIDA'"
     />
 
-    <CustomerFormModal />
   </div>
 </template>

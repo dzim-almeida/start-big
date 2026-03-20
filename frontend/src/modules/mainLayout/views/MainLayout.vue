@@ -5,7 +5,7 @@ import { useMagicKeys, whenever } from '@vueuse/core'
 import BaseSidebar from '../components/layout/sidebar/BaseSidebar.vue';
 import BaseHeader from '../components/layout/BaseHeader.vue';
 import QuickActions from '../components/ui/QuickActions.vue';
-import CustomerFormModal from '@/shared/components/modals/customers/CustomerFormModal.vue';
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 
 import { useDashboard } from '@/modules/home/composables/useDashboard';
 import { useLayoutStore } from '../store/layout.store';
