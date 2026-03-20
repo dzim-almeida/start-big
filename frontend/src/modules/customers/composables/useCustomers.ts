@@ -1,72 +1,85 @@
-/**
- * @fileoverview Combined composable for customers module
- * @description Combines query and filters for easy use in views
- */
+import { ref, computed } from 'vue';
 
-import { ref, watch } from 'vue';
-import { useCustomersQuery } from './useCustomersQuery';
-import { useCustomerFilters } from './useCustomerFilters';
-import type { ClienteFilterStatus } from '../types/clientes.types';
+import { useCustomerQueryAll } from './request/useCustomerGet.queries';
 
-/**
- * Combined composable for customer list management
- * Integrates TanStack Query with local filtering and pagination
- */
-export function useCustomers() {
-  // Search term for API query
-  const searchTerm = ref('');
-  const statusFilter = ref<ClienteFilterStatus>('ativos');
+import type {
+  ClienteFormatted,
+  ClienteStatsData,
+  CustomersTypes,
+} from '../types/clientes.types';
 
-  // Query
-  const { data: customersData, isLoading, refetch } = useCustomersQuery(
-    searchTerm,
-    statusFilter
-  );
+import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/customer.schema';
+import { isCustomerPF } from '@/shared/schemas/customer/customer.schema';
+import { getInitials } from '@/shared/utils/string.utils';
 
-  // Filters and pagination
-  const filters = useCustomerFilters(customersData);
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-  // Sync status filter with query
-  watch(
-    () => filters.activeFilterStatus.value,
-    (newStatus) => {
-      statusFilter.value = newStatus;
-    }
-  );
-
-  // Override setSearch to also update the API search term
-  function setSearch(query: string): void {
-    searchTerm.value = query;
-    filters.setSearch(query);
-    refetch();
-  }
-
-  // Override setFilterStatus to trigger refetch
-  function setFilterStatus(status: ClienteFilterStatus): void {
-    filters.setFilterStatus(status);
-    refetch();
-  }
+function formatCustomer(customer: CustomerUnionReadSchemaDataType): ClienteFormatted {
+  const name = isCustomerPF(customer) ? customer.nome : customer.nome_fantasia;
+  const doc = isCustomerPF(customer) ? customer.cpf : customer.cnpj;
 
   return {
-    // From query
+    ...customer,
+    displayName: name || 'Sem Nome',
+    displayDoc: doc || '',
+    displayPhone: customer.celular || customer.telefone || '',
+    initial: getInitials(name || ''),
+    sortName: (name || '').toLowerCase(),
+  } as ClienteFormatted;
+}
+
+function calculateStats(customers: CustomerUnionReadSchemaDataType[]): ClienteStatsData {
+  return {
+    total: customers.length,
+    ativos: customers.filter((c) => c.ativo).length,
+    pf: customers.filter((c) => c.tipo === 'PF').length,
+    pj: customers.filter((c) => c.tipo === 'PJ').length,
+  };
+}
+
+// ── Composable ─────────────────────────────────────────────────────────────
+
+export function useCustomers() {
+  const {
+    searchQuery,
+    customers: rawCustomers,
+    totalPages,
+    totalItems,
+    currentPage,
     isLoading,
-    refetch,
+    setPage,
+  } = useCustomerQueryAll();
 
-    // From filters
-    customers: filters.customers,
-    stats: filters.stats,
-    activeFilterTipo: filters.activeFilterTipo,
-    activeFilterStatus: filters.activeFilterStatus,
-    searchQuery: filters.searchQuery,
-    currentPage: filters.currentPage,
-    totalItems: filters.totalItems,
-    totalPages: filters.totalPages,
+  // Filtro local por tipo (PF/PJ/active/inactive) — backend não suporta
+  const activeFilterTipo = ref<CustomersTypes>(null);
 
-    // Actions
-    setFilterTipo: filters.setFilterTipo,
-    setFilterStatus,
-    setSearch,
-    setPage: filters.setPage,
-    resetFilters: filters.resetFilters,
+  const filteredCustomers = computed<ClienteFormatted[]>(() => {
+    let result = rawCustomers.value;
+
+    if (activeFilterTipo.value !== null) {
+      result = result.filter((c) => {
+        if (activeFilterTipo.value === 'active') return c.ativo;
+        if (activeFilterTipo.value === 'inactive') return !c.ativo;
+        return c.tipo === activeFilterTipo.value;
+      });
+    }
+
+    return result
+      .map(formatCustomer)
+      .sort((a, b) => a.sortName.localeCompare(b.sortName, 'pt-BR'));
+  });
+
+  const stats = computed<ClienteStatsData>(() => calculateStats(rawCustomers.value));
+
+  return {
+    customers: filteredCustomers,
+    stats,
+    searchQuery,
+    activeFilterTipo,
+    isLoading,
+    currentPage,
+    totalPages,
+    totalItems,
+    setPage,
   };
 }

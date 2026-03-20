@@ -10,7 +10,7 @@ from typing import Sequence, Optional
 
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.servico import ServicoCreate, ServicoRead, ServicoUpdate
+from app.schemas.servico import ServicoCreate, ServicoRead, ServicoFilterParams, ServicoQuery, ServicoUpdate, ServicoStats
 from app.services import servico as servico_service
 
 router = APIRouter()
@@ -53,8 +53,26 @@ def create_servico(
 # ===========================================================================
 
 @router.get(
+    "/stats",
+    response_model=ServicoStats,
+    status_code=status.HTTP_200_OK,
+    summary="Estatísticas dos Serviços",
+    description="Retorna estatísticas agregadas dos serviços cadastrados."
+)
+def get_servico_stats(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    *,
+    db: Session = Depends(get_db)
+):
+    """Retorna total, ativos, inativos e ticket médio dos serviços."""
+    return _handle_db_transaction(
+        db,
+        servico_service.get_servico_stats,
+    )
+
+@router.get(
     "/",
-    response_model=Sequence[ServicoRead],
+    response_model=ServicoQuery,
     status_code=status.HTTP_200_OK,
     summary="Listar ou Buscar Serviços",
     description="Retorna serviços ativos. Permite filtro por descrição."
@@ -62,9 +80,15 @@ def create_servico(
 def get_servico(
     user_token: dict = Depends(check_permission(required_permission="servico")),
     *,
-    buscar: Optional[str] = Query(
-        None,
-        max_length=255,
+    filters: ServicoFilterParams = Depends(),
+    page: int = Query(
+        1,
+        ge=1,
+        description="Termo de busca (Descrição do serviço)."
+    ), 
+    limit: int = Query(
+        20,
+        ge=0,
         description="Termo de busca (Descrição do serviço)."
     ),
     db: Session = Depends(get_db)
@@ -76,10 +100,13 @@ def get_servico(
         buscar (str, optional): Texto para filtrar por descrição.
         db (Session): Sessão do banco.
     """
+    filters = filters.model_dump(exclude_unset=True)
     return _handle_db_transaction(
         db,
         servico_service.get_servico_by_search,
-        buscar
+        filters,
+        page,
+        limit
     )
 
 # ===========================================================================

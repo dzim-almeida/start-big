@@ -28,5 +28,9 @@ pdv.db
 backend-fastapi/pdv.db
 backend-fastapi/nota.txt
 /.claude
+/.github
 /node_modules
 /backend-fastapi/static
+/backend-fastapi/alembic
+backend-fastapi/alembic.ini
+backend-fastapi/seeds/

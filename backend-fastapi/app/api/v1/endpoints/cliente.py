@@ -3,13 +3,17 @@
 # MÓDULO: Interface de API (Controller)
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Query, Path, Response
+from fastapi import APIRouter, Depends, status, Query, Path
 from sqlalchemy.orm import Session
-from typing import Optional, Sequence
+from typing import Optional
 
-from app.schemas.cliente import ClienteRead, ClienteUpdate
-from app.schemas.cliente import ClientePFCreate, ClientePFRead
-from app.schemas.cliente import ClientePJCreate, ClientePJRead
+from app.schemas.cliente import (
+    ClienteRead, ClienteUpdate, 
+    ClientePFCreate, ClientePFRead,
+    ClientePJCreate, ClientePJRead
+)
+
+from app.schemas.pagination import ClientePaginationRead
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
 from app.services import cliente as cliente_service
@@ -85,7 +89,7 @@ def create_new_cliente_pj(
 
 @router.get(
     "/",
-    response_model=Sequence[ClienteRead],
+    response_model=ClientePaginationRead,  # ← Corrigido: usa o schema de paginação
     status_code=status.HTTP_200_OK,
     summary="Listar ou Buscar Clientes",
     description="Recupera uma lista de clientes. Permite busca polimórfica (PF e PJ) por termo."
@@ -97,28 +101,56 @@ def get_client_by_search(
         None,
         description="Termo de busca (Nome, CPF, Razão Social, CNPJ ou Nome Fantasia)."
     ),
+    only_active: bool = Query(
+        False,
+        description="True retorna só ativos. False retorna todos (ativos e inativos)."
+    ),
+    page: int = Query(1, ge=1, description="Página atual."),
+    limit: int = Query(20, ge=1, le=100, description="Itens por página."),
     db: Session = Depends(get_db)
 ):
-    """
-    Busca clientes no banco de dados. Se 'buscar' for fornecido, filtra os resultados;
-    caso contrário, retorna todos os clientes ativos.
-
-    Args:
-        buscar (Optional[str]): String de busca.
-        db (Session): Sessão de banco de dados.
-
-    Returns:
-        Sequence[ClienteRead]: Lista de clientes encontrados (PF ou PJ).
-    """
+    filters = {"search": buscar, "only_active": only_active}
     return _handle_db_transaction(
         db,
         cliente_service.get_cliente_by_search,
-        buscar
+        filters,
+        page,
+        limit
     )
 
 # ===========================================================================
 # ROTAS DE ATUALIZAÇÃO (PUT)
 # ===========================================================================
+
+
+@router.put(
+    "/toggle_ativo/{cliente_id}",
+    response_model=ClienteRead,
+    status_code=status.HTTP_200_OK,
+    summary="Ativar/Desativar Cliente",
+    description="Alterna o status lógico (ativo/inativo) do cliente."
+)
+def toggle_status_cliente(
+    user_token: dict = Depends(check_permission(required_permission="cliente")),
+    cliente_id: int = Path(..., description="ID do cliente alvo", ge=1),
+    *,
+    db: Session = Depends(get_db)
+):
+    """
+    Alterna a flag 'ativo' do cliente. Usado para soft-delete ou reativação.
+
+    Args:
+        cliente_id (int): ID do cliente.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        ClienteRead: O objeto cliente com o novo status.
+    """
+    return _handle_db_transaction(
+        db, 
+        cliente_service.toggle_active_disable_cliente_by_id, 
+        cliente_id
+    )
 
 @router.put(
     "/{cliente_id}",
@@ -152,32 +184,3 @@ def update_client_by_id(
         client_to_update
     )
 
-
-@router.put(
-    "/toggle_ativo/{cliente_id}",
-    response_model=ClienteRead,
-    status_code=status.HTTP_200_OK,
-    summary="Ativar/Desativar Cliente",
-    description="Alterna o status lógico (ativo/inativo) do cliente."
-)
-def toggle_status_cliente(
-    user_token: dict = Depends(check_permission(required_permission="cliente")),
-    cliente_id: int = Path(..., description="ID do cliente alvo", ge=1),
-    *,
-    db: Session = Depends(get_db)
-):
-    """
-    Alterna a flag 'ativo' do cliente. Usado para soft-delete ou reativação.
-
-    Args:
-        cliente_id (int): ID do cliente.
-        db (Session): Sessão de banco de dados.
-
-    Returns:
-        ClienteRead: O objeto cliente com o novo status.
-    """
-    return _handle_db_transaction(
-        db, 
-        cliente_service.toggle_active_disable_cliente_by_id, 
-        cliente_id
-    )

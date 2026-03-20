@@ -7,7 +7,7 @@
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Annotated, Union, Literal
-from app.core.enum import Gender, ClientType, State
+from app.core.enum import Gender, ClientType
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
 # ===========================================================================
@@ -17,7 +17,7 @@ from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 class ClienteBase(BaseModel):
     """Atributos compartilhados entre PF e PJ."""
     
-    email: Optional[EmailStr] = Field(
+    email: Optional[str] = Field(
         None,
         max_length=255,
         description="Endereço de e-mail principal para contato."
@@ -37,20 +37,17 @@ class ClienteBase(BaseModel):
         max_length=500,
         description="Notas internas ou observações sobre o cliente."
     )
-    endereco: Optional[List[Endereco]] = Field(
-        None,
-        description="Lista de endereços vinculados."
-    )
-
     model_config = ConfigDict(from_attributes=True)
 
 # ===========================================================================
 # PESSOA FÍSICA (PF)
 # ===========================================================================
 
+
 class ClientePFCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Física."""
-    
+    tipo: Literal[ClientType.PF] = ClientType.PF
+
     nome: str = Field(
         ...,
         max_length=255,
@@ -73,6 +70,10 @@ class ClientePFCreate(ClienteBase):
     data_nascimento: Optional[date] = Field(
         None,
         description="Data de nascimento (YYYY-MM-DD)."
+    )
+    endereco: Optional[List[Endereco]] = Field(
+        None, 
+        description="Lista de endereços para o cadastro inicial."
     )
 
     model_config = ConfigDict(
@@ -130,7 +131,7 @@ class ClientePFUpdate(ClienteBase):
 
 class ClientePJCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Jurídica."""
-    
+    tipo: Literal[ClientType.PJ] = ClientType.PJ
     razao_social: str = Field(..., max_length=255, description="Razão Social da empresa.")
     cnpj: str = Field(..., pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
     nome_fantasia: str = Field(..., max_length=255, description="Nome Fantasia / Marca.")
@@ -138,7 +139,10 @@ class ClientePJCreate(ClienteBase):
     im: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Municipal.")
     regime_tributario: Optional[str] = Field(None, description="Código do Regime Tributário.")
     responsavel: Optional[str] = Field(None, max_length=255, description="Pessoa de contato na empresa.")
-
+    endereco: Optional[List[Endereco]] = Field(
+        None, 
+        description="Lista de endereços para o cadastro inicial da empresa."
+    )
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -189,6 +193,11 @@ class ClientePJUpdate(ClienteBase):
 # ===========================================================================
 # UNIÕES POLIMÓRFICAS
 # ===========================================================================
+
+ClienteCreate = Annotated[
+    Union[ClientePFCreate, ClientePJCreate],
+    Field(discriminator="tipo")
+]
 
 ClienteRead = Annotated[
     Union[ClientePFRead, ClientePJRead],

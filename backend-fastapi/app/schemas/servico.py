@@ -5,7 +5,8 @@
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+from typing import Optional, Sequence
+from app.schemas.pagination import PaginationBase as Pagination
 
 # =========================
 # Schema: Criar Serviço
@@ -58,6 +59,34 @@ class ServicoRead(ServicoCreate):
     
     # Nota: O 'model_config' e o 'example' são herdados de ServicoCreate
     # e podem ser sobrescritos aqui se necessário.
+
+class ServicoFilterParams(BaseModel):
+    search: Optional[str] = Field(
+        None,
+        description="Query de Busca"
+    )
+    active: Optional[bool] = Field(
+        None,
+        description="Filtro de status ativo/inativo"
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+class ServicoQuery(Pagination):
+    filters: ServicoFilterParams
+    items: Sequence[ServicoRead]
+
+# =========================
+# Schema: Estatísticas
+# =========================
+class ServicoStats(BaseModel):
+    """Estatísticas agregadas dos serviços."""
+    total: int = Field(..., description="Total de serviços cadastrados")
+    ativos: int = Field(..., description="Serviços ativos")
+    inativos: int = Field(..., description="Serviços inativos")
+    media_valor: int = Field(..., description="Valor médio dos serviços (em centavos)")
 
 # =========================
 # Schema: Atualizar Serviço

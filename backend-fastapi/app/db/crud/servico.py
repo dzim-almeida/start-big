@@ -5,10 +5,12 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_, and_
+from sqlalchemy import select, func
 from typing import Sequence
 
 from app.db.models.servico import Servico as ServicoModel
+from app.schemas.servico import ServicoFilterParams
+
 
 # ===========================================================================
 # LEITURA (READ)
@@ -20,30 +22,55 @@ def get_servico_by_id(db: Session, servico_id: int) -> ServicoModel | None:
     servico_in_db = db.scalars(stmt).first()
     return servico_in_db
 
-def get_servico_by_search(db: Session, search: str | None) -> Sequence[ServicoModel]:
+def get_servico_by_search(
+    db: Session,
+    filters: dict, 
+    skip: int,
+    limit: int = 20
+) -> tuple[Sequence[ServicoModel], int]:
     """
-    Busca Simples de Serviços.
-    
-    Retorna serviços cuja descrição comece com o termo pesquisado.
-    Se nenhum termo for fornecido, retorna todos os serviços ativos.
-
-    Args:
-        search (str | None): Termo a ser buscado (case sensitive dependendo do DB).
-        
-    Returns:
-        Sequence[ServicoModel]: Lista de serviços que correspondem aos critérios.
+    Busca Avançada de Serviços com filtros dinâmicos.
     """
-    if not search:
-        stmt = select(ServicoModel).where(ServicoModel.ativo.is_(True))
-    else:
-        stmt = select(ServicoModel).where(
-            and_(
-                ServicoModel.ativo.is_(True),
-                ServicoModel.descricao.ilike(f"{search}%")
-            )
-        )
+    query = select(ServicoModel)
 
-    return db.scalars(stmt).all()
+    # Filtro de texto (Descrição)
+    search = filters.get("search")
+    if search:
+        query = query.where(ServicoModel.descricao.ilike(f"%{search}%"))
+
+    # Filtro de status (Trata explicitamente True/False)
+    active = filters.get("active")
+    if active is not None:
+        query = query.where(ServicoModel.ativo == active)
+
+    query = query.order_by(ServicoModel.id.desc())
+
+    # Conta o total com os filtros aplicados
+    count_stmt = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    # Aplica paginação
+    stmt = query.offset(skip).limit(limit)
+    servicos = db.scalars(stmt).all()
+
+    return servicos, total
+
+def get_servico_stats(db: Session) -> dict:
+    """Retorna estatísticas agregadas dos serviços."""
+    stmt = select(
+        func.count(ServicoModel.id).label("total"),
+        func.count(ServicoModel.id).filter(ServicoModel.ativo == True).label("ativos"),
+        func.count(ServicoModel.id).filter(ServicoModel.ativo == False).label("inativos"),
+        func.coalesce(func.avg(ServicoModel.valor), 0).label("media_valor"),
+    )
+    result = db.execute(stmt).one()
+    return {
+        "total": result.total,
+        "ativos": result.ativos,
+        "inativos": result.inativos,
+        "media_valor": int(result.media_valor),
+    }
+
 
 def get_servico_by_description(db: Session, description_to_search: str) -> ServicoModel | None:
     """Busca serviço pela descrição exata (útil para verificar duplicidade)."""

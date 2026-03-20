@@ -64,3 +64,50 @@ class EntityType(str, enum.Enum):
 class BankAccountType(str, enum.Enum):
     POUPANCA = "POUPANCA"
     CORRENTE = "CORRENTE"
+
+class OrdemServicoStatus(str, enum.Enum):
+    """Status possíveis de uma Ordem de Serviço."""
+    ABERTA = "ABERTA"
+    EM_ANDAMENTO = "EM_ANDAMENTO"
+    AGUARDANDO_PECAS = "AGUARDANDO_PECAS"
+    AGUARDANDO_APROVACAO = "AGUARDANDO_APROVACAO"
+    AGUARDANDO_RETIRADA = "AGUARDANDO_RETIRADA"
+    FINALIZADA = "FINALIZADA"
+    CANCELADA = "CANCELADA"
+
+class OrdemServicoPrioridade(str, enum.Enum):
+    """Prioridades possíveis de uma Ordem de Serviço."""
+    BAIXA = "BAIXA"
+    NORMAL = "NORMAL"
+    ALTA = "ALTA"
+    URGENTE = "URGENTE"
+
+class OrdemServicoItemTipo(str, enum.Enum):
+    PRODUTO = "PRODUTO"
+    SERVICO = "SERVICO"  
+
+class TipoEquipamento(str, enum.Enum):
+    COMPUTADOR = "COMPUTADOR"
+    CELULAR = "CELULAR"
+    TABLET = "TABLET"
+    IMPRESSORA = "IMPRESSORA"
+    MONITOR = "MONITOR"
+    PRINTER = "PRINTER"
+    SCANNER = "SCANNER"
+    OUTROS = "OUTROS"
+
+class UnidadeMedida(str, enum.Enum):
+    """Define as unidades de medida para produtos e serviços."""
+    UNIDADE = "UN"
+    KILO = "KG"
+    GRAMA = "G"
+    LITRO = "L"
+    MILILITRO = "ML"
+    METRO = "M"
+    CENTIMETRO = "CM"
+    METRO_QUADRADO = "M2"
+    METRO_CUBICO = "M3"
+    HORA = "H"
+    DIA = "D"
+    MES = "MES"
+    OUTROS = "OUTROS"

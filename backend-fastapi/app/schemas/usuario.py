@@ -20,7 +20,7 @@ class UsuarioBase(BaseModel):
         email (EmailStr): E-mail de login, validado automaticamente como formato de e-mail.
     """
     nome: str = Field(..., max_length=255, description="Nome completo")
-    email: EmailStr = Field(..., max_length=255, description="E-mail de login")
+    email: str = Field(..., max_length=255, description="E-mail de login")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,7 +87,7 @@ class UsuarioUpdate(BaseModel):
         senha (Optional[str]): Nova senha (será hashada, se fornecida).
     """
     nome: Optional[str] = Field(None, max_length=255, description="Novo nome")
-    email: Optional[EmailStr] = Field(None, max_length=255, description="Novo e-mail")
+    email: Optional[str] = Field(None, max_length=255, description="Novo e-mail")
     senha: Optional[str] = Field(
         None, 
         min_length=8, 
