@@ -17,6 +17,8 @@ import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
 import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
 
+import { maskPhoneNumber } from '@/shared/utils/mask.utils';
+
 interface Props {
   cliente?: CustomerUnionReadSchemaDataType | null;
   status?: OsStatusEnumDataType | null;
@@ -55,7 +57,8 @@ const clienteNome = computed(() => {
 });
 
 const formattedAddress = computed(() => {
-  if (!props.cliente) return 'Endereco nao cadastrado';
+  console.log(props.cliente?.endereco)
+  if (!props.cliente?.endereco) return 'Endereco não cadastrado';
   const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
   if (c.endereco?.logradouro) {
     const end = c.endereco;
@@ -65,7 +68,7 @@ const formattedAddress = computed(() => {
 });
 
 const formattedPhone = computed(() => {
-  return props.cliente?.celular || props.cliente?.telefone || 'Telefone nao informado';
+  return maskPhoneNumber(props.cliente?.celular) || maskPhoneNumber(props.cliente?.telefone) || 'Contato não cadastrado';
 });
 
 const formattedDataEntrada = computed(() => {

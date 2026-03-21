@@ -33,6 +33,6 @@ export function prepareAddresses(
     complemento: addr.complemento || undefined,
     bairro: addr.bairro || '',
     cidade: addr.cidade || '',
-    estado: (addr.estado || 'SP') as EnderecoCreateDataType['estado'],
+    estado: (addr.estado || undefined) as EnderecoCreateDataType['estado'],
   }));
 }

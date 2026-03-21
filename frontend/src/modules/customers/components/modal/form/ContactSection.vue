@@ -65,6 +65,7 @@ const {
           label="Celular - WhatsApp"
           placeholder="(00) 00000-0000"
           mask="(##) #####-####"
+          :required="true"
           :error="submitCount > 0 ? errors.celular : ''"
           :disabled="disabled"
         />

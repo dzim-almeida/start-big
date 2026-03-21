@@ -57,7 +57,7 @@ export function useCustomerPJForm() {
     errors: form.errors,
     submitCount: form.submitCount,
     values: form.values,
-    validate: form.validate,
+    handleSubmit: form.handleSubmit,
     setValues: form.setValues,
     resetForm: form.resetForm,
   };

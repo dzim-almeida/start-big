@@ -98,7 +98,7 @@ onUnmounted(() => {
             </div>
             <button
               type="button"
-              class="p-2 -m-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+              class="p-2 -m-2 text-zinc-400 hover:text-red-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
               @click="handleClose"
             >
               <X :size="20" />
