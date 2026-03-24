@@ -51,7 +51,7 @@ function getItemTotal(item: OsItem): number {
         </div>
         <div>
           <h5 class="text-sm font-bold text-slate-700">Itens da OS</h5>
-          <p class="text-xs text-slate-500">Servicos e Pecas adicionados</p>
+          <p class="text-xs text-slate-500">Serviços e Peças adicionados</p>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ function getItemTotal(item: OsItem): number {
           <Package :size="28" stroke-width="1.5" class="text-slate-300" />
         </div>
         <p class="text-sm font-semibold text-slate-500">Nenhum item adicionado</p>
-        <p class="text-xs text-slate-400 mt-1">Clique em "Adicionar Item" para incluir servicos ou pecas.</p>
+        <p class="text-xs text-slate-400 mt-1">Clique em "Adicionar Item" para incluir serviços ou peças.</p>
       </div>
 
       <div v-else class="space-y-2">
@@ -95,7 +95,7 @@ function getItemTotal(item: OsItem): number {
               <p class="text-sm font-bold text-slate-600">{{ item.quantidade }}</p>
             </div>
             <div class="text-right hidden sm:block">
-              <p class="text-xs text-slate-400 font-medium uppercase">Unitario</p>
+              <p class="text-xs text-slate-400 font-medium uppercase">Unitário</p>
               <p class="text-sm font-bold text-slate-600">{{ formatCurrency(item.valor_unitario) }}</p>
             </div>
             <div class="text-right w-24">
@@ -120,7 +120,7 @@ function getItemTotal(item: OsItem): number {
           <Receipt :size="20" class="text-slate-500" />
           <div>
             <span class="text-xs text-slate-500 font-medium">Resumo Financeiro</span>
-            <p class="text-sm text-slate-600">{{ itens.length }} {{ itens.length === 1 ? 'item' : 'itens' }} lancados</p>
+            <p class="text-sm text-slate-600">{{ itens.length }} {{ itens.length === 1 ? 'item' : 'itens' }} lançados</p>
           </div>
         </div>
 

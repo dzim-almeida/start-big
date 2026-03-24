@@ -72,6 +72,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="isEditMode && isLocked && reopenMode === 'NONE'"
         variant="secondary"
+        size="sm"
         @click="emit('reopen')"
       >
         <Unlock :size="16" class="mr-1" />
@@ -82,6 +83,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="isEditMode && !isLocked && reopenMode !== 'TEXT_ONLY'"
         variant="primary"
+        size="sm"
         @click="emit('finalizar')"
       >
         <CheckCircle2 :size="16" class="mr-1" />
@@ -92,6 +94,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="!isLocked || reopenMode !== 'NONE'"
         variant="primary"
+        size="sm"
         :is-loading="isPending"
         @click="emit('save')"
       >

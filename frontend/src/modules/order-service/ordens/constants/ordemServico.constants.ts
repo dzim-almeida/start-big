@@ -1,4 +1,4 @@
-import type { OsStatusEnumDataType, OsPriorityEnumDataType } from '../schemas/enums/osEnums.schema';
+import type { OsStatusEnumDataType, OsPriorityEnumDataType, OsEquipTypeEnumDataType } from '../schemas/enums/osEnums.schema';
 import type { FilterOption } from '@/shared/types/filter.types';
 
 export const OS_STATUS_OPTIONS = [
@@ -44,6 +44,16 @@ export const REOPEN_MODES = {
 } as const;
 
 export type ReopenMode = typeof REOPEN_MODES[keyof typeof REOPEN_MODES];
+
+export const OS_EQUIP_TYPE_OPTIONS = [
+  { value: 'CELULAR' as OsEquipTypeEnumDataType, label: 'Celular' },
+  { value: 'TABLET' as OsEquipTypeEnumDataType, label: 'Tablet' },
+  { value: 'COMPUTADOR' as OsEquipTypeEnumDataType, label: 'Computador' },
+  { value: 'IMPRESSORA' as OsEquipTypeEnumDataType, label: 'Impressora' },
+  { value: 'MONITOR' as OsEquipTypeEnumDataType, label: 'Monitor' },
+  { value: 'SCANNER' as OsEquipTypeEnumDataType, label: 'Scanner' },
+  { value: 'OUTROS' as OsEquipTypeEnumDataType, label: 'Outros' },
+] as const;
 
 export const TAB_OPTIONS = [
   { id: 'ordens', label: 'Ordens de Serviço' },

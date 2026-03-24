@@ -29,14 +29,14 @@ const emit = defineEmits<{
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <BaseSelect
         :model-value="status"
-        label="Situacao"
+        label="Situação"
         :options="statusOptions"
         @update:model-value="emit('update:status', $event as OsStatusEnumDataType)"
       />
 
       <BaseSelect
         :model-value="funcionarioId"
-        label="Tecnico"
+        label="Técnico"
         :options="funcionariosOptions"
         placeholder="-- Selecione --"
         @update:model-value="emit('update:funcionarioId', $event as string)"
@@ -55,7 +55,7 @@ const emit = defineEmits<{
 
       <BaseInput
         :model-value="dataPrevisao"
-        label="Previsao"
+        label="Previsão"
         type="date"
         @update:model-value="emit('update:dataPrevisao', $event as string)"
       />

@@ -25,6 +25,11 @@ import {
   transformPJToUpdateRequest,
 } from '../form/helpers/transform.helpers';
 
+import type { AxiosError } from 'axios';
+import type { ApiError } from '@/shared/types/axios.types';
+import { getErrorMessage, getConflictErrors, isConflictError } from '@/shared/utils/error.utils';
+import { useToast } from '@/shared/composables/useToast';
+
 import { useCustomerModal } from '../useCustomerModal';
 import { useCreateCustomerPFMutation, useCreateCustomerPJMutation } from '@/modules/customers/composables/request/useCustomerCreate.mutate';
 import { useUpdateCustomerMutation } from '@/modules/customers/composables/request/useCustomerUpdate.mutate';
@@ -45,6 +50,7 @@ export function useCustomerFormProvider(): CustomerFormContext {
   const createPJMutation = useCreateCustomerPJMutation();
   const updateMutation = useUpdateCustomerMutation();
 
+  const toast = useToast();
   const customerType = ref<TipoCliente>('PF');
   const apiError = ref<string | null>(null);
 
@@ -179,37 +185,60 @@ export function useCustomerFormProvider(): CustomerFormContext {
     { immediate: true },
   );
 
+  // ── Error handling ─────────────────────────────
+
+  function handleApiError(error: AxiosError<ApiError>, setErrors: (errors: Record<string, string>) => void, defaultMessage: string) {
+    if (isConflictError(error)) {
+      const conflictErrors = getConflictErrors(error);
+      if (conflictErrors) {
+        setErrors(conflictErrors);
+        toast.error('Dados já registrados', getErrorMessage(error, defaultMessage));
+        return;
+      }
+    }
+    apiError.value = getErrorMessage(error, defaultMessage);
+    toast.error(apiError.value);
+  }
+
   // ── Submit ───────────────────────────────────
 
   const pfSubmit = pfForm.handleSubmit(async (data) => {
     apiError.value = null;
 
-    if (isCreateMode.value) {
-      const created = await createPFMutation.mutateAsync(transformPFToCreateRequest(data));
-      onCreatedCallback.value?.(created);
-    } else if (selectedCustomer.value) {
-      const id = selectedCustomer.value.id;
-      const updated = await updateMutation.mutateAsync({ id, data: transformPFToUpdateRequest(data) });
-      onUpdatedCallback.value?.(updated);
+    try {
+      if (isCreateMode.value) {
+        const created = await createPFMutation.mutateAsync(transformPFToCreateRequest(data));
+        onCreatedCallback.value?.(created);
+      } else if (selectedCustomer.value) {
+        const id = selectedCustomer.value.id;
+        const updated = await updateMutation.mutateAsync({ id, data: transformPFToUpdateRequest(data) });
+        onUpdatedCallback.value?.(updated);
+      }
+      closeModal();
+      pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
+    } catch (error) {
+      handleApiError(error as AxiosError<ApiError>, pfForm.setErrors, 'Erro ao salvar cliente PF');
     }
-    closeModal();
-    pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
-  })
+  });
 
   const pjSubmit = pjForm.handleSubmit(async (data) => {
     apiError.value = null;
 
-    if (isCreateMode.value) {
-      const created = await createPJMutation.mutateAsync(transformPJToCreateRequest(data));
-      onCreatedCallback.value?.(created);
-    } else if (selectedCustomer.value) {
-      const id = selectedCustomer.value.id;
-      const updated = await updateMutation.mutateAsync({ id, data: transformPJToUpdateRequest(data)});
-      onUpdatedCallback.value?.(updated);
+    try {
+      if (isCreateMode.value) {
+        const created = await createPJMutation.mutateAsync(transformPJToCreateRequest(data));
+        onCreatedCallback.value?.(created);
+      } else if (selectedCustomer.value) {
+        const id = selectedCustomer.value.id;
+        const updated = await updateMutation.mutateAsync({ id, data: transformPJToUpdateRequest(data) });
+        onUpdatedCallback.value?.(updated);
+      }
+      closeModal();
+      pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
+    } catch (error) {
+      handleApiError(error as AxiosError<ApiError>, pjForm.setErrors, 'Erro ao salvar cliente PJ');
     }
-    closeModal();
-    pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
-  })
+  });
 
   const onSubmit = async () => {
     apiError.value = null;

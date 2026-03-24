@@ -57,14 +57,13 @@ const clienteNome = computed(() => {
 });
 
 const formattedAddress = computed(() => {
-  console.log(props.cliente?.endereco)
-  if (!props.cliente?.endereco) return 'Endereco não cadastrado';
+  if (!props.cliente?.endereco) return 'Endereço não cadastrado';
   const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
   if (c.endereco?.logradouro) {
     const end = c.endereco;
     return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
   }
-  return 'Endereco disponivel no cadastro do cliente';
+  return 'Endereço não cadastrado';
 });
 
 const formattedPhone = computed(() => {
@@ -170,7 +169,7 @@ const canChangeCliente = computed(() => {
           </span>
         </div>
         <div v-if="formattedDataSaida !== '-'" class="flex flex-col">
-          <span class="text-[10px] text-slate-400 font-bold uppercase">Saida/Finalizacao</span>
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Saída/Finalização</span>
           <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
             <CheckCircle2 :size="12" class="text-emerald-500" />
             {{ formattedDataSaida }}

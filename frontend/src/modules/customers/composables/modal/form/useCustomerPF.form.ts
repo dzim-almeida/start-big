@@ -56,6 +56,7 @@ export function useCustomerPFForm() {
     values: form.values,
     handleSubmit: form.handleSubmit,
     setValues: form.setValues,
+    setErrors: form.setErrors,
     resetForm: form.resetForm,
   };
 }

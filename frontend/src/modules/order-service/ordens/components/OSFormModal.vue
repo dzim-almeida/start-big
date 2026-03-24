@@ -105,7 +105,9 @@ const funcionariosOptions = computed<SelectOption[]>(() => {
   ];
 });
 
-const statusOptions = OS_STATUS_OPTIONS.map(o => ({ value: o.value, label: o.label })) as SelectOption[];
+const statusOptions = OS_STATUS_OPTIONS
+  .filter(o => o.value !== 'FINALIZADA' && o.value !== 'CANCELADA')
+  .map(o => ({ value: o.value, label: o.label })) as SelectOption[];
 const prioridadeOptions = OS_PRIORIDADE_OPTIONS.map(o => ({ value: o.value, label: o.label })) as SelectOption[];
 
 // ─── 4. Reopen ────────────────────────────────────────────────────────────────

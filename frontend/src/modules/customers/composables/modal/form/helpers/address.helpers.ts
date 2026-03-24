@@ -5,16 +5,23 @@ import type {
 } from '@/modules/customers/schemas/customerMutate.schema';
 import { unmaskCep } from '@/shared/utils/unmask.utils';
 
+const ADDRESS_FIELDS = ['cep', 'logradouro', 'numero', 'bairro', 'cidade', 'estado'] as const;
+
+function isAddressEmpty(addr: Partial<AddressFormData>): boolean {
+  return ADDRESS_FIELDS.every((field) => !addr[field]?.trim());
+}
+
 export function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: true): EnderecoUpdateDataType[] | undefined;
 export function prepareAddresses(addresses: Partial<AddressFormData>[], isUpdate: false): EnderecoCreateDataType[] | undefined;
 export function prepareAddresses(
   addresses: Partial<AddressFormData>[],
   isUpdate: boolean,
 ): EnderecoCreateDataType[] | EnderecoUpdateDataType[] | undefined {
-  if (addresses.length === 0) return undefined;
+  const filledAddresses = addresses.filter((addr) => !isAddressEmpty(addr));
+  if (filledAddresses.length === 0) return undefined;
 
   if (isUpdate) {
-    return addresses.map((addr): EnderecoUpdateDataType => ({
+    return filledAddresses.map((addr): EnderecoUpdateDataType => ({
       id: addr.id,
       cep: unmaskCep(addr.cep || ''),
       logradouro: addr.logradouro || '',
@@ -26,7 +33,7 @@ export function prepareAddresses(
     }));
   }
 
-  return addresses.map((addr): EnderecoCreateDataType => ({
+  return filledAddresses.map((addr): EnderecoCreateDataType => ({
     cep: unmaskCep(addr.cep || ''),
     logradouro: addr.logradouro || '',
     numero: addr.numero || '',
