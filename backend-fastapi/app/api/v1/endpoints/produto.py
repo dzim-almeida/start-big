@@ -46,7 +46,8 @@ def create_new_produto(
     return _handle_db_transaction(
         db,
         produto_service.create_produto,
-        produto_to_add
+        produto_to_add,
+        user_token
     )
 
 # ===========================================================================

@@ -9,6 +9,7 @@ from app.api.v1.endpoints import reset_bd
 from app.api.v1.endpoints import auth
 from app.api.v1.endpoints import cliente
 from app.api.v1.endpoints import produto
+from app.api.v1.endpoints import movimentacao_estoque
 from app.api.v1.endpoints import fornecedor
 from app.api.v1.endpoints import servico
 from app.api.v1.endpoints import endereco
@@ -48,6 +49,9 @@ router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Forneced
 
 # Inclui o roteador de produtos sob o prefixo /produtos
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
+
+# Inclui as rotas de movimentações de estoque sob o prefixo /produtos
+router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
 
 # Inclui o roteador de serviços sob o prefixo /servicos
 router.include_router(servico.router, prefix="/servicos", tags=["Serviços"])

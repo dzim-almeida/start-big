@@ -15,7 +15,11 @@ from app.schemas.produto import ProdutoCreate, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
+from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.crud import produto as produto_crud
+from app.db.crud import movimentacao_estoque as mov_crud
+from app.core.enum import MovimentacaoTipo
+from typing import Dict, Any
 
 # Diretório base onde as imagens serão salvas
 UPLOAD_BASE_DIR = "static/uploads/produtos"
@@ -88,7 +92,7 @@ def delete_image_locally(file_path: str) -> bool:
 # LÓGICA DE CRIAÇÃO (CREATE)
 # ===========================================================================
 
-def create_produto(db: Session, produto_to_add: ProdutoCreate) -> ProdutoModel:
+def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: Dict[str, Any] = {}) -> ProdutoModel:
     """
     Orquestra a criação de um novo produto.
     
@@ -113,7 +117,25 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate) -> ProdutoModel:
     # Vincula estoque ao produto (Relacionamento 1:1)
     produto_to_db.estoque = estoque_for_produto
 
-    return produto_crud.create_produto(db, produto_to_add=produto_to_db)
+    produto_in_db = produto_crud.create_produto(db, produto_to_add=produto_to_db)
+
+    # Registra movimentação inicial se a quantidade for maior que zero
+    quantidade_inicial = estoque_data.get("quantidade", 0) or 0
+    if quantidade_inicial > 0:
+        mov = MovimentacaoEstoque(
+            produto_id=produto_in_db.id,
+            produto_nome=produto_in_db.nome,
+            usuario_id=int(usuario_token["sub"]) if usuario_token.get("sub") else None,
+            usuario_nome=usuario_token.get("nome", "Sistema"),
+            tipo=MovimentacaoTipo.ENTRADA,
+            quantidade=quantidade_inicial,
+            quantidade_anterior=0,
+            quantidade_posterior=quantidade_inicial,
+            observacao="Estoque inicial",
+        )
+        mov_crud.create_movimentacao(db, mov)
+
+    return produto_in_db
 
 def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool) -> ProdutoFotoModel:
     

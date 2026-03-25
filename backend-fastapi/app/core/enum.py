@@ -65,6 +65,12 @@ class BankAccountType(str, enum.Enum):
     POUPANCA = "POUPANCA"
     CORRENTE = "CORRENTE"
 
+class MovimentacaoTipo(str, enum.Enum):
+    """Define o tipo de movimentação de estoque."""
+    ENTRADA = "ENTRADA"
+    SAIDA = "SAIDA"
+    AJUSTE = "AJUSTE"
+
 class OrdemServicoStatus(str, enum.Enum):
     """Status possíveis de uma Ordem de Serviço."""
     ABERTA = "ABERTA"

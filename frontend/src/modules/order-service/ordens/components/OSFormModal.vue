@@ -16,13 +16,13 @@ import OSReopenOptionsModal from './form/OSReopenOptionsModal.vue';
 import OSPrintTemplate from './OSPrintTemplate.vue';
 import OSFinalizarModal from './OSFinalizarModal.vue';
 import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
-import ProductModal from '@/modules/products/components/ProductModal.vue';
+import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
 import OSItemFormModal from './form/OSItemFormModal.vue';
 import OSEquipamentoSelectModal from './form/OSEquipamentoSelectModal.vue';
 
 import type { OrdemServicoRead, OrdemServicoItemCreate } from '../types/ordemServico.types';
 import { useServicoModal } from '../../servicos/composables/useServicoModal';
-import { useProductModal } from '@/modules/products/composables/useProductModal';
+import { useProductModal } from '@/modules/products/inventory/composables/useProductModal';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
 import type { ClienteSearchResult } from '@/shared/services/cliente.service';
 import { getClientEquipments } from '@/modules/customers/services/cliente.service';

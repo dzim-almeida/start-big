@@ -4,7 +4,7 @@ import type { OrdemServicoRead } from '../types/ordemServico.types';
 import type { OrdemServicoItemCreate } from '../types/ordemServico.types';
 import { useOsEmployeesGet } from './request/relationship/useOSRelationshipGet.queries';
 import { useServicosQuery } from '@/modules/order-service/servicos/composables/useServicosQuery';
-import { useProductsQuery } from '@/modules/products/composables/useProductsQuery';
+import { useProductsQuery } from '@/modules/products/inventory/composables/useProductsQuery';
 import { useCreateOrderServiceMutation } from './request/useOrderServiceCreate.mutate';
 import { useUpdateOrderServiceMutation, useReopenOrderServiceMutation } from './request/useOrderServiceUpdate.mutate';
 
