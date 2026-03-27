@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Trash2, Package, Wrench, ShoppingBag, Receipt } from 'lucide-vue-next';
+import { Plus, Trash2, Package, Wrench, ShoppingBag } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
@@ -9,15 +9,10 @@ type OsItem = OsItemCreateSchemaDataType | OsItemReadSchemaDataType;
 interface Props {
   itens: OsItem[];
   isLocked?: boolean;
-  subtotal: number;
-  valorDesconto: number;
-  valorTotal: number;
-  valorEntrada?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLocked: false,
-  valorEntrada: 0,
 });
 
 const emit = defineEmits<{
@@ -33,7 +28,7 @@ function getItemIcon(item: OsItem) {
 function getItemIconClass(item: OsItem) {
   return item.tipo === 'SERVICO'
     ? 'bg-brand-primary-light text-brand-primary'
-    : 'bg-orange-50 text-orange-600';
+    : 'bg-brand-primary-light text-brand-primary';
 }
 
 function getItemTotal(item: OsItem): number {
@@ -115,39 +110,6 @@ function getItemTotal(item: OsItem): number {
         </div>
       </div>
 
-      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 mt-4">
-        <div class="flex items-center gap-3 mb-4">
-          <Receipt :size="20" class="text-slate-500" />
-          <div>
-            <span class="text-xs text-slate-500 font-medium">Resumo Financeiro</span>
-            <p class="text-sm text-slate-600">{{ itens.length }} {{ itens.length === 1 ? 'item' : 'itens' }} lançados</p>
-          </div>
-        </div>
-
-        <div class="space-y-2 border-t border-slate-200 pt-3">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-slate-600">Subtotal</span>
-            <span class="font-semibold text-slate-700">{{ formatCurrency(subtotal) }}</span>
-          </div>
-
-          <div v-if="valorDesconto > 0" class="flex items-center justify-between text-sm">
-            <span class="text-red-600">Desconto Aplicado</span>
-            <span class="font-semibold text-red-600">- {{ formatCurrency(valorDesconto) }}</span>
-          </div>
-
-          <div v-if="(valorEntrada || 0) > 0" class="flex items-center justify-between text-sm">
-            <span class="text-emerald-600">Entrada / Sinal</span>
-            <span class="font-semibold text-emerald-600">{{ formatCurrency(valorEntrada || 0) }}</span>
-          </div>
-
-          <div class="border-t border-slate-300 my-2"></div>
-
-          <div class="flex items-center justify-between">
-            <span class="text-slate-800 font-bold">Total Final</span>
-            <span class="text-2xl font-black text-slate-800">{{ formatCurrency(valorTotal) }}</span>
-          </div>
-        </div>
-      </div>
     </fieldset>
   </div>
 </template>

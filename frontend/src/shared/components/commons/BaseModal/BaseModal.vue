@@ -11,7 +11,7 @@ interface Props {
   isOpen: boolean;
   title: string;
   subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,6 +29,7 @@ const sizeClasses = {
   xl: 'max-w-4xl',
   '2xl': 'max-w-6xl',
   '3xl': 'max-w-7xl',
+  '4xl': 'max-w-[90rem]',
 };
 
 function handleClose() {

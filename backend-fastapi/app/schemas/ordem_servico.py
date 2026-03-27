@@ -188,6 +188,9 @@ class OrdemServicoBase(BaseModel):
 
     # Financeiro
     desconto: Optional[int] = Field(None, ge=0, description="Desconto aplicado em centavos")
+    valor_entrada: Optional[int] = Field(None, ge=0, description="Valor de entrada/adiantamento em centavos")
+    taxa_entrega: Optional[int] = Field(None, ge=0, description="Taxa de entrega/frete em centavos")
+    acrescimo: Optional[int] = Field(None, ge=0, description="Acréscimo de juros/cartão em centavos")
 
     # Prazos e garantia
     garantia: Optional[str] = Field(None, max_length=20, description="Prazo de garantia (ex: '90 dias')")
@@ -207,7 +210,7 @@ class OrdemServicoCreate(OrdemServicoBase):
 
     # Dados aninhados criados junto com a OS
     equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
-    itens: Sequence[OSItemCreate] = Field(..., min_length=1, description="Lista de itens/serviços da OS (mínimo 1)")
+    itens: Sequence[OSItemCreate] = Field(default_factory=list, description="Lista de itens/serviços da OS")
 
     model_config = ConfigDict(
         json_schema_extra=os_example,
@@ -243,6 +246,7 @@ class OrdemServicoUpdate(BaseModel):
 
     # Financeiro e datas
     desconto: Optional[int] = Field(None, ge=0, description="Novo desconto em centavos (recalcula valor_total automaticamente)")
+    valor_entrada: Optional[int] = Field(None, ge=0, description="Novo valor de entrada/adiantamento em centavos")
     garantia: Optional[str] = Field(None, max_length=20, description="Nova garantia")
     data_previsao: Optional[datetime] = Field(None, description="Nova data prevista")
     funcionario_id: Optional[int] = Field(None, description="ID do novo funcionário responsável")
@@ -263,6 +267,8 @@ class OrdemServicoRead(OrdemServicoBase):
     # Financeiro
     valor_bruto: int = Field(..., description="Soma dos valores dos itens antes do desconto (centavos)")
     valor_total: int = Field(..., description="Valor final após desconto (centavos)")
+    taxa_entrega: int = Field(0, description="Taxa de entrega/frete (centavos)")
+    acrescimo: int = Field(0, description="Acréscimo de juros/cartão (centavos)")
 
     # Datas
     data_finalizacao: Optional[datetime] = Field(None, description="Data de finalização efetiva")
@@ -298,6 +304,9 @@ class OrdemServicoFinalizar(BaseModel):
     solucao: str = Field(..., min_length=5, max_length=500, description="Descrição da solução aplicada")
     observacoes: Optional[str] = Field(None, max_length=500, description="Observações adicionais de finalização")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto final em centavos (recalcula valor_total se informado)")
+    valor_entrada: Optional[int] = Field(None, ge=0, description="Valor de entrada/adiantamento em centavos (abatido do valor a pagar)")
+    taxa_entrega: Optional[int] = Field(None, ge=0, description="Taxa de entrega/frete em centavos")
+    acrescimo: Optional[int] = Field(None, ge=0, description="Acréscimo de juros/cartão em centavos")
     pagamentos: List[OSPagamentoCreate] = Field(
         ...,
         min_length=1,

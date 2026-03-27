@@ -3,11 +3,13 @@ import { ClipboardList } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import OSFotoGallery from './OSFotoGallery.vue';
 import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.schema';
+import type { PendingPhoto } from './OSFotoGallery.vue';
 
 interface Props {
   diagnostico: string;
   osNumero?: string;
   fotos: OsImageReadDataType[];
+  pendingPhotos: PendingPhoto[];
   isLocked: boolean;
 }
 
@@ -15,6 +17,8 @@ defineProps<Props>();
 
 const emit = defineEmits<{
   'update:diagnostico': [value: string];
+  'add-photo': [file: File];
+  'remove-pending': [index: number];
   photoChange: [];
 }>();
 </script>
@@ -46,8 +50,10 @@ const emit = defineEmits<{
         v-if="osNumero"
         :os-numero="osNumero"
         :fotos="fotos"
+        :pending-photos="pendingPhotos"
         :read-only="isLocked"
-        @uploaded="emit('photoChange')"
+        @add-photo="emit('add-photo', $event)"
+        @remove-pending="emit('remove-pending', $event)"
         @deleted="emit('photoChange')"
       />
       <div

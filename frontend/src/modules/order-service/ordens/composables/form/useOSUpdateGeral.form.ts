@@ -27,6 +27,7 @@ export function useOSUpdateGeralForm(opts: {
   const [solucao] = defineField('solucao');
   const [observacoes] = defineField('observacoes');
   const [desconto] = defineField('desconto');
+  const [valor_entrada] = defineField('valor_entrada');
   const [garantia] = defineField('garantia');
   const [data_previsao] = defineField('data_previsao');
   const [senha_aparelho] = defineField('senha_aparelho');
@@ -43,6 +44,7 @@ export function useOSUpdateGeralForm(opts: {
       solucao: os.solucao ?? undefined,
       observacoes: os.observacoes ?? undefined,
       desconto: os.desconto ?? undefined,
+      valor_entrada: os.valor_entrada ?? 0,
       garantia: os.garantia ?? undefined,
       data_previsao: os.data_previsao ?? undefined,
       senha_aparelho: os.senha_aparelho ?? undefined,
@@ -74,6 +76,7 @@ export function useOSUpdateGeralForm(opts: {
     solucao,
     observacoes,
     desconto,
+    valor_entrada,
     garantia,
     data_previsao,
     senha_aparelho,

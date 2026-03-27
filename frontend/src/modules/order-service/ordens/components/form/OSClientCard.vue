@@ -58,12 +58,23 @@ const clienteNome = computed(() => {
 
 const formattedAddress = computed(() => {
   if (!props.cliente?.endereco) return 'Endereço não cadastrado';
-  const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
-  if (c.endereco?.logradouro) {
-    const end = c.endereco;
-    return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
-  }
-  return 'Endereço não cadastrado';
+
+  // Defensivo: endereco pode vir como array (fallback sem preprocess) ou objeto
+  const raw = props.cliente.endereco;
+  const end = Array.isArray(raw) ? raw[0] : raw;
+
+  if (!end || typeof end !== 'object') return 'Endereço não cadastrado';
+
+  const { logradouro, numero, bairro, cidade, estado } = end as {
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+  };
+
+  if (!logradouro) return 'Endereço não cadastrado';
+  return `${logradouro}, ${numero ?? 'S/N'} - ${bairro}, ${cidade}/${estado}`;
 });
 
 const formattedPhone = computed(() => {

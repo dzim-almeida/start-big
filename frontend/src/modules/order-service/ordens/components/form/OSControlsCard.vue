@@ -12,9 +12,12 @@ interface Props {
   statusOptions: SelectOption[];
   prioridadeOptions: SelectOption[];
   funcionariosOptions: SelectOption[];
+  isCreateMode?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  isCreateMode: false,
+});
 
 const emit = defineEmits<{
   'update:status': [value: OsStatusEnumDataType];
@@ -31,6 +34,7 @@ const emit = defineEmits<{
         :model-value="status"
         label="Situação"
         :options="statusOptions"
+        :disabled="props.isCreateMode"
         @update:model-value="emit('update:status', $event as OsStatusEnumDataType)"
       />
 

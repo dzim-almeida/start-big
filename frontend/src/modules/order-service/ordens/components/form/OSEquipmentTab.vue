@@ -48,7 +48,10 @@ const historicoOptions = computed<SelectOption[]>(() => [
   })),
 ]);
 
-const tipoEquipamentoOptions: SelectOption[] = OS_EQUIP_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }));
+const tipoEquipamentoOptions: SelectOption[] = [
+  { value: '', label: '-- Selecione --' },
+  ...OS_EQUIP_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+];
 
 function updateField<K extends keyof EquipamentoForm>(field: K, value: EquipamentoForm[K]) {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
@@ -82,7 +85,7 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <BaseSelect
-          :model-value="modelValue.equipamento"
+          :model-value="modelValue.equipamento || ''"
           label="Tipo de Equipamento"
           :options="tipoEquipamentoOptions"
           required

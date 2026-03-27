@@ -21,7 +21,7 @@ export async function getEmployeesAll(): Promise<EmployeeReadSchemaDataType> {
 export async function getCustomersAll(): Promise<CustomerUnionReadSchemaDataType[]> {
   const { data } = await api.get<CustomerPaginationDataType>(
     `${BASE_CUSTOMER_OS_URL}/`,
-    { params: { only_true: true } },
+    { params: { only_active: true } },
   );
 
   const result = CustomerPaginationSchema.safeParse(data);

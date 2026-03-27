@@ -11,6 +11,7 @@ import OSControlsCard from './form/OSControlsCard.vue';
 import OSEquipmentTab from './form/OSEquipmentTab.vue';
 import OSDiagnosticoTab from './form/OSDiagnosticoTab.vue';
 import OSServicesTab from './form/OSServicesTab.vue';
+import OSSummaryCard from './form/OSSummaryCard.vue';
 import OSReopenOptionsModal from './form/OSReopenOptionsModal.vue';
 import OSPrintTemplate from './OSPrintTemplate.vue';
 import OSFinalizarModal from './OSFinalizarModal.vue';
@@ -26,6 +27,8 @@ import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.
 
 import { getClientEquipments } from '@/modules/customers/services/customerGet.service';
 import { getUniqueOS } from '../services/orderServiceGet.service';
+import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
+import type { PendingPhoto } from './form/OSFotoGallery.vue';
 
 import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
 import { useOsEmployeesGet } from '../composables/request/relationship/useOSRelationshipGet.queries';
@@ -78,7 +81,10 @@ const form = useOSFormProvider({
       handleClose();
     }, 100);
   },
-  onUpdateSuccess: () => handleClose(),
+  onUpdateSuccess: async () => {
+    await uploadPendingPhotos();
+    handleClose();
+  },
   onItemSuccess: () => closeItemModal(),
   onFinalizarSuccess: () => { isFinalizarModalOpen.value = false; },
 });
@@ -139,11 +145,17 @@ function handleReopenFull() {
 type TabType = 'equipamento' | 'diagnostico' | 'servicos';
 const activeTab = ref<TabType>('equipamento');
 
-const tabs: { id: TabType; label: string; icon: Component }[] = [
+const allTabs: { id: TabType; label: string; icon: Component }[] = [
   { id: 'equipamento', label: 'Equipamento',     icon: Smartphone    },
   { id: 'diagnostico', label: 'Diagnóstico',      icon: ClipboardList },
   { id: 'servicos',    label: 'Serviços e Peças', icon: Package       },
 ];
+
+const visibleTabs = computed(() =>
+  isCreateMode.value
+    ? allTabs.filter(t => t.id !== 'diagnostico')
+    : allTabs
+);
 
 // ─── 6. Itens ─────────────────────────────────────────────────────────────────
 const addItemMutation = useCreateItemOSMutation();
@@ -250,6 +262,51 @@ const displayValorTotal = computed(() => {
   return effectiveOS.value?.valor_total ?? 0;
 });
 
+const displayValorEntrada = computed(() => {
+  if (isCreateMode.value) return form.criar.valor_entrada.value ?? 0;
+  return form.atualizarGeral.valor_entrada.value ?? effectiveOS.value?.valor_entrada ?? 0;
+});
+
+function handleValorEntradaUpdate(value: number) {
+  if (isCreateMode.value) form.criar.valor_entrada.value = value;
+  else form.atualizarGeral.valor_entrada.value = value;
+}
+
+// ─── 7b. Fotos pendentes ──────────────────────────────────────────────────
+const pendingPhotos = ref<PendingPhoto[]>([]);
+
+function handleAddPhoto(file: File) {
+  pendingPhotos.value.push({
+    file,
+    previewUrl: URL.createObjectURL(file),
+    nome_arquivo: file.name,
+  });
+}
+
+function handleRemovePending(index: number) {
+  URL.revokeObjectURL(pendingPhotos.value[index].previewUrl);
+  pendingPhotos.value.splice(index, 1);
+}
+
+function clearPendingPhotos() {
+  pendingPhotos.value.forEach(p => URL.revokeObjectURL(p.previewUrl));
+  pendingPhotos.value = [];
+}
+
+async function uploadPendingPhotos() {
+  if (pendingPhotos.value.length === 0 || !osNumber.value) return;
+  for (const p of pendingPhotos.value) {
+    await uploadFotoOS({ osNumber: osNumber.value, imageFile: p.file });
+  }
+  clearPendingPhotos();
+}
+
+function handlePhotoChange() {
+  if (osNumber.value) {
+    getUniqueOS(osNumber.value).then(os => { latestOSData.value = os; });
+  }
+}
+
 // ─── 8. Print ─────────────────────────────────────────────────────────────────
 function handlePrint() {
   printType.value = 'ENTRADA';
@@ -292,6 +349,7 @@ function handleClose() {
   form.atualizarGeral.resetForm();
   form.atualizarEquipamento.resetForm();
   form.item.resetForm();
+  clearPendingPhotos();
   reopenMode.value = 'NONE';
   isReopenOptionsOpen.value = false;
   savedOS.value = null;
@@ -518,7 +576,7 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
 </script>
 
 <template>
-  <BaseModal :is-open="isOpen" title="" size="3xl" @close="handleClose">
+  <BaseModal :is-open="isOpen" title="" size="4xl" @close="handleClose">
     <template #header>
       <OSFormHeader
         :os-number="props.ordemServico?.numero_os ?? '...'"
@@ -530,8 +588,9 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
     </template>
 
     <form class="space-y-4" @submit.prevent="handleLocalSubmit">
-      <fieldset :disabled="isStructureLocked" class="contents">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div class="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
+        <!-- COLUNA ESQUERDA (sidebar) -->
+        <fieldset :disabled="isStructureLocked" class="contents lg:block space-y-4">
           <OSClientCard
             :cliente="currentCliente"
             :status="props.ordemServico?.status"
@@ -544,6 +603,7 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
           />
           <OSControlsCard
             :status="controlsStatus"
+            :is-create-mode="isCreateMode"
             :funcionario-id="controlsFuncionarioId"
             :prioridade="controlsPrioridade"
             :data-previsao="controlsDataPrevisao"
@@ -555,62 +615,74 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
             @update:prioridade="handlePrioridadeUpdate"
             @update:data-previsao="handleDataPrevisaoUpdate"
           />
-        </div>
-      </fieldset>
-
-      <div class="flex p-1 mt-2 mb-4 bg-slate-100 rounded-xl gap-1">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          type="button"
-          @click="activeTab = tab.id"
-          :class="[
-            'flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-bold rounded-lg transition-all',
-            activeTab === tab.id
-              ? 'bg-white text-brand-primary shadow-sm'
-              : 'text-slate-500 hover:text-slate-700',
-          ]"
-        >
-          <component :is="tab.icon" :size="14" />
-          {{ tab.label }}
-        </button>
-      </div>
-
-      <fieldset :disabled="isStructureLocked" class="contents">
-        <div class="min-h-137.5">
-          <OSEquipmentTab
-            v-if="activeTab === 'equipamento'"
-            v-model="equipamentoFormData"
-            :equipamentos-historico="equipamentosHistorico"
-            :selected-historico="selectedHistorico"
-            :is-locked="isStructureLocked"
-            @update:selected-historico="selectedHistorico = $event"
-            @apply-historico="applyEquipamentoHistorico"
-          />
-
-          <OSDiagnosticoTab
-            v-if="activeTab === 'diagnostico'"
-            :diagnostico="currentDiagnostico"
-            :os-numero="displayOS?.numero_os"
-            :fotos="displayOS?.fotos ?? []"
-            :is-locked="isStructureLocked"
-            @update:diagnostico="handleDiagnosticoUpdate"
-            @photo-change="() => {}"
-          />
-
-          <OSServicesTab
-            v-if="activeTab === 'servicos'"
+          <OSSummaryCard
             :itens="displayItems"
-            :is-locked="isItemsLocked"
             :subtotal="displaySubtotal"
             :valor-desconto="displayValorDesconto"
             :valor-total="displayValorTotal"
-            @add-item="openAddItemModal"
-            @edit-item="openEditItemModal"
-            @remove-item="handleRemoveItem"
+            :valor-entrada="displayValorEntrada"
+            :is-locked="isStructureLocked"
+            @update:valor-entrada="handleValorEntradaUpdate"
           />
+        </fieldset>
+
+        <!-- COLUNA DIREITA (tabs + form) -->
+        <div>
+          <div class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
+            <button
+              v-for="tab in visibleTabs"
+              :key="tab.id"
+              type="button"
+              @click="activeTab = tab.id"
+              :class="[
+                'flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-bold rounded-lg transition-all',
+                activeTab === tab.id
+                  ? 'bg-white text-brand-primary shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700',
+              ]"
+            >
+              <component :is="tab.icon" :size="14" />
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <fieldset :disabled="isStructureLocked" class="contents">
+            <div class="min-h-125">
+              <OSEquipmentTab
+                v-if="activeTab === 'equipamento'"
+                v-model="equipamentoFormData"
+                :equipamentos-historico="equipamentosHistorico"
+                :selected-historico="selectedHistorico"
+                :is-locked="isStructureLocked"
+                @update:selected-historico="selectedHistorico = $event"
+                @apply-historico="applyEquipamentoHistorico"
+              />
+
+              <OSDiagnosticoTab
+                v-if="activeTab === 'diagnostico'"
+                :diagnostico="currentDiagnostico"
+                :os-numero="displayOS?.numero_os"
+                :fotos="effectiveOS?.fotos ?? []"
+                :pending-photos="pendingPhotos"
+                :is-locked="isStructureLocked"
+                @update:diagnostico="handleDiagnosticoUpdate"
+                @add-photo="handleAddPhoto"
+                @remove-pending="handleRemovePending"
+                @photo-change="handlePhotoChange"
+              />
+
+              <OSServicesTab
+                v-if="activeTab === 'servicos'"
+                :itens="displayItems"
+                :is-locked="isItemsLocked"
+                @add-item="openAddItemModal"
+                @edit-item="openEditItemModal"
+                @remove-item="handleRemoveItem"
+              />
+            </div>
+          </fieldset>
         </div>
-      </fieldset>
+      </div>
     </form>
 
     <template #footer>
