@@ -5,10 +5,11 @@
 
 from fastapi import APIRouter, Depends, status, Query, Path
 from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy import select
+from typing import Optional, List
 
 from app.schemas.cliente import (
-    ClienteRead, ClienteUpdate, 
+    ClienteRead, ClienteUpdate,
     ClientePFCreate, ClientePFRead,
     ClientePJCreate, ClientePJRead
 )
@@ -17,6 +18,7 @@ from app.schemas.pagination import ClientePaginationRead
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
 from app.services import cliente as cliente_service
+from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
 
 router = APIRouter()
 
@@ -117,6 +119,35 @@ def get_client_by_search(
         page,
         limit
     )
+
+@router.get(
+    "/{cliente_id}/equipamentos",
+    response_model=List[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Histórico de Equipamentos do Cliente",
+    description="Retorna equipamentos já cadastrados para o cliente (histórico para pré-preenchimento ao abrir nova OS)."
+)
+def get_equipamentos_by_cliente(
+    user_token: dict = Depends(check_permission(required_permission="cliente")),
+    cliente_id: int = Path(..., description="ID do cliente", ge=1),
+    *,
+    db: Session = Depends(get_db)
+):
+    equipamentos = db.scalars(
+        select(OrdemServicoEquipamento)
+        .where(OrdemServicoEquipamento.cliente_id == cliente_id)
+        .where(OrdemServicoEquipamento.ativo == True)
+        .order_by(OrdemServicoEquipamento.data_criacao.desc())
+    ).all()
+    return [
+        {
+            "equipamento": e.tipo_equipamento.value,
+            "marca": e.marca,
+            "modelo": e.modelo,
+            "numero_serie": e.numero_serie,
+        }
+        for e in equipamentos
+    ]
 
 # ===========================================================================
 # ROTAS DE ATUALIZAÇÃO (PUT)

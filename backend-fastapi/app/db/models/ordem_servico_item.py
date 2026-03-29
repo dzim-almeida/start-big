@@ -40,7 +40,7 @@ class OrdemServicoItem(Base):
 
     produto_id: Mapped[Optional[int]] = mapped_column(
         Integer,
-        ForeignKey("produtos.id", ondelete="SET_NULL"),
+        ForeignKey("produtos.id", ondelete="SET NULL"),
         nullable=True,
         doc="ID do produto do catalogo (FK, nullable para itens customizados)"
     )

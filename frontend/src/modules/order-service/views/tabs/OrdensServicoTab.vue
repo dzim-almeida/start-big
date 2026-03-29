@@ -91,7 +91,7 @@ function handleCloseFormModal() {
 // ─── Ações da tabela ──────────────────────────────────────────────────────────
 async function handleView(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await getUniqueOS(os.numero_os);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
@@ -102,7 +102,7 @@ async function handleView(os: OrderServiceReadDataType) {
 
 async function handleEdit(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await getUniqueOS(os.numero_os);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
@@ -113,9 +113,9 @@ async function handleEdit(os: OrderServiceReadDataType) {
 
 async function handleFinalizar(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
-    selectedOS.value = osCompleta;
-    isFinalizarModalOpen.value = true;
+    const osCompleta = await getUniqueOS(os.numero_os);
+    osToFinalizar.value = osCompleta;
+    isFinalizarDirectOpen.value = true;
   } catch {
     toast.error('Erro ao carregar OS');
   }
@@ -156,35 +156,23 @@ function handleCloseCancelModal() {
   osToCancel.value = null;
 }
 
-function handleConfirmCancel(payload: { motivo: string; print: boolean }) {
-  if (osToCancel.value) {
-    const osRef = osToCancel.value;
-    cancelarMutation.mutate(
-      { id: osRef.id, motivo: payload.motivo },
-      {
-        onSuccess: () => {
-          if (payload.print) {
-            printCancelamento(osRef, payload.motivo);
-          }
-          handleCloseCancelModal();
-        },
-      },
-    );
+async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
+  if (shouldPrint && osToCancel.value) {
+    await printCancelamento(osToCancel.value);
   }
+  handleCloseCancelModal();
 }
 
-async function printCancelamento(os: OrdemServicoListRead, motivo: string) {
+async function printCancelamento(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
-    const osComMotivo = { ...osCompleta, motivo_cancelamento: motivo };
-    osToPrint.value = osComMotivo;
+    const osCompleta = await getUniqueOS(os.numero_os);
+    osToPrint.value = osCompleta;
     printType.value = 'CANCELAMENTO';
     setTimeout(() => {
       window.print();
       setTimeout(() => {
         osToPrint.value = null;
         printType.value = null;
-        queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
       }, 500);
     }, 100);
   } catch {
@@ -220,7 +208,7 @@ function handleReopenFull() {
 
 async function handlePrintOS(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.id);
+    const osCompleta = await getUniqueOS(os.numero_os);
     osToPrint.value = osCompleta;
     printType.value = osCompleta.status === 'CANCELADA' ? 'CANCELAMENTO' : 'SAIDA';
     setTimeout(() => {

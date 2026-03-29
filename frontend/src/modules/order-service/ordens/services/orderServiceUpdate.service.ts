@@ -37,3 +37,8 @@ export async function updateReopen(os_number: string): Promise<OrderServiceReadD
     return safeParseResponse(OrderServiceReadSchema, data, 'updateReopen');
 }
 
+export async function deleteItemOS(req: OsDeleteItem): Promise<OrderServiceReadDataType> {
+    const { data } = await api.delete<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${req.osNumber}/itens/${req.itemOsId}`)
+    return safeParseResponse(OrderServiceReadSchema, data, 'deleteItemOS');
+}
+

@@ -90,7 +90,7 @@ def get_cliente_by_search(
     if filters.get("only_active", True):
         query = query.where(poly.ativo == True)
 
-    search = filters.get("search", "").strip()
+    search = (filters.get("search") or "").strip()
     if search:
         like_search = f"%{search}%"
         query = query.where(

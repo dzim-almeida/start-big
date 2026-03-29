@@ -34,8 +34,8 @@ export const OrderServiceReadSchema = z.object({
   status: OsStatusEnum,
 
   // Financeiro
-  valor_bruto: z.number().int().positive(),
-  valor_total: z.number().int().positive(),
+  valor_bruto: z.number().int().nonnegative(),
+  valor_total: z.number().int().nonnegative(),
 
   // Datas
   data_finalizacao: z.string().datetime().optional(),

@@ -84,12 +84,12 @@ function handleHistoricoSelectChange(value: string) {
           </div>
         </h5>
 
-        <BaseInput
+        <BaseSelect
           :model-value="modelValue.equipamento"
           label="Equipamento *"
-          placeholder="Ex: iPhone 14, Notebook Dell..."
+          :options="tipoEquipamentoOptions"
           required
-          @update:model-value="updateField('equipamento', $event)"
+          @update:model-value="updateField('equipamento', $event as string)"
         />
 
         <div class="grid grid-cols-2 gap-3">

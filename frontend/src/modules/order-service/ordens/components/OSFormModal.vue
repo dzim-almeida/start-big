@@ -3,7 +3,6 @@ import { ref, computed, watch, type Component } from 'vue';
 import { Smartphone, ClipboardList, Package } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
-
 import OSFormHeader from './form/OSFormHeader.vue';
 import OSFormFooter from './form/OSFormFooter.vue';
 import OSClientCard from './form/OSClientCard.vue';
@@ -19,14 +18,59 @@ import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
 import OSItemFormModal from './form/OSItemFormModal.vue';
 import OSEquipamentoSelectModal from './form/OSEquipamentoSelectModal.vue';
 
-import type { OrdemServicoRead, OrdemServicoItemCreate } from '../types/ordemServico.types';
-import { useServicoModal } from '../../servicos/composables/useServicoModal';
+import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
+import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/customer.schema';
+import type { OsStatusEnumDataType } from '../schemas/enums/osEnums.schema';
+import type { OsPriorityEnumDataType } from '../schemas/enums/osEnums.schema';
+import type { OsItemCreateSchemaDataType } from '../schemas/relationship/osItem.schema';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
-import { getClientEquipments } from '@/modules/customers/services/cliente.service';
 
-import { useOSForm } from '../composables/useOSForm';
+import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
+import { useServicoModal } from '../../servicos/composables/useServicoModal';
+import { useOsEmployeesGet } from '../composables/request/relationship/useOSRelationshipGet.queries';
+import { getClientEquipments } from '@/modules/customers/services/customerGet.service';
+import { getUniqueOS } from '../services/orderServiceGet.service';
+import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
 
+// ─── Tipos locais ─────────────────────────────────────────────────────────────
+interface EquipamentoForm {
+  equipamento: string;
+  marca: string;
+  modelo: string;
+  numero_serie: string;
+  imei: string;
+  cor: string;
+  senha_aparelho: string;
+  acessorios: string;
+  defeito_relatado: string;
+  condicoes_aparelho: string;
+}
+
+interface PendingPhoto {
+  file: File;
+  previewUrl: string;
+  nome_arquivo: string;
+}
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+const prioridadeOptions = [
+  { label: 'Baixa', value: 'BAIXA' },
+  { label: 'Normal', value: 'NORMAL' },
+  { label: 'Alta', value: 'ALTA' },
+  { label: 'Urgente', value: 'URGENTE' },
+];
+
+const statusOptions = [
+  { label: 'Aberta', value: 'ABERTA' },
+  { label: 'Em Andamento', value: 'EM_ANDAMENTO' },
+  { label: 'Aguardando Peças', value: 'AGUARDANDO_PECAS' },
+  { label: 'Aguardando Aprovação', value: 'AGUARDANDO_APROVACAO' },
+  { label: 'Aguardando Retirada', value: 'AGUARDANDO_RETIRADA' },
+  { label: 'Finalizada', value: 'FINALIZADA' },
+  { label: 'Cancelada', value: 'CANCELADA' },
+];
+
+// ─── Props / Emits ────────────────────────────────────────────────────────────
 interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
@@ -40,62 +84,98 @@ const emit = defineEmits<{
   changeCliente: [];
 }>();
 
-// ─── 1. PROVIDER (deve ser chamado antes de qualquer await) ───────────────────
+// ─── 1. Estado base (deve ser declarado antes de qualquer await) ──────────────
 const osNumber = computed(() => props.ordemServico?.numero_os ?? null);
 const isCreateMode = computed(() => !props.ordemServico);
+const isEditMode = computed(() => !!props.ordemServico);
 const savedOS = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA'>('ENTRADA');
 const isFinalizarModalOpen = ref(false);
-const savedOS = ref<OrdemServicoRead | null>(null);
+const reopenMode = ref<'NONE' | 'TEXT_ONLY' | 'FULL'>('NONE');
+const isReopenOptionsOpen = ref(false);
 
-function handlePrint() {
-  const os = savedOS.value || props.ordemServico;
-  if (!os?.id) return;
-  printType.value = 'ENTRADA';
-  setTimeout(() => window.print(), 100);
-}
-
-function onSaved(os: OrdemServicoRead) {
-  if (!props.ordemServico) {
+// ─── 2. Contexto do formulário ────────────────────────────────────────────────
+const form = useOSFormProvider({
+  osNumber,
+  isCreateMode,
+  onCreateSuccess: async (os) => {
+    await uploadPendingPhotos(os.numero_os);
     savedOS.value = os;
     printType.value = 'ENTRADA';
-    setTimeout(() => {
-      window.print();
-      handleClose();
-    }, 100);
-  } else {
+    setTimeout(() => { window.print(); handleClose(); }, 100);
+  },
+  onUpdateSuccess: async () => {
+    await uploadPendingPhotos();
     handleClose();
-  }
+  },
+});
+
+// ─── 3. Queries de relacionamento ─────────────────────────────────────────────
+const employeesQuery = useOsEmployeesGet();
+
+const funcionariosOptions = computed(() => {
+  const data = employeesQuery.data.value;
+  if (!data) return [];
+  const arr = Array.isArray(data) ? data : [data];
+  return arr.map((f: any) => ({ label: f.nome, value: f.id }));
+});
+
+const isPending = useOSFormPendingState(form);
+
+// ─── 4. OS efetiva e flags de status ─────────────────────────────────────────
+const latestOSData = ref<OrderServiceReadDataType | null>(null);
+const effectiveOS = computed(() => latestOSData.value ?? props.ordemServico ?? null);
+const displayOS = computed(() => savedOS.value ?? effectiveOS.value);
+
+const isFinalizada = computed(() => effectiveOS.value?.status === 'FINALIZADA');
+const isCancelada = computed(() => effectiveOS.value?.status === 'CANCELADA');
+const isStructureLocked = computed(() => isFinalizada.value || isCancelada.value);
+const isItemsLocked = computed(() => isStructureLocked.value);
+
+// ─── 5. Itens e valores para display ─────────────────────────────────────────
+const displayItems = computed(() =>
+  isCreateMode.value
+    ? form.criar.itens.value.map(e => e.value)
+    : effectiveOS.value?.itens ?? []
+);
+
+const displaySubtotal = computed(() =>
+  displayItems.value.reduce((sum, item) => sum + item.quantidade * item.valor_unitario, 0)
+);
+
+const displayValorDesconto = computed(() =>
+  isCreateMode.value ? (form.criar.desconto.value ?? 0) : (form.atualizarGeral.desconto.value ?? 0)
+);
+
+const displayValorTotal = computed(() => Math.max(0, displaySubtotal.value - displayValorDesconto.value));
+
+const displayValorEntrada = computed<number>(() =>
+  isCreateMode.value
+    ? Number(form.criar.valor_entrada.value ?? 0)
+    : Number(form.atualizarGeral.valor_entrada.value ?? effectiveOS.value?.valor_entrada ?? 0)
+);
+
+function handleValorEntradaUpdate(value: number) {
+  if (isCreateMode.value) form.criar.valor_entrada.value = value;
+  else form.atualizarGeral.valor_entrada.value = value;
 }
 
-const osForm = useOSForm(props, emit, { onSuccess: onSaved });
+// ─── 6. Abas e modal de itens ─────────────────────────────────────────────────
+type TabType = 'equipamento' | 'diagnostico' | 'servicos';
+const activeTab = ref<TabType>('equipamento');
 
-const {
-  form,
-  itens,
-  apiError,
-  isEditMode,
-  servicosOptions,
-  produtosOptions,
-  funcionariosOptions,
-  prioridadeOptions,
-  statusOptions,
-  subtotal,
-  valorDesconto,
-  valorTotal,
-  isPending,
-  isLoadingServicos,
-  isLoadingProdutos,
-  handleClose,
-  handleChangeCliente,
-  handleSubmit,
-  removeItem,
-  reopenOS,
-} = osForm;
+const tabs: { id: TabType; label: string; icon: Component }[] = [
+  { id: 'equipamento', label: 'Equipamento',     icon: Smartphone    },
+  { id: 'diagnostico', label: 'Diagnóstico',      icon: ClipboardList },
+  { id: 'servicos',    label: 'Serviços e Peças', icon: Package       },
+];
+
+const visibleTabs = computed(() => tabs);
 
 const isItemModalOpen = ref(false);
 const editingItemIndex = ref<number | null>(null);
-const editingItem = ref<OrdemServicoItemCreate | null>(null);
+const editingItemId = ref<number | null>(null);
+const editingItem = ref<OsItemCreateSchemaDataType | null>(null);
 const { openCreateModal: openCreateServicoModal } = useServicoModal();
 
 function openAddItemModal() {
@@ -127,68 +207,21 @@ function closeItemModal() {
   editingItemId.value = null;
 }
 
-function handleSaveItem(item: OrdemServicoItemCreate) {
-  const formItem = {
-    ...item,
-    servico_id: item.servico_id ? String(item.servico_id) : undefined,
-  };
+function handleSaveItem(item: OsItemCreateSchemaDataType) {
   if (editingItemIndex.value !== null) {
-    itens.value[editingItemIndex.value] = formItem;
+    form.criar.handleUpdateItem(editingItemIndex.value, item);
   } else {
-    itens.value.push(formItem);
+    form.criar.handleAddItem(item);
   }
 }
 
-type TabType = 'equipamento' | 'diagnostico' | 'servicos';
-const activeTab = ref<TabType>('equipamento');
-
-const tabs: { id: TabType; label: string; icon: Component }[] = [
-  { id: 'equipamento', label: 'Equipamento',     icon: Smartphone    },
-  { id: 'diagnostico', label: 'Diagnóstico',      icon: ClipboardList },
-  { id: 'servicos',    label: 'Serviços e Peças', icon: Package       },
-];
-
-const nextOSNumber = ref<string | null>(null);
-
-const osNumber = computed(() => {
-  const num = props.ordemServico?.numero || nextOSNumber.value;
-  return num ? String(num).replace(/^OS-\d{4}-/, '') : '...';
-});
-
-const currentCliente = computed(() => props.selectedCliente || props.ordemServico?.cliente);
-
-const equipamentoFormData = computed({
-  get: () => ({
-    equipamento: form.value.equipamento,
-    marca: form.value.marca,
-    modelo: form.value.modelo,
-    numero_serie: form.value.numero_serie,
-    imei: form.value.imei,
-    cor: form.value.cor,
-    senha_aparelho: form.value.senha_aparelho,
-    acessorios: form.value.acessorios,
-    defeito_relatado: form.value.defeito_relatado,
-    condicoes_aparelho: form.value.condicoes_aparelho,
-  }),
-  set: (val) => Object.assign(form.value, val),
-});
-
-const displayValorTotal = computed(() => {
-  if (isCreateMode.value) return Math.max(0, displaySubtotal.value - displayValorDesconto.value);
-  return effectiveOS.value?.valor_total ?? 0;
-});
-
-const displayValorEntrada = computed(() => {
-  if (isCreateMode.value) return form.criar.valor_entrada.value ?? 0;
-  return form.atualizarGeral.valor_entrada.value ?? effectiveOS.value?.valor_entrada ?? 0;
-});
-
-function handleValorEntradaUpdate(value: number) {
-  if (isCreateMode.value) form.criar.valor_entrada.value = value;
-  else form.atualizarGeral.valor_entrada.value = value;
+function removeItem(index: number) {
+  if (isCreateMode.value) {
+    form.criar.handleRemoveItem(index);
+  }
 }
 
-// ─── 7b. Fotos pendentes ──────────────────────────────────────────────────
+// ─── 7. Fotos pendentes ───────────────────────────────────────────────────────
 const pendingPhotos = ref<PendingPhoto[]>([]);
 
 function handleAddPhoto(file: File) {
@@ -209,10 +242,11 @@ function clearPendingPhotos() {
   pendingPhotos.value = [];
 }
 
-async function uploadPendingPhotos() {
-  if (pendingPhotos.value.length === 0 || !osNumber.value) return;
+async function uploadPendingPhotos(overrideNumber?: string) {
+  const num = overrideNumber ?? osNumber.value;
+  if (pendingPhotos.value.length === 0 || !num) return;
   for (const p of pendingPhotos.value) {
-    await uploadFotoOS({ osNumber: osNumber.value, imageFile: p.file });
+    await uploadFotoOS({ osNumber: num, imageFile: p.file });
   }
   clearPendingPhotos();
 }
@@ -235,8 +269,6 @@ function handleReprintExit() {
 }
 
 // ─── 9. Finalizar ─────────────────────────────────────────────────────────────
-const isFinalizarModalOpen = ref(false);
-
 function handleFinalizarOS() { isFinalizarModalOpen.value = true; }
 
 function onFinalized({ shouldPrint }: { shouldPrint: boolean }) {
@@ -250,6 +282,7 @@ function handleLocalSubmit() {
   if (isCreateMode.value) {
     const clienteId = (props.selectedCliente as { id?: number } | null)?.id;
     if (clienteId) form.criar.cliente_id.value = clienteId;
+
     form.criar.onSubmit();
   } else if (reopenMode.value === 'TEXT_ONLY') {
     form.atualizarGeral.status.value = 'FINALIZADA';
@@ -274,15 +307,11 @@ function handleClose() {
   emit('close');
 }
 
-async function handlePhotoChange() {
-  if (props.ordemServico?.id) {
-    const { ordemServicoService } = await import('../services/ordemServico.service');
-    const osUpdated = await ordemServicoService.getById(props.ordemServico.id);
-    savedOS.value = osUpdated;
-    emit('saved', osUpdated);
-  }
+function handleChangeCliente() {
+  emit('changeCliente');
 }
 
+// ─── 12. Watches ──────────────────────────────────────────────────────────────
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     activeTab.value = 'equipamento';
@@ -316,7 +345,7 @@ const selectedHistorico = ref<string>('');
 const isEquipSelectModalOpen = ref(false);
 
 async function fetchEquipamentosHistorico() {
-  const clienteId = props.selectedCliente?.id || props.ordemServico?.cliente_id;
+  const clienteId = (props.selectedCliente as { id?: number } | null)?.id || (props.ordemServico as any)?.cliente_id;
   if (!clienteId) {
     equipamentosHistorico.value = [];
     return;
@@ -332,7 +361,7 @@ async function fetchEquipamentosHistorico() {
   }
 }
 
-watch(() => [props.selectedCliente?.id, props.ordemServico?.cliente_id], fetchEquipamentosHistorico, { immediate: true });
+watch(() => [(props.selectedCliente as { id?: number } | null)?.id, (props.ordemServico as any)?.cliente_id], fetchEquipamentosHistorico, { immediate: true });
 
 function handleEquipamentoSelected(equip: EquipamentoHistorico) {
   if (isCreateMode.value) {
@@ -358,27 +387,27 @@ function applyEquipamentoHistorico() {
 const equipamentoFormData = computed<EquipamentoForm>({
   get: () => isCreateMode.value
     ? {
-        equipamento:      form.criar.equipamento_tipo_equipamento.value ?? '',
-        marca:            form.criar.equipamento_marca.value ?? '',
-        modelo:           form.criar.equipamento_modelo.value ?? '',
-        numero_serie:     form.criar.equipamento_numero_serie.value ?? '',
-        imei:             form.criar.equipamento_imei.value ?? '',
-        cor:              form.criar.equipamento_cor.value ?? '',
-        senha_aparelho:   form.criar.senha_aparelho.value ?? '',
-        acessorios:       form.criar.acessorios.value ?? '',
-        defeito_relatado: form.criar.defeito_relatado.value ?? '',
+        equipamento:        form.criar.equipamento_tipo_equipamento.value ?? '',
+        marca:              form.criar.equipamento_marca.value ?? '',
+        modelo:             form.criar.equipamento_modelo.value ?? '',
+        numero_serie:       form.criar.equipamento_numero_serie.value ?? '',
+        imei:               form.criar.equipamento_imei.value ?? '',
+        cor:                form.criar.equipamento_cor.value ?? '',
+        senha_aparelho:     form.criar.senha_aparelho.value ?? '',
+        acessorios:         form.criar.acessorios.value ?? '',
+        defeito_relatado:   form.criar.defeito_relatado.value ?? '',
         condicoes_aparelho: form.criar.condicoes_aparelho.value ?? '',
       }
     : {
-        equipamento:      form.atualizarEquipamento.tipo_equipamento.value ?? '',
-        marca:            form.atualizarEquipamento.marca.value ?? '',
-        modelo:           form.atualizarEquipamento.modelo.value ?? '',
-        numero_serie:     form.atualizarEquipamento.numero_serie.value ?? '',
-        imei:             form.atualizarEquipamento.imei.value ?? '',
-        cor:              form.atualizarEquipamento.cor.value ?? '',
-        senha_aparelho:   form.atualizarGeral.senha_aparelho.value ?? '',
-        acessorios:       form.atualizarGeral.acessorios.value ?? '',
-        defeito_relatado: form.atualizarGeral.defeito_relatado.value ?? '',
+        equipamento:        form.atualizarEquipamento.tipo_equipamento.value ?? '',
+        marca:              form.atualizarEquipamento.marca.value ?? '',
+        modelo:             form.atualizarEquipamento.modelo.value ?? '',
+        numero_serie:       form.atualizarEquipamento.numero_serie.value ?? '',
+        imei:               form.atualizarEquipamento.imei.value ?? '',
+        cor:                form.atualizarEquipamento.cor.value ?? '',
+        senha_aparelho:     form.atualizarGeral.senha_aparelho.value ?? '',
+        acessorios:         form.atualizarGeral.acessorios.value ?? '',
+        defeito_relatado:   form.atualizarGeral.defeito_relatado.value ?? '',
         condicoes_aparelho: form.atualizarGeral.condicoes_aparelho.value ?? '',
       },
   set: (val: EquipamentoForm) => {
@@ -407,6 +436,20 @@ const equipamentoFormData = computed<EquipamentoForm>({
     }
   },
 });
+
+function populateEditForm(os: OrderServiceReadDataType) {
+  form.atualizarGeral.populateForm(os);
+  if (os.equipamento) {
+    form.atualizarEquipamento.populateForm({
+      tipo_equipamento: os.equipamento.tipo_equipamento,
+      marca:            os.equipamento.marca,
+      modelo:           os.equipamento.modelo,
+      numero_serie:     os.equipamento.numero_serie,
+      imei:             os.equipamento.imei,
+      cor:              os.equipamento.cor,
+    });
+  }
+}
 
 // ─── 15. Bindings do OSControlsCard ──────────────────────────────────────────
 const controlsStatus = computed<OsStatusEnumDataType>(() =>
@@ -465,12 +508,38 @@ function handleDiagnosticoUpdate(value: string) {
 // ─── 17. Cliente atual ────────────────────────────────────────────────────────
 const updatedClienteRef = ref<CustomerUnionReadSchemaDataType | null>(null);
 
-const currentCliente = computed(() =>
-  updatedClienteRef.value ?? props.selectedCliente ?? props.ordemServico?.cliente ?? null
-);
+const currentCliente = computed<CustomerUnionReadSchemaDataType | null>(() => {
+  // Verificamos primeiro se houve atualização manual, 
+  // depois o cliente selecionado, e por fim o da OS
+  return (
+    updatedClienteRef.value ?? 
+    (props.selectedCliente as CustomerUnionReadSchemaDataType | null) ?? 
+    (props.ordemServico?.cliente as CustomerUnionReadSchemaDataType | null) ?? 
+    null
+  );
+});
 
 function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
   updatedClienteRef.value = cliente;
+}
+
+// ─── 18. Reabrir ──────────────────────────────────────────────────────────────
+function handleReopenClick() {
+  isReopenOptionsOpen.value = true;
+}
+
+function handleReopenCancel() {
+  isReopenOptionsOpen.value = false;
+}
+
+function handleReopenTextOnly() {
+  reopenMode.value = 'TEXT_ONLY';
+  isReopenOptionsOpen.value = false;
+}
+
+function handleReopenFull() {
+  reopenMode.value = 'FULL';
+  isReopenOptionsOpen.value = false;
 }
 </script>
 
@@ -570,24 +639,18 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
                 @photo-change="handlePhotoChange"
               />
 
-          <OSServicesTab
-            v-if="activeTab === 'servicos'"
-            :itens="itens"
-            :servicos-options="servicosOptions"
-            :produtos-options="produtosOptions"
-            :is-loading-servicos="isLoadingServicos"
-            :is-loading-produtos="isLoadingProdutos"
-            :is-locked="isItemsLocked"
-            :subtotal="subtotal"
-            :valor-desconto="valorDesconto"
-            :valor-total="valorTotal"
-            :valor-entrada="Number(form.valor_entrada) || 0"
-            @add-item="openAddItemModal"
-            @edit-item="openEditItemModal"
-            @remove-item="removeItem"
-          />
+              <OSServicesTab
+                v-if="activeTab === 'servicos'"
+                :itens="displayItems"
+                :is-locked="isItemsLocked"
+                @add-item="openAddItemModal"
+                @edit-item="openEditItemModal"
+                @remove-item="removeItem"
+              />
+            </div>
+          </fieldset>
         </div>
-      </fieldset>
+      </div>
     </form>
 
     <template #footer>

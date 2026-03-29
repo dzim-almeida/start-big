@@ -24,8 +24,7 @@ export async function getAllOs(
   const { data } = await api.get<OrderServicePaginationDataType>(`${BASE_ORDER_SERVICE_URL}/`, {
     params,
   });
-  const validatedData = OrderServicePaginationSchema.parse(data);
-  return validatedData;
+  return safeParseResponse(OrderServicePaginationSchema, data, 'getAllOs');
 }
 
 export async function getUniqueOS(numero_os: string): Promise<OrderServiceReadDataType> {

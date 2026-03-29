@@ -46,7 +46,7 @@ function formatDate(dateValue: string | Date): string {
 
 function getStatusConfig(status: string) {
   const configs: Record<string, { bg: string; text: string }> = {
-    ABERTA:               { bg: 'bg-blue-50',    text: 'text-blue-600'    },
+    ABERTA:               { bg: 'bg-brand-primary/10', text: 'text-brand-primary' },
     EM_ANDAMENTO:         { bg: 'bg-amber-50',   text: 'text-amber-700'   },
     AGUARDANDO_PECAS:     { bg: 'bg-orange-50',  text: 'text-orange-700'  },
     AGUARDANDO_APROVACAO: { bg: 'bg-purple-50',  text: 'text-purple-700'  },
@@ -108,7 +108,7 @@ function getOSSequence(numero_os: string): string {
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div class="w-10 h-10 bg-brand-primary rounded-xl flex flex-col items-center justify-center text-white">
                 <span class="text-[8px] opacity-70 font-medium leading-none">OS</span>
-                <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero) }}</span>
+                <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero_os) }}</span>
               </div>
             </td>
 
@@ -117,7 +117,7 @@ function getOSSequence(numero_os: string): string {
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
                   {{ getClienteNome(os.cliente) }}
                 </span>
-                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento }}</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento?.marca }} {{ os.equipamento?.modelo }} · {{ os.equipamento?.tipo_equipamento }}</span>
               </div>
             </td>
 

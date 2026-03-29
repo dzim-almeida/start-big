@@ -27,6 +27,7 @@ export const OrderServiceBaseSchema = z.object({
 
   // Financeiro
   desconto: z.number().int().optional(),
+  valor_entrada: z.number().int().optional(),
 
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),

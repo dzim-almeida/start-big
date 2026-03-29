@@ -1,6 +1,7 @@
 export type { OrderServiceReadDataType as OrdemServicoRead } from '../schemas/orderServiceQuery.schema';
 export type { OrderServiceReadDataType as OrdemServicoListRead } from '../schemas/orderServiceQuery.schema';
 export type { OsStatusEnumDataType as OrdemServicoStatus } from '../schemas/enums/osEnums.schema';
+export type { OsPriorityEnumDataType as OrdemServicoPrioridade } from '../schemas/enums/osEnums.schema';
 
 export interface OrdemServicoItemCreate {
   tipo?: string;

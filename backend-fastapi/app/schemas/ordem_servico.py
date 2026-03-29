@@ -210,7 +210,7 @@ class OrdemServicoCreate(OrdemServicoBase):
 
     # Dados aninhados criados junto com a OS
     equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
-    itens: Sequence[OSItemCreate] = Field(..., min_length=1, description="Lista de itens/serviços da OS (mínimo 1)")
+    itens: Sequence[OSItemCreate] = Field(default=[], description="Lista de itens/servicos da OS (opcional)")
 
     model_config = ConfigDict(
         json_schema_extra=os_example,

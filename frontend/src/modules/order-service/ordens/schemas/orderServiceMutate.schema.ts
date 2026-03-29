@@ -16,7 +16,7 @@ export const OrderServiceCreateSchema = z.object({
 
   // Vínculos
   cliente_id: z.number().int().positive(),
-  funcionario_id: z.number().int().positive(),
+  funcionario_id: z.number().int().positive().optional(),
 
   // Aninhamento
   equipamento: OsEquipCreateSchema,

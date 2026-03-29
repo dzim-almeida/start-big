@@ -1,4 +1,5 @@
 import z from 'zod';
+import { cpf, cnpj } from 'cpf-cnpj-validator';
 
 import { CustomerTypeEnum } from './enums/customerEnum.type';
 import { GenderTypeEnum } from './enums/genderEnum.type';
@@ -7,19 +8,11 @@ import { AddressReadSchema } from './relationship/address.schema';
 const CustomerBaseSchema = z.object({
   id: z.number().int().positive(),
   tipo: CustomerTypeEnum,
-  email: z.string().email().max(255, 'O email é obrigatório').optional(),
-  telefone: z
-    .string()
-    .min(10, 'Digite um número de telefone válido')
-    .max(10, 'Digite um número de telefone válido')
-    .optional(),
-  celular: z
-    .string()
-    .min(11, 'Digite um número de telefone válido')
-    .max(11, 'Digite um número de telefone válido')
-    .optional(),
-  observacoes: z.string().max(500, 'A observação tem uma máximo de 500 caracteres').optional(),
-  endereco: AddressReadSchema.optional(),
+  email: z.string().email().max(255, 'O email é obrigatório').nullable().optional(),
+  telefone: z.string().nullable().optional(),
+  celular: z.string().nullable().optional(),
+  observacoes: z.string().max(500, 'A observação tem uma máximo de 500 caracteres').nullable().optional(),
+  endereco: z.array(AddressReadSchema).nullable().optional(),
   ativo: z.boolean()
 });
 
@@ -33,8 +26,8 @@ export const CustomerPFReadSchema = z
       .min(5, 'Um RG deve ter no mínimo 5 números')
       .max(20, 'RG tem no máximo 20 números')
       .optional(),
-    genero: GenderTypeEnum.optional(),
-    data_nascimento: z.date().optional()
+    genero: GenderTypeEnum.nullable().optional(),
+    data_nascimento: z.coerce.date().nullable().optional()
   })
   .refine((data) => cpf.isValid(data.cpf), {
     message: 'O CPF deve ser um documento válido',

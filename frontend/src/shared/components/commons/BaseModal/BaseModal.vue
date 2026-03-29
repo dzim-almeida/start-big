@@ -29,7 +29,7 @@ const sizeClasses = {
   xl: 'max-w-4xl',
   '2xl': 'max-w-6xl',
   '3xl': 'max-w-7xl',
-  '4xl': 'max-w-[90rem]',
+  '4xl': 'max-w-360',
 };
 
 function handleClose() {

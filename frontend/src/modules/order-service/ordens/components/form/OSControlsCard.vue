@@ -3,6 +3,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { OrdemServicoStatus, OrdemServicoPrioridade } from '../../types/ordemServico.types';
+import type { OsStatusEnumDataType, OsPriorityEnumDataType } from '../../schemas/enums/osEnums.schema';
 
 interface Props {
   status: OrdemServicoStatus;
