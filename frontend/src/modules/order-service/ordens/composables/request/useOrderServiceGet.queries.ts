@@ -55,6 +55,7 @@ export function useOrderServiceQueryAll() {
     orderServices,
     totalPages,
     totalItems,
+    currentPage,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,

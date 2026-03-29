@@ -10,8 +10,6 @@ export const OsStatusEnum = z.enum([
   'CANCELADA',
 ]);
 
-export type OsStatusEnumDataType = z.infer<typeof OsStatusEnum>
-
 export const OsPriorityEnum = z.enum(['BAIXA', 'NORMAL', 'ALTA', 'URGENTE']);
 
 export const OsItemTypeEnum = z.enum(['PRODUTO', 'SERVICO']);
@@ -49,3 +47,10 @@ export const OsCardsFlagEnum = z.enum([
   'ELO',
   'OUTROS',
 ])
+
+export type OsStatusEnumDataType = z.infer<typeof OsStatusEnum>
+export type OsPriorityEnumDataType = z.infer<typeof OsPriorityEnum>
+export type OsItemTypeEnumDataType = z.infer<typeof OsItemTypeEnum>
+export type OsEquipTypeEnumDataType = z.infer<typeof OsEquipTypeEnum>
+export type OsItemMeasureEnumDataType = z.infer<typeof OsItemMeasureEnum>
+export type OsCardsFlagEnumDataType = z.infer<typeof OsCardsFlagEnum>

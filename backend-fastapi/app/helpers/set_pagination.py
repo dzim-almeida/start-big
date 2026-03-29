@@ -37,7 +37,7 @@ def _set_pagination(
         "prev": f"{prev_link}page={page - 1}&limit={limit}" if page > 1 else None
     }
 
-    return (total_items, links)
+    return (total_pages, links)
     
     
     

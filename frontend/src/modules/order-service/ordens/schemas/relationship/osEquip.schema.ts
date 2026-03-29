@@ -41,4 +41,6 @@ export const OsEquipUpdateSchema = z.object({
   cliente_id: z.number().int().positive().optional(),
 });
 
+export type OsEquipCreateSchemaDataType = z.infer<typeof OsEquipCreateSchema>
+export type OsEquipReadSchemaDataType = z.infer<typeof OsEquipReadSchema>
 export type OsEquipUpdateSchemaDataType = z.infer<typeof OsEquipUpdateSchema>

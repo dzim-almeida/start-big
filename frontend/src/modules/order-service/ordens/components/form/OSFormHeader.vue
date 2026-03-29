@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { CheckCircle2, Printer, FileText, Unlock } from 'lucide-vue-next';
-import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import { X } from 'lucide-vue-next';
 
 interface Props {
   osNumber: string | number;
-  osId?: number;
   isFinalizada: boolean;
-  isPending: boolean;
-  reopenMode: 'NONE' | 'TEXT_ONLY' | 'FULL';
+  isCancelada?: boolean;
+  isCreateMode: boolean;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  print: [];
-  reprintExit: [];
-  reopen: [];
-  save: [];
   close: [];
 }>();
 
@@ -26,44 +20,36 @@ const displayNumber = computed(() => {
   return num.replace(/^OS-\d{4}-/, '') || '...';
 });
 
-const saveIcon = computed(() => {
-  return props.reopenMode === 'TEXT_ONLY' ? FileText : CheckCircle2;
+const headerTitle = computed(() => {
+  if (props.isCreateMode) return 'Nova Ordem de Serviço';
+  return `O.S. #${displayNumber.value}`;
 });
 </script>
 
 <template>
-  <div class="bg-slate-900 text-white p-5 rounded-t-2xl">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="text-slate-400 text-sm font-bold">O.S.nº</span>
-        <span class="text-3xl font-black tracking-widest text-white">{{ displayNumber }}</span>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <BaseButton variant="secondary" :disabled="!osId" @click="emit('print')">
-          <Printer :size="16" class="mr-2" />
-          ENTRADA
-        </BaseButton>
-
-        <BaseButton v-if="isFinalizada" variant="secondary" @click="emit('reprintExit')">
-          <Printer :size="16" class="mr-2" />
-          SAÍDA
-        </BaseButton>
-
-        <BaseButton v-if="isFinalizada" variant="primary" @click="emit('reopen')">
-          <Unlock :size="16" class="mr-2" />
-          REABRIR OS
-        </BaseButton>
-
-        <BaseButton v-if="!isFinalizada" variant="primary" :is-loading="isPending" @click="emit('save')">
-          <component :is="saveIcon" :size="16" class="mr-2" />
-          SALVAR
-        </BaseButton>
-
-        <BaseButton variant="secondary" @click="emit('close')">
-          FECHAR
-        </BaseButton>
-      </div>
+  <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+    <div class="flex items-center gap-3">
+      <h2 class="text-xl font-bold text-zinc-800">{{ headerTitle }}</h2>
+      <span
+        v-if="!isCreateMode && isFinalizada"
+        class="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700"
+      >
+        FINALIZADA
+      </span>
+      <span
+        v-if="!isCreateMode && isCancelada"
+        class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-700"
+      >
+        CANCELADA
+      </span>
     </div>
+
+    <button
+      type="button"
+      class="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+      @click="emit('close')"
+    >
+      <X :size="20" />
+    </button>
   </div>
 </template>

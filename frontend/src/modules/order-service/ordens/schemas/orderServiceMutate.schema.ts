@@ -20,7 +20,7 @@ export const OrderServiceCreateSchema = z.object({
 
   // Aninhamento
   equipamento: OsEquipCreateSchema,
-  itens: z.array(OsItemCreateSchema),
+  itens: z.array(OsItemCreateSchema).default([]),
 });
 
 export const orderServiceCreateValidationSchema = toTypedSchema(OrderServiceCreateSchema)
@@ -53,13 +53,14 @@ export const OrderServiceUpdateSchema = z.object({
 
   // Financeiro
   desconto: z.number().int().optional(),
+  valor_entrada: z.number().int().optional(),
 
   // Relações
   funcionario_id: z.number().int().positive().optional(),
 
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
-  data_previsao: z.string().datetime().optional(),
+  data_previsao: z.string().optional(),
 });
 
 export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpdateSchema)
@@ -72,6 +73,9 @@ export const OrderServiceReadySchema = z.object({
     .max(500, 'Uma descrição deve ter no máximo 500 caracteres'),
   observacoes: z.string().max(500, 'Uma observação deve ter no máximo 500 caracteres'),
   desconto: z.number().int(),
+  taxa_entrega: z.number().int().min(0, 'Taxa de entrega inválida').default(0),
+  acrescimo: z.number().int().min(0, 'Acréscimo inválido').default(0),
+  valor_entrada: z.number().int().optional(),
   pagamentos: z
     .array(OsPaymentCreateSchema)
     .min(1, 'Para finalizar precisa de ao menos um pagamento válido'),

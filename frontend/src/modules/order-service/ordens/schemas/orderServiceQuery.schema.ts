@@ -15,9 +15,9 @@ import { OsItemReadSchema } from './relationship/osItem.schema';
 import { OsPaymentReadSchema } from './relationship/osPayment.schema';
 import { OsImageReadSchema } from './relationship/osPhoto.schema';
 const OrderServiceParamsSchema = z.object({
-  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').nullish(),
-  status: OsStatusEnum.nullish(),
-  priority_sort: z.boolean().nullish(),
+  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional(),
+  status: OsStatusEnum.optional(),
+  priority_sort: z.boolean().optional(),
 });
 
 export const orderServiceParamsValidationSchema = toTypedSchema(OrderServiceParamsSchema);
@@ -34,13 +34,13 @@ export const OrderServiceReadSchema = z.object({
   status: OsStatusEnum,
 
   // Financeiro
-  valor_bruto: z.number().int().nonnegative(),
-  valor_total: z.number().int().nonnegative(),
+  valor_bruto: z.number().int().positive(),
+  valor_total: z.number().int().positive(),
 
   // Datas
-  data_finalizacao: z.string().nullish(),
-  data_criacao: z.string(),
-  data_atualizacao: z.string(),
+  data_finalizacao: z.string().datetime().optional(),
+  data_criacao: z.string().datetime(),
+  data_atualizacao: z.string().datetime(),
 
   // Status Lógico
   ativo: z.boolean(),
@@ -52,7 +52,7 @@ export const OrderServiceReadSchema = z.object({
   itens: z.array(OsItemReadSchema),
   pagamentos: z.array(OsPaymentReadSchema),
   fotos: z.array(OsImageReadSchema),
-});
+}).passthrough();
 
 export const orderServiceReadValidationSchema = toTypedSchema(OrderServiceReadSchema);
 export type OrderServiceReadDataType = z.infer<typeof OrderServiceReadSchema>;
@@ -71,7 +71,7 @@ export const OrderServicePaginationSchema = z.object({
     .optional(),
   filters: OrderServiceParamsSchema,
   items: z.array(OrderServiceReadSchema),
-});
+}).passthrough();
 
 export type OrderServicePaginationDataType = z.infer<typeof OrderServicePaginationSchema>;
 

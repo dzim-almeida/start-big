@@ -37,7 +37,7 @@ export const addressSchema = z.object({
 
 const commonFieldsSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
-  celular: z.string().max(16).optional().or(z.literal('')),
+  celular: z.string({ required_error: 'Contato é obrigatório' }).min(11, 'Contato inválido'),
   telefone: z.string().max(15).optional().or(z.literal('')),
   observacoes: z.string().max(500).optional().or(z.literal('')),
 });
@@ -54,11 +54,7 @@ export const customerPFSchema = z
       .min(3, 'Nome deve ter no mínimo 3 caracteres')
       .max(255),
     cpf: z
-      .string()
-      .min(14, 'CPF inválido')
-      .max(14, 'CPF inválido')
-      .optional()
-      .or(z.literal('')),
+      .string(),
 
     // PF Specific Fields - Optional
     rg: z.string().max(20).optional().or(z.literal('')),
@@ -73,11 +69,7 @@ export const customerPFSchema = z
   })
   .refine(
     (data) => {
-      // CPF validation only if provided
-      if (data.cpf && data.cpf.length === 14) {
-        return cpf.isValid(data.cpf);
-      }
-      return true;
+      return cpf.isValid(data.cpf);
     },
     {
       message: 'CPF inválido',

@@ -11,14 +11,25 @@ import {
   Receipt,
   Building2,
 } from 'lucide-vue-next';
-import type { OrdemServicoRead } from '../types/ordemServico.types';
+import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { formatCurrency } from '@/shared/utils/finance';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { getClienteNome, getPaymentDisplayName } from '../../shared/utils/formatters';
 
 const props = defineProps<{
-  ordemServico: OrdemServicoRead | null;
+  ordemServico: OrderServiceReadDataType | null;
   type: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO';
 }>();
+
+function getClienteDoc(cliente: OrderServiceReadDataType['cliente']): string {
+  const c = cliente as { cpf?: string; cnpj?: string };
+  return c.cpf || c.cnpj || '';
+}
+
+function getClientePhone(cliente: OrderServiceReadDataType['cliente']): string {
+  const c = cliente as { celular?: string; telefone?: string };
+  return c.celular || c.telefone || '';
+}
 
 const authStore = useAuthStore();
 
@@ -84,7 +95,7 @@ const formatDoc = (doc?: string) => {
 
 const subtotal = computed(() => {
   if (!props.ordemServico) return 0;
-  return props.ordemServico.itens.reduce((acc, item) => acc + (item.quantidade * item.valor_unitario), 0);
+  return props.ordemServico.itens.reduce((acc, item) => acc + item.valor_total, 0);
 });
 
 const totalPago = computed(() => {
@@ -114,7 +125,7 @@ const totalPago = computed(() => {
       <div class="text-right min-w-37.5">
         <div class="bg-slate-900 text-white p-2 rounded-t-lg text-center">
           <p class="text-[10px] font-bold uppercase tracking-wider">Número da O.S.</p>
-          <p class="text-2xl font-mono font-black">{{ ordemServico.numero || String(ordemServico.id).padStart(6, '0') }}</p>
+          <p class="text-2xl font-mono font-black">{{ ordemServico.numero_os || String(ordemServico.id).padStart(6, '0') }}</p>
         </div>
         <div class="border-x border-b border-slate-300 p-2 rounded-b-lg text-center bg-slate-50">
           <p class="text-[10px] font-bold text-slate-500 uppercase">Data Entrada</p>
@@ -139,10 +150,10 @@ const totalPago = computed(() => {
           <h3 class="text-xs font-bold uppercase text-slate-700">Dados do Cliente</h3>
         </div>
         <div class="p-3 text-xs space-y-1.5">
-          <p><span class="font-bold text-slate-600">Nome:</span> {{ ordemServico.cliente?.nome || ordemServico.cliente?.razao_social || 'Consumidor' }}</p>
+          <p><span class="font-bold text-slate-600">Nome:</span> {{ ordemServico.cliente ? getClienteNome(ordemServico.cliente) : 'Consumidor' }}</p>
           <div class="flex gap-4">
-            <p><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatDoc(ordemServico.cliente?.cpf || ordemServico.cliente?.cnpj) }}</p>
-            <p><span class="font-bold text-slate-600">Telefone:</span> {{ formatPhone(ordemServico.cliente?.celular || ordemServico.cliente?.telefone) }}</p>
+            <p><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatDoc(getClienteDoc(ordemServico.cliente)) }}</p>
+            <p><span class="font-bold text-slate-600">Telefone:</span> {{ formatPhone(getClientePhone(ordemServico.cliente)) }}</p>
           </div>
           <p v-if="ordemServico.cliente?.id"><span class="font-bold text-slate-600">Cód. Cliente:</span> #{{ ordemServico.cliente.id }}</p>
         </div>
@@ -154,14 +165,14 @@ const totalPago = computed(() => {
           <h3 class="text-xs font-bold uppercase text-slate-700">Dados do Equipamento</h3>
         </div>
         <div class="p-3 text-xs space-y-1.5">
-          <p class="text-sm font-bold text-slate-900">{{ ordemServico.equipamento }}</p>
+          <p class="text-sm font-bold text-slate-900">{{ ordemServico.equipamento.tipo_equipamento }}</p>
           <div class="grid grid-cols-2 gap-2">
-            <p><span class="font-bold text-slate-600">Marca:</span> {{ ordemServico.marca || '-' }}</p>
-            <p><span class="font-bold text-slate-600">Modelo:</span> {{ ordemServico.modelo || '-' }}</p>
+            <p><span class="font-bold text-slate-600">Marca:</span> {{ ordemServico.equipamento.marca || '-' }}</p>
+            <p><span class="font-bold text-slate-600">Modelo:</span> {{ ordemServico.equipamento.modelo || '-' }}</p>
           </div>
           <div class="grid grid-cols-2 gap-2">
-            <p><span class="font-bold text-slate-600">Nº Série:</span> {{ ordemServico.numero_serie || '-' }}</p>
-            <p><span class="font-bold text-slate-600">Cor:</span> -</p>
+            <p><span class="font-bold text-slate-600">Nº Série:</span> {{ ordemServico.equipamento.numero_serie || '-' }}</p>
+            <p><span class="font-bold text-slate-600">Cor:</span> {{ ordemServico.equipamento.cor || '-' }}</p>
           </div>
         </div>
       </div>
@@ -208,10 +219,10 @@ const totalPago = computed(() => {
           </thead>
           <tbody class="divide-y divide-slate-200">
             <tr v-for="item in ordemServico.itens" :key="item.id">
-              <td class="py-2 pl-2 text-slate-800">{{ item.descricao }}</td>
+              <td class="py-2 pl-2 text-slate-800">{{ item.nome }}</td>
               <td class="py-2 text-center text-slate-600">{{ item.quantidade }}</td>
               <td class="py-2 text-right text-slate-600">{{ formatCurrency(item.valor_unitario) }}</td>
-              <td class="py-2 pr-2 text-right font-bold text-slate-800">{{ formatCurrency(item.quantidade * item.valor_unitario) }}</td>
+              <td class="py-2 pr-2 text-right font-bold text-slate-800">{{ formatCurrency(item.valor_total) }}</td>
             </tr>
           </tbody>
         </table>
@@ -225,7 +236,7 @@ const totalPago = computed(() => {
               <div class="flex items-center gap-2">
                 <CreditCard :size="12" class="text-slate-400" />
                 <span class="font-semibold text-slate-700">
-                  {{ pgto.forma_pagamento?.nome || 'Pagamento' }}
+                  {{ getPaymentDisplayName(pgto.forma_pagamento?.nome || 'Pagamento') }}
                   <span v-if="pgto.parcelas > 1" class="text-[10px] text-slate-500 font-normal">({{ pgto.parcelas }}x)</span>
                 </span>
               </div>
@@ -240,13 +251,9 @@ const totalPago = computed(() => {
             <span>Subtotal:</span>
             <span>{{ formatCurrency(subtotal) }}</span>
           </div>
-          <div v-if="ordemServico.desconto > 0" class="flex justify-between text-xs text-red-600">
+          <div v-if="(ordemServico.desconto ?? 0) > 0" class="flex justify-between text-xs text-red-600">
             <span>Desconto:</span>
-            <span>- {{ formatCurrency(ordemServico.desconto) }}</span>
-          </div>
-          <div v-if="ordemServico.valor_entrada > 0" class="flex justify-between text-xs text-emerald-600">
-            <span>Entrada:</span>
-            <span>- {{ formatCurrency(ordemServico.valor_entrada) }}</span>
+            <span>- {{ formatCurrency(ordemServico.desconto ?? 0) }}</span>
           </div>
           <div class="border-t border-slate-800 my-1 pt-1 flex justify-between items-end">
             <span class="text-sm font-bold text-slate-900 uppercase">Total Pago:</span>
@@ -274,7 +281,7 @@ const totalPago = computed(() => {
           Motivo do Cancelamento
         </div>
         <p class="text-sm text-slate-900 font-medium">
-          {{ ordemServico.motivo_cancelamento || 'Motivo não informado.' }}
+          {{ (ordemServico as any).motivo_cancelamento || 'Motivo não informado.' }}
         </p>
       </div>
       <div class="border border-slate-200 bg-slate-50 rounded-lg p-3 text-[10px] text-slate-500 text-justify leading-relaxed mb-6">
@@ -298,11 +305,11 @@ const totalPago = computed(() => {
       <div class="text-center">
         <div class="border-t border-slate-400 w-3/4 mx-auto pt-2"></div>
         <p class="text-[10px] font-bold text-slate-500 uppercase">Assinatura do Cliente</p>
-        <p class="text-[8px] text-slate-400">{{ ordemServico.cliente?.nome }}</p>
+        <p class="text-[8px] text-slate-400">{{ ordemServico.cliente ? getClienteNome(ordemServico.cliente) : '' }}</p>
       </div>
     </div>
 
-    <div class="fixed bottom-0 left-0 w-full text-center border-t border-slate-100 py-1 bg-white">
+    <div class="print-footer mt-auto pt-4 text-center border-t border-slate-100 py-1 bg-white">
       <p class="text-[8px] text-slate-400 uppercase tracking-wider">
         Emitido em {{ new Date().toLocaleString() }} • Sistema BigPDV
       </p>
@@ -314,7 +321,7 @@ const totalPago = computed(() => {
 @media print {
   @page {
     size: A4;
-    margin: 0.5cm;
+    margin: 1.5cm;
   }
 
   body {
@@ -324,17 +331,36 @@ const totalPago = computed(() => {
     print-color-adjust: exact !important;
   }
 
+  /* Esconder overlays de modais (Teleport + fixed) */
+  .fixed {
+    display: none !important;
+  }
+
   .print-container {
     visibility: visible;
-    position: absolute;
+    position: fixed;
     left: 0;
     top: 0;
     width: 100%;
+    min-height: 100vh;
     margin: 0;
-    padding: 20px;
-    display: block !important;
+    padding: 0;
+    display: flex !important;
+    flex-direction: column;
     background: white;
     font-size: 12px;
+    z-index: 99999;
+  }
+
+  .print-footer {
+    margin-top: auto;
+  }
+
+  /* Evitar quebra de pagina dentro de secoes-chave */
+  .print-container header,
+  .print-container table,
+  .print-container > .grid {
+    page-break-inside: avoid;
   }
 
   * {

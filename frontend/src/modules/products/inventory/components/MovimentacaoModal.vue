@@ -59,7 +59,7 @@ const tipoOptions: SelectOption[] = [
 ];
 
 const tipoBadge = computed(() => {
-  if (tipo.value === 'ENTRADA') return { icon: ArrowDownCircle, class: 'text-emerald-600 bg-emerald-50', label: 'Entrada' };
+  if (tipo.value === 'ENTRADA') return { icon: ArrowDownCircle, class: 'text-brand-primary bg-brand-primary/10', label: 'Entrada' };
   if (tipo.value === 'SAIDA') return { icon: ArrowUpCircle, class: 'text-red-600 bg-red-50', label: 'Saída' };
   return { icon: SlidersHorizontal, class: 'text-amber-600 bg-amber-50', label: 'Ajuste' };
 });

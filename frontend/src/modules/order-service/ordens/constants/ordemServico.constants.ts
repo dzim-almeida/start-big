@@ -1,25 +1,25 @@
-import type { OrdemServicoStatus, OrdemServicoPrioridade } from '../types/ordemServico.types';
+import type { OsStatusEnumDataType, OsPriorityEnumDataType, OsEquipTypeEnumDataType } from '../schemas/enums/osEnums.schema';
 import type { FilterOption } from '@/shared/types/filter.types';
 
 export const OS_STATUS_OPTIONS = [
-  { value: 'ABERTA' as OrdemServicoStatus, label: 'Aberta', color: 'blue' },
-  { value: 'EM_ANDAMENTO' as OrdemServicoStatus, label: 'Em Andamento', color: 'yellow' },
-  { value: 'AGUARDANDO_PECAS' as OrdemServicoStatus, label: 'Aguardando Peças', color: 'orange' },
-  { value: 'AGUARDANDO_APROVACAO' as OrdemServicoStatus, label: 'Aguardando Aprovação', color: 'yellow' },
-  { value: 'AGUARDANDO_RETIRADA' as OrdemServicoStatus, label: 'Aguardando Retirada', color: 'indigo' },
-  { value: 'FINALIZADA' as OrdemServicoStatus, label: 'Finalizada', color: 'green' },
-  { value: 'CANCELADA' as OrdemServicoStatus, label: 'Cancelada', color: 'red' },
+  { value: 'ABERTA' as OsStatusEnumDataType, label: 'Aberta', color: 'blue' },
+  { value: 'EM_ANDAMENTO' as OsStatusEnumDataType, label: 'Em Andamento', color: 'yellow' },
+  { value: 'AGUARDANDO_PECAS' as OsStatusEnumDataType, label: 'Aguardando Peças', color: 'orange' },
+  { value: 'AGUARDANDO_APROVACAO' as OsStatusEnumDataType, label: 'Aguardando Aprovação', color: 'yellow' },
+  { value: 'AGUARDANDO_RETIRADA' as OsStatusEnumDataType, label: 'Aguardando Retirada', color: 'indigo' },
+  { value: 'FINALIZADA' as OsStatusEnumDataType, label: 'Finalizada', color: 'green' },
+  { value: 'CANCELADA' as OsStatusEnumDataType, label: 'Cancelada', color: 'red' },
 ] as const;
 
 export const OS_PRIORIDADE_OPTIONS = [
-  { value: 'BAIXA' as OrdemServicoPrioridade, label: 'Baixa', color: 'gray' },
-  { value: 'NORMAL' as OrdemServicoPrioridade, label: 'Normal', color: 'blue' },
-  { value: 'ALTA' as OrdemServicoPrioridade, label: 'Alta', color: 'orange' },
-  { value: 'URGENTE' as OrdemServicoPrioridade, label: 'Urgente', color: 'red' },
+  { value: 'BAIXA' as OsPriorityEnumDataType, label: 'Baixa', color: 'gray' },
+  { value: 'NORMAL' as OsPriorityEnumDataType, label: 'Normal', color: 'blue' },
+  { value: 'ALTA' as OsPriorityEnumDataType, label: 'Alta', color: 'orange' },
+  { value: 'URGENTE' as OsPriorityEnumDataType, label: 'Urgente', color: 'red' },
 ] as const;
 
-export const DEFAULT_OS_STATUS: OrdemServicoStatus = 'ABERTA';
-export const DEFAULT_OS_PRIORIDADE: OrdemServicoPrioridade = 'NORMAL';
+export const DEFAULT_OS_STATUS: OsStatusEnumDataType = 'ABERTA';
+export const DEFAULT_OS_PRIORIDADE: OsPriorityEnumDataType = 'NORMAL';
 export const DEFAULT_GARANTIA_DIAS = 90;
 
 export const OS_BASE_URL = '/ordens-servico';
@@ -44,6 +44,16 @@ export const REOPEN_MODES = {
 } as const;
 
 export type ReopenMode = typeof REOPEN_MODES[keyof typeof REOPEN_MODES];
+
+export const OS_EQUIP_TYPE_OPTIONS = [
+  { value: 'CELULAR' as OsEquipTypeEnumDataType, label: 'Celular' },
+  { value: 'TABLET' as OsEquipTypeEnumDataType, label: 'Tablet' },
+  { value: 'COMPUTADOR' as OsEquipTypeEnumDataType, label: 'Computador' },
+  { value: 'IMPRESSORA' as OsEquipTypeEnumDataType, label: 'Impressora' },
+  { value: 'MONITOR' as OsEquipTypeEnumDataType, label: 'Monitor' },
+  { value: 'SCANNER' as OsEquipTypeEnumDataType, label: 'Scanner' },
+  { value: 'OUTROS' as OsEquipTypeEnumDataType, label: 'Outros' },
+] as const;
 
 export const TAB_OPTIONS = [
   { id: 'ordens', label: 'Ordens de Serviço' },

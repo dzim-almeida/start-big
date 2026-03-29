@@ -5,47 +5,35 @@ import { OrderServiceReadSchema, OrderServiceReadDataType } from '../schemas/ord
 import { OrderServiceUpdateRequest, OsCancelUpdateRequest, OsEquipUpdateRequest, OsItemUpdateRequest, OsReadyUpdateRequest, OsDeleteItem } from '../types/requests.type';
 
 import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
+import { safeParseResponse } from '@/shared/utils/parse.utils';
 
 export async function updateOrderService(orderService: OrderServiceUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${orderService.osNumber}`, orderService.updatedOS)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateOrderService');
 }
 
 export async function updateEquipOS(equipOs: OsEquipUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${equipOs.osNumber}/equipamento`, equipOs.updatedEquip)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateEquipOS');
 }
 
 export async function updateItemOS(itemOs: OsItemUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${itemOs.osNumber}/itens/${itemOs.osItemId}`, itemOs.updatedItem)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateItemOS');
 }
 
 export async function updateReadyOS(readyOs: OsReadyUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${readyOs.osNumber}/finalizar`, readyOs.readyOs)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateReadyOS');
 }
 
 export async function updateCancelOS(cancelOs: OsCancelUpdateRequest): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${cancelOs.osNumber}/cancelar`, cancelOs.cancelOs)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateCancelOS');
 }
 
 export async function updateReopen(os_number: string): Promise<OrderServiceReadDataType> {
     const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${os_number}/reabrir`)
-    const validatedData = OrderServiceReadSchema.parse(data)
-    return validatedData
-}
-
-export async function deleteItemOS(deleteItem: OsDeleteItem): Promise<OrderServiceReadDataType> {
-    const { data } = await api.delete<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${deleteItem.osNumber}/itens/${deleteItem.itemOsId}`)
-    const result = OrderServiceReadSchema.safeParse(data)
-    if (!result.success) return data as OrderServiceReadDataType
-    return result.data
+    return safeParseResponse(OrderServiceReadSchema, data, 'updateReopen');
 }
 

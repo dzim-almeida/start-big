@@ -4,10 +4,13 @@ import { UserCircle2, Building2, Plus } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
-import { useOSClientSearch } from '../composables/useOSClientSearch';
-import { useCustomerModal } from '@/modules/customers/composables/useCustomerModal';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
+import { useQueryClient } from '@tanstack/vue-query';
+import { useOSClientSearch } from '../composables/request/relationship/useOSClientSearch.queries';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import { getInitials } from '@/shared/utils/string.utils';
+import { formatCPF, formatCNPJ, formatTelefone } from '@/shared/utils/document.utils';
+import { OS_CUSTOMER_QUERY_KEY } from '../constants/core.constant';
 
 interface Props {
   isOpen: boolean;
@@ -17,12 +20,21 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  selectCliente: [cliente: ClienteSearchResult];
+  selectCliente: [cliente: CustomerUnionReadSchemaDataType];
 }>();
 
 const isOpen = toRef(props, 'isOpen');
+const queryClient = useQueryClient();
 const { searchQuery, clientes, isLoading, lastCreatedId } = useOSClientSearch(isOpen);
-const { openCreateModal } = useCustomerModal();
+const { openCreateModalWithCallback } = useCustomerModal();
+
+function handleCadastrarNovo() {
+  openCreateModalWithCallback((customer) => {
+    queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
+    emit('selectCliente', customer as CustomerUnionReadSchemaDataType);
+    emit('close');
+  });
+}
 
 const listRef = ref<HTMLElement | null>(null);
 
@@ -35,18 +47,26 @@ watch(lastCreatedId, async (id) => {
   }
 });
 
-function handleSelect(cliente: ClienteSearchResult) {
+function handleSelect(cliente: CustomerUnionReadSchemaDataType) {
   emit('selectCliente', cliente);
   emit('close');
 }
 
-function getClienteNome(cliente: ClienteSearchResult): string {
-  if (cliente.tipo === 'PF') return cliente.nome;
-  return cliente.nome_fantasia || cliente.razao_social || cliente.nome;
+function getClienteNome(cliente: CustomerUnionReadSchemaDataType): string {
+  const c = cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
+  if (c.tipo === 'PF') return c.nome || '-';
+  return c.nome_fantasia || c.razao_social || '-';
 }
 
-function getClienteDocumento(cliente: ClienteSearchResult): string {
-  return cliente.tipo === 'PF' ? (cliente.cpf || '—') : (cliente.cnpj || '—');
+function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
+  const c = cliente as { tipo: string; cpf?: string; cnpj?: string };
+  if (c.tipo === 'PF') return c.cpf ? formatCPF(c.cpf) : '—';
+  return c.cnpj ? formatCNPJ(c.cnpj) : '—';
+}
+
+function getClienteTelefone(cliente: CustomerUnionReadSchemaDataType): string | null {
+  const phone = (cliente as any).celular || (cliente as any).telefone;
+  return phone ? formatTelefone(phone) : null;
 }
 </script>
 
@@ -98,13 +118,13 @@ function getClienteDocumento(cliente: ClienteSearchResult): string {
             <p class="text-sm font-semibold text-zinc-900 truncate">{{ getClienteNome(cliente) }}</p>
             <p class="text-[11px] text-zinc-400 truncate">
               {{ getClienteDocumento(cliente) }}
-              <template v-if="cliente.celular || cliente.telefone">
-                · {{ cliente.celular || cliente.telefone }}
+              <template v-if="getClienteTelefone(cliente)">
+                · {{ getClienteTelefone(cliente) }}
               </template>
             </p>
           </div>
           <component
-            :is="cliente.tipo === 'PF' ? UserCircle2 : Building2"
+            :is="(cliente as any).tipo === 'PF' ? UserCircle2 : Building2"
             :size="15"
             class="text-zinc-300 shrink-0"
           />
@@ -121,7 +141,7 @@ function getClienteDocumento(cliente: ClienteSearchResult): string {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" class="w-full" @click="openCreateModal()">
+      <BaseButton variant="secondary" class="w-full" @click="handleCadastrarNovo">
         <Plus :size="16" class="mr-1.5" />
         Cadastrar novo cliente
       </BaseButton>

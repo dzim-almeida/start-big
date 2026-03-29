@@ -3,6 +3,7 @@ import { useForm, useFieldArray } from 'vee-validate';
 
 import { orderServiceCreateValidationSchema } from '../../schemas/orderServiceMutate.schema';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
+import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 
 import type { OSCreateFormContext } from '../../types/context.type';
 
@@ -11,7 +12,7 @@ import { useCreateOrderServiceMutation } from '../request/useOrderServiceCreate.
 import { DEFAULT_OS_CREATE_VALUES, DEFAULT_OS_ITEM_VALUES } from '../../constants/core.constant';
 
 
-export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateFormContext {
+export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataType) => void }): OSCreateFormContext {
   const createMutation = useCreateOrderServiceMutation();
 
   const { handleSubmit, errors, defineField, resetForm: veeReset } = useForm({
@@ -25,6 +26,7 @@ export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateForm
   const [diagnostico] = defineField('diagnostico');
   const [observacoes] = defineField('observacoes');
   const [desconto] = defineField('desconto');
+  const [valor_entrada] = defineField('valor_entrada');
   const [garantia] = defineField('garantia');
   const [data_previsao] = defineField('data_previsao');
   const [senha_aparelho] = defineField('senha_aparelho');
@@ -44,7 +46,7 @@ export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateForm
   const [equipamento_cor] = defineField('equipamento.cor');
 
   // FieldArray de itens com generic explícito para inferência correta de tipos
-  const { fields: itens, push: pushItem, remove: removeItem } =
+  const { fields: itens, push: pushItem, remove: removeItem, update: updateItemField } =
     useFieldArray<OsItemCreateSchemaDataType>('itens');
 
   const handleAddItem = (item?: Partial<OsItemCreateSchemaDataType>) => {
@@ -55,15 +57,19 @@ export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateForm
     removeItem(index);
   };
 
+  const handleUpdateItem = (index: number, item: OsItemCreateSchemaDataType) => {
+    updateItemField(index, item);
+  };
+
   const resetForm = () => {
     veeReset({ values: { ...DEFAULT_OS_CREATE_VALUES } });
   };
 
   const onSubmit = handleSubmit((formData) => {
     createMutation.mutate(formData, {
-      onSuccess: () => {
+      onSuccess: (data) => {
         resetForm();
-        opts?.onSuccess?.();
+        opts?.onSuccess?.(data);
       },
     });
   });
@@ -76,6 +82,7 @@ export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateForm
     diagnostico,
     observacoes,
     desconto,
+    valor_entrada,
     garantia,
     data_previsao,
     senha_aparelho,
@@ -92,6 +99,7 @@ export function useOSCreateForm(opts?: { onSuccess?: () => void }): OSCreateForm
     itens,
     handleAddItem,
     handleRemoveItem,
+    handleUpdateItem,
     errors,
     isPending,
     onSubmit,

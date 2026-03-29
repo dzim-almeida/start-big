@@ -95,7 +95,7 @@ const isInactive = computed(() => !props.status);
     <div class="p-5 space-y-3">
       <!-- Category Badge -->
       <span
-        class="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-xs font-semibold uppercase tracking-wide rounded-md border border-blue-200"
+        class="inline-block px-3 py-1 bg-brand-primary/10 text-brand-primary text-xs font-semibold uppercase tracking-wide rounded-md border border-brand-primary/30"
       >
         {{ category }}
       </span>

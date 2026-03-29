@@ -2,23 +2,27 @@
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { OrdemServicoStatus, OrdemServicoPrioridade } from '../../types/ordemServico.types';
 
 interface Props {
-  status: string;
-  funcionarioId: number | string | undefined;
-  prioridade: string;
-  dataPrevisao: string | undefined;
+  status: OrdemServicoStatus;
+  funcionarioId: string;
+  prioridade: OrdemServicoPrioridade;
+  dataPrevisao: string;
   statusOptions: SelectOption[];
   prioridadeOptions: SelectOption[];
   funcionariosOptions: SelectOption[];
+  isCreateMode?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  isCreateMode: false,
+});
 
 const emit = defineEmits<{
-  'update:status': [value: string];
+  'update:status': [value: OrdemServicoStatus];
   'update:funcionarioId': [value: string];
-  'update:prioridade': [value: string];
+  'update:prioridade': [value: OrdemServicoPrioridade];
   'update:dataPrevisao': [value: string];
 }>();
 </script>
@@ -28,14 +32,15 @@ const emit = defineEmits<{
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <BaseSelect
         :model-value="status"
-        label="Situacao"
+        label="Situação"
         :options="statusOptions"
-        @update:model-value="emit('update:status', $event as OrdemServicoStatus)"
+        :disabled="props.isCreateMode"
+        @update:model-value="emit('update:status', $event as OsStatusEnumDataType)"
       />
 
       <BaseSelect
         :model-value="funcionarioId"
-        label="Tecnico"
+        label="Técnico"
         :options="funcionariosOptions"
         placeholder="-- Selecione --"
         @update:model-value="emit('update:funcionarioId', $event as string)"
@@ -49,12 +54,12 @@ const emit = defineEmits<{
         :model-value="prioridade"
         label="Prioridade"
         :options="prioridadeOptions"
-        @update:model-value="emit('update:prioridade', $event as OrdemServicoPrioridade)"
+        @update:model-value="emit('update:prioridade', $event as OsPriorityEnumDataType)"
       />
 
       <BaseInput
         :model-value="dataPrevisao"
-        label="Previsao"
+        label="Previsão"
         type="date"
         @update:model-value="emit('update:dataPrevisao', $event as string)"
       />

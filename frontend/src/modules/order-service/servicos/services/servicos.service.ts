@@ -13,12 +13,12 @@ export async function getServicos(query: ServicosQuerySearch): Promise<Paginated
   if (query.page) params.page = query.page;
   if (query.limit) params.limit = query.limit;
 
-  const { data } = await api.get<PaginatedServicesZod>(BASE_URL, { params });
+  const { data } = await api.get<PaginatedServicesZod>(`${BASE_URL}/`, { params });
   return PaginatedServicesSchema.parse(data);
 }
 
 export async function createServico(servico: ServiceCreateZod): Promise<ServiceReadZod> {
-  const { data } = await api.post<ServiceReadZod>(BASE_URL, servico);
+  const { data } = await api.post<ServiceReadZod>(`${BASE_URL}/`, servico);
   return data;
 }
 
@@ -26,12 +26,12 @@ export async function updateServico(
   id: number,
   servico: ServiceUpdateZod,
 ): Promise<ServiceReadZod> {
-  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}${id}`, servico);
+  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}/${id}`, servico);
   return data;
 }
 
 export async function toggleServicoAtivo(id: number): Promise<ServiceReadZod> {
-  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}toggle_ativo/${id}`);
+  const { data } = await api.put<ServiceReadZod>(`${BASE_URL}/toggle_ativo/${id}`);
   return data;
 }
 

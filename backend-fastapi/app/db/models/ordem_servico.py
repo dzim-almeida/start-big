@@ -65,9 +65,12 @@ class OrdemServico(Base):
 
     # --- Financeiro (valores em centavos) ---
     valor_total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor total da OS (centavos)")
-    valor_bruto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada (centavos)")
+    valor_bruto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor bruto antes de desconto (centavos)")
     desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto aplicado (centavos)")
-    
+    valor_entrada: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada/adiantamento (centavos)")
+    taxa_entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Taxa de entrega/frete (centavos)")
+    acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Acréscimo de juros/cartão (centavos)")
+
     # --- Datas ---
     garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")
     data_previsao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, doc="Data prevista para conclusao")

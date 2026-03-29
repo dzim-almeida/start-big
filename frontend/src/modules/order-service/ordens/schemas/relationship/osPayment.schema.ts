@@ -20,6 +20,6 @@ export const OsPaymentReadSchema = z.object({
   forma_pagamento: PaymentFormReadSchema,
   valor: z.number().int(),
   parcelas: z.number().int(),
-  bandeira_cartao: OsCardsFlagEnum.optional(),
-  detalhes: z.string().max(500, 'Detalhes deve ter no máximo 500 caracteres').optional()
+  bandeira_cartao: OsCardsFlagEnum.optional().nullable(),
+  detalhes: z.string().max(500, 'Detalhes deve ter no máximo 500 caracteres').optional().nullable()
 });

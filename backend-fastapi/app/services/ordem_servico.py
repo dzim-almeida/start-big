@@ -11,7 +11,7 @@
 # Regras financeiras:
 #   valor_bruto = soma dos itens (quantidade × valor_unitario)
 #   valor_total = valor_bruto - desconto
-#   Finalização só é permitida se sum(pagamentos) == valor_total
+#   Finalização só é permitida se sum(pagamentos) + valor_entrada == valor_total
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
@@ -119,7 +119,7 @@ def _recalcular_valor_total_os(os_in_db: OSModel) -> None:
     """
     valor_bruto = sum(item.valor_total for item in os_in_db.itens)
     os_in_db.valor_bruto = valor_bruto
-    os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0))
+    os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0) + (os_in_db.taxa_entrega or 0) + (os_in_db.acrescimo or 0))
 
 
 # ===========================================================================
@@ -392,14 +392,23 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
     os_in_db = _get_os_or_raise(db, numero_os)
     _assert_os_editavel(os_in_db)
 
-    # Aplica desconto final se informado
+    # Aplica campos financeiros se informados
     if data.desconto is not None:
         os_in_db.desconto = data.desconto
-        _recalcular_valor_total_os(os_in_db)
+    if data.valor_entrada is not None:
+        os_in_db.valor_entrada = data.valor_entrada
+    if data.taxa_entrega is not None:
+        os_in_db.taxa_entrega = data.taxa_entrega
+    if data.acrescimo is not None:
+        os_in_db.acrescimo = data.acrescimo
 
-    # Valida valor total dos pagamentos
+    # Recalcula valor_total com todos os campos financeiros atualizados
+    _recalcular_valor_total_os(os_in_db)
+
+    # Valida valor total dos pagamentos (pagamentos + entrada = valor_total)
     total_pagamentos = sum(p.valor for p in data.pagamentos)
-    if total_pagamentos != os_in_db.valor_total:
+    valor_entrada = os_in_db.valor_entrada or 0
+    if (total_pagamentos + valor_entrada) != os_in_db.valor_total:
         raise pagamento_valor_invalido_exce
 
     # Valida e cria cada pagamento

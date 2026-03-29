@@ -11,6 +11,7 @@ import {
 } from '../schemas/orderServiceQuery.schema';
 
 import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
+import { safeParseResponse } from '@/shared/utils/parse.utils';
 
 export async function getAllOs(
   query: OrderServiceParamsDataType,
@@ -23,24 +24,18 @@ export async function getAllOs(
   const { data } = await api.get<OrderServicePaginationDataType>(`${BASE_ORDER_SERVICE_URL}/`, {
     params,
   });
-  const result = OrderServicePaginationSchema.safeParse(data);
-  if (!result.success) {
-    console.warn('[getAllOs] Zod validation warning:', result.error.issues);
-    return data as OrderServicePaginationDataType;
-  }
-  return result.data;
+  const validatedData = OrderServicePaginationSchema.parse(data);
+  return validatedData;
 }
 
 export async function getUniqueOS(numero_os: string): Promise<OrderServiceReadDataType> {
   const { data } = await api.get<OrderServiceReadDataType>(
     `${BASE_ORDER_SERVICE_URL}/${numero_os}`,
   );
-  const validatedData = OrderServiceReadSchema.parse(data);
-  return validatedData;
+  return safeParseResponse(OrderServiceReadSchema, data, 'getUniqueOS');
 }
 
 export async function getStatsOS(): Promise<OrderServiceStatsDataType> {
   const { data } = await api.get<OrderServiceStatsDataType>(`${BASE_ORDER_SERVICE_URL}/stats`);
-  const validatedData = OrderServiceStatsSchema.parse(data);
-  return validatedData;
+  return safeParseResponse(OrderServiceStatsSchema, data, 'getStatsOS');
 }

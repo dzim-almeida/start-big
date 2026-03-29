@@ -1,12 +1,17 @@
+<script lang="ts">
+// Contador global de modais abertos para gerenciar overflow do body
+let openModalCount = 0;
+</script>
+
 <script setup lang="ts">
-import { watch } from 'vue';
+import { watch, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 interface Props {
   isOpen: boolean;
   title: string;
   subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,23 +29,42 @@ const sizeClasses = {
   xl: 'max-w-4xl',
   '2xl': 'max-w-6xl',
   '3xl': 'max-w-7xl',
+  '4xl': 'max-w-[90rem]',
 };
 
 function handleClose() {
   emit('close');
 }
 
-// Prevent body scroll when modal is open
+// Gerenciar overflow do body com contador global (suporte a modais aninhados)
+let wasOpen = false;
+
 watch(
   () => props.isOpen,
   (isOpen) => {
-    if (isOpen) {
+    if (isOpen && !wasOpen) {
+      openModalCount++;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      wasOpen = true;
+    } else if (!isOpen && wasOpen) {
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = '';
+      }
+      wasOpen = false;
     }
   }
 );
+
+onUnmounted(() => {
+  if (wasOpen) {
+    openModalCount = Math.max(0, openModalCount - 1);
+    if (openModalCount === 0) {
+      document.body.style.overflow = '';
+    }
+    wasOpen = false;
+  }
+});
 </script>
 
 <template>
@@ -75,7 +99,7 @@ watch(
             </div>
             <button
               type="button"
-              class="p-2 -m-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+              class="p-2 -m-2 text-zinc-400 hover:text-red-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
               @click="handleClose"
             >
               <X :size="20" />

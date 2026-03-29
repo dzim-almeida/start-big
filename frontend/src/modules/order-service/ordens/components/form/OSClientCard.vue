@@ -8,18 +8,22 @@ import {
   Calendar,
   CheckCircle2,
   RefreshCw,
+  Pencil,
 } from 'lucide-vue-next';
 
-import type { OrdemServicoStatus } from '../../types/ordemServico.types';
+import type { ClienteResumo, OrdemServicoStatus } from '../../types/ordemServico.types';
 import type { Cliente } from '@/modules/customers/types/clientes.types';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
+
+import { maskPhoneNumber } from '@/shared/utils/mask.utils';
 
 interface Props {
-  cliente?: Cliente | ClienteSearchResult | null;
+  cliente?: Cliente | ClienteResumo | null;
   status?: OrdemServicoStatus | null;
-  dataCriacao?: string | Date | null;
-  dataFinalizacao?: string | Date | null;
+  dataCriacao?: string | Date;
+  dataFinalizacao?: string | Date;
   isEditMode?: boolean;
   isFinalizada?: boolean;
 }
@@ -28,33 +32,53 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   changeCliente: [];
+  updateCliente: [cliente: CustomerUnionReadSchemaDataType];
 }>();
 
-const isClientePJ = computed(() => props.cliente?.tipo === 'PJ');
+const { openEditModalWithCallback } = useCustomerModal();
+
+function handleEditCliente() {
+  if (!props.cliente) return;
+  openEditModalWithCallback(props.cliente as SharedCustomerType, (updated) => {
+    emit('updateCliente', updated as CustomerUnionReadSchemaDataType);
+  });
+}
+
+const isClientePJ = computed(() => {
+  const c = props.cliente as { tipo?: string } | null | undefined;
+  return c?.tipo === 'PJ';
+});
 
 const clienteNome = computed(() => {
   if (!props.cliente) return 'Selecione um cliente';
-  if (props.cliente.tipo === 'PF') {
-    return props.cliente.nome || '-';
-  }
-  const pj = props.cliente as ClienteResumo;
-  return pj.nome_fantasia || pj.razao_social || '-';
+  const c = props.cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
+  if (c.tipo === 'PF') return c.nome || '-';
+  return c.nome_fantasia || c.razao_social || '-';
 });
 
 const formattedAddress = computed(() => {
-  const clienteCompleto = props.cliente as Cliente | undefined;
-  if (clienteCompleto?.endereco?.length) {
-    const end = clienteCompleto.endereco[0];
-    return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
-  }
-  if (props.cliente) {
-    return 'Endereco disponivel no cadastro do cliente';
-  }
-  return 'Endereco nao cadastrado';
+  if (!props.cliente?.endereco) return 'Endereço não cadastrado';
+
+  // Defensivo: endereco pode vir como array (fallback sem preprocess) ou objeto
+  const raw = props.cliente.endereco;
+  const end = Array.isArray(raw) ? raw[0] : raw;
+
+  if (!end || typeof end !== 'object') return 'Endereço não cadastrado';
+
+  const { logradouro, numero, bairro, cidade, estado } = end as {
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+  };
+
+  if (!logradouro) return 'Endereço não cadastrado';
+  return `${logradouro}, ${numero ?? 'S/N'} - ${bairro}, ${cidade}/${estado}`;
 });
 
 const formattedPhone = computed(() => {
-  return props.cliente?.celular || props.cliente?.telefone || 'Telefone nao informado';
+  return maskPhoneNumber(props.cliente?.celular) || maskPhoneNumber(props.cliente?.telefone) || 'Contato não cadastrado';
 });
 
 const formattedDataEntrada = computed(() => {
@@ -99,20 +123,30 @@ const canChangeCliente = computed(() => {
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-brand-primary/30 transition-colors group relative">
     <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
       <div class="flex items-center gap-2">
-        <Building2 v-if="isClientePJ" :size="14" class="text-orange-600" />
+        <Building2 v-if="isClientePJ" :size="14" class="text-brand-primary" />
         <User v-else :size="14" class="text-brand-primary" />
         <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
           DADOS DO CLIENTE
         </span>
       </div>
-      <button
-        v-if="canChangeCliente"
-        type="button"
-        class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
-        @click="emit('changeCliente')"
-      >
-        <RefreshCw :size="10" /> TROCAR
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          v-if="props.cliente && props.isEditMode"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="handleEditCliente"
+        >
+          <Pencil :size="10" /> EDITAR
+        </button>
+        <button
+          v-if="canChangeCliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="emit('changeCliente')"
+        >
+          <RefreshCw :size="10" /> TROCAR
+        </button>
+      </div>
     </div>
 
     <div class="p-4 pt-3">
@@ -146,7 +180,7 @@ const canChangeCliente = computed(() => {
           </span>
         </div>
         <div v-if="formattedDataSaida !== '-'" class="flex flex-col">
-          <span class="text-[10px] text-slate-400 font-bold uppercase">Saida/Finalizacao</span>
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Saída/Finalização</span>
           <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
             <CheckCircle2 :size="12" class="text-emerald-500" />
             {{ formattedDataSaida }}

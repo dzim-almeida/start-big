@@ -1,63 +1,66 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
 import OSTable from '../../ordens/components/OSTable.vue';
 import OSFormModal from '../../ordens/components/OSFormModal.vue';
-import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
 import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/CustomerFormModal.vue';
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
-import { useOrdensServico } from '../../ordens/composables/useOrdensServico';
-import { useOSActions } from '../../ordens/composables/useOSActions';
-import { ordemServicoService } from '../../ordens/services/ordemServico.service';
-import type {
-  OrdemServicoRead,
-  OrdemServicoListRead,
-  OrdemServicoStatus,
-} from '../../ordens/types/ordemServico.types';
-import type { ClienteSearchResult } from '@/shared/services/cliente.service';
+import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
+import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
+
+import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
+import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
+
+import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
+import type { CustomerUnionReadSchemaDataType } from '../../ordens/schemas/relationship/customer/customer.schema';
+import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
+import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
 
 const toast = useToast();
-const queryClient = useQueryClient();
+const reopenMutation = useReopenOrderServiceMutation();
 
 const {
-  ordensServico,
-  stats,
-  activeFilterStatus,
   searchQuery,
-  isLoading,
-  error,
-  setFilterStatus,
-  currentPage,
+  activeStatusFilterQuery,
+  orderServices,
   totalPages,
   totalItems,
+  currentPage,
+  isLoading,
+  isError,
   setPage,
-} = useOrdensServico();
+} = useOrderServiceQueryAll();
 
-const {
-  cancelarMutation,
-  isPending: isActionsPending,
-} = useOSActions();
+const { stats, isLoading: isStatsLoading } = useOrderServiceQueryStats();
 
+// ─── Estado dos modais ────────────────────────────────────────────────────────
 const isClienteSearchModalOpen = ref(false);
 const isFormModalOpen = ref(false);
-const isFinalizarModalOpen = ref(false);
 const isCancelModalOpen = ref(false);
-const selectedOS = ref<OrdemServicoRead | null>(null);
-const selectedCliente = ref<ClienteSearchResult | null>(null);
-const osToPrint = ref<OrdemServicoRead | null>(null);
-const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
-const osToCancel = ref<OrdemServicoListRead | null>(null);
-const autoShowReopen = ref(false);
 
-const osActiveFilter = computed({
-  get: () => activeFilterStatus.value === 'todos' ? null : activeFilterStatus.value as string | null,
-  set: (val: string | null) => setFilterStatus((val ?? 'todos') as OrdemServicoStatus | 'todos'),
+const selectedOS = ref<OrderServiceReadDataType | null>(null);
+const selectedCliente = ref<CustomerUnionReadSchemaDataType | null>(null);
+const osToCancel = ref<OrderServiceReadDataType | null>(null);
+const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
+const isFinalizarDirectOpen = ref(false);
+const osToReopen = ref<OrderServiceReadDataType | null>(null);
+const isReopenDirectOpen = ref(false);
+
+const osToPrint = ref<OrderServiceReadDataType | null>(null);
+const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
+
+// ─── Filtro de status ─────────────────────────────────────────────────────────
+const osActiveFilter = computed<string | null>({
+  get: () => activeStatusFilterQuery.value ?? null,
+  set: (val: string | null) => {
+    activeStatusFilterQuery.value = (val as OsStatusEnumDataType | null) ?? undefined;
+  },
 });
 
+// ─── Abertura de nova OS ──────────────────────────────────────────────────────
 function handleOpenNovaOS() {
   selectedOS.value = null;
   selectedCliente.value = null;
@@ -68,7 +71,7 @@ function handleCloseClienteSearch() {
   isClienteSearchModalOpen.value = false;
 }
 
-function handleClienteSelected(cliente: ClienteSearchResult) {
+function handleClienteSelected(cliente: CustomerUnionReadSchemaDataType) {
   selectedCliente.value = cliente;
   isClienteSearchModalOpen.value = false;
   isFormModalOpen.value = true;
@@ -83,17 +86,12 @@ function handleCloseFormModal() {
   isFormModalOpen.value = false;
   selectedOS.value = null;
   selectedCliente.value = null;
-  autoShowReopen.value = false;
 }
 
-function handleCloseFinalizarModal() {
-  isFinalizarModalOpen.value = false;
-  selectedOS.value = null;
-}
-
-async function handleView(os: OrdemServicoListRead) {
+// ─── Ações da tabela ──────────────────────────────────────────────────────────
+async function handleView(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.numero_os);
+    const osCompleta = await ordemServicoService.getById(os.id);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
@@ -102,20 +100,20 @@ async function handleView(os: OrdemServicoListRead) {
   }
 }
 
-async function handleEdit(os: OrdemServicoListRead) {
+async function handleEdit(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.numero_os);
+    const osCompleta = await ordemServicoService.getById(os.id);
     selectedOS.value = osCompleta;
     selectedCliente.value = null;
     isFormModalOpen.value = true;
   } catch {
-    toast.error('Erro ao carregar OS para edicao');
+    toast.error('Erro ao carregar OS para edição');
   }
 }
 
-async function handleFinalizar(os: OrdemServicoListRead) {
+async function handleFinalizar(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.numero_os);
+    const osCompleta = await ordemServicoService.getById(os.id);
     selectedOS.value = osCompleta;
     isFinalizarModalOpen.value = true;
   } catch {
@@ -123,7 +121,32 @@ async function handleFinalizar(os: OrdemServicoListRead) {
   }
 }
 
-function handleCancelar(os: OrdemServicoListRead) {
+function handleCloseFinalizarDirect() {
+  isFinalizarDirectOpen.value = false;
+  osToFinalizar.value = null;
+}
+
+async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean }) {
+  if (shouldPrint && osToFinalizar.value) {
+    try {
+      const osAtualizada = await getUniqueOS(osToFinalizar.value.numero_os);
+      osToPrint.value = osAtualizada;
+      printType.value = 'SAIDA';
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          osToPrint.value = null;
+          printType.value = null;
+        }, 500);
+      }, 100);
+    } catch {
+      toast.error('Erro ao preparar impressão');
+    }
+  }
+  handleCloseFinalizarDirect();
+}
+
+function handleCancelar(os: OrderServiceReadDataType) {
   osToCancel.value = os;
   isCancelModalOpen.value = true;
 }
@@ -137,7 +160,7 @@ function handleConfirmCancel(payload: { motivo: string; print: boolean }) {
   if (osToCancel.value) {
     const osRef = osToCancel.value;
     cancelarMutation.mutate(
-      { id: osRef.numero_os, motivo: payload.motivo },
+      { id: osRef.id, motivo: payload.motivo },
       {
         onSuccess: () => {
           if (payload.print) {
@@ -152,7 +175,7 @@ function handleConfirmCancel(payload: { motivo: string; print: boolean }) {
 
 async function printCancelamento(os: OrdemServicoListRead, motivo: string) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.numero_os);
+    const osCompleta = await ordemServicoService.getById(os.id);
     const osComMotivo = { ...osCompleta, motivo_cancelamento: motivo };
     osToPrint.value = osComMotivo;
     printType.value = 'CANCELAMENTO';
@@ -169,20 +192,37 @@ async function printCancelamento(os: OrdemServicoListRead, motivo: string) {
   }
 }
 
-function handleReabrir(os: OrdemServicoListRead) {
-  autoShowReopen.value = true;
-  handleEdit(os);
+function handleReabrir(os: OrderServiceReadDataType) {
+  osToReopen.value = os;
+  isReopenDirectOpen.value = true;
 }
 
-async function handlePrintOS(os: OrdemServicoListRead) {
+function handleReopenCancel() {
+  isReopenDirectOpen.value = false;
+  osToReopen.value = null;
+}
+
+function handleReopenTextOnly() {
+  if (osToReopen.value?.numero_os) {
+    reopenMutation.mutate(osToReopen.value.numero_os);
+  }
+  isReopenDirectOpen.value = false;
+  osToReopen.value = null;
+}
+
+function handleReopenFull() {
+  if (osToReopen.value?.numero_os) {
+    reopenMutation.mutate(osToReopen.value.numero_os);
+  }
+  isReopenDirectOpen.value = false;
+  osToReopen.value = null;
+}
+
+async function handlePrintOS(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await ordemServicoService.getById(os.numero_os);
+    const osCompleta = await ordemServicoService.getById(os.id);
     osToPrint.value = osCompleta;
-    if (osCompleta.status === 'CANCELADA') {
-      printType.value = 'CANCELAMENTO';
-    } else {
-      printType.value = 'SAIDA';
-    }
+    printType.value = osCompleta.status === 'CANCELADA' ? 'CANCELAMENTO' : 'SAIDA';
     setTimeout(() => {
       window.print();
       setTimeout(() => {
@@ -195,24 +235,22 @@ async function handlePrintOS(os: OrdemServicoListRead) {
   }
 }
 
-defineExpose({
-  handleOpenNovaOS,
-});
+defineExpose({ handleOpenNovaOS });
 </script>
 
 <template>
   <div class="space-y-6">
-    <OSStats :stats="stats" :loading="isLoading" />
+    <OSStats :stats="stats" :loading="isStatsLoading" />
 
     <div
-      v-if="error"
+      v-if="isError"
       class="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"
     >
-      Erro ao carregar ordens de servico. Verifique sua conexao e tente novamente.
+      Erro ao carregar ordens de serviço. Verifique sua conexão e tente novamente.
     </div>
 
     <OSTable
-      :ordens-servico="ordensServico"
+      :ordens-servico="orderServices"
       :is-loading="isLoading"
       v-model:search="searchQuery"
       v-model:active-filter="osActiveFilter"
@@ -238,24 +276,31 @@ defineExpose({
       :is-open="isFormModalOpen"
       :ordem-servico="selectedOS"
       :selected-cliente="selectedCliente"
-      :auto-show-reopen="autoShowReopen"
       @close="handleCloseFormModal"
       @change-cliente="handleChangeCliente"
-      @saved="(os) => selectedOS = os"
-    />
-
-    <OSFinalizarModal
-      :is-open="isFinalizarModalOpen"
-      :ordem-servico="selectedOS"
-      @close="handleCloseFinalizarModal"
     />
 
     <OSCancelModal
       :is-open="isCancelModalOpen"
-      :os="osToCancel"
-      :is-loading="isActionsPending"
+      :os-numero="osToCancel?.numero_os ?? null"
+      :os-display-number="osToCancel?.numero_os"
       @close="handleCloseCancelModal"
-      @confirm="handleConfirmCancel"
+      @cancelled="handleCancelled"
+    />
+
+    <OSFinalizarModal
+      :is-open="isFinalizarDirectOpen"
+      :os-numero="osToFinalizar?.numero_os ?? null"
+      :ordem-servico="osToFinalizar"
+      @close="handleCloseFinalizarDirect"
+      @finalized="handleFinalizadoDirect"
+    />
+
+    <OSReopenOptionsModal
+      :is-open="isReopenDirectOpen"
+      @cancel="handleReopenCancel"
+      @text-only="handleReopenTextOnly"
+      @full="handleReopenFull"
     />
 
     <OSPrintTemplate

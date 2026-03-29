@@ -17,7 +17,7 @@ from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 class ClienteBase(BaseModel):
     """Atributos compartilhados entre PF e PJ."""
     
-    email: Optional[EmailStr] = Field(
+    email: Optional[str] = Field(
         None,
         max_length=255,
         description="Endereço de e-mail principal para contato."

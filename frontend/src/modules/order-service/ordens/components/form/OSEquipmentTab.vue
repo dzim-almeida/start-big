@@ -6,6 +6,7 @@ import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
+import { OS_EQUIP_TYPE_OPTIONS } from '../../constants/ordemServico.constants';
 
 interface EquipamentoForm {
   equipamento: string;
@@ -47,6 +48,11 @@ const historicoOptions = computed<SelectOption[]>(() => [
   })),
 ]);
 
+const tipoEquipamentoOptions: SelectOption[] = [
+  { value: '', label: '-- Selecione --' },
+  ...OS_EQUIP_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label })),
+];
+
 function updateField<K extends keyof EquipamentoForm>(field: K, value: EquipamentoForm[K]) {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
 }
@@ -66,7 +72,7 @@ function handleHistoricoSelectChange(value: string) {
         <h5 class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
           <div class="flex items-center gap-2">
             <Smartphone :size="14" />
-            Dados do Aparelho
+            Dados do Equipamento
           </div>
           <div v-if="equipamentosHistorico.length > 0 && !isLocked" class="flex items-center gap-2">
             <BaseSelect
@@ -78,43 +84,34 @@ function handleHistoricoSelectChange(value: string) {
           </div>
         </h5>
 
-        <BaseSelect
+        <BaseInput
           :model-value="modelValue.equipamento"
-          label="Tipo de Equipamento *"
-          :options="[
-            { value: 'CELULAR', label: 'Celular / Smartphone' },
-            { value: 'TABLET', label: 'Tablet' },
-            { value: 'COMPUTADOR', label: 'Computador / Notebook' },
-            { value: 'MONITOR', label: 'Monitor' },
-            { value: 'IMPRESSORA', label: 'Impressora' },
-            { value: 'PRINTER', label: 'Printer' },
-            { value: 'SCANNER', label: 'Scanner' },
-            { value: 'OUTROS', label: 'Outros' },
-          ]"
-          placeholder="Selecione o tipo..."
-          @update:model-value="updateField('equipamento', $event as string)"
+          label="Equipamento *"
+          placeholder="Ex: iPhone 14, Notebook Dell..."
+          required
+          @update:model-value="updateField('equipamento', $event)"
         />
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" @update:model-value="updateField('marca', $event)" />
-          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" @update:model-value="updateField('modelo', $event)" />
+          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" required @update:model-value="updateField('marca', $event)" />
+          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" required @update:model-value="updateField('modelo', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.numero_serie" label="N° Serie" placeholder="Serial Number" @update:model-value="updateField('numero_serie', $event)" />
+        <BaseInput :model-value="modelValue.numero_serie" label="N° Série" placeholder="Número de série" required @update:model-value="updateField('numero_serie', $event)" />
       </div>
 
       <div class="space-y-4">
         <h5 class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
-          Detalhes & Seguranca
+          Detalhes & Segurança
         </h5>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" @update:model-value="updateField('imei', $event)" />
+          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" required @update:model-value="updateField('imei', $event)" />
           <BaseInput :model-value="modelValue.cor" label="Cor" placeholder="Ex: Preto" @update:model-value="updateField('cor', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.senha_aparelho" label="Senha / Padrao" placeholder="Senha de desbloqueio" @update:model-value="updateField('senha_aparelho', $event)" />
-        <BaseInput :model-value="modelValue.acessorios" label="Acessorios (Deixados)" placeholder="Ex: Carregador, Capa..." @update:model-value="updateField('acessorios', $event)" />
+        <BaseInput :model-value="modelValue.senha_aparelho" label="Senha / Padrão" placeholder="Senha de desbloqueio" @update:model-value="updateField('senha_aparelho', $event)" />
+        <BaseInput :model-value="modelValue.acessorios" label="Acessórios (Deixados)" placeholder="Ex: Carregador, Capa..." @update:model-value="updateField('acessorios', $event)" />
       </div>
     </div>
 
@@ -132,11 +129,11 @@ function handleHistoricoSelectChange(value: string) {
 
       <div>
         <label class="block text-xs font-bold text-slate-600 mb-1 uppercase">
-          Condicoes Fisicas (Entrada)
+          Condições Físicas (Entrada)
         </label>
         <BaseInput
           :model-value="modelValue.condicoes_aparelho"
-          placeholder="Riscos, trincas ou danos previos..."
+          placeholder="Riscos, trincas ou danos prévios..."
           @update:model-value="updateField('condicoes_aparelho', $event)"
         />
       </div>

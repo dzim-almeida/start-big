@@ -9,7 +9,7 @@ export function maskCpfCnpj(document: string): string {
     return document
 }
 
-export function maskPhoneNumber(number: string): string {
+export function maskPhoneNumber(number: string | null | undefined): string {
     if (!number) return '';
     if (number.length === 10) {
         return number.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')

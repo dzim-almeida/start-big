@@ -1,11 +1,11 @@
 /**
- * @fileoverview Modal state management composable for customers
- * @description Manages modal open/close state and mode (create/edit/view)
- * Uses singleton pattern with module-level refs for shared state
+ * @fileoverview Gerenciamento de estado do modal de clientes (singleton)
+ * @description Usa refs de nível de módulo para compartilhar estado entre componentes.
+ * Pode ser chamado de qualquer módulo do sistema.
  */
 
 import { ref, computed } from 'vue';
-import type { Cliente } from '../types/clientes.types';
+import { CustomerUnionReadSchemaDataType, isCustomerPF } from '@/shared/schemas/customer/customer.schema';
 
 // =============================================
 // Types
@@ -14,60 +14,68 @@ import type { Cliente } from '../types/clientes.types';
 export type ModalMode = 'create' | 'edit' | 'view';
 
 // =============================================
-// Shared State (singleton pattern)
+// Types
+// =============================================
+
+type CustomerCallback = ((customer: CustomerUnionReadSchemaDataType) => void) | null;
+
+// =============================================
+// Shared State (singleton)
 // =============================================
 
 const isOpen = ref(false);
 const mode = ref<ModalMode>('create');
-const selectedCustomer = ref<Cliente | null>(null);
+const selectedCustomer = ref<CustomerUnionReadSchemaDataType | null>(null);
+const onCreatedCallback = ref<CustomerCallback>(null);
+const onUpdatedCallback = ref<CustomerCallback>(null);
 
 // =============================================
 // Composable
 // =============================================
 
 export function useCustomerModal() {
-  /**
-   * Opens modal in create mode
-   */
+
   function openCreateModal() {
     selectedCustomer.value = null;
     mode.value = 'create';
     isOpen.value = true;
   }
 
-  /**
-   * Opens modal in edit mode with customer data
-   * @param customer - Customer to edit
-   */
-  function openEditModal(customer: Cliente) {
+  function openEditModal(customer: CustomerUnionReadSchemaDataType) {
     selectedCustomer.value = customer;
     mode.value = 'edit';
     isOpen.value = true;
   }
 
-  /**
-   * Opens modal in view mode (read-only)
-   * @param customer - Customer to view
-   */
-  function openViewModal(customer: Cliente) {
+  function openCreateModalWithCallback(callback: (customer: CustomerUnionReadSchemaDataType) => void) {
+    onCreatedCallback.value = callback;
+    openCreateModal();
+  }
+
+  function openEditModalWithCallback(
+    customer: CustomerUnionReadSchemaDataType,
+    callback: (customer: CustomerUnionReadSchemaDataType) => void,
+  ) {
+    onUpdatedCallback.value = callback;
+    openEditModal(customer);
+  }
+
+  function openViewModal(customer: CustomerUnionReadSchemaDataType) {
     selectedCustomer.value = customer;
     mode.value = 'view';
     isOpen.value = true;
   }
 
-  /**
-   * Closes modal and resets state after animation
-   */
   function closeModal() {
     isOpen.value = false;
-    // Delay reset to allow animation to complete
     setTimeout(() => {
       selectedCustomer.value = null;
       mode.value = 'create';
+      onCreatedCallback.value = null;
+      onUpdatedCallback.value = null;
     }, 300);
   }
 
-  // Computed helpers
   const isCreateMode = computed(() => mode.value === 'create');
   const isEditMode = computed(() => mode.value === 'edit');
   const isViewMode = computed(() => mode.value === 'view');
@@ -85,7 +93,7 @@ export function useCustomerModal() {
 
   const modalSubtitle = computed(() => {
     if (selectedCustomer.value) {
-      if (selectedCustomer.value.tipo === 'PF') {
+      if (isCustomerPF(selectedCustomer.value)) {
         return selectedCustomer.value.nome;
       }
       return selectedCustomer.value.nome_fantasia || selectedCustomer.value.razao_social;
@@ -94,22 +102,21 @@ export function useCustomerModal() {
   });
 
   return {
-    // State
     isOpen,
     mode,
     selectedCustomer,
-
-    // Computed
+    onCreatedCallback,
+    onUpdatedCallback,
     isCreateMode,
     isEditMode,
     isViewMode,
     modalTitle,
     modalSubtitle,
-
-    // Actions
     openCreateModal,
     openEditModal,
     openViewModal,
+    openCreateModalWithCallback,
+    openEditModalWithCallback,
     closeModal,
   };
 }

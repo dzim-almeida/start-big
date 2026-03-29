@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, computed } from 'vue';
+import { watch } from 'vue';
 import { Wrench, ShoppingBag, Plus, Save } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -7,32 +7,26 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
-import type { OrdemServicoItemCreate } from '../../types/ordemServico.types';
-import { useOSItemForm, type SelectOption } from '../../composables/useOSItemForm';
+import { useProductsQuery } from '@/modules/products/composables/useProductsQuery';
+import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
+import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
+import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
+import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType } from '../../schemas/enums/osEnums.schema';
 
 interface Props {
   isOpen: boolean;
-  item?: OrdemServicoItemCreate | null;
-  servicosOptions: SelectOption[];
-  produtosOptions: SelectOption[];
-  isLoadingServicos?: boolean;
-  isLoadingProdutos?: boolean;
+  item?: OsItemCreateSchemaDataType | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isOpen: false,
   item: null,
-  servicosOptions: () => [],
-  produtosOptions: () => [],
-  isLoadingServicos: false,
-  isLoadingProdutos: false,
 });
 
 const emit = defineEmits<{
   close: [];
   save: [item: OrdemServicoItemCreate];
   'create-new-service': [];
-  'create-new-product': [];
 }>();
 
 const {
@@ -47,7 +41,7 @@ const {
   isValid,
   reset,
   populate,
-} = useOSItemForm();
+} = useOSItemForm(props);
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
@@ -59,19 +53,7 @@ watch(() => props.isOpen, (newVal) => {
   }
 });
 
-const currentOptions = computed(() =>
-  isService.value ? props.servicosOptions : props.produtosOptions,
-);
-
-watch(servicoId, (newId) => {
-  if (!newId) return;
-  const option = currentOptions.value.find((o) => String(o.value) === String(newId));
-  if (option?.preco !== undefined) {
-    valorUnitarioNum.value = option.preco / 100;
-  }
-});
-
-function handleSave() {
+function handleSave(): void {
   if (!isValid.value) return;
 
   const options = isService.value ? props.servicosOptions : props.produtosOptions;
@@ -79,19 +61,15 @@ function handleSave() {
   const nome = selectedOption?.label ?? descricao.value ?? '';
 
   emit('save', {
-    tipo: isService.value ? 'SERVICO' : 'PRODUTO',
-    nome,
-    servico_id: isService.value && servicoId.value ? Number(servicoId.value) : undefined,
-    produto_id: !isService.value && servicoId.value ? Number(servicoId.value) : undefined,
+    servico_id: servicoId.value ? Number(servicoId.value) : undefined,
     descricao: descricao.value,
     quantidade: quantidade.value,
     valor_unitario: valorUnitarioCents.value,
-    unidade_medida: 'UN',
   });
   emit('close');
 }
 
-function handleClose() {
+function handleClose(): void {
   emit('close');
 }
 </script>
@@ -103,14 +81,15 @@ function handleClose() {
     size="lg"
     @close="handleClose"
   >
-    <form @submit.prevent="handleSave" class="space-y-6">
+    <form @submit.prevent="handleSave" class="space-y-5">
+      <!-- Toggle Tipo -->
       <div class="flex p-1 bg-slate-100 rounded-lg">
         <button
           type="button"
-          @click="type = 'SERVICO'"
+          @click="type = 'servicos'"
           :class="[
             'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-md transition-all',
-            isService ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
+            tipo === 'SERVICO' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
           ]"
         >
           <Wrench :size="16" />
@@ -118,10 +97,10 @@ function handleClose() {
         </button>
         <button
           type="button"
-          @click="type = 'PRODUTO'"
+          @click="type = 'produtos'"
           :class="[
             'flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-md transition-all',
-            !isService ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
+            tipo === 'PRODUTO' ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700',
           ]"
         >
           <ShoppingBag :size="16" />
@@ -141,56 +120,89 @@ function handleClose() {
             >
               <Plus :size="10" /> NOVO SERVIÇO
             </button>
-            <button
-              v-else
-              type="button"
-              class="text-[10px] text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 bg-brand-primary-light px-2 py-0.5 rounded-full"
-              @click="$emit('create-new-product')"
-            >
-              <Plus :size="10" /> NOVO PRODUTO
-            </button>
           </label>
 
-          <BaseSelect
-            v-if="isService"
-            v-model="servicoId"
-            :options="servicosOptions"
-            placeholder="Selecione um serviço..."
-            class="w-full"
-            :empty-message="isLoadingServicos ? 'Carregando...' : 'Nenhum serviço encontrado'"
+        <div class="relative">
+          <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            v-model="catalogSearch"
+            type="text"
+            :placeholder="tipo === 'SERVICO' ? 'Pesquisar serviços cadastrados...' : 'Pesquisar produtos cadastrados...'"
+            class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary placeholder:text-slate-400"
           />
-          <BaseSelect
-            v-else
-            v-model="servicoId"
-            :options="produtosOptions"
-            placeholder="Selecione um produto..."
-            class="w-full"
-            :empty-message="isLoadingProdutos ? 'Carregando...' : 'Nenhum produto encontrado'"
+          <Loader2
+            v-if="isLoadingCatalog && catalogSearch.length > 0"
+            :size="16"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
           />
         </div>
 
-        <div class="space-y-1.5">
-          <BaseInput
-            v-model="descricao"
-            label="Descrição (Op. na OS)"
-            placeholder="Detalhes adicionais do serviço ou peça..."
-          />
+        <div
+          v-if="showCatalogResults"
+          class="max-h-36 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white shadow-sm"
+        >
+          <button
+            v-for="catalogItem in catalogItems"
+            :key="catalogItem.id"
+            type="button"
+            @click="selectCatalogItem(catalogItem)"
+            :class="[
+              'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
+              selectedCatalogId === catalogItem.id
+                ? 'bg-brand-primary-light text-brand-primary'
+                : 'hover:bg-slate-50',
+            ]"
+          >
+            <span class="text-sm font-medium text-slate-700 truncate">{{ catalogItem.nome }}</span>
+            <span class="text-sm font-bold text-slate-600 shrink-0 ml-3">
+              {{ formatCurrency(catalogItem.valor) }}
+            </span>
+          </button>
         </div>
+
+        <p
+          v-else-if="catalogSearch.length > 0 && !isLoadingCatalog && catalogItems.length === 0"
+          class="text-xs text-slate-400 italic py-1"
+        >
+          Nenhum resultado encontrado. Preencha manualmente abaixo.
+        </p>
+      </div>
+
+      <!-- Separador -->
+      <div class="relative flex items-center gap-3">
+        <div class="flex-1 border-t border-slate-200"></div>
+        <span class="text-xs text-slate-400 font-medium">ou preencha manualmente</span>
+        <div class="flex-1 border-t border-slate-200"></div>
+      </div>
+
+      <!-- Campos do formulário -->
+      <div class="space-y-4">
+        <BaseInput
+          v-model="nome"
+          :label="tipo === 'SERVICO' ? 'Nome do Serviço' : 'Nome do Produto'"
+          :placeholder="tipo === 'SERVICO' ? 'Ex: Troca de tela, Formatação...' : 'Ex: Tela LCD, Bateria...'"
+          required
+        />
 
         <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <BaseInput
-              v-model.number="quantidade"
-              :label="isService ? 'Qtd. / Horas' : 'Quantidade'"
-              type="number"
-            />
-          </div>
+          <BaseSelect
+            v-model="unidade_medida"
+            label="Unidade de Medida"
+            :options="medidaOptions"
+          />
 
-          <BaseMoneyInput
-            v-model="valorUnitarioNum"
-            :label="isService ? 'Valor / Hora' : 'Valor Unitário'"
+          <BaseInput
+            v-model.number="quantidade"
+            :label="tipo === 'SERVICO' ? 'Qtd. / Horas' : 'Quantidade'"
+            type="number"
+            :min="0"
           />
         </div>
+
+        <BaseMoneyInput
+          v-model="valorUnitarioNum"
+          :label="tipo === 'SERVICO' ? 'Valor / Hora' : 'Valor Unitário'"
+        />
 
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">
           <span class="text-sm font-bold text-slate-500 uppercase">Total do Item</span>
