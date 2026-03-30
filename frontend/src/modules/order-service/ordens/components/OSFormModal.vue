@@ -31,6 +31,7 @@ import { useOsEmployeesGet } from '../composables/request/relationship/useOSRela
 import { getClientEquipments } from '@/modules/customers/services/customerGet.service';
 import { getUniqueOS } from '../services/orderServiceGet.service';
 import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
+import { useDeleteItemOSMutation } from '../composables/request/useOrderServiceUpdate.mutate';
 
 // ─── Tipos locais ─────────────────────────────────────────────────────────────
 interface EquipamentoForm {
@@ -108,6 +109,11 @@ const form = useOSFormProvider({
     await uploadPendingPhotos();
     handleClose();
   },
+  onItemSuccess: async () => {
+    if (osNumber.value) {
+      latestOSData.value = await getUniqueOS(osNumber.value);
+    }
+  },
 });
 
 // ─── 3. Queries de relacionamento ─────────────────────────────────────────────
@@ -177,6 +183,7 @@ const editingItemIndex = ref<number | null>(null);
 const editingItemId = ref<number | null>(null);
 const editingItem = ref<OsItemCreateSchemaDataType | null>(null);
 const { openCreateModal: openCreateServicoModal } = useServicoModal();
+const deleteItemMutation = useDeleteItemOSMutation();
 
 function openAddItemModal() {
   editingItemIndex.value = null;
@@ -208,16 +215,42 @@ function closeItemModal() {
 }
 
 function handleSaveItem(item: OsItemCreateSchemaDataType) {
-  if (editingItemIndex.value !== null) {
-    form.criar.handleUpdateItem(editingItemIndex.value, item);
+  if (isCreateMode.value) {
+    if (editingItemIndex.value !== null) {
+      form.criar.handleUpdateItem(editingItemIndex.value, item);
+    } else {
+      form.criar.handleAddItem(item);
+    }
   } else {
-    form.criar.handleAddItem(item);
+    // Modo edição: salva via API usando form.item
+    if (editingItemId.value !== null) {
+      // Atualizar item existente (setEditingItem seta id + valores via setValues)
+      form.item.setEditingItem(editingItemId.value, item);
+      form.item.tipo.value = item.tipo; // setEditingItem não inclui tipo
+    } else {
+      // Adicionar novo item à OS existente
+      form.item.editingItemId.value = null;
+      form.item.tipo.value = item.tipo;
+      form.item.nome.value = item.nome;
+      form.item.unidade_medida.value = item.unidade_medida;
+      form.item.quantidade.value = item.quantidade;
+      form.item.valor_unitario.value = item.valor_unitario;
+    }
+    form.item.onSubmit();
   }
 }
 
 function removeItem(index: number) {
   if (isCreateMode.value) {
     form.criar.handleRemoveItem(index);
+  } else {
+    const item = displayItems.value[index] as { id?: number };
+    if (item?.id && osNumber.value) {
+      deleteItemMutation.mutate(
+        { osNumber: osNumber.value, itemOsId: item.id },
+        { onSuccess: (data) => { latestOSData.value = data; } },
+      );
+    }
   }
 }
 

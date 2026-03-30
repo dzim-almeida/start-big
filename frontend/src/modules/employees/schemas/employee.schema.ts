@@ -135,7 +135,7 @@ export const employeeUpdateSchema = z
     email: z.string().email('Email invalido').optional().or(z.literal('')),
     cargo_id: z.number().nullable().optional(),
     cnh: z.string().max(20).optional().or(z.literal('')),
-    salario_bruto: z.string().optional().or(z.literal('')),
+    salario_bruto: z.number().optional(),
     tipo_contrato: z.string().max(50).optional().or(z.literal('')),
     data_admissao: z.string().optional().or(z.literal('')),
     mae: z.string().max(255).optional().or(z.literal('')),

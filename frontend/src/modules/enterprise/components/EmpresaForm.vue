@@ -86,7 +86,7 @@ const {
             :class="
               fiscal_settings.ambiente_emissao === 1
                 ? 'bg-red-50 text-red-600 border-red-200'
-                : 'bg-blue-50 text-blue-600 border-blue-200'
+                : 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
             "
           >
             <Globe :size="12" class="inline mb-0.5 mr-1" />

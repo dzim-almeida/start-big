@@ -82,7 +82,7 @@ function onLogoFileChange(event: Event) {
   <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Building2"/>
       </div>
@@ -101,7 +101,7 @@ function onLogoFileChange(event: Event) {
           >
             <img
               v-if="logoUrl"
-              :src="`${API_BASE_URL}/${url_logo}`"
+              :src="logoUrl"
               alt="Logo Empresa"
               class="w-full h-full object-contain p-1"
             />

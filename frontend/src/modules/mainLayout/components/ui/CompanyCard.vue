@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { ShoppingCart } from 'lucide-vue-next';
 
 import StatusPulse from '../icons/StatusPulse.vue';
@@ -11,10 +12,18 @@ const props = defineProps<{
   status: boolean;
   isLoading: boolean;
 }>();
+
+const resolvedImageUrl = computed(() => {
+  const path = props.imageUrl;
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.replace(/^static\//, '');
+  return `${API_BASE_URL}/static/${cleanPath}`;
+});
 </script>
 
 <template>
-  <div 
+  <div
     v-if="isLoading"
     class="flex items-center space-x-3 bg-zinc-900 p-3 rounded-2xl border border-zinc-800 animate-pulse select-none cursor-wait"
   >
@@ -26,7 +35,7 @@ const props = defineProps<{
     </div>
   </div>
 
-  <div 
+  <div
     v-else
     class="flex items-center space-x-3 bg-zinc-900 p-3 rounded-2xl border border-zinc-800"
   >
@@ -36,7 +45,7 @@ const props = defineProps<{
     >
       <img
         v-if="imageUrl"
-        :src="`${API_BASE_URL}/${imageUrl}`"
+        :src="resolvedImageUrl"
         alt="Logo da Empresa"
         class="w-full h-full object-cover rounded-lg"
       />

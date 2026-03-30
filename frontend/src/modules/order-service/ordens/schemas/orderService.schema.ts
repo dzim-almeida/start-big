@@ -31,6 +31,6 @@ export const OrderServiceBaseSchema = z.object({
 
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
-  data_previsao: z.string().datetime().optional(),
+  data_previsao: z.string().optional(),
 });
 

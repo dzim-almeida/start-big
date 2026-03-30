@@ -66,6 +66,8 @@ const total = computed(() => Math.round(quantidade.value * valorUnitarioCents.va
 
 const isValid = computed(() => nome.value.trim().length > 0 && quantidade.value > 0);
 
+const showNomeError = ref(false);
+
 const showCatalogResults = computed(
   () => catalogItems.value.length > 0 && catalogSearch.value.length > 0,
 );
@@ -126,6 +128,7 @@ function reset() {
   catalogSearch.value = '';
   catalogItems.value = [];
   selectedCatalogId.value = null;
+  showNomeError.value = false;
 }
 
 function populate(item: OsItemCreateSchemaDataType) {
@@ -153,7 +156,11 @@ watch(
 );
 
 function handleSave(): void {
-  if (!isValid.value) return;
+  if (!isValid.value) {
+    showNomeError.value = true;
+    return;
+  }
+  showNomeError.value = false;
 
   emit('save', {
     tipo: tipo.value,
@@ -274,12 +281,17 @@ function handleClose(): void {
 
         <!-- Campos do formulário -->
         <div class="space-y-4">
-          <BaseInput
-            v-model="nome"
-            :label="isService ? 'Nome do Serviço' : 'Nome do Produto'"
-            :placeholder="isService ? 'Ex: Troca de tela, Formatação...' : 'Ex: Tela LCD, Bateria...'"
-            required
-          />
+          <div>
+            <BaseInput
+              v-model="nome"
+              :label="isService ? 'Nome do Serviço' : 'Nome do Produto'"
+              :placeholder="isService ? 'Ex: Troca de tela, Formatação...' : 'Ex: Tela LCD, Bateria...'"
+              required
+            />
+            <p v-if="showNomeError && nome.trim().length === 0" class="mt-1 text-xs text-red-500">
+              {{ isService ? 'Informe o nome do serviço' : 'Informe o nome do produto' }}
+            </p>
+          </div>
 
           <div class="grid grid-cols-2 gap-4">
             <BaseSelect

@@ -176,7 +176,7 @@ watch(isOpen, (open) => {
                 :is-loading="isPending"
                 @click="onSubmit"
               >
-                {{ isCreateMode ? 'Cadastrar' : 'Salvar Alteracoes' }}
+                {{ isCreateMode ? 'Cadastrar' : 'Salvar Alterações' }}
               </BaseButton>
             </div>
           </div>

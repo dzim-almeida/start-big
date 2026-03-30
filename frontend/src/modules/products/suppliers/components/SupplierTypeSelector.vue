@@ -18,27 +18,27 @@ const TIPOS = [
     icon: Package,
     label: 'Fornecedor de Produtos',
     description: 'Empresas que fornecem produtos para o seu estoque',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200 hover:border-blue-400',
+    color: 'text-brand-primary',
+    bg: 'bg-brand-primary-light',
+    border: 'border-brand-primary/20 hover:border-brand-primary/60',
   },
   {
     tipo: 'transportadora' as SupplierTipo,
     icon: Truck,
     label: 'Transportadora',
     description: 'Empresas responsáveis pelo transporte de mercadorias',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200 hover:border-blue-400',
+    color: 'text-brand-primary',
+    bg: 'bg-brand-primary-light',
+    border: 'border-brand-primary/20 hover:border-brand-primary/60',
   },
   {
     tipo: 'entregador' as SupplierTipo,
     icon: Bike,
     label: 'Entregador',
     description: 'Profissionais autônomos de entrega (motoboy, ciclista etc.)',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200 hover:border-blue-400',
+    color: 'text-brand-primary',
+    bg: 'bg-brand-primary-light',
+    border: 'border-brand-primary/20 hover:border-brand-primary/60',
   },
 ];
 </script>
@@ -63,7 +63,7 @@ const TIPOS = [
       >
         <div
           :class="[
-            'flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center',
+            'shrink-0 w-12 h-12 rounded-xl flex items-center justify-center',
             item.bg,
             item.color,
           ]"
@@ -76,7 +76,7 @@ const TIPOS = [
           </p>
           <p class="text-xs text-zinc-400 mt-0.5">{{ item.description }}</p>
         </div>
-        <div class="flex-shrink-0 text-zinc-300 group-hover:text-zinc-500 transition-colors">
+        <div class="shrink-0 text-zinc-300 group-hover:text-zinc-500 transition-colors">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"
