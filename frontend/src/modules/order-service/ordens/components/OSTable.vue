@@ -83,7 +83,7 @@ function getOSSequence(numero_os: string): string {
   >
     <template #toolbar>
       <BaseSearchInput v-model="search" placeholder="Buscar por número, cliente..." />
-      <BaseFilter v-model="activeFilter" :filter-config="OS_STATUS_FILTER_CONFIG" button-label="Status" />
+      <BaseFilter v-model="activeFilter" :filter-config="OS_STATUS_FILTER_CONFIG" button-label="Filtros" />
     </template>
 
     <div class="overflow-x-auto">

@@ -591,7 +591,7 @@ function handleReopenFull() {
     <form class="space-y-4" @submit.prevent="handleLocalSubmit">
       <div class="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
         <!-- COLUNA ESQUERDA (sidebar) -->
-        <fieldset :disabled="isStructureLocked" class="contents lg:block space-y-4">
+        <fieldset :disabled="isStructureLocked" class="flex flex-col gap-4 min-w-0">
           <OSClientCard
             :cliente="currentCliente"
             :status="props.ordemServico?.status"
@@ -647,7 +647,7 @@ function handleReopenFull() {
             </button>
           </div>
 
-          <fieldset :disabled="isStructureLocked" class="contents">
+          <fieldset :disabled="isStructureLocked" class="block min-w-0">
             <div class="min-h-125">
               <OSEquipmentTab
                 v-if="activeTab === 'equipamento'"
