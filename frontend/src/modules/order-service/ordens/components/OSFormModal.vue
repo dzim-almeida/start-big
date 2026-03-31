@@ -139,6 +139,7 @@ function handleReopenFull() {
   reopenMode.value = 'FULL';
   isReopenOptionsOpen.value = false;
   if (osNumber.value) reopenMutation.mutate(osNumber.value);
+  handleClose();
 }
 
 // ─── 5. Tabs ──────────────────────────────────────────────────────────────────
@@ -251,6 +252,10 @@ const displaySubtotal = computed(() => {
   }
   return (effectiveOS.value?.itens ?? []).reduce((sum, i) => sum + i.valor_total, 0);
 });
+
+const displayValorEntrega = computed(() => {
+  return effectiveOS.value?.taxa_entrega ?? 0;
+})
 
 const displayValorDesconto = computed(() => {
   if (isCreateMode.value) return form.criar.desconto.value ?? 0;
@@ -588,7 +593,7 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
     </template>
 
     <form class="space-y-4" @submit.prevent="handleLocalSubmit">
-      <div class="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
+      <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-5 items-start">
         <!-- COLUNA ESQUERDA (sidebar) -->
         <fieldset :disabled="isStructureLocked" class="contents lg:block space-y-4">
           <OSClientCard
@@ -618,6 +623,7 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
           <OSSummaryCard
             :itens="displayItems"
             :subtotal="displaySubtotal"
+            :valor-entrega="displayValorEntrega"
             :valor-desconto="displayValorDesconto"
             :valor-total="displayValorTotal"
             :valor-entrada="displayValorEntrada"
@@ -687,7 +693,6 @@ function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
 
     <template #footer>
       <OSFormFooter
-        :valor-total="displayValorTotal"
         :is-finalizada="isFinalizada"
         :is-cancelada="isCancelada"
         :is-edit-mode="isEditMode"

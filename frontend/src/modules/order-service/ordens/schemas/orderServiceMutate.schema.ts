@@ -67,15 +67,12 @@ export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpda
 export type OrderServiceUpdateDataType = z.infer<typeof OrderServiceUpdateSchema>
 
 export const OrderServiceReadySchema = z.object({
-  solucao: z
-    .string()
-    .min(5, 'Descreva uma solução válida')
-    .max(500, 'Uma descrição deve ter no máximo 500 caracteres'),
+  solucao: z.string().max(500, 'Uma descrição deve ter no máximo 500 caracteres').optional(),
   observacoes: z.string().max(500, 'Uma observação deve ter no máximo 500 caracteres'),
-  desconto: z.number().int(),
+  desconto: z.number().int().min(0, 'Desconto não pode ser negativo').default(0),
   taxa_entrega: z.number().int().min(0, 'Taxa de entrega inválida').default(0),
   acrescimo: z.number().int().min(0, 'Acréscimo inválido').default(0),
-  valor_entrada: z.number().int().optional(),
+  valor_entrada: z.number().int().min(0, 'Adiantamento não pode ser negativo').optional(),
   pagamentos: z
     .array(OsPaymentCreateSchema)
     .min(1, 'Para finalizar precisa de ao menos um pagamento válido'),
