@@ -26,13 +26,21 @@ interface Props {
   equipamentosHistorico?: EquipamentoHistorico[];
   selectedHistorico?: string;
   isLocked?: boolean;
+  fieldErrors?: Record<string, string>;
+  hasAttemptedSubmit?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   equipamentosHistorico: () => [],
   selectedHistorico: '',
   isLocked: false,
+  fieldErrors: () => ({}),
+  hasAttemptedSubmit: false,
 });
+
+function getFieldError(field: string): string {
+  return props.hasAttemptedSubmit && props.fieldErrors[field] ? props.fieldErrors[field] : '';
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: EquipamentoForm];
@@ -91,28 +99,35 @@ function handleHistoricoChange(event: Event) {
           label="Equipamento *"
           placeholder="Ex: iPhone 14, Notebook Dell..."
           required
+          :error="getFieldError('equipamento')"
           @update:model-value="updateField('equipamento', $event)"
         />
 
         <div class="grid grid-cols-2 gap-3">
           <BaseInput
             :model-value="modelValue.marca"
-            label="Marca"
+            label="Marca *"
             placeholder="Marca"
+            required
+            :error="getFieldError('marca')"
             @update:model-value="updateField('marca', $event)"
           />
           <BaseInput
             :model-value="modelValue.modelo"
-            label="Modelo"
+            label="Modelo *"
             placeholder="Modelo"
+            required
+            :error="getFieldError('modelo')"
             @update:model-value="updateField('modelo', $event)"
           />
         </div>
 
         <BaseInput
           :model-value="modelValue.numero_serie"
-          label="N° Serie"
+          label="N° Serie *"
           placeholder="Serial Number"
+          required
+          :error="getFieldError('numero_serie')"
           @update:model-value="updateField('numero_serie', $event)"
         />
       </div>
@@ -163,11 +178,19 @@ function handleHistoricoChange(event: Event) {
         <textarea
           :value="modelValue.defeito_relatado"
           rows="3"
-          class="w-full rounded-lg border border-slate-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary bg-white text-sm p-3"
+          :class="[
+            'w-full rounded-lg border focus:ring-1 bg-white text-sm p-3',
+            getFieldError('defeito_relatado')
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+              : 'border-slate-300 focus:border-brand-primary focus:ring-brand-primary',
+          ]"
           placeholder="Descreva o problema principal relatado pelo cliente..."
           required
           @input="updateField('defeito_relatado', ($event.target as HTMLTextAreaElement).value)"
         ></textarea>
+        <p v-if="getFieldError('defeito_relatado')" class="select-none mt-0.5 text-xs text-red-500">
+          {{ getFieldError('defeito_relatado') }}
+        </p>
       </div>
 
       <div>

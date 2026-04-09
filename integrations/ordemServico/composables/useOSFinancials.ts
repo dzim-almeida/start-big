@@ -5,7 +5,8 @@ import type { OSItemForm } from './useOSFormState';
 export function useOSFinancials(
   itens: Ref<OSItemForm[]>,
   desconto: Ref<string>,
-  valorEntrada?: Ref<string>
+  valorEntrada?: Ref<string>,
+  taxaEntrega?: Ref<string>
 ) {
   const subtotal = computed(() => {
     return itens.value.reduce((acc, item) => {
@@ -17,13 +18,18 @@ export function useOSFinancials(
     return parseCurrencyToCents(desconto.value);
   });
 
+  const valorTaxaEntrega = computed(() => {
+    if (!taxaEntrega) return 0;
+    return parseCurrencyToCents(taxaEntrega.value);
+  });
+
   const valorEntradaCents = computed(() => {
     if (!valorEntrada) return 0;
     return parseCurrencyToCents(valorEntrada.value);
   });
 
   const valorTotal = computed(() => {
-    const total = subtotal.value - valorDesconto.value;
+    const total = subtotal.value - valorDesconto.value + valorTaxaEntrega.value;
     return total > 0 ? total : 0;
   });
 
@@ -41,6 +47,7 @@ export function useOSFinancials(
   return {
     subtotal,
     valorDesconto,
+    valorTaxaEntrega,
     valorEntradaCents,
     valorTotal,
     valorRestante,

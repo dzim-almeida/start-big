@@ -31,8 +31,11 @@ interface Props {
   isLocked?: boolean;
   subtotal: number;
   valorDesconto: number;
+  valorTaxaEntrega: number;
   valorTotal: number;
   valorEntrada?: string;
+  taxaEntrega?: string;
+  desconto?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -40,13 +43,26 @@ const props = withDefaults(defineProps<Props>(), {
   isLoadingProdutos: false,
   isLocked: false,
   valorEntrada: '0',
+  taxaEntrega: '',
+  desconto: '',
 });
 
 const emit = defineEmits<{
   addItem: [];
   editItem: [index: number];
   removeItem: [index: number];
+  'update:taxaEntrega': [value: string];
+  'update:desconto': [value: string];
 }>();
+
+function handleCurrencyInput(e: Event, emitFn: 'update:taxaEntrega' | 'update:desconto') {
+  const target = e.target as HTMLInputElement;
+  let value = target.value.replace(/\D/g, '');
+  if (!value) value = '0';
+  const floatVal = parseFloat(value) / 100;
+  const formatted = floatVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  emit(emitFn, formatted);
+}
 
 function getItemIcon(item: OSItemForm) {
   return props.servicosOptions.some(s => s.value === item.servico_id) ? Wrench : ShoppingBag;
@@ -201,10 +217,36 @@ function getItemLabel(item: OSItemForm, index: number) {
             <span class="font-semibold text-slate-700">{{ formatCurrency(subtotal) }}</span>
           </div>
 
-          <!-- Desconto (so mostra se houver) -->
-          <div v-if="valorDesconto > 0" class="flex items-center justify-between text-sm">
-            <span class="text-red-600">Desconto Aplicado</span>
-            <span class="font-semibold text-red-600">- {{ formatCurrency(valorDesconto) }}</span>
+          <!-- Taxa de Entrega (input editavel) -->
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-blue-600">Taxa de Entrega</span>
+            <div class="relative w-32">
+              <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">R$</span>
+              <input
+                :value="taxaEntrega"
+                type="text"
+                :disabled="isLocked"
+                class="w-full pl-7 pr-2 py-1 border rounded text-right text-sm font-semibold text-blue-600 border-slate-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 bg-white outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                placeholder="0,00"
+                @input="handleCurrencyInput($event, 'update:taxaEntrega')"
+              />
+            </div>
+          </div>
+
+          <!-- Desconto (input editavel) -->
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-red-600">Desconto</span>
+            <div class="relative w-32">
+              <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">R$</span>
+              <input
+                :value="desconto"
+                type="text"
+                :disabled="isLocked"
+                class="w-full pl-7 pr-2 py-1 border rounded text-right text-sm font-semibold text-red-600 border-slate-200 focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                placeholder="0,00"
+                @input="handleCurrencyInput($event, 'update:desconto')"
+              />
+            </div>
           </div>
 
           <!-- Entrada (so mostra se houver) -->

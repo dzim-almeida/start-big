@@ -1,0 +1,45 @@
+import { computed, type ComputedRef } from 'vue';
+
+import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import { useOsEmployeesGet } from '../request/relationship/useOSRelationshipGet.queries';
+import { OS_PRIORIDADE_OPTIONS, OS_STATUS_OPTIONS } from '../../constants/ordemServico.constants';
+
+interface UseOSSelectOptionsParams {
+  currentStatus: ComputedRef<string | undefined>;
+}
+
+export function useOSSelectOptions({ currentStatus }: UseOSSelectOptionsParams) {
+  const employeesQuery = useOsEmployeesGet();
+
+  const funcionariosOptions = computed<SelectOption[]>(() => {
+    const raw = employeesQuery.data.value as unknown;
+    const list = Array.isArray(raw) ? (raw as { id: number; nome: string }[]) : [];
+
+    return [
+      { value: '', label: '-- Selecione --' },
+      ...list.map((employee) => ({ value: String(employee.id), label: employee.nome })),
+    ];
+  });
+
+  const statusOptions = computed<SelectOption[]>(() => {
+    if (currentStatus.value === 'FINALIZADA' || currentStatus.value === 'CANCELADA') {
+      return OS_STATUS_OPTIONS
+        .filter((status) => status.value === currentStatus.value)
+        .map((status) => ({ value: status.value, label: status.label }));
+    }
+
+    return OS_STATUS_OPTIONS
+      .filter((status) => status.value !== 'FINALIZADA' && status.value !== 'CANCELADA')
+      .map((status) => ({ value: status.value, label: status.label }));
+  });
+
+  const prioridadeOptions = computed<SelectOption[]>(() =>
+    OS_PRIORIDADE_OPTIONS.map((priority) => ({ value: priority.value, label: priority.label })),
+  );
+
+  return {
+    funcionariosOptions,
+    statusOptions,
+    prioridadeOptions,
+  };
+}

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Pencil,
+  History,
 } from 'lucide-vue-next';
 
 import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
@@ -23,7 +24,7 @@ interface Props {
   cliente?: CustomerUnionReadSchemaDataType | null;
   status?: OsStatusEnumDataType | null;
   dataCriacao?: string | Date;
-  dataFinalizacao?: string | Date;
+  dataFinalizacao?: string | Date | null;
   isEditMode?: boolean;
   isFinalizada?: boolean;
 }
@@ -33,6 +34,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   changeCliente: [];
   updateCliente: [cliente: CustomerUnionReadSchemaDataType];
+  openHistorico: [];
 }>();
 
 const { openEditModalWithCallback } = useCustomerModal();
@@ -130,6 +132,14 @@ const canChangeCliente = computed(() => {
         </span>
       </div>
       <div class="flex items-center gap-1">
+        <button
+          v-if="props.cliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="emit('openHistorico')"
+        >
+          <History :size="10" /> HISTÓRICO
+        </button>
         <button
           v-if="props.cliente && props.isEditMode"
           type="button"

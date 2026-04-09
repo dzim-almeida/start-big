@@ -12,6 +12,7 @@
 #   POST   /                              → Criar OS
 #   GET    /                              → Listar OS (paginado + filtros)
 #   GET    /stats                         → Estatísticas agregadas
+#   GET    /cliente/{cliente_id}          → Listar OS por cliente
 #   GET    /{os_number}                   → Buscar OS pelo número
 #   PUT    /{os_number}                   → Atualizar dados gerais da OS
 #   PUT    /{os_number}/equipamento       → Atualizar equipamento/cliente
@@ -116,6 +117,29 @@ def get_ordem_servico_stats(
     db: Session = Depends(get_db)
 ):
     return os_service.get_ordem_servico_stats(db)
+
+
+# ===========================================================================
+# HISTÓRICO POR CLIENTE (GET /cliente/{cliente_id})
+# NOTA: Declarada ANTES de /{os_number} para não ser capturada como param
+# ===========================================================================
+
+@router.get(
+    "/cliente/{cliente_id}",
+    response_model=OrdemServicoQuery,
+    status_code=status.HTTP_200_OK,
+    summary="Listar OS por Cliente",
+    description="Retorna lista paginada de OS vinculadas a um cliente específico."
+)
+def get_ordens_servico_by_cliente(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    cliente_id: int = Path(..., ge=1, description="ID do cliente"),
+    *,
+    page: int = Query(1, ge=1, description="Página atual"),
+    limit: int = Query(10, ge=1, le=100, description="Itens por página"),
+    db: Session = Depends(get_db)
+):
+    return os_service.get_ordens_servico_by_cliente_id(db, cliente_id, page, limit)
 
 
 # ===========================================================================

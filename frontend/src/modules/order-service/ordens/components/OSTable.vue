@@ -142,10 +142,18 @@ function getOSSequence(numero_os: string): string {
               <span v-else class="text-zinc-300">—</span>
             </td>
 
-            <td class="px-4 md:px-6 py-3 md:py-4">
+            <td class="px-4 md:px-6 py-3 md:py-4 max-w-36">
               <div class="flex items-center justify-end h-full">
                 <div class="hidden group-hover:flex items-center justify-end gap-1 transition-all duration-200">
                   <template v-if="os.status !== 'FINALIZADA' && os.status !== 'CANCELADA'">
+                    <button
+                      type="button"
+                      title="Imprimir OS"
+                      class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
+                      @click.stop="emit('print', os)"
+                    >
+                      <Printer :size="18" />
+                    </button>
                     <button
                       type="button"
                       title="Editar"

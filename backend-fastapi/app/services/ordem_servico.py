@@ -216,6 +216,35 @@ def get_ordem_servico_by_search(db: Session, filters: dict, page: int, limit: in
     )
 
 
+def get_ordens_servico_by_cliente_id(
+    db: Session, cliente_id: int, page: int, limit: int
+) -> OrdemServicoQuery:
+    """Retorna lista paginada de OS vinculadas a um cliente específico."""
+    cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+    if not cliente_in_db:
+        raise cliente_not_found_exce
+
+    skip = (page - 1) * limit
+    (order_service_in_db, total_items) = os_crud.get_ordens_servico_by_cliente_id(
+        db, cliente_id=cliente_id, skip=skip, limit=limit
+    )
+
+    filters = {"cliente_id": cliente_id}
+    (total_pages, link) = _set_pagination(
+        total_items=total_items, filters=filters, page=page, limit=limit
+    )
+
+    return OrdemServicoQuery(
+        filters=filters,
+        items=order_service_in_db,
+        total_items=total_items,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        links=link,
+    )
+
+
 def get_ordem_servico_stats(db: Session) -> OrdemServicoStats:
     """Retorna estatísticas agregadas das OS."""
     return os_crud.get_ordem_servico_stats(db)

@@ -110,6 +110,33 @@ def get_ordens_servico_by_search(
     return order_services, total
 
 
+def get_ordens_servico_by_cliente_id(
+    db: Session,
+    cliente_id: int,
+    skip: int,
+    limit: int = 10
+) -> tuple[Sequence[OSModel], int]:
+    """
+    Busca OS vinculadas a um cliente específico via equipamento.
+
+    Retorna tupla (lista_os, total) ordenada por data_criacao desc.
+    """
+    query = (
+        select(OSModel)
+        .join(OSModel.equipamento)
+        .where(OSEquipamentoModel.cliente_id == cliente_id)
+        .order_by(OSModel.data_criacao.desc())
+    )
+
+    count_stmt = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    stmt = query.offset(skip).limit(limit)
+    order_services = db.scalars(stmt).unique().all()
+
+    return order_services, total
+
+
 def get_ordem_servico_stats(db: Session) -> dict:
     """Retorna estatísticas agregadas: total, abertas, finalizadas e ticket médio."""
     subq_values = (

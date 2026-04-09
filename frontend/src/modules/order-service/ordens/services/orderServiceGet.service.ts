@@ -34,6 +34,18 @@ export async function getUniqueOS(numero_os: string): Promise<OrderServiceReadDa
   return safeParseResponse(OrderServiceReadSchema, data, 'getUniqueOS');
 }
 
+export async function getOsByClienteId(
+  clienteId: number,
+  page: number = 1,
+  limit: number = 10,
+): Promise<OrderServicePaginationDataType> {
+  const { data } = await api.get<OrderServicePaginationDataType>(
+    `${BASE_ORDER_SERVICE_URL}/cliente/${clienteId}`,
+    { params: { page, limit } },
+  );
+  return safeParseResponse(OrderServicePaginationSchema, data, 'getOsByClienteId');
+}
+
 export async function getStatsOS(): Promise<OrderServiceStatsDataType> {
   const { data } = await api.get<OrderServiceStatsDataType>(`${BASE_ORDER_SERVICE_URL}/stats`);
   return safeParseResponse(OrderServiceStatsSchema, data, 'getStatsOS');
