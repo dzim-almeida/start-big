@@ -1,8 +1,9 @@
 import { ref, watch, computed } from 'vue';
+import type { Ref } from 'vue';
 import { refDebounced } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 
-import { getAllOs, getUniqueOS, getStatsOS } from '../../services/orderServiceGet.service';
+import { getAllOs, getUniqueOS, getStatsOS, getOsByClienteId } from '../../services/orderServiceGet.service';
 
 import { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 
@@ -97,5 +98,25 @@ export function useOrderServiceQueryStats() {
   return {
     stats,
     isLoading: query.isLoading,
+  };
+}
+
+export function useOrderServiceQueryByCliente(clienteId: Ref<number | null>) {
+  const currentPage = ref(1);
+
+  const query = useQuery({
+    queryKey: [ORDER_SERVICE_QUERY_KEY, 'by-cliente', clienteId, currentPage],
+    queryFn: () => getOsByClienteId(clienteId.value!, currentPage.value),
+    enabled: computed(() => !!clienteId.value && clienteId.value > 0),
+    staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
+  });
+
+  return {
+    items: computed(() => query.data.value?.items ?? []),
+    totalPages: computed(() => query.data.value?.total_pages ?? 1),
+    totalItems: computed(() => query.data.value?.total_items ?? 0),
+    currentPage,
+    isLoading: query.isLoading,
+    isError: query.isError,
   };
 }

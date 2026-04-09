@@ -11,6 +11,7 @@ from typing import Sequence, Callable, Optional
 import re
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF, ClientePJ
+from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
 
 # ===========================================================================
 # VERIFICAÇÕES (AUXILIARES)
@@ -133,3 +134,22 @@ def deactivate_cliente(db: Session, cliente: ClienteModel) -> None:
     """Realiza a exclusão lógica do cliente (inativação)."""
     cliente.ativo = False
     db.flush()
+
+
+# ===========================================================================
+# EQUIPAMENTOS DO CLIENTE
+# ===========================================================================
+
+def get_equipamentos_by_cliente_id(
+    db: Session, cliente_id: int
+) -> Sequence[OrdemServicoEquipamento]:
+    """Retorna todos os equipamentos ativos de um cliente, ordenados do mais recente ao mais antigo."""
+    stmt = (
+        select(OrdemServicoEquipamento)
+        .where(
+            OrdemServicoEquipamento.cliente_id == cliente_id,
+            OrdemServicoEquipamento.ativo == True,
+        )
+        .order_by(OrdemServicoEquipamento.data_criacao.desc())
+    )
+    return db.scalars(stmt).all()

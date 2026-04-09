@@ -8,17 +8,23 @@ import {
   Calendar,
   CheckCircle2,
   RefreshCw,
+  Pencil,
+  History,
 } from 'lucide-vue-next';
 
 import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
+
+import { maskPhoneNumber } from '@/shared/utils/mask.utils';
 
 interface Props {
   cliente?: CustomerUnionReadSchemaDataType | null;
   status?: OsStatusEnumDataType | null;
   dataCriacao?: string | Date;
-  dataFinalizacao?: string | Date;
+  dataFinalizacao?: string | Date | null;
   isEditMode?: boolean;
   isFinalizada?: boolean;
 }
@@ -27,7 +33,18 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   changeCliente: [];
+  updateCliente: [cliente: CustomerUnionReadSchemaDataType];
+  openHistorico: [];
 }>();
+
+const { openEditModalWithCallback } = useCustomerModal();
+
+function handleEditCliente() {
+  if (!props.cliente) return;
+  openEditModalWithCallback(props.cliente as SharedCustomerType, (updated) => {
+    emit('updateCliente', updated as CustomerUnionReadSchemaDataType);
+  });
+}
 
 const isClientePJ = computed(() => {
   const c = props.cliente as { tipo?: string } | null | undefined;
@@ -42,17 +59,28 @@ const clienteNome = computed(() => {
 });
 
 const formattedAddress = computed(() => {
-  if (!props.cliente) return 'Endereco nao cadastrado';
-  const c = props.cliente as { endereco?: { logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string } };
-  if (c.endereco?.logradouro) {
-    const end = c.endereco;
-    return `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.estado}`;
-  }
-  return 'Endereco disponivel no cadastro do cliente';
+  if (!props.cliente?.endereco) return 'Endereço não cadastrado';
+
+  // Defensivo: endereco pode vir como array (fallback sem preprocess) ou objeto
+  const raw = props.cliente.endereco;
+  const end = Array.isArray(raw) ? raw[0] : raw;
+
+  if (!end || typeof end !== 'object') return 'Endereço não cadastrado';
+
+  const { logradouro, numero, bairro, cidade, estado } = end as {
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+  };
+
+  if (!logradouro) return 'Endereço não cadastrado';
+  return `${logradouro}, ${numero ?? 'S/N'} - ${bairro}, ${cidade}/${estado}`;
 });
 
 const formattedPhone = computed(() => {
-  return props.cliente?.celular || props.cliente?.telefone || 'Telefone nao informado';
+  return maskPhoneNumber(props.cliente?.celular) || maskPhoneNumber(props.cliente?.telefone) || 'Contato não cadastrado';
 });
 
 const formattedDataEntrada = computed(() => {
@@ -103,14 +131,32 @@ const canChangeCliente = computed(() => {
           DADOS DO CLIENTE
         </span>
       </div>
-      <button
-        v-if="canChangeCliente"
-        type="button"
-        class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
-        @click="emit('changeCliente')"
-      >
-        <RefreshCw :size="10" /> TROCAR
-      </button>
+      <div class="flex items-center gap-1">
+        <button
+          v-if="props.cliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="emit('openHistorico')"
+        >
+          <History :size="10" /> HISTÓRICO
+        </button>
+        <button
+          v-if="props.cliente && props.isEditMode"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="handleEditCliente"
+        >
+          <Pencil :size="10" /> EDITAR
+        </button>
+        <button
+          v-if="canChangeCliente"
+          type="button"
+          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
+          @click="emit('changeCliente')"
+        >
+          <RefreshCw :size="10" /> TROCAR
+        </button>
+      </div>
     </div>
 
     <div class="p-4 pt-3">
@@ -144,7 +190,7 @@ const canChangeCliente = computed(() => {
           </span>
         </div>
         <div v-if="formattedDataSaida !== '-'" class="flex flex-col">
-          <span class="text-[10px] text-slate-400 font-bold uppercase">Saida/Finalizacao</span>
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Saída/Finalização</span>
           <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
             <CheckCircle2 :size="12" class="text-emerald-500" />
             {{ formattedDataSaida }}

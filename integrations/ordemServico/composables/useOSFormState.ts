@@ -30,6 +30,7 @@ export interface OSFormData {
   garantia: string;
   desconto: string;
   valor_entrada: string;
+  taxa_entrega: string;
   data_finalizacao: string | undefined;
 }
 
@@ -63,6 +64,7 @@ const DEFAULT_FORM: OSFormData = {
   garantia: '',
   desconto: '',
   valor_entrada: '',
+  taxa_entrega: '',
   data_finalizacao: '',
 };
 
@@ -78,11 +80,15 @@ export function useOSFormState() {
   const form = ref<OSFormData>({ ...DEFAULT_FORM });
   const itens = ref<OSItemForm[]>([]);
   const apiError = ref<string | null>(null);
+  const hasAttemptedSubmit = ref(false);
+  const fieldErrors = ref<Record<string, string>>({});
 
   function resetForm() {
     form.value = { ...DEFAULT_FORM };
     itens.value = [];
     apiError.value = null;
+    hasAttemptedSubmit.value = false;
+    fieldErrors.value = {};
   }
 
   function populateForm(os: OrdemServicoRead) {
@@ -109,6 +115,7 @@ export function useOSFormState() {
       garantia: os.garantia || '',
       desconto: formatCentsToInput(os.desconto || 0),
       valor_entrada: formatCentsToInput(os.valor_entrada || 0),
+      taxa_entrega: formatCentsToInput((os as any).taxa_entrega || 0),
       data_finalizacao: formatDateForInput(os.data_finalizacao),
     };
 
@@ -124,8 +131,31 @@ export function useOSFormState() {
     itens.value.splice(index, 1);
   }
 
-  function addItem(item: OSItemForm) {
+  /**
+   * Adiciona item à lista. Se já existe item com mesmo servico_id ou
+   * mesma descricao + valor_unitario, soma a quantidade (auto-merge).
+   * Retorna { merged: boolean, newQuantity: number } para feedback visual.
+   */
+  function addItem(item: OSItemForm): { merged: boolean; newQuantity: number } {
+    const existingIndex = itens.value.findIndex(existing => {
+      if (item.servico_id && existing.servico_id) {
+        return existing.servico_id === item.servico_id;
+      }
+      return existing.descricao.trim().toLowerCase() === item.descricao.trim().toLowerCase()
+        && existing.valor_unitario === item.valor_unitario;
+    });
+
+    if (existingIndex !== -1) {
+      const newQty = itens.value[existingIndex].quantidade + item.quantidade;
+      itens.value[existingIndex] = {
+        ...itens.value[existingIndex],
+        quantidade: newQty,
+      };
+      return { merged: true, newQuantity: newQty };
+    }
+
     itens.value.push(item);
+    return { merged: false, newQuantity: item.quantidade };
   }
 
   function updateItem(index: number, item: OSItemForm) {
@@ -140,10 +170,20 @@ export function useOSFormState() {
     apiError.value = null;
   }
 
+  function setFieldErrors(errors: Record<string, string>) {
+    fieldErrors.value = errors;
+  }
+
+  function clearFieldErrors() {
+    fieldErrors.value = {};
+  }
+
   return {
     form,
     itens,
     apiError,
+    hasAttemptedSubmit,
+    fieldErrors,
     resetForm,
     populateForm,
     removeItem,
@@ -151,5 +191,7 @@ export function useOSFormState() {
     updateItem,
     setError,
     clearError,
+    setFieldErrors,
+    clearFieldErrors,
   };
 }

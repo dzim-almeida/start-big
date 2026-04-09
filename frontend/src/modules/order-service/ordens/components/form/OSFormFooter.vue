@@ -2,10 +2,8 @@
 import { computed } from 'vue';
 import { CheckCircle2, Printer, FileText, Unlock } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
-import { formatCurrency } from '@/shared/utils/finance';
 
 interface Props {
-  valorTotal: number;
   isFinalizada: boolean;
   isCancelada?: boolean;
   isEditMode: boolean;
@@ -39,13 +37,9 @@ const saveLabel = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-    <div class="flex items-center gap-3">
-      <span class="text-xs font-bold text-zinc-500 uppercase">Total O.S.</span>
-      <span class="text-xl font-bold text-zinc-800">{{ formatCurrency(valorTotal) }}</span>
-    </div>
+  <div class="flex flex-col md:flex-row items-center gap-4">
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center ml-auto gap-2">
       <!-- Impressao -->
       <BaseButton
         v-if="isEditMode"
@@ -72,6 +66,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="isEditMode && isLocked && reopenMode === 'NONE'"
         variant="secondary"
+        size="sm"
         @click="emit('reopen')"
       >
         <Unlock :size="16" class="mr-1" />
@@ -82,6 +77,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="isEditMode && !isLocked && reopenMode !== 'TEXT_ONLY'"
         variant="primary"
+        size="sm"
         @click="emit('finalizar')"
       >
         <CheckCircle2 :size="16" class="mr-1" />
@@ -92,6 +88,7 @@ const saveLabel = computed(() => {
       <BaseButton
         v-if="!isLocked || reopenMode !== 'NONE'"
         variant="primary"
+        size="sm"
         :is-loading="isPending"
         @click="emit('save')"
       >

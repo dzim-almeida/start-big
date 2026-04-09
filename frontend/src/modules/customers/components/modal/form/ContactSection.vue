@@ -7,7 +7,7 @@
 import { Phone } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
-import { useCustomerForm } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
+import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
 
 // =============================================
 // Props
@@ -17,7 +17,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields
@@ -62,9 +62,10 @@ const {
         <BaseInput
           v-model="celular"
           type="tel"
-          label="Celular"
+          label="Celular - WhatsApp"
           placeholder="(00) 00000-0000"
           mask="(##) #####-####"
+          :required="true"
           :error="submitCount > 0 ? errors.celular : ''"
           :disabled="disabled"
         />

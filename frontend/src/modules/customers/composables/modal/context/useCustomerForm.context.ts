@@ -7,6 +7,7 @@ import {
   type InjectionKey,
   type Ref,
 } from 'vue';
+
 import type { FieldEntry } from 'vee-validate';
 
 import type { AddressFormData } from '@/modules/customers/schemas/customer.schema';
@@ -16,7 +17,7 @@ import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/
 import type { CustomerFormContext } from '../types/context.type';
 import { useCustomerPFForm } from '../form/useCustomerPF.form';
 import { useCustomerPJForm } from '../form/useCustomerPJ.form';
-import { DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/customer.constant';
+import { DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
 import {
   transformPFToCreateRequest,
   transformPJToCreateRequest,
@@ -24,8 +25,14 @@ import {
   transformPJToUpdateRequest,
 } from '../form/helpers/transform.helpers';
 
+import type { AxiosError } from 'axios';
+import type { ApiError } from '@/shared/types/axios.types';
+import { getErrorMessage, getConflictErrors, isConflictError } from '@/shared/utils/error.utils';
+import { useToast } from '@/shared/composables/useToast';
+
 import { useCustomerModal } from '../useCustomerModal';
-import { useClienteActions } from '@/shared/composables/cliente/useClienteActions';
+import { useCreateCustomerPFMutation, useCreateCustomerPJMutation } from '@/modules/customers/composables/request/useCustomerCreate.mutate';
+import { useUpdateCustomerMutation } from '@/modules/customers/composables/request/useCustomerUpdate.mutate';
 
 // =============================================
 // Injection Key
@@ -38,9 +45,12 @@ export const CUSTOMER_FORM_KEY: InjectionKey<CustomerFormContext> = Symbol('cust
 // =============================================
 
 export function useCustomerFormProvider(): CustomerFormContext {
-  const { selectedCustomer, isCreateMode, closeModal } = useCustomerModal();
-  const { createPFMutation, createPJMutation, updateMutation } = useClienteActions();
+  const { selectedCustomer, isCreateMode, closeModal, onCreatedCallback, onUpdatedCallback } = useCustomerModal();
+  const createPFMutation = useCreateCustomerPFMutation();
+  const createPJMutation = useCreateCustomerPJMutation();
+  const updateMutation = useUpdateCustomerMutation();
 
+  const toast = useToast();
   const customerType = ref<TipoCliente>('PF');
   const apiError = ref<string | null>(null);
 
@@ -169,42 +179,74 @@ export function useCustomerFormProvider(): CustomerFormContext {
         pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
         pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
         customerType.value = 'PF';
+        apiError.value = null;
       }
     },
     { immediate: true },
   );
 
+  // ── Error handling ─────────────────────────────
+
+  function handleApiError(error: AxiosError<ApiError>, setErrors: (errors: Record<string, string>) => void, defaultMessage: string) {
+    if (isConflictError(error)) {
+      const conflictErrors = getConflictErrors(error);
+      if (conflictErrors) {
+        setErrors(conflictErrors);
+        toast.error('Dados já registrados', getErrorMessage(error, defaultMessage));
+        return;
+      }
+    }
+    apiError.value = getErrorMessage(error, defaultMessage);
+    toast.error(apiError.value);
+  }
+
   // ── Submit ───────────────────────────────────
+
+  const pfSubmit = pfForm.handleSubmit(async (data) => {
+    apiError.value = null;
+
+    try {
+      if (isCreateMode.value) {
+        const created = await createPFMutation.mutateAsync(transformPFToCreateRequest(data));
+        onCreatedCallback.value?.(created);
+      } else if (selectedCustomer.value) {
+        const id = selectedCustomer.value.id;
+        const updated = await updateMutation.mutateAsync({ id, data: transformPFToUpdateRequest(data) });
+        onUpdatedCallback.value?.(updated);
+      }
+      closeModal();
+      pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
+    } catch (error) {
+      handleApiError(error as AxiosError<ApiError>, pfForm.setErrors, 'Erro ao salvar cliente PF');
+    }
+  });
+
+  const pjSubmit = pjForm.handleSubmit(async (data) => {
+    apiError.value = null;
+
+    try {
+      if (isCreateMode.value) {
+        const created = await createPJMutation.mutateAsync(transformPJToCreateRequest(data));
+        onCreatedCallback.value?.(created);
+      } else if (selectedCustomer.value) {
+        const id = selectedCustomer.value.id;
+        const updated = await updateMutation.mutateAsync({ id, data: transformPJToUpdateRequest(data) });
+        onUpdatedCallback.value?.(updated);
+      }
+      closeModal();
+      pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
+    } catch (error) {
+      handleApiError(error as AxiosError<ApiError>, pjForm.setErrors, 'Erro ao salvar cliente PJ');
+    }
+  });
 
   const onSubmit = async () => {
     apiError.value = null;
 
-    const activeForm = customerType.value === 'PF' ? pfForm : pjForm;
-    const { valid } = await activeForm.validate();
-
-    if (!valid) return;
-
-    try {
-      if (isCreateMode.value) {
-        if (customerType.value === 'PF') {
-          await createPFMutation.mutateAsync(transformPFToCreateRequest(pfForm.values));
-        } else {
-          await createPJMutation.mutateAsync(transformPJToCreateRequest(pjForm.values));
-        }
-      } else if (selectedCustomer.value) {
-        const id = (selectedCustomer.value as any).id;
-        if (customerType.value === 'PF') {
-          await updateMutation.mutateAsync({ id, data: transformPFToUpdateRequest(pfForm.values) });
-        } else {
-          await updateMutation.mutateAsync({ id, data: transformPJToUpdateRequest(pjForm.values) });
-        }
-      }
-
-      closeModal();
-      pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
-      pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
-    } catch (error: any) {
-      apiError.value = error?.response?.data?.detail || 'Erro ao salvar cliente';
+    if (customerType.value === 'PF') {
+      await pfSubmit();
+    } else {
+      await pjSubmit();
     }
   };
 

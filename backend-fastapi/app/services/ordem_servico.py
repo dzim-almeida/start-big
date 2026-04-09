@@ -11,7 +11,7 @@
 # Regras financeiras:
 #   valor_bruto = soma dos itens (quantidade × valor_unitario)
 #   valor_total = valor_bruto - desconto
-#   Finalização só é permitida se sum(pagamentos) == valor_total
+#   Finalização só é permitida se sum(pagamentos) + valor_entrada == valor_total
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
@@ -119,7 +119,7 @@ def _recalcular_valor_total_os(os_in_db: OSModel) -> None:
     """
     valor_bruto = sum(item.valor_total for item in os_in_db.itens)
     os_in_db.valor_bruto = valor_bruto
-    os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0))
+    os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0) + (os_in_db.taxa_entrega or 0) + (os_in_db.acrescimo or 0))
 
 
 # ===========================================================================
@@ -201,6 +201,35 @@ def get_ordem_servico_by_search(db: Session, filters: dict, page: int, limit: in
         db, filters=filters, skip=skip, limit=limit
     )
 
+    (total_pages, link) = _set_pagination(
+        total_items=total_items, filters=filters, page=page, limit=limit
+    )
+
+    return OrdemServicoQuery(
+        filters=filters,
+        items=order_service_in_db,
+        total_items=total_items,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        links=link,
+    )
+
+
+def get_ordens_servico_by_cliente_id(
+    db: Session, cliente_id: int, page: int, limit: int
+) -> OrdemServicoQuery:
+    """Retorna lista paginada de OS vinculadas a um cliente específico."""
+    cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+    if not cliente_in_db:
+        raise cliente_not_found_exce
+
+    skip = (page - 1) * limit
+    (order_service_in_db, total_items) = os_crud.get_ordens_servico_by_cliente_id(
+        db, cliente_id=cliente_id, skip=skip, limit=limit
+    )
+
+    filters = {"cliente_id": cliente_id}
     (total_pages, link) = _set_pagination(
         total_items=total_items, filters=filters, page=page, limit=limit
     )
@@ -392,14 +421,23 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
     os_in_db = _get_os_or_raise(db, numero_os)
     _assert_os_editavel(os_in_db)
 
-    # Aplica desconto final se informado
+    # Aplica campos financeiros se informados
     if data.desconto is not None:
         os_in_db.desconto = data.desconto
-        _recalcular_valor_total_os(os_in_db)
+    if data.valor_entrada is not None:
+        os_in_db.valor_entrada = data.valor_entrada
+    if data.taxa_entrega is not None:
+        os_in_db.taxa_entrega = data.taxa_entrega
+    if data.acrescimo is not None:
+        os_in_db.acrescimo = data.acrescimo
 
-    # Valida valor total dos pagamentos
+    # Recalcula valor_total com todos os campos financeiros atualizados
+    _recalcular_valor_total_os(os_in_db)
+
+    # Valida valor total dos pagamentos (pagamentos + entrada = valor_total)
     total_pagamentos = sum(p.valor for p in data.pagamentos)
-    if total_pagamentos != os_in_db.valor_total:
+    valor_entrada = os_in_db.valor_entrada or 0
+    if (total_pagamentos + valor_entrada) != os_in_db.valor_total:
         raise pagamento_valor_invalido_exce
 
     # Valida e cria cada pagamento

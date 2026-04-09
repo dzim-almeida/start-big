@@ -210,3 +210,34 @@ def toggle_active_disable_cliente_by_id(db: Session, cliente_id: int) -> Cliente
     cliente_in_db = _get_cliente_or_raise(db, cliente_id)
     cliente_in_db.ativo = not cliente_in_db.ativo
     return cliente_crud.update_cliente(db, cliente_to_update=cliente_in_db)
+
+# ===========================================================================
+# EQUIPAMENTOS DO CLIENTE (HISTÓRICO)
+# ===========================================================================
+
+EQUIPMENT_HISTORY_LIMIT = 20
+
+def get_equipamentos_historico_by_cliente_id(
+    db: Session, cliente_id: int
+) -> list:
+    """
+    Retorna equipamentos únicos (ativos) de um cliente, deduplicados
+    por (tipo_equipamento, marca, modelo, numero_serie) e limitados
+    aos mais recentes.
+    """
+    _get_cliente_or_raise(db, cliente_id)
+
+    equipamentos = cliente_crud.get_equipamentos_by_cliente_id(db, cliente_id)
+
+    seen: set[tuple] = set()
+    resultado: list = []
+
+    for equip in equipamentos:
+        key = (equip.tipo_equipamento, equip.marca, equip.modelo, equip.numero_serie)
+        if key not in seen:
+            seen.add(key)
+            resultado.append(equip)
+        if len(resultado) >= EQUIPMENT_HISTORY_LIMIT:
+            break
+
+    return resultado

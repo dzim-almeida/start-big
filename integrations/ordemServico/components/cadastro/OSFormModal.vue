@@ -34,9 +34,12 @@ import { getClientEquipments } from '@/modules/clientes/services/cliente.service
 // Composables
 import { useOSForm } from '../../composables/useOSForm';
 import { provideOSFormContext } from '../../composables/useOSFormContext';
+import { useToast } from '@/shared/composables/useToast';
 
 // Utils
 import { formatCurrency } from '@/shared/utils/finance';
+
+const toast = useToast();
 
 // ===========================================================================
 // PROPS E EMITS
@@ -95,6 +98,8 @@ const {
   form,
   itens,
   apiError,
+  hasAttemptedSubmit,
+  fieldErrors,
   isEditMode,
   servicosOptions,
   produtosOptions,
@@ -103,6 +108,7 @@ const {
   statusOptions,
   subtotal,
   valorDesconto,
+  valorTaxaEntrega,
   valorTotal,
   isPending,
   isLoadingServicos,
@@ -110,6 +116,7 @@ const {
   handleClose,
   handleChangeCliente,
   handleSubmit,
+  addItem,
   removeItem,
   reopenOS,
 } = osForm;
@@ -153,7 +160,10 @@ function handleSaveItem(item: OrdemServicoItemCreate) {
   if (editingItemIndex.value !== null) {
     itens.value[editingItemIndex.value] = formItem;
   } else {
-    itens.value.push(formItem);
+    const result = addItem(formItem);
+    if (result.merged) {
+      toast.info(`Item ja existente — quantidade atualizada para ${result.newQuantity}`);
+    }
   }
 }
 
@@ -317,6 +327,8 @@ provideOSFormContext({
   form,
   itens,
   apiError,
+  hasAttemptedSubmit,
+  fieldErrors,
   servicosOptions,
   produtosOptions,
   funcionariosOptions,
@@ -326,12 +338,14 @@ provideOSFormContext({
   isLoadingProdutos,
   subtotal,
   valorDesconto,
+  valorTaxaEntrega,
   valorTotal,
   isEditMode,
   isFinalizada,
   isStructureLocked,
   isItemsLocked,
   isPending,
+  addItem,
   removeItem,
   setError: (msg: string) => { apiError.value = msg; },
   clearError: () => { apiError.value = null; },
@@ -471,6 +485,8 @@ function applyEquipamentoHistorico() {
             :equipamentos-historico="equipamentosHistorico"
             :selected-historico="selectedHistorico"
             :is-locked="isStructureLocked"
+            :field-errors="fieldErrors"
+            :has-attempted-submit="hasAttemptedSubmit"
             @update:selected-historico="selectedHistorico = $event"
             @apply-historico="applyEquipamentoHistorico"
           />
@@ -495,11 +511,16 @@ function applyEquipamentoHistorico() {
             :is-locked="isItemsLocked"
             :subtotal="subtotal"
             :valor-desconto="valorDesconto"
+            :valor-taxa-entrega="valorTaxaEntrega"
             :valor-total="valorTotal"
             :valor-entrada="form.valor_entrada"
+            :taxa-entrega="form.taxa_entrega"
+            :desconto="form.desconto"
             @add-item="openAddItemModal"
             @edit-item="openEditItemModal"
             @remove-item="removeItem"
+            @update:taxa-entrega="form.taxa_entrega = $event"
+            @update:desconto="form.desconto = $event"
           />
         </div>
       </fieldset>

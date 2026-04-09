@@ -152,9 +152,9 @@ export const OSItemFormSchema = z.object({
  */
 export const OSFormDataSchema = z.object({
   equipamento: z.string().min(1, 'Equipamento e obrigatorio'),
-  marca: z.string().optional(),
-  modelo: z.string().optional(),
-  numero_serie: z.string().optional(),
+  marca: z.string().min(1, 'Marca e obrigatoria'),
+  modelo: z.string().min(1, 'Modelo e obrigatorio'),
+  numero_serie: z.string().min(1, 'Numero de serie e obrigatorio'),
   imei: z.string().optional(),
   cor: z.string().optional(),
   acessorios: z.string().optional(),
@@ -173,6 +173,7 @@ export const OSFormDataSchema = z.object({
   garantia: z.string().optional(),
   desconto: z.string().optional(),
   valor_entrada: z.string().optional(),
+  taxa_entrega: z.string().optional(),
   data_finalizacao: z.string().optional(),
 });
 
@@ -208,6 +209,7 @@ export const OrdemServicoCreateSchema = z.object({
   data_previsao: z.string().optional(),
   desconto: z.number().int().nonnegative().optional(),
   valor_entrada: z.number().int().nonnegative().optional(),
+  taxa_entrega: z.number().int().nonnegative().optional(),
   forma_pagamento: z.string().optional(),
   garantia: z.string().optional(),
   itens: z.array(OrdemServicoItemCreateSchema).optional(),
@@ -237,6 +239,7 @@ export const OrdemServicoUpdateSchema = z.object({
   data_finalizacao: z.string().optional(),
   desconto: z.number().int().nonnegative().optional(),
   valor_entrada: z.number().int().nonnegative().optional(),
+  taxa_entrega: z.number().int().nonnegative().optional(),
   forma_pagamento: z.string().optional(),
   garantia: z.string().optional(),
   itens: z.array(OrdemServicoItemCreateSchema).optional(),

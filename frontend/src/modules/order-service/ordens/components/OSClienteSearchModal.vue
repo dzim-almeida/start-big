@@ -4,10 +4,13 @@ import { UserCircle2, Building2, Plus } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
+import { useQueryClient } from '@tanstack/vue-query';
 import { useOSClientSearch } from '../composables/request/relationship/useOSClientSearch.queries';
-import { useCustomerModal } from '@/modules/customers/composables/useCustomerModal';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import { getInitials } from '@/shared/utils/string.utils';
+import { formatCPF, formatCNPJ, formatTelefone } from '@/shared/utils/document.utils';
+import { OS_CUSTOMER_QUERY_KEY } from '../constants/core.constant';
 
 interface Props {
   isOpen: boolean;
@@ -21,8 +24,17 @@ const emit = defineEmits<{
 }>();
 
 const isOpen = toRef(props, 'isOpen');
+const queryClient = useQueryClient();
 const { searchQuery, clientes, isLoading, lastCreatedId } = useOSClientSearch(isOpen);
-const { openCreateModal } = useCustomerModal();
+const { openCreateModalWithCallback } = useCustomerModal();
+
+function handleCadastrarNovo() {
+  openCreateModalWithCallback((customer) => {
+    queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
+    emit('selectCliente', customer as CustomerUnionReadSchemaDataType);
+    emit('close');
+  });
+}
 
 const listRef = ref<HTMLElement | null>(null);
 
@@ -48,7 +60,13 @@ function getClienteNome(cliente: CustomerUnionReadSchemaDataType): string {
 
 function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
   const c = cliente as { tipo: string; cpf?: string; cnpj?: string };
-  return c.tipo === 'PF' ? (c.cpf || '—') : (c.cnpj || '—');
+  if (c.tipo === 'PF') return c.cpf ? formatCPF(c.cpf) : '—';
+  return c.cnpj ? formatCNPJ(c.cnpj) : '—';
+}
+
+function getClienteTelefone(cliente: CustomerUnionReadSchemaDataType): string | null {
+  const phone = (cliente as any).celular || (cliente as any).telefone;
+  return phone ? formatTelefone(phone) : null;
 }
 </script>
 
@@ -100,8 +118,8 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
             <p class="text-sm font-semibold text-zinc-900 truncate">{{ getClienteNome(cliente) }}</p>
             <p class="text-[11px] text-zinc-400 truncate">
               {{ getClienteDocumento(cliente) }}
-              <template v-if="(cliente as any).celular || (cliente as any).telefone">
-                · {{ (cliente as any).celular || (cliente as any).telefone }}
+              <template v-if="getClienteTelefone(cliente)">
+                · {{ getClienteTelefone(cliente) }}
               </template>
             </p>
           </div>
@@ -123,7 +141,7 @@ function getClienteDocumento(cliente: CustomerUnionReadSchemaDataType): string {
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" class="w-full" @click="openCreateModal()">
+      <BaseButton variant="secondary" class="w-full" @click="handleCadastrarNovo">
         <Plus :size="16" class="mr-1.5" />
         Cadastrar novo cliente
       </BaseButton>

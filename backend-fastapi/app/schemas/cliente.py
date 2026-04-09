@@ -7,7 +7,7 @@
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Annotated, Union, Literal
-from app.core.enum import Gender, ClientType
+from app.core.enum import Gender, ClientType, TipoEquipamento
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
 # ===========================================================================
@@ -208,3 +208,21 @@ ClienteUpdate = Annotated[
     Union[ClientePFUpdate, ClientePJUpdate],
     Field(discriminator="tipo")
 ]
+
+
+# ===========================================================================
+# EQUIPAMENTO HISTÓRICO (DTO leve para listagem)
+# ===========================================================================
+
+class EquipamentoHistoricoRead(BaseModel):
+    """Equipamento resumido para seleção rápida no formulário de OS."""
+    equipamento: TipoEquipamento = Field(
+        ...,
+        validation_alias="tipo_equipamento",
+        description="Tipo do equipamento (alias de tipo_equipamento)"
+    )
+    marca: str
+    modelo: str
+    numero_serie: str
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

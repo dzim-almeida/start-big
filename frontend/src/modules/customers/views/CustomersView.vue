@@ -16,7 +16,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 
 import { useCustomers } from '../composables/useCustomers';
-import { useCustomerModal } from '../composables/useCustomerModal';
+import { useCustomerModal } from '../composables/modal/useCustomerModal';
 import { useToggleCustomerAtivoMutation } from '../composables/request/useCustomerUpdate.mutate';
 
 import type { Cliente } from '../types/clientes.types';

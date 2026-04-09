@@ -90,6 +90,7 @@ export interface OrdemServicoCreate {
   data_previsao?: string;
   desconto?: number;
   valor_entrada?: number;
+  taxa_entrega?: number;
   forma_pagamento?: string;
   garantia?: string;
   itens?: OrdemServicoItemCreate[];
@@ -180,6 +181,7 @@ export interface OrdemServicoUpdate {
   data_finalizacao?: string;
   desconto?: number;
   valor_entrada?: number;
+  taxa_entrega?: number;
   forma_pagamento?: string;
   garantia?: string;
   itens?: OrdemServicoItemUpdate[];

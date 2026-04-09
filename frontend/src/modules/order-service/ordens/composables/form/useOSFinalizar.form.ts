@@ -24,6 +24,9 @@ export function useOSFinalizarForm(opts: {
       solucao: '',
       observacoes: '',
       desconto: 0,
+      taxa_entrega: 0,
+      acrescimo: 0,
+      valor_entrada: 0,
       pagamentos: [],
     },
   });
@@ -31,6 +34,9 @@ export function useOSFinalizarForm(opts: {
   const [solucao] = defineField('solucao');
   const [observacoes] = defineField('observacoes');
   const [desconto] = defineField('desconto');
+  const [taxa_entrega] = defineField('taxa_entrega');
+  const [acrescimo] = defineField('acrescimo');
+  const [valor_entrada] = defineField('valor_entrada');
 
   // FieldArray com generic explícito para inferência correta de tipos
   const {
@@ -53,6 +59,9 @@ export function useOSFinalizarForm(opts: {
         solucao: '',
         observacoes: '',
         desconto: 0,
+        taxa_entrega: 0,
+        acrescimo: 0,
+        valor_entrada: 0,
         pagamentos: [],
       },
     });
@@ -77,6 +86,9 @@ export function useOSFinalizarForm(opts: {
     solucao,
     observacoes,
     desconto,
+    taxa_entrega,
+    acrescimo,
+    valor_entrada,
     pagamentos,
     handleAddPagamento,
     handleRemovePagamento,

@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.schemas.cliente import (
-    ClienteRead, ClienteUpdate, 
+    ClienteRead, ClienteUpdate,
     ClientePFCreate, ClientePFRead,
-    ClientePJCreate, ClientePJRead
+    ClientePJCreate, ClientePJRead,
+    EquipamentoHistoricoRead,
 )
 
 from app.schemas.pagination import ClientePaginationRead
@@ -116,6 +117,25 @@ def get_client_by_search(
         filters,
         page,
         limit
+    )
+
+@router.get(
+    "/{cliente_id}/equipamentos",
+    response_model=list[EquipamentoHistoricoRead],
+    status_code=status.HTTP_200_OK,
+    summary="Histórico de Equipamentos do Cliente",
+    description="Retorna equipamentos únicos (ativos) do cliente, ordenados do mais recente ao mais antigo."
+)
+def get_equipamentos_by_cliente(
+    user_token: dict = Depends(check_permission(required_permission="cliente")),
+    cliente_id: int = Path(..., description="ID do cliente", ge=1),
+    *,
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        cliente_service.get_equipamentos_historico_by_cliente_id,
+        cliente_id,
     )
 
 # ===========================================================================

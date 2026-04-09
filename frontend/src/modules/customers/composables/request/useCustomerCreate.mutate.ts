@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import type { AxiosError } from 'axios';
 
 import type { ApiError } from '@/shared/types/axios.types';
-import { getErrorMessage } from '@/shared/utils/error.utils';
 import { useToast } from '@/shared/composables/useToast';
 
 import { createCustomerPF, createCustomerPJ } from '../../services/customerCreate.service';
@@ -26,9 +25,6 @@ export function useCreateCustomerPFMutation() {
       toast.success('Cliente PF cadastrado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [CUSTOMER_QUERY_KEY] });
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao cadastrar cliente PF') as string);
-    },
   });
 }
 
@@ -45,9 +41,6 @@ export function useCreateCustomerPJMutation() {
     onSuccess: () => {
       toast.success('Cliente PJ cadastrado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [CUSTOMER_QUERY_KEY] });
-    },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao cadastrar cliente PJ') as string);
     },
   });
 }

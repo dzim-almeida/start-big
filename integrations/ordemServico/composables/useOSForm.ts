@@ -53,11 +53,16 @@ export function useOSForm(
     form,
     itens,
     apiError,
+    hasAttemptedSubmit,
+    fieldErrors,
     resetForm,
     populateForm,
     removeItem,
+    addItem,
     setError,
     clearError,
+    setFieldErrors,
+    clearFieldErrors,
   } = useOSFormState();
 
   const {
@@ -70,12 +75,14 @@ export function useOSForm(
 
   const descontoRef = computed(() => form.value.desconto);
   const valorEntradaRef = computed(() => form.value.valor_entrada);
+  const taxaEntregaRef = computed(() => form.value.taxa_entrega);
 
   const {
     subtotal,
     valorDesconto,
+    valorTaxaEntrega,
     valorTotal,
-  } = useOSFinancials(itens, descontoRef, valorEntradaRef);
+  } = useOSFinancials(itens, descontoRef, valorEntradaRef, taxaEntregaRef);
 
   // Computed
   const isEditMode = computed(() => !!props.ordemServico?.id);
@@ -166,15 +173,23 @@ export function useOSForm(
 
   function validateForm(): boolean {
     clearError();
+    clearFieldErrors();
+    hasAttemptedSubmit.value = true;
 
-    // Validacao com Zod
+    // Validacao com Zod — coleta TODOS os erros por campo
     const result = OSFormDataSchema.safeParse(form.value);
 
     if (!result.success) {
-      const firstError = result.error.errors[0];
-      const msg = firstError.message;
-      setError(msg);
-      toast.warning(msg);
+      const errors: Record<string, string> = {};
+      for (const err of result.error.errors) {
+        const field = err.path.join('.');
+        if (!errors[field]) errors[field] = err.message;
+      }
+      setFieldErrors(errors);
+
+      const firstMsg = Object.values(errors)[0];
+      setError(firstMsg);
+      toast.warning(firstMsg);
       return false;
     }
 
@@ -206,6 +221,7 @@ export function useOSForm(
     const prioridade = form.value.prioridade as OrdemServicoPrioridade;
     const descontoValue = parseCurrencyToCents(form.value.desconto);
     const valorEntradaValue = parseCurrencyToCents(form.value.valor_entrada);
+    const taxaEntregaValue = parseCurrencyToCents(form.value.taxa_entrega);
 
     if (isEditMode.value) {
       return {
@@ -229,6 +245,7 @@ export function useOSForm(
           data_finalizacao: form.value.data_finalizacao || undefined,
           desconto: descontoValue || undefined,
           valor_entrada: valorEntradaValue || undefined,
+          taxa_entrega: taxaEntregaValue || undefined,
           forma_pagamento: form.value.forma_pagamento || undefined,
           garantia: form.value.garantia || undefined,
           itens: itensToSend,
@@ -256,6 +273,7 @@ export function useOSForm(
         data_previsao: form.value.data_previsao || undefined,
         desconto: descontoValue || undefined,
         valor_entrada: valorEntradaValue || undefined,
+        taxa_entrega: taxaEntregaValue || undefined,
         forma_pagamento: form.value.forma_pagamento || undefined,
         garantia: form.value.garantia || undefined,
         itens: itensToSend.length > 0 ? itensToSend : undefined,
@@ -295,6 +313,8 @@ export function useOSForm(
     form,
     itens,
     apiError,
+    hasAttemptedSubmit,
+    fieldErrors,
     isEditMode,
     modalTitle,
     modalSubtitle,
@@ -305,6 +325,7 @@ export function useOSForm(
     statusOptions,
     subtotal,
     valorDesconto,
+    valorTaxaEntrega,
     valorTotal,
     isPending,
     isLoadingServicos,
@@ -312,6 +333,7 @@ export function useOSForm(
     handleClose,
     handleChangeCliente,
     handleSubmit,
+    addItem,
     removeItem,
     formatCurrency,
     reopenOS,

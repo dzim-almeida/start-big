@@ -23,7 +23,7 @@ export function useOSClientSearch(isOpen: Ref<boolean>): {
   });
 
   const clientes = computed<CustomerUnionReadSchemaDataType[]>(() => {
-    const all = (data.value as CustomerUnionReadSchemaDataType[] | undefined) ?? [];
+    const all = data.value ?? [];
     const q = debouncedQuery.value.trim().toLowerCase();
     if (!q) return all;
     return all.filter((c) => {

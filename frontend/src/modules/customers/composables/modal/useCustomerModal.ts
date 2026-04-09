@@ -14,18 +14,27 @@ import { CustomerUnionReadSchemaDataType, isCustomerPF } from '@/shared/schemas/
 export type ModalMode = 'create' | 'edit' | 'view';
 
 // =============================================
+// Types
+// =============================================
+
+type CustomerCallback = ((customer: CustomerUnionReadSchemaDataType) => void) | null;
+
+// =============================================
 // Shared State (singleton)
 // =============================================
 
 const isOpen = ref(false);
 const mode = ref<ModalMode>('create');
 const selectedCustomer = ref<CustomerUnionReadSchemaDataType | null>(null);
+const onCreatedCallback = ref<CustomerCallback>(null);
+const onUpdatedCallback = ref<CustomerCallback>(null);
 
 // =============================================
 // Composable
 // =============================================
 
 export function useCustomerModal() {
+
   function openCreateModal() {
     selectedCustomer.value = null;
     mode.value = 'create';
@@ -36,6 +45,19 @@ export function useCustomerModal() {
     selectedCustomer.value = customer;
     mode.value = 'edit';
     isOpen.value = true;
+  }
+
+  function openCreateModalWithCallback(callback: (customer: CustomerUnionReadSchemaDataType) => void) {
+    onCreatedCallback.value = callback;
+    openCreateModal();
+  }
+
+  function openEditModalWithCallback(
+    customer: CustomerUnionReadSchemaDataType,
+    callback: (customer: CustomerUnionReadSchemaDataType) => void,
+  ) {
+    onUpdatedCallback.value = callback;
+    openEditModal(customer);
   }
 
   function openViewModal(customer: CustomerUnionReadSchemaDataType) {
@@ -49,6 +71,8 @@ export function useCustomerModal() {
     setTimeout(() => {
       selectedCustomer.value = null;
       mode.value = 'create';
+      onCreatedCallback.value = null;
+      onUpdatedCallback.value = null;
     }, 300);
   }
 
@@ -81,6 +105,8 @@ export function useCustomerModal() {
     isOpen,
     mode,
     selectedCustomer,
+    onCreatedCallback,
+    onUpdatedCallback,
     isCreateMode,
     isEditMode,
     isViewMode,
@@ -89,6 +115,8 @@ export function useCustomerModal() {
     openCreateModal,
     openEditModal,
     openViewModal,
+    openCreateModalWithCallback,
+    openEditModalWithCallback,
     closeModal,
   };
 }

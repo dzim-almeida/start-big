@@ -4,11 +4,14 @@ import OSTable from '../../ordens/components/OSTable.vue';
 import OSFormModal from '../../ordens/components/OSFormModal.vue';
 import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/CustomerFormModal.vue';
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
+import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
+import OSPrintSelectModal from '../../ordens/components/OSPrintSelectModal.vue';
 import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
+import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
@@ -51,6 +54,9 @@ const isReopenDirectOpen = ref(false);
 
 const osToPrint = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
+const printFormat = ref<PrintFormat>('A4');
+const isPrintSelectOpen = ref(false);
+const pendingPrintAfterSelect = ref<(() => void) | null>(null);
 
 // ─── Filtro de status ─────────────────────────────────────────────────────────
 const osActiveFilter = computed<string | null>({
@@ -129,13 +135,9 @@ async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean })
       const osAtualizada = await getUniqueOS(osToFinalizar.value.numero_os);
       osToPrint.value = osAtualizada;
       printType.value = 'SAIDA';
-      setTimeout(() => {
-        window.print();
-        setTimeout(() => {
-          osToPrint.value = null;
-          printType.value = null;
-        }, 500);
-      }, 100);
+      pendingPrintAfterSelect.value = () => handleCloseFinalizarDirect();
+      isPrintSelectOpen.value = true;
+      return;
     } catch {
       toast.error('Erro ao preparar impressão');
     }
@@ -159,13 +161,9 @@ async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
       const osAtualizada = await getUniqueOS(osToCancel.value.numero_os);
       osToPrint.value = osAtualizada;
       printType.value = 'CANCELAMENTO';
-      setTimeout(() => {
-        window.print();
-        setTimeout(() => {
-          osToPrint.value = null;
-          printType.value = null;
-        }, 500);
-      }, 100);
+      pendingPrintAfterSelect.value = () => handleCloseCancelModal();
+      isPrintSelectOpen.value = true;
+      return;
     } catch {
       toast.error('Erro ao preparar impressão do cancelamento');
     }
@@ -203,17 +201,40 @@ async function handlePrintOS(os: OrderServiceReadDataType) {
   try {
     const osCompleta = await getUniqueOS(os.numero_os);
     osToPrint.value = osCompleta;
-    printType.value = osCompleta.status === 'CANCELADA' ? 'CANCELAMENTO' : 'SAIDA';
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        osToPrint.value = null;
-        printType.value = null;
-      }, 500);
-    }, 100);
+    if (osCompleta.status === 'FINALIZADA') {
+      printType.value = 'SAIDA';
+    } else if (osCompleta.status === 'CANCELADA') {
+      printType.value = 'CANCELAMENTO';
+    } else {
+      printType.value = 'ENTRADA';
+    }
+    pendingPrintAfterSelect.value = null;
+    isPrintSelectOpen.value = true;
   } catch {
     toast.error('Erro ao preparar impressão');
   }
+}
+
+function handlePrintFormatSelected(format: PrintFormat) {
+  printFormat.value = format;
+  isPrintSelectOpen.value = false;
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      pendingPrintAfterSelect.value?.();
+      pendingPrintAfterSelect.value = null;
+      osToPrint.value = null;
+      printType.value = null;
+    }, 500);
+  }, 100);
+}
+
+function handleClosePrintSelect() {
+  isPrintSelectOpen.value = false;
+  pendingPrintAfterSelect.value = null;
+  osToPrint.value = null;
+  printType.value = null;
 }
 
 defineExpose({ handleOpenNovaOS });
@@ -284,9 +305,21 @@ defineExpose({ handleOpenNovaOS });
       @full="handleReopenFull"
     />
 
+    <OSPrintSelectModal
+      :is-open="isPrintSelectOpen"
+      @close="handleClosePrintSelect"
+      @select="handlePrintFormatSelected"
+    />
+
     <OSPrintTemplate
-      v-if="osToPrint"
+      v-if="osToPrint && printFormat === 'A4'"
       :ordem-servico="osToPrint"
+      :type="printType || 'SAIDA'"
+    />
+
+    <OSPrintCupom
+      v-if="osToPrint && printFormat === 'CUPOM'"
+      :order-service="osToPrint"
       :type="printType || 'SAIDA'"
     />
 

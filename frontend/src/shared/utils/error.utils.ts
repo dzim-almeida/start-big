@@ -8,7 +8,7 @@ import type { ApiError, ValidationError } from '@/shared/types/axios.types';
 import { ERROR_MESSAGES, NETWORK_ERROR_MESSAGE, ConflictedData } from '@/shared/types/axios.types';
 
 /**
- * Extrai a mensagem de erro de um ValidationError[]
+ * Extrai a mensagem de erro de um ValidationError[] (422 Pydantic)
  * @param errors - Array de erros de validação
  * @returns Mensagem formatada
  */
@@ -32,6 +32,16 @@ function formatValidationErrors(errors: ValidationError[]): string {
 }
 
 /**
+ * Extrai a mensagem de erro de um ConflictedData[] (409 Conflict)
+ * @param errors - Array de conflitos {campo, mensagem}
+ * @returns Mensagem formatada concatenando todas as mensagens
+ */
+function formatConflictErrors(errors: ConflictedData[]): string {
+  if (errors.length === 0) return '';
+  return errors.map(e => e.mensagem).join('. ');
+}
+
+/**
  * Extrai mensagem de erro amigável de um AxiosError
  * @param error - Erro do Axios
  * @param defaultMessage - Mensagem padrão caso não encontre
@@ -40,7 +50,7 @@ function formatValidationErrors(errors: ValidationError[]): string {
 export function getErrorMessage(
   error: AxiosError<ApiError>,
   defaultMessage = 'Ocorreu um erro inesperado. Tente novamente.',
-): Record<string, string> | string {
+): string {
   // Erro de rede (sem resposta do servidor)
   if (!error.response) {
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
@@ -56,8 +66,13 @@ export function getErrorMessage(
 
   // Verifica se há mensagem específica da API
   if (data?.detail) {
-    // Se detail for um array de ValidationError
+    // Se detail for um array
     if (Array.isArray(data.detail)) {
+      // 409 Conflict: array de {campo, mensagem}
+      if (data.detail.length > 0 && 'campo' in data.detail[0]) {
+        return formatConflictErrors(data.detail as unknown as ConflictedData[]);
+      }
+      // 422 Validation: array de {loc, msg, type}
       return formatValidationErrors(data.detail);
     }
     // Se detail for uma string
@@ -87,7 +102,6 @@ export function getConflictErrors(error: AxiosError<ApiError>): Record<string, s
         if (curr.campo && curr.mensagem) {
           acc[curr.campo] = curr.mensagem;
         }
-        console.log(acc);
         return acc;
       },
       {} as Record<string, string>,

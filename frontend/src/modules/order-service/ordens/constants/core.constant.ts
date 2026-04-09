@@ -23,12 +23,13 @@ export const DEFAULT_OS_CREATE_VALUES = {
   condicoes_aparelho: undefined,
   observacoes: undefined,
   desconto: undefined,
+  valor_entrada: 0,
   garantia: undefined,
   data_previsao: undefined,
   cliente_id: undefined,
   funcionario_id: undefined,
   equipamento: {
-    tipo_equipamento: 'OUTROS' as const,
+    tipo_equipamento: undefined,
     marca: '',
     modelo: '',
     numero_serie: '',
@@ -45,6 +46,29 @@ export const DEFAULT_OS_ITEM_VALUES = {
   quantidade: 1,
   valor_unitario: 0,
 }
+
+/** Medidas para SERVIÇO: tempo e unidade */
+export const MEDIDA_SERVICO_OPTIONS = [
+  { value: 'UN', label: 'Unidade (UN)' },
+  { value: 'H', label: 'Hora (H)' },
+  { value: 'D', label: 'Dia (D)' },
+  { value: 'MES', label: 'Mês (MES)' },
+  { value: 'OUTROS', label: 'Outros' },
+] as const;
+
+/** Medidas para PRODUTO: peso, volume, comprimento */
+export const MEDIDA_PRODUTO_OPTIONS = [
+  { value: 'UN', label: 'Unidade (UN)' },
+  { value: 'KG', label: 'Quilograma (KG)' },
+  { value: 'G', label: 'Grama (G)' },
+  { value: 'L', label: 'Litro (L)' },
+  { value: 'ML', label: 'Mililitro (ML)' },
+  { value: 'M', label: 'Metro (M)' },
+  { value: 'CM', label: 'Centímetro (CM)' },
+  { value: 'M2', label: 'Metro² (M²)' },
+  { value: 'M3', label: 'Metro³ (M³)' },
+  { value: 'OUTROS', label: 'Outros' },
+] as const;
 
 export const DEFAULT_OS_PAGAMENTO_VALUES = {
   forma_pagamento_id: 0,

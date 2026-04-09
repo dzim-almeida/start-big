@@ -14,6 +14,7 @@ export interface OSCreateFormContext {
   diagnostico: Ref<string | undefined>;
   observacoes: Ref<string | undefined>;
   desconto: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
   garantia: Ref<string | undefined>;
   data_previsao: Ref<string | undefined>;
   senha_aparelho: Ref<string | undefined>;
@@ -56,6 +57,7 @@ export interface OSUpdateGeralFormContext {
   solucao: Ref<string | undefined>;
   observacoes: Ref<string | undefined>;
   desconto: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
   garantia: Ref<string | undefined>;
   data_previsao: Ref<string | undefined>;
   senha_aparelho: Ref<string | undefined>;
@@ -115,6 +117,9 @@ export interface OSFinalizarFormContext {
   solucao: Ref<string | undefined>;
   observacoes: Ref<string | undefined>;
   desconto: Ref<number | undefined>;
+  taxa_entrega: Ref<number | undefined>;
+  acrescimo: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
 
   pagamentos: Ref<FieldEntry<OsPaymentCreateSchemaDataType>[]>;
   handleAddPagamento: (pagamento?: Partial<OsPaymentCreateSchemaDataType>) => void;

@@ -8,8 +8,8 @@ import { User } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import { useCustomerForm } from '@/shared/composables/modals/customers/context/useCustomerForm.context';
-import { GENDER_OPTIONS } from '@/modules/customers/composables/useCustomerForm';
+import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
+import { GENDER_OPTIONS } from '@/modules/customers/composables/modal/constants/modal.constant';
 
 // =============================================
 // Props
@@ -19,7 +19,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields
@@ -66,6 +66,7 @@ const {
           label="CPF"
           placeholder="000.000.000-00"
           mask="###.###.###-##"
+          :required="true"
           :error="submitCount > 0 ? errors.cpf : ''"
           :disabled="disabled"
         />
@@ -77,6 +78,7 @@ const {
           v-model="rg"
           label="RG"
           placeholder="00.000.000-0"
+          mask="##.###.###-#"
           :error="submitCount > 0 ? errors.rg : ''"
           :disabled="disabled"
         />

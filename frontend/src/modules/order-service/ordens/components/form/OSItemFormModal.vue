@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Wrench, ShoppingBag, Save } from 'lucide-vue-next';
+import { refDebounced } from '@vueuse/core';
+import { useQuery } from '@tanstack/vue-query';
+import { Wrench, ShoppingBag, Save, Search, Loader2 } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
+import { useProductsQuery } from '@/modules/products/composables/useProductsQuery';
+import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
+import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
 import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType } from '../../schemas/enums/osEnums.schema';
 
@@ -25,51 +30,97 @@ const emit = defineEmits<{
   save: [item: OsItemCreateSchemaDataType];
 }>();
 
+// --- Estado do formulário ---
 const tipo = ref<OsItemTypeEnumDataType>('SERVICO');
 const nome = ref('');
 const unidade_medida = ref<OsItemMeasureEnumDataType>('UN');
 const quantidade = ref(1);
 const valorUnitarioNum = ref(0);
+const selectedCatalogId = ref<number | null>(null);
 
+// --- Catálogo ---
+const catalogSearch = ref('');
+const debouncedCatalogSearch = refDebounced(catalogSearch, 400);
+
+const { data: produtosData, isLoading: isLoadingProdutos } = useProductsQuery(
+  computed(() => tipo.value === 'PRODUTO' && debouncedCatalogSearch.value
+    ? debouncedCatalogSearch.value
+    : null
+  ),
+);
+
+const { data: servicosData, isLoading: isLoadingServicos } = useQuery({
+  queryKey: ['servicos-os-item', debouncedCatalogSearch] as const,
+  queryFn: () => getServicos({
+    search: debouncedCatalogSearch.value || undefined,
+    active: true,
+    limit: 20,
+  }),
+  enabled: computed(() => tipo.value === 'SERVICO' && debouncedCatalogSearch.value.length > 0),
+  staleTime: 1000 * 60,
+});
+
+interface CatalogItem {
+  id: number;
+  nome: string;
+  valor: number;
+  unidade_medida: string;
+}
+
+const catalogItems = computed<CatalogItem[]>(() => {
+  if (tipo.value === 'PRODUTO') {
+    return (produtosData.value ?? [])
+      .filter(p => p.ativo)
+      .map(p => ({
+        id: p.id,
+        nome: p.nome,
+        valor: p.estoque?.valor_varejo ?? 0,
+        unidade_medida: p.unidade_medida ?? 'UN',
+      }));
+  }
+  return (servicosData.value?.items ?? []).map(s => ({
+    id: s.id,
+    nome: s.descricao,
+    valor: s.valor,
+    unidade_medida: 'UN',
+  }));
+});
+
+const isLoadingCatalog = computed(() =>
+  tipo.value === 'PRODUTO' ? isLoadingProdutos.value : isLoadingServicos.value,
+);
+
+const showCatalogResults = computed(() =>
+  catalogSearch.value.length > 0 && catalogItems.value.length > 0,
+);
+
+function selectCatalogItem(item: CatalogItem): void {
+  selectedCatalogId.value = item.id;
+  nome.value = item.nome;
+  valorUnitarioNum.value = item.valor / 100;
+  unidade_medida.value = item.unidade_medida as OsItemMeasureEnumDataType;
+  catalogSearch.value = '';
+}
+
+// --- Medidas filtradas por tipo ---
+const medidaOptions = computed(() =>
+  tipo.value === 'SERVICO' ? [...MEDIDA_SERVICO_OPTIONS] : [...MEDIDA_PRODUTO_OPTIONS],
+);
+
+// --- Computeds ---
 const total = computed(() => Math.round(quantidade.value * valorUnitarioNum.value * 100));
 const isValid = computed(() => nome.value.trim().length > 0 && quantidade.value > 0);
 
-const tipoOptions = [
-  { value: 'SERVICO', label: 'Serviço / Mão de Obra' },
-  { value: 'PRODUTO', label: 'Produto / Peça' },
-];
+// --- Watchers ---
+watch(tipo, () => {
+  catalogSearch.value = '';
+  selectedCatalogId.value = null;
 
-const medidaOptions = [
-  { value: 'UN', label: 'Unidade (UN)' },
-  { value: 'H', label: 'Hora (H)' },
-  { value: 'KG', label: 'Quilograma (KG)' },
-  { value: 'G', label: 'Grama (G)' },
-  { value: 'L', label: 'Litro (L)' },
-  { value: 'ML', label: 'Mililitro (ML)' },
-  { value: 'M', label: 'Metro (M)' },
-  { value: 'CM', label: 'Centímetro (CM)' },
-  { value: 'M2', label: 'Metro² (M2)' },
-  { value: 'M3', label: 'Metro³ (M3)' },
-  { value: 'D', label: 'Dia (D)' },
-  { value: 'MES', label: 'Mês (MES)' },
-  { value: 'OUTROS', label: 'Outros' },
-];
-
-function reset() {
-  tipo.value = 'SERVICO';
-  nome.value = '';
-  unidade_medida.value = 'UN';
-  quantidade.value = 1;
-  valorUnitarioNum.value = 0;
-}
-
-function populate(item: OsItemCreateSchemaDataType) {
-  tipo.value = item.tipo;
-  nome.value = item.nome;
-  unidade_medida.value = item.unidade_medida;
-  quantidade.value = item.quantidade;
-  valorUnitarioNum.value = item.valor_unitario / 100;
-}
+  const validValues = medidaOptions.value.map(o => o.value);
+  if (!validValues.includes(unidade_medida.value)) {
+    unidade_medida.value = 'UN';
+  }
+});
 
 watch(() => props.isOpen, (open) => {
   if (open) {
@@ -78,7 +129,27 @@ watch(() => props.isOpen, (open) => {
   }
 });
 
-function handleSave() {
+// --- Ações ---
+function reset(): void {
+  tipo.value = 'SERVICO';
+  nome.value = '';
+  unidade_medida.value = 'UN';
+  quantidade.value = 1;
+  valorUnitarioNum.value = 0;
+  catalogSearch.value = '';
+  selectedCatalogId.value = null;
+}
+
+function populate(item: OsItemCreateSchemaDataType): void {
+  tipo.value = item.tipo;
+  nome.value = item.nome;
+  unidade_medida.value = item.unidade_medida;
+  quantidade.value = item.quantidade;
+  valorUnitarioNum.value = item.valor_unitario / 100;
+  selectedCatalogId.value = item.item_id ?? null;
+}
+
+function handleSave(): void {
   if (!isValid.value) return;
   emit('save', {
     tipo: tipo.value,
@@ -86,11 +157,12 @@ function handleSave() {
     unidade_medida: unidade_medida.value,
     quantidade: quantidade.value,
     valor_unitario: Math.round(valorUnitarioNum.value * 100),
+    ...(selectedCatalogId.value != null && { item_id: selectedCatalogId.value }),
   });
   emit('close');
 }
 
-function handleClose() {
+function handleClose(): void {
   emit('close');
 }
 </script>
@@ -102,7 +174,8 @@ function handleClose() {
     size="lg"
     @close="handleClose"
   >
-    <form @submit.prevent="handleSave" class="space-y-6">
+    <form @submit.prevent="handleSave" class="space-y-5">
+      <!-- Toggle Tipo -->
       <div class="flex p-1 bg-slate-100 rounded-lg">
         <button
           type="button"
@@ -128,6 +201,66 @@ function handleClose() {
         </button>
       </div>
 
+      <!-- Busca no Catálogo -->
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {{ tipo === 'SERVICO' ? 'Buscar Serviço Cadastrado' : 'Buscar Produto Cadastrado' }}
+        </label>
+
+        <div class="relative">
+          <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            v-model="catalogSearch"
+            type="text"
+            :placeholder="tipo === 'SERVICO' ? 'Pesquisar serviços cadastrados...' : 'Pesquisar produtos cadastrados...'"
+            class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary placeholder:text-slate-400"
+          />
+          <Loader2
+            v-if="isLoadingCatalog && catalogSearch.length > 0"
+            :size="16"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 animate-spin"
+          />
+        </div>
+
+        <div
+          v-if="showCatalogResults"
+          class="max-h-36 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white shadow-sm"
+        >
+          <button
+            v-for="catalogItem in catalogItems"
+            :key="catalogItem.id"
+            type="button"
+            @click="selectCatalogItem(catalogItem)"
+            :class="[
+              'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
+              selectedCatalogId === catalogItem.id
+                ? 'bg-brand-primary-light text-brand-primary'
+                : 'hover:bg-slate-50',
+            ]"
+          >
+            <span class="text-sm font-medium text-slate-700 truncate">{{ catalogItem.nome }}</span>
+            <span class="text-sm font-bold text-slate-600 shrink-0 ml-3">
+              {{ formatCurrency(catalogItem.valor) }}
+            </span>
+          </button>
+        </div>
+
+        <p
+          v-else-if="catalogSearch.length > 0 && !isLoadingCatalog && catalogItems.length === 0"
+          class="text-xs text-slate-400 italic py-1"
+        >
+          Nenhum resultado encontrado. Preencha manualmente abaixo.
+        </p>
+      </div>
+
+      <!-- Separador -->
+      <div class="relative flex items-center gap-3">
+        <div class="flex-1 border-t border-slate-200"></div>
+        <span class="text-xs text-slate-400 font-medium">ou preencha manualmente</span>
+        <div class="flex-1 border-t border-slate-200"></div>
+      </div>
+
+      <!-- Campos do formulário -->
       <div class="space-y-4">
         <BaseInput
           v-model="nome"

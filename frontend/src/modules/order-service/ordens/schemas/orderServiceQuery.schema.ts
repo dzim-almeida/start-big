@@ -38,6 +38,8 @@ export const OrderServiceReadSchema = z.object({
   // Financeiro
   valor_bruto: z.number().int(),
   valor_total: z.number().int(),
+  taxa_entrega: z.number().int().default(0),
+  acrescimo: z.number().int().default(0),
 
   // Datas
   data_finalizacao: z.string().optional().nullable(),
@@ -54,7 +56,7 @@ export const OrderServiceReadSchema = z.object({
   itens: z.array(OsItemReadSchema),
   pagamentos: z.array(OsPaymentReadSchema),
   fotos: z.array(OsImageReadSchema),
-});
+}).passthrough();
 
 export const orderServiceReadValidationSchema = toTypedSchema(OrderServiceReadSchema);
 export type OrderServiceReadDataType = z.infer<typeof OrderServiceReadSchema>;
@@ -63,7 +65,7 @@ export const OrderServicePaginationSchema = z.object({
   ...PaginationBaseSchema.shape,
   filters: OrderServiceParamsSchema,
   items: z.array(OrderServiceReadSchema),
-});
+}).passthrough();
 
 export type OrderServicePaginationDataType = z.infer<typeof OrderServicePaginationSchema>;
 

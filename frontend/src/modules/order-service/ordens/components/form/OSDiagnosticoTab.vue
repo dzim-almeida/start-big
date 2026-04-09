@@ -3,11 +3,13 @@ import { ClipboardList } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import OSFotoGallery from './OSFotoGallery.vue';
 import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.schema';
+import type { PendingPhoto } from './OSFotoGallery.vue';
 
 interface Props {
   diagnostico: string;
   osNumero?: string;
   fotos: OsImageReadDataType[];
+  pendingPhotos: PendingPhoto[];
   isLocked: boolean;
 }
 
@@ -15,6 +17,8 @@ defineProps<Props>();
 
 const emit = defineEmits<{
   'update:diagnostico': [value: string];
+  'add-photo': [file: File];
+  'remove-pending': [index: number];
   photoChange: [];
 }>();
 </script>
@@ -23,19 +27,19 @@ const emit = defineEmits<{
   <div class="space-y-4 animate-fadeIn">
     <div class="bg-brand-primary-light border-l-4 border-brand-primary p-4 rounded-r-xl mb-4">
       <h5 class="text-sm font-bold text-brand-primary flex items-center gap-2">
-        <ClipboardList :size="16" /> Area Tecnica
+        <ClipboardList :size="16" /> Área Técnica
       </h5>
       <p class="text-xs text-brand-primary mt-1">
-        Espaco reservado para o laudo tecnico.
+        Espaço reservado para o laudo técnico.
       </p>
     </div>
 
     <div>
       <BaseTextarea
         :model-value="diagnostico"
-        label="Laudo Tecnico / Diagnostico"
+        label="Laudo Técnico / Diagnóstico"
         :rows="12"
-        placeholder="Descreva os testes realizados, componentes analisados e o diagnostico final..."
+        placeholder="Descreva os testes realizados, componentes analisados e o diagnóstico final..."
         :disabled="isLocked"
         @update:model-value="emit('update:diagnostico', $event as string)"
       />
@@ -46,8 +50,10 @@ const emit = defineEmits<{
         v-if="osNumero"
         :os-numero="osNumero"
         :fotos="fotos"
+        :pending-photos="pendingPhotos"
         :read-only="isLocked"
-        @uploaded="emit('photoChange')"
+        @add-photo="emit('add-photo', $event)"
+        @remove-pending="emit('remove-pending', $event)"
         @deleted="emit('photoChange')"
       />
       <div

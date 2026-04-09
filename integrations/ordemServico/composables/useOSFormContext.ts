@@ -33,6 +33,10 @@ export interface OSFormContext {
   itens: Ref<OSItemForm[]>;
   apiError: Ref<string | null>;
 
+  // Validacao campo-a-campo
+  hasAttemptedSubmit: Ref<boolean>;
+  fieldErrors: Ref<Record<string, string>>;
+
   // Opcoes de selects
   servicosOptions: ComputedRef<SelectOption[]>;
   produtosOptions: ComputedRef<SelectOption[]>;
@@ -47,6 +51,7 @@ export interface OSFormContext {
   // Valores financeiros
   subtotal: ComputedRef<number>;
   valorDesconto: ComputedRef<number>;
+  valorTaxaEntrega: ComputedRef<number>;
   valorTotal: ComputedRef<number>;
 
   // Estados computados
@@ -57,6 +62,7 @@ export interface OSFormContext {
   isPending: ComputedRef<boolean>;
 
   // Acoes do formulario
+  addItem: (item: OSItemForm) => { merged: boolean; newQuantity: number };
   removeItem: (index: number) => void;
   setError: (msg: string) => void;
   clearError: () => void;

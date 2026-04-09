@@ -42,21 +42,22 @@ const getImageUrl = (path: string | null | undefined): string | null => {
 };
 
 const companyInfo = computed(() => {
-  const empresa = authStore.empresa;
+  const empresa = authStore.userData?.empresa;
+  const endereco = authStore.enderecoData;
   const enderecoParts: string[] = [];
-  if (empresa?.logradouro) {
-    enderecoParts.push(empresa.logradouro);
-    if (empresa.numero) enderecoParts.push(empresa.numero);
+  if (endereco?.logradouro) {
+    enderecoParts.push(endereco.logradouro);
+    if (endereco.numero) enderecoParts.push(endereco.numero);
   }
-  if (empresa?.bairro) enderecoParts.push(empresa.bairro);
-  if (empresa?.cidade && empresa?.uf) {
-    enderecoParts.push(`${empresa.cidade} - ${empresa.uf}`);
+  if (endereco?.bairro) enderecoParts.push(endereco.bairro);
+  if (endereco?.cidade && endereco?.estado) {
+    enderecoParts.push(`${endereco.cidade} - ${endereco.estado}`);
   }
 
   return {
     nome: empresa?.nome_fantasia || empresa?.razao_social || 'ASSISTÊNCIA TÉCNICA',
     razaoSocial: empresa?.razao_social || '',
-    cnpj: empresa?.cnpj || '',
+    cnpj: empresa?.documento || '',
     endereco: enderecoParts.join(', ') || 'Endereço não cadastrado',
     contato: empresa?.telefone || empresa?.celular || '',
     email: empresa?.email || '',
@@ -311,7 +312,7 @@ const totalPago = computed(() => {
 
     <div class="print-footer mt-auto pt-4 text-center border-t border-slate-100 py-1 bg-white">
       <p class="text-[8px] text-slate-400 uppercase tracking-wider">
-        Emitido em {{ new Date().toLocaleString() }} • Sistema BigPDV
+        Emitido em {{ new Date().toLocaleString() }} • Sistema STARTBIG
       </p>
     </div>
   </div>

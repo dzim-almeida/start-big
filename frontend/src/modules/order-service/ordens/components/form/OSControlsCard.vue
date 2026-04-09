@@ -12,9 +12,12 @@ interface Props {
   statusOptions: SelectOption[];
   prioridadeOptions: SelectOption[];
   funcionariosOptions: SelectOption[];
+  isCreateMode?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  isCreateMode: false,
+});
 
 const emit = defineEmits<{
   'update:status': [value: OsStatusEnumDataType];
@@ -29,14 +32,15 @@ const emit = defineEmits<{
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <BaseSelect
         :model-value="status"
-        label="Situacao"
+        label="Situação"
         :options="statusOptions"
+        :disabled="props.isCreateMode"
         @update:model-value="emit('update:status', $event as OsStatusEnumDataType)"
       />
 
       <BaseSelect
         :model-value="funcionarioId"
-        label="Tecnico"
+        label="Técnico"
         :options="funcionariosOptions"
         placeholder="-- Selecione --"
         @update:model-value="emit('update:funcionarioId', $event as string)"
@@ -55,7 +59,7 @@ const emit = defineEmits<{
 
       <BaseInput
         :model-value="dataPrevisao"
-        label="Previsao"
+        label="Previsão"
         type="date"
         @update:model-value="emit('update:dataPrevisao', $event as string)"
       />
