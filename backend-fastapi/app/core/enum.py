@@ -111,3 +111,20 @@ class UnidadeMedida(str, enum.Enum):
     DIA = "D"
     MES = "MES"
     OUTROS = "OUTROS"
+
+class VendaStatus(str, enum.Enum):
+    """Status possiveis de uma Venda no PDV."""
+    RASCUNHO = "RASCUNHO"
+    CONCLUIDA = "CONCLUIDA"
+    CANCELADA = "CANCELADA"
+
+class SessaoCaixaStatus(str, enum.Enum):
+    """Status possiveis de uma Sessao de Caixa."""
+    ABERTO = "ABERTO"
+    FECHADO = "FECHADO"
+
+class TipoTransacaoEstoque(str, enum.Enum):
+    """Tipos de transacao para movimentacao de estoque."""
+    ENTRADA = "ENTRADA"
+    SAIDA_VENDA = "SAIDA_VENDA"
+    ESTORNO = "ESTORNO"

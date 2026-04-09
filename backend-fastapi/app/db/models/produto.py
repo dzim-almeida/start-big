@@ -12,7 +12,10 @@ from app.db.base import Base
 # Assumindo que 'Estoque', e 'ProdutoFoto' estão em seus respectivos módulos.
 from app.db.models.estoque import Estoque
 from app.db.models.produto_fotos import ProdutoFoto
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .log_produto import LogProduto
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -65,6 +68,13 @@ class Produto(Base):
         back_populates="produto",
         cascade="all, delete-orphan", # Garante a exclusão de todas as Fotos ao deletar o Produto
         doc="Relacionamento de Um-para-Vários com Fotos"
+    )
+
+    # Relação Lado "Um" (Produto) para "Muitos" (Logs de Estoque)
+    logs: Mapped[List["LogProduto"]] = relationship(
+        "LogProduto",
+        back_populates="produto",
+        doc="Historico de movimentacoes de estoque deste produto"
     )
 
     # Restrições (Constraints)

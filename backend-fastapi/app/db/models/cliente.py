@@ -16,6 +16,7 @@ from app.db.models.endereco import Endereco
 
 if TYPE_CHECKING:
     from .ordem_servico_equipamento import OrdemServicoEquipamento
+    from .venda import Venda
 
 
 class Cliente(Base):
@@ -50,6 +51,12 @@ class Cliente(Base):
         "OrdemServicoEquipamento",
         back_populates="cliente",
         doc="Equipamentos cadastrados para este cliente"
+    )
+
+    vendas: Mapped[List["Venda"]] = relationship(
+        "Venda",
+        back_populates="cliente",
+        doc="Vendas associadas a este cliente"
     )
 
     __mapper_args__ = {

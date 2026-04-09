@@ -6,6 +6,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from .ordem_servico_pagamento import OrdemServicoPagamento
+    from .venda_pagamento import PagamentoVenda
 
 
 class FormaPagamento(Base):
@@ -21,4 +22,10 @@ class FormaPagamento(Base):
         "OrdemServicoPagamento",
         back_populates="forma_pagamento",
         doc="Pagamentos de OS associados a esta forma de pagamento"
+    )
+
+    pagamentos_venda: Mapped[List["PagamentoVenda"]] = relationship(
+        "PagamentoVenda",
+        back_populates="forma_pagamento",
+        doc="Pagamentos de venda associados a esta forma de pagamento"
     )
