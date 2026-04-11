@@ -118,6 +118,10 @@ class VendaStatus(str, enum.Enum):
     CONCLUIDA = "CONCLUIDA"
     CANCELADA = "CANCELADA"
 
+class TipoProdutoVenda(str, enum.Enum):
+    CADASTRADO = "CADASTRADO"
+    AVULSO = "AVULSO"
+
 class SessaoCaixaStatus(str, enum.Enum):
     """Status possiveis de uma Sessao de Caixa."""
     ABERTO = "ABERTO"

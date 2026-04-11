@@ -4,9 +4,10 @@
 #            Tabela pivo do carrinho. Congela precos e aceita itens avulsos.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, ForeignKey, CheckConstraint
+from sqlalchemy import Integer, String, ForeignKey, CheckConstraint, Enum as SqlAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, TYPE_CHECKING
+from app.core.enum import TipoProdutoVenda
 
 from app.db.base import Base
 
@@ -26,6 +27,11 @@ class ProdutoVenda(Base):
         CheckConstraint(
             "(produto_id IS NOT NULL) OR (descricao_avulsa IS NOT NULL)",
             name="ck_produto_venda_referencia_obrigatoria"
+        ),
+        CheckConstraint(
+            "((tipo_produto = 'CADASTRADO') AND (produto_id IS NOT NULL)) OR "
+            "((tipo_produto = 'AVULSO') AND (descricao_avulsa IS NOT NULL) AND (produto_id IS NULL))",
+            name="ck_produto_venda_tipo_referencia_consistente"
         ),
     )
 
@@ -48,6 +54,11 @@ class ProdutoVenda(Base):
     )
 
     # --- Dados do Item ---
+    tipo_produto: Mapped[TipoProdutoVenda] = mapped_column(
+        SqlAlchemyEnum(TipoProdutoVenda),
+        nullable=False,
+        doc="Tipo do produto vendido"
+    )
     descricao_avulsa: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True,

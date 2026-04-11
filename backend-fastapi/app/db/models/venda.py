@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from sqlalchemy import Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
+from sqlalchemy import String, Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, TYPE_CHECKING
 
@@ -64,6 +64,11 @@ class Venda(Base):
         default=VendaStatus.RASCUNHO,
         nullable=False,
         doc="Status atual da venda"
+    )
+    observacao: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+        doc="Campo livre para anotacoes ou observacoes sobre a venda"
     )
 
     # --- Financeiro (valores em centavos) ---
