@@ -167,6 +167,12 @@ def get_cliente_by_search(
         "filters": filters,
     }
 
+def cliente_exists(db: Session, cliente_id: int) -> None:
+    """Verifica se um cliente existe no banco."""
+    customer_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+    if not customer_in_db:
+        raise not_found_exce
+
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
 # ===========================================================================

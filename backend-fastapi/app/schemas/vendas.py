@@ -108,9 +108,7 @@ class VendaResumoFinanceiro(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     subtotal: int = Field(0, ge=0, description="Subtotal da venda")
-    entrega: int = Field(0, ge=0, description="Valor da entrega")
     desconto: int = Field(0, ge=0, description="Desconto da venda")
-    adiantamento: int = Field(0, ge=0, description="Valor do adiantamento")
     total: int = Field(0, ge=0, description="Total da venda")
 
 class AddProdutoVendaRead(BaseModel):

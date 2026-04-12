@@ -20,7 +20,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Path, Response, status
 
-from app.core.depends import check_permission
+from app.core.depends import check_permission, get_db, _handle_db_transaction
 from app.core.enum import TipoProdutoVenda, VendaStatus
 from app.schemas.vendas import (
     AddProdutoVendaRead,
@@ -34,6 +34,8 @@ from app.schemas.vendas import (
     VendaResumoFinanceiro,
     VendaUpdate,
 )
+
+from app.services import venda as venda_service
 
 router = APIRouter()
 
@@ -125,18 +127,19 @@ def _mock_venda_read(
     status_code=status.HTTP_201_CREATED,
     summary="Criar Rascunho de Venda",
     description=(
-        "Cria uma nova venda no status RASCUNHO, gerando o ID identificador "
-        "do carrinho para adição posterior de itens e pagamentos."
+        "Cria uma nova venda no status RASCUNHO, gerando o ID identificador do carrinho para adição posterior de itens e pagamentos."
     ),
 )
 def criar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db = Depends(get_db),
     payload: VendaCreate,
 ):
-    return _mock_venda_read(
-        cliente_id=payload.cliente_id,
-        funcionario_id=payload.funcionario_id,
+    return _handle_db_transaction(
+        db,
+        venda_service.create_sale,
+        payload
     )
 
 
@@ -156,17 +159,15 @@ def criar_venda(
 def atualizar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     payload: VendaUpdate,
 ):
-    return _mock_venda_read(
-        venda_id=venda_id,
-        cliente_id=payload.cliente_id,
-        funcionario_id=payload.funcionario_id or 1,
-        entrega=payload.entrega or 0,
-        desconto=payload.desconto or 0,
-        adiantamento=payload.adiantamento or 0,
-        observacao=payload.observacao,
+    return _handle_db_transaction(
+        db,
+        venda_service.update_sale,
+        venda_id,
+        payload
     )
 
 
@@ -187,13 +188,15 @@ def atualizar_venda(
 def adicionar_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     payload: ProdutoVendaCreate,
 ):
-    produto_mock = _mock_produto_read(item_id=1, produto=payload)
-    return AddProdutoVendaRead(
-        produto_adicionado=produto_mock,
-        resumo_financeiro=_mock_resumo_financeiro(subtotal=produto_mock.subtotal),
+    return _handle_db_transaction(
+        db,
+        venda_service.add_item_to_sale,
+        venda_id,
+        payload
     )
 
 
@@ -209,24 +212,17 @@ def adicionar_item(
 def editar_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     item_id: int = Path(..., description="ID do item no carrinho"),
     payload: ProdutoVendaUpdate,
 ):
-    produto_mock = _mock_produto_read(item_id=item_id)
-    if payload.quantidade is not None:
-        produto_mock.quantidade = payload.quantidade
-    if payload.valor_unitario is not None:
-        produto_mock.valor_unitario = payload.valor_unitario
-    if payload.desconto is not None:
-        produto_mock.desconto = payload.desconto
-    if payload.descricao_avulsa is not None:
-        produto_mock.descricao_avulsa = payload.descricao_avulsa
-    produto_mock.subtotal = produto_mock.quantidade * produto_mock.valor_unitario - produto_mock.desconto
-
-    return AddProdutoVendaRead(
-        produto_adicionado=produto_mock,
-        resumo_financeiro=_mock_resumo_financeiro(subtotal=produto_mock.subtotal),
+    return _handle_db_transaction(
+        db,
+        venda_service.update_item_in_sale,
+        venda_id,
+        item_id,
+        payload
     )
 
 
@@ -239,10 +235,16 @@ def editar_item(
 def remover_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     item_id: int = Path(..., description="ID do item no carrinho"),
 ):
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return _handle_db_transaction(
+        db,
+        venda_service.remove_item_from_sale,
+        venda_id,
+        item_id
+    )
 
 
 # ===========================================================================
