@@ -19,6 +19,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Path, Response, status
+from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_db, _handle_db_transaction
 from app.core.enum import TipoProdutoVenda, VendaStatus
@@ -133,7 +134,7 @@ def _mock_venda_read(
 def criar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
-    db = Depends(get_db),
+    db: Session = Depends(get_db),
     payload: VendaCreate,
 ):
     return _handle_db_transaction(
@@ -159,7 +160,7 @@ def criar_venda(
 def atualizar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
-    db = Depends(get_db),
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     payload: VendaUpdate,
 ):
@@ -188,7 +189,7 @@ def atualizar_venda(
 def adicionar_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
-    db = Depends(get_db),
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     payload: ProdutoVendaCreate,
 ):
@@ -212,7 +213,7 @@ def adicionar_item(
 def editar_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
-    db = Depends(get_db),
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     item_id: int = Path(..., description="ID do item no carrinho"),
     payload: ProdutoVendaUpdate,
@@ -235,7 +236,7 @@ def editar_item(
 def remover_item(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
-    db = Depends(get_db),
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     item_id: int = Path(..., description="ID do item no carrinho"),
 ):
@@ -283,27 +284,13 @@ def cancelar_venda(
 def finalizar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
     payload: FinalizarVendaPayload,
 ):
-    now = datetime.now()
-    pagamentos_mock = [
-        PagamentoVendaRead(
-            id=idx + 1,
-            forma_pagamento_id=p.forma_pagamento_id,
-            parcelado=p.parcelado,
-            qtd_parcelas=p.qtd_parcelas,
-            valor=p.valor,
-            data_pagamento=now,
-        )
-        for idx, p in enumerate(payload.pagamentos)
-    ]
-    total_pago = sum(p.valor for p in payload.pagamentos)
-    produto_mock = _mock_produto_read()
-
-    return _mock_venda_read(
-        venda_id=venda_id,
-        status_venda=VendaStatus.CONCLUIDA,
-        produtos=[produto_mock],
-        pagamentos=pagamentos_mock,
+    return _handle_db_transaction(
+        db,
+        venda_service.finish_sale,
+        venda_id,
+        payload.pagamentos
     )

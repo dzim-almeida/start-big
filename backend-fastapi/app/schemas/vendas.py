@@ -40,6 +40,8 @@ class PagamentoVendaCreate(BaseModel):
         if self.parcelado:
             if self.qtd_parcelas is None:
                 raise ValueError("O campo 'qtd_parcelas' é obrigatório quando o pagamento é parcelado.")
+        if not self.parcelado and self.qtd_parcelas:
+            raise ValueError("O campo 'qtd_parcelas' deve ser nulo quando o pagamento não é parcelado.")
         return self
 
 class VendaCreate(BaseModel):
@@ -108,7 +110,6 @@ class VendaResumoFinanceiro(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     subtotal: int = Field(0, ge=0, description="Subtotal da venda")
-    desconto: int = Field(0, ge=0, description="Desconto da venda")
     total: int = Field(0, ge=0, description="Total da venda")
 
 class AddProdutoVendaRead(BaseModel):

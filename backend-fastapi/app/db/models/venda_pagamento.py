@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from sqlalchemy import Integer, Boolean, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Integer, Boolean, DateTime, ForeignKey, CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
@@ -22,7 +22,7 @@ class PagamentoVenda(Base):
     __tablename__ = "pagamentos_venda"
     __table_args__ = (
         CheckConstraint("valor > 0", name="ck_pagamento_venda_valor_positivo"),
-        CheckConstraint("(parcelado IS NOT NULL) AND (qtd_parcelas >= 1)", name="ck_pagamento_venda_parcelas_min_1"),
+        CheckConstraint("(parcelado IS FALSE) AND (qtd_parcelas >= 1)", name="ck_pagamento_venda_parcelas_min_1"),
     )
 
     # --- Identificacao ---
@@ -46,8 +46,8 @@ class PagamentoVenda(Base):
     # --- Dados do Pagamento ---
     valor: Mapped[int] = mapped_column(Integer, nullable=False, doc="Fracao financeira paga neste metodo (centavos)")
     parcelado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True, doc="Flag indicando compra a prazo")
-    qtd_parcelas: Mapped[int] = mapped_column(Integer, default=1, nullable=True, doc="Quantidade de parcelas (1 = a vista)")
-    data_pagamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, doc="Momento exato do registro do pagamento")
+    qtd_parcelas: Mapped[int] = mapped_column(Integer, nullable=True, doc="Quantidade de parcelas (1 = a vista)")
+    data_pagamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), doc="Momento exato do registro do pagamento")
 
     # --- Relacionamentos ---
     venda: Mapped["Venda"] = relationship(back_populates="pagamentos")
