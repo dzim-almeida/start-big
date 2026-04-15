@@ -5,7 +5,7 @@ from typing import Sequence
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
-from app.schemas.vendas import VendaCreate, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, AddProdutoVendaRead, PagamentoVendaCreate
+from app.schemas.vendas import VendaCreate, VendaSearchFilters, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, PagamentoVendaCreate, VendaRead
 
 from app.services.cliente import cliente_exists
 from app.services.funcionario import funcionario_exists
@@ -15,6 +15,8 @@ from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
 
 from app.core.enum import VendaStatus, TipoProdutoVenda
+
+from app.helpers.set_pagination import _set_pagination
 
 _not_found_exception = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND,
@@ -38,14 +40,17 @@ def _recalcular_subtotal_vendas(db: Session, sale: Venda) -> Venda:
     adiantamento = sale.adiantamento or 0
     entrega = sale.entrega or 0
 
-    total_sale = subtotal_sale - desconto - adiantamento + entrega
+    if subtotal_sale + entrega < desconto + adiantamento:
+        raise _bad_request_exception
+
+    total_sale = subtotal_sale + entrega - desconto - adiantamento
 
     sale.subtotal = subtotal_sale
     sale.total = max(0, total_sale)
 
     return venda_crud.update_sale(db, sale)
 
-def create_sale(db: Session, sale: VendaCreate) -> Venda:
+def create_sale(db: Session, sale: VendaCreate) -> VendaRead:
 
     # Valida existência de cliente e funcionário
     cliente_exists(db, sale.cliente_id)
@@ -56,13 +61,16 @@ def create_sale(db: Session, sale: VendaCreate) -> Venda:
         status=VendaStatus.RASCUNHO
     )
 
-    return venda_crud.create_sale(db, sale_data=sale_data)
+    new_sale = venda_crud.create_sale(db, sale_data=sale_data)
+
+    return VendaRead(
+        id=new_sale.id,
+        cliente_id=new_sale.cliente_id,
+        funcionario_id=new_sale.funcionario_id,
+    )
 
 def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
-
-    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise _not_found_exception
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
 
     data_to_update = update_data.model_dump(exclude_unset=True)
 
@@ -86,7 +94,7 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
         sale_in_db.desconto = data_to_update["desconto"]
 
     if "adiantamento" in data_to_update:
-        total_in_db = (sale_in_db.total or 0) + (sale_in_db.entrega or 0)
+        total_in_db = (sale_in_db.subtotal or 0) + (sale_in_db.entrega or 0)
         descontos = (data_to_update["adiantamento"] or 0) + (sale_in_db.desconto or 0)
         if descontos > total_in_db:
             raise HTTPException(
@@ -100,10 +108,8 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
 
     return venda_crud.update_sale(db, sale_in_db)
 
-def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -> AddProdutoVendaRead:
-    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise _not_found_exception
+def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -> tuple[Venda, ProdutoVenda]:
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
         
     data_to_add = item_data.model_dump(exclude_unset=True)
     
@@ -134,21 +140,11 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
 
     sale_in_db = _recalcular_subtotal_vendas(db, sale_in_db)
 
-    finance_summary = {
-        "subtotal": sale_in_db.subtotal,
-        "total": sale_in_db.total
-    }
+    return sale_in_db, product_in_db
 
-    return AddProdutoVendaRead(
-        resumo_financeiro=finance_summary,
-        produto_adicionado=product_in_db.__dict__,
-    )
+def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: ProdutoVendaUpdate) -> tuple[Venda, ProdutoVenda]:
 
-def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: ProdutoVendaUpdate) -> AddProdutoVendaRead:
-
-    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise _not_found_exception
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.venda_id != sale_id:
@@ -156,9 +152,9 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
     
     data_to_update = item_update.model_dump(exclude_unset=True)
 
-    quantidade = data_to_update["quantidade"] or item_in_db.quantidade or 0
-    preco_unitario = data_to_update["valor_unitario"] or item_in_db.valor_unitario or 0
-    desconto = data_to_update["desconto"] or item_in_db.desconto or 0
+    quantidade = data_to_update.get("quantidade", item_in_db.quantidade or 0)
+    preco_unitario = data_to_update.get("valor_unitario", item_in_db.valor_unitario or 0)
+    desconto = data_to_update.get("desconto", item_in_db.desconto or 0)
 
     if item_in_db.tipo_produto == TipoProdutoVenda.AVULSO and "produto_id" in data_to_update:
         raise _bad_request_exception
@@ -174,26 +170,14 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
     item_in_db.desconto = desconto
     item_in_db.subtotal = subtotal
 
-    sale_in_db.itens.remove(item_in_db)
-
     item_in_db = venda_crud.update_product_in_sale(db, item_in_db)
-
-    sale_in_db.itens.append(item_in_db)
     
     sale_in_db = _recalcular_subtotal_vendas(db, sale_in_db)
 
-    return AddProdutoVendaRead(
-        produto_adicionado=item_in_db.__dict__,
-        resumo_financeiro={
-            "subtotal": sale_in_db.subtotal,
-            "total": sale_in_db.total
-        }
-    )
+    return sale_in_db, item_in_db
     
 def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
-    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise _not_found_exception
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.venda_id != sale_id:
@@ -206,9 +190,7 @@ def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
     return _recalcular_subtotal_vendas(db, sale_in_db)
 
 def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate]):
-    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise _not_found_exception
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
     if sale_in_db.status != VendaStatus.RASCUNHO:
         raise _bad_request_exception
@@ -227,7 +209,7 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
         if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
             produto_service.decrease_product_in_stock(db, produto_id=product.produto_id, quantidade=product.quantidade, funcionario_id=sale_in_db.funcionario_id, venda_id=sale_in_db.id)
     
-    sale_in_db.status = VendaStatus.CONCLUIDA
+    sale_in_db.status = VendaStatus.FINALIZADA
     sale_in_db.pagamentos = valid_payments_to_db
     return venda_crud.update_sale(db, sale_in_db)
 
@@ -245,6 +227,45 @@ def payments_valid(db: Session, payments: Sequence[PagamentoVendaCreate]) -> Seq
         sale_payments.append(PagamentoVenda(**payment.__dict__))
     return sale_payments
 
+def cancel_sale(db: Session, sale_id: int) -> Venda:
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    
+    if sale_in_db.status != VendaStatus.RASCUNHO:
+        raise _bad_request_exception
+    
+    sale_in_db.status = VendaStatus.CANCELADA
+    return venda_crud.update_sale(db, sale_in_db)
+
+def reopen_sale(db: Session, sale_id: int) -> Venda:
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    
+    if sale_in_db.status != VendaStatus.CANCELADA and sale_in_db.status != VendaStatus.FINALIZADA:
+        raise _bad_request_exception
+    
+    sale_in_db.status = VendaStatus.RASCUNHO
+    return venda_crud.update_sale(db, sale_in_db)
+
+def get_sale_by_id(db: Session, sale_id: int) -> Venda:
+    sale_in_db = venda_crud.get_sale_by_id(db, sale_id=sale_id)
+    if not sale_in_db:
+        raise _not_found_exception
+    return sale_in_db
+
+def get_sales(db: Session, filters: VendaSearchFilters, page: int, limit: int = 100) -> tuple[Sequence[Venda], int, int, dict]:
+    skip = (page - 1) * limit
+
+    filters_dict = filters.model_dump(exclude_unset=True)
+    
+    sales_in_db, total_sales = venda_crud.get_sales_by_search(
+        db, filters=filters_dict, skip=skip, limit=limit
+    )
+    
+    total_pages, links = _set_pagination(
+        total_items=total_sales, filters=filters_dict, page=page, limit=limit
+    )
+
+    return sales_in_db, total_sales, total_pages, links
+    
 
     
         

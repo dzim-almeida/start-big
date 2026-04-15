@@ -16,24 +16,21 @@
 #   POST   /{venda_id}/finalizar          → Finalizar venda (checkout)
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_db, _handle_db_transaction
-from app.core.enum import TipoProdutoVenda, VendaStatus
 from app.schemas.vendas import (
-    AddProdutoVendaRead,
+    ProdutosAlterSummary,
     FinalizarVendaPayload,
-    PagamentoVendaRead,
     ProdutoVendaCreate,
-    ProdutoVendaRead,
     ProdutoVendaUpdate,
     VendaCreate,
+    VendaListRead,
     VendaRead,
-    VendaResumoFinanceiro,
+    VendaSearchFilters,
     VendaUpdate,
+    VendaFinanceSummary
 )
 
 from app.services import venda as venda_service
@@ -41,82 +38,6 @@ from app.services import venda as venda_service
 router = APIRouter()
 
 module_permission = "venda"
-
-
-# ---------------------------------------------------------------------------
-# Helpers para gerar dados mockados
-# ---------------------------------------------------------------------------
-
-def _mock_resumo_financeiro(subtotal: int = 5000, entrega: int = 0, desconto: int = 0, adiantamento: int = 0) -> VendaResumoFinanceiro:
-    return VendaResumoFinanceiro(
-        subtotal=subtotal,
-        entrega=entrega,
-        desconto=desconto,
-        adiantamento=adiantamento,
-        total=subtotal + entrega - desconto - adiantamento,
-    )
-
-
-def _mock_produto_read(item_id: int = 1, produto: ProdutoVendaCreate | None = None) -> ProdutoVendaRead:
-    if produto:
-        subtotal = produto.quantidade * produto.valor_unitario - produto.desconto
-        return ProdutoVendaRead(
-            id=item_id,
-            tipo_produto=produto.tipo_produto,
-            produto_id=produto.produto_id,
-            quantidade=produto.quantidade,
-            descricao_avulsa=produto.descricao_avulsa,
-            valor_unitario=produto.valor_unitario,
-            desconto=produto.desconto,
-            subtotal=subtotal,
-        )
-    return ProdutoVendaRead(
-        id=item_id,
-        tipo_produto=TipoProdutoVenda.CADASTRADO,
-        produto_id=1,
-        quantidade=2,
-        descricao_avulsa=None,
-        valor_unitario=2500,
-        desconto=0,
-        subtotal=5000,
-    )
-
-
-def _mock_venda_read(
-    venda_id: int = 1,
-    status_venda: VendaStatus = VendaStatus.RASCUNHO,
-    cliente_id: int | None = None,
-    funcionario_id: int = 1,
-    produtos: list[ProdutoVendaRead] | None = None,
-    pagamentos: list[PagamentoVendaRead] | None = None,
-    entrega: int = 0,
-    desconto: int = 0,
-    adiantamento: int = 0,
-    observacao: str | None = None,
-) -> VendaRead:
-    now = datetime.now()
-    prods = produtos or []
-    pags = pagamentos or []
-    subtotal = sum(p.subtotal for p in prods)
-    total = subtotal + entrega - desconto - adiantamento
-    return VendaRead(
-        id=venda_id,
-        cliente_id=cliente_id,
-        funcionario_id=funcionario_id,
-        sessao_caixa_id=None,
-        entrega=entrega,
-        subtotal=subtotal,
-        desconto=desconto,
-        adiantamento=adiantamento,
-        total=max(total, 0),
-        status=status_venda,
-        observacao=observacao,
-        criado_em=now,
-        atualizado_em=now,
-        produtos=prods,
-        pagamentos=pags,
-    )
-
 
 # ===========================================================================
 # CRIAÇÃO (POST /)
@@ -178,7 +99,7 @@ def atualizar_venda(
 
 @router.post(
     "/{venda_id}/itens",
-    response_model=AddProdutoVendaRead,
+    response_model=ProdutosAlterSummary,
     status_code=status.HTTP_201_CREATED,
     summary="Adicionar Item ao Carrinho",
     description=(
@@ -193,17 +114,28 @@ def adicionar_item(
     venda_id: int = Path(..., description="ID da venda"),
     payload: ProdutoVendaCreate,
 ):
-    return _handle_db_transaction(
+    sale, product = _handle_db_transaction(
         db,
         venda_service.add_item_to_sale,
         venda_id,
         payload
     )
 
+    return ProdutosAlterSummary(
+        produto_adicionado=product,
+        financeiro_atualizado=VendaFinanceSummary(
+            subtotal=sale.subtotal or 0,
+            desconto=sale.desconto or 0,
+            entrega=sale.entrega or 0,
+            adiantamento=sale.adiantamento or 0,
+            total=sale.total or 0
+        )
+    )
+
 
 @router.patch(
     "/{venda_id}/itens/{item_id}",
-    response_model=AddProdutoVendaRead,
+    response_model=ProdutosAlterSummary,
     summary="Editar Item do Carrinho",
     description=(
         "Altera propriedades de um produto já adicionado, como quantidade, "
@@ -218,12 +150,23 @@ def editar_item(
     item_id: int = Path(..., description="ID do item no carrinho"),
     payload: ProdutoVendaUpdate,
 ):
-    return _handle_db_transaction(
+    sale, product = _handle_db_transaction(
         db,
         venda_service.update_item_in_sale,
         venda_id,
         item_id,
         payload
+    )
+
+    return ProdutosAlterSummary(
+        produto_adicionado=product,
+        financeiro_atualizado=VendaFinanceSummary(
+            subtotal=sale.subtotal or 0,
+            desconto=sale.desconto or 0,
+            entrega=sale.entrega or 0,
+            adiantamento=sale.adiantamento or 0,
+            total=sale.total or 0
+        )
     )
 
 
@@ -249,12 +192,12 @@ def remover_item(
 
 
 # ===========================================================================
-# AÇÕES DA VENDA (cancelar / finalizar)
+# AÇÕES DA VENDA (cancelar/ reabrir / finalizar)
 # ===========================================================================
 
 @router.post(
     "/{venda_id}/cancelar",
-    response_model=VendaRead,
+    status_code=status.HTTP_200_OK,
     summary="Cancelar Venda",
     description=(
         "Invalida o rascunho ou a venda em andamento, interrompendo o fluxo "
@@ -264,12 +207,34 @@ def remover_item(
 def cancelar_venda(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     *,
+    db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
 ):
-    return _mock_venda_read(
-        venda_id=venda_id,
-        status_venda=VendaStatus.CANCELADA,
+    return  _handle_db_transaction(
+        db,
+        venda_service.cancel_sale,
+        venda_id
     )
+
+@router.post(
+    "/{venda_id}/reabrir",
+    response_model=VendaRead,
+    summary="Reabrir Venda",
+    description=(
+        "Reverte o status de uma venda cancelada para RASCUNHO, permitindo que seja editada e finalizada posteriormente."
+    ),
+)
+def reabrir_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    venda_id: int = Path(..., description="ID da venda"),
+):
+    return _handle_db_transaction(
+        db,
+        venda_service.reopen_sale,
+        venda_id
+    )   
 
 
 @router.post(
@@ -294,3 +259,51 @@ def finalizar_venda(
         venda_id,
         payload.pagamentos
     )
+
+@router.get(
+    "/",
+    response_model=VendaListRead,
+    summary="Listar Vendas",
+    description=(
+        "Retorna uma lista paginada de vendas, permitindo filtros por status e busca textual por cliente ou ID da venda."
+    )
+)
+def listar_vendas(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    limit: int = Query(20, ge=1, le=100, description="Número máximo de vendas a retornar por página"),
+    page: int = Query(1, ge=1, description="Número da página para paginação"),
+    filters: VendaSearchFilters = Depends()
+):
+    sales_in_db, total_sales, total_pages, links = venda_service.get_sales(
+        db, filters=filters, page=page, limit=limit
+    )
+
+    return VendaListRead(
+        filters=filters,
+        vendas=sales_in_db,
+        total=total_sales,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+        links=links
+    )
+
+@router.get(
+    "/{venda_id}",
+    response_model=VendaRead,
+    summary="Obter Detalhes da Venda",
+    description=(
+        "Retorna os detalhes completos de uma venda específica, incluindo itens, pagamentos e informações do cliente."
+    )
+)
+def obter_detalhes_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    venda_id: int = Path(..., description="ID da venda"),
+):
+    return venda_service.get_sale_by_id(db, venda_id)
+
+    
