@@ -8,6 +8,8 @@ from app.core.enum import TipoProdutoVenda
 # Schemas para criação de venda, produtos e pagamentos relacionados a uma venda
 
 class ProdutoVendaCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatório")
     produto_id: Optional[int] = Field(None, description="ID do produto, obrigatório se não for uma descrição avulsa")
     quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatório")

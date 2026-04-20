@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
+from app.core.excepetions import setup_exception_handlers
 
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
@@ -38,6 +39,8 @@ app = FastAPI(
     description="Sistema de Ponto de Venda (PDV) - API",
     version="1.0.0"
 )
+
+setup_exception_handlers(app)
 
 origins = [
     "http://localhost:1420",  # URL Tauri/Vite

@@ -120,7 +120,6 @@ def adicionar_item(
         venda_id,
         payload
     )
-
     return ProdutosAlterSummary(
         produto_adicionado=product,
         financeiro_atualizado=VendaFinanceSummary(
