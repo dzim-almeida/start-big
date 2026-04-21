@@ -119,6 +119,7 @@ def funcionario_exists(db: Session, funcionario_id: int) -> None:
     funcionario_in_db = funcionario_crud.get_funcionario_by_id(db, funcionario_id=funcionario_id)
     if not funcionario_in_db:
         raise not_found_exce
+    return funcionario_in_db
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)

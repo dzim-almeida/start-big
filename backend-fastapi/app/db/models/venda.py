@@ -73,11 +73,18 @@ class Venda(Base):
 
     # --- Financeiro (valores em centavos) ---
     subtotal: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Soma dos itens sem descontos e fretes (centavos)")
-    desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto global aplicado no fechamento (centavos)")
     entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor do frete/motoboy (centavos)")
+    @property
+    def total_bruto(self):
+        total_itens = sum(item.subtotal for item in self.itens)
+        return total_itens + (self.entrega or 0)
+    desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto global aplicado no fechamento (centavos)")
     adiantamento: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor pago previamente/sinal (centavos)")
+    @property
+    def total_descontos(self):
+        return (self.desconto or 0) + (self.adiantamento or 0)
     total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (desconto + adiantamento) (centavos)")
-
+    
     # --- Datas ---
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao do rascunho")
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, doc="Ultima alteracao no carrinho")

@@ -34,9 +34,18 @@ def setup_exception_handlers(app: FastAPI):
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         formated_errors = []
         for error in exc.errors():
+            msg: str = error.get("msg", "Dado inválido")
+            if msg.startswith("Value error, "):
+                msg = msg.replace("Value error, ", "", 1)
+
+            loc = error.get("loc", [])
+
+            if loc and loc[0] in ("body", "query", "path", "header"):
+                loc = loc[1:]
+            
             formated_errors.append({
-                "field": ".".join(map(str, error.get("loc", []))),
-                "message": error.get("msg", "Dado inválido"),
+                "field": ".".join(map(str, loc)) or "payload",
+                "message": msg,
             })
         
         return JSONResponse(

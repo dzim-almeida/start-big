@@ -259,3 +259,9 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
     product_in_db.logs.append(product_log)
 
     return produto_crud.update_produto(db, product_in_db)
+
+def get_produto_value_by_id(db: Session, produto_id: int) -> int:
+    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    if not product_in_db:
+        raise not_found_exce
+    return product_in_db.estoque.valor_varejo

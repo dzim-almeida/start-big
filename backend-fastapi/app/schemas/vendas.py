@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from app.core.enum import VendaStatus
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional, Sequence
 
 from app.core.enum import TipoProdutoVenda
@@ -8,26 +8,33 @@ from app.core.enum import TipoProdutoVenda
 # Schemas para criação de venda, produtos e pagamentos relacionados a uma venda
 
 class ProdutoVendaCreate(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatório")
     produto_id: Optional[int] = Field(None, description="ID do produto, obrigatório se não for uma descrição avulsa")
     quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatório")
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descrição do produto avulso, obrigatório se não for um produto cadastrado")
-    valor_unitario: int = Field(0, ge=0, description="Valor unitário do produto, obrigatório")
+    valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto, obrigatório")
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaCreate':
-        subtotal = (self.quantidade or 0) * (self.valor_unitario or 0) - (self.desconto or 0)
-        if subtotal < 0:
-            raise ValueError("O desconto não pode ser maior que o valor total do produto.")
-        if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto_id is None:
+        if self.tipo_produto == TipoProdutoVenda.AVULSO:
+            if self.produto_id is not None:
+                raise ValueError("O campo 'produto_id' não deve ser fornecido quando o tipo de produto é 'AVULSO'.")
+            if self.descricao_avulsa is None:
+                raise ValueError("O campo 'descricao_avulsa' é obrigatório quando o tipo de produto é 'AVULSO'.")
+            if self.valor_unitario is None:
+                raise ValueError("O campo 'valor_unitario' é obrigatório quando o tipo de produto é 'AVULSO'.")
+            subtotal = (self.quantidade or 0) * (self.valor_unitario or 0) - (self.desconto or 0)
+            if subtotal < 0:
+                raise ValueError("O desconto não pode ser maior que o valor total do produto.", )
+            return self
+
+        if self.produto_id is None:
             raise ValueError("O campo 'produto_id' é obrigatório quando o tipo de produto é 'CADASTRADO'.")
-        if self.tipo_produto == TipoProdutoVenda.AVULSO and self.descricao_avulsa is None:
-            raise ValueError("O campo 'descricao_avulsa' é obrigatório quando o tipo de produto é 'AVULSO'.")
-        if self.tipo_produto == TipoProdutoVenda.AVULSO and self.produto_id is not None:
-            raise ValueError("O campo 'produto_id' não deve ser fornecido quando o tipo de produto é 'AVULSO'.")
+        if self.descricao_avulsa is not None:
+            raise ValueError("O campo 'descricao_avulsa' deve ser nulo quando o tipo de produto é 'CADASTRADO'.")
+        if self.valor_unitario is not None:
+            raise ValueError("O campo 'valor_unitario' deve ser nulo quando o tipo de produto é 'CADASTRADO'.")    
         return self
         
 
@@ -60,11 +67,10 @@ class ProdutoVendaUpdate(BaseModel):
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaUpdate':
-        if self.descricao_avulsa is not None and self.valor_unitario is None:
-            raise ValueError("O campo 'valor_unitario' é obrigatório quando 'descricao_avulsa' é fornecida.")
-        subtotal = (self.quantidade or 0) * (self.valor_unitario or 0) - (self.desconto or 0)
-        if subtotal < 0:
-            raise ValueError("O desconto não pode ser maior que o valor total do produto.")
+        if self.valor_unitario and self.quantidade:
+            subtotal = (self.quantidade or 0) * (self.valor_unitario or 0) - (self.desconto or 0)
+            if subtotal < 0:
+                raise ValueError("O desconto não pode ser maior que o valor total do produto.")
         return self
 
 class VendaUpdate(BaseModel):
@@ -77,8 +83,16 @@ class VendaUpdate(BaseModel):
     
 # Schemas para leitura de venda, produtos e pagamentos relacionados a uma venda
 
-class ProdutoVendaRead(ProdutoVendaCreate):
+class ProdutoVendaRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(..., description="ID do produto na venda")
+    tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatório")
+    produto_id: Optional[int] = Field(None, description="ID do produto, obrigatório se não for uma descrição avulsa")
+    quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatório")
+    descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descrição do produto avulso, obrigatório se não for um produto cadastrado")
+    valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto, obrigatório")
+    desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
     subtotal: int = Field(0, ge=0, description="Subtotal do produto (quantidade * valor_unitario - desconto)")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
@@ -91,6 +105,8 @@ class VendaSimpleRead(BaseModel):
     id: int = Field(..., description="ID da venda")
 
     sessao_caixa_id: Optional[int] = Field(None, description="ID da sessão de caixa associada à venda")
+    cliente_id: Optional[int] = Field(None, description="ID do cliente associado à venda")
+    funcionario_id: int = Field(..., description="ID do funcionário associado à venda")
 
     entrega: Optional[int] = Field(0, ge=0, description="Valor da entrega")
     subtotal: Optional[int] = Field(0, ge=0, description="Subtotal da venda")

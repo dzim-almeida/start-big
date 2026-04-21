@@ -172,6 +172,7 @@ def cliente_exists(db: Session, cliente_id: int) -> None:
     customer_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
     if not customer_in_db:
         raise not_found_exce
+    return customer_in_db
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
