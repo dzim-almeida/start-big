@@ -77,10 +77,9 @@ class VendaUpdate(BaseModel):
     cliente_id: Optional[int] = Field(None, description="ID do cliente")
     funcionario_id: Optional[int] = Field(None, description="ID do funcionário")
     entrega: Optional[int] = Field(None, ge=0, description="Valor da entrega")
-    adiantamento: Optional[int] = Field(None, ge=0, description="Valor do adiantamento")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto da venda")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
-    
+
 # Schemas para leitura de venda, produtos e pagamentos relacionados a uma venda
 
 class ProdutoVendaRead(BaseModel):
@@ -94,6 +93,7 @@ class ProdutoVendaRead(BaseModel):
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto, obrigatório")
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
     subtotal: int = Field(0, ge=0, description="Subtotal do produto (quantidade * valor_unitario - desconto)")
+    total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")
@@ -110,9 +110,10 @@ class VendaSimpleRead(BaseModel):
 
     entrega: Optional[int] = Field(0, ge=0, description="Valor da entrega")
     subtotal: Optional[int] = Field(0, ge=0, description="Subtotal da venda")
-    desconto: Optional[int] = Field(0, ge=0, description="Desconto da venda")
+    descontos: Optional[int] = Field(0, ge=0, description="Desconto da venda")
     adiantamento: Optional[int] = Field(0, ge=0, description="Valor do adiantamento")
     total: Optional[int] = Field(0, ge=0, description="Total da venda")
+    troco: Optional[int] = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
 
     status: Optional[VendaStatus] = Field("RASCUNHO", description="Status da venda")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
@@ -125,9 +126,8 @@ class VendaRead(VendaSimpleRead):
 
 class VendaFinanceSummary(BaseModel):
     subtotal: int = Field(0, ge=0, description="Subtotal atualizado da venda após alteração dos produtos")
-    desconto: int = Field(0, ge=0, description="Desconto atualizado da venda após alteração dos produtos")
+    descontos: int = Field(0, ge=0, description="Desconto atualizado da venda após alteração dos produtos")
     entrega: int = Field(0, ge=0, description="Valor da entrega atualizado da venda após alteração dos produtos")
-    adiantamento: int = Field(0, ge=0, description="Valor do adiantamento atualizado da venda após alteração dos produtos")
     total: int = Field(0, ge=0, description="Total atualizado da venda após alteração dos produtos")
 
 class VendaStatusSummary(BaseModel):

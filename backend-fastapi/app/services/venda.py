@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Sequence
 
@@ -21,15 +20,26 @@ from app.helpers.exceptions import BadRequestException, NotFoundException
 
 def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
 
-    if sale_in_db.total_bruto < sale_in_db.total_descontos:
+    if sale_in_db.total_bruto < sale_in_db.descontos:
         raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
 
-    total_sale = sale_in_db.total_bruto - sale_in_db.total_descontos
+    total_sale = sale_in_db.total_bruto - sale_in_db.descontos
 
     sale_in_db.subtotal = sale_in_db.total_bruto
-    sale_in_db.total = max(0, total_sale)
+    sale_in_db.total = total_sale
 
     return venda_crud.update_sale(db, sale_in_db)
+
+def _aplly_discount(sale_in_db: Venda, discount: int) -> Venda:
+    discount_remaining = discount
+    for index, item in enumerate(sale_in_db.itens):
+        if (index == len(sale_in_db.itens) - 1):
+            item.desconto += discount_remaining
+        else:
+            item_discount = (item.total * discount_remaining) // sale_in_db.total
+            item.desconto += item_discount
+            discount_remaining -= item_discount
+    return sale_in_db
 
 def _payments_valid(db: Session, payments: Sequence[PagamentoVendaCreate]) -> Sequence[PagamentoVenda]:
     sale_payments: Sequence[PagamentoVenda] = []
@@ -56,53 +66,38 @@ def create_sale(db: Session, sale: VendaCreate) -> VendaRead:
         status=VendaStatus.RASCUNHO
     )
 
-    new_sale = venda_crud.create_sale(db, sale_data=sale_data)
-
-    return VendaRead(
-        id=new_sale.id,
-        cliente_id=new_sale.cliente_id,
-        funcionario_id=new_sale.funcionario_id,
-    )
+    return venda_crud.create_sale(db, sale_data=sale_data)
 
 def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    if sale_in_db.status != VendaStatus.RASCUNHO:
+        raise BadRequestException(detail="Venda não pode ser editada")
 
-    data_to_update = update_data.model_dump(exclude_unset=True)
-
-    if "cliente_id" in data_to_update:
-        customer_in_db = cliente_exists(db, data_to_update["cliente_id"])
+    if update_data.cliente_id:
+        customer_in_db = cliente_exists(db, update_data.cliente_id)
         sale_in_db.cliente_id = customer_in_db.id
 
-    if "funcionario_id" in data_to_update:
-        funcionario_in_db = funcionario_exists(db, data_to_update["funcionario_id"])
+    if update_data.funcionario_id:
+        funcionario_in_db = funcionario_exists(db, update_data.funcionario_id)
         sale_in_db.funcionario_id = funcionario_in_db.id
 
-    if "entrega" in data_to_update:
-        sale_in_db.entrega = data_to_update["entrega"]
+    if update_data.entrega:
+        sale_in_db.entrega = update_data.entrega
 
-    if "desconto" in data_to_update:
-        subtotal_in_db = (sale_in_db.total_bruto or 0)
-        descontos = (data_to_update["desconto"] or 0) + (sale_in_db.adiantamento or 0)
-        if descontos > subtotal_in_db:
+    if update_data.desconto:
+        if update_data.desconto > sale_in_db.total:
             raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
-        sale_in_db.desconto = data_to_update["desconto"]
+        sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto)
 
-    if "adiantamento" in data_to_update:
-        subtotal_in_db = (sale_in_db.total_bruto or 0)
-        descontos = (data_to_update["adiantamento"] or 0) + (sale_in_db.desconto or 0)
-        if descontos > subtotal_in_db:
-            raise BadRequestException(detail="O adiantamento não pode ser maior que o total da venda")
-        sale_in_db.adiantamento = data_to_update["adiantamento"]
+    if update_data.observacao:
+        sale_in_db.observacao = update_data.observacao
 
-    if "observacao" in data_to_update:
-        sale_in_db.observacao = data_to_update["observacao"]
-
-    return venda_crud.update_sale(db, sale_in_db)
+    return _recalc_total_sale(db, sale_in_db=sale_in_db)
 
 def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -> tuple[Venda, ProdutoVenda]:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    if not sale_in_db:
-        raise NotFoundException(detail="Venda não encontrada")
+    if sale_in_db.status != VendaStatus.RASCUNHO:
+        raise BadRequestException(detail="Venda não pode ser editada")
     
     quantidade = item_data.quantidade
     valor_unitario = item_data.valor_unitario
@@ -138,24 +133,26 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
 def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: ProdutoVendaUpdate) -> tuple[Venda, ProdutoVenda]:
 
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    if sale_in_db.status != VendaStatus.RASCUNHO:
+        raise BadRequestException(detail="Venda não pode ser editada")
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.venda_id != sale_id:
         raise NotFoundException(detail="Produto não encontrado")
     
     if item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO:
-        if item_update.descricao_avulsa is not None:
+        if item_update.descricao_avulsa:
             raise BadRequestException(detail="Um produto cadastrado não pode ter descrição avulsa")
-        if item_update.valor_unitario is not None:
+        if item_update.valor_unitario:
             raise BadRequestException(detail="Um produto cadastrado não pode ter valor unitário definido manualmente")
 
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
     preco_unitario = item_update.valor_unitario or (item_in_db.valor_unitario or 0)
     desconto = item_update.desconto or (item_in_db.desconto or 0)
     
-    subtotal = quantidade * preco_unitario - desconto
+    subtotal = quantidade * preco_unitario
     
-    if subtotal < 0:
+    if subtotal < desconto:
         raise BadRequestException(detail="O desconto não pode ser maior que o valor total do produto")
         
     item_in_db.descricao_avulsa = item_update.descricao_avulsa or item_in_db.descricao_avulsa
@@ -172,6 +169,8 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
     
 def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    if sale_in_db.status != VendaStatus.RASCUNHO:
+        raise BadRequestException(detail="Venda não pode ser editada")
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.venda_id != sale_id:
@@ -192,7 +191,7 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
     total_sale = sale_in_db.total or 0
 
-    if total_payments != total_sale:
+    if total_payments < total_sale:
         raise BadRequestException(detail="Os pagamentos não conferem ao total da venda")
     
     products_in_db = sale_in_db.itens

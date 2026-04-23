@@ -124,9 +124,8 @@ def adicionar_item(
         produto_adicionado=product,
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
-            desconto=sale.desconto or 0,
+            descontos=sale.descontos or 0,
             entrega=sale.entrega or 0,
-            adiantamento=sale.adiantamento or 0,
             total=sale.total or 0
         )
     )
@@ -161,9 +160,8 @@ def editar_item(
         produto_adicionado=product,
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
-            desconto=sale.desconto or 0,
+            descontos=sale.descontos or 0,
             entrega=sale.entrega or 0,
-            adiantamento=sale.adiantamento or 0,
             total=sale.total or 0
         )
     )

@@ -27,9 +27,7 @@ class Venda(Base):
     __tablename__ = "vendas"
     __table_args__ = (
         CheckConstraint("subtotal >= 0", name="ck_venda_subtotal_nao_negativo"),
-        CheckConstraint("desconto >= 0", name="ck_venda_desconto_nao_negativo"),
         CheckConstraint("entrega >= 0", name="ck_venda_entrega_nao_negativo"),
-        CheckConstraint("adiantamento >= 0", name="ck_venda_adiantamento_nao_negativo"),
         CheckConstraint("total >= 0", name="ck_venda_total_nao_negativo"),
     )
 
@@ -78,12 +76,14 @@ class Venda(Base):
     def total_bruto(self):
         total_itens = sum(item.subtotal for item in self.itens)
         return total_itens + (self.entrega or 0)
-    desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto global aplicado no fechamento (centavos)")
-    adiantamento: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor pago previamente/sinal (centavos)")
     @property
-    def total_descontos(self):
-        return (self.desconto or 0) + (self.adiantamento or 0)
-    total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (desconto + adiantamento) (centavos)")
+    def descontos(self):
+        return sum(item.desconto for item in self.itens)
+    total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (descontos) (centavos)")
+    @property
+    def troco(self):
+        total_pago = sum(pagamento.valor for pagamento in self.pagamentos)
+        return max(0, total_pago - self.total)
     
     # --- Datas ---
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao do rascunho")

@@ -68,6 +68,9 @@ class ProdutoVenda(Base):
     valor_unitario: Mapped[int] = mapped_column(Integer, nullable=False, doc="Preco unitario congelado no ato da inclusao (centavos)")
     desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto especifico deste item (centavos)")
     subtotal: Mapped[int] = mapped_column(Integer, nullable=False, doc="Subtotal calculado (quantidade * valor_unitario)")
+    @property
+    def total(self):
+        return self.subtotal - self.desconto
 
     # --- Relacionamentos ---
     venda: Mapped["Venda"] = relationship(back_populates="itens")
