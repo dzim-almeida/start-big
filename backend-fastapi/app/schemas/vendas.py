@@ -89,7 +89,7 @@ class ProdutoVendaRead(BaseModel):
     tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatório")
     produto_id: Optional[int] = Field(None, description="ID do produto, obrigatório se não for uma descrição avulsa")
     quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatório")
-    descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descrição do produto avulso, obrigatório se não for um produto cadastrado")
+    nome: Optional[str] = Field(None, description="Nome do produto, preenchido automaticamente com base no tipo do produto e suas referências")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto, obrigatório")
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
     subtotal: int = Field(0, ge=0, description="Subtotal do produto (quantidade * valor_unitario - desconto)")
@@ -111,7 +111,6 @@ class VendaSimpleRead(BaseModel):
     entrega: Optional[int] = Field(0, ge=0, description="Valor da entrega")
     subtotal: Optional[int] = Field(0, ge=0, description="Subtotal da venda")
     descontos: Optional[int] = Field(0, ge=0, description="Desconto da venda")
-    adiantamento: Optional[int] = Field(0, ge=0, description="Valor do adiantamento")
     total: Optional[int] = Field(0, ge=0, description="Total da venda")
     troco: Optional[int] = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
 

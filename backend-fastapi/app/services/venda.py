@@ -107,8 +107,11 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
         if item_data.tipo_produto == TipoProdutoVenda.AVULSO:
             raise BadRequestException(detail="Um produto avulso não pode estar cadastrado")
         
-        valor_unitario = produto_service.get_produto_value_by_id(db, produto_id=item_data.produto_id)
-    
+        product_in_db = produto_service.get_produto_by_id(db, produto_id=item_data.produto_id)
+        if quantidade > product_in_db.estoque.quantidade:
+            raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
+        
+        valor_unitario = product_in_db.estoque.valor_varejo
     if item_data.tipo_produto == TipoProdutoVenda.AVULSO and item_data.descricao_avulsa is None:
         raise BadRequestException(detail="Um produto avulso deve ter descrição")
 
