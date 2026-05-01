@@ -223,7 +223,7 @@ def cancel_sale(db: Session, sale_id: int) -> Venda:
 def reopen_sale(db: Session, sale_id: int) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
-    if sale_in_db.status == VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.CANCELADA:
         raise BadRequestException(detail="Venda não pode ser reaberta")
     
     sale_in_db.status = VendaStatus.RASCUNHO

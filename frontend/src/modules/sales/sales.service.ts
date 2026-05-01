@@ -42,8 +42,9 @@ export const saleService = {
     return parseSchema(ProductAlterationSchema, data, 'saleService.addItemInSale.response');
   },
 
-  async deleteItemInSale(sale_id: number, product_id: number): Promise<void> {
-    await api.delete(`${SALE_ENDPOINT}/${sale_id}/itens/${product_id}`);
+  async deleteItemInSale(sale_id: number, product_id: number): Promise<SaleRead> {
+    const { data } = await api.delete<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/itens/${product_id}`);
+    return parseSchema(SaleReadSchema, data, 'saleService.deleteItemInSale.response');
   },
 
   async updateItemInSale(
@@ -78,10 +79,10 @@ export const saleService = {
     return parseSchema(SaleReadSchema, data, 'saleService.getSale.response');
   },
 
-  async listSales(query: SaleSearch): Promise<SaleList> {
+  async listSales(query?: SaleSearch): Promise<SaleList> {
     const params = {
-      ...(query.search && { search: query.search }),
-      ...(query.status && { status: query.status }),
+      ...(query?.search && { search: query.search }),
+      ...(query?.status && { status: query.status }),
     };
 
     const { data } = await api.get<SaleList>(`${SALE_ENDPOINT}/`, { params });

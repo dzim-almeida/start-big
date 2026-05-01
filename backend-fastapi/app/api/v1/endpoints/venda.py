@@ -169,7 +169,8 @@ def editar_item(
 
 @router.delete(
     "/{venda_id}/itens/{item_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=VendaRead,
+    status_code=status.HTTP_200_OK,
     summary="Remover Item do Carrinho",
     description="Exclui o produto do rascunho da venda.",
 )
@@ -194,6 +195,7 @@ def remover_item(
 
 @router.post(
     "/{venda_id}/cancelar",
+    response_model=VendaRead,
     status_code=status.HTTP_200_OK,
     summary="Cancelar Venda",
     description=(
