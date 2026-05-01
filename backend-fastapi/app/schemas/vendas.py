@@ -40,7 +40,7 @@ class ProdutoVendaCreate(BaseModel):
 
 class PagamentoVendaCreate(BaseModel):
     forma_pagamento_id: int = Field(..., description="ID da forma de pagamento, obrigatório")
-    parcelado: Optional[bool] = Field(False, description="Indica se o pagamento é parcelado")
+    parcelado: bool = Field(False, description="Indica se o pagamento é parcelado")
     qtd_parcelas: Optional[int] = Field(1, gt=0, description="Quantidade de parcelas")
     valor: int = Field(..., ge=0, description="Valor do pagamento, obrigatório")
 
@@ -89,8 +89,8 @@ class ProdutoVendaRead(BaseModel):
     tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatório")
     produto_id: Optional[int] = Field(None, description="ID do produto, obrigatório se não for uma descrição avulsa")
     quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatório")
-    nome: Optional[str] = Field(None, description="Nome do produto, preenchido automaticamente com base no tipo do produto e suas referências")
-    valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto, obrigatório")
+    nome: str = Field(..., description="Nome do produto, preenchido automaticamente com base no tipo do produto e suas referências")
+    valor_unitario: int = Field(0, ge=0, description="Valor unitário do produto, obrigatório")
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
     subtotal: int = Field(0, ge=0, description="Subtotal do produto (quantidade * valor_unitario - desconto)")
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
@@ -108,16 +108,16 @@ class VendaSimpleRead(BaseModel):
     cliente_id: Optional[int] = Field(None, description="ID do cliente associado à venda")
     funcionario_id: int = Field(..., description="ID do funcionário associado à venda")
 
-    entrega: Optional[int] = Field(0, ge=0, description="Valor da entrega")
-    subtotal: Optional[int] = Field(0, ge=0, description="Subtotal da venda")
-    descontos: Optional[int] = Field(0, ge=0, description="Desconto da venda")
-    total: Optional[int] = Field(0, ge=0, description="Total da venda")
-    troco: Optional[int] = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
+    entrega: int = Field(0, ge=0, description="Valor da entrega")
+    subtotal: int = Field(0, ge=0, description="Subtotal da venda")
+    descontos: int = Field(0, ge=0, description="Desconto da venda")
+    total: int = Field(0, ge=0, description="Total da venda")
+    troco: int = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
 
-    status: Optional[VendaStatus] = Field("RASCUNHO", description="Status da venda")
+    status: VendaStatus = Field("RASCUNHO", description="Status da venda")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
-    criado_em: Optional[datetime] = Field(None, description="Data de criação da venda no formato ISO 8601")
-    atualizado_em: Optional[datetime] = Field(None, description="Data da última atualização da venda no formato ISO 8601")
+    criado_em: datetime = Field(..., description="Data de criação da venda no formato ISO 8601")
+    atualizado_em: datetime = Field(..., description="Data da última atualização da venda no formato ISO 8601")
 
 class VendaRead(VendaSimpleRead):
     produtos: Optional[Sequence[ProdutoVendaRead]] = Field(default_factory=list, validation_alias="itens", description="Lista de produtos relacionados à venda")

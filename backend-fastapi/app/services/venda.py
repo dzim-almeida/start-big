@@ -150,6 +150,10 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
             raise BadRequestException(detail="Um produto cadastrado não pode ter valor unitário definido manualmente")
 
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
+
+    if item_in_db.produto.estoque.quantidade < quantidade:
+        raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {item_in_db.nome}")
+    
     preco_unitario = item_update.valor_unitario or (item_in_db.valor_unitario or 0)
     desconto = item_update.desconto or (item_in_db.desconto or 0)
     
