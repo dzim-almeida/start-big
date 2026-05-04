@@ -17,6 +17,8 @@ import {
   ProductSaleUpdate,
   ProductAlteration,
   ProductAlterationSchema,
+  ProductSaleListItem,
+  ProductSaleListItemSchema,
 } from './schemas/productSale.schema';
 
 import { PaymentSaleCreate } from './schemas/paymentSale.schema';
@@ -89,3 +91,10 @@ export const saleService = {
     return parseSchema(SaleListSchema, data, 'saleService.listSales.response');
   },
 };
+
+export const productService = {
+  async searchProducts(term: string): Promise<ProductSaleListItem> {
+    const { data } = await api.get<ProductSaleListItem>(`/produtos/search`, { params: { term } });
+    return parseSchema(ProductSaleListItemSchema, data, 'productService.searchProducts.response');
+  }
+}

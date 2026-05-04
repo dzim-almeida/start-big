@@ -7,3 +7,8 @@ export const saleKeys = {
     detail: (saleId: number) => [...saleKeys.all, 'detail', saleId] as const,
     draft: (saleId: number) => [...saleKeys.all, 'draft', saleId] as const,
 }
+
+export const productKeys = {
+    all: ['products'] as const,
+    search: (term: string) => [...productKeys.all, 'search', term] as const,
+}

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 
-import { saleService } from '../../sales.service';
+import { saleService } from '../../api.service';
 
 import {
   ProductSaleCreate,
@@ -9,7 +9,7 @@ import {
 } from '../../schemas/productSale.schema';
 
 import { patchDraftCache } from '../../updateDraftCache.helper';
-import { saleKeys } from '../../sales.keys';
+import { saleKeys } from '../../query.keys';
 import { SaleRead } from '../../schemas/sale.schema';
 
 export function useAddItemSaleMutation() {

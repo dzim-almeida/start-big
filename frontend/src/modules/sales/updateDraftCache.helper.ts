@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/vue-query";
 import { SaleRead } from "./schemas/sale.schema";
 import { ProductAlteration } from "./schemas/productSale.schema";
-import { saleKeys } from "./sales.keys";
+import { saleKeys } from "./query.keys";
 
 export function patchDraftCache(
     queryClient: QueryClient,

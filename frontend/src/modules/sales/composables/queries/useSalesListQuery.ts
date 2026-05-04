@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/vue-query';
 import { SaleList, SaleSearch } from '../../schemas/sale.schema';
-import { saleKeys } from '../../sales.keys';
-import { saleService } from '../../sales.service';
+import { saleKeys } from '../../query.keys';
+import { saleService } from '../../api.service';
 
 export function useSalesListQuery(filters?: SaleSearch) {
   return useQuery<SaleList>({

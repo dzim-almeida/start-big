@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 
-import { saleService } from "../../sales.service";
-import { saleKeys } from "../../sales.keys";
+import { saleService } from "../../api.service";
+import { saleKeys } from "../../query.keys";
 
 import { SaleRead } from "../../schemas/sale.schema";
 

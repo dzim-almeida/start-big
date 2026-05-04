@@ -11,7 +11,7 @@ from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Sequence
 
-from app.schemas.produto import ProdutoCreate, ProdutoUpdate
+from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
@@ -148,6 +148,10 @@ def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, p
 def get_produto_by_search(db: Session, produto_search: str | None) -> Sequence[ProdutoModel]:
     """Intermediário para busca de produtos via CRUD."""
     return produto_crud.get_produto_by_search(db, search=produto_search)
+
+def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoSimpleRead]:
+    """Intermediário para busca rápida de produtos."""
+    return produto_crud.get_produto_simple_by_search(db, search=search)
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)

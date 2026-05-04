@@ -2,8 +2,8 @@ import { computed, unref, type MaybeRef } from 'vue';
 
 import { useQuery } from '@tanstack/vue-query';
 
-import { saleKeys } from '../../sales.keys';
-import { saleService } from '../../sales.service';
+import { saleKeys } from '../../query.keys';
+import { saleService } from '../../api.service';
 
 import { SaleRead } from '../../schemas/sale.schema';
 
