@@ -64,6 +64,11 @@ class ProdutoVenda(Base):
         if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
             return self.produto.nome
         return self.descricao_avulsa
+    @property
+    def sku(self):
+        if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
+            return self.produto.codigo_produto
+        return None
     descricao_avulsa: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True,

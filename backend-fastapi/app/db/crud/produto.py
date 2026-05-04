@@ -41,6 +41,24 @@ def get_produto_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
     
     return db.scalars(stmt).all()
 
+def get_produto_simple_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
+    if not search:
+        return []
+    
+    conditions = or_(
+        ProdutoModel.nome.ilike(f"{search}%"),
+        ProdutoModel.codigo_produto.startswith(search)
+    )
+
+    stmt = select(ProdutoModel).where(
+        and_(
+            conditions,
+            ProdutoModel.ativo == True
+        )
+    )
+
+    return db.scalars(stmt).all()
+
 def get_produto_by_id(db: Session, produto_id: int) -> Optional[ProdutoModel]:
     """Busca produto pela chave primária (ID)."""
     stmt = select(ProdutoModel).where(ProdutoModel.id == produto_id)

@@ -3,7 +3,7 @@
 # MÓDULO: Schemas Pydantic (DTOs)
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, AliasPath
 from typing import Optional, Sequence
 from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
@@ -52,6 +52,18 @@ class ProdutoRead(ProdutoCreate):
     fotos: Optional[Sequence[ProdutoFotoRead]] = Field(default=[], description="Galeria de imagens.")
     estoque: EstoqueRead = Field(..., description="Dados atuais de estoque.")
     ativo: bool = Field(..., description="Estado do produto no sistema.")
+
+class ProdutoSimpleRead(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    id: int = Field(..., description="ID único do sistema.")
+    nome: str = Field(..., max_length=255, description="Nome comercial.")
+    sku: str = Field(...,  validation_alias="codigo_produto", max_length=50, description="Código SKU único.")
+    preco: int = Field(..., validation_alias=AliasPath("estoque", "valor_varejo"), ge=0, description="Preço atual do produto em centavos.")
+    estoque: int = Field(..., validation_alias=AliasPath("estoque", "quantidade"), ge=0, description="Quantidade atual em estoque.")
+    imagem_url: Optional[str] = Field(None, description="URL da imagem principal do produto.")
 
 class ProdutoUpdate(BaseModel):
     """Modelo de entrada para atualização parcial de Produto."""
