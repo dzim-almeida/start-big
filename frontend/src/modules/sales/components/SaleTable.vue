@@ -85,7 +85,8 @@ const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
             </td>
 
             <td class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-zinc-600 group-hover:text-brand-primary transition-colors">
-              ---
+              <span v-if="sale.status === 'FINALIZADA'">{{ sale.atualizado_em }}</span>
+              <span v-else class="text-zinc-300">—</span>
             </td>
 
             <td class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-zinc-600 group-hover:text-brand-primary transition-colors">

@@ -29,6 +29,17 @@ export const SaleSimpleReadSchema = z.object({
 
   status: z.enum(['RASCUNHO', 'FINALIZADA', 'CANCELADA']),
 
+  criado_em: z.string().transform((dateTimeStamp) =>  new Date(dateTimeStamp).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  })),
+  atualizado_em: z.string().transform((dateTimeStamp) =>  new Date(dateTimeStamp).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  })),
+
   cliente: CustomerDiscriminatedSchema.nullable().optional(),
 });
 
