@@ -21,6 +21,7 @@ const {
   customerModalIsOpen,
   closeCustomerModal,
   openCreateCustomerModal,
+  createSale,
 } = useCustomerSearchModal();
 </script>
 
@@ -55,7 +56,7 @@ const {
           :class="[
             'w-full flex items-center gap-3 px-2 py-3 rounded-xl text-left transition-colors hover:bg-zinc-50 cursor-pointer',
           ]"
-          @click="searchTerm = ''"
+          @click="createSale(customer.id)"
         >
           <div
             class="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center shrink-0"
@@ -100,7 +101,7 @@ const {
           <Plus :size="16" class="mr-1.5" />
           Cadastrar novo cliente
         </BaseButton>
-        <BaseButton variant="secondary" class="w-full" @click="">
+        <BaseButton variant="secondary" class="w-full" @click="createSale(null)">
           <UserRoundX :size="16" class="mr-1.5" />
           Venda sem cliente
         </BaseButton>

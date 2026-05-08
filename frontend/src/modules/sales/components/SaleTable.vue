@@ -6,10 +6,13 @@ import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 
 import { useSaleTable } from '../composables/useSaleTable';
+import { useSaleModal } from '../composables/useSaleModal';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
 const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
+const { openSaleViewModal } = useSaleModal();
+
 </script>
 
 <template>
@@ -49,6 +52,7 @@ const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
             v-for="sale in sales?.vendas"
             :key="sale.id"
             class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
+            @click="openSaleViewModal(sale.id)"
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div
@@ -62,11 +66,8 @@ const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div class="flex flex-col">
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
-                  {{ (
-                    !!sale.cliente
-                      ? sale.cliente?.tipo === "PF" ? sale.cliente?.nome : sale.cliente?.razao_social
-                      : "Venda Avulsa"
-                  ) }}
+                  <span v-if="!!sale.cliente">{{ sale.cliente?.tipo === "PF" ? sale.cliente?.nome : sale.cliente?.razao_social }}</span>
+                  <span v-else class="text-red-400">Venda sem cliente</span>
                 </span>
                 <span class="text-[10px] text-zinc-400 mt-0.5">{{ sale.cliente?.tipo === "PF" ? sale.cliente?.cpf : sale.cliente?.cnpj }}</span>
               </div>
@@ -93,7 +94,6 @@ const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
               <span v-if="sale.total > 0">{{ formatCurrency(sale.total) }}</span>
               <span v-else class="text-zinc-300">—</span>
             </td>
-
           </tr>
         </tbody>
       </table>

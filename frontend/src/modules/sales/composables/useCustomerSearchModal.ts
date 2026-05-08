@@ -2,19 +2,21 @@ import { ref } from 'vue';
 import { refDebounced } from '@vueuse/core';
 
 import { useCustomersQuery } from './queries/useCustomersQuery';
+import { useCreateSaleMutation } from './mutates/useCreateSaleMutation';
 
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
 
 const customerModalIsOpen = ref<boolean>(false);
 
 export function useCustomerSearchModal() {
+
   const { openCreateModalWithCallback } = useCustomerModal();
 
   function openCreateCustomerModal() {
     openCreateModalWithCallback((customer) => {
-      searchTerm.value = '';
-      console.log('Cliente criado: ', customer);
+      createSale(customer.id);
     });
+    closeCustomerModal();
   }
 
   function openCustomerModal() {
@@ -32,6 +34,16 @@ export function useCustomerSearchModal() {
 
   const { data: customers, isLoading } = useCustomersQuery(debouncedSearchTerm);
 
+  const createSaleMutation = useCreateSaleMutation();
+
+  function createSale(customerId: number | null) {
+    createSaleMutation.mutate({
+      cliente_id: customerId,
+      funcionario_id: 1,
+    });
+    closeCustomerModal();
+  }
+
   return {
     searchTerm,
     isLoading,
@@ -40,5 +52,6 @@ export function useCustomerSearchModal() {
     openCustomerModal,
     closeCustomerModal,
     openCreateCustomerModal,
+    createSale,
   };
 }

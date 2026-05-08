@@ -5,8 +5,12 @@ import { saleKeys } from '../../query.keys';
 
 import { SaleCreate, SaleRead } from '../../schemas/sale.schema';
 
+import { useSaleModal } from '../useSaleModal';
+
 export function useCreateSaleMutation() {
   const queryClient = useQueryClient();
+
+  const { openSaleEditModal } = useSaleModal();
 
   return useMutation<SaleRead, Error, SaleCreate>({
     mutationFn: saleService.createSale,
@@ -16,6 +20,7 @@ export function useCreateSaleMutation() {
       queryClient.invalidateQueries({
         queryKey: saleKeys.lists(),
       });
+      openSaleEditModal(createdSale.id);
     },
 
     onError: (error) => {

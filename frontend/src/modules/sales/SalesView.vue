@@ -4,6 +4,7 @@ import { Plus } from 'lucide-vue-next';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import SalesStatus from './components/SalesStatus.vue';
 import SaleTable from './components/SaleTable.vue';
+import SaleModal from './components/SaleModal.vue';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -34,5 +35,6 @@ const { openCustomerModal } = useCustomerSearchModal();
     <SaleTable />
     
     <CustomerSearchModal />
+    <SaleModal />
   </div>
 </template>

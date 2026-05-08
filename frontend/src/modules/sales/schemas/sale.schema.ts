@@ -5,7 +5,7 @@ import { PaymentSaleReadSchema } from './paymentSale.schema';
 import { CustomerDiscriminatedSchema } from './customers.schema';
 
 export const SaleCreateSchema = z.object({
-  cliente_id: z.number().optional(),
+  cliente_id: z.number().nullable().optional(),
   funcionario_id: z.number({ required_error: 'Funcionário é obrigatório' }),
 });
 
@@ -51,7 +51,7 @@ export const SaleReadSchema = SaleSimpleReadSchema.extend({
   subtotal: z.number(),
   troco: z.number(),
 
-  observacao: z.string().optional(),
+  observacao: z.string().nullable().optional(),
 
   produtos: z.array(ProductSaleReadSchema),
   pagamentos: z.array(PaymentSaleReadSchema),
