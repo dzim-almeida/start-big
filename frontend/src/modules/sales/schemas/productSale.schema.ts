@@ -1,7 +1,5 @@
 import z from 'zod';
 
-import { SaleFinanceSummarySchema } from './sale.schema';
-
 export const ProductSaleBaseSchema = z.object({
   tipo_produto: z.enum(['CADASTRADO', 'AVULSO']),
   produto_id: z.number().optional(),
@@ -46,6 +44,13 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   subtotal: z.number().min(0),
   total: z.number().min(0),
 }).omit({ descricao_avulsa: true });
+
+export const SaleFinanceSummarySchema = z.object({
+  subtotal: z.number(),
+  descontos: z.number(),
+  entrega: z.number(),
+  total: z.number(),
+});
 
 export const ProductAlterationSchema = z.object({
   produto_adicionado: ProductSaleReadSchema,

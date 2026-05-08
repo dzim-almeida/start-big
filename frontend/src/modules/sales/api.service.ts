@@ -8,6 +8,8 @@ import {
   SaleSearch,
   SaleList,
   SaleRead,
+  SalesStatus,
+  SalesStatusSchema,
   SaleReadSchema,
   SaleListSchema,
 } from './schemas/sale.schema';
@@ -22,6 +24,7 @@ import {
 } from './schemas/productSale.schema';
 
 import { PaymentSaleCreate } from './schemas/paymentSale.schema';
+import { CustomerSimpleRead, CustomerDiscriminatedSimpleReadSchema } from './schemas/customers.schema';
 
 const SALE_ENDPOINT = '/vendas';
 
@@ -81,20 +84,33 @@ export const saleService = {
     return parseSchema(SaleReadSchema, data, 'saleService.getSale.response');
   },
 
-  async listSales(query?: SaleSearch): Promise<SaleList> {
+  async listSales(query?: SaleSearch, page: number = 1): Promise<SaleList> {
     const params = {
       ...(query?.search && { search: query.search }),
       ...(query?.status && { status: query.status }),
+      page : page,
     };
 
     const { data } = await api.get<SaleList>(`${SALE_ENDPOINT}/`, { params });
     return parseSchema(SaleListSchema, data, 'saleService.listSales.response');
   },
+
+  async getSalesStatus(): Promise<SalesStatus> {
+    const { data } = await api.get<SalesStatus>(`${SALE_ENDPOINT}/status/`);
+    return parseSchema(SalesStatusSchema, data, 'saleService.getSalesStatus.response');
+  },
 };
 
 export const productService = {
-  async searchProducts(term: string): Promise<ProductSaleListItem> {
-    const { data } = await api.get<ProductSaleListItem>(`/produtos/search`, { params: { term } });
+  async searchProducts(search: string): Promise<ProductSaleListItem> {
+    const { data } = await api.get<ProductSaleListItem>(`/produtos/search`, { params: { search } });
     return parseSchema(ProductSaleListItemSchema, data, 'productService.searchProducts.response');
+  }
+}
+
+export const customerService = {
+  async searchCustomers(search: string): Promise<CustomerSimpleRead> {
+    const { data } = await api.get<CustomerSimpleRead>(`/clientes/search`, { params: { search } });
+    return parseSchema(CustomerDiscriminatedSimpleReadSchema, data, 'customerService.searchCustomers.response');
   }
 }

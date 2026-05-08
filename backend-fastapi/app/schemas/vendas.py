@@ -3,7 +3,7 @@ from app.core.enum import VendaStatus
 from datetime import datetime
 from typing import Optional, Sequence
 
-from app.schemas.cliente import ClienteRead
+from app.schemas.cliente import ClienteRead, ClienteSimpleRead
 
 from app.core.enum import TipoProdutoVenda
 
@@ -117,7 +117,7 @@ class VendaSimpleRead(BaseModel):
     criado_em: datetime = Field(..., description="Data de criação da venda no formato ISO 8601")
     atualizado_em: datetime = Field(..., description="Data da última atualização da venda no formato ISO 8601")
 
-    cliente: Optional[ClienteRead] = Field(None, description="Dados do cliente associado à venda, preenchido automaticamente com base no cliente_id")
+    cliente: Optional[ClienteSimpleRead] = Field(None, description="Dados do cliente associado à venda, preenchido automaticamente com base no cliente_id")
 
 class VendaRead(VendaSimpleRead):
     entrega: int = Field(0, ge=0, description="Valor da entrega")

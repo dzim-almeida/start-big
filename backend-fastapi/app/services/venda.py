@@ -4,7 +4,7 @@ from typing import Sequence
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
-from app.schemas.vendas import VendaCreate, VendaSearchFilters, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, PagamentoVendaCreate, VendaRead
+from app.schemas.vendas import VendaCreate, VendaSearchFilters, VendaStatusSummary, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, PagamentoVendaCreate, VendaRead
 
 from app.services.cliente import cliente_exists
 from app.services.funcionario import funcionario_exists
@@ -249,6 +249,9 @@ def get_sales(db: Session, filters: VendaSearchFilters, page: int, limit: int = 
     )
 
     return sales_in_db, total_sales, total_pages, links
+
+def get_sales_status(db: Session) -> Sequence[VendaStatusSummary]:
+    return venda_crud.get_sales_status(db)
     
 
     

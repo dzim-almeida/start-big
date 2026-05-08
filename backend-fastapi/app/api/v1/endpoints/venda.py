@@ -29,6 +29,7 @@ from app.schemas.vendas import (
     VendaListRead,
     VendaRead,
     VendaSearchFilters,
+    VendaStatusSummary,
     VendaUpdate,
     VendaFinanceSummary
 )
@@ -304,5 +305,21 @@ def obter_detalhes_venda(
     venda_id: int = Path(..., description="ID da venda"),
 ):
     return venda_service.get_sale_by_id(db, venda_id)
+
+@router.get(
+    "/status/",
+    response_model=VendaStatusSummary,
+    status_code=status.HTTP_200_OK,
+    summary="Resumo de Status das Vendas",
+    description=(
+        "Fornece um resumo quantitativo das vendas no sistema"
+    )
+)
+def resumo_status_vendas(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+):
+    return venda_service.get_sales_status(db)
 
     

@@ -1,9 +1,16 @@
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import select, func, or_, case, cast, String
+from sqlalchemy import select, func, or_, cast, String
+
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
+from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.cliente import ClientePF, ClientePJ
 from app.db.models.funcionario import Funcionario
+
+from app.schemas.vendas import VendaStatusSummary
+
+from app.core.enum import VendaStatus
+
 from typing import Sequence
 
 def create_sale(db: Session, sale_data: Venda) -> Venda:
@@ -83,4 +90,47 @@ def get_sales_by_search(
     stmt = query.order_by(Venda.id.desc()).offset(skip).limit(limit)
     sales = db.scalars(stmt).unique().all()
 
-    return sales, total
+    return sales, total 
+
+def get_sales_status(db: Session) -> VendaStatusSummary:
+    payments_subq = (
+        select(
+            PagamentoVenda.venda_id,
+            func.sum(PagamentoVenda.valor).label("total_pago")
+        )
+        .group_by(PagamentoVenda.venda_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            func.count(Venda.id)
+                .filter(Venda.status == VendaStatus.RASCUNHO)
+                .label("rascunho"),
+
+            func.count(Venda.id)
+                .filter(Venda.status == VendaStatus.FINALIZADA)
+                .label("finalizada"),
+
+            func.count(Venda.id)
+                .filter(Venda.status == VendaStatus.CANCELADA)
+                .label("cancelada"),
+
+            func.avg(payments_subq.c.total_pago)
+                .filter(Venda.status == VendaStatus.FINALIZADA)
+                .label("ticket_medio"),
+        )
+        .outerjoin(payments_subq, payments_subq.c.venda_id == Venda.id)
+    )
+
+    result = db.execute(stmt).first()
+
+    ticket_medio = result.ticket_medio or 0
+
+    return VendaStatusSummary(
+        vendas_em_aberto=result.rascunho or 0,
+        vendas_finalizadas=result.finalizada or 0,
+        vendas_canceladas=result.cancelada or 0,
+        ticket_medio=int(round(ticket_medio * 100)),
+    )
+ 

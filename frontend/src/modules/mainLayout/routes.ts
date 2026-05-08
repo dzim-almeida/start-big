@@ -85,6 +85,17 @@ const homeRoutes: RouteRecordRaw[] = [
           requiresAuth: true,
         },
       },
+      {
+        path: '/vendas',
+        name: 'sales',
+        component: () => import('@/modules/sales/SalesView.vue'),
+        meta: {
+          title: 'Vendas',
+          subtitle: 'Gerencie as vendas da sua organização de forma centralizada.',
+          tabId: 'sales',
+          requiresAuth: true,
+        }
+      }
     ],
   },
 ];
