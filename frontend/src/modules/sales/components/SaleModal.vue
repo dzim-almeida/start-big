@@ -3,12 +3,15 @@ import { computed } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
+import ProductSearch from './SaleModal/ProductSearch.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
 import { useSaleModal } from '../composables/useSaleModal';
+import SaleItemsTable from './SaleModal/SaleItemsTable.vue';
+import SaleSummary from './SaleModal/SaleSummary.vue';
 
-const { saleModalIsOpen, closeSaleModal, sale } = useSaleModal();
+const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 
 const saleNumberDisplay = computed(() => {
   if (!sale.value) return '...';
@@ -58,5 +61,16 @@ const saleNumberDisplay = computed(() => {
         </button>
       </div>
     </template>
+
+    <main class="w-full h-screen max-h-150 flex flex-wrap md:flex-nowrap gap-4 border-red-500">
+      <section class="w-full md:w-2/3 flex flex-col gap-5">
+        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId"/>
+        <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
+        <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
+      </section>
+      <section class="w-full md:w-1/3">
+        
+      </section>
+    </main>
   </BaseModal>
 </template>

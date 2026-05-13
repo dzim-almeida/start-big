@@ -17,7 +17,7 @@ export function patchDraftCache(
                 ...oldDraft,
                 
                 produtos: [
-                    ...(oldDraft.produtos ?? []),
+                    ...(oldDraft.produtos.filter((product) => product.id !== response.produto_adicionado.id) ?? []),
                     response.produto_adicionado
                 ],
 

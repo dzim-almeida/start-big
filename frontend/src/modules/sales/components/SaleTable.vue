@@ -11,7 +11,7 @@ import { useSaleModal } from '../composables/useSaleModal';
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
 const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
-const { openSaleViewModal } = useSaleModal();
+const { openSaleViewModal, openSaleEditModal } = useSaleModal();
 
 </script>
 
@@ -52,7 +52,7 @@ const { openSaleViewModal } = useSaleModal();
             v-for="sale in sales?.vendas"
             :key="sale.id"
             class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
-            @click="openSaleViewModal(sale.id)"
+            @click="sale.status !== 'RASCUNHO' ? openSaleViewModal(sale.id) : openSaleEditModal(sale.id)"
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div

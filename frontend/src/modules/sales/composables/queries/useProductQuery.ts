@@ -6,7 +6,7 @@ import { productKeys } from '../../query.keys';
 
 import { ProductSaleListItem } from '../../schemas/productSale.schema';
 
-export function useProductSearchQuery(term: MaybeRef<string | null | undefined>) {
+export function useProductQuery(term: MaybeRef<string | null | undefined>) {
   return useQuery<ProductSaleListItem>({
     queryKey: computed(() => 
       !!unref(term)
@@ -14,7 +14,7 @@ export function useProductSearchQuery(term: MaybeRef<string | null | undefined>)
         : [...productKeys.all, 'search', 'empty']
     ),
     queryFn: () => productService.searchProducts(unref(term)!),
-    enabled: computed(() => !!unref(term) && unref(term)!.trim().length >= 2),
+    enabled: computed(() => !!unref(term) && unref(term)!.trim().length > 1),
     staleTime: 1000 * 30,
   });
 }

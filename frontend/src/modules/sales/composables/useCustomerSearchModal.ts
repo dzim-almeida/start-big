@@ -1,57 +1,74 @@
-import { ref } from 'vue';
-import { refDebounced } from '@vueuse/core';
+import { ref } from 'vue'
+import { refDebounced } from '@vueuse/core'
 
-import { useCustomersQuery } from './queries/useCustomersQuery';
-import { useCreateSaleMutation } from './mutates/useCreateSaleMutation';
+import { useCustomersQuery } from './queries/useCustomersQuery'
+import { useCreateSaleMutation } from './mutates/useCreateSaleMutation'
 
-import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
+import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal'
 
-const customerModalIsOpen = ref<boolean>(false);
+const customerModalIsOpen = ref(false)
 
 export function useCustomerSearchModal() {
+  const searchTerm = ref('')
+  const debouncedSearchTerm = refDebounced(searchTerm, 500)
 
-  const { openCreateModalWithCallback } = useCustomerModal();
+  const { openCreateModalWithCallback } = useCustomerModal()
 
-  function openCreateCustomerModal() {
-    openCreateModalWithCallback((customer) => {
-      createSale(customer.id);
-    });
-    closeCustomerModal();
+  const {
+    data: customers,
+    isLoading: isSearchingCustomers,
+  } = useCustomersQuery(debouncedSearchTerm)
+
+  const createSaleMutation = useCreateSaleMutation()
+
+  function resetSearch() {
+    searchTerm.value = ''
   }
 
   function openCustomerModal() {
-    searchTerm.value = '';
-    customerModalIsOpen.value = true;
+    resetSearch()
+    customerModalIsOpen.value = true
   }
 
   function closeCustomerModal() {
-    searchTerm.value = '';
-    customerModalIsOpen.value = false;
+    resetSearch()
+    customerModalIsOpen.value = false
   }
 
-  const searchTerm = ref<string | null>(null);
-  const debouncedSearchTerm = refDebounced(searchTerm, 500);
-
-  const { data: customers, isLoading } = useCustomersQuery(debouncedSearchTerm);
-
-  const createSaleMutation = useCreateSaleMutation();
-
   function createSale(customerId: number | null) {
-    createSaleMutation.mutate({
-      cliente_id: customerId,
-      funcionario_id: 1,
-    });
-    closeCustomerModal();
+    createSaleMutation.mutate(
+      {
+        cliente_id: customerId,
+        funcionario_id: 1,
+      },
+      {
+        onSuccess: () => {
+          closeCustomerModal()
+        },
+      },
+    )
+  }
+
+  function openCreateCustomerModal() {
+    closeCustomerModal()
+
+    openCreateModalWithCallback((customer) => {
+      createSale(customer.id)
+    })
   }
 
   return {
     searchTerm,
-    isLoading,
     customers,
+
     customerModalIsOpen,
+
+    isSearchingCustomers,
+    isCreatingSale: createSaleMutation.isPending,
+
     openCustomerModal,
     closeCustomerModal,
     openCreateCustomerModal,
     createSale,
-  };
+  }
 }

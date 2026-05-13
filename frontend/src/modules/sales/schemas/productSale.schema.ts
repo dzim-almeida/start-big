@@ -6,7 +6,7 @@ export const ProductSaleBaseSchema = z.object({
   descricao_avulsa: z.string().max(100).optional(),
   quantidade: z.number({ required_error: 'Quantidade é obrigatória' }).min(1),
   valor_unitario: z.number().min(0).optional(),
-  desconto: z.number(),
+  desconto: z.number().nullable().optional(),
 });
 
 export const ProductSaleCreateSchema = ProductSaleBaseSchema.superRefine((data, ctx) => {
@@ -43,6 +43,9 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   nome: z.string(),
   subtotal: z.number().min(0),
   total: z.number().min(0),
+  imagem_url: z.string().nullable().optional(),
+  valor_unitario: z.number().default(0),
+  desconto: z.number().default(0),
 }).omit({ descricao_avulsa: true });
 
 export const SaleFinanceSummarySchema = z.object({
@@ -62,10 +65,10 @@ export type ProductAlteration = z.infer<typeof ProductAlterationSchema>;
 export const ProductSaleListItemSchema = z.object({
   id: z.number(),
   nome: z.string(),
-  sku: z.string().optional(),
+  sku: z.string().nullable().optional(),
   preco: z.number(),
-  quantidade: z.number(),
-  imagem_url: z.string().optional(),
+  estoque: z.number(),
+  imagem_url: z.string().nullable().optional(),
 }).array();
 
 export type ProductSaleListItem = z.infer<typeof ProductSaleListItemSchema>;

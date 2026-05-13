@@ -52,5 +52,8 @@ export function useSaleModal() {
     closeSaleModal,
     sale,
     isLoading,
+    selectedSaleId,
+    isEditMode,
+    isViewMode
   };
 }

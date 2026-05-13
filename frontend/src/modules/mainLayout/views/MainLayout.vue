@@ -64,7 +64,7 @@ whenever(Ctrl_K, () => {
     </main>
 
     <!-- Modal global de clientes (disponível em todo o sistema) -->
-    <CustomerFormModal class="z-9999" />
+    <CustomerFormModal />
   </div>
 </template>
 

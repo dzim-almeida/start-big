@@ -81,6 +81,11 @@ class ProdutoVenda(Base):
     @property
     def total(self):
         return self.subtotal - self.desconto
+    @property
+    def imagem_url(self):
+        if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
+            return self.produto.imagem_url
+        return None
 
     # --- Relacionamentos ---
     venda: Mapped["Venda"] = relationship(back_populates="itens")
