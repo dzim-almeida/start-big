@@ -70,8 +70,8 @@ function removeItem(item: SaleRead['produtos'][number]) {
 </script>
 
 <template>
-  <section class="w-full overflow-hidden rounded-xl border border-zinc-200 bg-white">
-    <div class="max-h-120 overflow-y-auto">
+  <section class="w-full overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-brand-primary/30 transition-colors">
+    <div class="max-h-[50vh] overflow-y-auto">
       <table class="w-full border-collapse text-sm">
         <thead class="sticky top-0 z-10 bg-zinc-50">
           <tr

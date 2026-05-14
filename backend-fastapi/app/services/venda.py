@@ -34,10 +34,10 @@ def _aplly_discount(sale_in_db: Venda, discount: int) -> Venda:
     discount_remaining = discount
     for index, item in enumerate(sale_in_db.itens):
         if (index == len(sale_in_db.itens) - 1):
-            item.desconto += discount_remaining
+            item.desconto = discount_remaining
         else:
-            item_discount = (item.total * discount_remaining) // sale_in_db.total
-            item.desconto += item_discount
+            item_discount = ((item.total * discount) // (sale_in_db.total or 1))
+            item.desconto = item_discount
             discount_remaining -= item_discount
     return sale_in_db
 
@@ -81,15 +81,15 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
         funcionario_in_db = funcionario_exists(db, update_data.funcionario_id)
         sale_in_db.funcionario_id = funcionario_in_db.id
 
-    if update_data.entrega:
+    if update_data.entrega is not None:
         sale_in_db.entrega = update_data.entrega
 
-    if update_data.desconto:
-        if update_data.desconto > sale_in_db.total:
+    if update_data.desconto is not None:
+        if update_data.desconto > sale_in_db.subtotal:
             raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
         sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto)
 
-    if update_data.observacao:
+    if update_data.observacao is not None:
         sale_in_db.observacao = update_data.observacao
 
     return _recalc_total_sale(db, sale_in_db=sale_in_db)

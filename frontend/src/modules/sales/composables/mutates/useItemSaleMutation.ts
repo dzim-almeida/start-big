@@ -57,6 +57,9 @@ export function useDeleteItemSaleMutation() {
 
     onSuccess: (updatedSale, { saleId }) => {
       queryClient.setQueryData(saleKeys.draft(saleId), updatedSale);
+      queryClient.invalidateQueries({
+        queryKey: saleKeys.lists(),
+      });
     },
     
     onError: (error) => {

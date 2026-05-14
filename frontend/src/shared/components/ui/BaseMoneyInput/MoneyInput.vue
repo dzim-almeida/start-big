@@ -26,6 +26,10 @@ const props = withDefaults(defineProps<Props>(), {
   })
 });
 
+const emits = defineEmits<{
+  blur: [];
+}>();
+
 const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
 
 const model = defineModel<number>();
@@ -68,6 +72,7 @@ watch(
       :required="required"
       :disabled="disabled"
       :class="inputClasses"
+      @blur="$emit('blur')"
     />
 
     <p v-if="error" class="mt-0.5 text-xs text-red-500">

@@ -13,6 +13,9 @@ export function useUpdateSaleMutation() {
 
     onSuccess: (updatedSale) => {
       queryClient.setQueryData(saleKeys.draft(updatedSale.id), updatedSale);
+      queryClient.invalidateQueries({
+        queryKey: saleKeys.lists(),
+      })
     },
 
     onError: (error) => {

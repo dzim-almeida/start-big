@@ -5,6 +5,7 @@ import { useCustomersQuery } from './queries/useCustomersQuery'
 import { useCreateSaleMutation } from './mutates/useCreateSaleMutation'
 
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal'
+import { useSaleModal } from './useSaleModal'
 
 const customerModalIsOpen = ref(false)
 
@@ -13,6 +14,7 @@ export function useCustomerSearchModal() {
   const debouncedSearchTerm = refDebounced(searchTerm, 500)
 
   const { openCreateModalWithCallback } = useCustomerModal()
+  const { openSaleEditModal } = useSaleModal()
 
   const {
     data: customers,
@@ -42,8 +44,9 @@ export function useCustomerSearchModal() {
         funcionario_id: 1,
       },
       {
-        onSuccess: () => {
+        onSuccess: (createdSale) => {
           closeCustomerModal()
+          openSaleEditModal(createdSale.id)
         },
       },
     )

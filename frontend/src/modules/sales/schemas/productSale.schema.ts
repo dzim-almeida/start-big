@@ -44,8 +44,8 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   subtotal: z.number().min(0),
   total: z.number().min(0),
   imagem_url: z.string().nullable().optional(),
-  valor_unitario: z.number().default(0),
-  desconto: z.number().default(0),
+  valor_unitario: z.number().transform((val) => !val ? 0 : val),
+  desconto: z.number().transform((val) => !val ? 0 : val),
 }).omit({ descricao_avulsa: true });
 
 export const SaleFinanceSummarySchema = z.object({

@@ -12,6 +12,7 @@ import {
   SalesStatusSchema,
   SaleReadSchema,
   SaleListSchema,
+  SaleUpdateSchema,
 } from './schemas/sale.schema';
 
 import {
@@ -35,7 +36,8 @@ export const saleService = {
   },
 
   async updateSale(sale_id: number, sale: SaleUpdate): Promise<SaleRead> {
-    const { data } = await api.patch<SaleRead>(`${SALE_ENDPOINT}/${sale_id}`, sale);
+    const parsedSale = parseSchema(SaleUpdateSchema, sale, 'saleService.updateSale.request');
+    const { data } = await api.patch<SaleRead>(`${SALE_ENDPOINT}/${sale_id}`, parsedSale);
     return parseSchema(SaleReadSchema, data, 'saleService.updateSale.response');
   },
 

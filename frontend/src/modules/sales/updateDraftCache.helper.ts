@@ -13,14 +13,20 @@ export function patchDraftCache(
         (oldDraft) => {
             if (!oldDraft) return oldDraft;
 
+            const productsList = oldDraft.produtos;
+
+            const oldProduct = productsList.find((product) => product.id === response.produto_adicionado.id);
+
+            if (!oldProduct) {
+                productsList.push(response.produto_adicionado);
+            } else {
+                const index = productsList.indexOf(oldProduct);
+                productsList[index] = response.produto_adicionado;
+            }
+
             return {
                 ...oldDraft,
-                
-                produtos: [
-                    ...(oldDraft.produtos.filter((product) => product.id !== response.produto_adicionado.id) ?? []),
-                    response.produto_adicionado
-                ],
-
+                produtos: productsList,
                 descontos: response.financeiro_atualizado.descontos,
                 entrega: response.financeiro_atualizado.entrega,
                 subtotal: response.financeiro_atualizado.subtotal,
@@ -28,4 +34,7 @@ export function patchDraftCache(
             }
         }
     )
+    queryClient.invalidateQueries({
+        queryKey: saleKeys.lists(),
+    })
 }
