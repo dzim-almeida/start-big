@@ -1,10 +1,10 @@
 import { computed, ref, watch } from 'vue';
 import { refDebounced } from '@vueuse/core';
 
-import { useProductQuery } from './queries/useProductQuery';
-import { useAddItemSaleMutation } from './mutates/useItemSaleMutation';
+import { useProductQuery } from '../queries/useProductQuery';
+import { useAddItemSaleMutation } from '../mutates/useItemSaleMutation';
 
-import type { ProductSaleCreate } from '../schemas/productSale.schema';
+import type { ProductSaleCreate } from '../../schemas/productSale.schema';
 
 export function useProductSearch() {
   const inputOnFocus = ref(false);

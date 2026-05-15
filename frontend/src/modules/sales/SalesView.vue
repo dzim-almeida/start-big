@@ -10,7 +10,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import CustomerSearchModal from './components/CustomerSearchModal.vue';
 
-import { useCustomerSearchModal } from './composables/useCustomerSearchModal';
+import { useCustomerSearchModal } from './composables/flows/useCustomerSearchModal';
 
 const { openCustomerModal } = useCustomerSearchModal();
 </script>

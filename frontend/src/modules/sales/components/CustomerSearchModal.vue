@@ -10,13 +10,13 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
-import { useCustomerSearchModal } from '../composables/useCustomerSearchModal';
+import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 
 import { getInitials } from '@/shared/utils/string.utils';
 
 const {
   searchTerm,
-  isLoading,
+  isSearchingCustomers,
   customers,
   customerModalIsOpen,
   closeCustomerModal,
@@ -37,7 +37,7 @@ const {
 
     <div class="mt-3 max-h-80 overflow-y-auto divide-y divide-zinc-100 -mx-1 px-1">
       <!-- Skeleton de loading -->
-      <template v-if="isLoading">
+      <template v-if="isSearchingCustomers">
         <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-2 py-3 animate-pulse">
           <div class="w-9 h-9 rounded-full bg-zinc-200 shrink-0" />
           <div class="flex-1 space-y-1.5">

@@ -1,8 +1,8 @@
 import { ref } from 'vue'
 import { refDebounced } from '@vueuse/core'
 
-import { useCustomersQuery } from './queries/useCustomersQuery'
-import { useCreateSaleMutation } from './mutates/useCreateSaleMutation'
+import { useCustomersQuery } from '../queries/useCustomersQuery'
+import { useCreateSaleMutation } from '../mutates/useCreateSaleMutation'
 
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal'
 import { useSaleModal } from './useSaleModal'

@@ -1,8 +1,8 @@
 import { reactive, watch, computed, unref, type MaybeRef } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
-import { useUpdateSaleMutation } from './mutates/useUpdateSaleMutation';
-import type { SaleRead, SaleUpdate } from '../schemas/sale.schema';
+import { useUpdateSaleMutation } from '../mutates/useUpdateSaleMutation';
+import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
 export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   const updateSaleMutation = useUpdateSaleMutation();

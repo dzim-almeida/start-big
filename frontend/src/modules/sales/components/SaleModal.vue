@@ -10,11 +10,11 @@ import CustomerCard from './SaleModal/CustomerCard.vue';
 import SaleCard from './SaleModal/SaleCard.vue';
 import SaleItemsTable from './SaleModal/SaleItemsTable.vue';
 import SaleSummary from './SaleModal/SaleSummary.vue';
+import ItemModal from './SaleModal/ItemModal.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
-import { useSaleModal } from '../composables/useSaleModal';
-
+import { useSaleModal } from '../composables/flows/useSaleModal';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 
@@ -86,5 +86,6 @@ const saleNumberDisplay = computed(() => {
         </div>
       </section>
     </main>
+    <ItemModal :sale-id="selectedSaleId" />
   </BaseModal>
 </template>

@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 
-import { useSaleDraftQuery } from './queries/useSaleDraftQuery';
-import { useSaleDetailQuery } from './queries/useSaleDetailQuery';
+import { useSaleDraftQuery } from '../queries/useSaleDraftQuery';
+import { useSaleDetailQuery } from '../queries/useSaleDetailQuery';
 
 type SaleModalMode = 'view' | 'edit';
 

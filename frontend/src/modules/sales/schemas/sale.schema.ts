@@ -39,21 +39,7 @@ export const SaleSimpleReadSchema = z.object({
 
   status: z.enum(['RASCUNHO', 'FINALIZADA', 'CANCELADA']),
 
-  criado_em: z.preprocess(
-    (dateTimeStamp) => {
-      if (typeof dateTimeStamp !== 'string') return dateTimeStamp;
-
-      const date = new Date(dateTimeStamp).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-      });
-
-      const time = dateTimeStamp.split('T')[1] || '00:00:00';
-      return [date, time];
-    },
-    z.tuple([z.string(), z.string()]),
-  ),
+  criado_em: z.string(),
 
   atualizado_em: z.string().transform((dateTimeStamp) =>
     new Date(dateTimeStamp).toLocaleDateString('pt-BR', {

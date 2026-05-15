@@ -9,6 +9,8 @@ import {
   useDeleteItemSaleMutation,
 } from '../../composables/mutates/useItemSaleMutation';
 
+import { useItemModal } from '../../composables/flows/useItemModal';
+
 import type { SaleRead } from '../../schemas/sale.schema';
 
 const props = defineProps<{
@@ -16,7 +18,9 @@ const props = defineProps<{
   readonly?: boolean;
 }>();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;7
+
+const { openEditItemModal } = useItemModal();
 
 const updateItemMutation = useUpdateItemSaleMutation();
 const deleteItemMutation = useDeleteItemSaleMutation();
@@ -108,7 +112,8 @@ function removeItem(item: SaleRead['produtos'][number]) {
           <tr
             v-for="item in items"
             :key="item.id"
-            class="h-23 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50/70"
+            class="h-23 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50/70 hover:cursor-pointer"
+            @click="openEditItemModal(item)"
           >
             <td class="px-5">
               <div class="flex items-center gap-4">
@@ -154,12 +159,12 @@ function removeItem(item: SaleRead['produtos'][number]) {
                   type="button"
                   :disabled="readonly || item.quantidade <= 1 || updateItemMutation.isPending.value"
                   class="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  @click="decreaseQuantity(item)"
+                  @click.stop="decreaseQuantity(item)"
                 >
                   <Minus class="h-4 w-4" />
                 </button>
 
-                <span class="min-w-6 text-center text-sm font-semibold text-zinc-800">
+                <span class="min-w-6 text-center text-sm font-semibold text-zinc-800 select-none z-99">
                   {{ item.quantidade }}
                 </span>
 
@@ -167,7 +172,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
                   type="button"
                   :disabled="readonly || updateItemMutation.isPending.value"
                   class="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
-                  @click="increaseQuantity(item)"
+                  @click.stop="increaseQuantity(item)"
                 >
                   <Plus class="h-4 w-4" />
                 </button>
@@ -191,7 +196,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
                 type="button"
                 :disabled="deleteItemMutation.isPending.value"
                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                @click="removeItem(item)"
+                @click.stop="removeItem(item)"
               >
                 <Trash2 class="h-4 w-4" />
               </button>

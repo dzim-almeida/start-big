@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ArchiveX, CirclePlus, CircleMinus } from 'lucide-vue-next';
+import { ArchiveX } from 'lucide-vue-next';
 
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import ProductOption from './ProductOption.vue';
 
-import { useProductSearch } from '../../composables/useProductSearch';
+import { useProductSearch } from '../../composables/flows/useProductSearch';
+import { useItemModal } from '../../composables/flows/useItemModal';
+import UnitValueInput from './UnitValueInput.vue';
 
 defineProps<{
   saleId: number | null;
@@ -25,13 +27,21 @@ const {
   increaseQuantity,
   decreaseQuantity,
   addItemToSale,
+  resetSelection
 } = useProductSearch();
+
+const { openCreateItemModal } = useItemModal();
+
+function handleAddAvulso() {
+  resetSelection();
+  openCreateItemModal();
+}
 </script>
 
 <template>
   <div class="w-full flex gap-4">
     <div class="relative w-full md:max-w-1/2">
-      <BaseSearchInput v-model="searchTerm" @focusChange="handleInputChange" />
+      <BaseSearchInput v-model="searchTerm" placeholder="Digite o nome ou código do produto" @focusChange="handleInputChange" />
 
       <div
         v-if="isSearching"
@@ -75,6 +85,7 @@ const {
               Não encontrou o produto?
               <span
                 class="font-poppins font-semibold text-[10px] text-brand-primary/90 hover:underline cursor-pointer"
+                @click="handleAddAvulso"
               >
                 Adicionar produto avulso
               </span>
@@ -85,30 +96,10 @@ const {
     </div>
     <div class="flex items-center gap-2">
       <label class="font-poppins font-semibold text-xs">Qtde.</label>
-      <div class="w-32 h-full flex border-2 border-zinc-200 rounded-lg overflow-hidden">
-        <button
-          class="flex items-center justify-center w-1/4 bg-zinc-50 hover:bg-zinc-200 disabled:hover:bg-zinc-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
-          :disabled="!selectedProductId"
-          @click="decreaseQuantity"
-        >
-          <CircleMinus :size="15" />
-        </button>
-        <input
-          type="text"
-          inputmode="numeric"
-          v-model="quantity"
-          class="input-number-no-spinner flex-1 w-full border-x-2 border-zinc-200 focus:outline-none text-center font-poppins text-sm disabled:cursor-not-allowed"
-          maxlength="4"
-          :disabled="!selectedProductId"
-        />
-        <button
-          class="flex items-center justify-center w-1/4 bg-zinc-50 hover:bg-zinc-200 disabled:hover:bg-zinc-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
-          :disabled="!selectedProductId"
-          @click="increaseQuantity"
-        >
-          <CirclePlus :size="15" />
-        </button>
+      <div class="w-32 h-full">
+        <UnitValueInput v-model="quantity" :disabled="!selectedProductId" @increase="increaseQuantity" @decrease="decreaseQuantity" />
       </div>
+      
     </div>
     <BaseButton size="sm" :disabled="!canAddItem || isAddingItem" @click="addItemToSale(saleId)">
       Adicionar Produto

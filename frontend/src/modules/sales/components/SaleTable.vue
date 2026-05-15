@@ -5,8 +5,8 @@ import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 
 import { formatCurrency } from '@/shared/utils/finance';
 
-import { useSaleTable } from '../composables/useSaleTable';
-import { useSaleModal } from '../composables/useSaleModal';
+import { useSaleTable } from '../composables/flows/useSaleTable';
+import { useSaleModal } from '../composables/flows/useSaleModal';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 

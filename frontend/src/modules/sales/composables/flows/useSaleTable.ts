@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue';
 import { refDebounced } from '@vueuse/core';
 
-import { useSalesListQuery } from './queries/useSalesListQuery';
+import { useSalesListQuery } from '../queries/useSalesListQuery';
 
 export function useSaleTable() {
   const searchTerm = ref<string | null>(null);
