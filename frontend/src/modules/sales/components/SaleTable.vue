@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vue-next';
+
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
@@ -13,6 +15,12 @@ import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
 const { openSaleViewModal, openSaleEditModal } = useSaleModal();
 
+const emit = defineEmits<{
+  (e: 'cancel', saleId: number): void;
+  (e: 'finish', saleId: number): void;
+  (e: 'reopen', saleId: number): void;
+  (e: 'print', saleId: number): void;
+}>();
 </script>
 
 <template>
@@ -93,6 +101,79 @@ const { openSaleViewModal, openSaleEditModal } = useSaleModal();
             <td class="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium text-zinc-600 group-hover:text-brand-primary transition-colors">
               <span v-if="sale.total > 0">{{ formatCurrency(sale.total) }}</span>
               <span v-else class="text-zinc-300">—</span>
+            </td>
+
+            <!-- Quick Actions -->
+            <td class="px-4 md:px-6 py-3 md:py-4">
+              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <!-- RASCUNHO actions -->
+                <template v-if="sale.status === 'RASCUNHO'">
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
+                    title="Editar"
+                    @click.stop="openSaleEditModal(sale.id)"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-green-50 hover:text-green-600"
+                    title="Finalizar"
+                    @click.stop="emit('finish', sale.id)"
+                  >
+                    <CheckCircle class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+                    title="Cancelar"
+                    @click.stop="emit('cancel', sale.id)"
+                  >
+                    <XCircle class="h-4 w-4" />
+                  </button>
+                </template>
+
+                <!-- FINALIZADA actions -->
+                <template v-else-if="sale.status === 'FINALIZADA'">
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
+                    title="Visualizar"
+                    @click.stop="openSaleViewModal(sale.id)"
+                  >
+                    <Eye class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                    title="Imprimir"
+                    @click.stop="emit('print', sale.id)"
+                  >
+                    <Printer class="h-4 w-4" />
+                  </button>
+                </template>
+
+                <!-- CANCELADA actions -->
+                <template v-else-if="sale.status === 'CANCELADA'">
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
+                    title="Visualizar"
+                    @click.stop="openSaleViewModal(sale.id)"
+                  >
+                    <Eye class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-amber-50 hover:text-amber-600"
+                    title="Reabrir"
+                    @click.stop="emit('reopen', sale.id)"
+                  >
+                    <RotateCcw class="h-4 w-4" />
+                  </button>
+                </template>
+              </div>
             </td>
           </tr>
         </tbody>

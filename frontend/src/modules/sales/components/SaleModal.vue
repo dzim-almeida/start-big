@@ -11,12 +11,47 @@ import SaleCard from './SaleModal/SaleCard.vue';
 import SaleItemsTable from './SaleModal/SaleItemsTable.vue';
 import SaleSummary from './SaleModal/SaleSummary.vue';
 import ItemModal from './SaleModal/ItemModal.vue';
+import FinishSaleModal from './SaleModal/FinishSaleModal.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
+import { useFinishSaleModal } from '../composables/flows/useFinishSaleModal';
 import { useSaleModal } from '../composables/flows/useSaleModal';
+import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
+import { useCancelSaleMutation } from '../composables/mutates/useCancelSaleMutation';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
+const { openFinishModal } = useFinishSaleModal();
+const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
+const cancelMutation = useCancelSaleMutation();
+
+function handleCancel() {
+  if (!sale.value) return;
+
+  const saleId = sale.value.id;
+  const displayNumber = String(saleId).padStart(6, '0');
+
+  openConfirmModal({
+    title: 'Cancelar Venda?',
+    message: 'Tem certeza que deseja cancelar a Venda',
+    highlightText: `Nº ${displayNumber}`,
+    variant: 'danger',
+    label: 'CONFIRMAR',
+    action: () => {
+      confirmModalPending.value = true;
+      cancelMutation.mutate(
+        { saleId },
+        {
+          onSuccess: () => {
+            closeConfirm();
+            closeSaleModal();
+          },
+          onSettled: () => { confirmModalPending.value = false; },
+        },
+      );
+    },
+  });
+}
 
 const saleNumberDisplay = computed(() => {
   if (!sale.value) return '...';
@@ -76,16 +111,22 @@ const saleNumberDisplay = computed(() => {
       <section class="w-full md:w-1/3 flex flex-col gap-4">
         <CustomerCard :customer="sale?.cliente" />
         <SaleCard :sale="sale" :readonly="isViewMode" />
-        <div class="mt-auto flex justify-around gap-5 w-full">
-          <BaseButton variant="secondary" size="md" class="flex-1" @click="closeSaleModal()">
-            Cancelar
+        <div v-if="isEditMode" class="mt-auto flex justify-around gap-5 w-full">
+          <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
+            Cancelar Venda
           </BaseButton>
-          <BaseButton variant="primary" size="md" class="flex-1">
+          <BaseButton variant="primary" size="md" class="flex-1" @click="openFinishModal">
             Finalizar
+          </BaseButton>
+        </div>
+        <div v-else class="mt-auto flex justify-center w-full">
+          <BaseButton variant="secondary" size="md" class="flex-1" @click="closeSaleModal()">
+            Fechar
           </BaseButton>
         </div>
       </section>
     </main>
     <ItemModal :sale-id="selectedSaleId" />
+    <FinishSaleModal :sale="sale" />
   </BaseModal>
 </template>

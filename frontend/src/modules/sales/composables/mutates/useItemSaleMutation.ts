@@ -1,4 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
+import type { AxiosError } from 'axios';
+
+import { useToast } from '@/shared/composables/useToast';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+import type { ApiError } from '@/shared/types/axios.types';
 
 import { saleService } from '../../api.service';
 
@@ -14,26 +19,29 @@ import { SaleRead } from '../../schemas/sale.schema';
 
 export function useAddItemSaleMutation() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
-  return useMutation<ProductAlteration, Error, { saleId: number; payload: ProductSaleCreate }>({
+  return useMutation<ProductAlteration, AxiosError<ApiError>, { saleId: number; payload: ProductSaleCreate }>({
     mutationFn: (variables) => saleService.addItemInSale(variables.saleId, variables.payload),
 
     onSuccess: (response, { saleId }) => {
+      toast.success('Produto adicionado');
       patchDraftCache(queryClient, saleId, response);
     },
 
     onError: (error) => {
-      console.error('[useAddItemSaleMutation] Error adding item to sale:', error);
+      toast.error(getErrorMessage(error, 'Erro ao adicionar produto'));
     },
   });
 }
 
 export function useUpdateItemSaleMutation() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   return useMutation<
     ProductAlteration,
-    Error,
+    AxiosError<ApiError>,
     { saleId: number; productId: number; payload: ProductSaleUpdate }
   >({
     mutationFn: (variables) =>
@@ -44,26 +52,28 @@ export function useUpdateItemSaleMutation() {
     },
 
     onError: (error) => {
-      console.error('[useItemSaleMutation] Error updating item in sale:', error);
+      toast.error(getErrorMessage(error, 'Erro ao atualizar item'));
     },
   });
 }
 
 export function useDeleteItemSaleMutation() {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
-  return useMutation<SaleRead, Error, { saleId: number; productId: number }>({
+  return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number; productId: number }>({
     mutationFn: (variables) => saleService.deleteItemInSale(variables.saleId, variables.productId),
 
     onSuccess: (updatedSale, { saleId }) => {
+      toast.success('Item removido');
       queryClient.setQueryData(saleKeys.draft(saleId), updatedSale);
       queryClient.invalidateQueries({
         queryKey: saleKeys.lists(),
       });
     },
-    
+
     onError: (error) => {
-      console.error('[useItemSaleMutation] Error deleting item from sale:', error);
+      toast.error(getErrorMessage(error, 'Erro ao remover item'));
     },
   });
 }
