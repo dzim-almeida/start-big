@@ -3,6 +3,7 @@ import { ref, computed, type Ref } from "vue";
 import { PaymentSaleCreate } from "../../schemas/paymentSale.schema";
 
 const finishModalIsOpen = ref(false);
+const addPaymentModalIsOpen = ref(false);
 const payments = ref<PaymentSaleCreate[]>([]);
 
 export function useFinishSaleModal(saleTotal?: Ref<number>) {
@@ -42,13 +43,25 @@ export function useFinishSaleModal(saleTotal?: Ref<number>) {
 
     function closeFinishModal() {
         resetPayments();
+        addPaymentModalIsOpen.value = false;
         finishModalIsOpen.value = false;
+    }
+
+    function openAddPaymentModal() {
+        addPaymentModalIsOpen.value = true;
+    }
+
+    function closeAddPaymentModal() {
+        addPaymentModalIsOpen.value = false;
     }
 
     return {
         finishModalIsOpen,
+        addPaymentModalIsOpen,
         openFinishModal,
         closeFinishModal,
+        openAddPaymentModal,
+        closeAddPaymentModal,
         payments,
         addPayment,
         removePayment,

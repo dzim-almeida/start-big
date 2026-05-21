@@ -40,7 +40,7 @@ function handleAddAvulso() {
 
 <template>
   <div class="w-full flex gap-4">
-    <div class="relative w-full md:max-w-1/2">
+    <div class="relative w-full md:max-w-1/2" data-search-products>
       <BaseSearchInput v-model="searchTerm" placeholder="Digite o nome ou código do produto" @focusChange="handleInputChange" />
 
       <div

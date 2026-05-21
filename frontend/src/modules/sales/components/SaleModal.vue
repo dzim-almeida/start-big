@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -17,11 +17,14 @@ import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
 import { useFinishSaleModal } from '../composables/flows/useFinishSaleModal';
 import { useSaleModal } from '../composables/flows/useSaleModal';
+import { useItemModal } from '../composables/flows/useItemModal';
 import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
 import { useCancelSaleMutation } from '../composables/mutates/useCancelSaleMutation';
+import { useSaleShortcuts } from '../composables/useSaleShortcuts';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
-const { openFinishModal } = useFinishSaleModal();
+const { openFinishModal, closeFinishModal, finishModalIsOpen, addPaymentModalIsOpen, openAddPaymentModal, closeAddPaymentModal } = useFinishSaleModal();
+const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 const cancelMutation = useCancelSaleMutation();
 
@@ -52,6 +55,29 @@ function handleCancel() {
     },
   });
 }
+
+useSaleShortcuts({
+  saleModalIsOpen,
+  isEditMode,
+  finishModalIsOpen,
+  itemModalIsOpen,
+  addPaymentModalIsOpen,
+  onCreateSale: () => {},
+  onOpenFinishModal: openFinishModal,
+  onOpenItemModal: openCreateItemModal,
+  onOpenAddPaymentModal: openAddPaymentModal,
+  onCancelSale: handleCancel,
+  onCloseSaleModal: closeSaleModal,
+  onCloseFinishModal: closeFinishModal,
+  onCloseItemModal: closeItemModal,
+  onCloseAddPaymentModal: closeAddPaymentModal,
+  onFocusSearch: () => {
+    nextTick(() => {
+      const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');
+      searchInput?.focus();
+    });
+  },
+});
 
 const saleNumberDisplay = computed(() => {
   if (!sale.value) return '...';

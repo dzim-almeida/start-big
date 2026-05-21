@@ -48,6 +48,7 @@ export function useUpdateItemSaleMutation() {
       saleService.updateItemInSale(variables.saleId, variables.productId, variables.payload),
 
     onSuccess: (response, { saleId }) => {
+      toast.success('Item atualizado');
       patchDraftCache(queryClient, saleId, response);
     },
 

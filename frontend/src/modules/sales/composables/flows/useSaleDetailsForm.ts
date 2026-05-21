@@ -2,10 +2,12 @@ import { reactive, watch, computed, unref, type MaybeRef } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 
 import { useUpdateSaleMutation } from '../mutates/useUpdateSaleMutation';
+import { useToast } from '@/shared/composables/useToast';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
 export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   const updateSaleMutation = useUpdateSaleMutation();
+  const toast = useToast();
 
   const form: SaleUpdate = reactive({
     desconto: 0,
@@ -40,6 +42,14 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
 
   function saveNow() {
     if (!saleId.value) return;
+
+    const currentSale = unref(sale);
+    const subtotal = currentSale?.subtotal ?? 0;
+
+    if (Math.round(form.desconto * 100) > subtotal) {
+      form.desconto = subtotal / 100;
+      toast.warning('Desconto ajustado para o valor máximo permitido');
+    }
 
     updateSaleMutation.mutate({
         payload: form,

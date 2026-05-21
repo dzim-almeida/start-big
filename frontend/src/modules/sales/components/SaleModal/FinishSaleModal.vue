@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { X, Plus, Info, CheckCircle, TicketX, Trash2 } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import { getPaymentDisplayName } from '@/modules/order-service/shared/utils/formatters';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -16,8 +17,6 @@ import { useSaleModal } from '../../composables/flows/useSaleModal';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { PaymentSaleCreate } from '../../schemas/paymentSale.schema';
 
-import { ref } from 'vue';
-
 const props = defineProps<{
   sale: SaleRead | undefined;
 }>();
@@ -27,7 +26,10 @@ const saleTotal = computed(() => props.sale?.total ?? 0);
 const {
   payments,
   finishModalIsOpen,
+  addPaymentModalIsOpen,
   closeFinishModal,
+  openAddPaymentModal,
+  closeAddPaymentModal,
   addPayment,
   removePayment,
   totalPago,
@@ -40,8 +42,6 @@ const finishMutation = useFinishSaleMutation();
 const { formasPagamento } = usePaymentMethodsQuery();
 const { closeSaleModal } = useSaleModal();
 
-const addPaymentModalIsOpen = ref(false);
-
 const displaySubtotal = computed(() => formatCurrency(props.sale?.subtotal ?? 0));
 const displayDiscount = computed(() => formatCurrency(props.sale?.descontos ?? 0));
 const displayDelivery = computed(() => formatCurrency(props.sale?.entrega ?? 0));
@@ -52,7 +52,7 @@ const displayRestante = computed(() => formatCurrency(restante.value));
 
 function getPaymentMethodName(formaId: number): string {
   const method = formasPagamento.value.find((fp) => fp.id === formaId);
-  return method?.nome ?? 'Desconhecido';
+  return getPaymentDisplayName(method?.nome ?? 'Desconhecido');
 }
 
 function handleAddPayment(payment: PaymentSaleCreate) {
@@ -167,7 +167,7 @@ function handleFinish() {
             variant="ghost"
             size="sm"
             class="flex items-center gap-2"
-            @click="addPaymentModalIsOpen = true"
+            @click="openAddPaymentModal"
           >
             <Plus :size="16" />
             Adicionar pagamento
@@ -258,7 +258,7 @@ function handleFinish() {
     <AddPaymentModal
       :is-open="addPaymentModalIsOpen"
       :restante="restante"
-      @close="addPaymentModalIsOpen = false"
+      @close="closeAddPaymentModal"
       @add="handleAddPayment"
     />
   </BaseModal>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Plus, AlertTriangle } from 'lucide-vue-next';
+import { useMagicKeys, whenever } from '@vueuse/core';
 
 import { useToast } from '@/shared/composables/useToast';
 
@@ -23,8 +24,15 @@ import { useReopenSaleMutation } from './composables/mutates/useReopenSaleMutati
 const toast = useToast();
 
 const { openCustomerModal } = useCustomerSearchModal();
-const { openSaleEditModal } = useSaleModal();
+const { openSaleEditModal, saleModalIsOpen } = useSaleModal();
 const { openFinishModal } = useFinishSaleModal();
+
+const { F2 } = useMagicKeys();
+whenever(F2, () => {
+  if (!saleModalIsOpen.value) {
+    openCustomerModal();
+  }
+});
 
 const {
   confirmModalIsOpen,

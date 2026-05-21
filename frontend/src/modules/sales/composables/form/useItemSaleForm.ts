@@ -3,6 +3,7 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 
 import { useAddItemSaleMutation, useUpdateItemSaleMutation } from '../mutates/useItemSaleMutation';
+import { useToast } from '@/shared/composables/useToast';
 
 import {
   ItemSaleFormSchema,
@@ -19,6 +20,7 @@ export function useItemSaleForm(
 ) {
   const addItemSaleMutation = useAddItemSaleMutation();
   const updateItemSaleMutation = useUpdateItemSaleMutation();
+  const toast = useToast();
 
   const { handleSubmit, defineField, values, errors, setFieldValue, resetForm, isSubmitting } =
     useForm<ItemSaleForm>({
@@ -78,6 +80,7 @@ export function useItemSaleForm(
 
   watch([subtotal, desconto], ([currentSubtotal, currentDesconto]) => {
     if (currentDesconto > currentSubtotal) {
+      toast.warning('Desconto ajustado para o valor máximo do item');
       desconto.value = currentSubtotal;
       return;
     }

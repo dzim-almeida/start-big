@@ -8,7 +8,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 
 import { formatCurrency } from '@/shared/utils/finance';
-import { inferPaymentType, inferPermiteParcelamento } from '@/modules/order-service/shared/utils/formatters';
+import { inferPaymentType, inferPermiteParcelamento, getPaymentDisplayName } from '@/modules/order-service/shared/utils/formatters';
 
 import { usePaymentMethodsQuery } from '../../composables/queries/usePaymentMethodsQuery';
 
@@ -33,7 +33,7 @@ const parcelas = ref<number>(1);
 const paymentOptions = computed(() =>
   formasPagamento.value
     .filter((fp) => fp.ativo)
-    .map((fp) => ({ label: fp.nome, value: fp.id }))
+    .map((fp) => ({ label: getPaymentDisplayName(fp.nome), value: fp.id }))
 );
 
 const parcelasOptions = Array.from({ length: 12 }, (_, i) => ({

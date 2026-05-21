@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emits = defineEmits<{
   blur: [];
+  enter: [];
 }>();
 
 const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
@@ -73,6 +74,7 @@ watch(
       :disabled="disabled"
       :class="inputClasses"
       @blur="$emit('blur')"
+      @keydown.enter="$emit('enter')"
     />
 
     <p v-if="error" class="mt-0.5 text-xs text-red-500">

@@ -16,7 +16,8 @@ const props = defineProps<{
   readonly: boolean;
 }>();
 
-const { form, isSaving, saveNow } = useSaleDetailsForm(props.sale);
+const saleRef = computed(() => props.sale);
+const { form, isSaving, saveNow } = useSaleDetailsForm(saleRef);
 
 const createdAt = computed(() => {
   if (!props.sale?.criado_em) return null;
@@ -45,14 +46,14 @@ const createdAt = computed(() => {
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Desconto</h2>
         <div class="flex gap-4 items-center">
           <TicketPercent :size="20" />
-          <MoneyInput v-model.number="form.desconto" :disabled="isSaving || readonly" @blur="saveNow" class="w-auto" />
+          <MoneyInput v-model.number="form.desconto" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>
       </div>
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Entrega</h2>
         <div class="flex gap-4 items-center">
           <Truck :size="20" />
-          <MoneyInput v-model.number="form.entrega" :disabled="isSaving || readonly" @blur="saveNow" class="w-auto" />
+          <MoneyInput v-model.number="form.entrega" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>
       </div>
       <div class="flex flex-col gap-1">

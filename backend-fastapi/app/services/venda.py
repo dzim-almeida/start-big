@@ -155,7 +155,10 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
         raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {item_in_db.nome}")
     
     preco_unitario = item_update.valor_unitario or (item_in_db.valor_unitario or 0)
-    desconto = item_update.desconto or (item_in_db.desconto or 0)
+    
+    desconto = item_in_db.desconto or 0
+    if item_update.desconto is not None:
+        desconto = item_update.desconto
     
     subtotal = quantidade * preco_unitario
     
