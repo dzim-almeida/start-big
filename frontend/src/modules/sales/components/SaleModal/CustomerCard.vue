@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { User2, Building2, House, Phone, UserX } from 'lucide-vue-next';
+import { User2, Building2, House, Phone, UserX, RefreshCw } from 'lucide-vue-next';
 
 import BaseInfoCard from '@/shared/components/layout/StatsCard/BaseInfoCard.vue';
 
@@ -9,6 +9,11 @@ import type { CustomerSimpleRead } from '../../schemas/customers.schema';
 
 const props = defineProps<{
   customer: CustomerSimpleRead[number] | undefined | null;
+  readonly?: boolean;
+}>();
+
+const emit = defineEmits<{
+  changeCliente: [];
 }>();
 
 const address = computed(() => {
@@ -20,6 +25,18 @@ const address = computed(() => {
 </script>
 <template>
   <BaseInfoCard :icon="customer?.tipo === 'PF' ? User2 : Building2" title="DADOS DO CLIENTE">
+    <template #header>
+      <div class="flex items-center justify-end" v-if="!readonly">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+          @click="emit('changeCliente')"
+        >
+          <RefreshCw :size="12" />
+          Trocar
+        </button>
+      </div>
+    </template>
     <div v-if="customer" class="px-4 py-3 flex flex-col gap-2">
       <div>
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Cliente</h2>

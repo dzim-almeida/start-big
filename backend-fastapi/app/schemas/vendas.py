@@ -107,6 +107,7 @@ class VendaSimpleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int = Field(..., description="ID da venda")
+    numero_venda: Optional[int] = Field(None, description="Número sequencial da venda, atribuído ao finalizar")
 
     sessao_caixa_id: Optional[int] = Field(None, description="ID da sessão de caixa associada à venda")
     cliente_id: Optional[int] = Field(None, description="ID do cliente associado à venda")
@@ -114,7 +115,7 @@ class VendaSimpleRead(BaseModel):
 
     total: int = Field(0, ge=0, description="Total da venda")
 
-    status: VendaStatus = Field("RASCUNHO", description="Status da venda") 
+    status: VendaStatus = Field("ORCAMENTO", description="Status da venda")
     criado_em: datetime = Field(..., description="Data de criação da venda no formato ISO 8601")
     atualizado_em: datetime = Field(..., description="Data da última atualização da venda no formato ISO 8601")
 
@@ -136,7 +137,7 @@ class VendaFinanceSummary(BaseModel):
     total: int = Field(0, ge=0, description="Total atualizado da venda após alteração dos produtos")
 
 class VendaStatusSummary(BaseModel):
-    vendas_em_aberto: int = Field(0, ge=0, description="Quantidade de vendas em aberto")
+    vendas_em_orcamento: int = Field(0, ge=0, description="Quantidade de vendas em orçamento")
     vendas_finalizadas: int = Field(0, ge=0, description="Quantidade de vendas finalizadas")
     vendas_canceladas: int = Field(0, ge=0, description="Quantidade de vendas canceladas")
     ticket_medio: int = Field(0, ge=0, description="Valor médio dos tickets das vendas finalizadas")

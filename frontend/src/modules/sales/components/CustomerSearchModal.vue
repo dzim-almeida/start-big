@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { 
+import { computed } from 'vue';
+import {
   UserCircle2,
   Building2,
   Plus,
@@ -19,18 +20,22 @@ const {
   isSearchingCustomers,
   customers,
   customerModalIsOpen,
+  modalMode,
   closeCustomerModal,
   openCreateCustomerModal,
-  createSale,
+  selectCustomer,
 } = useCustomerSearchModal();
+
+const isChangeMode = computed(() => modalMode.value === 'change');
 </script>
 
 <template>
   <BaseModal
     :is-open="customerModalIsOpen"
-    title="Selecionar Cliente"
-    subtitle="Escolha ou cadastre um cliente para esta venda"
+    :title="isChangeMode ? 'Trocar Cliente' : 'Selecionar Cliente'"
+    :subtitle="isChangeMode ? 'Escolha um cliente para esta venda' : 'Escolha ou cadastre um cliente para esta venda'"
     size="md"
+    :overlay="isChangeMode"
     @close="closeCustomerModal"
   >
     <BaseSearchInput v-model="searchTerm" placeholder="Buscar por nome ou CPF/CNPJ" />
@@ -56,7 +61,7 @@ const {
           :class="[
             'w-full flex items-center gap-3 px-2 py-3 rounded-xl text-left transition-colors hover:bg-zinc-50 cursor-pointer',
           ]"
-          @click="createSale(customer.id)"
+          @click="selectCustomer(customer.id)"
         >
           <div
             class="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center shrink-0"
@@ -101,9 +106,9 @@ const {
           <Plus :size="16" class="mr-1.5" />
           Cadastrar novo cliente
         </BaseButton>
-        <BaseButton variant="secondary" class="w-full" @click="createSale(null)">
+        <BaseButton variant="secondary" class="w-full" @click="selectCustomer(null)">
           <UserRoundX :size="16" class="mr-1.5" />
-          Venda sem cliente
+          {{ isChangeMode ? 'Remover cliente' : 'Venda sem cliente' }}
         </BaseButton>
       </div>
     </template>

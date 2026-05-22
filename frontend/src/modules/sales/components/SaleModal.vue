@@ -20,6 +20,8 @@ import { useSaleModal } from '../composables/flows/useSaleModal';
 import { useItemModal } from '../composables/flows/useItemModal';
 import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
 import { useCancelSaleMutation } from '../composables/mutates/useCancelSaleMutation';
+import { useUpdateSaleMutation } from '../composables/mutates/useUpdateSaleMutation';
+import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
@@ -27,6 +29,20 @@ const { openFinishModal, closeFinishModal, finishModalIsOpen, addPaymentModalIsO
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 const cancelMutation = useCancelSaleMutation();
+const updateSaleMutation = useUpdateSaleMutation();
+const { openCustomerModalForChange } = useCustomerSearchModal();
+
+function handleChangeCliente() {
+  if (!sale.value) return;
+  const saleId = sale.value.id;
+
+  openCustomerModalForChange((clienteId) => {
+    updateSaleMutation.mutate({
+      saleId,
+      payload: { cliente_id: clienteId },
+    });
+  });
+}
 
 function handleCancel() {
   if (!sale.value) return;
@@ -79,24 +95,21 @@ useSaleShortcuts({
   },
 });
 
-const saleNumberDisplay = computed(() => {
+const orcamentoDisplay = computed(() => {
   if (!sale.value) return '...';
+  return `Orçamento #${String(sale.value.id).padStart(6, '0')}`;
+});
 
-  let base = 'Venda #';
-  const idLength = sale.value?.id.toString().length;
-  if (idLength) {
-    const zerosToAdd = 6 - idLength;
-    base += '0'.repeat(zerosToAdd);
-  }
-
-  return base + sale.value.id;
+const vendaDisplay = computed(() => {
+  if (!sale.value?.numero_venda) return null;
+  return `Venda #${String(sale.value.numero_venda).padStart(6, '0')}`;
 });
 </script>
 
 <template>
   <BaseModal
     :is-open="saleModalIsOpen"
-    :title="saleNumberDisplay"
+    :title="orcamentoDisplay"
     subtitle="Gerencie os detalhes desta venda, adicione produtos, finalize ou cancele a venda"
     size="4xl"
     @close="closeSaleModal"
@@ -105,8 +118,11 @@ const saleNumberDisplay = computed(() => {
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div class="flex items-center gap-3">
           <h2 class="text-xl font-bold text-zinc-800">
-            {{ saleNumberDisplay }}
+            {{ orcamentoDisplay }}
           </h2>
+          <span v-if="vendaDisplay" class="text-sm font-medium text-green-700">
+            {{ vendaDisplay }}
+          </span>
           <span
             :class="[
               'px-2 py-0.5 text-xs font-medium rounded-full',
@@ -135,7 +151,7 @@ const saleNumberDisplay = computed(() => {
         <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
       </section>
       <section class="w-full md:w-1/3 flex flex-col gap-4">
-        <CustomerCard :customer="sale?.cliente" />
+        <CustomerCard :customer="sale?.cliente" :readonly="isViewMode" @change-cliente="handleChangeCliente" />
         <SaleCard :sale="sale" :readonly="isViewMode" />
         <div v-if="isEditMode" class="mt-auto flex justify-around gap-5 w-full">
           <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">

@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 from typing import Sequence
 
 from app.db.models.venda import Venda
@@ -63,19 +64,24 @@ def create_sale(db: Session, sale: VendaCreate) -> VendaRead:
 
     sale_data = Venda(
         **sale.model_dump(exclude_unset=True),
-        status=VendaStatus.RASCUNHO
+        status=VendaStatus.ORCAMENTO
     )
 
     return venda_crud.create_sale(db, sale_data=sale_data)
 
 def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException(detail="Venda não pode ser editada")
 
-    if update_data.cliente_id:
-        customer_in_db = cliente_exists(db, update_data.cliente_id)
-        sale_in_db.cliente_id = customer_in_db.id
+    update_fields = update_data.model_dump(exclude_unset=True)
+
+    if 'cliente_id' in update_fields:
+        if update_data.cliente_id is not None:
+            customer_in_db = cliente_exists(db, update_data.cliente_id)
+            sale_in_db.cliente_id = customer_in_db.id
+        else:
+            sale_in_db.cliente_id = None
 
     if update_data.funcionario_id:
         funcionario_in_db = funcionario_exists(db, update_data.funcionario_id)
@@ -96,7 +102,7 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
 
 def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -> tuple[Venda, ProdutoVenda]:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException(detail="Venda não pode ser editada")
     
     quantidade = item_data.quantidade
@@ -136,7 +142,7 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
 def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: ProdutoVendaUpdate) -> tuple[Venda, ProdutoVenda]:
 
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException(detail="Venda não pode ser editada")
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
@@ -179,7 +185,7 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
     
 def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException(detail="Venda não pode ser editada")
     
     item_in_db = venda_crud.get_product_by_id(db, item_id=item_id)
@@ -193,7 +199,7 @@ def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
 def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate]):
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException(detail="Esta venda não pode ser finalizada")
     
     valid_payments_to_db = _payments_valid(db, payments)
@@ -210,6 +216,8 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
         if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
             produto_service.decrease_product_in_stock(db, produto_id=product.produto_id, quantidade=product.quantidade, funcionario_id=sale_in_db.funcionario_id, venda_id=sale_in_db.id)
     
+    last_number = db.scalar(select(func.max(Venda.numero_venda)))
+    sale_in_db.numero_venda = (last_number or 0) + 1
     sale_in_db.status = VendaStatus.FINALIZADA
     sale_in_db.pagamentos = valid_payments_to_db
     return venda_crud.update_sale(db, sale_in_db)
@@ -217,7 +225,7 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
 def cancel_sale(db: Session, sale_id: int) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
     
-    if sale_in_db.status != VendaStatus.RASCUNHO:
+    if sale_in_db.status != VendaStatus.ORCAMENTO:
         raise BadRequestException("Esta venda não pode ser cancelada")
     
     sale_in_db.status = VendaStatus.CANCELADA
@@ -229,7 +237,8 @@ def reopen_sale(db: Session, sale_id: int) -> Venda:
     if sale_in_db.status != VendaStatus.CANCELADA:
         raise BadRequestException(detail="Venda não pode ser reaberta")
     
-    sale_in_db.status = VendaStatus.RASCUNHO
+    sale_in_db.numero_venda = None
+    sale_in_db.status = VendaStatus.ORCAMENTO
     return venda_crud.update_sale(db, sale_in_db)
 
 def get_sale_by_id(db: Session, sale_id: int) -> Venda:

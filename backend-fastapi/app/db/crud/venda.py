@@ -73,6 +73,7 @@ def get_sales_by_search(
         query = query.where(
             or_(
                 cast(Venda.id, String).startswith(like_search),
+                cast(Venda.numero_venda, String).startswith(like_search),
                 cliente_pf.nome.ilike(like_search),
                 cliente_pj.razao_social.ilike(like_search),
                 cliente_pj.nome_fantasia.ilike(like_search),
@@ -105,7 +106,7 @@ def get_sales_status(db: Session) -> VendaStatusSummary:
     stmt = (
         select(
             func.count(Venda.id)
-                .filter(Venda.status == VendaStatus.RASCUNHO)
+                .filter(Venda.status == VendaStatus.ORCAMENTO)
                 .label("rascunho"),
 
             func.count(Venda.id)
@@ -128,7 +129,7 @@ def get_sales_status(db: Session) -> VendaStatusSummary:
     ticket_medio = result.ticket_medio or 0
 
     return VendaStatusSummary(
-        vendas_em_aberto=result.rascunho or 0,
+        vendas_em_orcamento=result.rascunho or 0,
         vendas_finalizadas=result.finalizada or 0,
         vendas_canceladas=result.cancelada or 0,
         ticket_medio=int(round(ticket_medio * 100)),

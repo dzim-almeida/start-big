@@ -12,7 +12,7 @@ import { formatCurrency } from '@/shared/utils/finance';
 const { data: stats } = useSalesStatusQuery();
 
 const statsCards = computed((): StatsCard[] => [
-  { key: 'vendas_em_aberto', icon: Clock, label: 'Abertas', value: stats.value ? String(stats.value.vendas_em_aberto) : '...' },
+  { key: 'vendas_em_orcamento', icon: Clock, label: 'Orçamentos', value: stats.value ? String(stats.value.vendas_em_orcamento) : '...' },
   { key: 'vendas_finalizadas', icon: CheckCircle2, label: 'Finalizadas', value: stats.value ? String(stats.value.vendas_finalizadas) : '...' },
   { key: 'vendas_canceladas', icon: XCircle, label: 'Canceladas', value: stats.value ? String(stats.value.vendas_canceladas) : '...' },
   { key: 'ticket_medio', icon: TrendingUp, label: 'Ticket Médio', currency: true, value: stats.value ? formatCurrency(stats.value.ticket_medio) : '...' },
