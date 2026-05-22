@@ -66,10 +66,17 @@ export function getPaymentDisplayName(nome: string): string {
   const map: Record<string, string> = {
     'PIX': 'Pix',
     'DINHEIRO': 'Dinheiro',
-    'CARTAO_CREDITO': 'Cartao de Credito',
-    'CARTAO_DEBITO': 'Cartao de Debito',
+    'CARTAO_CREDITO': 'Cartão de Crédito',
+    'CARTAO_DEBITO': 'Cartão de Débito',
     'BOLETO': 'Boleto',
-    'TRANSFERENCIA': 'Transferencia',
+    'TRANSFERENCIA': 'Transferência',
   };
-  return map[nome.toUpperCase()] ?? nome;
+
+  const mapped = map[nome.toUpperCase()];
+  if (mapped) return mapped;
+
+  return nome
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

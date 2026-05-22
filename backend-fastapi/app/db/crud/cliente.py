@@ -6,9 +6,8 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session, with_polymorphic
-from sqlalchemy import select, func, or_
+from sqlalchemy import and_, select, func, or_
 from typing import Sequence, Callable, Optional
-import re
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF, ClientePJ
 from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
@@ -112,6 +111,24 @@ def get_cliente_by_search(
     clientes = db.scalars(stmt).all()
 
     return clientes, total
+
+def get_cliente_simple_by_search(db: Session, search: Optional[str]) -> Sequence[ClienteModel]:
+
+    customers = with_polymorphic(ClienteModel, [ClientePF, ClientePJ])
+
+    if search:
+        conditions = or_(
+            customers.ClientePF.nome.ilike(f"%{search}%"),
+            customers.ClientePF.cpf.ilike(f"%{search}%"),
+            customers.ClientePJ.razao_social.ilike(f"%{search}%"),
+            customers.ClientePJ.nome_fantasia.ilike(f"%{search}%"),
+            customers.ClientePJ.cnpj.ilike(f"%{search}%"),
+            customers.email.ilike(f"%{search}%"),
+        )
+
+        return db.scalars(select(customers).where(and_(conditions, customers.ativo == True))).all()
+
+    return db.scalars(select(customers).where(customers.ativo == True)).all()
 
 # ===========================================================================
 # ESCRITA (CREATE / UPDATE / DESATIVAR 'DELETE')

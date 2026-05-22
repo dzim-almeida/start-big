@@ -12,10 +12,12 @@ interface Props {
   title: string;
   subtitle?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  overlay?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
+  overlay: false,
 });
 
 const emit = defineEmits<{
@@ -72,7 +74,7 @@ onUnmounted(() => {
     <Transition name="modal">
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        :class="['fixed inset-0 flex items-center justify-center p-4', overlay ? 'z-60' : 'z-50']"
       >
         <!-- Backdrop - clique aqui fecha o modal -->
         <div
@@ -107,7 +109,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="p-6 overflow-y-auto flex-initial min-h-0">
+          <div class="p-6 overflow-y-auto flex-initial h-full">
             <slot />
           </div>
 

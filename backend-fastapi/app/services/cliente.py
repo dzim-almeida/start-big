@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePJCreate
+from app.schemas.cliente import ClienteSimpleRead, ClienteUpdate, ClientePFCreate, ClientePJCreate
 from app.db.crud import cliente as cliente_crud
 from app.services import endereco as address_service
 from app.core.enum import Gender, EntityType
@@ -166,6 +166,16 @@ def get_cliente_by_search(
         "total_pages": total_pages,
         "filters": filters,
     }
+
+def get_cliente_simple_by_search(db: Session, search: str = None) -> list[ClienteSimpleRead]:
+    return cliente_crud.get_cliente_simple_by_search(db, search=search)
+
+def cliente_exists(db: Session, cliente_id: int) -> None:
+    """Verifica se um cliente existe no banco."""
+    customer_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+    if not customer_in_db:
+        raise not_found_exce
+    return customer_in_db
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)

@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, F
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
-from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoUpdate
+from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
-from app.core.depends import check_permission, get_token, _handle_db_transaction
+from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
 from app.services import produto as produto_service
 
@@ -82,6 +82,28 @@ def get_produto_by_search(
        produto_service.get_produto_by_search,
        buscar 
    )
+
+@router.get(
+    "/search",
+    response_model=Sequence[ProdutoSimpleRead],
+    status_code=status.HTTP_200_OK,
+    summary="Busca Rápida de Produtos",
+    description="Retorna ID, nome e código de produtos ativos para auto-complete."
+)
+def get_produto_simple_by_search(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    *,
+    search: Optional[str] = Query(
+        None,
+        description="Termo de busca para nome ou código. Retorna todos se vazio."
+    ),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        produto_service.get_produto_simple_by_search,
+        search
+)
 
 # ===========================================================================
 # ROTAS DE ATUALIZAÇÃO (PUT)

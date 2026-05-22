@@ -5,10 +5,10 @@
 
 from fastapi import APIRouter, Depends, status, Query, Path
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Sequence
 
 from app.schemas.cliente import (
-    ClienteRead, ClienteUpdate,
+    ClienteRead, ClienteSimpleRead, ClienteUpdate,
     ClientePFCreate, ClientePFRead,
     ClientePJCreate, ClientePJRead,
     EquipamentoHistoricoRead,
@@ -118,6 +118,29 @@ def get_client_by_search(
         page,
         limit
     )
+
+@router.get(
+    "/search",
+    response_model=Sequence[ClienteSimpleRead],
+    status_code=status.HTTP_200_OK,
+    summary="Busca Polimórfica de Cliente",
+    description="Retorna ID, nome e identificador (CPF ou Razão Social) de clientes"
+)
+def get_cliente_simple_by_search(
+    user_token: dict = Depends(check_permission(required_permission="cliente")),
+    *,
+    search: Optional[str] = Query(
+        None,
+        description="Termo de busca (Nome, CPF ou Razão Social). Se vazio, retorna todos."
+    ),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        cliente_service.get_cliente_simple_by_search,
+        search,
+    )
+    
 
 @router.get(
     "/{cliente_id}/equipamentos",
