@@ -19,7 +19,7 @@ const emit = defineEmits<{
   (e: 'cancel', saleId: number): void;
   (e: 'finish', saleId: number): void;
   (e: 'reopen', saleId: number): void;
-  (e: 'print', saleId: number): void;
+  (e: 'print', saleId: number, status: string): void;
 }>();
 </script>
 
@@ -130,6 +130,14 @@ const emit = defineEmits<{
                   </button>
                   <button
                     type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                    title="Imprimir Orçamento"
+                    @click.stop="emit('print', sale.id, sale.status)"
+                  >
+                    <Printer class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-green-50 hover:text-green-600"
                     title="Finalizar"
                     @click.stop="emit('finish', sale.id)"
@@ -160,7 +168,7 @@ const emit = defineEmits<{
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
                     title="Imprimir"
-                    @click.stop="emit('print', sale.id)"
+                    @click.stop="emit('print', sale.id, sale.status)"
                   >
                     <Printer class="h-4 w-4" />
                   </button>

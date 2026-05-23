@@ -8,8 +8,6 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import ProductCard from '@/modules/products/components/ProductCard.vue';
-import ProductModal from '@/modules/products/components/ProductModal.vue';
-
 import { FILTER_CONFIG, TAB_OPTIONS } from '@/modules/products/constants/product.constants';
 import { useProductModal } from '../composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../composables/useProductsQuery';
@@ -211,7 +209,5 @@ function handleEmptyAction() {
         </BaseButton>
       </div>
     </div>
-
-    <ProductModal />
   </div>
 </template>
