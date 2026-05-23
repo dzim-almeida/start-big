@@ -2,17 +2,16 @@
 import { Plus, AlertTriangle } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core';
 
-import { useToast } from '@/shared/composables/useToast';
-
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
+import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 
 import SalesStatus from './components/SalesStatus.vue';
 import SaleTable from './components/SaleTable.vue';
-import SaleModal from './components/SaleModal.vue';
-import CustomerSearchModal from './components/CustomerSearchModal.vue';
+import SalePrintTemplate from './components/print/SalePrintTemplate.vue';
+import SalePrintCupom from './components/print/SalePrintCupom.vue';
 
 import { useCustomerSearchModal } from './composables/flows/useCustomerSearchModal';
 import { useSaleModal } from './composables/flows/useSaleModal';
@@ -20,12 +19,22 @@ import { useFinishSaleModal } from './composables/flows/useFinishSaleModal';
 import { useConfirmSaleAction } from './composables/flows/useConfirmSaleAction';
 import { useCancelSaleMutation } from './composables/mutates/useCancelSaleMutation';
 import { useReopenSaleMutation } from './composables/mutates/useReopenSaleMutation';
-
-const toast = useToast();
+import { useSalePrintFlow } from './composables/flows/useSalePrintFlow';
 
 const { openCustomerModal } = useCustomerSearchModal();
 const { openSaleEditModal, saleModalIsOpen } = useSaleModal();
 const { openFinishModal } = useFinishSaleModal();
+
+const {
+  saleForPrint,
+  printType,
+  printFormat,
+  isPrintSelectModalOpen,
+  printSale,
+  handlePrintFormatSelected,
+  closePrintSelectModal,
+  resolvePaymentMethodName,
+} = useSalePrintFlow();
 
 const { F2 } = useMagicKeys();
 whenever(F2, () => {
@@ -91,8 +100,8 @@ function handleReopenFromTable(saleId: number) {
   });
 }
 
-function handlePrintFromTable(_saleId: number) {
-  toast.info('Impressão em breve', 'Funcionalidade de impressão será implementada em breve.');
+async function handlePrintFromTable(saleId: number, status: string) {
+  await printSale(saleId, status === 'FINALIZADA' ? 'VENDA' : 'ORCAMENTO');
 }
 </script>
 
@@ -119,9 +128,6 @@ function handlePrintFromTable(_saleId: number) {
       @reopen="handleReopenFromTable"
       @print="handlePrintFromTable"
     />
-
-    <CustomerSearchModal />
-    <SaleModal />
 
     <BaseModal
       :is-open="confirmModalIsOpen"
@@ -165,5 +171,27 @@ function handlePrintFromTable(_saleId: number) {
         </template>
       </ConfirmationTemplate>
     </BaseModal>
+
+    <!-- Print Infrastructure -->
+    <PrintFormatSelectModal
+      :is-open="isPrintSelectModalOpen"
+      subtitle="Selecione o formato para impressão da venda."
+      @close="closePrintSelectModal"
+      @select="handlePrintFormatSelected"
+    />
+
+    <SalePrintTemplate
+      v-if="saleForPrint && printFormat === 'A4'"
+      :sale="saleForPrint"
+      :type="printType as 'ORCAMENTO' | 'VENDA'"
+      :payment-method-resolver="resolvePaymentMethodName"
+    />
+
+    <SalePrintCupom
+      v-if="saleForPrint && printFormat === 'CUPOM'"
+      :sale="saleForPrint"
+      :type="printType as 'ORCAMENTO' | 'VENDA'"
+      :payment-method-resolver="resolvePaymentMethodName"
+    />
   </div>
 </template>

@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 import ServicoStats from '../../servicos/components/ServicoStats.vue';
 import ServicoTable from '../../servicos/components/ServicoTable.vue';
-import ServicoFormModal from '../../servicos/components/ServicoFormModal.vue';
 import { useServicosQuery, useServicosStatsQuery } from '../../servicos/composables/useServicosQuery';
 import { useToggleServicoAtivoMutation } from '../../servicos/composables/useServicosMutations';
 import { useServicoModal } from '../../servicos/composables/useServicoModal';
@@ -65,8 +64,6 @@ function handleConfirmStatusToggle() {
       @toggle-status="handleToggleStatus"
       @update:current-page="setPage"
     />
-
-    <ServicoFormModal />
 
     <BaseConfirmModal
       :is-open="isStatusModalOpen"

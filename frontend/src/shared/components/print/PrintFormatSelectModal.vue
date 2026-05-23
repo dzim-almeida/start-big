@@ -2,16 +2,20 @@
 import { Printer, FileText, Receipt } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import type { PrintFormat } from './print.types';
 
 interface Props {
   isOpen: boolean;
+  subtitle?: string;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+  subtitle: 'Selecione o formato desejado para impressão.',
+});
 
 const emit = defineEmits<{
   close: [];
-  select: [format: 'A4' | 'CUPOM'];
+  select: [format: PrintFormat];
 }>();
 </script>
 
@@ -19,7 +23,7 @@ const emit = defineEmits<{
   <BaseModal
     :is-open="isOpen"
     title="Formato de Impressão"
-    subtitle="Selecione o formato desejado para imprimir esta OS."
+    :subtitle="subtitle"
     size="sm"
     @close="emit('close')"
   >
@@ -30,7 +34,7 @@ const emit = defineEmits<{
         </div>
         <h2 class="text-lg font-bold text-zinc-900">Formato de Impressão</h2>
         <p class="text-sm text-zinc-500 mt-0.5 max-w-xs mx-auto">
-          Selecione o formato desejado para imprimir esta OS.
+          {{ subtitle }}
         </p>
       </div>
     </template>

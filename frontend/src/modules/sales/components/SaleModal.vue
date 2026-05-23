@@ -23,6 +23,12 @@ import { useCancelSaleMutation } from '../composables/mutates/useCancelSaleMutat
 import { useUpdateSaleMutation } from '../composables/mutates/useUpdateSaleMutation';
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
+import { useSalePrintFlow } from '../composables/flows/useSalePrintFlow';
+import type { SaleRead } from '../schemas/sale.schema';
+
+import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
+import SalePrintTemplate from './print/SalePrintTemplate.vue';
+import SalePrintCupom from './print/SalePrintCupom.vue';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const { openFinishModal, closeFinishModal, finishModalIsOpen, addPaymentModalIsOpen, openAddPaymentModal, closeAddPaymentModal } = useFinishSaleModal();
@@ -31,6 +37,21 @@ const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending }
 const cancelMutation = useCancelSaleMutation();
 const updateSaleMutation = useUpdateSaleMutation();
 const { openCustomerModalForChange } = useCustomerSearchModal();
+
+const {
+  saleForPrint,
+  printType,
+  printFormat,
+  isPrintSelectModalOpen,
+  printSaleData,
+  handlePrintFormatSelected,
+  closePrintSelectModal,
+  resolvePaymentMethodName,
+} = useSalePrintFlow();
+
+function handleFinalized(finishedSale: SaleRead) {
+  printSaleData(finishedSale, 'VENDA', () => closeSaleModal());
+}
 
 function handleChangeCliente() {
   if (!sale.value) return;
@@ -169,6 +190,28 @@ const vendaDisplay = computed(() => {
       </section>
     </main>
     <ItemModal :sale-id="selectedSaleId" />
-    <FinishSaleModal :sale="sale" />
+    <FinishSaleModal :sale="sale" @finalized="handleFinalized" />
+
+    <!-- Print Infrastructure -->
+    <PrintFormatSelectModal
+      :is-open="isPrintSelectModalOpen"
+      subtitle="Selecione o formato para impressão da venda."
+      @close="closePrintSelectModal"
+      @select="handlePrintFormatSelected"
+    />
+
+    <SalePrintTemplate
+      v-if="saleForPrint && printFormat === 'A4'"
+      :sale="saleForPrint"
+      :type="(printType as 'ORCAMENTO' | 'VENDA')"
+      :payment-method-resolver="resolvePaymentMethodName"
+    />
+
+    <SalePrintCupom
+      v-if="saleForPrint && printFormat === 'CUPOM'"
+      :sale="saleForPrint"
+      :type="(printType as 'ORCAMENTO' | 'VENDA')"
+      :payment-method-resolver="resolvePaymentMethodName"
+    />
   </BaseModal>
 </template>

@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { X, Plus, Info, CheckCircle, TicketX, Trash2 } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
-import { getPaymentDisplayName } from '@/modules/order-service/shared/utils/formatters';
+import { getPaymentDisplayName } from '@/shared/utils/print.utils';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -19,6 +19,10 @@ import type { PaymentSaleCreate } from '../../schemas/paymentSale.schema';
 
 const props = defineProps<{
   sale: SaleRead | undefined;
+}>();
+
+const emit = defineEmits<{
+  finalized: [sale: SaleRead];
 }>();
 
 const saleTotal = computed(() => props.sale?.total ?? 0);
@@ -69,9 +73,9 @@ function handleFinish() {
   finishMutation.mutate(
     { saleId: props.sale.id, payments: payments.value },
     {
-      onSuccess: () => {
+      onSuccess: (finishedSale) => {
         closeFinishModal();
-        closeSaleModal();
+        emit('finalized', finishedSale);
       },
     },
   );

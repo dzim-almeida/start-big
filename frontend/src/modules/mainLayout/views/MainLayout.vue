@@ -1,27 +1,58 @@
 <script setup lang="ts">
-import { Zap } from 'lucide-vue-next';
+import { Zap, ShoppingCart, FileText, Package, Wrench } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core'
+import { storeToRefs } from 'pinia';
 
 import BaseSidebar from '../components/layout/sidebar/BaseSidebar.vue';
 import BaseHeader from '../components/layout/BaseHeader.vue';
 import QuickActions from '../components/ui/QuickActions.vue';
-import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 
-import { useDashboard } from '@/modules/home/composables/useDashboard';
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
+import ProductModal from '@/modules/products/components/ProductModal.vue';
+import ServicoFormModal from '@/modules/order-service/servicos/components/ServicoFormModal.vue';
+import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.vue';
+import SaleModal from '@/modules/sales/components/SaleModal.vue';
+import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
+import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
+
 import { useLayoutStore } from '../store/layout.store';
-import { storeToRefs } from 'pinia';
+import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
+import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useProductModal } from '@/modules/products/composables/useProductModal';
+import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
+
+import type { QuickActionItem } from '@/modules/home/types/dashboard.types';
 
 const layoutStore = useLayoutStore();
 const { isMobile, isMobileOpen, isQuickOpen } = storeToRefs(layoutStore);
 
-const { quickActions, lowStockCount } = useDashboard()
+const { openCustomerModal } = useCustomerSearchModal();
+const {
+  isClienteSearchOpen,
+  isFormModalOpen,
+  selectedCliente,
+  selectedOS,
+  openNovaOS,
+  handleClienteSelected,
+  handleChangeCliente,
+  closeClienteSearch,
+  closeFormModal,
+} = useOSCreateFlow();
+const { openCreateModal: openProductCreate } = useProductModal();
+const { openCreateModal: openServicoCreate } = useServicoModal();
+
+const quickActions: QuickActionItem[] = [
+  { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
+  { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
+  { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
+  { id: 'novo-servico', icon: Wrench, label: 'Criar Serviço', variant: 'secondary', action: () => openServicoCreate() },
+];
 
 const { Ctrl_K } = useMagicKeys();
 
 whenever(Ctrl_K, () => {
   layoutStore.toggleQuick();
 });
-
 </script>
 
 <template>
@@ -56,15 +87,33 @@ whenever(Ctrl_K, () => {
         >
           <Zap :size="24" fill="white" />
         </button>
-        
+
         <div v-else class="fixed bottom-5 right-5 z-50">
-          <QuickActions @clicked="layoutStore.toggleQuick" :actions="quickActions" :low-stock-count="lowStockCount" />
+          <QuickActions @clicked="layoutStore.toggleQuick" :actions="quickActions" />
         </div>
       </Transition>
     </main>
 
-    <!-- Modal global de clientes (disponível em todo o sistema) -->
+    <!-- Modais globais (disponíveis em todo o sistema) -->
     <CustomerFormModal />
+    <ProductModal />
+    <ServicoFormModal />
+    <CustomerSearchModal />
+    <SaleModal />
+
+    <OSClienteSearchModal
+      :is-open="isClienteSearchOpen"
+      @close="closeClienteSearch"
+      @select-cliente="handleClienteSelected"
+    />
+
+    <OSFormModal
+      :is-open="isFormModalOpen"
+      :ordem-servico="selectedOS"
+      :selected-cliente="selectedCliente"
+      @close="closeFormModal"
+      @change-cliente="handleChangeCliente"
+    />
   </div>
 </template>
 

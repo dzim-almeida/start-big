@@ -5,7 +5,7 @@ import OSEquipamentoSelectModal from './OSEquipamentoSelectModal.vue';
 import OSClientHistoryModal from './OSClientHistoryModal.vue';
 import OSPrintTemplate from '../OSPrintTemplate.vue';
 import OSPrintCupom from '../OSPrintCupom.vue';
-import OSPrintSelectModal from '../OSPrintSelectModal.vue';
+import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import OSFinalizarModal from '../OSFinalizarModal.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
 
@@ -27,8 +27,9 @@ const view = useOSFormView();
     @full="view.handleReopenFull"
   />
 
-  <OSPrintSelectModal
+  <PrintFormatSelectModal
     :is-open="view.isPrintSelectModalOpen.value"
+    subtitle="Selecione o formato desejado para imprimir esta OS."
     @close="view.closePrintSelectModal"
     @select="view.handlePrintFormatSelected"
   />
