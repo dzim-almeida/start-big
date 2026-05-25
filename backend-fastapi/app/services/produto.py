@@ -273,7 +273,7 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
     if quantidade > quantidade_estoque:
         raise insufficient_stock_exce
     
-    product_in_db.estoque.quantidade = quantidade_estoque - quantidade
+    product_in_db.estoque.quantidade -= quantidade
 
     product_log = LogProdutoModel(
         produto_id=produto_id,
