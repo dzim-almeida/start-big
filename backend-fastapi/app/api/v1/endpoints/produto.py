@@ -46,7 +46,8 @@ def create_new_produto(
     return _handle_db_transaction(
         db,
         produto_service.create_produto,
-        produto_to_add
+        produto_to_add,
+        user_token
     )
 
 # ===========================================================================
@@ -95,7 +96,7 @@ def get_produto_simple_by_search(
     *,
     search: Optional[str] = Query(
         None,
-        description="Termo de busca para nome ou código. Retorna todos se vazio."
+        description="Termo de busca para nome ou código. Retorna lista vazia se vazio."
     ),
     db: Session = Depends(get_db)
 ):

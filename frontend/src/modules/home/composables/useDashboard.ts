@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
-import { TrendingUp, ShoppingCart, Users, CreditCard } from 'lucide-vue-next';
-import type { StatCardData, Transaction, PeriodFilter } from '../types/dashboard.types';
+import { TrendingUp, ShoppingCart, Users, CreditCard, Plus, BarChart3 } from 'lucide-vue-next';
+import type { StatCardData, Transaction, QuickActionItem, PeriodFilter } from '../types/dashboard.types';
 
 // Dados mockados das estatísticas por período
 const mockStatsByPeriod: Record<PeriodFilter, StatCardData[]> = {
@@ -117,12 +117,22 @@ const mockTransactions: Transaction[] = [
   { id: '#8817', customer: 'Fernanda Costa', value: 'R$ 567,80', status: 'pending' },
 ];
 
+// Dados mockados das ações rápidas
+const mockQuickActions: QuickActionItem[] = [
+  { id: 'new-product', icon: Plus, label: 'Novo Produto', variant: 'primary' },
+  { id: 'new-customer', icon: Users, label: 'Cadastrar Cliente', variant: 'secondary' },
+  { id: 'daily-report', icon: BarChart3, label: 'Relatório Diário', variant: 'secondary' },
+];
+
 export function useDashboard() {
   const activePeriod = ref<PeriodFilter>('today');
+  const lowStockCount = ref(5);
 
   const stats = computed(() => mockStatsByPeriod[activePeriod.value]);
 
   const transactions = computed(() => mockTransactions);
+
+  const quickActions = computed(() => mockQuickActions);
 
   function setPeriod(period: PeriodFilter): void {
     activePeriod.value = period;
@@ -141,6 +151,8 @@ export function useDashboard() {
     activePeriod,
     stats,
     transactions,
+    quickActions,
+    lowStockCount,
     setPeriod,
     periodLabel,
   };

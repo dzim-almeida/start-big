@@ -9,6 +9,7 @@ from app.api.v1.endpoints import reset_bd
 from app.api.v1.endpoints import auth
 from app.api.v1.endpoints import cliente
 from app.api.v1.endpoints import produto
+from app.api.v1.endpoints import movimentacao_estoque
 from app.api.v1.endpoints import fornecedor
 from app.api.v1.endpoints import servico
 from app.api.v1.endpoints import endereco
@@ -18,7 +19,6 @@ from app.api.v1.endpoints import cargo
 from app.api.v1.endpoints import usuario
 from app.api.v1.endpoints import ordem_servico
 from app.api.v1.endpoints import forma_pagamento
-from app.api.v1.endpoints import venda
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -50,6 +50,9 @@ router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Forneced
 # Inclui o roteador de produtos sob o prefixo /produtos
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
 
+# Inclui as rotas de movimentações de estoque sob o prefixo /produtos
+router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
+
 # Inclui o roteador de serviços sob o prefixo /servicos
 router.include_router(servico.router, prefix="/servicos", tags=["Serviços"])
 
@@ -63,7 +66,3 @@ router.include_router(ordem_servico.router, prefix="/ordens-servico", tags=["Ord
 # Inclui o roteador do catálogo de formas de pagamento sob o prefixo /formas-pagamento
 # Entidade global do sistema, usada na finalização de OS
 router.include_router(forma_pagamento.router, prefix="/formas-pagamento", tags=["Formas de Pagamento"])
-
-# Inclui o roteador de vendas (PDV) sob o prefixo /vendas
-# Contém sub-recursos: itens do carrinho e ações de status (cancelar, finalizar)
-router.include_router(venda.router, prefix="/vendas", tags=["Vendas"])

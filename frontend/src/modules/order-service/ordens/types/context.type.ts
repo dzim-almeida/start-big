@@ -119,7 +119,6 @@ export interface OSFinalizarFormContext {
   desconto: Ref<number | undefined>;
   taxa_entrega: Ref<number | undefined>;
   acrescimo: Ref<number | undefined>;
-  valor_entrada: Ref<number | undefined>;
 
   pagamentos: Ref<FieldEntry<OsPaymentCreateSchemaDataType>[]>;
   handleAddPagamento: (pagamento?: Partial<OsPaymentCreateSchemaDataType>) => void;

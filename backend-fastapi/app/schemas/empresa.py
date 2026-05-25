@@ -4,11 +4,12 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
+
 
 # =========================
 # Fiscal Settings Schemas
@@ -388,7 +389,7 @@ class EmpresaAdminRead(EmpresaBase):
 # User Read (Saida)
 # =========================
 class EmpresaUserRead(BaseModel):
-    """Resposta de Empresa para usuarios. Inclui dados de contato e endereco principal."""
+    """Resposta simplificada de Empresa para usuarios."""
 
     id: int = Field(..., description="ID unico da empresa")
     ativo: bool = Field(..., description="Status da empresa")
@@ -406,30 +407,6 @@ class EmpresaUserRead(BaseModel):
         None,
         max_length=255,
         description="URL ou caminho da logo da empresa",
-    )
-    documento: Optional[str] = Field(
-        None,
-        max_length=20,
-        description="CNPJ ou CPF da empresa",
-    )
-    telefone: Optional[str] = Field(
-        None,
-        max_length=20,
-        description="Telefone fixo da empresa",
-    )
-    celular: Optional[str] = Field(
-        None,
-        max_length=20,
-        description="Celular / WhatsApp da empresa",
-    )
-    email: Optional[str] = Field(
-        None,
-        max_length=255,
-        description="Email principal da empresa",
-    )
-    enderecos: Optional[Sequence["EnderecoRead"]] = Field(
-        None,
-        description="Enderecos cadastrados",
     )
 
     model_config = ConfigDict(from_attributes=True)

@@ -26,7 +26,6 @@ interface Props {
   equipamentosHistorico?: EquipamentoHistorico[];
   selectedHistorico?: string;
   isLocked?: boolean;
-  isCreateMode?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -75,7 +74,7 @@ function handleHistoricoSelectChange(value: string) {
             <Smartphone :size="14" />
             Dados do Equipamento
           </div>
-          <div v-if="equipamentosHistorico.length > 0 && !isLocked && isCreateMode" class="flex items-center gap-2">
+          <div v-if="equipamentosHistorico.length > 0 && !isLocked" class="flex items-center gap-2">
             <BaseSelect
               :model-value="selectedHistorico"
               :options="historicoOptions"
@@ -86,8 +85,8 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <BaseSelect
-          :model-value="modelValue.equipamento || ''"
-          label="Tipo de Equipamento"
+          :model-value="modelValue.equipamento"
+          label="Equipamento *"
           :options="tipoEquipamentoOptions"
           required
           @update:model-value="updateField('equipamento', $event as string)"

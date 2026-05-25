@@ -12,6 +12,7 @@ import {
   updateReadyOS,
   updateCancelOS,
   updateReopen,
+  deleteItemOS,
 } from '../../services/orderServiceUpdate.service';
 
 import { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
@@ -22,6 +23,7 @@ import {
   OsItemUpdateRequest,
   OsReadyUpdateRequest,
   OsCancelUpdateRequest,
+  OsDeleteItem,
 } from '../../types/requests.type';
 
 import { ORDER_SERVICE_QUERY_KEY } from '../../constants/core.constant';
@@ -118,6 +120,22 @@ export function useReopenOrderServiceMutation() {
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao reabrir a ordem de serviço') as string);
+    },
+  });
+}
+
+export function useDeleteItemOSMutation() {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, OsDeleteItem>({
+    mutationFn: deleteItemOS,
+    onSuccess: (data) => {
+      toast.success(`Item removido com sucesso da ${data.numero_os}`);
+      queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, 'Erro ao remover item da ordem de serviço') as string);
     },
   });
 }

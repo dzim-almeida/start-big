@@ -9,11 +9,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Pencil,
-  History,
 } from 'lucide-vue-next';
 
-import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
-import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
+import type { OrdemServicoStatus } from '../../types/ordemServico.types';
 import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal';
 import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/shared/schemas/customer/customer.schema';
@@ -21,10 +19,10 @@ import type { CustomerUnionReadSchemaDataType as SharedCustomerType } from '@/sh
 import { maskPhoneNumber } from '@/shared/utils/mask.utils';
 
 interface Props {
-  cliente?: CustomerUnionReadSchemaDataType | null;
-  status?: OsStatusEnumDataType | null;
+  cliente?: SharedCustomerType | null;
+  status?: OrdemServicoStatus | null;
   dataCriacao?: string | Date;
-  dataFinalizacao?: string | Date | null;
+  dataFinalizacao?: string | Date;
   isEditMode?: boolean;
   isFinalizada?: boolean;
 }
@@ -33,8 +31,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   changeCliente: [];
-  updateCliente: [cliente: CustomerUnionReadSchemaDataType];
-  openHistorico: [];
+  updateCliente: [cliente: SharedCustomerType];
 }>();
 
 const { openEditModalWithCallback } = useCustomerModal();
@@ -42,20 +39,28 @@ const { openEditModalWithCallback } = useCustomerModal();
 function handleEditCliente() {
   if (!props.cliente) return;
   openEditModalWithCallback(props.cliente as SharedCustomerType, (updated) => {
-    emit('updateCliente', updated as CustomerUnionReadSchemaDataType);
+    emit('updateCliente', updated as SharedCustomerType);
   });
 }
 
 const isClientePJ = computed(() => {
-  const c = props.cliente as { tipo?: string } | null | undefined;
-  return c?.tipo === 'PJ';
+  return props.cliente?.tipo === 'PJ';
 });
 
 const clienteNome = computed(() => {
-  if (!props.cliente) return 'Selecione um cliente';
-  const c = props.cliente as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string };
-  if (c.tipo === 'PF') return c.nome || '-';
-  return c.nome_fantasia || c.razao_social || '-';
+  const c = props.cliente;
+  if (!c) return 'Selecione um cliente';
+
+  // O TypeScript entende o 'tipo' porque ele é comum a ambos os schemas
+  if (c.tipo === 'PF') {
+    // Usamos 'in' para verificar se a propriedade existe no objeto
+    // Isso evita o erro "Property 'nome' does not exist on type..."
+    return 'nome' in c ? c.nome : '-';
+  }
+
+  // Se não é PF, o TS entende que é PJ
+  const nomeExibicao = ('nome_fantasia' in c ? c.nome_fantasia : c.razao_social);
+  return nomeExibicao || '-';
 });
 
 const formattedAddress = computed(() => {
@@ -132,14 +137,6 @@ const canChangeCliente = computed(() => {
         </span>
       </div>
       <div class="flex items-center gap-1">
-        <button
-          v-if="props.cliente"
-          type="button"
-          class="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-brand-primary-light transition-colors"
-          @click="emit('openHistorico')"
-        >
-          <History :size="10" /> HISTÓRICO
-        </button>
         <button
           v-if="props.cliente && props.isEditMode"
           type="button"

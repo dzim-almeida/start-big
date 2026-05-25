@@ -13,7 +13,6 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const sizes: Record<string, number> = {
-  uxs: 15,
   sm: 20,
   md: 24,
   lg: 30,

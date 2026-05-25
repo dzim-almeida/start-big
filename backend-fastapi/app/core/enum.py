@@ -65,6 +65,12 @@ class BankAccountType(str, enum.Enum):
     POUPANCA = "POUPANCA"
     CORRENTE = "CORRENTE"
 
+class MovimentacaoTipo(str, enum.Enum):
+    """Define o tipo de movimentação de estoque."""
+    ENTRADA = "ENTRADA"
+    SAIDA = "SAIDA"
+    AJUSTE = "AJUSTE"
+
 class OrdemServicoStatus(str, enum.Enum):
     """Status possíveis de uma Ordem de Serviço."""
     ABERTA = "ABERTA"
@@ -112,23 +118,8 @@ class UnidadeMedida(str, enum.Enum):
     MES = "MES"
     OUTROS = "OUTROS"
 
-class VendaStatus(str, enum.Enum):
-    """Status possiveis de uma Venda no PDV."""
-    ORCAMENTO = "ORCAMENTO"
-    FINALIZADA = "FINALIZADA"
-    CANCELADA = "CANCELADA"
-
-class TipoProdutoVenda(str, enum.Enum):
-    CADASTRADO = "CADASTRADO"
-    AVULSO = "AVULSO"
-
-class SessaoCaixaStatus(str, enum.Enum):
-    """Status possiveis de uma Sessao de Caixa."""
-    ABERTO = "ABERTO"
-    FECHADO = "FECHADO"
-
 class TipoTransacaoEstoque(str, enum.Enum):
-    """Tipos de transacao para movimentacao de estoque."""
+    """Tipos de transação para movimentação de estoque no log de produto."""
     ENTRADA = "ENTRADA"
     SAIDA_VENDA = "SAIDA_VENDA"
     ESTORNO = "ESTORNO"

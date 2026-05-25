@@ -9,8 +9,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   const { data: userData, isLoading, isError, refetch } = useUserQuery();
 
-  const enderecoData = computed(() => userData.value?.empresa?.enderecos[0] || null);
-
   const isAuthenticated = computed(() => !!userData.value);
 
   async function revalidateUser() {
@@ -25,7 +23,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     // refs
     userData,
-    enderecoData,
 
     // computed
     isAuthenticated,

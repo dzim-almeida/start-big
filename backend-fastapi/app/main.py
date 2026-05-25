@@ -7,7 +7,6 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
-from app.core.excepetions import setup_exception_handlers
 
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
@@ -28,19 +27,12 @@ from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento
 from app.db.models.ordem_servico_foto import OrdemServicoFoto
 from app.db.models.forma_pagamento import FormaPagamento
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
-from app.db.models.sessao_caixa import SessaoCaixa
-from app.db.models.venda import Venda
-from app.db.models.venda_produto import ProdutoVenda
-from app.db.models.venda_pagamento import PagamentoVenda
-from app.db.models.log_produto import LogProduto
 
 app = FastAPI(
     title="BigPDV Backend API",
     description="Sistema de Ponto de Venda (PDV) - API",
     version="1.0.0"
 )
-
-setup_exception_handlers(app)
 
 origins = [
     "http://localhost:1420",  # URL Tauri/Vite
