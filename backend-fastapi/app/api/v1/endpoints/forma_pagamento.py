@@ -112,7 +112,7 @@ def create_forma_pagamento(
     fp_data: FormaPagamentoCreate,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, _create_fp_service, fp_data)
+    return _handle_db_transaction(db, _create_fp_service, db, fp_data)
 
 
 @router.put(

@@ -46,7 +46,7 @@ function formatDate(dateValue: string | Date): string {
 
 function getStatusConfig(status: string) {
   const configs: Record<string, { bg: string; text: string }> = {
-    ABERTA:               { bg: 'bg-blue-50',    text: 'text-blue-600'    },
+    ABERTA:               { bg: 'bg-brand-primary/10', text: 'text-brand-primary' },
     EM_ANDAMENTO:         { bg: 'bg-amber-50',   text: 'text-amber-700'   },
     AGUARDANDO_PECAS:     { bg: 'bg-orange-50',  text: 'text-orange-700'  },
     AGUARDANDO_APROVACAO: { bg: 'bg-purple-50',  text: 'text-purple-700'  },
@@ -117,7 +117,7 @@ function getOSSequence(numero_os: string): string {
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
                   {{ getClienteNome(os.cliente) }}
                 </span>
-                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento.tipo_equipamento }}</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.equipamento?.marca }} {{ os.equipamento?.modelo }} · {{ os.equipamento?.tipo_equipamento }}</span>
               </div>
             </td>
 
@@ -142,18 +142,10 @@ function getOSSequence(numero_os: string): string {
               <span v-else class="text-zinc-300">—</span>
             </td>
 
-            <td class="px-4 md:px-6 py-3 md:py-4 max-w-36">
+            <td class="px-4 md:px-6 py-3 md:py-4">
               <div class="flex items-center justify-end h-full">
                 <div class="hidden group-hover:flex items-center justify-end gap-1 transition-all duration-200">
                   <template v-if="os.status !== 'FINALIZADA' && os.status !== 'CANCELADA'">
-                    <button
-                      type="button"
-                      title="Imprimir OS"
-                      class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
-                      @click.stop="emit('print', os)"
-                    >
-                      <Printer :size="18" />
-                    </button>
                     <button
                       type="button"
                       title="Editar"

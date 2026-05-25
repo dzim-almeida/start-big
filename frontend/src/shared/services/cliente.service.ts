@@ -14,9 +14,9 @@ export interface ClienteSearchResult {
 }
 
 export async function searchClientes(buscar?: string): Promise<ClienteSearchResult[]> {
-  const params: Record<string, string> = { status: 'ativos' };
+  const params: Record<string, string | boolean | number> = { only_active: true, limit: 100 };
   if (buscar) params.buscar = buscar;
 
-  const response = await api.get<ClienteSearchResult[]>('/clientes', { params });
-  return response.data;
+  const response = await api.get<{ items: ClienteSearchResult[] }>('/clientes/', { params });
+  return response.data.items ?? [];
 }

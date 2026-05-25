@@ -2,12 +2,13 @@
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { OrdemServicoStatus, OrdemServicoPrioridade } from '../../types/ordemServico.types';
 import type { OsStatusEnumDataType, OsPriorityEnumDataType } from '../../schemas/enums/osEnums.schema';
 
 interface Props {
-  status: OsStatusEnumDataType;
+  status: OrdemServicoStatus;
   funcionarioId: string;
-  prioridade: OsPriorityEnumDataType;
+  prioridade: OrdemServicoPrioridade;
   dataPrevisao: string;
   statusOptions: SelectOption[];
   prioridadeOptions: SelectOption[];
@@ -20,9 +21,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'update:status': [value: OsStatusEnumDataType];
+  'update:status': [value: OrdemServicoStatus];
   'update:funcionarioId': [value: string];
-  'update:prioridade': [value: OsPriorityEnumDataType];
+  'update:prioridade': [value: OrdemServicoPrioridade];
   'update:dataPrevisao': [value: string];
 }>();
 </script>

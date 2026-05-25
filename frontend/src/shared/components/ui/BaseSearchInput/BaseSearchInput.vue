@@ -5,14 +5,6 @@ defineProps<{
   placeholder?: string;
 }>();
 
-const emit = defineEmits<{
-  'focusChange': [isFocused: boolean]
-}>();
-
-function handleFocus(isFocused: boolean) {
-  emit('focusChange', isFocused)
-}
-
 const model = defineModel()
 </script>
 
@@ -25,8 +17,6 @@ const model = defineModel()
         type="text"
         :placeholder="placeholder"
         class="w-full border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand-primary transition-all outline-none"
-        @focus="handleFocus(true)"
-        @blur="handleFocus(false)"
       />
     </div>
   </div>

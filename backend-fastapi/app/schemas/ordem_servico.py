@@ -210,7 +210,7 @@ class OrdemServicoCreate(OrdemServicoBase):
 
     # Dados aninhados criados junto com a OS
     equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
-    itens: Sequence[OSItemCreate] = Field(default_factory=list, description="Lista de itens/serviços da OS")
+    itens: Sequence[OSItemCreate] = Field(default=[], description="Lista de itens/servicos da OS (opcional)")
 
     model_config = ConfigDict(
         json_schema_extra=os_example,
@@ -301,7 +301,7 @@ class OrdemServicoFinalizar(BaseModel):
     - A OS não pode estar com status FINALIZADA ou CANCELADA.
     - Uma OS só é finalizada se for integralmente paga.
     """
-    solucao: Optional[str] = Field(None, max_length=500, description="Descrição da solução aplicada")
+    solucao: str = Field(..., min_length=5, max_length=500, description="Descrição da solução aplicada")
     observacoes: Optional[str] = Field(None, max_length=500, description="Observações adicionais de finalização")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto final em centavos (recalcula valor_total se informado)")
     valor_entrada: Optional[int] = Field(None, ge=0, description="Valor de entrada/adiantamento em centavos (abatido do valor a pagar)")

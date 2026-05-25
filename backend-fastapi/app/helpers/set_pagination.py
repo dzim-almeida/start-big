@@ -26,7 +26,7 @@ def _set_pagination(
             next_link = f"{next_link}priority_sort={priority_sort_query}&"
             prev_link = f"{prev_link}priority_sort={priority_sort_query}&"
 
-    total_pages = max(1,
+    total_pages = (
         total_items // limit
         if total_items % limit == 0
         else total_items // limit + 1

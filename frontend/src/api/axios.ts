@@ -37,16 +37,18 @@ api.interceptors.response.use(
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
         const authStore = useAuthStore();
-        if (data.detail === 'Credenciais Inválidas') {
+        // Só redireciona se o usuário estava autenticado (sessão expirou)
+        // Evita redirecionar durante o carregamento inicial da app (quando ainda não logou)
+        if (authStore.isAuthenticated) {
           toast.error(
             'Sessão Expirada',
             {
               description: 'Faça login novamente'
             }
           )
+          authStore.logoutUser();
+          router.replace({ name: 'auth.user' });
         }
-        authStore.logoutUser();
-        router.replace({ name: 'auth.user' });
         return Promise.reject(error);
       }
 

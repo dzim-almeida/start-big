@@ -1,5 +1,4 @@
 import type { PermissionKey } from '@/shared/constants/permissions.constants';
-import { EnderecoFormData } from './address.types';
 
 export type Permissions = PermissionKey;
 
@@ -7,11 +6,6 @@ export interface Company {
   id: number;
   razao_social: string;
   nome_fantasia: string;
-  documento: string;
-  telefone: string;
-  celular: string;
-  email: string; 
-  enderecos: EnderecoFormData[];
   url_logo: string;
   ativo: boolean;
 }

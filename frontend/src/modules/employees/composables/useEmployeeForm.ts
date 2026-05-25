@@ -15,7 +15,7 @@ import {
   type ComputedRef,
 } from 'vue';
 import { useForm, useFieldArray, type FieldEntry } from 'vee-validate';
-import { employeeValidationSchema } from '../schemas/employee.schema';
+import { employeeValidationSchema, employeeUpdateValidationSchema } from '../schemas/employee.schema';
 import type {
   EmployeeFormData,
   EnderecoFormData,
@@ -148,10 +148,14 @@ export const EMPLOYEE_FORM_KEY: InjectionKey<EmployeeFormContext> = Symbol('empl
 export function useEmployeeFormProvider() {
   const { selectedEmployee, isCreateMode, closeModal } = useEmployeeModal();
 
+  const validationSchema = computed(() =>
+    isCreateMode.value ? employeeValidationSchema : employeeUpdateValidationSchema
+  );
+
   // Initialize form
   const { handleSubmit, errors, defineField, setValues, resetForm, submitCount, values, setErrors } =
     useForm<EmployeeFormData>({
-      validationSchema: employeeValidationSchema,
+      validationSchema,
       initialValues: { ...DEFAULT_FORM_VALUES },
     });
 

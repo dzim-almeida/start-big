@@ -12,12 +12,11 @@ import OrdensServicoTab from './tabs/OrdensServicoTab.vue';
 import ServicosTab from './tabs/ServicosTab.vue';
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
-import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
 
 const { openCreateModal } = useServicoModal();
-const { openNovaOS } = useOSCreateFlow();
 
 const activeTab = ref('ordens');
+const ordensTabRef = ref<InstanceType<typeof OrdensServicoTab> | null>(null);
 
 const pageTitle = computed(() =>
   activeTab.value === 'ordens' ? 'Ordens de Serviço' : 'Cadastro de Serviços',
@@ -31,7 +30,7 @@ const pageDescription = computed(() =>
 
 function handleAddClick() {
   if (activeTab.value === 'ordens') {
-    openNovaOS();
+    ordensTabRef.value?.handleOpenNovaOS();
   } else {
     openCreateModal();
   }
@@ -62,7 +61,7 @@ function handleAddClick() {
     </div>
 
     <template v-if="activeTab === 'ordens'">
-      <OrdensServicoTab />
+      <OrdensServicoTab ref="ordensTabRef" />
     </template>
 
     <template v-else>
