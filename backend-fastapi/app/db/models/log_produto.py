@@ -23,8 +23,8 @@ class LogProduto(Base):
 
     __tablename__ = "logs_produto"
     __table_args__ = (
-        CheckConstraint("quantidade != 0", name="ck_log_produto_quantidade_nao_zero"),\
-        CheckConstraint("(tipo_transacao == 'ENTRADA') OR (venda_id IS NOT NULL)", name="ck_log_produto_tipo_transacao_valida")
+        CheckConstraint("quantidade != 0", name="ck_log_produto_quantidade_nao_zero"),
+        CheckConstraint("(tipo_transacao = 'ENTRADA') OR (venda_id IS NOT NULL)", name="ck_log_produto_tipo_transacao_valida"),
     )
 
     # --- Identificacao ---

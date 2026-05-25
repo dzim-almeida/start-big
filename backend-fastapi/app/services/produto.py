@@ -263,6 +263,9 @@ def delete_produto_image(db: Session, image_id: int):
     return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)
 
 def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
+    """
+    Reduz a quantidade disponível em estoque ao lançar uma saída por venda.
+    """
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     if not product_in_db:
         raise not_found_exce
@@ -287,6 +290,9 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
     return produto_crud.update_produto(db, product_in_db)
 
 def get_produto_by_id(db: Session, produto_id: int) -> ProdutoModel:
+    """
+    Recupera um produto pelo ID e lança exceção se não existir.
+    """
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     if not product_in_db:
         raise not_found_exce
