@@ -37,6 +37,7 @@ class Produto(Base):
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Marca do produto")
     @property
     def imagem_url(self) -> Optional[str]:
+        """Retorna a URL da foto principal quando o relacionamento de fotos estiver disponível."""
         return next((foto.url for foto in self.fotos if foto.principal), None)
     # localizacao_estoque: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Localização do produto no estoque")
     

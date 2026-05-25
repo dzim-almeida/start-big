@@ -46,7 +46,7 @@ internal_error_exce = HTTPException(
     detail="Erro em cumprir a requisição. Tente novamente mais tarde."
 )
 
-_bad_request_exce = HTTPException(
+insufficient_stock_exce = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="Estoque insuficiente para a quantidade solicitada"
 )
@@ -268,12 +268,12 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
     if not product_in_db:
         raise not_found_exce
     
-    qtd_stock = product_in_db.estoque.quantidade or 0
+    quantidade_estoque = product_in_db.estoque.quantidade or 0
 
-    if quantidade > qtd_stock:
-        raise _bad_request_exce
+    if quantidade > quantidade_estoque:
+        raise insufficient_stock_exce
     
-    product_in_db.estoque.quantidade = qtd_stock - quantidade
+    product_in_db.estoque.quantidade = quantidade_estoque - quantidade
 
     product_log = LogProdutoModel(
         produto_id=produto_id,
