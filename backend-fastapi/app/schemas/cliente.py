@@ -6,8 +6,8 @@
 
 from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from typing import Optional, List, Annotated, Union, Literal
-from app.core.enum import Gender, ClientType
+from typing import Optional, List, Annotated, Sequence, Union, Literal
+from app.core.enum import Gender, ClientType, TipoEquipamento
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 
 # ===========================================================================
@@ -113,6 +113,16 @@ class ClientePFRead(ClientePFCreate):
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
 
+class ClientePFSimpleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int = Field(..., description="Identificador único do cliente.")
+    tipo: Literal[ClientType.PF] = Field(default=ClientType.PF, description="Discriminador de tipo: PF")
+    nome: str = Field(..., description="Nome do cliente.")
+    cpf: str = Field(..., description="CPF do cliente.")
+    telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
+
 class ClientePFUpdate(ClienteBase):
     """Modelo de entrada para atualização parcial de Pessoa Física."""
     
@@ -178,6 +188,16 @@ class ClientePJRead(ClientePJCreate):
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
 
+class ClientePJSimpleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="Identificador único do cliente.")
+    tipo: Literal[ClientType.PJ] = Field(default=ClientType.PJ, description="Discriminador de tipo: PJ")
+    razao_social: str = Field(..., description="Razão Social da empresa.")
+    cnpj: str = Field(..., description="CNPJ da empresa.")
+    telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
+
 class ClientePJUpdate(ClienteBase):
     """Modelo de entrada para atualização parcial de Pessoa Jurídica."""
     
@@ -204,7 +224,30 @@ ClienteRead = Annotated[
     Field(discriminator="tipo")
 ]
 
+ClienteSimpleRead = Annotated[
+    Union[ClientePFSimpleRead, ClientePJSimpleRead],
+    Field(discriminator="tipo")
+]
+
 ClienteUpdate = Annotated[
     Union[ClientePFUpdate, ClientePJUpdate],
     Field(discriminator="tipo")
 ]
+
+
+# ===========================================================================
+# EQUIPAMENTO HISTÓRICO (DTO leve para listagem)
+# ===========================================================================
+
+class EquipamentoHistoricoRead(BaseModel):
+    """Equipamento resumido para seleção rápida no formulário de OS."""
+    equipamento: TipoEquipamento = Field(
+        ...,
+        validation_alias="tipo_equipamento",
+        description="Tipo do equipamento (alias de tipo_equipamento)"
+    )
+    marca: str
+    modelo: str
+    numero_serie: str
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

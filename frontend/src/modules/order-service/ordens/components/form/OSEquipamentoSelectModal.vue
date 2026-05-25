@@ -38,7 +38,7 @@ function handleSkip() {
         v-for="(equip, idx) in equipamentos"
         :key="idx"
         type="button"
-        class="w-full bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-brand-primary hover:bg-brand-primary-light group transition-all text-left shadow-sm"
+        class="w-full bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-brand-primary hover:bg-brand-primary-light group transition-all text-left shadow-sm cursor-pointer"
         @click="handleSelect(equip)"
       >
         <div class="flex items-center gap-4">

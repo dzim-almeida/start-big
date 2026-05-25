@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import {
   FileText,
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   Trash2,
   Package,
   Percent,
+  Tag,
   Truck,
   Wrench,
   ShoppingBag,
@@ -51,7 +52,7 @@ const hasAttemptedSubmit = ref(false);
 
 const showPaymentDetails = ref(false);
 const currentPaymentMethod = ref<PaymentFormReadDataType | null>(null);
-const paymentDetails = ref<{ valor: number; parcelas: number; bandeira: OsCardsFlagEnumDataType | '' }>({ valor: 0, parcelas: 1, bandeira: '' });
+const paymentDetails = ref<{ valor: number; parcelas: number; bandeira: OsCardsFlagEnumDataType | ''; taxa_juros: number }>({ valor: 0, parcelas: 1, bandeira: '', taxa_juros: 0 });
 
 const osNumberRef = computed(() => props.osNumero);
 
@@ -70,12 +71,25 @@ const { formasPagamento } = useOsPaymentMethodsGet();
 // ─── Display values (reais) sincronizados com form (centavos) ──────────────
 const descontoDisplay = ref(0);
 watch(descontoDisplay, (val) => {
-  finalizarForm.desconto.value = Math.round(val * 100);
+  const maxCents = Math.max(0, valorTotal.value - (finalizarForm.valor_entrada.value ?? 0));
+  const maxReais = Math.round(maxCents) / 100;
+  const clamped = Math.round(Math.max(0, Math.min(val, maxReais)) * 100) / 100;
+  finalizarForm.desconto.value = Math.round(clamped * 100);
+  if (val !== clamped) nextTick(() => { descontoDisplay.value = clamped; });
 });
 
 const taxaEntregaDisplay = ref(0);
 watch(taxaEntregaDisplay, (val) => {
   finalizarForm.taxa_entrega.value = Math.round(val * 100);
+});
+
+const valorEntradaDisplay = ref(0);
+watch(valorEntradaDisplay, (val) => {
+  const maxCents = Math.max(0, valorTotal.value - (finalizarForm.desconto.value ?? 0));
+  const maxReais = Math.round(maxCents) / 100;
+  const clamped = Math.round(Math.max(0, Math.min(val, maxReais)) * 100) / 100;
+  finalizarForm.valor_entrada.value = Math.round(clamped * 100);
+  if (val !== clamped) nextTick(() => { valorEntradaDisplay.value = clamped; });
 });
 
 // ─── Cálculos financeiros ─────────────────────────────────────────────────
@@ -84,63 +98,33 @@ const subtotalItens = computed(() => {
   return props.ordemServico.itens.reduce((sum, item) => sum + item.valor_total, 0);
 });
 
-const itensProdutos = computed(() =>
-  props.ordemServico?.itens.filter(i => i.tipo === 'PRODUTO') ?? [],
-);
-const itensServicos = computed(() =>
-  props.ordemServico?.itens.filter(i => i.tipo === 'SERVICO') ?? [],
-);
-const subtotalProdutos = computed(() =>
-  itensProdutos.value.reduce((sum, item) => sum + item.valor_total, 0),
-);
-const subtotalServicos = computed(() =>
-  itensServicos.value.reduce((sum, item) => sum + item.valor_total, 0),
+// ─── Juros por pagamento (centavos, paralelo ao array de pagamentos) ─────────
+const pagamentosJuros = ref<number[]>([]);
+
+const acrescimoTotal = computed(() =>
+  pagamentosJuros.value.reduce((sum, v) => sum + v, 0),
 );
 
-// ─── Acréscimo de juros (cartão) ──────────────────────────────────────────
-const acrescimoPercentual = ref(0);
-
-const hasCartaoPagamento = computed(() =>
-  finalizarForm.pagamentos.value.some((p) => {
-    const method = getPaymentMethodById(p.value.forma_pagamento_id);
-    if (!method) return false;
-    const tipo = getMethodTipo(method);
-    return tipo === 'CARTAO_CREDITO' || tipo === 'CARTAO_DEBITO';
-  }),
-);
-
-const baseParaAcrescimo = computed(() =>
-  Math.max(0, subtotalItens.value - (finalizarForm.desconto.value ?? 0) + (finalizarForm.taxa_entrega.value ?? 0)),
-);
-
-const acrescimoCalculado = computed(() =>
-  Math.round(baseParaAcrescimo.value * (acrescimoPercentual.value / 100)),
-);
-
-watch(acrescimoCalculado, (val) => {
+watch(acrescimoTotal, (val) => {
   finalizarForm.acrescimo.value = val;
-});
+}, { immediate: true });
 
-watch(hasCartaoPagamento, (has) => {
-  if (!has) {
-    acrescimoPercentual.value = 0;
-    finalizarForm.acrescimo.value = 0;
-  }
-});
-
-watch(acrescimoPercentual, (v) => {
+watch(() => paymentDetails.value.taxa_juros, (v) => {
   const clamped = Math.min(100, Math.max(0, v ?? 0));
-  if (v !== clamped) acrescimoPercentual.value = clamped;
+  if (v !== clamped) paymentDetails.value.taxa_juros = clamped;
 });
 
-// ─── Reset ao fechar ──────────────────────────────────────────────────────
+// ─── Reset ao fechar / populate ao abrir ──────────────────────────────────
 watch(() => props.isOpen, (open) => {
-  if (!open) {
+  if (open) {
+    valorEntradaDisplay.value = (props.ordemServico?.valor_entrada ?? 0) / 100;
+  } else {
     hasAttemptedSubmit.value = false;
     finalizarForm.resetForm();
     descontoDisplay.value = 0;
     taxaEntregaDisplay.value = 0;
-    acrescimoPercentual.value = 0;
+    valorEntradaDisplay.value = 0;
+    pagamentosJuros.value = [];
     shouldPrint.value = false;
     confirmacao.value = false;
     showPaymentDetails.value = false;
@@ -149,26 +133,32 @@ watch(() => props.isOpen, (open) => {
 });
 
 const valorTotal = computed(() => {
-  const desc = finalizarForm.desconto.value ?? 0;
   const entrega = finalizarForm.taxa_entrega.value ?? 0;
   const acresc = finalizarForm.acrescimo.value ?? 0;
-  return Math.max(0, subtotalItens.value - desc + entrega + acresc);
+  return Math.max(0, subtotalItens.value + entrega + acresc);
 });
 
-const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
-const valorAPagar = computed(() => Math.max(0, valorTotal.value - valorEntrada.value));
+const valorEntrada = computed(() => finalizarForm.valor_entrada.value ?? 0);
+
+const valorDesconto = computed(() => finalizarForm.desconto.value ?? 0);
+
+const valorAdiantamento = computed(() => finalizarForm.valor_entrada.value ?? 0);
 
 const totalPago = computed(() =>
   finalizarForm.pagamentos.value.reduce((sum, p) => sum + (p.value.valor ?? 0), 0),
 );
 
-const restante = computed(() => Math.max(0, valorAPagar.value - totalPago.value));
-const troco = computed(() => Math.max(0, totalPago.value - valorAPagar.value));
+// Valor líquido a cobrar via pagamentos (após descontos antecipados)
+const totalAReceber = computed(() =>
+  Math.max(0, valorTotal.value - valorAdiantamento.value - valorDesconto.value)
+);
+
+const restante = computed(() => Math.max(0, totalAReceber.value - totalPago.value));
+const troco = computed(() => Math.max(0, totalPago.value - totalAReceber.value));
 
 const canSubmit = computed(() =>
   confirmacao.value &&
-  (finalizarForm.solucao.value?.trim().length ?? 0) >= 5 &&
-  totalPago.value >= valorAPagar.value,
+  restante.value === 0,
 );
 
 // ─── Helpers de pagamento ─────────────────────────────────────────────────
@@ -206,24 +196,30 @@ const paymentValueReais = ref(0);
 function handleAddPaymentClick(method: PaymentFormReadDataType) {
   currentPaymentMethod.value = method;
   paymentValueReais.value = restante.value / 100;
-  paymentDetails.value = { valor: 0, parcelas: 1, bandeira: '' };
+  paymentDetails.value = { valor: 0, parcelas: 1, bandeira: '', taxa_juros: 0 };
   showPaymentDetails.value = true;
 }
 
 function confirmAddPayment() {
   if (!currentPaymentMethod.value) return;
+  const baseValor = Math.round(paymentValueReais.value * 100);
+  const jurosAmount = Math.round(baseValor * (paymentDetails.value.taxa_juros / 100));
+  const totalValor = baseValor + jurosAmount;
+
   finalizarForm.handleAddPagamento({
     forma_pagamento_id: currentPaymentMethod.value.id,
-    valor: Math.round(paymentValueReais.value * 100),
+    valor: totalValor,
     parcelas: paymentDetails.value.parcelas,
     bandeira_cartao: paymentDetails.value.bandeira || undefined,
   });
+  pagamentosJuros.value = [...pagamentosJuros.value, jurosAmount];
   showPaymentDetails.value = false;
   currentPaymentMethod.value = null;
 }
 
 function removePayment(index: number) {
   finalizarForm.handleRemovePagamento(index);
+  pagamentosJuros.value = pagamentosJuros.value.filter((_, i) => i !== index);
 }
 
 function handleSubmit() {
@@ -251,88 +247,48 @@ function handleSubmit() {
       <!-- ═══════════ COLUNA ESQUERDA ═══════════ -->
       <div class="flex-1 space-y-6 min-w-0">
 
-        <!-- Tabela de itens agrupada por tipo -->
+        <!-- Tabela de itens unificada -->
         <div>
           <div class="flex items-center gap-2 mb-3">
-            <Package :size="18" class="text-zinc-500" />
+            <Package :size="18" class="text-brand-primary" />
             <h3 class="text-sm font-semibold text-zinc-700">Itens da OS</h3>
             <span class="text-xs text-zinc-400">({{ ordemServico?.itens.length ?? 0 }})</span>
           </div>
 
-          <div v-if="ordemServico?.itens && ordemServico.itens.length > 0" class="space-y-3">
-            <!-- Grupo: Serviços -->
-            <div v-if="itensServicos.length > 0" class="border border-zinc-200 rounded-xl overflow-hidden">
-              <div class="bg-zinc-50 px-3 py-2 border-b border-zinc-100 flex items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary-light text-brand-primary">
-                  <Wrench :size="12" />
-                  {{ itensServicos.length }} {{ itensServicos.length === 1 ? 'Serviço' : 'Serviços' }}
-                </span>
-              </div>
-              <table class="w-full text-sm">
-                <thead class="bg-zinc-50/50">
-                  <tr>
-                    <th class="text-left px-3 py-1.5 font-medium text-zinc-500 text-xs">Item</th>
-                    <th class="text-center px-3 py-1.5 font-medium text-zinc-500 text-xs w-14">Qtd</th>
-                    <th class="text-right px-3 py-1.5 font-medium text-zinc-500 text-xs w-24">Unitário</th>
-                    <th class="text-right px-3 py-1.5 font-medium text-zinc-500 text-xs w-24">Total</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-100">
-                  <tr v-for="item in itensServicos" :key="item.id" class="hover:bg-zinc-50/50">
-                    <td class="px-3 py-2 text-zinc-700">{{ item.nome }}</td>
-                    <td class="px-3 py-2 text-center text-zinc-500">{{ item.quantidade }}</td>
-                    <td class="px-3 py-2 text-right text-zinc-500">{{ formatCurrency(item.valor_unitario) }}</td>
-                    <td class="px-3 py-2 text-right font-medium text-zinc-700">{{ formatCurrency(item.valor_total) }}</td>
-                  </tr>
-                </tbody>
-                <tfoot class="bg-zinc-50 border-t border-zinc-200">
-                  <tr>
-                    <td colspan="3" class="px-3 py-1.5 text-right text-xs font-semibold text-zinc-500">Subtotal Serviços</td>
-                    <td class="px-3 py-1.5 text-right text-sm font-bold text-zinc-700">{{ formatCurrency(subtotalServicos) }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <!-- Grupo: Produtos -->
-            <div v-if="itensProdutos.length > 0" class="border border-zinc-200 rounded-xl overflow-hidden">
-              <div class="bg-zinc-50 px-3 py-2 border-b border-zinc-100 flex items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary-light text-brand-primary">
-                  <ShoppingBag :size="12" />
-                  {{ itensProdutos.length }} {{ itensProdutos.length === 1 ? 'Produto' : 'Produtos' }}
-                </span>
-              </div>
-              <table class="w-full text-sm">
-                <thead class="bg-zinc-50/50">
-                  <tr>
-                    <th class="text-left px-3 py-1.5 font-medium text-zinc-500 text-xs">Item</th>
-                    <th class="text-center px-3 py-1.5 font-medium text-zinc-500 text-xs w-14">Qtd</th>
-                    <th class="text-right px-3 py-1.5 font-medium text-zinc-500 text-xs w-24">Unitário</th>
-                    <th class="text-right px-3 py-1.5 font-medium text-zinc-500 text-xs w-24">Total</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-100">
-                  <tr v-for="item in itensProdutos" :key="item.id" class="hover:bg-zinc-50/50">
-                    <td class="px-3 py-2 text-zinc-700">{{ item.nome }}</td>
-                    <td class="px-3 py-2 text-center text-zinc-500">{{ item.quantidade }}</td>
-                    <td class="px-3 py-2 text-right text-zinc-500">{{ formatCurrency(item.valor_unitario) }}</td>
-                    <td class="px-3 py-2 text-right font-medium text-zinc-700">{{ formatCurrency(item.valor_total) }}</td>
-                  </tr>
-                </tbody>
-                <tfoot class="bg-zinc-50 border-t border-zinc-200">
-                  <tr>
-                    <td colspan="3" class="px-3 py-1.5 text-right text-xs font-semibold text-zinc-500">Subtotal Produtos</td>
-                    <td class="px-3 py-1.5 text-right text-sm font-bold text-zinc-700">{{ formatCurrency(subtotalProdutos) }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <!-- Total geral dos itens -->
-            <div class="flex justify-between items-center px-3 py-2.5 bg-zinc-100 rounded-xl">
-              <span class="text-sm font-semibold text-zinc-600">Total dos Itens</span>
-              <span class="text-sm font-bold text-zinc-800">{{ formatCurrency(subtotalItens) }}</span>
-            </div>
+          <div v-if="ordemServico?.itens && ordemServico.itens.length > 0" class="border border-zinc-200 rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-100">
+                  <th class="text-left px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400">Item</th>
+                  <th class="text-center px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-12">Qtd</th>
+                  <th class="text-right px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-24">Unitário</th>
+                  <th class="text-right px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-24">Total</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-100">
+                <tr v-for="item in ordemServico.itens" :key="item.id" class="hover:bg-zinc-50/40 transition-colors">
+                  <td class="px-3 py-2.5">
+                    <div class="flex items-center gap-2">
+                      <component
+                        :is="item.tipo === 'SERVICO' ? Wrench : ShoppingBag"
+                        :size="13"
+                        class="shrink-0 text-brand-primary opacity-70"
+                      />
+                      <span class="text-zinc-700 truncate">{{ item.nome }}</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-center text-zinc-500">{{ item.quantidade }}</td>
+                  <td class="px-3 py-2.5 text-right text-zinc-500">{{ formatCurrency(item.valor_unitario) }}</td>
+                  <td class="px-3 py-2.5 text-right font-medium text-zinc-700">{{ formatCurrency(item.valor_total) }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-zinc-50 border-t border-zinc-200">
+                <tr>
+                  <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Subtotal</td>
+                  <td class="px-3 py-2 text-right text-sm font-bold text-zinc-800">{{ formatCurrency(subtotalItens) }}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
           <div v-else class="text-center py-6 border-2 border-dashed border-zinc-200 rounded-xl">
@@ -343,14 +299,13 @@ function handleSubmit() {
         <!-- Solução Aplicada -->
         <div>
           <div class="flex items-center gap-2 mb-2">
-            <CheckCircle2 :size="18" class="text-emerald-600" />
-            <label class="text-sm font-semibold text-zinc-700">Solução Aplicada <span class="text-red-500">*</span></label>
+            <CheckCircle2 :size="18" class="text-brand-primary" />
+            <label class="text-sm font-semibold text-zinc-700">Solução Aplicada</label>
           </div>
           <BaseTextarea
             v-model="finalizarForm.solucao.value"
             placeholder="Descreva o serviço realizado, peças substituídas, testes efetuados..."
             :rows="4"
-            :error="finalizarForm.errors.value.solucao"
           />
         </div>
 
@@ -359,7 +314,7 @@ function handleSubmit() {
           <label class="text-sm font-semibold text-zinc-700">Observações</label>
           <BaseTextarea
             v-model="finalizarForm.observacoes.value"
-            :rows="2"
+            :rows="4"
             placeholder="Notas adicionais, condições de garantia, orientações ao cliente..."
             class="mt-2"
           />
@@ -392,35 +347,27 @@ function handleSubmit() {
 
           <!-- Desconto -->
           <div class="flex justify-between items-center text-sm">
-            <span class="text-zinc-500">Desconto</span>
+            <span class="text-zinc-500 flex items-center gap-1.5">
+              <Tag :size="14" />
+              Desconto
+            </span>
             <div class="w-32">
               <BaseMoneyInput v-model="descontoDisplay" label="" />
             </div>
           </div>
 
-          <!-- Juros Cartão (input percentual) -->
-          <div class="flex justify-between items-center text-sm border-t border-zinc-200 pt-3">
-            <span class="flex items-center gap-1.5" :class="hasCartaoPagamento ? 'text-zinc-500' : 'text-zinc-400'">
-              <Percent :size="14" />
-              Juros Cartão
+          <!-- Adiantamento -->
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-emerald-600 flex items-center gap-1.5">
+              <Banknote :size="14" />
+              Adiantamento
             </span>
-            <div class="flex items-center gap-2">
-              <div class="w-20">
-                <BaseInput
-                  v-model="acrescimoPercentual"
-                  type="number"
-                  placeholder="0"
-                  :disabled="!hasCartaoPagamento"
-                />
-              </div>
-              <span class="text-[11px] text-zinc-400 whitespace-nowrap">%</span>
+            <div class="w-32">
+              <BaseMoneyInput v-model="valorEntradaDisplay" label="" />
             </div>
           </div>
-          <p v-if="!hasCartaoPagamento" class="text-[10px] text-zinc-400 -mt-1 text-right">
-            Adicione pagamento via cartão para habilitar
-          </p>
 
-          <!-- Acréscimo Total (read-only) -->
+          <!-- Juros / Acréscimo (read-only, reflexo dos juros por pagamento) -->
           <div v-if="(finalizarForm.acrescimo.value ?? 0) > 0" class="flex justify-between items-center text-sm">
             <span class="text-amber-600 flex items-center gap-1.5">
               <Percent :size="14" />
@@ -434,19 +381,19 @@ function handleSubmit() {
             <!-- Total -->
             <div class="flex justify-between items-center text-lg font-bold">
               <span class="text-zinc-800">Total</span>
-              <span class="text-emerald-600">{{ formatCurrency(valorTotal) }}</span>
+              <span class="text-brand-primary">{{ formatCurrency(valorTotal) }}</span>
             </div>
 
-            <!-- Entrada -->
-            <div v-if="valorEntrada > 0" class="flex justify-between items-center text-sm text-emerald-600 font-medium mt-2">
-              <span>Entrada / Adiantamento</span>
-              <span>- {{ formatCurrency(valorEntrada) }}</span>
+            <!-- Desconto -->
+            <div v-if="valorDesconto > 0" class="flex justify-between items-center text-sm font-bold mt-2">
+              <span class="text-zinc-700">Desconto</span>
+              <span class="text-zinc-800">- {{ formatCurrency(valorDesconto) }}</span>
             </div>
 
-            <!-- A Pagar -->
-            <div v-if="valorEntrada > 0" class="flex justify-between items-center text-sm font-bold mt-1">
-              <span class="text-zinc-700">A Pagar</span>
-              <span class="text-zinc-800">{{ formatCurrency(valorAPagar) }}</span>
+            <!-- Adiantamento -->
+            <div v-if="valorEntrada > 0" class="flex justify-between items-center text-sm font-bold mt-2">
+              <span class="text-zinc-700">Adiantamento</span>
+              <span class="text-zinc-800">- {{ formatCurrency(valorAdiantamento) }}</span>
             </div>
 
             <!-- Restante / Troco -->
@@ -468,6 +415,23 @@ function handleSubmit() {
             <span class="text-xs text-zinc-500">{{ finalizarForm.pagamentos.value.length }} item(s)</span>
           </div>
 
+          <!-- Adiantamento como pagamento já efetuado -->
+          <div
+            v-if="valorEntrada > 0"
+            class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl"
+          >
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+                <CheckCircle2 :size="16" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-emerald-700">Adiantamento</p>
+                <p class="text-xs text-emerald-500">Pago anteriormente</p>
+              </div>
+            </div>
+            <span class="text-sm font-bold text-emerald-700">{{ formatCurrency(valorEntrada) }}</span>
+          </div>
+
           <div v-if="finalizarForm.pagamentos.value.length === 0" class="text-center py-5 border-2 border-dashed border-zinc-200 rounded-xl">
             <p class="text-xs text-zinc-400">Nenhum pagamento registrado</p>
           </div>
@@ -475,7 +439,7 @@ function handleSubmit() {
           <div v-else class="space-y-2 max-h-40 overflow-y-auto">
             <div v-for="(pgto, idx) in finalizarForm.pagamentos.value" :key="idx" class="flex items-center justify-between p-3 bg-white border border-zinc-100 rounded-xl shadow-sm">
               <div class="flex items-center gap-3">
-                <div class="p-2 bg-zinc-50 rounded-lg text-zinc-500">
+                <div class="p-2 bg-zinc-50 rounded-lg text-brand-primary">
                   <component :is="getPaymentIconById(pgto.value.forma_pagamento_id)" :size="16" />
                 </div>
                 <div>
@@ -486,7 +450,7 @@ function handleSubmit() {
                   </p>
                 </div>
               </div>
-              <button type="button" @click="removePayment(idx)" class="text-zinc-400 hover:text-red-500 p-2">
+              <button type="button" @click="removePayment(idx)" class="text-zinc-400 hover:text-red-500 p-2 cursor-pointer">
                 <Trash2 :size="16" />
               </button>
             </div>
@@ -499,7 +463,7 @@ function handleSubmit() {
             v-for="method in formasPagamento"
             :key="method.id"
             type="button"
-            class="flex flex-col items-center justify-center p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-emerald-500 hover:text-emerald-600 transition-all gap-1 h-16 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            class="flex flex-col items-center justify-center p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-brand-primary hover:text-brand-primary transition-all gap-1 h-16 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             :disabled="restante <= 0"
             @click="handleAddPaymentClick(method)"
           >
@@ -522,7 +486,7 @@ function handleSubmit() {
             :disabled="!canSubmit"
             class="w-full py-3 shadow-lg shadow-blue-600/20"
           >
-            Finalizar OS ({{ formatCurrency(valorAPagar) }})
+            Finalizar OS
           </BaseButton>
         </div>
       </div>
@@ -541,7 +505,7 @@ function handleSubmit() {
   >
     <div v-if="currentPaymentMethod" class="space-y-4">
       <div class="flex items-center gap-3 pb-3 border-b border-zinc-100">
-        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+        <div class="p-3 bg-brand-secondary/20 text-brand-primary rounded-xl">
           <component :is="getPaymentIcon(getMethodTipo(currentPaymentMethod))" :size="24" />
         </div>
         <div>
@@ -576,7 +540,7 @@ function handleSubmit() {
         />
       </div>
 
-      <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')">
+      <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')" class="space-y-3">
         <BaseSelect
           v-model="paymentDetails.bandeira"
           label="Bandeira"
@@ -588,6 +552,29 @@ function handleSubmit() {
             { value: 'OUTROS', label: 'Outros' },
           ]"
         />
+
+        <!-- Juros por pagamento -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center gap-3">
+            <label class="text-sm font-medium text-zinc-600 flex items-center gap-1.5">
+              <Percent :size="14" />
+              Juros (%)
+            </label>
+            <div class="w-24">
+              <BaseInput
+                v-model="paymentDetails.taxa_juros"
+                type="number"
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div v-if="paymentDetails.taxa_juros > 0" class="flex justify-between text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
+            <span>Valor com juros</span>
+            <span class="font-semibold">
+              {{ formatCurrency(Math.round(paymentValueReais * 100 * (1 + paymentDetails.taxa_juros / 100))) }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div v-if="getMethodTipo(currentPaymentMethod) === 'PIX'" class="text-center py-2">

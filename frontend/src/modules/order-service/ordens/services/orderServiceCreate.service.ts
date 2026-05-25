@@ -10,7 +10,7 @@ import { safeParseResponse } from '@/shared/utils/parse.utils';
 
 export async function createOrderService(orderService: OrderServiceCreateSchemaDataType): Promise<OrderServiceReadDataType> {
     const { data } = await api.post<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/`, orderService)
-    return safeParseResponse(OrderServiceReadSchema, data, 'createOrderService')
+    return safeParseResponse(OrderServiceReadSchema, data, 'createOrderService');
 }
 
 export async function createItemOS(osItemCreateRequest: OsItemCreateRequest): Promise<OrderServiceReadDataType> {

@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-from app.schemas.cliente import ClienteUpdate, ClientePFCreate, ClientePJCreate
+from app.schemas.cliente import ClienteSimpleRead, ClienteUpdate, ClientePFCreate, ClientePJCreate
 from app.db.crud import cliente as cliente_crud
 from app.services import endereco as address_service
 from app.core.enum import Gender, EntityType
@@ -167,6 +167,16 @@ def get_cliente_by_search(
         "filters": filters,
     }
 
+def get_cliente_simple_by_search(db: Session, search: str = None) -> list[ClienteSimpleRead]:
+    return cliente_crud.get_cliente_simple_by_search(db, search=search)
+
+def cliente_exists(db: Session, cliente_id: int) -> None:
+    """Verifica se um cliente existe no banco."""
+    customer_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=cliente_id)
+    if not customer_in_db:
+        raise not_found_exce
+    return customer_in_db
+
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
 # ===========================================================================
@@ -210,3 +220,34 @@ def toggle_active_disable_cliente_by_id(db: Session, cliente_id: int) -> Cliente
     cliente_in_db = _get_cliente_or_raise(db, cliente_id)
     cliente_in_db.ativo = not cliente_in_db.ativo
     return cliente_crud.update_cliente(db, cliente_to_update=cliente_in_db)
+
+# ===========================================================================
+# EQUIPAMENTOS DO CLIENTE (HISTÓRICO)
+# ===========================================================================
+
+EQUIPMENT_HISTORY_LIMIT = 20
+
+def get_equipamentos_historico_by_cliente_id(
+    db: Session, cliente_id: int
+) -> list:
+    """
+    Retorna equipamentos únicos (ativos) de um cliente, deduplicados
+    por (tipo_equipamento, marca, modelo, numero_serie) e limitados
+    aos mais recentes.
+    """
+    _get_cliente_or_raise(db, cliente_id)
+
+    equipamentos = cliente_crud.get_equipamentos_by_cliente_id(db, cliente_id)
+
+    seen: set[tuple] = set()
+    resultado: list = []
+
+    for equip in equipamentos:
+        key = (equip.tipo_equipamento, equip.marca, equip.modelo, equip.numero_serie)
+        if key not in seen:
+            seen.add(key)
+            resultado.append(equip)
+        if len(resultado) >= EQUIPMENT_HISTORY_LIMIT:
+            break
+
+    return resultado

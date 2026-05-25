@@ -2,96 +2,40 @@
 import { computed } from 'vue';
 import {
   Smartphone,
-  Phone,
   User,
   CheckCircle2,
-  MapPin,
-  FileText,
   CreditCard,
   Receipt,
-  Building2,
 } from 'lucide-vue-next';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { formatCurrency } from '@/shared/utils/finance';
-import { useAuthStore } from '@/shared/stores/auth.store';
-import { getClienteNome, getPaymentDisplayName } from '../../shared/utils/formatters';
+import {
+  useCompanyPrintInfo,
+  getClienteNome,
+  getClienteDoc,
+  getClientePhone,
+  getPaymentDisplayName,
+  formatPrintDate,
+  formatPrintPhone,
+  formatPrintDoc,
+} from '@/shared/utils/print.utils';
+
+import PrintCompanyHeader from '@/shared/components/print/a4/PrintCompanyHeader.vue';
+import PrintSignatures from '@/shared/components/print/a4/PrintSignatures.vue';
+import PrintFooter from '@/shared/components/print/a4/PrintFooter.vue';
 
 const props = defineProps<{
   ordemServico: OrderServiceReadDataType | null;
   type: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO';
 }>();
 
-function getClienteDoc(cliente: OrderServiceReadDataType['cliente']): string {
-  const c = cliente as { cpf?: string; cnpj?: string };
-  return c.cpf || c.cnpj || '';
-}
-
-function getClientePhone(cliente: OrderServiceReadDataType['cliente']): string {
-  const c = cliente as { celular?: string; telefone?: string };
-  return c.celular || c.telefone || '';
-}
-
-const authStore = useAuthStore();
-
-const getImageUrl = (path: string | null | undefined): string | null => {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  const cleanPath = path.replace(/^static\//, '');
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  return `${base}/static/${cleanPath}`;
-};
-
-const companyInfo = computed(() => {
-  const empresa = authStore.empresa;
-  const enderecoParts: string[] = [];
-  if (empresa?.logradouro) {
-    enderecoParts.push(empresa.logradouro);
-    if (empresa.numero) enderecoParts.push(empresa.numero);
-  }
-  if (empresa?.bairro) enderecoParts.push(empresa.bairro);
-  if (empresa?.cidade && empresa?.uf) {
-    enderecoParts.push(`${empresa.cidade} - ${empresa.uf}`);
-  }
-
-  return {
-    nome: empresa?.nome_fantasia || empresa?.razao_social || 'ASSISTÊNCIA TÉCNICA',
-    razaoSocial: empresa?.razao_social || '',
-    cnpj: empresa?.cnpj || '',
-    endereco: enderecoParts.join(', ') || 'Endereço não cadastrado',
-    contato: empresa?.telefone || empresa?.celular || '',
-    email: empresa?.email || '',
-    logo: getImageUrl(empresa?.url_logo),
-  };
-});
+const { companyInfo } = useCompanyPrintInfo();
 
 const title = computed(() => {
   if (props.type === 'ENTRADA') return 'COMPROVANTE DE ENTRADA DE EQUIPAMENTO';
   if (props.type === 'SAIDA') return 'RECIBO E TERMO DE GARANTIA';
   return 'DECLARAÇÃO DE CANCELAMENTO DE SERVIÇO';
 });
-
-const formatDate = (dateStr?: string | Date | null) => {
-  if (!dateStr) return '__/__/____';
-  return new Date(dateStr).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const formatPhone = (phone?: string) => {
-  if (!phone) return '';
-  return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-};
-
-const formatDoc = (doc?: string) => {
-  if (!doc) return '';
-  return doc.length > 11
-    ? doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-    : doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-};
 
 const subtotal = computed(() => {
   if (!props.ordemServico) return 0;
@@ -106,38 +50,14 @@ const totalPago = computed(() => {
 
 <template>
   <div v-if="ordemServico" class="print-container hidden print:block bg-white text-black font-sans leading-tight">
-    <header class="border border-slate-800 rounded-lg p-4 mb-4 flex justify-between items-start gap-4">
-      <div class="flex items-start gap-4">
-        <div class="w-24 h-24 bg-white border border-slate-300 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-          <img v-if="companyInfo.logo" :src="companyInfo.logo" alt="Logo da Empresa" class="w-full h-full object-contain p-1" />
-          <Building2 v-else :size="32" class="text-slate-400" />
-        </div>
-        <div>
-          <h1 class="text-xl font-black text-slate-900 uppercase tracking-tight">{{ companyInfo.nome }}</h1>
-          <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">{{ companyInfo.razaoSocial }}</p>
-          <div class="text-xs text-slate-700 space-y-0.5 mt-2">
-            <p class="flex items-center gap-1.5"><MapPin :size="12" /> {{ companyInfo.endereco }}</p>
-            <p class="flex items-center gap-1.5"><FileText :size="12" /> CNPJ: {{ formatDoc(companyInfo.cnpj) }}</p>
-            <p class="flex items-center gap-1.5"><Phone :size="12" /> {{ companyInfo.contato }} | {{ companyInfo.email }}</p>
-          </div>
-        </div>
-      </div>
-      <div class="text-right min-w-37.5">
-        <div class="bg-slate-900 text-white p-2 rounded-t-lg text-center">
-          <p class="text-[10px] font-bold uppercase tracking-wider">Número da O.S.</p>
-          <p class="text-2xl font-mono font-black">{{ ordemServico.numero_os || String(ordemServico.id).padStart(6, '0') }}</p>
-        </div>
-        <div class="border-x border-b border-slate-300 p-2 rounded-b-lg text-center bg-slate-50">
-          <p class="text-[10px] font-bold text-slate-500 uppercase">Data Entrada</p>
-          <p class="text-sm font-bold text-slate-800">{{ formatDate(ordemServico.data_criacao) }}</p>
-        </div>
-        <div v-if="ordemServico.data_finalizacao" class="mt-2 text-center">
-          <p class="text-[10px] font-bold text-emerald-600 uppercase border border-emerald-200 bg-emerald-50 rounded px-1 py-0.5 inline-block">
-            FINALIZADA EM {{ formatDate(ordemServico.data_finalizacao) }}
-          </p>
-        </div>
-      </div>
-    </header>
+    <PrintCompanyHeader
+      :company="companyInfo"
+      document-label="Número da O.S."
+      :document-number="ordemServico.numero_os || String(ordemServico.id).padStart(6, '0')"
+      date-label="Data Entrada"
+      :date-value="formatPrintDate(ordemServico.data_criacao)"
+      :finalizada-date="ordemServico.data_finalizacao ? formatPrintDate(ordemServico.data_finalizacao) : undefined"
+    />
 
     <div class="text-center py-2 mb-4 border-y-2 border-slate-200 bg-slate-50">
       <h2 class="text-lg font-black text-slate-800 uppercase tracking-widest">{{ title }}</h2>
@@ -152,8 +72,8 @@ const totalPago = computed(() => {
         <div class="p-3 text-xs space-y-1.5">
           <p><span class="font-bold text-slate-600">Nome:</span> {{ ordemServico.cliente ? getClienteNome(ordemServico.cliente) : 'Consumidor' }}</p>
           <div class="flex gap-4">
-            <p><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatDoc(getClienteDoc(ordemServico.cliente)) }}</p>
-            <p><span class="font-bold text-slate-600">Telefone:</span> {{ formatPhone(getClientePhone(ordemServico.cliente)) }}</p>
+            <p><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatPrintDoc(getClienteDoc(ordemServico.cliente)) }}</p>
+            <p><span class="font-bold text-slate-600">Telefone:</span> {{ formatPrintPhone(getClientePhone(ordemServico.cliente)) }}</p>
           </div>
           <p v-if="ordemServico.cliente?.id"><span class="font-bold text-slate-600">Cód. Cliente:</span> #{{ ordemServico.cliente.id }}</p>
         </div>
@@ -297,75 +217,16 @@ const totalPago = computed(() => {
       Autorizo a análise técnica do equipamento acima. Em caso de não aprovação do orçamento, estou ciente que poderá ser cobrada taxa de análise técnica.
     </div>
 
-    <div class="grid grid-cols-2 gap-12 mt-auto pt-8">
-      <div class="text-center">
-        <div class="border-t border-slate-400 w-3/4 mx-auto pt-2"></div>
-        <p class="text-[10px] font-bold text-slate-500 uppercase">Técnico Responsável</p>
-      </div>
-      <div class="text-center">
-        <div class="border-t border-slate-400 w-3/4 mx-auto pt-2"></div>
-        <p class="text-[10px] font-bold text-slate-500 uppercase">Assinatura do Cliente</p>
-        <p class="text-[8px] text-slate-400">{{ ordemServico.cliente ? getClienteNome(ordemServico.cliente) : '' }}</p>
-      </div>
-    </div>
+    <PrintSignatures
+      left-label="Técnico Responsável"
+      right-label="Assinatura do Cliente"
+      :right-name="ordemServico.cliente ? getClienteNome(ordemServico.cliente) : undefined"
+    />
 
-    <div class="print-footer mt-auto pt-4 text-center border-t border-slate-100 py-1 bg-white">
-      <p class="text-[8px] text-slate-400 uppercase tracking-wider">
-        Emitido em {{ new Date().toLocaleString() }} • Sistema BigPDV
-      </p>
-    </div>
+    <PrintFooter />
   </div>
 </template>
 
 <style>
-@media print {
-  @page {
-    size: A4;
-    margin: 1.5cm;
-  }
-
-  body {
-    visibility: hidden;
-    background: white;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Esconder overlays de modais (Teleport + fixed) */
-  .fixed {
-    display: none !important;
-  }
-
-  .print-container {
-    visibility: visible;
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    display: flex !important;
-    flex-direction: column;
-    background: white;
-    font-size: 12px;
-    z-index: 99999;
-  }
-
-  .print-footer {
-    margin-top: auto;
-  }
-
-  /* Evitar quebra de pagina dentro de secoes-chave */
-  .print-container header,
-  .print-container table,
-  .print-container > .grid {
-    page-break-inside: avoid;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-}
+@import '@/shared/components/print/styles/print-a4.css';
 </style>

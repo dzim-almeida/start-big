@@ -79,18 +79,19 @@ def get_fornecedor_by_search(db: Session, search: Optional[str]) -> Sequence[For
     Returns:
         Sequence[FornecedorModel]: Lista de fornecedores ativos encontrados.
     """
-    base_stmt = select(FornecedorModel)
-
+    base_stmt = select(FornecedorModel).where(FornecedorModel.ativo.is_(True))
+    
     if not search:
         stmt = base_stmt
     else:
         conditions = or_(
-            FornecedorModel.nome.ilike(f"%{search}%"),
+            FornecedorModel.nome.ilike(f"%{search}%"), # Adicionado % para busca parcial no início e fim
             FornecedorModel.nome_fantasia.ilike(f"%{search}%"),
-            FornecedorModel.cnpj.like(f"{search}%")
+            FornecedorModel.cnpj.like(f"{search}%") 
         )
-        stmt = base_stmt.where(conditions)
 
+        stmt = base_stmt.where(conditions) # Combina a condição de ativo com as condições de busca
+        
     return db.scalars(stmt).all()
 
 

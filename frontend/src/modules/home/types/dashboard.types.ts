@@ -21,6 +21,7 @@ export interface QuickActionItem {
   icon: Component;
   label: string;
   variant: 'primary' | 'secondary';
+  action: () => void;
 }
 
 export type PeriodFilter = 'today' | 'week' | 'month';
@@ -28,6 +29,4 @@ export type PeriodFilter = 'today' | 'week' | 'month';
 export interface DashboardData {
   stats: StatCardData[];
   transactions: Transaction[];
-  quickActions: QuickActionItem[];
-  lowStockCount: number;
 }
