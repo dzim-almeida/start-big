@@ -77,7 +77,7 @@ class Produto(Base):
     logs: Mapped[List["LogProduto"]] = relationship(
         "LogProduto",
         back_populates="produto",
-        doc="Historico de movimentacoes de estoque deste produto"
+        doc="Histórico de movimentações de estoque deste produto"
     )
 
     # Restrições (Constraints)

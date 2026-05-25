@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: db/models/log_produto.py
 # DESCRICAO: Modelo SQLAlchemy para a tabela 'logs_produto'.
-#            Historico de auditoria imutavel para movimentacoes de estoque.
+#            Histórico de auditoria imutável para movimentações de estoque.
 # ---------------------------------------------------------------------------
 
 from datetime import datetime

@@ -53,7 +53,7 @@ def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[Pr
     stmt = select(ProdutoModel).where(
         and_(
             conditions,
-            ProdutoModel.ativo == True
+            ProdutoModel.ativo.is_(True)
         )
     )
 
