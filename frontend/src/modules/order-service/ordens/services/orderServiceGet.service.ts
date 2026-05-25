@@ -18,7 +18,7 @@ export async function getAllOs(
 ): Promise<OrderServicePaginationDataType> {
   const params: Record<string, string | number | boolean> = {};
   if (query.search) params.search = query.search;
-  if (query.priority_sort != null) params.priority_sort = query.priority_sort;
+  if (query.priority_sort !== undefined) params.priority_sort = query.priority_sort;
   if (query.status) params.status = query.status;
 
   const { data } = await api.get<OrderServicePaginationDataType>(`${BASE_ORDER_SERVICE_URL}/`, {
@@ -32,6 +32,18 @@ export async function getUniqueOS(numero_os: string): Promise<OrderServiceReadDa
     `${BASE_ORDER_SERVICE_URL}/${numero_os}`,
   );
   return safeParseResponse(OrderServiceReadSchema, data, 'getUniqueOS');
+}
+
+export async function getOsByClienteId(
+  clienteId: number,
+  page: number = 1,
+  limit: number = 10,
+): Promise<OrderServicePaginationDataType> {
+  const { data } = await api.get<OrderServicePaginationDataType>(
+    `${BASE_ORDER_SERVICE_URL}/cliente/${clienteId}`,
+    { params: { page, limit } },
+  );
+  return safeParseResponse(OrderServicePaginationSchema, data, 'getOsByClienteId');
 }
 
 export async function getStatsOS(): Promise<OrderServiceStatsDataType> {

@@ -14,9 +14,11 @@ import { OsEquipReadSchema } from './relationship/osEquip.schema';
 import { OsItemReadSchema } from './relationship/osItem.schema';
 import { OsPaymentReadSchema } from './relationship/osPayment.schema';
 import { OsImageReadSchema } from './relationship/osPhoto.schema';
+import { PaginationBaseSchema } from '@/shared/schemas/pagination/pagination.schema';
+
 const OrderServiceParamsSchema = z.object({
-  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional(),
-  status: OsStatusEnum.optional(),
+  search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional().nullable(),
+  status: OsStatusEnum.optional().nullable(),
   priority_sort: z.boolean().optional(),
 });
 
@@ -34,20 +36,22 @@ export const OrderServiceReadSchema = z.object({
   status: OsStatusEnum,
 
   // Financeiro
-  valor_bruto: z.number().int().nonnegative(),
-  valor_total: z.number().int().nonnegative(),
+  valor_bruto: z.number().int(),
+  valor_total: z.number().int(),
+  taxa_entrega: z.number().int().default(0),
+  acrescimo: z.number().int().default(0),
 
   // Datas
-  data_finalizacao: z.string().datetime().optional(),
-  data_criacao: z.string().datetime(),
-  data_atualizacao: z.string().datetime(),
+  data_finalizacao: z.string().optional().nullable(),
+  data_criacao: z.string(),
+  data_atualizacao: z.string(),
 
   // Status Lógico
   ativo: z.boolean(),
 
   // Relacionamentos
   cliente: z.union([CustomerPFReadSchema, CustomerPJReadSchema]),
-  funcionario: EmployeeReadSchema.nullable(),
+  funcionario: EmployeeReadSchema,
   equipamento: OsEquipReadSchema,
   itens: z.array(OsItemReadSchema),
   pagamentos: z.array(OsPaymentReadSchema),
@@ -58,17 +62,7 @@ export const orderServiceReadValidationSchema = toTypedSchema(OrderServiceReadSc
 export type OrderServiceReadDataType = z.infer<typeof OrderServiceReadSchema>;
 
 export const OrderServicePaginationSchema = z.object({
-  total_items: z.number().int().nonnegative(),
-  page: z.number().int().min(1),
-  limit: z.number().int().min(1),
-  total_pages: z.number().int().nonnegative(),
-  links: z
-    .object({
-      next: z.string().nullable().optional(),
-      prev: z.string().nullable().optional(),
-    })
-    .nullable()
-    .optional(),
+  ...PaginationBaseSchema.shape,
   filters: OrderServiceParamsSchema,
   items: z.array(OrderServiceReadSchema),
 }).passthrough();

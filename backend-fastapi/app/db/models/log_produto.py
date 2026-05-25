@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: db/models/log_produto.py
 # DESCRICAO: Modelo SQLAlchemy para a tabela 'logs_produto'.
-#            Histórico de auditoria imutável para movimentações de estoque.
+#            Historico de auditoria imutavel para movimentacoes de estoque.
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
@@ -23,12 +23,8 @@ class LogProduto(Base):
 
     __tablename__ = "logs_produto"
     __table_args__ = (
-        CheckConstraint("quantidade != 0", name="ck_log_produto_quantidade_nao_zero"),
-        # Regra vinculada ao enum TipoTransacaoEstoque (app.core.enum): atualizar este CHECK se os valores do enum mudarem.
-        CheckConstraint(
-            "(tipo_transacao = 'ENTRADA') OR ((tipo_transacao IN ('SAIDA_VENDA', 'ESTORNO')) AND (venda_id IS NOT NULL))",
-            name="ck_log_produto_tipo_transacao_valida",
-        ),
+        CheckConstraint("quantidade != 0", name="ck_log_produto_quantidade_nao_zero"),\
+        CheckConstraint("(tipo_transacao == 'ENTRADA') OR (venda_id IS NOT NULL)", name="ck_log_produto_tipo_transacao_valida")
     )
 
     # --- Identificacao ---

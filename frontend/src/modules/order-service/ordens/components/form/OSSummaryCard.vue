@@ -10,6 +10,7 @@ type OsItem = OsItemCreateSchemaDataType | OsItemReadSchemaDataType;
 interface Props {
   itens: OsItem[];
   subtotal: number;
+  valorEntrega: number;
   valorDesconto: number;
   valorTotal: number;
   valorEntrada: number;
@@ -99,7 +100,12 @@ function getItemTotal(item: OsItem): number {
       <div class="border-t border-slate-200 pt-3 space-y-2">
         <div class="flex items-center justify-between text-sm">
           <span class="text-slate-500">Subtotal</span>
-          <span class="font-semibold text-slate-700">{{ formatCurrency(subtotal) }}</span>
+          <span class="font-semibold text-brand-primary">{{ formatCurrency(subtotal) }}</span>
+        </div>
+
+        <div v-if="valorEntrega > 0" class="flex items-center justify-between text-sm">
+          <span class="text-slate-500">Entrega</span>
+          <span class="font-semibold text-slate-700">{{ formatCurrency(valorEntrega) }}</span>
         </div>
 
         <div v-if="valorDesconto > 0" class="flex items-center justify-between text-sm">

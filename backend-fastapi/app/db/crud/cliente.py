@@ -6,11 +6,11 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session, with_polymorphic
-from sqlalchemy import select, func, or_
+from sqlalchemy import and_, select, func, or_
 from typing import Sequence, Callable, Optional
-import re
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF, ClientePJ
+from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
 
 # ===========================================================================
 # VERIFICAÇÕES (AUXILIARES)
@@ -90,7 +90,7 @@ def get_cliente_by_search(
     if filters.get("only_active", True):
         query = query.where(poly.ativo == True)
 
-    search = (filters.get("search") or "").strip()
+    search = filters.get("search")
     if search:
         like_search = f"%{search}%"
         query = query.where(
@@ -99,7 +99,7 @@ def get_cliente_by_search(
                 poly.ClientePF.cpf.ilike(like_search),
                 poly.ClientePJ.razao_social.ilike(like_search),
                 poly.ClientePJ.nome_fantasia.ilike(like_search),
-                poly.ClientePJ.cnpj.startswith(search),
+                poly.ClientePJ.cnpj.ilike(like_search),
                 poly.ClienteModel.email.ilike(like_search),
             )
         )
@@ -111,6 +111,24 @@ def get_cliente_by_search(
     clientes = db.scalars(stmt).all()
 
     return clientes, total
+
+def get_cliente_simple_by_search(db: Session, search: Optional[str]) -> Sequence[ClienteModel]:
+
+    customers = with_polymorphic(ClienteModel, [ClientePF, ClientePJ])
+
+    if search:
+        conditions = or_(
+            customers.ClientePF.nome.ilike(f"%{search}%"),
+            customers.ClientePF.cpf.ilike(f"%{search}%"),
+            customers.ClientePJ.razao_social.ilike(f"%{search}%"),
+            customers.ClientePJ.nome_fantasia.ilike(f"%{search}%"),
+            customers.ClientePJ.cnpj.ilike(f"%{search}%"),
+            customers.email.ilike(f"%{search}%"),
+        )
+
+        return db.scalars(select(customers).where(and_(conditions, customers.ativo == True))).all()
+
+    return db.scalars(select(customers).where(customers.ativo == True)).all()
 
 # ===========================================================================
 # ESCRITA (CREATE / UPDATE / DESATIVAR 'DELETE')
@@ -133,3 +151,22 @@ def deactivate_cliente(db: Session, cliente: ClienteModel) -> None:
     """Realiza a exclusão lógica do cliente (inativação)."""
     cliente.ativo = False
     db.flush()
+
+
+# ===========================================================================
+# EQUIPAMENTOS DO CLIENTE
+# ===========================================================================
+
+def get_equipamentos_by_cliente_id(
+    db: Session, cliente_id: int
+) -> Sequence[OrdemServicoEquipamento]:
+    """Retorna todos os equipamentos ativos de um cliente, ordenados do mais recente ao mais antigo."""
+    stmt = (
+        select(OrdemServicoEquipamento)
+        .where(
+            OrdemServicoEquipamento.cliente_id == cliente_id,
+            OrdemServicoEquipamento.ativo == True,
+        )
+        .order_by(OrdemServicoEquipamento.data_criacao.desc())
+    )
+    return db.scalars(stmt).all()

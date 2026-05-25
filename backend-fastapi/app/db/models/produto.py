@@ -4,7 +4,7 @@
 #            os dados de um produto no sistema.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Index, Column, Integer, String, Boolean, ForeignKey, CheckConstraint, inspect
+from sqlalchemy import Index, Column, Integer, String, Boolean, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.db.base import Base
@@ -37,10 +37,6 @@ class Produto(Base):
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Marca do produto")
     @property
     def imagem_url(self) -> Optional[str]:
-        """Retorna a URL da foto principal quando o relacionamento de fotos estiver disponível."""
-        state = inspect(self)
-        if "fotos" in state.unloaded:
-            return None
         return next((foto.url for foto in self.fotos if foto.principal), None)
     # localizacao_estoque: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Localização do produto no estoque")
     
@@ -81,7 +77,7 @@ class Produto(Base):
     logs: Mapped[List["LogProduto"]] = relationship(
         "LogProduto",
         back_populates="produto",
-        doc="Histórico de movimentações de estoque deste produto"
+        doc="Historico de movimentacoes de estoque deste produto"
     )
 
     # Restrições (Constraints)

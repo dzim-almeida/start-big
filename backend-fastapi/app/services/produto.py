@@ -11,16 +11,14 @@ from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Sequence
 
-from app.schemas.produto import ProdutoCreate, ProdutoUpdate
+from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
-from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.log_produto import LogProduto as LogProdutoModel
 from app.db.crud import produto as produto_crud
-from app.db.crud import movimentacao_estoque as mov_crud
-from app.core.enum import MovimentacaoTipo, TipoTransacaoEstoque
-from typing import Dict, Any
+
+from app.core.enum import TipoTransacaoEstoque
 
 # Diretório base onde as imagens serão salvas
 UPLOAD_BASE_DIR = "static/uploads/produtos"
@@ -46,7 +44,7 @@ internal_error_exce = HTTPException(
     detail="Erro em cumprir a requisição. Tente novamente mais tarde."
 )
 
-insufficient_stock_exce = HTTPException(
+_bad_request_exce = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="Estoque insuficiente para a quantidade solicitada"
 )
@@ -98,7 +96,7 @@ def delete_image_locally(file_path: str) -> bool:
 # LÓGICA DE CRIAÇÃO (CREATE)
 # ===========================================================================
 
-def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: Dict[str, Any] = {}) -> ProdutoModel:
+def create_produto(db: Session, produto_to_add: ProdutoCreate) -> ProdutoModel:
     """
     Orquestra a criação de um novo produto.
     
@@ -123,25 +121,7 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: Di
     # Vincula estoque ao produto (Relacionamento 1:1)
     produto_to_db.estoque = estoque_for_produto
 
-    produto_in_db = produto_crud.create_produto(db, produto_to_add=produto_to_db)
-
-    # Registra movimentação inicial se a quantidade for maior que zero
-    quantidade_inicial = estoque_data.get("quantidade", 0) or 0
-    if quantidade_inicial > 0:
-        mov = MovimentacaoEstoque(
-            produto_id=produto_in_db.id,
-            produto_nome=produto_in_db.nome,
-            usuario_id=int(usuario_token["sub"]) if usuario_token.get("sub") else None,
-            usuario_nome=usuario_token.get("nome", "Sistema"),
-            tipo=MovimentacaoTipo.ENTRADA,
-            quantidade=quantidade_inicial,
-            quantidade_anterior=0,
-            quantidade_posterior=quantidade_inicial,
-            observacao="Estoque inicial",
-        )
-        mov_crud.create_movimentacao(db, mov)
-
-    return produto_in_db
+    return produto_crud.create_produto(db, produto_to_add=produto_to_db)
 
 def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool) -> ProdutoFotoModel:
     
@@ -169,7 +149,7 @@ def get_produto_by_search(db: Session, produto_search: str | None) -> Sequence[P
     """Intermediário para busca de produtos via CRUD."""
     return produto_crud.get_produto_by_search(db, search=produto_search)
 
-def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoModel]:
+def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoSimpleRead]:
     """Intermediário para busca rápida de produtos."""
     return produto_crud.get_produto_simple_by_search(db, search=search)
 
@@ -260,20 +240,17 @@ def delete_produto_image(db: Session, image_id: int):
     
     return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)
 
-def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int) -> ProdutoModel:
-    """
-    Reduz a quantidade disponível em estoque ao lançar uma saída por venda.
-    """
+def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     if not product_in_db:
         raise not_found_exce
     
-    quantidade_estoque = product_in_db.estoque.quantidade or 0
+    qtd_stock = product_in_db.estoque.quantidade or 0
 
-    if quantidade > quantidade_estoque:
-        raise insufficient_stock_exce
+    if quantidade > qtd_stock:
+        raise _bad_request_exce
     
-    product_in_db.estoque.quantidade -= quantidade
+    product_in_db.estoque.quantidade = qtd_stock - quantidade
 
     product_log = LogProdutoModel(
         produto_id=produto_id,
@@ -288,9 +265,6 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
     return produto_crud.update_produto(db, product_in_db)
 
 def get_produto_by_id(db: Session, produto_id: int) -> ProdutoModel:
-    """
-    Recupera um produto pelo ID e lança exceção se não existir.
-    """
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     if not product_in_db:
         raise not_found_exce

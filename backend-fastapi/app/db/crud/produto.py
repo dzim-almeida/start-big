@@ -41,7 +41,7 @@ def get_produto_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
     
     return db.scalars(stmt).all()
 
-def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoModel]:
+def get_produto_simple_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
     if not search:
         return []
     
@@ -53,7 +53,7 @@ def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[Pr
     stmt = select(ProdutoModel).where(
         and_(
             conditions,
-            ProdutoModel.ativo.is_(True)
+            ProdutoModel.ativo == True
         )
     )
 

@@ -27,17 +27,16 @@ def verify_funcionario_conflict(
 
     funcionario_in_db = search_method(db, value)
 
-    if not funcionario_in_db:
-        return None
-
     if funcionario_id and funcionario_in_db.id == funcionario_id:
         return None
+    
+    if funcionario_in_db:
+        if not funcionario_in_db.ativo: 
+            return "disabled funcionario"
+        formated_search = search_name.replace("_", " ")
+        return f"{formated_search.upper()} já cadastrado"
 
-    if not funcionario_in_db.ativo:
-        return "disabled funcionario"
-
-    formated_search = search_name.replace("_", " ")
-    return f"{formated_search.upper()} já cadastrado"
+    return None
 
 # ===========================================================================
 # LEITURA (READ)

@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import OSTable from '../../ordens/components/OSTable.vue';
-import OSFormModal from '../../ordens/components/OSFormModal.vue';
-import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
+import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
+import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
+import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
-import type { CustomerUnionReadSchemaDataType } from '../../ordens/schemas/relationship/customer/customer.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
 import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
+import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
 
 const toast = useToast();
 const reopenMutation = useReopenOrderServiceMutation();
@@ -36,13 +36,11 @@ const {
 
 const { stats, isLoading: isStatsLoading } = useOrderServiceQueryStats();
 
+const { openExistingOS } = useOSCreateFlow();
+
 // ─── Estado dos modais ────────────────────────────────────────────────────────
-const isClienteSearchModalOpen = ref(false);
-const isFormModalOpen = ref(false);
 const isCancelModalOpen = ref(false);
 
-const selectedOS = ref<OrderServiceReadDataType | null>(null);
-const selectedCliente = ref<CustomerUnionReadSchemaDataType | null>(null);
 const osToCancel = ref<OrderServiceReadDataType | null>(null);
 const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
 const isFinalizarDirectOpen = ref(false);
@@ -51,6 +49,9 @@ const isReopenDirectOpen = ref(false);
 
 const osToPrint = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
+const printFormat = ref<PrintFormat>('A4');
+const isPrintSelectOpen = ref(false);
+const pendingPrintAfterSelect = ref<(() => void) | null>(null);
 
 // ─── Filtro de status ─────────────────────────────────────────────────────────
 const osActiveFilter = computed<string | null>({
@@ -60,41 +61,11 @@ const osActiveFilter = computed<string | null>({
   },
 });
 
-// ─── Abertura de nova OS ──────────────────────────────────────────────────────
-function handleOpenNovaOS() {
-  selectedOS.value = null;
-  selectedCliente.value = null;
-  isClienteSearchModalOpen.value = true;
-}
-
-function handleCloseClienteSearch() {
-  isClienteSearchModalOpen.value = false;
-}
-
-function handleClienteSelected(cliente: CustomerUnionReadSchemaDataType) {
-  selectedCliente.value = cliente;
-  isClienteSearchModalOpen.value = false;
-  isFormModalOpen.value = true;
-}
-
-function handleChangeCliente() {
-  isFormModalOpen.value = false;
-  isClienteSearchModalOpen.value = true;
-}
-
-function handleCloseFormModal() {
-  isFormModalOpen.value = false;
-  selectedOS.value = null;
-  selectedCliente.value = null;
-}
-
 // ─── Ações da tabela ──────────────────────────────────────────────────────────
 async function handleView(os: OrderServiceReadDataType) {
   try {
     const osCompleta = await getUniqueOS(os.numero_os);
-    selectedOS.value = osCompleta;
-    selectedCliente.value = null;
-    isFormModalOpen.value = true;
+    openExistingOS(osCompleta);
   } catch {
     toast.error('Erro ao carregar detalhes da OS');
   }
@@ -103,9 +74,7 @@ async function handleView(os: OrderServiceReadDataType) {
 async function handleEdit(os: OrderServiceReadDataType) {
   try {
     const osCompleta = await getUniqueOS(os.numero_os);
-    selectedOS.value = osCompleta;
-    selectedCliente.value = null;
-    isFormModalOpen.value = true;
+    openExistingOS(osCompleta);
   } catch {
     toast.error('Erro ao carregar OS para edição');
   }
@@ -113,8 +82,7 @@ async function handleEdit(os: OrderServiceReadDataType) {
 
 async function handleFinalizar(os: OrderServiceReadDataType) {
   try {
-    const osCompleta = await getUniqueOS(os.numero_os);
-    osToFinalizar.value = osCompleta;
+    osToFinalizar.value = await getUniqueOS(os.numero_os);
     isFinalizarDirectOpen.value = true;
   } catch {
     toast.error('Erro ao carregar OS');
@@ -132,13 +100,9 @@ async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean })
       const osAtualizada = await getUniqueOS(osToFinalizar.value.numero_os);
       osToPrint.value = osAtualizada;
       printType.value = 'SAIDA';
-      setTimeout(() => {
-        window.print();
-        setTimeout(() => {
-          osToPrint.value = null;
-          printType.value = null;
-        }, 500);
-      }, 100);
+      pendingPrintAfterSelect.value = () => handleCloseFinalizarDirect();
+      isPrintSelectOpen.value = true;
+      return;
     } catch {
       toast.error('Erro ao preparar impressão');
     }
@@ -158,26 +122,18 @@ function handleCloseCancelModal() {
 
 async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
   if (shouldPrint && osToCancel.value) {
-    await printCancelamento(osToCancel.value);
+    try {
+      const osAtualizada = await getUniqueOS(osToCancel.value.numero_os);
+      osToPrint.value = osAtualizada;
+      printType.value = 'CANCELAMENTO';
+      pendingPrintAfterSelect.value = () => handleCloseCancelModal();
+      isPrintSelectOpen.value = true;
+      return;
+    } catch {
+      toast.error('Erro ao preparar impressão do cancelamento');
+    }
   }
   handleCloseCancelModal();
-}
-
-async function printCancelamento(os: OrderServiceReadDataType) {
-  try {
-    const osCompleta = await getUniqueOS(os.numero_os);
-    osToPrint.value = osCompleta;
-    printType.value = 'CANCELAMENTO';
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        osToPrint.value = null;
-        printType.value = null;
-      }, 500);
-    }, 100);
-  } catch {
-    toast.error('Erro ao preparar impressão do cancelamento');
-  }
 }
 
 function handleReabrir(os: OrderServiceReadDataType) {
@@ -210,20 +166,42 @@ async function handlePrintOS(os: OrderServiceReadDataType) {
   try {
     const osCompleta = await getUniqueOS(os.numero_os);
     osToPrint.value = osCompleta;
-    printType.value = osCompleta.status === 'CANCELADA' ? 'CANCELAMENTO' : 'SAIDA';
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        osToPrint.value = null;
-        printType.value = null;
-      }, 500);
-    }, 100);
+    if (osCompleta.status === 'FINALIZADA') {
+      printType.value = 'SAIDA';
+    } else if (osCompleta.status === 'CANCELADA') {
+      printType.value = 'CANCELAMENTO';
+    } else {
+      printType.value = 'ENTRADA';
+    }
+    pendingPrintAfterSelect.value = null;
+    isPrintSelectOpen.value = true;
   } catch {
     toast.error('Erro ao preparar impressão');
   }
 }
 
-defineExpose({ handleOpenNovaOS });
+function handlePrintFormatSelected(format: PrintFormat) {
+  printFormat.value = format;
+  isPrintSelectOpen.value = false;
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      pendingPrintAfterSelect.value?.();
+      pendingPrintAfterSelect.value = null;
+      osToPrint.value = null;
+      printType.value = null;
+    }, 500);
+  }, 100);
+}
+
+function handleClosePrintSelect() {
+  isPrintSelectOpen.value = false;
+  pendingPrintAfterSelect.value = null;
+  osToPrint.value = null;
+  printType.value = null;
+}
+
 </script>
 
 <template>
@@ -254,20 +232,6 @@ defineExpose({ handleOpenNovaOS });
       @update:current-page="setPage"
     />
 
-    <OSClienteSearchModal
-      :is-open="isClienteSearchModalOpen"
-      @close="handleCloseClienteSearch"
-      @select-cliente="handleClienteSelected"
-    />
-
-    <OSFormModal
-      :is-open="isFormModalOpen"
-      :ordem-servico="selectedOS"
-      :selected-cliente="selectedCliente"
-      @close="handleCloseFormModal"
-      @change-cliente="handleChangeCliente"
-    />
-
     <OSCancelModal
       :is-open="isCancelModalOpen"
       :os-numero="osToCancel?.numero_os ?? null"
@@ -291,12 +255,24 @@ defineExpose({ handleOpenNovaOS });
       @full="handleReopenFull"
     />
 
+    <PrintFormatSelectModal
+      :is-open="isPrintSelectOpen"
+      subtitle="Selecione o formato desejado para imprimir esta OS."
+      @close="handleClosePrintSelect"
+      @select="handlePrintFormatSelected"
+    />
+
     <OSPrintTemplate
-      v-if="osToPrint"
+      v-if="osToPrint && printFormat === 'A4'"
       :ordem-servico="osToPrint"
       :type="printType || 'SAIDA'"
     />
 
-    <CustomerFormModal />
+    <OSPrintCupom
+      v-if="osToPrint && printFormat === 'CUPOM'"
+      :order-service="osToPrint"
+      :type="printType || 'SAIDA'"
+    />
+
   </div>
 </template>
