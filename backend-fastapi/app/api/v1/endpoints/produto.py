@@ -96,7 +96,7 @@ def get_produto_simple_by_search(
     *,
     search: Optional[str] = Query(
         None,
-        description="Termo de busca para nome ou código. Retorna todos se vazio."
+        description="Termo de busca para nome ou código. Retorna lista vazia se vazio."
     ),
     db: Session = Depends(get_db)
 ):

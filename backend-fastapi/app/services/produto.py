@@ -19,10 +19,8 @@ from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.log_produto import LogProduto as LogProdutoModel
 from app.db.crud import produto as produto_crud
 from app.db.crud import movimentacao_estoque as mov_crud
-from app.core.enum import MovimentacaoTipo
+from app.core.enum import MovimentacaoTipo, TipoTransacaoEstoque
 from typing import Dict, Any
-
-from app.core.enum import TipoTransacaoEstoque
 
 # Diretório base onde as imagens serão salvas
 UPLOAD_BASE_DIR = "static/uploads/produtos"
