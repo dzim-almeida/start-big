@@ -117,3 +117,9 @@ class UnidadeMedida(str, enum.Enum):
     DIA = "D"
     MES = "MES"
     OUTROS = "OUTROS"
+
+class TipoTransacaoEstoque(str, enum.Enum):
+    """Tipos de transação para movimentação de estoque no log de produto."""
+    ENTRADA = "ENTRADA"
+    SAIDA_VENDA = "SAIDA_VENDA"
+    ESTORNO = "ESTORNO"

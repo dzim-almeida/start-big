@@ -41,7 +41,7 @@ def get_produto_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
     
     return db.scalars(stmt).all()
 
-def get_produto_simple_by_search(db: Session, search: str) -> Sequence[ProdutoModel]:
+def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoModel]:
     if not search:
         return []
     

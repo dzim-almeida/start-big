@@ -11,7 +11,7 @@ from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Sequence
 
-from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
+from app.schemas.produto import ProdutoCreate, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
@@ -171,7 +171,7 @@ def get_produto_by_search(db: Session, produto_search: str | None) -> Sequence[P
     """Intermediário para busca de produtos via CRUD."""
     return produto_crud.get_produto_by_search(db, search=produto_search)
 
-def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoSimpleRead]:
+def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoModel]:
     """Intermediário para busca rápida de produtos."""
     return produto_crud.get_produto_simple_by_search(db, search=search)
 
@@ -262,7 +262,7 @@ def delete_produto_image(db: Session, image_id: int):
     
     return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)
 
-def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
+def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int) -> ProdutoModel:
     """
     Reduz a quantidade disponível em estoque ao lançar uma saída por venda.
     """
