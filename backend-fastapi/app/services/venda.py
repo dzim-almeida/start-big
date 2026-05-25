@@ -251,11 +251,11 @@ def get_sales(db: Session, filters: VendaSearchFilters, page: int, limit: int = 
     skip = (page - 1) * limit
 
     filters_dict = filters.model_dump(exclude_unset=True)
-    
+
     sales_in_db, total_sales = venda_crud.get_sales_by_search(
         db, filters=filters_dict, skip=skip, limit=limit
     )
-    
+
     total_pages, links = _set_pagination(
         total_items=total_sales, filters=filters_dict, page=page, limit=limit
     )
@@ -264,12 +264,3 @@ def get_sales(db: Session, filters: VendaSearchFilters, page: int, limit: int = 
 
 def get_sales_status(db: Session) -> Sequence[VendaStatusSummary]:
     return venda_crud.get_sales_status(db)
-    
-
-    
-        
-        
-    
-    
-
-    

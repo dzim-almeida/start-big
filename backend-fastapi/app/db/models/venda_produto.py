@@ -61,11 +61,13 @@ class ProdutoVenda(Base):
     )
     @property
     def nome(self):
+        """Retorna o nome exibido do item, usando o produto cadastrado ou a descrição avulsa."""
         if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
             return self.produto.nome
         return self.descricao_avulsa
     @property
     def sku(self):
+        """Retorna o SKU do produto cadastrado ou None para itens avulsos."""
         if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
             return self.produto.codigo_produto
         return None
@@ -80,9 +82,11 @@ class ProdutoVenda(Base):
     subtotal: Mapped[int] = mapped_column(Integer, nullable=False, doc="Subtotal calculado (quantidade * valor_unitario)")
     @property
     def total(self):
+        """Retorna o total do item após aplicar o desconto congelado no carrinho."""
         return self.subtotal - self.desconto
     @property
     def imagem_url(self):
+        """Retorna a imagem do produto cadastrado ou None para itens sem imagem."""
         if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
             return self.produto.imagem_url
         return None

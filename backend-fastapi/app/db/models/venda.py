@@ -83,14 +83,17 @@ class Venda(Base):
     entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor do frete/motoboy (centavos)")
     @property
     def total_bruto(self):
+        """Retorna a soma dos subtotais dos itens acrescida do valor de entrega."""
         total_itens = sum(item.subtotal for item in self.itens)
         return total_itens + (self.entrega or 0)
     @property
     def descontos(self):
+        """Retorna o valor total de descontos aplicados aos itens da venda."""
         return sum(item.desconto for item in self.itens)
     total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (descontos) (centavos)")
     @property
     def troco(self):
+        """Retorna o troco calculado a partir do total pago e do total final da venda."""
         total_pago = sum(pagamento.valor for pagamento in self.pagamentos)
         return max(0, total_pago - self.total)
     
