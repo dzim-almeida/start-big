@@ -35,7 +35,7 @@ export function useOSPendingPhotos({
   }
 
   function clearPendingPhotos() {
-    pendingPhotos.value.forEach(photo => URL.revokeObjectURL(photo.previewUrl));
+    pendingPhotos.value.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
     pendingPhotos.value = [];
   }
 

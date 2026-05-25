@@ -22,7 +22,10 @@ class PagamentoVenda(Base):
     __tablename__ = "pagamentos_venda"
     __table_args__ = (
         CheckConstraint("valor > 0", name="ck_pagamento_venda_valor_positivo"),
-        CheckConstraint("(parcelado IS FALSE) OR (qtd_parcelas >= 1)", name="ck_pagamento_venda_parcelas_min_1"),
+        CheckConstraint(
+            "(parcelado IS FALSE) OR (qtd_parcelas IS NOT NULL AND qtd_parcelas >= 1)",
+            name="ck_pagamento_venda_parcelas_min_1",
+        ),
     )
 
     # --- Identificacao ---

@@ -124,7 +124,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
                     v-if="'imagem_url' in item && item.imagem_url"
                     :src="`${API_BASE_URL}/${item.imagem_url}`"
                     :alt="item.nome"
-                    class="h-full w-full object-fit"
+                    class="h-full w-full object-contain"
                   />
 
                   <span v-else class="text-xs font-semibold text-zinc-400">
