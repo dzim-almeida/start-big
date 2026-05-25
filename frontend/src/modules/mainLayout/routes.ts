@@ -22,10 +22,10 @@ const homeRoutes: RouteRecordRaw[] = [
       {
         path: '/vendas',
         name: 'sales',
-        component: () => import('@/modules/home/views/HomeView.vue'),
+        component: () => import('@/modules/sales/SalesView.vue'),
         meta: {
           title: 'Vendas',
-          subtitle: 'Resumo de vendas do sistema',
+          subtitle: 'Gerencie as vendas da sua organização de forma centralizada.',
           tabId: 'sales',
           requiresAuth: true,
         },
