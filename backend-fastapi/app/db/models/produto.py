@@ -12,7 +12,10 @@ from app.db.base import Base
 # Assumindo que 'Estoque', e 'ProdutoFoto' estão em seus respectivos módulos.
 from app.db.models.estoque import Estoque
 from app.db.models.produto_fotos import ProdutoFoto
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .log_produto import LogProduto
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -32,6 +35,9 @@ class Produto(Base):
     observacao: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o produto")
     categoria: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Categoria à qual o produto pertence")
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Marca do produto")
+    @property
+    def imagem_url(self) -> Optional[str]:
+        return next((foto.url for foto in self.fotos if foto.principal), None)
     # localizacao_estoque: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Localização do produto no estoque")
     
     # Chave estrangeira para o fornecedor (Muitos-para-Um)
@@ -65,6 +71,13 @@ class Produto(Base):
         back_populates="produto",
         cascade="all, delete-orphan", # Garante a exclusão de todas as Fotos ao deletar o Produto
         doc="Relacionamento de Um-para-Vários com Fotos"
+    )
+
+    # Relação Lado "Um" (Produto) para "Muitos" (Logs de Estoque)
+    logs: Mapped[List["LogProduto"]] = relationship(
+        "LogProduto",
+        back_populates="produto",
+        doc="Historico de movimentacoes de estoque deste produto"
     )
 
     # Restrições (Constraints)

@@ -9,17 +9,20 @@ import uuid
 import shutil
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
-from typing import Sequence, Optional
+from typing import Sequence
 
-from app.schemas.produto import ProdutoCreate, ProdutoUpdate
+from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
+from app.db.models.log_produto import LogProduto as LogProdutoModel
 from app.db.crud import produto as produto_crud
 from app.db.crud import movimentacao_estoque as mov_crud
 from app.core.enum import MovimentacaoTipo
 from typing import Dict, Any
+
+from app.core.enum import TipoTransacaoEstoque
 
 # Diretório base onde as imagens serão salvas
 UPLOAD_BASE_DIR = "static/uploads/produtos"
@@ -43,6 +46,11 @@ not_found_exce = HTTPException(
 internal_error_exce = HTTPException(
     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     detail="Erro em cumprir a requisição. Tente novamente mais tarde."
+)
+
+_bad_request_exce = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="Estoque insuficiente para a quantidade solicitada"
 )
 
 # ===========================================================================
@@ -163,6 +171,10 @@ def get_produto_by_search(db: Session, produto_search: str | None) -> Sequence[P
     """Intermediário para busca de produtos via CRUD."""
     return produto_crud.get_produto_by_search(db, search=produto_search)
 
+def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[ProdutoSimpleRead]:
+    """Intermediário para busca rápida de produtos."""
+    return produto_crud.get_produto_simple_by_search(db, search=search)
+
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
 # ===========================================================================
@@ -249,3 +261,33 @@ def delete_produto_image(db: Session, image_id: int):
         raise internal_error_exce
     
     return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)
+
+def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
+    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    if not product_in_db:
+        raise not_found_exce
+    
+    qtd_stock = product_in_db.estoque.quantidade or 0
+
+    if quantidade > qtd_stock:
+        raise _bad_request_exce
+    
+    product_in_db.estoque.quantidade = qtd_stock - quantidade
+
+    product_log = LogProdutoModel(
+        produto_id=produto_id,
+        venda_id=venda_id,
+        funcionario_id=funcionario_id,
+        tipo_transacao=TipoTransacaoEstoque.SAIDA_VENDA,
+        quantidade=-quantidade
+    )
+
+    product_in_db.logs.append(product_log)
+
+    return produto_crud.update_produto(db, product_in_db)
+
+def get_produto_by_id(db: Session, produto_id: int) -> ProdutoModel:
+    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    if not product_in_db:
+        raise not_found_exce
+    return product_in_db
