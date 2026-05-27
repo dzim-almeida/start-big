@@ -26,6 +26,8 @@ from app.services import endereco as endereco_service
 from app.services import usuario as usuario_service
 from app.core.enum import EntityType
 from app.db.crud import empresa as empresa_crud
+from app.db.models.funcionario import Funcionario as FuncionarioModel
+from app.db.crud import funcionario as funcionario_crud
 
 # ---------------------------------------------------------------------------
 # CONSTANTES E EXCEÇÕES
@@ -142,14 +144,25 @@ def create_empresa(
         empresa_id=empresa_in_db.id
     )
 
-    # 5. Atualiza a relação em memória para o retorno coerente do DTO EmpresaRead
+    # 5. Criação do Funcionário para o Usuário Master
+    funcionario_master = FuncionarioModel(
+        nome=usuario_master.nome,
+        email=usuario_master.email,
+        cpf=None,
+        empresa_id=empresa_in_db.id,
+        usuario_id=usuario_master.id,
+        ativo=True,
+    )
+    funcionario_crud.create_funcionario(db, funcionario_to_add=funcionario_master)
+
+    # 6. Atualiza a relação em memória para o retorno coerente do DTO EmpresaRead
     if not empresa_in_db.usuarios:
         empresa_in_db.usuarios = []
-        
+
     # Adiciona o usuário master à lista de usuários da empresa
     if usuario_master not in empresa_in_db.usuarios:
         empresa_in_db.usuarios.append(usuario_master)
-    
+
     return empresa_in_db
 
 
