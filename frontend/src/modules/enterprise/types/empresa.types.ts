@@ -84,6 +84,7 @@ export interface EmpresaRead {
   inscricao_municipal?: string;
   regime_tributario?: string;
   cnae_principal?: string;
+  segmento?: string;
   email?: string;
   telefone?: string;
   celular?: string;

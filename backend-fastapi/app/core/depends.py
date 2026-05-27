@@ -51,13 +51,19 @@ def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[st
     usuario_token["is_master"] = usuario_in_db.is_master
     usuario_token["empresa_id"] = usuario_in_db.empresa_id
     
-    # Pega as permissões do cargo, ou um dicionário vazio se não houver cargo/funcionário
-    if usuario_in_db.funcionario and usuario_in_db.funcionario.cargo:
-        usuario_token["permissoes"] = usuario_in_db.funcionario.cargo.permissoes or {}
-        usuario_token["cargo"] = usuario_in_db.funcionario.cargo.nome
+    # Pega o funcionario_id e permissões do cargo
+    if usuario_in_db.funcionario:
+        usuario_token["funcionario_id"] = usuario_in_db.funcionario.id
+        if usuario_in_db.funcionario.cargo:
+            usuario_token["permissoes"] = usuario_in_db.funcionario.cargo.permissoes or {}
+            usuario_token["cargo"] = usuario_in_db.funcionario.cargo.nome
+        else:
+            usuario_token["permissoes"] = {}
+            usuario_token["cargo"] = "Sem Cargo"
     else:
+        usuario_token["funcionario_id"] = None
         usuario_token["permissoes"] = {}
-        usuario_token["cargo"] = "Sem Cargo" # Define um valor padrão
+        usuario_token["cargo"] = "Sem Cargo"
         
     return usuario_token
     

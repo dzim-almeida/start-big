@@ -24,7 +24,7 @@ class FuncionarioBase(BaseModel):
     email: Optional[str] = Field(None, description="Email corporativo ou pessoal.")
 
     # Documentos e identidade
-    cpf: str = Field(..., pattern=r"^\d{11}$", description="CPF (11 dígitos numéricos).")
+    cpf: Optional[str] = Field(None, pattern=r"^\d{11}$", description="CPF (11 dígitos numéricos). Nullable para Usuário Master.")
     rg: Optional[str] = Field(None, max_length=20, description="Registro Geral.")
     carteira_trabalho: Optional[str] = Field(None, max_length=50, description="Número da CTPS.")
     cnh: Optional[str] = Field(None, max_length=20, description="Carteira de Motorista.")

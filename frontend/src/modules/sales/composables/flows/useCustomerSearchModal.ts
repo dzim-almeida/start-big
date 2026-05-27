@@ -6,6 +6,7 @@ import { useCreateSaleMutation } from '../mutates/useCreateSaleMutation'
 
 import { useCustomerModal } from '@/modules/customers/composables/modal/useCustomerModal'
 import { useSaleModal } from './useSaleModal'
+import { useAuthStore } from '@/shared/stores/auth.store'
 
 type ModalMode = 'create' | 'change'
 
@@ -19,6 +20,7 @@ export function useCustomerSearchModal() {
 
   const { openCreateModalWithCallback } = useCustomerModal()
   const { openSaleEditModal } = useSaleModal()
+  const authStore = useAuthStore()
 
   const {
     data: customers,
@@ -61,7 +63,7 @@ export function useCustomerSearchModal() {
     createSaleMutation.mutate(
       {
         cliente_id: customerId,
-        funcionario_id: 1,
+        funcionario_id: authStore.userData?.funcionario_id as number,
       },
       {
         onSuccess: (createdSale) => {
