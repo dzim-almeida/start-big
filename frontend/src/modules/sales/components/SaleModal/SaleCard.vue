@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { Ticket, TicketPercent, Truck, Pen, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
+import { TicketPercent, Truck, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
 
 import { useSaleDetailsForm } from '../../composables/flows/useSaleDetailsForm';
 import { STATUS_COLORS, SALE_FILTERS } from '../../constants';
@@ -22,10 +22,14 @@ const { form, isSaving, saveNow } = useSaleDetailsForm(saleRef);
 
 const saleDisplay = computed(() => {
   if (!props.sale) return '...';
+
+  const prefix = props.sale.status === 'ORCAMENTO' ? 'ORÇAMENTO' : 'VENDA';   
+
   if (props.sale.numero_venda) {
-    return `VENDA #${String(props.sale.numero_venda).padStart(6, '0')}`;
+
+    return `${prefix} #${String(props.sale.numero_venda).padStart(6, '0')}`;
   }
-  return `VENDA #${String(props.sale.id).padStart(6, '0')}`;
+  return `${prefix} #${String(props.sale.id).padStart(6, '0')}`;
 });
 
 const createdAt = computed(() => {
@@ -39,7 +43,7 @@ const createdAt = computed(() => {
 
   const time = props.sale.criado_em.split('T')[1];
 
-  return `${date} as ${time}`;
+  return `${date} às ${time}`;
 });
 </script>
 <template>
