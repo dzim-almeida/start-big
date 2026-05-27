@@ -144,6 +144,7 @@ watch(isOpen, (open) => {
                 <DadosEstoqueSection
                   :submit-count="submitCount"
                   :disabled="isViewMode"
+                  :is-create-mode="isCreateMode"
                 />
               </form>
             </div>

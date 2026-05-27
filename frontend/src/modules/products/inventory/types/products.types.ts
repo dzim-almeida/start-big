@@ -89,6 +89,32 @@ export interface CardInfo {
 }
 
 // =============================================
+// MOVIMENTAÇÃO TYPES
+// =============================================
+
+export type MovimentacaoTipo = 'ENTRADA' | 'SAIDA' | 'AJUSTE';
+
+export interface MovimentacaoRead {
+  id: number;
+  produto_id: number;
+  produto_nome: string;
+  usuario_id: number | null;
+  usuario_nome: string;
+  tipo: MovimentacaoTipo;
+  quantidade: number;
+  quantidade_anterior: number;
+  quantidade_posterior: number;
+  observacao: string | null;
+  created_at: string;
+}
+
+export interface MovimentacaoCreate {
+  tipo: MovimentacaoTipo;
+  quantidade: number;
+  observacao?: string;
+}
+
+// =============================================
 // FORM TYPES
 // =============================================
 

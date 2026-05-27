@@ -9,7 +9,7 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
-import { useProductsQuery } from '@/modules/products/composables/useProductsQuery';
+import { useProductsQuery } from '@/modules/products/inventory/composables/useProductsQuery';
 import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
 import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
