@@ -23,6 +23,7 @@ export interface Position {
 
 export interface User {
   id: number;
+  funcionario_id?: number | null;
   nome: string;
   email: string;
   url_perfil?: string;

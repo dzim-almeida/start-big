@@ -156,6 +156,7 @@ def get_usuario_me_by_id(db: Session, usuario_id: int) -> UsuarioRead:
 
     return UsuarioRead(
         id=usuario_in_db.id,
+        funcionario_id=usuario_in_db.funcionario.id if usuario_in_db.funcionario else None,
         nome=usuario_in_db.nome,
         email=usuario_in_db.email,
         url_perfil=usuario_in_db.url_perfil,
