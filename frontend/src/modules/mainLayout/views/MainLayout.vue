@@ -21,8 +21,6 @@ import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useO
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 
-import type { QuickActionItem } from '@/modules/home/types/dashboard.types';
-
 const layoutStore = useLayoutStore();
 const { isMobile, isMobileOpen, isQuickOpen } = storeToRefs(layoutStore);
 
@@ -41,7 +39,7 @@ const {
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
-const quickActions: QuickActionItem[] = [
+const quickActions = [
   { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
   { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
   { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
