@@ -37,6 +37,7 @@ class Empresa(Base):
     inscricao_municipal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Municipal (IM)")
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
     cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
+    segmento: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Segmento de negócio da empresa (ex: assistencia_tecnica, oficina_mecanica)")
 
     # --- Contato e Visual ---
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")

@@ -1,159 +1,97 @@
 import { ref, computed } from 'vue';
-import { TrendingUp, ShoppingCart, Users, CreditCard, Plus, BarChart3 } from 'lucide-vue-next';
-import type { StatCardData, Transaction, QuickActionItem, PeriodFilter } from '../types/dashboard.types';
+import { TrendingUp, Wrench, Users, CreditCard } from 'lucide-vue-next';
 
-// Dados mockados das estatísticas por período
-const mockStatsByPeriod: Record<PeriodFilter, StatCardData[]> = {
-  today: [
-    {
-      id: 'total-sales',
-      icon: TrendingUp,
-      label: 'Vendas Totais',
-      value: 'R$ 12.450,00',
-      change: '+12.5%',
-      isPositive: true,
-    },
-    {
-      id: 'orders',
-      icon: ShoppingCart,
-      label: 'Pedidos Realizados',
-      value: '48',
-      change: '+5.2%',
-      isPositive: true,
-    },
-    {
-      id: 'new-customers',
-      icon: Users,
-      label: 'Novos Clientes',
-      value: '12',
-      change: '-2.4%',
-      isPositive: false,
-    },
-    {
-      id: 'avg-ticket',
-      icon: CreditCard,
-      label: 'Ticket Médio',
-      value: 'R$ 259,37',
-      change: '+0.8%',
-      isPositive: true,
-    },
-  ],
-  week: [
-    {
-      id: 'total-sales',
-      icon: TrendingUp,
-      label: 'Vendas Totais',
-      value: 'R$ 87.150,00',
-      change: '+18.3%',
-      isPositive: true,
-    },
-    {
-      id: 'orders',
-      icon: ShoppingCart,
-      label: 'Pedidos Realizados',
-      value: '336',
-      change: '+12.1%',
-      isPositive: true,
-    },
-    {
-      id: 'new-customers',
-      icon: Users,
-      label: 'Novos Clientes',
-      value: '84',
-      change: '+8.7%',
-      isPositive: true,
-    },
-    {
-      id: 'avg-ticket',
-      icon: CreditCard,
-      label: 'Ticket Médio',
-      value: 'R$ 259,37',
-      change: '+3.2%',
-      isPositive: true,
-    },
-  ],
-  month: [
-    {
-      id: 'total-sales',
-      icon: TrendingUp,
-      label: 'Vendas Totais',
-      value: 'R$ 348.600,00',
-      change: '+22.1%',
-      isPositive: true,
-    },
-    {
-      id: 'orders',
-      icon: ShoppingCart,
-      label: 'Pedidos Realizados',
-      value: '1.344',
-      change: '+15.8%',
-      isPositive: true,
-    },
-    {
-      id: 'new-customers',
-      icon: Users,
-      label: 'Novos Clientes',
-      value: '336',
-      change: '+11.2%',
-      isPositive: true,
-    },
-    {
-      id: 'avg-ticket',
-      icon: CreditCard,
-      label: 'Ticket Médio',
-      value: 'R$ 259,37',
-      change: '+5.4%',
-      isPositive: true,
-    },
-  ],
+import { formatCurrency, formatVariacao } from '@/shared/utils/finance';
+import { useDashboardStatsQuery } from './queries/useDashboardStatsQuery';
+import { useOSVencendoQuery } from './queries/useOSVencendoQuery';
+import { useEstoqueBaixoQuery } from './queries/useEstoqueBaixoQuery';
+import { useUltimasVendasQuery } from './queries/useUltimasVendasQuery';
+
+import type { StatCardData, PeriodFilter } from '../types/dashboard.types';
+
+const PERIOD_LABELS: Record<PeriodFilter, string> = {
+  hoje: 'hoje',
+  semana: 'esta semana',
+  mes: 'este mês',
 };
 
-// Dados mockados das transações recentes
-const mockTransactions: Transaction[] = [
-  { id: '#8821', customer: 'Ana Paula Mendes', value: 'R$ 450,00', status: 'completed' },
-  { id: '#8820', customer: 'Marcos Vinícius', value: 'R$ 120,50', status: 'pending' },
-  { id: '#8819', customer: 'Julia Oliveira', value: 'R$ 1.200,00', status: 'completed' },
-  { id: '#8818', customer: 'Rodrigo Silva', value: 'R$ 89,90', status: 'completed' },
-  { id: '#8817', customer: 'Fernanda Costa', value: 'R$ 567,80', status: 'pending' },
-];
-
-// Dados mockados das ações rápidas
-const mockQuickActions: QuickActionItem[] = [
-  { id: 'new-product', icon: Plus, label: 'Novo Produto', variant: 'primary' },
-  { id: 'new-customer', icon: Users, label: 'Cadastrar Cliente', variant: 'secondary' },
-  { id: 'daily-report', icon: BarChart3, label: 'Relatório Diário', variant: 'secondary' },
-];
-
 export function useDashboard() {
-  const activePeriod = ref<PeriodFilter>('today');
-  const lowStockCount = ref(5);
+  const activePeriod = ref<PeriodFilter>('hoje');
 
-  const stats = computed(() => mockStatsByPeriod[activePeriod.value]);
+  // Queries
+  const statsQuery = useDashboardStatsQuery(activePeriod);
+  const osVencendoQuery = useOSVencendoQuery();
+  const estoqueBaixoQuery = useEstoqueBaixoQuery();
+  const ultimasVendasQuery = useUltimasVendasQuery();
 
-  const transactions = computed(() => mockTransactions);
+  // Stats cards computados a partir dos dados da API
+  const stats = computed<StatCardData[]>(() => {
+    const data = statsQuery.data.value;
+    if (!data) return [];
 
-  const quickActions = computed(() => mockQuickActions);
+    return [
+      {
+        id: 'vendas-totais',
+        icon: TrendingUp,
+        label: 'Vendas Totais',
+        value: formatCurrency(data.vendas_total),
+        change: formatVariacao(data.vendas_total_variacao),
+        isPositive: data.vendas_total_variacao >= 0,
+      },
+      {
+        id: 'ordens-servico',
+        icon: Wrench,
+        label: 'Ordens de Serviço',
+        value: String(data.os_count),
+        change: formatVariacao(data.os_count_variacao),
+        isPositive: data.os_count_variacao >= 0,
+      },
+      {
+        id: 'novos-clientes',
+        icon: Users,
+        label: 'Novos Clientes',
+        value: String(data.novos_clientes),
+        change: formatVariacao(data.novos_clientes_variacao),
+        isPositive: data.novos_clientes_variacao >= 0,
+      },
+      {
+        id: 'ticket-medio',
+        icon: CreditCard,
+        label: 'Ticket Médio',
+        value: formatCurrency(data.ticket_medio),
+        change: formatVariacao(data.ticket_medio_variacao),
+        isPositive: data.ticket_medio_variacao >= 0,
+      },
+    ];
+  });
+
+  const osVencendo = computed(() => osVencendoQuery.data.value?.items ?? []);
+  const estoqueBaixo = computed(() => estoqueBaixoQuery.data.value?.items ?? []);
+  const ultimasVendas = computed(() => ultimasVendasQuery.data.value?.items ?? []);
+
+  const periodDescription = computed(
+    () => `Confira os resultados da loja para ${PERIOD_LABELS[activePeriod.value]}.`,
+  );
 
   function setPeriod(period: PeriodFilter): void {
     activePeriod.value = period;
   }
 
-  // Nome do período para exibição
-  const periodLabels: Record<PeriodFilter, string> = {
-    today: 'Hoje',
-    week: 'Semana',
-    month: 'Mês',
-  };
-
-  const periodLabel = computed(() => periodLabels[activePeriod.value]);
-
   return {
     activePeriod,
     stats,
-    transactions,
-    quickActions,
-    lowStockCount,
     setPeriod,
-    periodLabel,
+    periodDescription,
+    osVencendo,
+    estoqueBaixo,
+    ultimasVendas,
+    isLoadingStats: statsQuery.isLoading,
+    isLoadingOS: osVencendoQuery.isLoading,
+    isLoadingEstoque: estoqueBaixoQuery.isLoading,
+    isLoadingVendas: ultimasVendasQuery.isLoading,
+    isErrorStats: statsQuery.isError,
+    isErrorOS: osVencendoQuery.isError,
+    isErrorEstoque: estoqueBaixoQuery.isError,
+    isErrorVendas: ultimasVendasQuery.isError,
   };
 }

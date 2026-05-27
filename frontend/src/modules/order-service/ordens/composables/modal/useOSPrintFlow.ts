@@ -1,42 +1,23 @@
 import { ref } from 'vue';
+import { usePrintFlow } from '@/shared/composables/usePrintFlow';
 
-export type PrintFormat = 'A4' | 'CUPOM';
+export type { PrintFormat } from '@/shared/components/print/print.types';
 
 interface UseOSPrintFlowParams {
   onClose: () => void;
 }
 
 export function useOSPrintFlow({ onClose }: UseOSPrintFlowParams) {
-  const printType = ref<'ENTRADA' | 'SAIDA'>('ENTRADA');
-  const printFormat = ref<PrintFormat>('A4');
+  const {
+    printType,
+    printFormat,
+    isPrintSelectModalOpen,
+    openPrintSelect,
+    handlePrintFormatSelected,
+    closePrintSelectModal,
+  } = usePrintFlow<'ENTRADA' | 'SAIDA'>();
+
   const isFinalizarModalOpen = ref(false);
-  const isPrintSelectModalOpen = ref(false);
-
-  // Guarda a ação pendente (executada após o usuário selecionar o formato)
-  const pendingPrintAction = ref<(() => void) | null>(null);
-
-  function openPrintSelect(type: 'ENTRADA' | 'SAIDA', afterPrint?: () => void) {
-    printType.value = type;
-    pendingPrintAction.value = afterPrint ?? null;
-    isPrintSelectModalOpen.value = true;
-  }
-
-  function handlePrintFormatSelected(format: PrintFormat) {
-    printFormat.value = format;
-    isPrintSelectModalOpen.value = false;
-
-    // Aguarda o próximo tick para o template correto ser renderizado via v-if
-    setTimeout(() => {
-      window.print();
-      pendingPrintAction.value?.();
-      pendingPrintAction.value = null;
-    }, 100);
-  }
-
-  function closePrintSelectModal() {
-    isPrintSelectModalOpen.value = false;
-    pendingPrintAction.value = null;
-  }
 
   function printEntrada() {
     openPrintSelect('ENTRADA');

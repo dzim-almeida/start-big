@@ -58,7 +58,7 @@ class Funcionario(Base):
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Número do celular para contato")
     
     # --- Documentos e Identidade ---
-    cpf: Mapped[str] = mapped_column(String(11), unique=True, nullable=False, doc="CPF (11 dígitos, único)")
+    cpf: Mapped[Optional[str]] = mapped_column(String(11), unique=True, nullable=True, doc="CPF (11 dígitos, único). Nullable para Usuário Master.")
     rg: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="RG")
     carteira_trabalho: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True, doc="Número da Carteira de Trabalho")
     cnh: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="Número da CNH")

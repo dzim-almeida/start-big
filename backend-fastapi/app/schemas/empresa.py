@@ -169,6 +169,11 @@ class EmpresaBase(BaseModel):
         max_length=50,
         description="CNAE Principal",
     )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
+    )
 
     # Contato
     telefone: Optional[str] = Field(
@@ -294,6 +299,11 @@ class EmpresaUpdate(BaseModel):
         None,
         max_length=50,
         description="CNAE Principal",
+    )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
     )
 
     # Contato
@@ -426,6 +436,11 @@ class EmpresaUserRead(BaseModel):
         None,
         max_length=255,
         description="Email principal da empresa",
+    )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
     )
     enderecos: Optional[Sequence["EnderecoRead"]] = Field(
         None,

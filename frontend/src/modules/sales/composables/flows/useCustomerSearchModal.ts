@@ -63,7 +63,7 @@ export function useCustomerSearchModal() {
     createSaleMutation.mutate(
       {
         cliente_id: customerId,
-        funcionario_id: authStore.userData?.funcionario_id ?? 1,
+        funcionario_id: authStore.userData?.funcionario_id as number,
       },
       {
         onSuccess: (createdSale) => {

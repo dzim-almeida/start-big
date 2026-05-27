@@ -8,7 +8,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 
 import { formatCurrency } from '@/shared/utils/finance';
-import { inferPaymentType, inferPermiteParcelamento, getPaymentDisplayName } from '@/modules/order-service/shared/utils/formatters';
+import { inferPaymentType, inferPermiteParcelamento, getPaymentDisplayName } from '@/shared/utils/print.utils';
 
 import { usePaymentMethodsQuery } from '../../composables/queries/usePaymentMethodsQuery';
 

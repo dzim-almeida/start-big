@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import OSTable from '../../ordens/components/OSTable.vue';
-import OSFormModal from '../../ordens/components/OSFormModal.vue';
-import OSClienteSearchModal from '../../ordens/components/OSClienteSearchModal.vue';
 import OSCancelModal from '../../ordens/components/OSCancelModal.vue';
-import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
 import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
 import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
-import OSPrintSelectModal from '../../ordens/components/OSPrintSelectModal.vue';
+import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
@@ -17,10 +14,10 @@ import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
-import type { CustomerUnionReadSchemaDataType } from '../../ordens/schemas/relationship/customer/customer.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
 import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
+import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
 
 const toast = useToast();
 const reopenMutation = useReopenOrderServiceMutation();
@@ -39,13 +36,11 @@ const {
 
 const { stats, isLoading: isStatsLoading } = useOrderServiceQueryStats();
 
+const { openExistingOS } = useOSCreateFlow();
+
 // ─── Estado dos modais ────────────────────────────────────────────────────────
-const isClienteSearchModalOpen = ref(false);
-const isFormModalOpen = ref(false);
 const isCancelModalOpen = ref(false);
 
-const selectedOS = ref<OrderServiceReadDataType | null>(null);
-const selectedCliente = ref<CustomerUnionReadSchemaDataType | null>(null);
 const osToCancel = ref<OrderServiceReadDataType | null>(null);
 const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
 const isFinalizarDirectOpen = ref(false);
@@ -66,40 +61,11 @@ const osActiveFilter = computed<string | null>({
   },
 });
 
-// ─── Abertura de nova OS ──────────────────────────────────────────────────────
-function handleOpenNovaOS() {
-  selectedOS.value = null;
-  selectedCliente.value = null;
-  isClienteSearchModalOpen.value = true;
-}
-
-function handleCloseClienteSearch() {
-  isClienteSearchModalOpen.value = false;
-}
-
-function handleClienteSelected(cliente: CustomerUnionReadSchemaDataType) {
-  selectedCliente.value = cliente;
-  isClienteSearchModalOpen.value = false;
-  isFormModalOpen.value = true;
-}
-
-function handleChangeCliente() {
-  isFormModalOpen.value = false;
-  isClienteSearchModalOpen.value = true;
-}
-
-function handleCloseFormModal() {
-  isFormModalOpen.value = false;
-  selectedOS.value = null;
-  selectedCliente.value = null;
-}
-
 // ─── Ações da tabela ──────────────────────────────────────────────────────────
 async function handleView(os: OrderServiceReadDataType) {
   try {
-    selectedOS.value = await getUniqueOS(os.numero_os);
-    selectedCliente.value = null;
-    isFormModalOpen.value = true;
+    const osCompleta = await getUniqueOS(os.numero_os);
+    openExistingOS(osCompleta);
   } catch {
     toast.error('Erro ao carregar detalhes da OS');
   }
@@ -107,9 +73,8 @@ async function handleView(os: OrderServiceReadDataType) {
 
 async function handleEdit(os: OrderServiceReadDataType) {
   try {
-    selectedOS.value = await getUniqueOS(os.numero_os);
-    selectedCliente.value = null;
-    isFormModalOpen.value = true;
+    const osCompleta = await getUniqueOS(os.numero_os);
+    openExistingOS(osCompleta);
   } catch {
     toast.error('Erro ao carregar OS para edição');
   }
@@ -237,7 +202,6 @@ function handleClosePrintSelect() {
   printType.value = null;
 }
 
-defineExpose({ handleOpenNovaOS });
 </script>
 
 <template>
@@ -268,20 +232,6 @@ defineExpose({ handleOpenNovaOS });
       @update:current-page="setPage"
     />
 
-    <OSClienteSearchModal
-      :is-open="isClienteSearchModalOpen"
-      @close="handleCloseClienteSearch"
-      @select-cliente="handleClienteSelected"
-    />
-
-    <OSFormModal
-      :is-open="isFormModalOpen"
-      :ordem-servico="selectedOS"
-      :selected-cliente="selectedCliente"
-      @close="handleCloseFormModal"
-      @change-cliente="handleChangeCliente"
-    />
-
     <OSCancelModal
       :is-open="isCancelModalOpen"
       :os-numero="osToCancel?.numero_os ?? null"
@@ -305,8 +255,9 @@ defineExpose({ handleOpenNovaOS });
       @full="handleReopenFull"
     />
 
-    <OSPrintSelectModal
+    <PrintFormatSelectModal
       :is-open="isPrintSelectOpen"
+      subtitle="Selecione o formato desejado para imprimir esta OS."
       @close="handleClosePrintSelect"
       @select="handlePrintFormatSelected"
     />
@@ -323,6 +274,5 @@ defineExpose({ handleOpenNovaOS });
       :type="printType || 'SAIDA'"
     />
 
-    <CustomerFormModal />
   </div>
 </template>

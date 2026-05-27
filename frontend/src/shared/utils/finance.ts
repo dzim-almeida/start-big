@@ -34,3 +34,12 @@ export function parseCurrencyToCents(value: string): number {
   if (isNaN(parsed)) return 0;
   return Math.round(parsed * 100);
 }
+
+/**
+ * Formata variacao percentual com sinal.
+ * Ex: 12.5 → "+12.5%", -3.2 → "-3.2%"
+ */
+export function formatVariacao(variacao: number): string {
+  const sign = variacao >= 0 ? '+' : '';
+  return `${sign}${variacao}%`;
+}
