@@ -1,16 +1,4 @@
 import { FilterOption } from "@/shared/types/filter.types";
-import { TabOption } from "../types/products.types";
-
-export const TAB_OPTIONS: TabOption[] = [
-    {
-        id: 'product',
-        label: 'Estoque',
-    },
-    {
-        id: 'supplier',
-        label: 'Fornecedores',
-    },
-];
 
 export const FILTER_CONFIG: Record<string, FilterOption> = {
     active: {
@@ -19,7 +7,7 @@ export const FILTER_CONFIG: Record<string, FilterOption> = {
         color: 'bg-emerald-500'
     },
     inactive: {
-        label: 'Inativos',
+        label: 'Desativados',
         class: 'bg-red-50 text-red-600 border border-red-200',
         color: 'bg-red-500'
     }

@@ -8,7 +8,7 @@ import BaseHeader from '../components/layout/BaseHeader.vue';
 import QuickActions from '../components/ui/QuickActions.vue';
 
 import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
-import ProductModal from '@/modules/products/components/ProductModal.vue';
+import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
 import ServicoFormModal from '@/modules/order-service/servicos/components/ServicoFormModal.vue';
 import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.vue';
 import SaleModal from '@/modules/sales/components/SaleModal.vue';
@@ -18,7 +18,7 @@ import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.v
 import { useLayoutStore } from '../store/layout.store';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
-import { useProductModal } from '@/modules/products/composables/useProductModal';
+import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 
 import type { QuickActionItem } from '@/modules/home/types/dashboard.types';

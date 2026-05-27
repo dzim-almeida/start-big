@@ -22,8 +22,9 @@ import type {
 } from '../types/products.types';
 import { getErrorMessage, getConflictErrors, isConflictError } from '@/shared/utils/error.utils';
 
-const QUERY_KEY = 'produtos';
-const STALE_TIME = 1000 * 60 * 5; // 5 minutes
+import { PRODUTOS_QUERY_KEY as QUERY_KEY, PRODUTOS_STALE_TIME as STALE_TIME } from '../../shared/constants/queryKeys';
+import { MOVIMENTACOES_QUERY_KEY } from './useMovimentacoesQuery';
+
 
 /**
  * Query for listing products
@@ -54,6 +55,7 @@ export function useCreateProductMutation(setErrors: any, selectedFile: Ref<File 
       }
       toast.success('Produto cadastrado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
     },
     onError: (error) => {
       if (isConflictError(error)) {
