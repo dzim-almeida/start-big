@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
 from app.core.excepetions import setup_exception_handlers
+from app.core.tarefas import lifespan
 
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
@@ -37,7 +38,8 @@ from app.db.models.log_produto import LogProduto
 app = FastAPI(
     title="BigPDV Backend API",
     description="Sistema de Ponto de Venda (PDV) - API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 setup_exception_handlers(app)
