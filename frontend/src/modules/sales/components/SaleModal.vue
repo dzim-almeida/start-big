@@ -171,21 +171,25 @@ const vendaDisplay = computed(() => {
         <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
         <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
       </section>
-      <section class="w-full md:w-1/3 flex flex-col gap-4">
-        <CustomerCard :customer="sale?.cliente" :readonly="isViewMode" @change-cliente="handleChangeCliente" />
-        <SaleCard :sale="sale" :readonly="isViewMode" />
-        <div v-if="isEditMode" class="mt-auto flex justify-around gap-5 w-full">
-          <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
-            Cancelar Venda
-          </BaseButton>
-          <BaseButton variant="primary" size="md" class="flex-1" @click="openFinishModal">
-            Finalizar
-          </BaseButton>
+      <section class="w-full md:w-1/3 flex flex-col min-h-0 max-h-[80vh]">
+        <div class="flex-1 overflow-y-scroll flex flex-col gap-4 pr-1">
+          <CustomerCard :customer="sale?.cliente" :readonly="isViewMode" @change-cliente="handleChangeCliente" />
+          <SaleCard :sale="sale" :readonly="isViewMode" />
         </div>
-        <div v-else class="mt-auto flex justify-center w-full">
-          <BaseButton variant="secondary" size="md" class="flex-1" @click="closeSaleModal()">
-            Fechar
-          </BaseButton>
+        <div class="shrink-0 pt-4">
+          <div v-if="isEditMode" class="flex justify-around gap-5 w-full">
+            <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
+              Cancelar Venda
+            </BaseButton>
+            <BaseButton variant="primary" size="md" class="flex-1" @click="openFinishModal">
+              Finalizar
+            </BaseButton>
+          </div>
+          <div v-else class="flex justify-center w-full">
+            <BaseButton variant="secondary" size="md" class="flex-1" @click="closeSaleModal()">
+              Fechar
+            </BaseButton>
+          </div>
         </div>
       </section>
     </main>

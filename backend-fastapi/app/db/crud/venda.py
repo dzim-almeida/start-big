@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session, aliased, joinedload
 from sqlalchemy import select, func, or_, cast, String
 
 from app.db.models.venda import Venda
@@ -26,7 +26,11 @@ def add_product_to_sale(db: Session, product_data: ProdutoVenda) -> ProdutoVenda
     return product_data
 
 def get_sale_by_id(db: Session, sale_id: int) -> Venda:
-    stmt = select(Venda).where(Venda.id == sale_id)
+    stmt = (
+        select(Venda)
+        .where(Venda.id == sale_id)
+        .options(joinedload(Venda.funcionario).joinedload(Funcionario.cargo))
+    )
     return db.scalar(stmt)
 
 def update_sale(db: Session, sale: Venda) -> Venda:
@@ -54,8 +58,14 @@ def get_sales_by_search(
     limit: int = 20,
 ) -> tuple[Sequence[Venda], int]:
     
-    query = select(Venda)
-    
+    query = select(Venda).options(
+        joinedload(Venda.funcionario).joinedload(Funcionario.cargo)
+    )
+
+    funcionario_id = filters.get("funcionario_id")
+    if funcionario_id:
+        query = query.where(Venda.funcionario_id == funcionario_id)
+
     search = filters.get("search")
     if search:
         cliente_pj = aliased(ClientePJ)
@@ -93,7 +103,7 @@ def get_sales_by_search(
 
     return sales, total 
 
-def get_sales_status(db: Session) -> VendaStatusSummary:
+def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaStatusSummary:
     payments_subq = (
         select(
             PagamentoVenda.venda_id,
@@ -123,6 +133,9 @@ def get_sales_status(db: Session) -> VendaStatusSummary:
         )
         .outerjoin(payments_subq, payments_subq.c.venda_id == Venda.id)
     )
+
+    if funcionario_id:
+        stmt = stmt.where(Venda.funcionario_id == funcionario_id)
 
     result = db.execute(stmt).first()
 

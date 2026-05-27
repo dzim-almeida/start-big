@@ -11,9 +11,9 @@ defineProps<{
 
 <template>
   <div
-    class="w-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:border-brand-primary/30 transition-colors group relative"
+    class="w-full bg-white rounded-xl border border-slate-200 shadow-sm hover:border-brand-primary/30 transition-colors group relative"
   >
-    <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+    <div class="bg-slate-50 rounded-t-xl px-4 py-3 border-b border-slate-100 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <LucideIcon :icon="icon" size="uxs" class="text-brand-primary" v-if="icon" />
         <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{

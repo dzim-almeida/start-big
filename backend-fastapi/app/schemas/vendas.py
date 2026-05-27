@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Sequence
 
 from app.schemas.cliente import ClienteRead, ClienteSimpleRead
+from app.schemas.cargo import CargoBase
 
 from app.core.enum import TipoProdutoVenda
 
@@ -103,6 +104,13 @@ class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")
     data_pagamento: datetime = Field(..., description="Data do pagamento no formato ISO 8601")
 
+class FuncionarioVendaRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="ID do funcionário")
+    nome: str = Field(..., description="Nome do funcionário")
+    cargo: Optional[CargoBase] = Field(None, description="Cargo do funcionário")
+
 class VendaSimpleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -120,6 +128,7 @@ class VendaSimpleRead(BaseModel):
     atualizado_em: datetime = Field(..., description="Data da última atualização da venda no formato ISO 8601")
 
     cliente: Optional[ClienteSimpleRead] = Field(None, description="Dados do cliente associado à venda, preenchido automaticamente com base no cliente_id")
+    funcionario: Optional[FuncionarioVendaRead] = Field(None, description="Dados do funcionário responsável pela venda")
 
 class VendaRead(VendaSimpleRead):
     entrega: int = Field(0, ge=0, description="Valor da entrega")
@@ -154,6 +163,7 @@ class FinalizarVendaPayload(BaseModel):
 class VendaSearchFilters(BaseModel):
     search: Optional[str] = Field(None, max_length=255, description="Termo de busca para filtrar vendas por número da venda, nome do cliente ou nome do funcionário")
     status: Optional[VendaStatus] = Field(None, description="Status para filtrar as vendas")
+    funcionario_id: Optional[int] = Field(None, description="Filtrar vendas pelo funcionário responsável")
 
 class VendaListRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

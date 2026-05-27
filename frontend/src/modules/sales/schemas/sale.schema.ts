@@ -4,6 +4,14 @@ import { ProductSaleReadSchema } from './productSale.schema';
 import { PaymentSaleReadSchema } from './paymentSale.schema';
 import { CustomerDiscriminatedSchema } from './customers.schema';
 
+export const FuncionarioVendaReadSchema = z.object({
+  id: z.number(),
+  nome: z.string(),
+  cargo: z.object({ nome: z.string() }).nullable().optional(),
+});
+
+export type FuncionarioVendaRead = z.infer<typeof FuncionarioVendaReadSchema>;
+
 export const SaleCreateSchema = z.object({
   cliente_id: z.number().nullable().optional(),
   funcionario_id: z.number({ required_error: 'Funcionário é obrigatório' }),
@@ -51,6 +59,7 @@ export const SaleSimpleReadSchema = z.object({
   ),
 
   cliente: CustomerDiscriminatedSchema.nullable().optional(),
+  funcionario: FuncionarioVendaReadSchema.nullable().optional(),
 });
 
 export type SaleSimpleRead = z.infer<typeof SaleSimpleReadSchema>;

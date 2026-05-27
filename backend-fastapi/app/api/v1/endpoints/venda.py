@@ -276,6 +276,10 @@ def listar_vendas(
     page: int = Query(1, ge=1, description="Número da página para paginação"),
     filters: VendaSearchFilters = Depends()
 ):
+    # Não-master vê apenas suas próprias vendas
+    if not user_token.get("is_master"):
+        filters.funcionario_id = user_token.get("funcionario_id")
+
     sales_in_db, total_sales, total_pages, links = venda_service.get_sales(
         db, filters=filters, page=page, limit=limit
     )
@@ -320,6 +324,7 @@ def resumo_status_vendas(
     *,
     db: Session = Depends(get_db),
 ):
-    return venda_service.get_sales_status(db)
+    funcionario_id = None if user_token.get("is_master") else user_token.get("funcionario_id")
+    return venda_service.get_sales_status(db, funcionario_id=funcionario_id)
 
     

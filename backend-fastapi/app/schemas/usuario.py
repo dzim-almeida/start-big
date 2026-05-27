@@ -68,7 +68,7 @@ class UsuarioRead(UsuarioBase):
         cargo (CargoBase): Cargo com nome e permissão.
     """
     id: int = Field(..., description="ID do usuário")
-    funcionario_id: Optional[int] = Field(None, description="ID do funcionário associado")
+    funcionario_id: Optional[int] = Field(None, description="ID do funcionário vinculado")
     url_perfil: Optional[str] = Field(None, description="URL da foto de perfil")
     ativo: bool = Field(..., description="Status de ativo/inativo")
     empresa: Optional[EmpresaUserRead] = Field(None, description="Dados da empresa do usuario")
