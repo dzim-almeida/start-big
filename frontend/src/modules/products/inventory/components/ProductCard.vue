@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, Pencil, Power, Box, AlertTriangle } from 'lucide-vue-next';
+import { Eye, Pencil, Power, Box, AlertTriangle, Plus, Minus } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
@@ -18,6 +18,8 @@ const emit = defineEmits<{
   (e: 'view', id: number): void;
   (e: 'edit', id: number): void;
   (e: 'toggle', id: number): void;
+  (e: 'entrada', id: number): void;
+  (e: 'saida', id: number): void;
 }>();
 
 const stockStatus = computed(() => {
@@ -75,6 +77,10 @@ const isInactive = computed(() => !props.status);
         :alt="name"
         class="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
       />
+      <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-300">
+        <Box :size="48" class="mb-2" />
+        <span class="text-xs font-medium text-gray-400">Sem imagem</span>
+      </div>
 
       <!-- Stock Status Badge -->
       <div
@@ -93,7 +99,7 @@ const isInactive = computed(() => !props.status);
     <div class="p-5 space-y-3">
       <!-- Category Badge -->
       <span
-        class="inline-block px-3 py-1 bg-blue-50 text-blue-600 text-xs font-semibold uppercase tracking-wide rounded-md border border-blue-200"
+        class="inline-block px-3 py-1 bg-brand-primary/10 text-brand-primary text-xs font-semibold uppercase tracking-wide rounded-md border border-brand-primary/30"
       >
         {{ category }}
       </span>
@@ -120,28 +126,50 @@ const isInactive = computed(() => !props.status);
         </div>
       </div>
 
-      <!-- Action Buttons -->
+      <!-- Entrada / Saída rápida -->
       <div class="flex gap-2 pt-2">
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
+          class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 border bg-brand-primary text-white border-blue-500 hover:bg-blue-950 hover:border-blue-950 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
+          title="Registrar entrada"
+          :disabled="isInactive"
+          @click="emit('entrada', id)"
+        >
+          <Plus :size="15" />
+          Entrada
+        </button>
+        <button
+          class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 border bg-red-50 text-red-600 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Registrar saída"
+          :disabled="isInactive || storage === 0"
+          @click="emit('saida', id)"
+        >
+          <Minus :size="15" />
+          Saída
+        </button>
+      </div>
+
+      <!-- Ações secundárias -->
+      <div class="flex gap-2">
+        <button
+          class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
           title="Visualizar"
           @click="emit('view', id)"
         >
-          <Eye :size="18" />
+          <Eye :size="16" />
         </button>
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-brand-primary text-white border-blue-500 hover:bg-blue-950 hover:border-blue-950 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
+          class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
           title="Editar"
           @click="emit('edit', id)"
         >
-          <Pencil :size="18" />
+          <Pencil :size="16" />
         </button>
         <button
-          class="flex-1 flex items-center justify-center py-2.5 rounded-lg font-medium transition-all duration-200 border bg-red-50 text-red-600 border-red-200 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-200 cursor-pointer"
+          class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
           :title="isInactive ? 'Ativar' : 'Desativar'"
           @click="emit('toggle', id)"
         >
-          <Power :size="18" />
+          <Power :size="16" />
         </button>
       </div>
     </div>

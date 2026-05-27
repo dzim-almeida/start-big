@@ -18,6 +18,7 @@ import { useProductForm } from '../../composables/useProductForm';
 interface Props {
   submitCount: number;
   disabled?: boolean;
+  isCreateMode?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -88,7 +89,7 @@ const lucro_atacado = computed(() => {
           v-model="valor_atacado"
           label="Valor de Atacado"
           :error="submitCount > 0 ? errors.valor_atacado : ''"
-          :disabled="disabled"
+          :disabled="true"
         />
       </div>
       <div class="col-span-12 md:col-span-4">
@@ -121,7 +122,7 @@ const lucro_atacado = computed(() => {
 
     <div class="grid grid-cols-12 gap-4">
       <!-- Row 2: Stock Quantities -->
-      <div class="col-span-12 md:col-span-4">
+      <div v-if="isCreateMode" class="col-span-12 md:col-span-4">
         <BaseInput
           v-model="quantidade"
           label="Quantidade Inicial"
@@ -132,7 +133,7 @@ const lucro_atacado = computed(() => {
           :disabled="disabled"
         >
           <template #hint>
-            <span class="text-xs text-zinc-500">Estoque atual do produto</span>
+            <span class="text-xs text-zinc-500">Estoque inicial do produto</span>
           </template>
         </BaseInput>
       </div>

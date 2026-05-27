@@ -132,3 +132,9 @@ class TipoTransacaoEstoque(str, enum.Enum):
     ENTRADA = "ENTRADA"
     SAIDA_VENDA = "SAIDA_VENDA"
     ESTORNO = "ESTORNO"
+
+class MovimentacaoTipo(str, enum.Enum):
+    """Define o tipo de movimentação de estoque."""
+    ENTRADA = "ENTRADA"
+    SAIDA = "SAIDA"
+    AJUSTE = "AJUSTE"
