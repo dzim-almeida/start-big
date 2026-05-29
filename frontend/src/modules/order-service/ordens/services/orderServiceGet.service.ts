@@ -20,6 +20,8 @@ export async function getAllOs(
   if (query.search) params.search = query.search;
   if (query.priority_sort !== undefined) params.priority_sort = query.priority_sort;
   if (query.status) params.status = query.status;
+  if (query.page) params.page = query.page;
+  if (query.limit) params.limit = query.limit;
 
   const { data } = await api.get<OrderServicePaginationDataType>(`${BASE_ORDER_SERVICE_URL}/`, {
     params,

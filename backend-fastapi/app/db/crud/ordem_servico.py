@@ -150,7 +150,7 @@ def get_ordem_servico_stats(db: Session) -> dict:
 
     stmt = select(
         func.count(OSModel.id).label("total"),
-        func.count(OSModel.id).filter(OSModel.status == OrdemServicoStatus.ABERTA).label("abertas"),
+        func.count(OSModel.id).filter(OSModel.status.notin_([OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA])).label("abertas"),
         func.count(OSModel.id).filter(OSModel.status == OrdemServicoStatus.FINALIZADA).label("finalizadas"),
         func.avg(subq_values.c.valor_total).label("ticket_medio")
     ).outerjoin(subq_values, OSModel.id == subq_values.c.ordem_servico_id)

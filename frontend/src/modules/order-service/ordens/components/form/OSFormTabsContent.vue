@@ -65,6 +65,7 @@ const equipamentoModel = computed<EquipamentoFormData>({
           :selected-historico="view.selectedHistorico.value"
           :is-locked="view.isStructureLocked.value"
           :is-create-mode="view.isCreateMode.value"
+          :errors="view.formErrors.value"
           @update:selected-historico="view.setSelectedHistorico"
           @apply-historico="view.applyEquipamentoHistorico"
         />
