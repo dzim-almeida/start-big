@@ -1,0 +1,39 @@
+Análise Completa do Frontend BigPDV
+O agente explorou toda a estrutura do seu frontend. Aqui está o resumo:
+Tecnologias Identificadas
+Vue 3.5 (Composition API com <script setup>)
+TypeScript 5.6 (strict mode)
+Vite 6 + Tauri 2 (app desktop)
+Pinia + Vue Query (estado e cache)
+Vee-Validate + Zod (validação)
+Tailwind CSS + Lucide Icons
+Pontuação Geral: 7.5/10
+🔴 Problemas Críticos (Fazer Agora)
+Problema	Arquivo
+Navigation guards não implementados - rotas protegidas acessíveis sem login	router/index.ts
+Tipo any para user no store	auth.store.ts:9
+Token JWT no localStorage - vulnerável a XSS	auth.store.ts
+Tratamento incompleto de 401 - não redireciona	axios.ts:51
+Mensagem de validação errada - "mínimo" ao invés de "máximo"	login.schema.ts:25, register.schema.ts:31
+🟡 Problemas Médios
+BaseButton - variants danger e ghost não implementados
+BaseSidebar - dados do usuário mockados (hardcoded)
+BaseSearchInput - input sem v-model, não funcional
+useOnboarding - estado singleton fora do composable
+Arquivos vazios - useMainLayout.ts, menuItems.types.ts
+Typo - "Seguimento" ao invés de "Segmento" em CompanyStep.vue:123
+✅ Pontos Fortes
+Arquitetura modular excelente
+Separação clara (composables/services/schemas/types)
+Documentação JSDoc presente
+Design System bem estruturado (componentes Base)
+Validação robusta com Zod
+Fluxo de onboarding muito bem feito
+Vue Query configurado corretamente
+Sugestões Prioritárias
+Implementar navigation guards no router
+Criar interface User tipada ao invés de any
+Corrigir mensagens "mínimo" → "máximo"
+Completar tratamento de 401 - limpar store e redirecionar
+Verificar expiração do token antes de usar
+Quer que eu comece a corrigir algum desses problemas?

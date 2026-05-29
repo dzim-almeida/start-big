@@ -1,0 +1,142 @@
+<script setup lang="ts">
+import { Zap, ShoppingCart, FileText, Package, Wrench } from 'lucide-vue-next';
+import { useMagicKeys, whenever } from '@vueuse/core'
+import { storeToRefs } from 'pinia';
+
+import BaseSidebar from '../components/layout/sidebar/BaseSidebar.vue';
+import BaseHeader from '../components/layout/BaseHeader.vue';
+import QuickActions from '../components/ui/QuickActions.vue';
+
+import CustomerFormModal from '@/modules/customers/components/modal/CustomerFormModal.vue';
+import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
+import ServicoFormModal from '@/modules/order-service/servicos/components/ServicoFormModal.vue';
+import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.vue';
+import SaleModal from '@/modules/sales/components/SaleModal.vue';
+import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
+import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
+
+import { useLayoutStore } from '../store/layout.store';
+import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
+import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
+import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
+
+const layoutStore = useLayoutStore();
+const { isMobile, isMobileOpen, isQuickOpen } = storeToRefs(layoutStore);
+
+const { openCustomerModal } = useCustomerSearchModal();
+const {
+  isClienteSearchOpen,
+  isFormModalOpen,
+  selectedCliente,
+  selectedOS,
+  openNovaOS,
+  handleClienteSelected,
+  handleChangeCliente,
+  closeClienteSearch,
+  closeFormModal,
+} = useOSCreateFlow();
+const { openCreateModal: openProductCreate } = useProductModal();
+const { openCreateModal: openServicoCreate } = useServicoModal();
+
+const quickActions = [
+  { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
+  { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
+  { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
+  { id: 'novo-servico', icon: Wrench, label: 'Criar Serviço', variant: 'secondary', action: () => openServicoCreate() },
+];
+
+const { Ctrl_K } = useMagicKeys();
+
+whenever(Ctrl_K, () => {
+  layoutStore.toggleQuick();
+});
+</script>
+
+<template>
+  <div class="flex h-screen bg-brand-off-white overflow-hidden">
+    <Transition name="fade">
+      <div
+        v-if="(isMobile && isMobileOpen)"
+        class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        @click="layoutStore.closeSidebar"
+      />
+    </Transition>
+
+      <div
+        v-if="isQuickOpen"
+        class="fixed inset-0 bg-transparent z-40"
+        @click="layoutStore.toggleQuick"
+      />
+
+    <BaseSidebar />
+
+    <main class="relative flex-1 overflow-y-auto flex flex-col min-w-0">
+      <BaseHeader />
+      <div class="flex-1 overflow-y-auto">
+        <router-view />
+      </div>
+
+      <Transition name="pop" mode="out-in">
+        <button
+          v-if="!isQuickOpen"
+          class="fixed z-10 right-5 bottom-5 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
+          @click="layoutStore.toggleQuick"
+        >
+          <Zap :size="24" fill="white" />
+        </button>
+
+        <div v-else class="fixed bottom-5 right-5 z-50">
+          <QuickActions @clicked="layoutStore.toggleQuick" :actions="quickActions" />
+        </div>
+      </Transition>
+    </main>
+
+    <!-- Modais globais (disponíveis em todo o sistema) -->
+    <CustomerFormModal />
+    <ProductModal />
+    <ServicoFormModal />
+    <CustomerSearchModal />
+    <SaleModal />
+
+    <OSClienteSearchModal
+      :is-open="isClienteSearchOpen"
+      @close="closeClienteSearch"
+      @select-cliente="handleClienteSelected"
+    />
+
+    <OSFormModal
+      :is-open="isFormModalOpen"
+      :ordem-servico="selectedOS"
+      :selected-cliente="selectedCliente"
+      @close="closeFormModal"
+      @change-cliente="handleChangeCliente"
+    />
+  </div>
+</template>
+
+<style scoped>
+/* Transição existente do Overlay */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* --- NOVA TRANSIÇÃO: Quick Actions (Efeito Pop/Scale) --- */
+.pop-enter-active,
+.pop-leave-active {
+  /* O cubic-bezier dá um efeito de elástico/salto sutil */
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(0.5); /* Começa/Termina pequeno */
+}
+</style>

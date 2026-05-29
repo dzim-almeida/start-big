@@ -1,0 +1,228 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: endpoints/produto.py
+# MÓDULO: Interface de API (Controller)
+# DESCRIÇÃO: Define rotas para manipulação de Produtos e Imagens.
+# ---------------------------------------------------------------------------
+
+from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form, Response
+from sqlalchemy.orm import Session
+from typing import Sequence, Optional
+
+from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
+from app.schemas.produto_fotos import ProdutoFotoRead
+from app.core.depends import check_permission, _handle_db_transaction
+from app.db.session import get_db
+from app.services import produto as produto_service
+
+router = APIRouter()
+
+# ===========================================================================
+# ROTAS DE CRIAÇÃO (POST)
+# ===========================================================================
+
+@router.post(
+    "/",
+    response_model=ProdutoRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cadastrar Novo Produto",
+    description="Cria um produto e seu estoque inicial. Valida duplicidade de código."
+)
+def create_new_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    *,
+    produto_to_add: ProdutoCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint para cadastro de produtos.
+
+    Args:
+        produto_to_add (ProdutoCreate): Payload com dados do produto e estoque.
+        db (Session): Sessão de banco de dados.
+
+    Returns:
+        ProdutoRead: O produto criado com IDs gerados.
+    """
+    return _handle_db_transaction(
+        db,
+        produto_service.create_produto,
+        produto_to_add,
+        user_token
+    )
+
+# ===========================================================================
+# ROTAS DE LEITURA (GET)
+# ===========================================================================
+
+@router.get(
+    "/",
+    response_model=Sequence[ProdutoRead],
+    status_code=status.HTTP_200_OK,
+    summary="Listar ou Buscar Produtos",
+    description="Retorna produtos ativos. Permite filtro por nome ou código."
+)
+def get_produto_by_search( 
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    *,
+    buscar: Optional[str] = Query(
+        None,
+        description="Termo de busca (Nome ou Código SKU). Se vazio, retorna todos."
+    ),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint de busca polivalente.
+
+    Args:
+        buscar (Optional[str]): String parcial para nome ou código.
+        db (Session): Sessão de banco de dados.
+    """
+    # CORREÇÃO: Passando a referência da função (sem parênteses)
+    return _handle_db_transaction(
+       db,
+       produto_service.get_produto_by_search,
+       buscar 
+   )
+
+@router.get(
+    "/search",
+    response_model=Sequence[ProdutoSimpleRead],
+    status_code=status.HTTP_200_OK,
+    summary="Busca Rápida de Produtos",
+    description="Retorna ID, nome e código de produtos ativos para auto-complete."
+)
+def get_produto_simple_by_search(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    *,
+    search: Optional[str] = Query(
+        None,
+        description="Termo de busca para nome ou código. Retorna todos se vazio."
+    ),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        produto_service.get_produto_simple_by_search,
+        search
+)
+
+# ===========================================================================
+# ROTAS DE ATUALIZAÇÃO (PUT)
+# ===========================================================================
+
+@router.put(
+    "/{produto_id}",
+    response_model=ProdutoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar Produto Completo",
+    description="Atualiza dados cadastrais e/ou estoque de um produto pelo ID."
+)
+def update_produto_by_id(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto a ser editado", ge=1),
+    *,
+    produto_to_update: ProdutoUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Atualiza um produto existente.
+
+    Args:
+        produto_id (int): ID do produto na URL.
+        produto_to_update (ProdutoUpdate): Payload com dados a atualizar.
+    """
+    return _handle_db_transaction(
+        db,
+        produto_service.update_produto_by_id,
+        produto_id,
+        produto_to_update
+    )
+
+@router.put(
+    "/toggle_ativo/{produto_id}",
+    response_model=ProdutoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Ativar/Desativar Produto",
+    description="Alterna o status lógico (Soft Delete). Permite redefinir código na reativação."
+)
+def toggle_status_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto alvo", ge=1),
+    *,
+    novo_codigo_produto: str | None = Query(
+        None,
+        description="Novo código obrigatório caso o atual esteja em conflito na reativação."
+    ),
+    db: Session = Depends(get_db)
+):
+    """
+    Realiza o Soft Delete ou Reativação de um produto.
+    """
+    return _handle_db_transaction(
+        db,
+        produto_service.toggle_active_disable_produto_by_id,
+        produto_id,
+        novo_codigo_produto
+    )
+
+# ===========================================================================
+# ROTAS DE IMAGEM (UPLOAD/DELETE)
+# ===========================================================================
+
+@router.post(
+    "/{produto_id}/fotos",
+    response_model=ProdutoFotoRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload de Foto do Produto"
+)
+def upload_produto_image(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(
+        ...,
+        description="ID do produto alvo."
+    ),
+    *,
+    image_file: UploadFile = File(
+        ...,
+        description="Arquivo de imagem (JPEG, PNG)."
+    ),
+    principal: bool = Form(
+        False,
+        description="Define se é a foto de capa."
+    ),
+    db: Session = Depends(get_db)
+):
+    """
+    Recebe um arquivo de imagem e o associa ao produto.
+    """
+    return _handle_db_transaction(
+        db,
+        produto_service.create_produto_image,
+        produto_id, 
+        image_file, 
+        principal
+    )
+
+@router.delete(
+    "/fotos/{image_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover Foto"
+)
+def delete_produto_image(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    image_id: int = Path(
+        ...,
+        description="ID da imagem a ser removida."
+    ),
+    *,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove o registro da foto e apaga o arquivo físico.
+    """
+    _handle_db_transaction(
+        db,
+        produto_service.delete_produto_image,
+        image_id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
