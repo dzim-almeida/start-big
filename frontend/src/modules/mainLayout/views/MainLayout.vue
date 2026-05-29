@@ -16,13 +16,20 @@ import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSCl
 import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
 
 import { useLayoutStore } from '../store/layout.store';
+import { useSettingsStore } from '@/shared/stores/settings.store';
+import { onMounted } from 'vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 
 const layoutStore = useLayoutStore();
-const { isMobile, isMobileOpen, isQuickOpen } = storeToRefs(layoutStore);
+const settingsStore = useSettingsStore();
+const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen } = storeToRefs(layoutStore);
+
+onMounted(() => {
+  settingsStore.init();
+});
 
 const { openCustomerModal } = useCustomerSearchModal();
 const {
@@ -67,6 +74,12 @@ whenever(Ctrl_K, () => {
         v-if="isQuickOpen"
         class="fixed inset-0 bg-transparent z-40"
         @click="layoutStore.toggleQuick"
+      />
+
+      <div
+        v-if="isSettingsOpen"
+        class="fixed inset-0 bg-transparent z-40"
+        @click="layoutStore.closeSettings"
       />
 
     <BaseSidebar />
