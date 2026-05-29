@@ -31,6 +31,7 @@ export const useLayoutStore = defineStore('layout', () => {
   const activeTab = ref<string>('');
   
   const isQuickOpen = ref<boolean>(false);
+  const isSettingsOpen = ref<boolean>(false);
 
   //Listener
   function init() {
@@ -61,7 +62,15 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   function toggleQuick() {
-    isQuickOpen.value = !isQuickOpen.value
+    isQuickOpen.value = !isQuickOpen.value;
+  }
+
+  function toggleSettings() {
+    isSettingsOpen.value = !isSettingsOpen.value;
+  }
+
+  function closeSettings() {
+    isSettingsOpen.value = false;
   }
 
   watch(
@@ -82,12 +91,15 @@ export const useLayoutStore = defineStore('layout', () => {
     isMobileOpen,
     isOpen,
     isQuickOpen,
+    isSettingsOpen,
 
     //Metodos
     updatePageInfo,
     toggleSidebar,
     closeSidebar,
     toggleQuick,
+    toggleSettings,
+    closeSettings,
 
     // Listeners
     init,
