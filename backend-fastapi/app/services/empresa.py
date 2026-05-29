@@ -5,8 +5,6 @@
 # ---------------------------------------------------------------------------
 
 import os
-import shutil
-import uuid
 import platform
 from datetime import datetime
 from typing import List, Optional
@@ -28,6 +26,7 @@ from app.core.enum import EntityType
 from app.db.crud import empresa as empresa_crud
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
+from app.core.imagem import salvar_imagem
 
 # ---------------------------------------------------------------------------
 # CONSTANTES E EXCEÇÕES
@@ -44,9 +43,6 @@ NOT_FOUND_EXCE = HTTPException(
     detail="Empresa não encontrada."
 )
 
-UPLOAD_BASE_DIR = "static/uploads/empresa"
-os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
-
 # Diretório seguro para certificados (fora de static para não expor publicamente)
 CERT_UPLOAD_DIR = "secure_storage/certificates"
 os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
@@ -54,36 +50,6 @@ os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO
 # ---------------------------------------------------------------------------
-
-def save_image_locally(image_file: UploadFile, empresa_id: int) -> str:
-    """
-    Salva o arquivo de imagem da logo localmente, usando o ID da empresa como subdiretório.
-
-    Args:
-        image_file (UploadFile): O arquivo enviado pelo cliente.
-        empresa_id (int): O ID da empresa para criar o subdiretório.
-
-    Returns:
-        str: O caminho relativo da imagem salva (URL).
-    """
-    file_extension = os.path.splitext(image_file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-
-    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(empresa_id))
-    os.makedirs(produto_folder, exist_ok=True)
-    file_path = os.path.join(produto_folder, unique_filename)
-
-    try:
-        # Usa shutil.copyfileobj para lidar com arquivos grandes de forma eficiente
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(image_file.file, f)
-    finally:
-        # Garante que o stream de arquivo seja fechado
-        image_file.file.close()
-
-    url_image_file = f"{UPLOAD_BASE_DIR}/{empresa_id}/{unique_filename}"
-    return url_image_file
-
 
 def create_empresa(
     db: Session, 
@@ -186,7 +152,7 @@ def create_image_empresa(db: Session, empresa_id: int, file: UploadFile) -> Empr
     if not empresa_in_db:
         raise NOT_FOUND_EXCE
     
-    img_url = save_image_locally(image_file=file, empresa_id=empresa_id)
+    img_url = salvar_imagem(arquivo=file, entidade_id=empresa_id, contexto="empresa_logo")
     empresa_in_db.url_logo = img_url
 
     # O objeto modificado é retornado. A persistência (commit) é feita na camada de Endpoint.
