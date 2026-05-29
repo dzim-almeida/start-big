@@ -45,6 +45,17 @@ export async function uploadProdutoImage(produtoId: number, file: File, principa
   )
 }
 
+export async function replaceProdutoPrincipalImage(produtoId: number, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('image_file', file);
+
+  await api.put(
+    `produtos/${produtoId}/fotos/principal`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  )
+}
+
 /**
  * Atualiza um produto existente
  * @param id - ID do produto

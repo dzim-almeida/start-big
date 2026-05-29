@@ -7,7 +7,7 @@
 // ============================================================================
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { PackageSearch, Plus, ArrowLeftRight } from 'lucide-vue-next';
+import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
@@ -23,7 +23,7 @@ import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
 
-import { FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
+import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
@@ -45,6 +45,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 const activeTab = ref('product');
 const searchTerm = ref<string | null>('');
 const selectedFilter = ref<string | null>(null);
+const selectedSort = ref<string | null>(null);
+const selectedCategory = ref<string | null>(null);
+const isGroupedByCategory = ref(false);
 const isTransacoesPanelOpen = ref(false);
 const isMovimentacaoModalOpen = ref(false);
 const movimentacaoInitialProdutoId = ref<number | undefined>(undefined);
@@ -80,6 +83,25 @@ const mergedProducts = computed(() => {
   return merged;
 });
 
+const uniqueCategories = computed(() => {
+  const cats = new Set(
+    mergedProducts.value.map((p) => p.categoria || 'SEM CATEGORIA')
+  );
+  return Array.from(cats).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+});
+
+const categoryFilterConfig = computed(() => {
+  const config: Record<string, { label: string; class: string; color: string }> = {};
+  for (const cat of uniqueCategories.value) {
+    config[cat] = {
+      label: cat,
+      class: 'bg-violet-50 text-violet-600 border border-violet-200',
+      color: 'bg-violet-500',
+    };
+  }
+  return config;
+});
+
 const filteredProducts = computed(() => {
   const term = (searchTerm.value || '').trim().toLowerCase();
   let list = mergedProducts.value;
@@ -98,11 +120,38 @@ const filteredProducts = computed(() => {
     list = list.filter((product) => !product.ativo);
   }
 
+  if (selectedCategory.value) {
+    list = list.filter(
+      (product) => (product.categoria || 'SEM CATEGORIA') === selectedCategory.value
+    );
+  }
+
+  if (selectedSort.value === 'a-z') {
+    list = [...list].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  } else if (selectedSort.value === 'z-a') {
+    list = [...list].sort((a, b) => b.nome.localeCompare(a.nome, 'pt-BR'));
+  }
+
   return list;
 });
 
+const groupedProducts = computed(() => {
+  if (!isGroupedByCategory.value) return null;
+  const groups: Record<string, ProdutoRead[]> = {};
+  for (const product of filteredProducts.value) {
+    const cat = product.categoria || 'SEM CATEGORIA';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(product);
+  }
+  return Object.fromEntries(
+    Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'))
+  );
+});
+
 const isSearchActive = computed(() => (searchTerm.value || '').trim().length > 0);
-const isFilterActive = computed(() => !!selectedFilter.value);
+const isFilterActive = computed(
+  () => !!selectedFilter.value || !!selectedSort.value || !!selectedCategory.value || isGroupedByCategory.value
+);
 
 const emptyState = computed(() => {
   if (isSearchActive.value || isFilterActive.value) {
@@ -197,6 +246,9 @@ function handleEmptyAction() {
   if (emptyState.value.actionType === 'clear') {
     searchTerm.value = '';
     selectedFilter.value = null;
+    selectedSort.value = null;
+    selectedCategory.value = null;
+    isGroupedByCategory.value = false;
     return;
   }
 
@@ -229,13 +281,37 @@ function handleEmptyAction() {
 
     <!-- Produtos Tab -->
     <template v-if="activeTab === 'product'">
-      <div class="flex gap-5 p-4 bg-white rounded-2xl">
+      <div class="flex flex-wrap gap-3 p-4 bg-white rounded-2xl">
         <BaseSearchInput
           class="md:max-w-2/3 lg:max-w-1/2"
           v-model="searchTerm"
           placeholder="Buscar produto por nome ou código..."
         />
         <BaseFilter :filter-config="FILTER_CONFIG" v-model="selectedFilter" />
+        <BaseFilter
+          :filter-config="SORT_FILTER_CONFIG"
+          v-model="selectedSort"
+          title="Ordenar por Nome"
+          button-label="Ordenar"
+        />
+        <BaseFilter
+          :filter-config="categoryFilterConfig"
+          v-model="selectedCategory"
+          title="Filtrar por Categoria"
+          button-label="Categoria"
+        />
+        <button
+          :class="[
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer select-none',
+            isGroupedByCategory
+              ? 'bg-brand-primary/10 text-brand-primary border-brand-primary'
+              : 'text-zinc-600 border-brand-grey hover:text-brand-primary/80 hover:border-brand-primary/80',
+          ]"
+          @click="isGroupedByCategory = !isGroupedByCategory"
+        >
+          <LayoutGrid :size="16" />
+          Agrupar
+        </button>
         <button
           class="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shrink-0"
           @click="isTransacoesPanelOpen = true"
@@ -245,7 +321,36 @@ function handleEmptyAction() {
         </button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Agrupado por categoria -->
+      <template v-if="isGroupedByCategory && groupedProducts">
+        <div v-for="(products, category) in groupedProducts" :key="category" class="space-y-4">
+          <h2 class="text-lg font-bold text-zinc-700 border-b border-zinc-200 pb-2">
+            {{ category }}
+          </h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <ProductCard
+              v-for="product in products"
+              :key="product.id"
+              :id="product.id"
+              :name="product.nome"
+              :description="product.observacao || 'Sem descrição cadastrada'"
+              :category="product.categoria || 'SEM CATEGORIA'"
+              :price="product.estoque.valor_varejo / 100"
+              :storage="product.estoque.quantidade || 0"
+              :image_url="getProductImage(product) ? `${API_BASE_URL}/${getProductImage(product)}` : ''"
+              :status="product.ativo"
+              @view="handleViewProduct"
+              @edit="handleEditProduct"
+              @toggle="handleToggleProduct"
+              @entrada="handleEntrada"
+              @saida="handleSaida"
+            />
+          </div>
+        </div>
+      </template>
+
+      <!-- Lista plana (padrão) -->
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <ProductCard
           v-for="product in filteredProducts"
           :key="product.id"

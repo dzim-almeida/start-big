@@ -4,9 +4,6 @@
 # DESCRIÇÃO: Lógica de autenticação, hashing de senhas e regras de criação.
 # ---------------------------------------------------------------------------
 
-import os
-import shutil
-import uuid
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -15,13 +12,8 @@ from app.db.models.usuario import Usuario as UsuarioModel
 from app.schemas.usuario import UsuarioRead
 from app.schemas.usuario import UsuarioCreate
 from app.core.security import hash_password
+from app.core.imagem import salvar_imagem
 from app.db.crud import usuario as usuario_crud
-
-# ---------------------------------------------------------------------------
-# CONSTANTES
-# ---------------------------------------------------------------------------
-
-UPLOAD_BASE_DIR = "static/uploads/usuarios"
 
 # ---------------------------------------------------------------------------
 # EXCEÇÕES CONTEXTUALIZADAS (REGRA 4: Robustez)
@@ -44,23 +36,6 @@ def _get_conflict_exception(detail: str = "Email de usuário já cadastrado no s
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO
 # ---------------------------------------------------------------------------
-def save_image_locally(img_file: UploadFile, usuario_id: int) -> str:
-    file_extension = os.path.splitext(img_file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-
-    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(usuario_id))
-    os.makedirs(produto_folder, exist_ok=True)
-    file_path = os.path.join(produto_folder, unique_filename)
-
-    try:
-        with open(file_path, 'wb') as f:
-            shutil.copyfileobj(img_file.file, f)
-    finally:
-        img_file.file.close()
-
-    url_image_file = f"{UPLOAD_BASE_DIR}/{usuario_id}/{unique_filename}"
-    return url_image_file
-
 
 def create_usuario(
     db: Session, 
@@ -126,9 +101,10 @@ def create_image_usuario(db: Session, usuario_id: int, img_file: UploadFile) -> 
     if not usuario_in_db:
         raise _get_not_found_exception
     
-    saved_file_url = save_image_locally(
-        img_file=img_file,
-        usuario_id=usuario_in_db.id
+    saved_file_url = salvar_imagem(
+        arquivo=img_file,
+        entidade_id=usuario_in_db.id,
+        contexto="usuario_perfil"
     )
     
     usuario_in_db.url_perfil = saved_file_url

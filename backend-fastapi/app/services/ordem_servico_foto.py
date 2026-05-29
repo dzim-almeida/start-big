@@ -10,21 +10,13 @@
 # Fotos são acessíveis via: GET /static/uploads/ordens-servico/{os_id}/{arquivo}
 # ---------------------------------------------------------------------------
 
-import os
-import shutil
-import uuid
-
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.models.ordem_servico_foto import OrdemServicoFoto as OSFotoModel
 from app.db.crud import ordem_servico as os_crud
 from app.schemas.ordem_servico import OSFotoRead
-
-
-# Diretório base de upload de fotos de OS (relativo à raiz do servidor)
-UPLOAD_BASE_DIR = "static/uploads/ordens-servico"
-os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
+from app.core.imagem import salvar_imagem, deletar_imagem
 
 
 # ---------------------------------------------------------------------------
@@ -48,60 +40,6 @@ file_delete_error_exce = HTTPException(
 
 
 # ---------------------------------------------------------------------------
-# Funções auxiliares de I/O
-# ---------------------------------------------------------------------------
-
-def save_foto_locally(image_file: UploadFile, os_id: int) -> str:
-    """
-    Salva o arquivo de imagem no disco com nome UUID para evitar conflitos.
-
-    Retorna o caminho relativo do arquivo (usado como URL no banco).
-    Estrutura: static/uploads/ordens-servico/{os_id}/{uuid}.{ext}
-    """
-    file_extension = os.path.splitext(image_file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-
-    os_folder = os.path.join(UPLOAD_BASE_DIR, str(os_id))
-    os.makedirs(os_folder, exist_ok=True)
-
-    file_path = os.path.join(os_folder, unique_filename)
-
-    try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(image_file.file, f)
-    finally:
-        image_file.file.close()
-
-    return f"{UPLOAD_BASE_DIR}/{os_id}/{unique_filename}"
-
-
-def delete_foto_locally(file_path: str) -> bool:
-    """
-    Remove o arquivo de foto do disco.
-    Tenta limpar o diretório do OS se ficar vazio após a remoção.
-
-    Retorna True em caso de sucesso, False se o arquivo não existir.
-    """
-    if not os.path.exists(file_path):
-        return False
-
-    try:
-        os.remove(file_path)
-    except OSError as e:
-        print(f"Erro ao deletar foto {file_path}: {e}")
-        return False
-
-    # Tenta remover o diretório da OS se estiver vazio
-    os_folder = os.path.dirname(file_path)
-    try:
-        os.rmdir(os_folder)
-    except OSError:
-        pass  # Diretório não está vazio ou outro erro — mantém o diretório
-
-    return True
-
-
-# ---------------------------------------------------------------------------
 # Funções de serviço
 # ---------------------------------------------------------------------------
 
@@ -116,7 +54,7 @@ def upload_foto_os(db: Session, numero_os: str, image_file: UploadFile) -> OSFot
     if not os_in_db:
         raise os_not_found_exce
 
-    foto_url = save_foto_locally(image_file=image_file, os_id=os_in_db.id)
+    foto_url = salvar_imagem(arquivo=image_file, entidade_id=os_in_db.id, contexto="os_foto")
 
     foto_to_db = OSFotoModel(
         ordem_servico_id=os_in_db.id,
@@ -142,7 +80,7 @@ def delete_foto_os(db: Session, numero_os: str, foto_id: int) -> None:
     if not foto_in_db or foto_in_db.ordem_servico_id != os_in_db.id:
         raise foto_not_found_exce
 
-    if not delete_foto_locally(file_path=foto_in_db.url):
+    if not deletar_imagem(caminho_arquivo=foto_in_db.url):
         raise file_delete_error_exce
 
     os_crud.delete_os_foto(db, foto_to_delete=foto_in_db)
