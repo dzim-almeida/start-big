@@ -3,14 +3,12 @@ import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vu
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
-import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
-
 import { formatCurrency } from '@/shared/utils/finance';
 
 import { useSaleTable } from '../composables/flows/useSaleTable';
 import { useSaleModal } from '../composables/flows/useSaleModal';
 
-import { SALE_FILTERS, STATUS_COLORS } from '../constants';
+import { SALE_FILTERS, STATUS_COLORS, SALE_FILTER_CHIPS } from '../constants';
 
 const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
 const { openSaleViewModal, openSaleEditModal } = useSaleModal();
@@ -37,8 +35,24 @@ const emit = defineEmits<{
     @update:current-page="goToPage"
   >
     <template #toolbar>
-      <BaseSearchInput v-model="searchTerm" placeholder="Buscar por número, cliente..." />
-      <BaseFilter v-model="activeFilter" :filter-config="SALE_FILTERS" button-label="Filtros" />
+      <BaseSearchInput v-model="searchTerm" placeholder="Buscar por número, cliente..." class="min-w-64 flex-1" />
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          v-for="(config, key) in SALE_FILTER_CHIPS"
+          :key="key"
+          type="button"
+          @click="activeFilter = activeFilter === key ? null : (key as typeof activeFilter)"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer select-none',
+            activeFilter === key
+              ? config.activeClass
+              : 'border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:text-zinc-700'
+          ]"
+        >
+          <span :class="['inline-block w-2 h-2 rounded-full shrink-0', config.dotColor]" />
+          {{ config.label }}
+        </button>
+      </div>
     </template>
 
     <div class="overflow-x-auto">

@@ -6,16 +6,14 @@ interface SaleShortcutsContext {
   isEditMode: Ref<boolean>;
   finishModalIsOpen: Ref<boolean>;
   itemModalIsOpen: Ref<boolean>;
-  addPaymentModalIsOpen: Ref<boolean>;
   onCreateSale: () => void;
   onOpenFinishModal: () => void;
   onOpenItemModal: () => void;
-  onOpenAddPaymentModal: () => void;
+  onFocusPaymentGrid: () => void;
   onCancelSale: () => void;
   onCloseSaleModal: () => void;
   onCloseFinishModal: () => void;
   onCloseItemModal: () => void;
-  onCloseAddPaymentModal: () => void;
   onFocusSearch: () => void;
 }
 
@@ -43,10 +41,10 @@ export function useSaleShortcuts(context: SaleShortcutsContext) {
     }
   });
 
-  // F6 — Abrir modal de adicionar pagamento (dentro do FinishSaleModal)
+  // F6 — Focar no grid de pagamentos (dentro do FinishSaleModal)
   whenever(keys.F6, () => {
-    if (context.finishModalIsOpen.value && !context.addPaymentModalIsOpen.value) {
-      context.onOpenAddPaymentModal();
+    if (context.finishModalIsOpen.value) {
+      context.onFocusPaymentGrid();
     }
   });
 
@@ -73,10 +71,6 @@ export function useSaleShortcuts(context: SaleShortcutsContext) {
 
   // Escape — Fechar modal atual (respeita hierarquia)
   whenever(keys.Escape, () => {
-    if (context.addPaymentModalIsOpen.value) {
-      context.onCloseAddPaymentModal();
-      return;
-    }
     if (context.finishModalIsOpen.value) {
       context.onCloseFinishModal();
       return;
