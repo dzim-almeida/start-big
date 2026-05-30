@@ -12,6 +12,45 @@ export const SALE_FILTERS: Record<string, FilterOption> = {
     CANCELADA: { label: 'Cancelada', class: 'bg-red-100 text-red-800', color: 'bg-red-500' }
 };
 
+export interface FilterChip {
+    label: string;
+    activeClass: string;
+    dotColor: string;
+}
+
+export const SALE_FILTER_CHIPS: Record<string, FilterChip> = {
+    FINALIZADA: {
+        label: 'Finalizada',
+        activeClass: 'bg-green-50 text-green-700 border-green-200',
+        dotColor: 'bg-green-500',
+    },
+    ORCAMENTO: {
+        label: 'Orçamento',
+        activeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+        dotColor: 'bg-blue-500',
+    },
+    CANCELADA: {
+        label: 'Cancelada',
+        activeClass: 'bg-red-50 text-red-700 border-red-200',
+        dotColor: 'bg-red-500',
+    },
+};
+
+export interface ShortcutItem {
+    keys: string;
+    description: string;
+}
+
+export const SALE_SHORTCUTS: ShortcutItem[] = [
+    { keys: 'F2', description: 'Nova venda' },
+    { keys: 'F4', description: 'Produto avulso' },
+    { keys: 'F6', description: 'Adicionar pagamento' },
+    { keys: 'Ctrl+F', description: 'Buscar produto' },
+    { keys: 'Ctrl+Enter', description: 'Finalizar venda' },
+    { keys: 'Ctrl+Backspace', description: 'Cancelar venda' },
+    { keys: 'Esc', description: 'Fechar modal atual' },
+];
+
 export const PRODUCT_TYPES = [
     {value: 'CADASTRADO', label: 'Cadastrado'},
     {value: 'AVULSO', label: 'Avulso'},

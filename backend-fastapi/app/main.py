@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
-from app.core.excepetions import setup_exception_handlers
+from app.core.exceptions import setup_exception_handlers
 from app.core.tarefas import lifespan
 
 from app.db.models.usuario import Usuario

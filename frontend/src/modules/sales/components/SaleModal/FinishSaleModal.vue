@@ -175,6 +175,7 @@ function handleFinish() {
           >
             <Plus :size="16" />
             Adicionar pagamento
+            <kbd class="inline-flex items-center rounded border border-zinc-300 bg-zinc-100 px-1 text-[9px] font-semibold text-zinc-500">F6</kbd>
           </BaseButton>
         </div>
         <section
