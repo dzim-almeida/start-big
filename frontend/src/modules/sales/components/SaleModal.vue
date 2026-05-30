@@ -31,7 +31,7 @@ import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
-const { openFinishModal, closeFinishModal, finishModalIsOpen, addPaymentModalIsOpen, openAddPaymentModal, closeAddPaymentModal } = useFinishSaleModal();
+const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 const cancelMutation = useCancelSaleMutation();
@@ -98,16 +98,19 @@ useSaleShortcuts({
   isEditMode,
   finishModalIsOpen,
   itemModalIsOpen,
-  addPaymentModalIsOpen,
   onCreateSale: () => {},
   onOpenFinishModal: openFinishModal,
   onOpenItemModal: openCreateItemModal,
-  onOpenAddPaymentModal: openAddPaymentModal,
+  onFocusPaymentGrid: () => {
+    nextTick(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-payment-grid] button');
+      btn?.focus();
+    });
+  },
   onCancelSale: handleCancel,
   onCloseSaleModal: closeSaleModal,
   onCloseFinishModal: closeFinishModal,
   onCloseItemModal: closeItemModal,
-  onCloseAddPaymentModal: closeAddPaymentModal,
   onFocusSearch: () => {
     nextTick(() => {
       const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');

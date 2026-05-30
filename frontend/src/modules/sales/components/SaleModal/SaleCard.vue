@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { Ticket, TicketPercent, Truck, Pen, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
+import { TicketPercent, Truck, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
 
 import { useSaleDetailsForm } from '../../composables/flows/useSaleDetailsForm';
 import { STATUS_COLORS, SALE_FILTERS } from '../../constants';

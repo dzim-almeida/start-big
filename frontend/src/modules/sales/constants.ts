@@ -44,7 +44,7 @@ export interface ShortcutItem {
 export const SALE_SHORTCUTS: ShortcutItem[] = [
     { keys: 'F2', description: 'Nova venda' },
     { keys: 'F4', description: 'Produto avulso' },
-    { keys: 'F6', description: 'Adicionar pagamento' },
+    { keys: 'F6', description: 'Focar pagamentos' },
     { keys: 'Ctrl+F', description: 'Buscar produto' },
     { keys: 'Ctrl+Enter', description: 'Finalizar venda' },
     { keys: 'Ctrl+Backspace', description: 'Cancelar venda' },
