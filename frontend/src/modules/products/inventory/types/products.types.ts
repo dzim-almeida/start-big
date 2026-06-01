@@ -135,4 +135,6 @@ export interface ProductFormData {
   quantidade: number;
   quantidade_minima: number;
   quantidade_ideal: number;
+
+  image_url: string | null;
 }

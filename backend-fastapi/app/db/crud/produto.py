@@ -78,6 +78,15 @@ def get_produto_image_by_id(db: Session, image_id: int) -> ProdutoFotoModel:
     stmt = select(ProdutoFotoModel).where(ProdutoFotoModel.id == image_id)
     return db.scalars(stmt).first()
 
+def get_produto_principal_image(db: Session, produto_id: int) -> Optional[ProdutoFotoModel]:
+    stmt = select(ProdutoFotoModel).where(
+        and_(
+            ProdutoFotoModel.produto_id == produto_id,
+            ProdutoFotoModel.principal == True
+        )
+    )
+    return db.scalars(stmt).first()
+
 # ===========================================================================
 # ESCRITA (CREATE / UPDATE)
 # ===========================================================================

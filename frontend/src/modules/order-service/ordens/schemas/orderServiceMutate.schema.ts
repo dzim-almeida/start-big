@@ -16,7 +16,7 @@ export const OrderServiceCreateSchema = z.object({
 
   // Vínculos
   cliente_id: z.number().int().positive(),
-  funcionario_id: z.number().int().positive(),
+  funcionario_id: z.number({ required_error: 'O técnico é obrigatório' }).int().positive(),
 
   // Aninhamento
   equipamento: OsEquipCreateSchema,
@@ -56,7 +56,7 @@ export const OrderServiceUpdateSchema = z.object({
   valor_entrada: z.number().int().optional(),
 
   // Relações
-  funcionario_id: z.number().int().positive().optional(),
+  funcionario_id: z.number({ required_error: 'O técnico é obrigatório' }).int().positive().optional(),
 
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),

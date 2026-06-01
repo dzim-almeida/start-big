@@ -9,6 +9,8 @@ import { X, Image as ImageIcon } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import { useProductForm } from '../../composables/useProductForm';
 
+const API_BASE_URL = 'http://localhost:8000/';
+
 // =============================================
 // Props
 // =============================================
@@ -23,7 +25,7 @@ const props = defineProps<Props>();
 // State
 // =============================================
 
-const { imageFile } = useProductForm();
+const { imageFile, image_url } = useProductForm();
 
 const imagePreview = ref<string | null>(null);
 const fileName = ref<string>('');
@@ -33,7 +35,16 @@ const isDragging = ref(false);
 // Computed
 // =============================================
 
-const hasImage = computed(() => !!imagePreview.value);
+const hasImage = computed(() => !!imagePreview.value || !!image_url.value);
+
+const previewSource = computed(() => {
+  if (imagePreview.value) {
+    return imagePreview.value;
+  } else if (image_url.value) {
+    return `${API_BASE_URL}${image_url.value}`;
+  }
+  return '';
+});
 
 // =============================================
 // Methods
@@ -68,6 +79,7 @@ function processFile(file: File) {
 function removeImage() {
   imagePreview.value = null;
   fileName.value = '';
+  image_url.value = null;
 }
 
 function handleDragOver(event: DragEvent) {
@@ -100,9 +112,9 @@ function handleDragLeave() {
       <!-- Preview State -->
       <div v-if="hasImage" class="relative w-full h-full flex flex-col">
         <img
-          :src="imagePreview || ''"
+          :src="previewSource"
           alt="Product preview"
-          class="w-full h-full object-cover rounded-[14px]"
+          class="w-full h-full object-contain rounded-[14px]"
         />
 
         <!-- Overlay -->

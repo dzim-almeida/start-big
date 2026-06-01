@@ -19,6 +19,7 @@ export function usePrintFlow<T extends string>() {
 
     setTimeout(() => {
       window.print();
+      printFormat.value = '' as PrintFormat;
       pendingPrintAction.value?.();
       pendingPrintAction.value = null;
     }, 100);
@@ -26,6 +27,7 @@ export function usePrintFlow<T extends string>() {
 
   function closePrintSelectModal() {
     isPrintSelectModalOpen.value = false;
+    pendingPrintAction.value?.();
     pendingPrintAction.value = null;
   }
 

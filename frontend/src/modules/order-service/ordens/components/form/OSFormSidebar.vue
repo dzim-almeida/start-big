@@ -30,6 +30,7 @@ const view = useOSFormView();
       :status-options="view.statusOptions.value"
       :prioridade-options="view.prioridadeOptions.value"
       :funcionarios-options="view.funcionariosOptions.value"
+      :errors="view.formErrors.value"
       @update:status="view.handleStatusUpdate"
       @update:funcionario-id="view.handleFuncionarioIdUpdate"
       @update:prioridade="view.handlePrioridadeUpdate"

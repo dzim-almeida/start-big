@@ -76,10 +76,9 @@ onUnmounted(() => {
         v-if="isOpen"
         :class="['fixed inset-0 flex items-center justify-center p-4', overlay ? 'z-60' : 'z-50']"
       >
-        <!-- Backdrop - clique aqui fecha o modal -->
+        <!-- Backdrop -->
         <div
           class="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          @click="handleClose"
         />
 
         <!-- Modal Content -->

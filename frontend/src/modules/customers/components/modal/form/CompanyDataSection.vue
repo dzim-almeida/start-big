@@ -7,7 +7,9 @@
 import { Building2 } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
+import { REGIME_TRIBUTARIO_OPTIONS } from '@/modules/enterprise/constants/empresa.constants';
 
 // =============================================
 // Props
@@ -113,10 +115,11 @@ const {
         />
       </div>
       <div class="col-span-12 md:col-span-4">
-        <BaseInput
+        <BaseSelect
           v-model="regime_tributario"
           label="Regime Tributário"
-          placeholder="Ex: Simples Nacional"
+          :options="REGIME_TRIBUTARIO_OPTIONS"
+          placeholder="Selecione o regime"
           :error="submitCount > 0 ? errors.regime_tributario : ''"
           :disabled="disabled"
         />

@@ -31,7 +31,7 @@ import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
-const { openFinishModal, closeFinishModal, finishModalIsOpen, addPaymentModalIsOpen, openAddPaymentModal, closeAddPaymentModal } = useFinishSaleModal();
+const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 const cancelMutation = useCancelSaleMutation();
@@ -98,16 +98,19 @@ useSaleShortcuts({
   isEditMode,
   finishModalIsOpen,
   itemModalIsOpen,
-  addPaymentModalIsOpen,
   onCreateSale: () => {},
   onOpenFinishModal: openFinishModal,
   onOpenItemModal: openCreateItemModal,
-  onOpenAddPaymentModal: openAddPaymentModal,
+  onFocusPaymentGrid: () => {
+    nextTick(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-payment-grid] button');
+      btn?.focus();
+    });
+  },
   onCancelSale: handleCancel,
   onCloseSaleModal: closeSaleModal,
   onCloseFinishModal: closeFinishModal,
   onCloseItemModal: closeItemModal,
-  onCloseAddPaymentModal: closeAddPaymentModal,
   onFocusSearch: () => {
     nextTick(() => {
       const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');
@@ -165,7 +168,7 @@ const vendaDisplay = computed(() => {
       </div>
     </template>
 
-    <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4 border-red-500">
+    <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4">
       <section class="w-full md:w-2/3 flex flex-col gap-5">
         <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId"/>
         <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
@@ -179,10 +182,16 @@ const vendaDisplay = computed(() => {
         <div class="shrink-0 pt-4">
           <div v-if="isEditMode" class="flex justify-around gap-5 w-full">
             <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
-              Cancelar Venda
+              <div class="flex flex-col items-center">
+                <span>Cancelar Venda</span>
+                <span class="text-[9px] opacity-70 font-normal">Ctrl+Backspace</span>
+              </div>
             </BaseButton>
             <BaseButton variant="primary" size="md" class="flex-1" @click="openFinishModal">
-              Finalizar
+              <div class="flex flex-col items-center">
+                <span>Finalizar</span>
+                <span class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>
+              </div>
             </BaseButton>
           </div>
           <div v-else class="flex justify-center w-full">
@@ -192,6 +201,7 @@ const vendaDisplay = computed(() => {
           </div>
         </div>
       </section>
+
     </main>
     <ItemModal :sale-id="selectedSaleId" />
     <FinishSaleModal :sale="sale" @finalized="handleFinalized" />

@@ -46,6 +46,7 @@ export interface OSFormViewContext {
   displayValorDesconto: ComputedRef<number>;
   displayValorTotal: ComputedRef<number>;
   displayValorEntrada: ComputedRef<number>;
+  formErrors: ComputedRef<Record<string, string | undefined>>;
   equipamentoFormData: ComputedRef<EquipamentoFormData>;
   equipamentosHistorico: Ref<EquipamentoHistorico[]>;
   selectedHistorico: Ref<string>;

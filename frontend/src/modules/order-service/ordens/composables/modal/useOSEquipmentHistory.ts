@@ -25,6 +25,7 @@ export function useOSEquipmentHistory({
   const equipamentosHistorico = ref<EquipamentoHistorico[]>([]);
   const selectedHistorico = ref<string>('');
   const isEquipSelectModalOpen = ref(false);
+  const wasEquipSelectShown = ref(false);
 
   async function fetchEquipamentosHistorico() {
     const clienteId = selectedCliente.value?.id ?? ordemServicoCliente.value?.id;
@@ -40,9 +41,11 @@ export function useOSEquipmentHistory({
       if (
         history.length > 0 &&
         isCreateMode.value &&
-        !createEquipamentoTipo.value
+        !createEquipamentoTipo.value &&
+        !wasEquipSelectShown.value
       ) {
         isEquipSelectModalOpen.value = true;
+        wasEquipSelectShown.value = true;
       }
     } catch {
       // histórico de equipamentos é opcional
@@ -79,6 +82,10 @@ export function useOSEquipmentHistory({
     }
   }
 
+  function resetEquipSelectState() {
+    wasEquipSelectShown.value = false;
+  }
+
   watch(
     () => [selectedCliente.value?.id, ordemServicoCliente.value?.id],
     fetchEquipamentosHistorico,
@@ -91,5 +98,6 @@ export function useOSEquipmentHistory({
     isEquipSelectModalOpen,
     handleEquipamentoSelected,
     applyEquipamentoHistorico,
+    resetEquipSelectState,
   };
 }
