@@ -17,6 +17,7 @@ import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.v
 
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { onMounted } from 'vue';
 import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
 import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
@@ -27,10 +28,12 @@ import { useServicoModal } from '@/modules/order-service/servicos/composables/us
 
 const layoutStore = useLayoutStore();
 const settingsStore = useSettingsStore();
+const configuracoesStore = useConfiguracoesStore();
 const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
 onMounted(() => {
   settingsStore.init();
+  configuracoesStore.carregarConfiguracoes();
 });
 
 const { openCustomerModal } = useCustomerSearchModal();

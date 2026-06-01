@@ -33,6 +33,7 @@ import { useToast } from '@/shared/composables/useToast';
 import { useCustomerModal } from '../useCustomerModal';
 import { useCreateCustomerPFMutation, useCreateCustomerPJMutation } from '@/modules/customers/composables/request/useCustomerCreate.mutate';
 import { useUpdateCustomerMutation } from '@/modules/customers/composables/request/useCustomerUpdate.mutate';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 // =============================================
 // Injection Key
@@ -45,12 +46,13 @@ export const CUSTOMER_FORM_KEY: InjectionKey<CustomerFormContext> = Symbol('cust
 // =============================================
 
 export function useCustomerFormProvider(): CustomerFormContext {
-  const { selectedCustomer, isCreateMode, closeModal, onCreatedCallback, onUpdatedCallback } = useCustomerModal();
+  const { isOpen, selectedCustomer, isCreateMode, closeModal, onCreatedCallback, onUpdatedCallback } = useCustomerModal();
   const createPFMutation = useCreateCustomerPFMutation();
   const createPJMutation = useCreateCustomerPJMutation();
   const updateMutation = useUpdateCustomerMutation();
 
   const toast = useToast();
+  const configStore = useConfiguracoesStore();
   const customerType = ref<TipoCliente>('PF');
   const apiError = ref<string | null>(null);
 
@@ -185,6 +187,18 @@ export function useCustomerFormProvider(): CustomerFormContext {
     { immediate: true },
   );
 
+  // ── Reset ao fechar o modal ──────────────────
+  // Garante reset mesmo quando selectedCustomer já era null (modo criação)
+
+  watch(isOpen, (aberto) => {
+    if (!aberto) {
+      pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
+      pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
+      customerType.value = 'PF';
+      apiError.value = null;
+    }
+  });
+
   // ── Error handling ─────────────────────────────
 
   function handleApiError(error: AxiosError<ApiError>, setErrors: (errors: Record<string, string>) => void, defaultMessage: string) {
@@ -205,6 +219,27 @@ export function useCustomerFormProvider(): CustomerFormContext {
   const pfSubmit = pfForm.handleSubmit(async (data) => {
     apiError.value = null;
 
+    if (configStore.exigirCpfPf && !data.cpf?.trim()) {
+      pfForm.setErrors({ cpf: 'CPF é obrigatório' })
+      return
+    }
+    if (configStore.exigirCelular && !data.celular?.trim()) {
+      pfForm.setErrors({ celular: 'Celular é obrigatório' })
+      return
+    }
+    if (configStore.exigirRgPf && !data.rg?.trim()) {
+      pfForm.setErrors({ rg: 'RG é obrigatório' })
+      return
+    }
+    if (configStore.exigirEmail && !data.email?.trim()) {
+      pfForm.setErrors({ email: 'E-mail é obrigatório' })
+      return
+    }
+    if (configStore.exigirEndereco && !data.enderecos?.some((e: any) => e.logradouro?.trim() || e.cep?.trim())) {
+      apiError.value = 'Endereço é obrigatório. Preencha pelo menos um endereço.'
+      return
+    }
+
     try {
       if (isCreateMode.value) {
         const created = await createPFMutation.mutateAsync(transformPFToCreateRequest(data));
@@ -223,6 +258,27 @@ export function useCustomerFormProvider(): CustomerFormContext {
 
   const pjSubmit = pjForm.handleSubmit(async (data) => {
     apiError.value = null;
+
+    if (configStore.exigirCnpjPj && !data.cnpj?.trim()) {
+      pjForm.setErrors({ cnpj: 'CNPJ é obrigatório' })
+      return
+    }
+    if (configStore.exigirCelular && !data.celular?.trim()) {
+      pjForm.setErrors({ celular: 'Celular é obrigatório' })
+      return
+    }
+    if (configStore.exigirIePj && !data.ie?.trim()) {
+      pjForm.setErrors({ ie: 'Inscrição Estadual é obrigatória' })
+      return
+    }
+    if (configStore.exigirEmail && !data.email?.trim()) {
+      pjForm.setErrors({ email: 'E-mail é obrigatório' })
+      return
+    }
+    if (configStore.exigirEndereco && !data.enderecos?.some((e: any) => e.logradouro?.trim() || e.cep?.trim())) {
+      apiError.value = 'Endereço é obrigatório. Preencha pelo menos um endereço.'
+      return
+    }
 
     try {
       if (isCreateMode.value) {

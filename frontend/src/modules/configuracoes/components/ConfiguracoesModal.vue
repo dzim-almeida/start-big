@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import {
   Settings,
@@ -20,6 +20,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
 
 import { useConfiguracoesModal } from '../composables/useConfiguracoesModal'
+import { useSalvarConfiguracoesClientesMutation } from '../composables/mutates/useSalvarConfiguracoesClientesMutation'
 import type { SecaoConfiguracao, SecaoId } from '../types/configuracoes.types'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
@@ -37,10 +38,22 @@ const props = defineProps<{ isOpen: boolean; secaoInicial?: SecaoId }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { secaoAtiva, irPara } = useConfiguracoesModal()
+const { mutate: salvarClientes, isPending } = useSalvarConfiguracoesClientesMutation()
+
+const activeComponentRef = ref<{ form?: Record<string, unknown> } | null>(null)
 
 watch(() => props.isOpen, (aberto) => {
   if (aberto) irPara(props.secaoInicial ?? 'regras-de-vendas')
 })
+
+const secoesFuncionais: SecaoId[] = ['clientes-cadastro']
+const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
+
+function salvar() {
+  if (secaoAtiva.value === 'clientes-cadastro' && activeComponentRef.value?.form) {
+    salvarClientes(activeComponentRef.value.form as any)
+  }
+}
 
 const secoes: SecaoConfiguracao[] = [
   { id: 'regras-de-vendas',  label: 'Regras de Vendas',      icone: Tag },
@@ -127,16 +140,19 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
 
       <!-- Área de conteúdo -->
       <div class="flex-1 overflow-y-auto p-6 no-scrollbar">
-        <component :is="componenteAtivo" />
+        <component
+          :is="componenteAtivo"
+          ref="activeComponentRef"
+        />
       </div>
     </div>
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <BaseButton variant="ghost" size="sm" @click="emit('close')">
+        <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="emit('close')">
           Cancelar
         </BaseButton>
-        <BaseButton variant="primary" size="sm" disabled>
+        <BaseButton variant="primary" size="sm" :isLoading="isPending" :disabled="!secaoFuncional || isPending" @click="salvar">
           Salvar Alterações
         </BaseButton>
       </div>

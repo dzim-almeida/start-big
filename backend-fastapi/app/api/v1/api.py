@@ -21,6 +21,7 @@ from app.api.v1.endpoints import forma_pagamento
 from app.api.v1.endpoints import venda
 from app.api.v1.endpoints import dashboard
 from app.api.v1.endpoints import movimentacao_estoque
+from app.api.v1.endpoints import configuracao
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -76,3 +77,6 @@ router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 # Inclui o roteador de movimentações de estoque sob o prefixo /produtos
 # Contém sub-recursos: registrar movimentação e listar movimentações
 router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
+
+# Inclui o roteador de configurações do sistema sob o prefixo /configuracoes
+router.include_router(configuracao.router, prefix="/configuracoes", tags=["Configurações"])

@@ -44,7 +44,7 @@ function abrirConfiguracoes() {
     <div class="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-l border-t border-zinc-200 rotate-45 z-10" />
 
     <!-- Conteúdo do menu -->
-    <div class="bg-white border border-zinc-200 rounded-xl shadow-lg overflow-y-auto no-scrollbar" style="max-height: 300px;">
+    <div class="bg-white border border-zinc-200 rounded-xl shadow-lg overflow-y-auto no-scrollbar" style="max-height: 450px;">
 
       <!-- USUÁRIO -->
       <div class="px-2.5 pt-2.5 pb-2 border-b border-zinc-100">

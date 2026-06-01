@@ -37,7 +37,7 @@ export const addressSchema = z.object({
 
 const commonFieldsSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
-  celular: z.string({ required_error: 'Contato é obrigatório' }).min(11, 'Contato inválido'),
+  celular: z.union([z.string().min(11, 'Contato inválido'), z.literal('')]),
   telefone: z.string().max(15).optional().or(z.literal('')),
   observacoes: z.string().max(500).optional().or(z.literal('')),
 });
@@ -69,6 +69,7 @@ export const customerPFSchema = z
   })
   .refine(
     (data) => {
+      if (!data.cpf || data.cpf.trim() === '') return true;
       return cpf.isValid(data.cpf);
     },
     {
