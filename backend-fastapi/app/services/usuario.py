@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.models.usuario import Usuario as UsuarioModel
-from app.schemas.usuario import UsuarioRead
-from app.schemas.usuario import UsuarioCreate
+from app.schemas.usuario import UsuarioRead, UsuarioCreate, UsuarioUpdateMe, UsuarioAlterarSenha
 from app.core.security import hash_password
 from app.db.crud import usuario as usuario_crud
 
@@ -197,6 +196,40 @@ def get_usuario_by_email(db: Session, usuario_email: str) -> Optional[UsuarioMod
     # A tipagem str | None no CRUD foi ajustada para str aqui, pois o email é 
     # tipado como obrigatório em UsuarioLogin.
     return usuario_crud.get_usuario_by_email(db, usuario_email=usuario_email)
+
+def update_usuario_me(db: Session, usuario_id: int, dados: UsuarioUpdateMe) -> UsuarioModel:
+    usuario = get_usuario_by_id(db, usuario_id=usuario_id)
+    if not usuario:
+        raise _get_not_found_exception()
+
+    if dados.email and dados.email != usuario.email:
+        if usuario_crud.get_usuario_by_email(db, usuario_email=dados.email):
+            raise _get_conflict_exception()
+
+    if dados.nome is not None:
+        usuario.nome = dados.nome
+    if dados.email is not None:
+        usuario.email = dados.email
+
+    return usuario_crud.update_usuario(db, usuario)
+
+
+def alterar_senha_me(db: Session, usuario_id: int, dados: UsuarioAlterarSenha) -> UsuarioModel:
+    from app.core.security import verify_password
+
+    usuario = get_usuario_by_id(db, usuario_id=usuario_id)
+    if not usuario:
+        raise _get_not_found_exception()
+
+    if not verify_password(dados.senha_atual, usuario.senha_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Senha atual incorreta"
+        )
+
+    usuario.senha_hash = hash_password(dados.nova_senha)
+    return usuario_crud.update_usuario(db, usuario)
+
 
 def update_usuario_empresa_id(db: Session, usuario_id: int, empresa_id: int) -> UsuarioModel:
     """

@@ -18,6 +18,8 @@ import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.v
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { onMounted } from 'vue';
+import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
+import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
@@ -25,7 +27,7 @@ import { useServicoModal } from '@/modules/order-service/servicos/composables/us
 
 const layoutStore = useLayoutStore();
 const settingsStore = useSettingsStore();
-const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen } = storeToRefs(layoutStore);
+const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
 onMounted(() => {
   settingsStore.init();
@@ -104,6 +106,19 @@ whenever(Ctrl_K, () => {
         </div>
       </Transition>
     </main>
+
+    <!-- Modal Minha Conta -->
+    <MinhaContaModal
+      :isOpen="isMinhaContaOpen"
+      @close="layoutStore.closeMinhaConta"
+    />
+
+    <!-- Modal Configurações Gerais -->
+    <ConfiguracoesModal
+      :isOpen="isConfiguracoesOpen"
+      :secao-inicial="(secaoConfiguracoesAtiva as any)"
+      @close="layoutStore.closeConfiguracoes"
+    />
 
     <!-- Modais globais (disponíveis em todo o sistema) -->
     <CustomerFormModal />

@@ -109,7 +109,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="p-6 overflow-y-auto flex-initial h-full">
+          <div class="p-6 overflow-y-auto flex-initial h-full no-scrollbar">
             <slot />
           </div>
 
@@ -143,5 +143,12 @@ onUnmounted(() => {
 .modal-leave-to > div:last-child {
   transform: scale(0.95);
   opacity: 0;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>

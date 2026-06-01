@@ -32,6 +32,9 @@ export const useLayoutStore = defineStore('layout', () => {
   
   const isQuickOpen = ref<boolean>(false);
   const isSettingsOpen = ref<boolean>(false);
+  const isMinhaContaOpen = ref<boolean>(false);
+  const isConfiguracoesOpen = ref<boolean>(false);
+  const secaoConfiguracoesAtiva = ref<string>('regras-de-vendas');
 
   //Listener
   function init() {
@@ -73,6 +76,25 @@ export const useLayoutStore = defineStore('layout', () => {
     isSettingsOpen.value = false;
   }
 
+  function openMinhaConta() {
+    isSettingsOpen.value = false;
+    isMinhaContaOpen.value = true;
+  }
+
+  function closeMinhaConta() {
+    isMinhaContaOpen.value = false;
+  }
+
+  function openConfiguracoes(secao: string = 'regras-de-vendas') {
+    isSettingsOpen.value = false;
+    secaoConfiguracoesAtiva.value = secao;
+    isConfiguracoesOpen.value = true;
+  }
+
+  function closeConfiguracoes() {
+    isConfiguracoesOpen.value = false;
+  }
+
   watch(
     () => route.path,
     () => {
@@ -92,6 +114,9 @@ export const useLayoutStore = defineStore('layout', () => {
     isOpen,
     isQuickOpen,
     isSettingsOpen,
+    isMinhaContaOpen,
+    isConfiguracoesOpen,
+    secaoConfiguracoesAtiva,
 
     //Metodos
     updatePageInfo,
@@ -100,6 +125,10 @@ export const useLayoutStore = defineStore('layout', () => {
     toggleQuick,
     toggleSettings,
     closeSettings,
+    openMinhaConta,
+    closeMinhaConta,
+    openConfiguracoes,
+    closeConfiguracoes,
 
     // Listeners
     init,

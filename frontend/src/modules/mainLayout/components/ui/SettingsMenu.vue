@@ -17,15 +17,25 @@ import {
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
+import { useLayoutStore } from '../../store/layout.store';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const layoutStore = useLayoutStore();
 
 const { userData } = storeToRefs(authStore);
 const { isDarkMode } = storeToRefs(settingsStore);
 const { logoutAndRedirect } = useAppNavigation();
+
+function abrirMinhaConta() {
+  layoutStore.openMinhaConta();
+}
+
+function abrirConfiguracoes() {
+  layoutStore.openConfiguracoes();
+}
 </script>
 
 <template>
@@ -61,8 +71,8 @@ const { logoutAndRedirect } = useAppNavigation();
         </div>
 
         <button
-          class="w-full mt-1.5 text-xs text-zinc-400 bg-zinc-100 rounded-md py-1.5 px-3 text-center opacity-50 cursor-not-allowed"
-          disabled
+          @click="abrirMinhaConta"
+          class="w-full mt-1.5 text-xs text-zinc-600 bg-zinc-100 hover:bg-zinc-200 transition-colors rounded-md py-1.5 px-3 text-center cursor-pointer"
         >
           Meus Dados / Minha Conta
         </button>
@@ -104,8 +114,8 @@ const { logoutAndRedirect } = useAppNavigation();
         </p>
 
         <button
-          class="w-full flex items-center justify-between px-1.5 py-1.5 rounded-lg opacity-40 cursor-not-allowed"
-          disabled
+          class="w-full flex items-center justify-between px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
+          @click="abrirConfiguracoes"
         >
           <div class="flex items-center gap-2">
             <Settings :size="14" class="text-zinc-500" />
@@ -115,8 +125,8 @@ const { logoutAndRedirect } = useAppNavigation();
         </button>
 
         <button
-          class="w-full flex items-center justify-between px-1.5 py-1.5 rounded-lg opacity-40 cursor-not-allowed"
-          disabled
+          class="w-full flex items-center justify-between px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
+          @click="layoutStore.openConfiguracoes('impressao')"
         >
           <div class="flex items-center gap-2">
             <Printer :size="14" class="text-zinc-500" />
