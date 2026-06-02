@@ -8,10 +8,10 @@ interface UseOSEquipmentHistoryParams {
   ordemServicoCliente: ComputedRef<{ id?: number } | null | undefined>;
   isCreateMode: ComputedRef<boolean>;
   isFormOpen: ComputedRef<boolean>;
-  createEquipamentoTipo: Ref<string | undefined>;
-  createEquipamentoMarca: Ref<string | undefined>;
-  createEquipamentoModelo: Ref<string | undefined>;
-  createEquipamentoNumeroSerie: Ref<string | undefined>;
+  createEquipamentoTipo: Ref<string | null | undefined>;
+  createEquipamentoMarca: Ref<string | null | undefined>;
+  createEquipamentoModelo: Ref<string | null | undefined>;
+  createEquipamentoNumeroSerie: Ref<string | null | undefined>;
 }
 
 export function useOSEquipmentHistory({
