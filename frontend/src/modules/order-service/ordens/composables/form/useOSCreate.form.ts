@@ -68,7 +68,6 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
   const onSubmit = handleSubmit((formData) => {
     createMutation.mutate(formData, {
       onSuccess: (data) => {
-        resetForm();
         opts?.onSuccess?.(data);
       },
     });

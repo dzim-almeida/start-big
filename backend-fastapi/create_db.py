@@ -29,6 +29,8 @@ from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.log_produto import LogProduto
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
+from app.db.models.orcamento import Orcamento
+from app.db.models.orcamento_produto import OrcamentoProduto
 
 if __name__ == "__main__":
     print("Criando tabelas no banco de dados...")

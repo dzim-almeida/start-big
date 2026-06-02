@@ -14,6 +14,7 @@ import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.
 import SaleModal from '@/modules/sales/components/SaleModal.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
+import OSEquipamentoSelectModal from '@/modules/order-service/ordens/components/form/OSEquipamentoSelectModal.vue';
 
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
@@ -40,10 +41,15 @@ const { openCustomerModal } = useCustomerSearchModal();
 const {
   isClienteSearchOpen,
   isFormModalOpen,
+  isEquipSelectOpen,
   selectedCliente,
   selectedOS,
+  equipamentosHistoricoFlow,
+  selectedEquipamento,
   openNovaOS,
   handleClienteSelected,
+  handleEquipamentoSelectedFlow,
+  skipEquipamentoSelectFlow,
   handleChangeCliente,
   closeClienteSearch,
   closeFormModal,
@@ -136,10 +142,18 @@ whenever(Ctrl_K, () => {
       @select-cliente="handleClienteSelected"
     />
 
+    <OSEquipamentoSelectModal
+      :is-open="isEquipSelectOpen"
+      :equipamentos="equipamentosHistoricoFlow"
+      @close="skipEquipamentoSelectFlow"
+      @select="handleEquipamentoSelectedFlow"
+    />
+
     <OSFormModal
       :is-open="isFormModalOpen"
       :ordem-servico="selectedOS"
       :selected-cliente="selectedCliente"
+      :initial-equipamento="selectedEquipamento"
       @close="closeFormModal"
       @change-cliente="handleChangeCliente"
     />
