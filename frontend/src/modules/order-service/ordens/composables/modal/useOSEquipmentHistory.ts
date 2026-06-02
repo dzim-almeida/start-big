@@ -7,6 +7,7 @@ interface UseOSEquipmentHistoryParams {
   selectedCliente: ComputedRef<{ id?: number } | null | undefined>;
   ordemServicoCliente: ComputedRef<{ id?: number } | null | undefined>;
   isCreateMode: ComputedRef<boolean>;
+  isFormOpen: ComputedRef<boolean>;
   createEquipamentoTipo: Ref<string | undefined>;
   createEquipamentoMarca: Ref<string | undefined>;
   createEquipamentoModelo: Ref<string | undefined>;
@@ -17,6 +18,7 @@ export function useOSEquipmentHistory({
   selectedCliente,
   ordemServicoCliente,
   isCreateMode,
+  isFormOpen,
   createEquipamentoTipo,
   createEquipamentoMarca,
   createEquipamentoModelo,
@@ -25,6 +27,8 @@ export function useOSEquipmentHistory({
   const equipamentosHistorico = ref<EquipamentoHistorico[]>([]);
   const selectedHistorico = ref<string>('');
   const isEquipSelectModalOpen = ref(false);
+  const wasEquipSelectShown = ref(false);
+  const lastShownClientId = ref<number | null>(null);
 
   async function fetchEquipamentosHistorico() {
     const clienteId = selectedCliente.value?.id ?? ordemServicoCliente.value?.id;
@@ -40,9 +44,13 @@ export function useOSEquipmentHistory({
       if (
         history.length > 0 &&
         isCreateMode.value &&
-        !createEquipamentoTipo.value
+        isFormOpen.value &&
+        !createEquipamentoTipo.value &&
+        !wasEquipSelectShown.value
       ) {
         isEquipSelectModalOpen.value = true;
+        wasEquipSelectShown.value = true;
+        lastShownClientId.value = clienteId ?? null;
       }
     } catch {
       // histórico de equipamentos é opcional
@@ -79,9 +87,21 @@ export function useOSEquipmentHistory({
     }
   }
 
+  function resetEquipSelectState() {
+    wasEquipSelectShown.value = false;
+    isEquipSelectModalOpen.value = false;
+  }
+
   watch(
     () => [selectedCliente.value?.id, ordemServicoCliente.value?.id],
-    fetchEquipamentosHistorico,
+    ([newClientId]) => {
+      const clientId = newClientId as number | undefined;
+      // Só reseta o controle se for um cliente diferente do último que mostrou o modal
+      if (clientId && clientId !== lastShownClientId.value) {
+        wasEquipSelectShown.value = false;
+      }
+      fetchEquipamentosHistorico();
+    },
     { immediate: true },
   );
 
@@ -91,5 +111,6 @@ export function useOSEquipmentHistory({
     isEquipSelectModalOpen,
     handleEquipamentoSelected,
     applyEquipamentoHistorico,
+    resetEquipSelectState,
   };
 }

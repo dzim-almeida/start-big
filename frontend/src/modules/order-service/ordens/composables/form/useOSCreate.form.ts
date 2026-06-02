@@ -14,7 +14,6 @@ import { DEFAULT_OS_CREATE_VALUES, DEFAULT_OS_ITEM_VALUES } from '../../constant
 
 export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataType) => void }): OSCreateFormContext {
   const createMutation = useCreateOrderServiceMutation();
-
   const { handleSubmit, errors, defineField, resetForm: veeReset } = useForm({
     validationSchema: orderServiceCreateValidationSchema,
     initialValues: { ...DEFAULT_OS_CREATE_VALUES },
@@ -68,7 +67,6 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
   const onSubmit = handleSubmit((formData) => {
     createMutation.mutate(formData, {
       onSuccess: (data) => {
-        resetForm();
         opts?.onSuccess?.(data);
       },
     });

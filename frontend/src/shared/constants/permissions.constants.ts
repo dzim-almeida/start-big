@@ -6,7 +6,7 @@
 export const PERMISSIONS = {
   all: 'all',
   dashboard: 'view_dashboard',
-  sales: 'view_sales',
+  sales: 'venda',
   storage: 'view_storage',
   services: 'servico',
   customers: 'cliente',
@@ -28,6 +28,7 @@ export const ENDPOINT_PERMISSION_MAP = {
   servicos: PERMISSIONS.services,
   clientes: PERMISSIONS.customers,
   empresas: PERMISSIONS.enterprise,
+  vendas: PERMISSIONS.sales,
 } as const;
 
 export const PERMISSION_ALIASES: Partial<Record<PermissionKey, string[]>> = {
