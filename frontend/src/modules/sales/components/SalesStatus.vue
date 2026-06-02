@@ -6,18 +6,13 @@ import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vu
 import { StatsCard } from '../types';
 
 import { useSalesStatusQuery } from '../composables/queries/useSalesStatusQuery';
-import { useAuthStore } from '@/shared/stores/auth.store';
 
 import { formatCurrency } from '@/shared/utils/finance';
 
 const { data: stats } = useSalesStatusQuery();
-const authStore = useAuthStore();
-
-const isMaster = computed(() => !authStore.userData?.cargo);
-const subtitle = computed(() => isMaster.value ? undefined : 'Este mês');
 
 const statsCards = computed((): StatsCard[] => [
-  { key: 'vendas_em_orcamento', icon: Clock, label: 'Orçamentos', value: stats.value ? String(stats.value.vendas_em_orcamento) : '...' },
+  { key: 'vendas_ativas', icon: Clock, label: 'Ativas', value: stats.value ? String(stats.value.vendas_ativas) : '...' },
   { key: 'vendas_finalizadas', icon: CheckCircle2, label: 'Finalizadas', value: stats.value ? String(stats.value.vendas_finalizadas) : '...' },
   { key: 'vendas_canceladas', icon: XCircle, label: 'Canceladas', value: stats.value ? String(stats.value.vendas_canceladas) : '...' },
   { key: 'ticket_medio', icon: TrendingUp, label: 'Ticket Médio', currency: true, value: stats.value ? formatCurrency(stats.value.ticket_medio) : '...' },
@@ -32,7 +27,6 @@ const statsCards = computed((): StatsCard[] => [
       :icon="item.icon"
       :label="item.label"
       :value="item.value"
-      :subtitle="subtitle"
     />
   </div>
 </template>

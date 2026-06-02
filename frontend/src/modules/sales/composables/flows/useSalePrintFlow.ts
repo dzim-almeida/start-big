@@ -5,7 +5,7 @@ import { usePaymentMethodsQuery } from '../queries/usePaymentMethodsQuery';
 import { saleService } from '../../api.service';
 import type { SaleRead } from '../../schemas/sale.schema';
 
-export type SalePrintType = 'ORCAMENTO' | 'VENDA';
+export type SalePrintType = 'VENDA';
 
 export function useSalePrintFlow() {
   const {

@@ -22,14 +22,7 @@ const { form, isSaving, saveNow } = useSaleDetailsForm(saleRef);
 
 const saleDisplay = computed(() => {
   if (!props.sale) return '...';
-
-  const prefix = props.sale.status === 'ORCAMENTO' ? 'ORÇAMENTO' : 'VENDA';   
-
-  if (props.sale.numero_venda) {
-
-    return `${prefix} #${String(props.sale.numero_venda).padStart(6, '0')}`;
-  }
-  return `${prefix} #${String(props.sale.id).padStart(6, '0')}`;
+  return `VENDA #${String(props.sale.id).padStart(6, '0')}`;
 });
 
 const createdAt = computed(() => {

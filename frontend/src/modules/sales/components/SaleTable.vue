@@ -4,13 +4,12 @@ import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vu
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
-
 import { formatCurrency } from '@/shared/utils/finance';
 
 import { useSaleTable } from '../composables/flows/useSaleTable';
 import { useSaleModal } from '../composables/flows/useSaleModal';
 
-import { SALE_FILTERS, STATUS_COLORS } from '../constants';
+import { SALE_FILTERS, STATUS_COLORS, SALE_FILTER_CONFIG } from '../constants';
 
 const { searchTerm, activeFilter, goToPage, sales, isLoading } = useSaleTable();
 const { openSaleViewModal, openSaleEditModal } = useSaleModal();
@@ -37,8 +36,8 @@ const emit = defineEmits<{
     @update:current-page="goToPage"
   >
     <template #toolbar>
-      <BaseSearchInput v-model="searchTerm" placeholder="Buscar por número, cliente..." />
-      <BaseFilter v-model="activeFilter" :filter-config="SALE_FILTERS" button-label="Filtros" />
+      <BaseSearchInput v-model="searchTerm" placeholder="Buscar por número, cliente..." class="min-w-64 flex-1" />
+      <BaseFilter v-model="activeFilter" :filter-config="SALE_FILTER_CONFIG" button-label="Filtros" />
     </template>
 
     <div class="overflow-x-auto">
@@ -47,7 +46,6 @@ const emit = defineEmits<{
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
           >
-            <th class="px-4 md:px-6 py-3 md:py-4">Nº Orçamento</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Nº Venda</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Cliente</th>
             <th class="px-4 md:px-6 py-3 md:py-4">Status</th>
@@ -61,26 +59,15 @@ const emit = defineEmits<{
             v-for="sale in sales?.vendas"
             :key="sale.id"
             class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
-            @click="sale.status !== 'ORCAMENTO' ? openSaleViewModal(sale.id) : openSaleEditModal(sale.id)"
+            @click="sale.status !== 'ATIVA' ? openSaleViewModal(sale.id) : openSaleEditModal(sale.id)"
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div
                 class="w-10 h-10 bg-brand-primary/10 rounded-xl flex flex-col items-center justify-center text-brand-primary"
               >
-                <span class="text-[7px] opacity-70 font-medium leading-none">ORC</span>
+                <span class="text-[7px] opacity-70 font-medium leading-none">VENDA</span>
                 <span class="text-sm font-bold leading-none mt-0.5">{{ sale.id }}</span>
               </div>
-            </td>
-
-            <td class="px-4 md:px-6 py-3 md:py-4">
-              <div
-                v-if="sale.numero_venda"
-                class="w-10 h-10 bg-green-50 rounded-xl flex flex-col items-center justify-center text-green-700"
-              >
-                <span class="text-[7px] opacity-70 font-medium leading-none">VENDA</span>
-                <span class="text-sm font-bold leading-none mt-0.5">{{ sale.numero_venda }}</span>
-              </div>
-              <span v-else class="text-zinc-300">—</span>
             </td>
 
             <td class="px-4 md:px-6 py-3 md:py-4">
@@ -118,8 +105,8 @@ const emit = defineEmits<{
             <!-- Quick Actions -->
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <!-- ORCAMENTO actions -->
-                <template v-if="sale.status === 'ORCAMENTO'">
+                <!-- ATIVA actions -->
+                <template v-if="sale.status === 'ATIVA'">
                   <button
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
@@ -131,7 +118,7 @@ const emit = defineEmits<{
                   <button
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                    title="Imprimir Orçamento"
+                    title="Imprimir"
                     @click.stop="emit('print', sale.id, sale.status)"
                   >
                     <Printer class="h-4 w-4" />

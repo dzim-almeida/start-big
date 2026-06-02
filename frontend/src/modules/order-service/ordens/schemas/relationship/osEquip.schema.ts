@@ -33,10 +33,10 @@ export const OsEquipUpdateSchema = z.object({
   marca: z.string().max(255, 'A marca deve ter no máximo 255 caracteres').optional(),
   modelo: z.string().max(255, 'O modelo deve ter no máximo 255 caracteres').optional(),
   numero_serie: z
-    .string()
+    .string({ required_error: 'O número de série é obrigatório' })
     .max(255, 'O número de série deve ter no máximo 255 caracteres')
     .optional(),
-  imei: z.string().max(255, 'O IMEI deve ter no máximo 255 caracteres').optional(),
+  imei: z.string({ required_error: 'O IMEI é obrigatório' }).max(255, 'O IMEI deve ter no máximo 255 caracteres').optional(),
   cor: z.string().max(255, 'A cor deve ter no máximo 255 caracteres').optional(),
   cliente_id: z.number().int().positive().optional(),
 });

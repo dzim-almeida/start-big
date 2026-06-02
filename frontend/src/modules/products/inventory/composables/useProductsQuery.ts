@@ -12,6 +12,7 @@ import {
   getProdutos,
   createProduto,
   uploadProdutoImage,
+  replaceProdutoPrincipalImage,
   updateProduto,
   toggleProdutoAtivo,
 } from '../services/product.service';
@@ -86,10 +87,11 @@ export function useUpdateProductMutation(setErrors: any, selectedFile: Ref<File 
     mutationFn: ({ id, data }) => updateProduto(id, data),
     onSuccess: async (product) => {
       if (selectedFile.value) {
-        await uploadProdutoImage(product.id, selectedFile.value)
+        await replaceProdutoPrincipalImage(product.id, selectedFile.value)
       }
       toast.success('Produto atualizado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
     },
     onError: (error) => {
       if (isConflictError(error)) {
@@ -118,6 +120,7 @@ export function useToggleProductActiveMutation() {
       const status = data.ativo ? 'ativado' : 'desativado';
       toast.success(`Produto ${status} com sucesso!`);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao alterar status do produto') as string);

@@ -76,10 +76,9 @@ onUnmounted(() => {
         v-if="isOpen"
         :class="['fixed inset-0 flex items-center justify-center p-4', overlay ? 'z-60' : 'z-50']"
       >
-        <!-- Backdrop - clique aqui fecha o modal -->
+        <!-- Backdrop -->
         <div
           class="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          @click="handleClose"
         />
 
         <!-- Modal Content -->
@@ -109,7 +108,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="p-6 overflow-y-auto flex-initial h-full">
+          <div class="p-6 overflow-y-auto flex-initial h-full no-scrollbar">
             <slot />
           </div>
 
@@ -143,5 +142,12 @@ onUnmounted(() => {
 .modal-leave-to > div:last-child {
   transform: scale(0.95);
   opacity: 0;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>

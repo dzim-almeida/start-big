@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from .cargo import Cargo
     from .ordem_servico import OrdemServico
     from .venda import Venda
+    from .orcamento import Orcamento
     from .sessao_caixa import SessaoCaixa
 
 class Funcionario(Base):
@@ -130,6 +131,11 @@ class Funcionario(Base):
     vendas: Mapped[list["Venda"]] = relationship(
         back_populates="funcionario",
         doc="Vendas realizadas por este funcionario"
+    )
+
+    orcamentos: Mapped[list["Orcamento"]] = relationship(
+        back_populates="funcionario",
+        doc="Orcamentos criados por este funcionario"
     )
 
     sessoes_caixa: Mapped[list["SessaoCaixa"]] = relationship(

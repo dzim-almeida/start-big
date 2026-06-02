@@ -84,8 +84,13 @@ def get_usuario_by_search(db: Session, usuario_search: str | None) -> Sequence[U
     return db.scalars(stmt).all()
 
 # ===========================================================================
-# ESCRITA (CREATE)
-# ===========================================================================    
+# ESCRITA (CREATE / UPDATE)
+# ===========================================================================
+
+def update_usuario(db: Session, usuario: UsuarioModel) -> UsuarioModel:
+    db.flush()
+    db.refresh(usuario)
+    return usuario
 
 def create_user(db: Session, usuario_to_add: UsuarioModel) -> UsuarioModel:
     """

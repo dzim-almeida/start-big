@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useToast } from '@/shared/composables/useToast';
 import { getMovimentacoes, createMovimentacao } from '../services/movimentacao.service';
 import type { MovimentacaoCreate } from '../types/products.types';
+import { PRODUTOS_QUERY_KEY } from '../../shared/constants/queryKeys';
 
 export const MOVIMENTACOES_QUERY_KEY = 'movimentacoes-estoque';
 
@@ -28,8 +29,7 @@ export function useCreateMovimentacaoMutation() {
       const label = result.tipo === 'ENTRADA' ? 'Entrada' : result.tipo === 'SAIDA' ? 'Saída' : 'Ajuste';
       toast.success(`${label} registrada com sucesso!`);
       queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
-      // Invalida produtos para atualizar a quantidade exibida nos cards
-      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      queryClient.invalidateQueries({ queryKey: [PRODUTOS_QUERY_KEY] });
     },
     onError: () => {
       toast.error('Erro ao registrar movimentação. Verifique os dados.');

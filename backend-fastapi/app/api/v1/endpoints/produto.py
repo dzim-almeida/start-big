@@ -135,7 +135,8 @@ def update_produto_by_id(
         db,
         produto_service.update_produto_by_id,
         produto_id,
-        produto_to_update
+        produto_to_update,
+        user_token,
     )
 
 @router.put(
@@ -162,12 +163,34 @@ def toggle_status_produto(
         db,
         produto_service.toggle_active_disable_produto_by_id,
         produto_id,
-        novo_codigo_produto
+        novo_codigo_produto,
+        user_token,
     )
 
 # ===========================================================================
 # ROTAS DE IMAGEM (UPLOAD/DELETE)
 # ===========================================================================
+
+@router.put(
+    "/{produto_id}/fotos/principal",
+    response_model=ProdutoFotoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Substituir Foto Principal do Produto",
+    description="Substitui a foto principal do produto. Remove a anterior do disco e do banco."
+)
+def replace_produto_principal_image(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto alvo", ge=1),
+    *,
+    image_file: UploadFile = File(..., description="Novo arquivo de imagem"),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        produto_service.replace_produto_principal_image,
+        produto_id,
+        image_file
+    )
 
 @router.post(
     "/{produto_id}/fotos",
@@ -198,9 +221,10 @@ def upload_produto_image(
     return _handle_db_transaction(
         db,
         produto_service.create_produto_image,
-        produto_id, 
-        image_file, 
-        principal
+        produto_id,
+        image_file,
+        principal,
+        user_token,
     )
 
 @router.delete(

@@ -4,12 +4,24 @@
  * @description Form section for PF (individual) customer personal data
  */
 
+import { computed } from 'vue';
 import { User } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
 import { GENDER_OPTIONS } from '@/modules/customers/composables/modal/constants/modal.constant';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+
+const configStore = useConfiguracoesStore();
+
+const rgColSpan = computed(() => {
+  const temGenero = configStore.exibirGenero;
+  const temData = configStore.exibirDataNascimento;
+  if (!temGenero && !temData) return 'col-span-12';
+  if (!temGenero || !temData) return 'col-span-12 md:col-span-6';
+  return 'col-span-12 md:col-span-4';
+});
 
 // =============================================
 // Props
@@ -66,24 +78,25 @@ const {
           label="CPF"
           placeholder="000.000.000-00"
           mask="###.###.###-##"
-          :required="true"
+          :required="configStore.exigirCpfPf"
           :error="submitCount > 0 ? errors.cpf : ''"
           :disabled="disabled"
         />
       </div>
 
       <!-- Row 2: RG, Genero, Data Nascimento -->
-      <div class="col-span-12 md:col-span-4">
+      <div :class="rgColSpan">
         <BaseInput
           v-model="rg"
           label="RG"
           placeholder="00.000.000-0"
           mask="##.###.###-#"
+          :required="configStore.exigirRgPf"
           :error="submitCount > 0 ? errors.rg : ''"
           :disabled="disabled"
         />
       </div>
-      <div class="col-span-12 md:col-span-4">
+      <div v-if="configStore.exibirGenero" class="col-span-12 md:col-span-4">
         <BaseSelect
           v-model="genero"
           label="Gênero"
@@ -93,7 +106,7 @@ const {
           :disabled="disabled"
         />
       </div>
-      <div class="col-span-12 md:col-span-4">
+      <div v-if="configStore.exibirDataNascimento" class="col-span-12 md:col-span-4">
         <BaseInput
           v-model="data_nascimento"
           type="date"

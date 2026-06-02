@@ -15,11 +15,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-function handleBackdropClick(event: MouseEvent) {
-  if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
-    props.closeModal();
-  }
-}
 </script>
 
 <template>
@@ -35,7 +30,6 @@ function handleBackdropClick(event: MouseEvent) {
       <div
         v-if="isOpen"
         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        @click="handleBackdropClick"
       >
         <Transition
           enter-active-class="transition ease-out duration-300"

@@ -76,6 +76,24 @@ class UsuarioRead(UsuarioBase):
     # Nota: data_criacao é comum em retornos, mantive o comentário.
 
 # =========================
+# Update Me (Dados da Conta)
+# =========================
+class UsuarioUpdateMe(BaseModel):
+    nome: Optional[str] = Field(None, max_length=255, description="Novo nome")
+    email: Optional[str] = Field(None, max_length=255, description="Novo e-mail")
+
+    model_config = ConfigDict(from_attributes=True)
+
+# =========================
+# Alterar Senha
+# =========================
+class UsuarioAlterarSenha(BaseModel):
+    senha_atual: str = Field(..., min_length=8, description="Senha atual")
+    nova_senha: str = Field(..., min_length=8, max_length=72, description="Nova senha")
+
+    model_config = ConfigDict(from_attributes=True)
+
+# =========================
 # Update (Edição Parcial)
 # =========================
 class UsuarioUpdate(BaseModel):

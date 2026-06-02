@@ -7,7 +7,12 @@
 import { Building2 } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
+import { REGIME_TRIBUTARIO_OPTIONS } from '@/modules/enterprise/constants/empresa.constants';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+
+const configStore = useConfiguracoesStore();
 
 // =============================================
 // Props
@@ -78,7 +83,7 @@ const {
           label="CNPJ"
           placeholder="00.000.000/0000-00"
           mask="##.###.###/####-##"
-          :required="true"
+          :required="configStore.exigirCnpjPj"
           :error="submitCount > 0 ? errors.cnpj : ''"
           :disabled="disabled"
         />
@@ -99,6 +104,7 @@ const {
           v-model="ie"
           label="Inscrição Estadual"
           placeholder="000.000.000.000"
+          :required="configStore.exigirIePj"
           :error="submitCount > 0 ? errors.ie : ''"
           :disabled="disabled"
         />
@@ -113,10 +119,11 @@ const {
         />
       </div>
       <div class="col-span-12 md:col-span-4">
-        <BaseInput
+        <BaseSelect
           v-model="regime_tributario"
           label="Regime Tributário"
-          placeholder="Ex: Simples Nacional"
+          :options="REGIME_TRIBUTARIO_OPTIONS"
+          placeholder="Selecione o regime"
           :error="submitCount > 0 ? errors.regime_tributario : ''"
           :disabled="disabled"
         />

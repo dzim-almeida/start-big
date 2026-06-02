@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { ArchiveX } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { ArchiveX, Keyboard } from 'lucide-vue-next';
+
+import ShortcutsModal from './ShortcutsModal.vue';
 
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -8,10 +11,12 @@ import ProductOption from './ProductOption.vue';
 import { useProductSearch } from '../../composables/flows/useProductSearch';
 import { useItemModal } from '../../composables/flows/useItemModal';
 import UnitValueInput from './UnitValueInput.vue';
+import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 
-defineProps<{
+const props = defineProps<{
   saleId: number | null;
-}>()
+  isOrcamento?: boolean;
+}>();
 
 const {
   searchTerm,
@@ -28,13 +33,20 @@ const {
   decreaseQuantity,
   addItemToSale,
   resetSelection
-} = useProductSearch();
+} = useProductSearch(props.isOrcamento);
 
 const { openCreateItemModal } = useItemModal();
+
+const shortcutsModalIsOpen = ref(false);
 
 function handleAddAvulso() {
   resetSelection();
   openCreateItemModal();
+}
+
+function handleAutoAdd(product: { nome: string; id: number }) {
+  selectProduct(product.nome, product.id);
+  addItemToSale(props.saleId);
 }
 </script>
 
@@ -74,7 +86,8 @@ function handleAddAvulso() {
               v-for="product in products"
               :key="product.id"
               :product="product"
-              @click="selectProduct(product.nome, product.id)"
+              @click="handleAutoAdd(product)"
+              @select-for-quantity="selectProduct(product.nome, product.id)"
             />
           </div>
         </div>
@@ -88,6 +101,7 @@ function handleAddAvulso() {
                 @click="handleAddAvulso"
               >
                 Adicionar produto avulso
+                <kbd class="ml-1 inline-flex items-center rounded border border-zinc-300 bg-zinc-100 px-1 text-[9px] font-semibold text-zinc-500">F4</kbd>
               </span>
             </p>
           </div>
@@ -104,5 +118,15 @@ function handleAddAvulso() {
     <BaseButton size="sm" :disabled="!canAddItem || isAddingItem" @click="addItemToSale(saleId)">
       Adicionar Produto
     </BaseButton>
+    <button
+      type="button"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 text-zinc-400 hover:bg-brand-primary/10 hover:text-brand-primary hover:border-brand-primary/30 transition-all cursor-pointer"
+      title="Atalhos do teclado"
+      @click="shortcutsModalIsOpen = true"
+    >
+      <Keyboard :size="16" />
+    </button>
+
+    <ShortcutsModal :is-open="shortcutsModalIsOpen" :shortcuts="isOrcamento ? ORCAMENTO_SHORTCUTS : SALE_SHORTCUTS" @close="shortcutsModalIsOpen = false" />
   </div>
 </template>

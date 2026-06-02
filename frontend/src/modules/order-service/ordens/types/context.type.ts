@@ -9,29 +9,29 @@ import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.sche
 
 export interface OSCreateFormContext {
   // Campos gerais
-  prioridade: Ref<string | null | undefined>;
-  defeito_relatado: Ref<string | null | undefined>;
-  diagnostico: Ref<string | null | undefined>;
-  observacoes: Ref<string | null | undefined>;
-  desconto: Ref<number | null | undefined>;
-  valor_entrada: Ref<number | null | undefined>;
-  garantia: Ref<string | null | undefined>;
-  data_previsao: Ref<string | null | undefined>;
-  senha_aparelho: Ref<string | null | undefined>;
-  acessorios: Ref<string | null | undefined>;
-  condicoes_aparelho: Ref<string | null | undefined>;
+  prioridade: Ref<string | undefined>;
+  defeito_relatado: Ref<string | undefined>;
+  diagnostico: Ref<string | undefined>;
+  observacoes: Ref<string | undefined>;
+  desconto: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
+  garantia: Ref<string | undefined>;
+  data_previsao: Ref<string | undefined>;
+  senha_aparelho: Ref<string | undefined>;
+  acessorios: Ref<string | undefined>;
+  condicoes_aparelho: Ref<string | undefined>;
 
   // Vínculos
-  cliente_id: Ref<number | null | undefined>;
-  funcionario_id: Ref<number | null | undefined>;
+  cliente_id: Ref<number | undefined>;
+  funcionario_id: Ref<number | undefined>;
 
   // Campos do equipamento (nested via dot-notation)
-  equipamento_tipo_equipamento: Ref<string | null | undefined>;
-  equipamento_marca: Ref<string | null | undefined>;
-  equipamento_modelo: Ref<string | null | undefined>;
-  equipamento_numero_serie: Ref<string | null | undefined>;
-  equipamento_imei: Ref<string | null | undefined>;
-  equipamento_cor: Ref<string | null | undefined>;
+  equipamento_tipo_equipamento: Ref<string | undefined>;
+  equipamento_marca: Ref<string | undefined>;
+  equipamento_modelo: Ref<string | undefined>;
+  equipamento_numero_serie: Ref<string | undefined>;
+  equipamento_imei: Ref<string | undefined>;
+  equipamento_cor: Ref<string | undefined>;
 
   // FieldArray de itens iniciais
   itens: Ref<FieldEntry<OsItemCreateSchemaDataType>[]>;
@@ -50,20 +50,20 @@ export interface OSCreateFormContext {
 
 
 export interface OSUpdateGeralFormContext {
-  status: Ref<string | null | undefined>;
-  prioridade: Ref<string | null | undefined>;
-  defeito_relatado: Ref<string | null | undefined>;
-  diagnostico: Ref<string | null | undefined>;
-  solucao: Ref<string | null | undefined>;
-  observacoes: Ref<string | null | undefined>;
-  desconto: Ref<number | null | undefined>;
-  valor_entrada: Ref<number | null | undefined>;
-  garantia: Ref<string | null | undefined>;
-  data_previsao: Ref<string | null | undefined>;
-  senha_aparelho: Ref<string | null | undefined>;
-  acessorios: Ref<string | null | undefined>;
-  condicoes_aparelho: Ref<string | null | undefined>;
-  funcionario_id: Ref<number | null | undefined>;
+  status: Ref<string | undefined>;
+  prioridade: Ref<string | undefined>;
+  defeito_relatado: Ref<string | undefined>;
+  diagnostico: Ref<string | undefined>;
+  solucao: Ref<string | undefined>;
+  observacoes: Ref<string | undefined>;
+  desconto: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
+  garantia: Ref<string | undefined>;
+  data_previsao: Ref<string | undefined>;
+  senha_aparelho: Ref<string | undefined>;
+  acessorios: Ref<string | undefined>;
+  condicoes_aparelho: Ref<string | undefined>;
+  funcionario_id: Ref<number | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
@@ -75,13 +75,13 @@ export interface OSUpdateGeralFormContext {
 
 
 export interface OSUpdateEquipFormContext {
-  tipo_equipamento: Ref<string | null | undefined>;
-  marca: Ref<string | null | undefined>;
-  modelo: Ref<string | null | undefined>;
-  numero_serie: Ref<string | null | undefined>;
-  imei: Ref<string | null | undefined>;
-  cor: Ref<string | null | undefined>;
-  cliente_id: Ref<number | null | undefined>;
+  tipo_equipamento: Ref<string | undefined>;
+  marca: Ref<string | undefined>;
+  modelo: Ref<string | undefined>;
+  numero_serie: Ref<string | undefined>;
+  imei: Ref<string | undefined>;
+  cor: Ref<string | undefined>;
+  cliente_id: Ref<number | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
@@ -93,11 +93,11 @@ export interface OSUpdateEquipFormContext {
 
 
 export interface OSItemFormContext {
-  tipo: Ref<string | null | undefined>;
-  nome: Ref<string | null | undefined>;
-  unidade_medida: Ref<string | null | undefined>;
-  quantidade: Ref<number | null | undefined>;
-  valor_unitario: Ref<number | null | undefined>;
+  tipo: Ref<string | undefined>;
+  nome: Ref<string | undefined>;
+  unidade_medida: Ref<string | undefined>;
+  quantidade: Ref<number | undefined>;
+  valor_unitario: Ref<number | undefined>;
 
   
   editingItemId: Ref<number | null>;
@@ -114,12 +114,12 @@ export interface OSItemFormContext {
 
 
 export interface OSFinalizarFormContext {
-  solucao: Ref<string | null | undefined>;
-  observacoes: Ref<string | null | undefined>;
-  desconto: Ref<number | null | undefined>;
-  taxa_entrega: Ref<number | null | undefined>;
-  acrescimo: Ref<number | null | undefined>;
-  valor_entrada: Ref<number | null | undefined>;
+  solucao: Ref<string | undefined>;
+  observacoes: Ref<string | undefined>;
+  desconto: Ref<number | undefined>;
+  taxa_entrega: Ref<number | undefined>;
+  acrescimo: Ref<number | undefined>;
+  valor_entrada: Ref<number | undefined>;
 
   pagamentos: Ref<FieldEntry<OsPaymentCreateSchemaDataType>[]>;
   handleAddPagamento: (pagamento?: Partial<OsPaymentCreateSchemaDataType>) => void;
@@ -134,7 +134,7 @@ export interface OSFinalizarFormContext {
 
 
 export interface OSCancelarFormContext {
-  motivo: Ref<string | null | undefined>;
+  motivo: Ref<string | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;

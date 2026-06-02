@@ -203,8 +203,8 @@ def toggle_active_disable_funcionario_by_id(db: Session, funcionario_id: int) ->
     novo_status = not funcionario_in_db.ativo
     funcionario_in_db.ativo = novo_status
     
-    # Cascata para o Usuário
-    if funcionario_in_db.usuario:
+    # Cascata para o Usuário — exceto se for conta master
+    if funcionario_in_db.usuario and not funcionario_in_db.usuario.is_master:
         funcionario_in_db.usuario.ativo = novo_status
 
     return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)

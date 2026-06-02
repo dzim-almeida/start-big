@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session, aliased, joinedload
-from sqlalchemy import select, func, or_, cast, String, extract
-from datetime import date
+from sqlalchemy import select, func, or_, cast, String
 
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
@@ -84,7 +83,6 @@ def get_sales_by_search(
         query = query.where(
             or_(
                 cast(Venda.id, String).startswith(like_search),
-                cast(Venda.numero_venda, String).startswith(like_search),
                 cliente_pf.nome.ilike(like_search),
                 cliente_pj.razao_social.ilike(like_search),
                 cliente_pj.nome_fantasia.ilike(like_search),
@@ -117,7 +115,7 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
     stmt = (
         select(
             func.count(Venda.id)
-                .filter(Venda.status == VendaStatus.ORCAMENTO)
+                .filter(Venda.status == VendaStatus.ATIVA)
                 .label("rascunho"),
 
             func.count(Venda.id)
@@ -136,19 +134,14 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
     )
 
     if funcionario_id:
-        hoje = date.today()
-        stmt = stmt.where(
-            Venda.funcionario_id == funcionario_id,
-            extract('month', Venda.criado_em) == hoje.month,
-            extract('year', Venda.criado_em) == hoje.year,
-        )
+        stmt = stmt.where(Venda.funcionario_id == funcionario_id)
 
     result = db.execute(stmt).first()
 
     ticket_medio = result.ticket_medio or 0
 
     return VendaStatusSummary(
-        vendas_em_orcamento=result.rascunho or 0,
+        vendas_ativas=result.rascunho or 0,
         vendas_finalizadas=result.finalizada or 0,
         vendas_canceladas=result.cancelada or 0,
         ticket_medio=int(round(ticket_medio * 100)),

@@ -13,7 +13,7 @@ from app.core.enum import MovimentacaoTipo
 class MovimentacaoCreate(BaseModel):
     """Dados de entrada para registrar uma movimentação de estoque."""
     tipo: MovimentacaoTipo = Field(..., description="Tipo: ENTRADA, SAIDA ou AJUSTE")
-    quantidade: int = Field(..., ge=1, description="Quantidade movimentada (mínimo 1)")
+    quantidade: int = Field(..., ge=0, description="Quantidade movimentada (mínimo 1; 0 para edição de dados)")
     observacao: Optional[str] = Field(None, max_length=500, description="Motivo ou observação")
 
     model_config = ConfigDict(from_attributes=True)

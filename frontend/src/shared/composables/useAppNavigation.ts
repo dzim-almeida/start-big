@@ -10,6 +10,8 @@ export function useAppNavigation() {
 
   const goToHome = () => router.push({ name: 'home' });
 
+  const goToMinhaConta = () => router.push({ name: 'minha-conta' });
+
   const logoutAndRedirect = () => {
     authStore.logoutUser();
     router.replace({ name: 'auth.user' });
@@ -19,6 +21,7 @@ export function useAppNavigation() {
     goToLogin,
     goToEnterpriseRegister,
     goToHome,
+    goToMinhaConta,
     logoutAndRedirect,
   };
 }

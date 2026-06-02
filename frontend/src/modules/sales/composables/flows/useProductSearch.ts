@@ -3,10 +3,11 @@ import { refDebounced } from '@vueuse/core';
 
 import { useProductQuery } from '../queries/useProductQuery';
 import { useAddItemSaleMutation } from '../mutates/useItemSaleMutation';
+import { useAddItemOrcamentoMutation } from '../mutates/useItemOrcamentoMutation';
 
 import type { ProductSaleCreate } from '../../schemas/productSale.schema';
 
-export function useProductSearch() {
+export function useProductSearch(isOrcamento = false) {
   const inputOnFocus = ref(false);
   
   function handleInputChange(isSearching: boolean) {
@@ -23,6 +24,7 @@ export function useProductSearch() {
 
   const productQuery = useProductQuery(debouncedSearchTerm);
   const addItemSaleMutation = useAddItemSaleMutation();
+  const addItemOrcamentoMutation = useAddItemOrcamentoMutation();
 
   const isSearching = computed(() => {
     return (
@@ -72,17 +74,17 @@ export function useProductSearch() {
       produto_id: selectedProductId.value,
     };
 
-    addItemSaleMutation.mutate(
-      {
-        saleId,
-        payload,
-      },
-      {
-        onSuccess: () => {
-          resetSelection();
-        },
-      },
-    );
+    if (isOrcamento) {
+      addItemOrcamentoMutation.mutate(
+        { orcamentoId: saleId, payload },
+        { onSuccess: () => resetSelection() },
+      );
+    } else {
+      addItemSaleMutation.mutate(
+        { saleId, payload },
+        { onSuccess: () => resetSelection() },
+      );
+    }
   }
 
   watch(searchTerm, (term) => {
@@ -109,7 +111,7 @@ export function useProductSearch() {
 
     isSearching,
     canAddItem,
-    isAddingItem: addItemSaleMutation.isPending,
+    isAddingItem: isOrcamento ? addItemOrcamentoMutation.isPending : addItemSaleMutation.isPending,
 
     handleInputChange,
     selectProduct,

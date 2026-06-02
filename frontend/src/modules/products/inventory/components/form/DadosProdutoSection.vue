@@ -6,6 +6,7 @@
 
 import { computed } from 'vue';
 import { Package } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -13,6 +14,7 @@ import ImageUploadSection from './ImageUploadSection.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useProductForm } from '../../composables/useProductForm';
 import { useFornecedoresQuery } from '../../../suppliers/composables/useFornecedoresQuery';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 // =============================================
 // Props
@@ -58,6 +60,8 @@ const {
   observacao,
   errors,
 } = useProductForm();
+
+const { exigirCodigoBarras, exigirCategoria, unidadeMedidaPadrao } = storeToRefs(useConfiguracoesStore());
 
 const { fornecedores } = useFornecedoresQuery();
 const fornecedorOptions = computed(() => [
@@ -113,7 +117,11 @@ function handleGenerateSku() {
             :error="submitCount > 0 ? errors.codigo_produto : ''"
             :disabled="disabled"
             class="flex-1"
-          />
+          >
+            <template #hint>
+              <span class="text-xs text-zinc-400">Identificador interno do sistema</span>
+            </template>
+          </BaseInput>
           <div>
           <BaseButton
             v-if="!disabled"
@@ -132,15 +140,20 @@ function handleGenerateSku() {
             v-model="codigo_barras"
             label="Código de Barras"
             placeholder="EAN-13 ou similar"
+            :required="exigirCodigoBarras"
             :error="submitCount > 0 ? errors.codigo_barras : ''"
             :disabled="disabled"
-          />
+          >
+            <template v-if="!exigirCodigoBarras" #hint>
+              <span class="text-xs text-zinc-400">Deixe vazio para gerar automaticamente</span>
+            </template>
+          </BaseInput>
         </div>
         <div class="col-span-12 md:col-span-4">
           <BaseSelect
             v-model="unidade_medida"
             label="Unidade de Medida"
-            placeholder="Selecione"
+            :placeholder="unidadeMedidaPadrao"
             :options="UNIDADE_MEDIDA_OPTIONS"
             :error="submitCount > 0 ? errors.unidade_medida : ''"
             :disabled="disabled"
@@ -151,6 +164,7 @@ function handleGenerateSku() {
             v-model="categoria"
             label="Categoria"
             placeholder="Ex: Bebidas, Alimentos"
+            :required="exigirCategoria"
             :error="submitCount > 0 ? errors.categoria : ''"
             :disabled="disabled"
           />

@@ -8,26 +8,39 @@ import {
   useUpdateItemSaleMutation,
   useDeleteItemSaleMutation,
 } from '../../composables/mutates/useItemSaleMutation';
+import {
+  useUpdateItemOrcamentoMutation,
+  useDeleteItemOrcamentoMutation,
+} from '../../composables/mutates/useItemOrcamentoMutation';
 
 import { useItemModal } from '../../composables/flows/useItemModal';
 
 import type { SaleRead } from '../../schemas/sale.schema';
+import type { OrcamentoRead } from '../../schemas/orcamento.schema';
+
+type SaleOrOrcamento = SaleRead | OrcamentoRead;
 
 const props = defineProps<{
-  sale: SaleRead | undefined;
+  sale: SaleOrOrcamento | undefined;
   readonly?: boolean;
+  isOrcamento?: boolean;
 }>();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;7
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const { openEditItemModal } = useItemModal();
 
-const updateItemMutation = useUpdateItemSaleMutation();
-const deleteItemMutation = useDeleteItemSaleMutation();
+const updateSaleMut = useUpdateItemSaleMutation();
+const deleteSaleMut = useDeleteItemSaleMutation();
+const updateOrcMut = useUpdateItemOrcamentoMutation();
+const deleteOrcMut = useDeleteItemOrcamentoMutation();
+
+const isUpdating = computed(() => props.isOrcamento ? updateOrcMut.isPending.value : updateSaleMut.isPending.value);
+const isDeleting = computed(() => props.isOrcamento ? deleteOrcMut.isPending.value : deleteSaleMut.isPending.value);
 
 const items = computed(() => props.sale?.produtos ?? []);
 
-function getProductDescription(item: SaleRead['produtos'][number]) {
+function getProductDescription(item: SaleOrOrcamento['produtos'][number]) {
   if (item.tipo_produto === 'AVULSO') {
     return 'Produto avulso';
   }
@@ -35,41 +48,42 @@ function getProductDescription(item: SaleRead['produtos'][number]) {
   return item.produto_id ? `SKU: #${item.sku}` : 'Produto cadastrado';
 }
 
-function decreaseQuantity(item: SaleRead['produtos'][number]) {
+function mutateUpdate(entityId: number, productId: number, payload: { quantidade: number }) {
+  if (props.isOrcamento) {
+    updateOrcMut.mutate({ orcamentoId: entityId, productId, payload });
+  } else {
+    updateSaleMut.mutate({ saleId: entityId, productId, payload });
+  }
+}
+
+function mutateDelete(entityId: number, productId: number) {
+  if (props.isOrcamento) {
+    deleteOrcMut.mutate({ orcamentoId: entityId, productId });
+  } else {
+    deleteSaleMut.mutate({ saleId: entityId, productId });
+  }
+}
+
+function decreaseQuantity(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
   if (item.quantidade <= 1) return;
 
-  updateItemMutation.mutate({
-    saleId: props.sale.id,
-    productId: item.id,
-    payload: {
-      quantidade: item.quantidade - 1,
-    },
-  });
+  mutateUpdate(props.sale.id, item.id, { quantidade: item.quantidade - 1 });
 }
 
-function increaseQuantity(item: SaleRead['produtos'][number]) {
+function increaseQuantity(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
 
-  updateItemMutation.mutate({
-    saleId: props.sale.id,
-    productId: item.id,
-    payload: {
-      quantidade: item.quantidade + 1,
-    },
-  });
+  mutateUpdate(props.sale.id, item.id, { quantidade: item.quantidade + 1 });
 }
 
-function removeItem(item: SaleRead['produtos'][number]) {
+function removeItem(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
 
-  deleteItemMutation.mutate({
-    saleId: props.sale.id,
-    productId: item.id,
-  });
+  mutateDelete(props.sale.id, item.id);
 }
 </script>
 
@@ -157,7 +171,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
               >
                 <button
                   type="button"
-                  :disabled="readonly || item.quantidade <= 1 || updateItemMutation.isPending.value"
+                  :disabled="readonly || item.quantidade <= 1 || isUpdating"
                   class="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
                   @click.stop="decreaseQuantity(item)"
                 >
@@ -170,7 +184,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
 
                 <button
                   type="button"
-                  :disabled="readonly || updateItemMutation.isPending.value"
+                  :disabled="readonly || isUpdating"
                   class="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
                   @click.stop="increaseQuantity(item)"
                 >
@@ -194,7 +208,7 @@ function removeItem(item: SaleRead['produtos'][number]) {
             <td v-if="!readonly" class="px-4 text-center">
               <button
                 type="button"
-                :disabled="deleteItemMutation.isPending.value"
+                :disabled="isDeleting"
                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                 @click.stop="removeItem(item)"
               >

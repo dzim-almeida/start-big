@@ -29,10 +29,10 @@ const { searchQuery, clientes, isLoading, lastCreatedId } = useOSClientSearch(is
 const { openCreateModalWithCallback } = useCustomerModal();
 
 function handleCadastrarNovo() {
-  emit('close');
   openCreateModalWithCallback((customer) => {
     queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
     emit('selectCliente', customer as CustomerUnionReadSchemaDataType);
+    emit('close');
   });
 }
 

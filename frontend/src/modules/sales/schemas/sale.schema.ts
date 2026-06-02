@@ -39,14 +39,13 @@ export type SaleUpdate = z.infer<typeof SaleUpdateSchema>;
 
 export const SaleSimpleReadSchema = z.object({
   id: z.number(),
-  numero_venda: z.number().nullable().optional(),
 
   cliente_id: z.number().nullable().optional(),
   funcionario_id: z.number(),
 
   total: z.number(),
 
-  status: z.enum(['ORCAMENTO', 'FINALIZADA', 'CANCELADA']),
+  status: z.enum(['ATIVA', 'FINALIZADA', 'CANCELADA']),
 
   criado_em: z.string(),
 
@@ -80,7 +79,7 @@ export type SaleRead = z.infer<typeof SaleReadSchema>;
 
 export const SaleSearchSchema = z.object({
   search: z.string().max(255).nullable().optional(),
-  status: z.enum(['ORCAMENTO', 'FINALIZADA', 'CANCELADA']).nullable().optional(),
+  status: z.enum(['ATIVA', 'FINALIZADA', 'CANCELADA']).nullable().optional(),
 });
 
 export type SaleSearch = z.infer<typeof SaleSearchSchema>;
@@ -101,7 +100,7 @@ export const SaleListSchema = z.object({
 export type SaleList = z.infer<typeof SaleListSchema>;
 
 export const SalesStatusSchema = z.object({
-  vendas_em_orcamento: z.number(),
+  vendas_ativas: z.number(),
   vendas_finalizadas: z.number(),
   vendas_canceladas: z.number(),
   ticket_medio: z.number(),

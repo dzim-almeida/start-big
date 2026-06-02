@@ -71,7 +71,7 @@ const statusBadgeConfig = {
       <BaseFilter
         v-model="statusFilter"
         :filter-config="STATUS_FILTER_CONFIG"
-        button-label="Status"
+        button-label="Filtros"
       />
     </template>
 

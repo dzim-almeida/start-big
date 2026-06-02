@@ -95,7 +95,7 @@ const homeRoutes: RouteRecordRaw[] = [
           tabId: 'sales',
           requiresAuth: true,
         }
-      }
+      },
     ],
   },
 ];

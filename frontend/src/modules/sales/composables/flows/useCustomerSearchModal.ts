@@ -8,7 +8,7 @@ import { useCustomerModal } from '@/modules/customers/composables/modal/useCusto
 import { useSaleModal } from './useSaleModal'
 import { useAuthStore } from '@/shared/stores/auth.store'
 
-type ModalMode = 'create' | 'change'
+type ModalMode = 'create' | 'change' | 'converter'
 
 const customerModalIsOpen = ref(false)
 const modalMode = ref<ModalMode>('create')
@@ -47,6 +47,13 @@ export function useCustomerSearchModal() {
     customerModalIsOpen.value = true
   }
 
+  function openCustomerModalForConversion(callback: (clienteId: number | null) => void) {
+    resetSearch()
+    modalMode.value = 'converter'
+    changeCallback = callback
+    customerModalIsOpen.value = true
+  }
+
   function closeCustomerModal() {
     resetSearch()
     customerModalIsOpen.value = false
@@ -54,7 +61,7 @@ export function useCustomerSearchModal() {
   }
 
   function selectCustomer(customerId: number | null) {
-    if (modalMode.value === 'change') {
+    if (modalMode.value === 'change' || modalMode.value === 'converter') {
       changeCallback?.(customerId)
       closeCustomerModal()
       return
@@ -100,6 +107,7 @@ export function useCustomerSearchModal() {
 
     openCustomerModal,
     openCustomerModalForChange,
+    openCustomerModalForConversion,
     closeCustomerModal,
     openCreateCustomerModal,
     selectCustomer,

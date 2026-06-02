@@ -55,7 +55,7 @@ def create_funcionario(
     description="Busca por termo (Nome, CPF, Email) ou retorna todos os ativos."
 )
 def get_funcionario_by_search(
-    user_token: dict = Depends(check_permission(required_permission=["funcionario", "servico"])),
+    user_token: dict = Depends(check_permission(required_permission="funcionario")),
     *,
     buscar: Optional[str] = Query(
         None,

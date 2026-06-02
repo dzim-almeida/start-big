@@ -4,9 +4,6 @@
 # DESCRIÇÃO: Lógica para criação, atualização e controle de estado de produtos.
 # ---------------------------------------------------------------------------
 
-import os
-import uuid
-import shutil
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 from typing import Sequence
@@ -21,11 +18,7 @@ from app.db.crud import produto as produto_crud
 from app.db.crud import movimentacao_estoque as mov_crud
 
 from app.core.enum import TipoTransacaoEstoque, MovimentacaoTipo
-
-# Diretório base onde as imagens serão salvas
-UPLOAD_BASE_DIR = "static/uploads/produtos"
-# Garante que o diretório base exista
-os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
+from app.core.imagem import salvar_imagem, deletar_imagem
 
 # Exceções reutilizáveis
 conflict_codigo_produto_exce = HTTPException(
@@ -50,49 +43,6 @@ _bad_request_exce = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="Estoque insuficiente para a quantidade solicitada"
 )
-
-# ===========================================================================
-# LÓGICA DE SALVAMENTO FÍSICO
-# ===========================================================================
-
-def save_image_locally(image_file: UploadFile, produto_id: int) -> str:
-    file_extension = os.path.splitext(image_file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_extension}"
-
-    produto_folder = os.path.join(UPLOAD_BASE_DIR, str(produto_id))
-    os.makedirs(produto_folder, exist_ok=True)
-    file_path = os.path.join(produto_folder, unique_filename)
-
-    try:
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(image_file.file, f)
-    finally:
-        image_file.file.close()
-
-    url_image_file = f"{UPLOAD_BASE_DIR}/{produto_id}/{unique_filename}"
-    return url_image_file
-
-def delete_image_locally(file_path: str) -> bool:
-    if not os.path.exists(file_path):
-        return False
-    
-    try:
-        os.remove(file_path)
-    except OSError as e_os:
-        print(f"Erro ao deletar o arquivo {file_path}: {e_os}")
-        return False
-    
-    image_folder = os.path.dirname(file_path)
-    try:
-        os.rmdir(image_folder)
-        print(f"Diretório do produto removido: {image_folder}")
-    except OSError as e_os:
-        if "Directory not empty" in str(e_os):
-             print(f"Diretório do produto {image_folder} não vazio, mantido.")
-        else:
-             print(f"Erro ao tentar remover o diretório {image_folder}: {e_os}")
-
-    return True
 
 # ===========================================================================
 # LÓGICA DE CRIAÇÃO (CREATE)
@@ -143,14 +93,14 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
 
     return produto_in_db
 
-def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool) -> ProdutoFotoModel:
-    
+def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool, usuario_token: dict) -> ProdutoFotoModel:
+
     produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
 
     if not produto_in_db:
         raise not_found_exce
-    
-    image_url = save_image_locally(image_file=image_file, produto_id=produto_id)
+
+    image_url = salvar_imagem(arquivo=image_file, entidade_id=produto_id, contexto="produto")
 
     produto_image_to_db = ProdutoFotoModel(
         produto_id=produto_id,
@@ -159,7 +109,11 @@ def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, p
         principal=primary_image,
     )
 
-    return produto_crud.create_produto_image(db, produto_image_to_db)
+    result = produto_crud.create_produto_image(db, produto_image_to_db)
+
+    _registrar_edicao(db, produto_in_db, usuario_token, "Foto do produto atualizada")
+
+    return result
 
 # ===========================================================================
 # LÓGICA DE LEITURA (READ)
@@ -177,39 +131,88 @@ def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[Pr
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
 # ===========================================================================
 
-def update_produto_by_id(db: Session, produto_id: int, produto_to_update: ProdutoUpdate) -> ProdutoModel:
+_CAMPO_LEGIVEL: dict[str, str] = {
+    "nome": "Nome",
+    "codigo_produto": "Código SKU",
+    "codigo_barras": "Código de Barras",
+    "unidade_medida": "Unidade de Medida",
+    "categoria": "Categoria",
+    "marca": "Marca",
+    "fornecedor_id": "Fornecedor",
+    "localizacao_estoque": "Localização",
+    "observacao": "Descrição",
+    "valor_varejo": "Preço Varejo",
+    "valor_entrada": "Preço Custo",
+    "valor_atacado": "Preço Atacado",
+    "quantidade": "Quantidade",
+    "quantidade_minima": "Qtd. Mínima",
+    "quantidade_ideal": "Qtd. Ideal",
+}
+
+
+def _build_observacao_edicao(campos: list[str]) -> str:
+    nomes = [_CAMPO_LEGIVEL.get(c, c) for c in campos]
+    if len(nomes) == 1:
+        return f"{nomes[0]} alterado"
+    return f"Campos alterados: {', '.join(nomes)}"
+
+
+def _registrar_edicao(db, produto, usuario_token: dict, observacao: str) -> None:
+    mov = MovimentacaoEstoque(
+        produto_id=produto.id,
+        produto_nome=produto.nome,
+        usuario_id=int(usuario_token["sub"]) if usuario_token.get("sub") else None,
+        usuario_nome=usuario_token.get("nome", "Sistema"),
+        tipo=MovimentacaoTipo.EDICAO_DADOS,
+        quantidade=0,
+        quantidade_anterior=produto.estoque.quantidade,
+        quantidade_posterior=produto.estoque.quantidade,
+        observacao=observacao,
+    )
+    mov_crud.create_movimentacao(db, mov)
+
+
+def update_produto_by_id(db: Session, produto_id: int, produto_to_update: ProdutoUpdate, usuario_token: dict) -> ProdutoModel:
     """
     Atualiza produto e dados de estoque aninhados.
     """
     produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-    
+
     if not produto_in_db:
         raise not_found_exce
-    
+
     data_to_update = produto_to_update.model_dump(exclude_unset=True)
+    campos_alterados: list[str] = []
 
     # Tratamento para atualização de Estoque (Tabela Filha)
     if "estoque" in data_to_update:
         storage_data_to_update = produto_to_update.estoque.model_dump(exclude_unset=True)
-        
-        # Atualiza atributos do objeto Estoque já existente na sessão
+
         for key, value in storage_data_to_update.items():
+            if getattr(produto_in_db.estoque, key, None) != value:
+                campos_alterados.append(key)
             setattr(produto_in_db.estoque, key, value)
-        
-        # Remove do dicionário principal para evitar erro de atribuição direta
+
         del data_to_update["estoque"]
 
     # Atualiza atributos do Produto (Tabela Pai)
     for key, value in data_to_update.items():
+        if getattr(produto_in_db, key, None) != value:
+            campos_alterados.append(key)
         setattr(produto_in_db, key, value)
 
-    return produto_crud.update_produto(db, produto_in_db)
+    produto_result = produto_crud.update_produto(db, produto_in_db)
+
+    if campos_alterados:
+        _registrar_edicao(db, produto_result, usuario_token, _build_observacao_edicao(campos_alterados))
+
+    return produto_result
 
 # ===========================================================================
 # LÓGICA DE STATUS (TOGGLE)
 # ===========================================================================
 
-def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None) -> ProdutoModel:
+def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None, usuario_token: dict) -> ProdutoModel:
     """
     Alterna status Ativo/Inativo.
     Se estiver reativando, verifica conflito de código e permite atualização.
@@ -240,11 +243,47 @@ def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produt
     # Inverte o status
     produto_in_db.ativo = not produto_in_db.ativo
 
-    return produto_crud.update_produto(db, produto_to_update=produto_in_db)
+    produto_result = produto_crud.update_produto(db, produto_to_update=produto_in_db)
+
+    observacao = "Produto reativado" if produto_result.ativo else "Produto desabilitado"
+    _registrar_edicao(db, produto_result, usuario_token, observacao)
+
+    return produto_result
 
 # ===========================================================================
 # LÓGICA DE DELEÇÃO (DELETE)
 # ===========================================================================
+
+def replace_produto_principal_image(db: Session, produto_id: int, image_file: UploadFile) -> ProdutoFotoModel:
+    """
+    Substitui a foto principal de um produto.
+
+    1. Busca a foto principal atual (se existir).
+    2. Salva a nova imagem no disco.
+    3. Cria novo registro ProdutoFoto como principal.
+    4. Remove a foto anterior (arquivo + registro).
+    """
+    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    if not produto_in_db:
+        raise not_found_exce
+
+    foto_anterior = produto_crud.get_produto_principal_image(db, produto_id=produto_id)
+
+    image_url = salvar_imagem(arquivo=image_file, entidade_id=produto_id, contexto="produto")
+
+    nova_foto = ProdutoFotoModel(
+        produto_id=produto_id,
+        url=image_url,
+        nome_arquivo=image_file.filename,
+        principal=True,
+    )
+    nova_foto = produto_crud.create_produto_image(db, nova_foto)
+
+    if foto_anterior:
+        deletar_imagem(caminho_arquivo=foto_anterior.url)
+        produto_crud.delete_produto_image(db, image_to_delete=foto_anterior)
+
+    return nova_foto
 
 def delete_produto_image(db: Session, image_id: int):
     
@@ -255,7 +294,7 @@ def delete_produto_image(db: Session, image_id: int):
     
     file_path = image_in_db.url
     
-    if not delete_image_locally(file_path=file_path):
+    if not deletar_imagem(caminho_arquivo=file_path):
         raise internal_error_exce
     
     return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)

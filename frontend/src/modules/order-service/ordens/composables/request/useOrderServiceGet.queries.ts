@@ -36,6 +36,7 @@ export function useOrderServiceQueryAll() {
         search: deboucedSearchQuery.value,
         status: activeStatusFilterQuery.value,
         priority_sort: activePriorityFilterQuery.value,
+        page: currentPage.value,
       }),
     staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
   });
