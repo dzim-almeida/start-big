@@ -38,7 +38,6 @@ const emit = defineEmits<{
         :model-value="status"
         label="Situação"
         :options="statusOptions"
-        :disabled="props.isCreateMode"
         @update:model-value="emit('update:status', $event as OsStatusEnumDataType)"
       />
 
