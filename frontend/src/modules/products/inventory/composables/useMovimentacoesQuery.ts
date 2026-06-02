@@ -7,6 +7,7 @@ import { useToast } from '@/shared/composables/useToast';
 import { getMovimentacoes, createMovimentacao } from '../services/movimentacao.service';
 import type { MovimentacaoCreate } from '../types/products.types';
 import { PRODUTOS_QUERY_KEY } from '../../shared/constants/queryKeys';
+import { dashboardKeys } from '@/modules/home/constants/dashboard.constants';
 
 export const MOVIMENTACOES_QUERY_KEY = 'movimentacoes-estoque';
 
@@ -30,6 +31,7 @@ export function useCreateMovimentacaoMutation() {
       toast.success(`${label} registrada com sucesso!`);
       queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [PRODUTOS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.estoqueBaixo() });
     },
     onError: () => {
       toast.error('Erro ao registrar movimentação. Verifique os dados.');
