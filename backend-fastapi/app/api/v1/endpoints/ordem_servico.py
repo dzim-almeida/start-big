@@ -50,7 +50,7 @@ from app.services import ordem_servico_foto as os_foto_service
 
 router = APIRouter()
 
-module_permission = "order-service"
+module_permission = "servico"
 
 
 # ===========================================================================

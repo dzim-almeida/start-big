@@ -212,7 +212,7 @@ def update_produto_by_id(db: Session, produto_id: int, produto_to_update: Produt
 # LÓGICA DE STATUS (TOGGLE)
 # ===========================================================================
 
-def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None) -> ProdutoModel:
+def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None, usuario_token: dict) -> ProdutoModel:
     """
     Alterna status Ativo/Inativo.
     Se estiver reativando, verifica conflito de código e permite atualização.
@@ -243,7 +243,12 @@ def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produt
     # Inverte o status
     produto_in_db.ativo = not produto_in_db.ativo
 
-    return produto_crud.update_produto(db, produto_to_update=produto_in_db)
+    produto_result = produto_crud.update_produto(db, produto_to_update=produto_in_db)
+
+    observacao = "Produto reativado" if produto_result.ativo else "Produto desabilitado"
+    _registrar_edicao(db, produto_result, usuario_token, observacao)
+
+    return produto_result
 
 # ===========================================================================
 # LÓGICA DE DELEÇÃO (DELETE)

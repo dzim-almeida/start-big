@@ -163,7 +163,8 @@ def toggle_status_produto(
         db,
         produto_service.toggle_active_disable_produto_by_id,
         produto_id,
-        novo_codigo_produto
+        novo_codigo_produto,
+        user_token,
     )
 
 # ===========================================================================

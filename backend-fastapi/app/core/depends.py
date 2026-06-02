@@ -172,7 +172,7 @@ def get_current_master_user(usuario_token: Dict[str, Any] = Depends(get_current_
 # =========================
 # 3. Validação de Autorização (Permissões)
 # =========================
-def check_permission(required_permission: str) -> Callable:
+def check_permission(required_permission: str | list[str]) -> Callable:
     """
     Factory de dependência para verificar permissões finas (Baseado em Claims/ACL).
     
@@ -210,12 +210,13 @@ def check_permission(required_permission: str) -> Callable:
         # A re-hidratação já garante que 'permissoes' é um dict, mas esta é uma checagem de segurança
         permissoes = usuario_token.get("permissoes", {})
         
-        if permissoes.get(required_permission) is True:
+        perms = required_permission if isinstance(required_permission, list) else [required_permission]
+        if any(permissoes.get(p) is True for p in perms):
             return usuario_token
 
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"Permissão negada. Requer: '{required_permission}'"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permissão negada. Requer: '{', '.join(perms)}'"
         )
     
     return permission_dependency
