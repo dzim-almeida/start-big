@@ -5,6 +5,7 @@ interface Props {
   icon: Component;
   label: string;
   value: string;
+  subtitle?: string;
 }
 
 defineProps<Props>();
@@ -32,6 +33,11 @@ defineProps<Props>();
     <!-- Value -->
     <p class="text-xl md:text-2xl font-black text-zinc-900 tracking-tight">
       {{ value }}
+    </p>
+
+    <!-- Subtitle -->
+    <p v-if="subtitle" class="text-[10px] text-zinc-400 mt-1 font-medium">
+      {{ subtitle }}
     </p>
   </div>
 </template>

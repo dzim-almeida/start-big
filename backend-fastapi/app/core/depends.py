@@ -3,7 +3,7 @@
 # DESCRIÇÃO: Dependências (Middlewares) para proteção de rotas.
 # ---------------------------------------------------------------------------
 
-from typing import Callable, Dict, Any
+from typing import Callable, Dict, Any, Union
 from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -167,22 +167,24 @@ def get_current_master_user(usuario_token: Dict[str, Any] = Depends(get_current_
 # =========================
 # 3. Validação de Autorização (Permissões)
 # =========================
-def check_permission(required_permission: str) -> Callable:
+def check_permission(required_permission: Union[str, list[str]]) -> Callable:
     """
     Factory de dependência para verificar permissões finas (Baseado em Claims/ACL).
-    
+
     Args:
-        required_permission (str): A string da permissão necessária (ex: 'produto_write').
+        required_permission: Permissão necessária. Pode ser uma string única ou uma
+            lista de strings (lógica OR — qualquer uma das permissões concede acesso).
 
     Returns:
         Callable: A função de dependência que executa a verificação.
     """
-    
+    permissions = [required_permission] if isinstance(required_permission, str) else required_permission
+
     def permission_dependency(usuario_token: Dict[str, Any] = Depends(get_current_active_user), db: Session = Depends(get_db)):
         """
         Função de dependência que verifica o Tenant e a Permissão específica.
         """
-        
+
         # 3.1 Validação de Tenant (Empresa)
         if not usuario_token.get("empresa_id"):
              raise HTTPException(
@@ -200,19 +202,18 @@ def check_permission(required_permission: str) -> Callable:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Funcionário ainda não possui cargo para obter permissões."
             )
-        
-        # 3.4 Validação da Permissão Fina
-        # A re-hidratação já garante que 'permissoes' é um dict, mas esta é uma checagem de segurança
+
+        # 3.4 Validação da Permissão Fina (OR: qualquer permissão da lista concede acesso)
         permissoes = usuario_token.get("permissoes", {})
-        
-        if permissoes.get(required_permission) is True:
+
+        if any(permissoes.get(p) is True for p in permissions):
             return usuario_token
 
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail=f"Permissão negada. Requer: '{required_permission}'"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permissão negada. Requer uma de: {permissions}"
         )
-    
+
     return permission_dependency
 
 # =========================
