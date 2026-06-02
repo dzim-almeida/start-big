@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { SaleRead } from '../../schemas/sale.schema';
+import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
 import {
   useCompanyPrintInfo,
@@ -16,38 +17,38 @@ import PrintCupomSignatures from '@/shared/components/print/cupom/PrintCupomSign
 import PrintCupomFooter from '@/shared/components/print/cupom/PrintCupomFooter.vue';
 
 const props = defineProps<{
-  sale: SaleRead | null;
-  type: 'ORCAMENTO' | 'VENDA';
-  paymentMethodResolver: (id: number) => string;
+  sale: SaleRead | OrcamentoRead | null;
+  type: 'VENDA' | 'ORCAMENTO';
+  paymentMethodResolver?: (id: number) => string;
 }>();
 
 const { companyInfo } = useCompanyPrintInfo();
 
 const SEPARATOR = '────────────────────────────';
 
-const title = computed(() => {
-  return props.type === 'ORCAMENTO' ? 'ORCAMENTO' : 'COMPROVANTE DE VENDA';
-});
+const isVenda = computed(() => props.type === 'VENDA');
+
+const title = computed(() => isVenda.value ? 'COMPROVANTE DE VENDA' : 'ORÇAMENTO');
 
 const documentId = computed(() => {
-  if (props.type === 'VENDA' && props.sale?.numero_venda) {
-    return `VENDA: ${String(props.sale.numero_venda).padStart(6, '0')}`;
-  }
-  return `ORC: ${String(props.sale?.id ?? 0).padStart(6, '0')}`;
+  const prefix = isVenda.value ? 'VENDA' : 'ORC';
+  return `${prefix}: ${String(props.sale?.id ?? 0).padStart(6, '0')}`;
 });
 
+const saleData = computed(() => isVenda.value ? props.sale as SaleRead : null);
+
 const clienteDoc = computed(() => {
-  const doc = getClienteDoc(props.sale?.cliente as any);
+  const doc = getClienteDoc(saleData.value?.cliente as any);
   return doc ? formatPrintDoc(doc) : '';
 });
 
 const clientePhone = computed(() => {
-  return getClientePhone(props.sale?.cliente as any);
+  return getClientePhone(saleData.value?.cliente as any);
 });
 
 const totalPago = computed(() => {
-  if (!props.sale?.pagamentos) return 0;
-  return props.sale.pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
+  if (!saleData.value?.pagamentos) return 0;
+  return saleData.value.pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
 });
 </script>
 
@@ -62,21 +63,22 @@ const totalPago = computed(() => {
 
     <div class="my-1">
       <div><strong>{{ documentId }}</strong></div>
-      <div v-if="type === 'VENDA'">ORC: {{ String(sale.id).padStart(6, '0') }}</div>
       <div>Data: {{ formatPrintDate(sale.criado_em) }}</div>
     </div>
 
     <div class="separator">{{ SEPARATOR }}</div>
 
-    <!-- Cliente -->
-    <div class="section">
-      <div class="font-bold mb-0.5">CLIENTE</div>
-      <div>{{ getClienteNome(sale.cliente as any) }}</div>
-      <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
-      <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
-    </div>
+    <!-- Cliente (apenas venda) -->
+    <template v-if="isVenda">
+      <div class="section">
+        <div class="font-bold mb-0.5">CLIENTE</div>
+        <div>{{ getClienteNome(saleData?.cliente as any) }}</div>
+        <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
+        <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
+      </div>
 
-    <div class="separator">{{ SEPARATOR }}</div>
+      <div class="separator">{{ SEPARATOR }}</div>
+    </template>
 
     <!-- Itens -->
     <div class="section" v-if="sale.produtos?.length">
@@ -98,18 +100,18 @@ const totalPago = computed(() => {
       </div>
     </div>
 
-    <!-- Pagamentos (VENDA) -->
-    <template v-if="type === 'VENDA' && sale.pagamentos?.length">
+    <!-- Pagamentos (apenas venda) -->
+    <template v-if="isVenda && saleData?.pagamentos?.length">
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section">
         <div class="font-bold mb-0.5">PAGAMENTOS</div>
         <div
-          v-for="pgto in sale.pagamentos"
+          v-for="pgto in saleData.pagamentos"
           :key="pgto.id"
           class="flex justify-between"
         >
           <span>
-            {{ paymentMethodResolver(pgto.forma_pagamento_id) }}
+            {{ paymentMethodResolver?.(pgto.forma_pagamento_id) }}
             <span v-if="pgto.parcelado && pgto.qtd_parcelas">({{ pgto.qtd_parcelas }}x)</span>
           </span>
           <span>{{ formatCurrency(pgto.valor) }}</span>
@@ -136,14 +138,14 @@ const totalPago = computed(() => {
         <span>TOTAL:</span>
         <span>{{ formatCurrency(sale.total) }}</span>
       </div>
-      <template v-if="type === 'VENDA'">
+      <template v-if="isVenda">
         <div class="flex justify-between">
           <span>Total Pago:</span>
           <span>{{ formatCurrency(totalPago) }}</span>
         </div>
-        <div v-if="sale.troco > 0" class="flex justify-between">
+        <div v-if="saleData && saleData.troco > 0" class="flex justify-between">
           <span>Troco:</span>
-          <span>{{ formatCurrency(sale.troco) }}</span>
+          <span>{{ formatCurrency(saleData.troco) }}</span>
         </div>
       </template>
     </div>
@@ -157,21 +159,10 @@ const totalPago = computed(() => {
       </div>
     </template>
 
-    <!-- Validade (ORCAMENTO) -->
-    <template v-if="type === 'ORCAMENTO'">
-      <div class="separator">{{ SEPARATOR }}</div>
-      <div class="section text-justify">
-        Orcamento valido por 30 dias a
-        partir da data de emissao. Apos
-        este prazo, valores e condicoes
-        poderao ser alterados.
-      </div>
-    </template>
-
     <PrintCupomSignatures
       left-label="Vendedor"
-      right-label="Assinatura do Cliente"
-      :right-name="sale.cliente ? getClienteNome(sale.cliente as any) : undefined"
+      :right-label="isVenda ? 'Assinatura do Cliente' : 'Assinatura'"
+      :right-name="isVenda && saleData?.cliente ? getClienteNome(saleData.cliente as any) : undefined"
     />
 
     <PrintCupomFooter />

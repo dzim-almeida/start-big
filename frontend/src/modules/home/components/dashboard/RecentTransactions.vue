@@ -15,7 +15,7 @@ defineProps<Props>();
 const { openSaleEditModal, openSaleViewModal } = useSaleModal();
 
 function handleRowClick(venda: UltimaVendaItemData) {
-  if (venda.status === 'ORCAMENTO') {
+  if (venda.status === 'ATIVA') {
     openSaleEditModal(venda.id);
   } else {
     openSaleViewModal(venda.id);
@@ -23,9 +23,9 @@ function handleRowClick(venda: UltimaVendaItemData) {
 }
 
 const statusConfig: Record<string, { label: string; class: string }> = {
-  ORCAMENTO: {
-    label: 'Orçamento',
-    class: 'bg-amber-50 text-amber-600 border border-amber-200',
+  ATIVA: {
+    label: 'Ativa',
+    class: 'bg-blue-50 text-blue-600 border border-blue-200',
   },
   FINALIZADA: {
     label: 'Finalizada',

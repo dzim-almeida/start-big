@@ -3,59 +3,56 @@ import { computed } from 'vue';
 
 import { TicketPercent, Truck, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
 
-import { useSaleDetailsForm } from '../../composables/flows/useSaleDetailsForm';
-import { STATUS_COLORS, SALE_FILTERS } from '../../constants';
+import { useOrcamentoDetailsForm } from '../../composables/flows/useOrcamentoDetailsForm';
 
 import BaseInfoCard from '@/shared/components/layout/StatsCard/BaseInfoCard.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 
-import { SaleRead } from '../../schemas/sale.schema';
+import { OrcamentoRead } from '../../schemas/orcamento.schema';
 
 const props = defineProps<{
-  sale: SaleRead | undefined;
+  orcamento: OrcamentoRead | undefined;
   readonly: boolean;
 }>();
 
-const saleRef = computed(() => props.sale);
-const { form, isSaving, saveNow } = useSaleDetailsForm(saleRef);
+const orcamentoRef = computed(() => props.orcamento);
+const { form, isSaving, saveNow } = useOrcamentoDetailsForm(orcamentoRef);
 
-const saleDisplay = computed(() => {
-  if (!props.sale) return '...';
-  return `VENDA #${String(props.sale.id).padStart(6, '0')}`;
+const orcamentoDisplay = computed(() => {
+  if (!props.orcamento) return '...';
+  return `ORC #${String(props.orcamento.id).padStart(6, '0')}`;
 });
 
 const createdAt = computed(() => {
-  if (!props.sale?.criado_em) return null;
+  if (!props.orcamento?.criado_em) return null;
 
-  const date = new Date(props.sale.criado_em).toLocaleDateString('pt-BR', {
+  const date = new Date(props.orcamento.criado_em).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
 
-  const time = props.sale.criado_em.split('T')[1];
+  const time = props.orcamento.criado_em.split('T')[1];
 
-  return `${date} às ${time}`;
+  return `${date} as ${time}`;
 });
 </script>
 <template>
-  <BaseInfoCard :icon="Settings" title="Dados da venda">
+  <BaseInfoCard :icon="Settings" title="Dados do orçamento">
     <div class="px-4 py-3 flex flex-col gap-3">
-      <!-- Número da Venda + Status -->
+      <!-- Número do Orçamento + Status -->
       <div class="flex items-center gap-2">
         <h2 class="font-poppins font-bold text-sm text-zinc-800 underline underline-offset-2">
-          {{ saleDisplay }}
+          {{ orcamentoDisplay }}
         </h2>
         <span
-          v-if="sale?.status"
           :class="[
             'px-2.5 py-0.5 text-[10px] font-semibold rounded-full border',
-            STATUS_COLORS[sale.status].text,
-            STATUS_COLORS[sale.status].bg,
+            orcamento?.convertido ? 'text-green-700 bg-green-50' : 'text-blue-700 bg-blue-50',
           ]"
         >
-          {{ SALE_FILTERS[sale.status].label }}
+          {{ orcamento?.convertido ? 'Convertido' : 'Ativo' }}
         </span>
       </div>
 
@@ -65,20 +62,20 @@ const createdAt = computed(() => {
         <div class="flex items-center gap-2">
           <UserRound :size="18" class="text-zinc-500 shrink-0" />
           <div class="flex flex-col">
-            <span class="font-poppins text-sm text-zinc-800">{{ sale?.funcionario?.nome ?? '—' }}</span>
+            <span class="font-poppins text-sm text-zinc-800">{{ orcamento?.funcionario?.nome ?? '—' }}</span>
             <span
-              v-if="sale?.funcionario?.cargo?.nome"
+              v-if="orcamento?.funcionario?.cargo?.nome"
               class="font-poppins text-[10px] font-bold text-blue-600 uppercase tracking-wide"
             >
-              {{ sale.funcionario.cargo.nome }}
+              {{ orcamento.funcionario.cargo.nome }}
             </span>
           </div>
         </div>
       </div>
 
-      <!-- Criada em -->
+      <!-- Criado em -->
       <div class="flex flex-col gap-1">
-        <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Criada em</h2>
+        <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Criado em</h2>
         <div class="flex items-center gap-2">
           <CalendarDays :size="18" class="text-zinc-500 shrink-0" />
           <p class="font-poppins text-sm">
@@ -108,7 +105,7 @@ const createdAt = computed(() => {
       <!-- Observação -->
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Observação</h2>
-        <BaseTextarea v-model="form.observacao" :disabled="isSaving || readonly" placeholder="Adicione uma observação sobre essa venda" class="w-full" />
+        <BaseTextarea v-model="form.observacao" :disabled="isSaving || readonly" placeholder="Adicione uma observação sobre esse orçamento" class="w-full" />
       </div>
     </div>
   </BaseInfoCard>

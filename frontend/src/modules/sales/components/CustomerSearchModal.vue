@@ -27,15 +27,28 @@ const {
 } = useCustomerSearchModal();
 
 const isChangeMode = computed(() => modalMode.value === 'change');
+const isConverterMode = computed(() => modalMode.value === 'converter');
+
+const modalTitle = computed(() => {
+  if (isConverterMode.value) return 'Selecionar Cliente';
+  if (isChangeMode.value) return 'Trocar Cliente';
+  return 'Selecionar Cliente';
+});
+
+const modalSubtitle = computed(() => {
+  if (isConverterMode.value) return 'Escolha um cliente para a venda';
+  if (isChangeMode.value) return 'Escolha um cliente para esta venda';
+  return 'Escolha ou cadastre um cliente para esta venda';
+});
 </script>
 
 <template>
   <BaseModal
     :is-open="customerModalIsOpen"
-    :title="isChangeMode ? 'Trocar Cliente' : 'Selecionar Cliente'"
-    :subtitle="isChangeMode ? 'Escolha um cliente para esta venda' : 'Escolha ou cadastre um cliente para esta venda'"
+    :title="modalTitle"
+    :subtitle="modalSubtitle"
     size="md"
-    :overlay="isChangeMode"
+    :overlay="isChangeMode || isConverterMode"
     @close="closeCustomerModal"
   >
     <BaseSearchInput v-model="searchTerm" placeholder="Buscar por nome ou CPF/CNPJ" />
@@ -106,7 +119,7 @@ const isChangeMode = computed(() => modalMode.value === 'change');
           <Plus :size="16" class="mr-1.5" />
           Cadastrar novo cliente
         </BaseButton>
-        <BaseButton variant="secondary" class="w-full" @click="selectCustomer(null)">
+        <BaseButton v-if="!isConverterMode" variant="secondary" class="w-full" @click="selectCustomer(null)">
           <UserRoundX :size="16" class="mr-1.5" />
           {{ isChangeMode ? 'Remover cliente' : 'Venda sem cliente' }}
         </BaseButton>

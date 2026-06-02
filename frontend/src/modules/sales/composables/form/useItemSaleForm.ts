@@ -3,6 +3,7 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 
 import { useAddItemSaleMutation, useUpdateItemSaleMutation } from '../mutates/useItemSaleMutation';
+import { useAddItemOrcamentoMutation, useUpdateItemOrcamentoMutation } from '../mutates/useItemOrcamentoMutation';
 import { useToast } from '@/shared/composables/useToast';
 
 import {
@@ -17,9 +18,12 @@ export function useItemSaleForm(
   saleId: MaybeRef<number | null>,
   selectedItem: Ref<ProductSaleRead | null>,
   onSuccess?: () => void,
+  isOrcamento = false,
 ) {
   const addItemSaleMutation = useAddItemSaleMutation();
   const updateItemSaleMutation = useUpdateItemSaleMutation();
+  const addItemOrcamentoMutation = useAddItemOrcamentoMutation();
+  const updateItemOrcamentoMutation = useUpdateItemOrcamentoMutation();
   const toast = useToast();
 
   const { handleSubmit, defineField, values, errors, setFieldValue, resetForm, isSubmitting } =
@@ -119,16 +123,17 @@ export function useItemSaleForm(
         payload.valor_unitario = values.valor_unitario * 100;
       }
       
-      updateItemSaleMutation.mutate(
-        {
-          saleId: saleIdValue,
-          productId: selectedItem.value.id,
-          payload: payload,
-        },
-        {
-          onSuccess: onSuccess,
-        },
-      );
+      if (isOrcamento) {
+        updateItemOrcamentoMutation.mutate(
+          { orcamentoId: saleIdValue, productId: selectedItem.value.id, payload },
+          { onSuccess },
+        );
+      } else {
+        updateItemSaleMutation.mutate(
+          { saleId: saleIdValue, productId: selectedItem.value.id, payload },
+          { onSuccess },
+        );
+      }
 
       return;
     }
@@ -141,15 +146,17 @@ export function useItemSaleForm(
       desconto: values.desconto * 100,
     };
 
-    addItemSaleMutation.mutate(
-      {
-        saleId: saleIdValue,
-        payload: payload,
-      },
-      {
-        onSuccess: onSuccess,
-      },
-    );
+    if (isOrcamento) {
+      addItemOrcamentoMutation.mutate(
+        { orcamentoId: saleIdValue, payload },
+        { onSuccess },
+      );
+    } else {
+      addItemSaleMutation.mutate(
+        { saleId: saleIdValue, payload },
+        { onSuccess },
+      );
+    }
   });
 
   return {

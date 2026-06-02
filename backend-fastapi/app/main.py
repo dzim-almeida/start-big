@@ -36,6 +36,8 @@ from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.log_produto import LogProduto
+from app.db.models.orcamento import Orcamento
+from app.db.models.orcamento_produto import OrcamentoProduto
 
 app = FastAPI(
     title="BigPDV Backend API",

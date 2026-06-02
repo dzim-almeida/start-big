@@ -3,11 +3,14 @@ import { X, Keyboard } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 
-import { SALE_SHORTCUTS } from '../../constants';
+import { SALE_SHORTCUTS, type ShortcutItem } from '../../constants';
 
-defineProps<{
+const props = withDefaults(defineProps<{
   isOpen: boolean;
-}>();
+  shortcuts?: ShortcutItem[];
+}>(), {
+  shortcuts: () => SALE_SHORTCUTS,
+});
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -36,7 +39,7 @@ const emit = defineEmits<{
 
     <div class="flex flex-col gap-1 p-2">
       <div
-        v-for="shortcut in SALE_SHORTCUTS"
+        v-for="shortcut in shortcuts"
         :key="shortcut.keys"
         class="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-zinc-50 transition-colors"
       >

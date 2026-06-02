@@ -11,10 +11,12 @@ import ProductOption from './ProductOption.vue';
 import { useProductSearch } from '../../composables/flows/useProductSearch';
 import { useItemModal } from '../../composables/flows/useItemModal';
 import UnitValueInput from './UnitValueInput.vue';
+import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 
-defineProps<{
+const props = defineProps<{
   saleId: number | null;
-}>()
+  isOrcamento?: boolean;
+}>();
 
 const {
   searchTerm,
@@ -31,7 +33,7 @@ const {
   decreaseQuantity,
   addItemToSale,
   resetSelection
-} = useProductSearch();
+} = useProductSearch(props.isOrcamento);
 
 const { openCreateItemModal } = useItemModal();
 
@@ -40,6 +42,11 @@ const shortcutsModalIsOpen = ref(false);
 function handleAddAvulso() {
   resetSelection();
   openCreateItemModal();
+}
+
+function handleAutoAdd(product: { nome: string; id: number }) {
+  selectProduct(product.nome, product.id);
+  addItemToSale(props.saleId);
 }
 </script>
 
@@ -79,7 +86,8 @@ function handleAddAvulso() {
               v-for="product in products"
               :key="product.id"
               :product="product"
-              @click="selectProduct(product.nome, product.id)"
+              @click="handleAutoAdd(product)"
+              @select-for-quantity="selectProduct(product.nome, product.id)"
             />
           </div>
         </div>
@@ -119,6 +127,6 @@ function handleAddAvulso() {
       <Keyboard :size="16" />
     </button>
 
-    <ShortcutsModal :is-open="shortcutsModalIsOpen" @close="shortcutsModalIsOpen = false" />
+    <ShortcutsModal :is-open="shortcutsModalIsOpen" :shortcuts="isOrcamento ? ORCAMENTO_SHORTCUTS : SALE_SHORTCUTS" @close="shortcutsModalIsOpen = false" />
   </div>
 </template>

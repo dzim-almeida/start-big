@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Hash } from 'lucide-vue-next';
 import { ProductSaleListItem } from '../../schemas/productSale.schema';
 
 import { formatCurrency } from '@/shared/utils/finance';
@@ -9,7 +10,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  click: []
+  click: [];
+  selectForQuantity: [];
 }>();
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -38,17 +40,27 @@ const imgUrl = computed(() => {
         <p class="font-poppins font-semibold text-xs text-zinc-500">{{ `SKU: ${product.sku}` }}</p>
       </div>
     </div>
-    <div class="flex flex-col items-end justify-between">
-        <p 
-          :class="[
-            'py-1 px-3 w-fit bg-brand-primary/10 rounded-md font-poppins font-bold text-xs text-brand-primary center'
-          ]"
-        >
-          {{ `Estoque: ${product.estoque} un.` }}
-        </p>
-        <p class="mb-2 font-poppins font-bold text-xl text-brand-primary">
-          {{ formatCurrency(product.preco) }}
-        </p>
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col items-end justify-between">
+          <p
+            :class="[
+              'py-1 px-3 w-fit bg-brand-primary/10 rounded-md font-poppins font-bold text-xs text-brand-primary center'
+            ]"
+          >
+            {{ `Estoque: ${product.estoque} un.` }}
+          </p>
+          <p class="mb-2 font-poppins font-bold text-xl text-brand-primary">
+            {{ formatCurrency(product.preco) }}
+          </p>
+      </div>
+      <button
+        type="button"
+        class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
+        title="Definir quantidade"
+        @click.stop="emit('selectForQuantity')"
+      >
+        <Hash :size="18" />
+      </button>
     </div>
   </div>
 </template>
