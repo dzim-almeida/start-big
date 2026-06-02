@@ -199,7 +199,6 @@ def get_ultimas_vendas(db: Session, empresa_id: int, limit: int = 5) -> Sequence
     stmt = (
         select(
             Venda.id,
-            Venda.numero_venda,
             func.coalesce(client_pf.nome, client_pj.razao_social).label("cliente_nome"),
             Venda.total,
             Venda.status,
@@ -211,7 +210,7 @@ def get_ultimas_vendas(db: Session, empresa_id: int, limit: int = 5) -> Sequence
         .outerjoin(client_pj, Cliente.id == client_pj.id)
         .where(
             and_(
-                Venda.status.in_([VendaStatus.FINALIZADA, VendaStatus.ORCAMENTO]),
+                Venda.status.in_([VendaStatus.FINALIZADA, VendaStatus.ATIVA]),
                 Funcionario.empresa_id == empresa_id,
             )
         )

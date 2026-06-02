@@ -63,7 +63,6 @@ export type EstoqueBaixoResponseData = z.infer<typeof EstoqueBaixoResponseSchema
 
 export const UltimaVendaItemSchema = z.object({
   id: z.number(),
-  numero_venda: z.number().nullable(),
   cliente_nome: z.string().nullable(),
   total: z.number(),
   status: z.string(),

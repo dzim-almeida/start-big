@@ -56,19 +56,10 @@ class Venda(Base):
         doc="Vinculo com o turno/caixa atual (FK)"
     )
 
-    # --- Numeracao ---
-    numero_venda: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        nullable=True,
-        unique=True,
-        index=True,
-        doc="Numero sequencial da venda, atribuido ao finalizar"
-    )
-
     # --- Status ---
     status: Mapped[VendaStatus] = mapped_column(
         SqlAlchemyEnum(VendaStatus),
-        default=VendaStatus.ORCAMENTO,
+        default=VendaStatus.ATIVA,
         nullable=False,
         doc="Status atual da venda"
     )

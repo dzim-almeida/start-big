@@ -114,7 +114,7 @@ class UnidadeMedida(str, enum.Enum):
 
 class VendaStatus(str, enum.Enum):
     """Status possiveis de uma Venda no PDV."""
-    ORCAMENTO = "ORCAMENTO"
+    ATIVA = "ATIVA"
     FINALIZADA = "FINALIZADA"
     CANCELADA = "CANCELADA"
 

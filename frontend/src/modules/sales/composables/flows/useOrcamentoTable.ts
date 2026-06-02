@@ -1,9 +1,9 @@
 import { ref, computed, watch } from 'vue';
 import { refDebounced } from '@vueuse/core';
 
-import { useSalesListQuery } from '../queries/useSalesListQuery';
+import { useOrcamentosListQuery } from '../queries/useOrcamentosListQuery';
 
-export function useSaleTable() {
+export function useOrcamentoTable() {
   const searchTerm = ref<string | null>(null);
   const debouncedSearchTerm = refDebounced(searchTerm, 300);
   const activeFilter = ref<string | null>(null);
@@ -14,9 +14,10 @@ export function useSaleTable() {
   });
 
   const filters = computed(() => {
+    const convertidoMap: Record<string, boolean> = { ATIVO: false, CONVERTIDO: true };
     return {
       ...(debouncedSearchTerm.value && { search: debouncedSearchTerm.value }),
-      ...(activeFilter.value && { status: activeFilter.value }),
+      ...(activeFilter.value && activeFilter.value in convertidoMap && { convertido: convertidoMap[activeFilter.value] }),
     };
   });
 
@@ -24,13 +25,13 @@ export function useSaleTable() {
     page.value = newPage;
   };
 
-  const { data: sales, isLoading } = useSalesListQuery(filters, page);
+  const { data: orcamentos, isLoading } = useOrcamentosListQuery(filters, page);
 
   return {
     searchTerm,
     activeFilter,
     goToPage,
-    sales,
+    orcamentos,
     isLoading,
   };
 }

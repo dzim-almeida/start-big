@@ -15,6 +15,7 @@ import { computed } from 'vue';
 
 const props = defineProps<{
   saleId: number | null;
+  isOrcamento?: boolean;
 }>();
 
 const { closeItemModal, itemModalIsOpen, isCreateMode, selectedItem } = useItemModal();
@@ -34,7 +35,7 @@ const {
   resetForm,
   increaseQuantity,
   decreaseQuantity,
-} = useItemSaleForm(props.saleId, selectedItem, onSucess);
+} = useItemSaleForm(props.saleId, selectedItem, onSucess, props.isOrcamento);
 
 const displaySubtotal = computed(() => {
   return formatCurrency(subtotal.value * 100);

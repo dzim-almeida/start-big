@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { Plus, AlertTriangle } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
@@ -10,8 +12,13 @@ import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectM
 
 import SalesStatus from './components/SalesStatus.vue';
 import SaleTable from './components/SaleTable.vue';
+import SaleModal from './components/SaleModal.vue';
 import SalePrintTemplate from './components/print/SalePrintTemplate.vue';
 import SalePrintCupom from './components/print/SalePrintCupom.vue';
+
+import OrcamentosStatus from './components/OrcamentosStatus.vue';
+import OrcamentoTable from './components/OrcamentoTable.vue';
+import OrcamentoModal from './components/OrcamentoModal.vue';
 
 import { useCustomerSearchModal } from './composables/flows/useCustomerSearchModal';
 import { useSaleModal } from './composables/flows/useSaleModal';
@@ -20,10 +27,36 @@ import { useConfirmSaleAction } from './composables/flows/useConfirmSaleAction';
 import { useCancelSaleMutation } from './composables/mutates/useCancelSaleMutation';
 import { useReopenSaleMutation } from './composables/mutates/useReopenSaleMutation';
 import { useSalePrintFlow } from './composables/flows/useSalePrintFlow';
+import { useOrcamentoPrintFlow } from './composables/flows/useOrcamentoPrintFlow';
+import { useOrcamentoModal } from './composables/flows/useOrcamentoModal';
+import { useCreateOrcamentoMutation } from './composables/mutates/useCreateOrcamentoMutation';
+import { useDeleteOrcamentoMutation } from './composables/mutates/useDeleteOrcamentoMutation';
+import { useConverterOrcamentoMutation } from './composables/mutates/useConverterOrcamentoMutation';
+import { useAuthStore } from '@/shared/stores/auth.store';
+import { SALES_TAB_OPTIONS } from './constants';
 
-const { openCustomerModal } = useCustomerSearchModal();
+const activeTab = ref<'vendas' | 'orcamentos'>('vendas');
+
+const pageTitle = computed(() =>
+  activeTab.value === 'vendas' ? 'Vendas' : 'Orçamentos',
+);
+
+const pageDescription = computed(() =>
+  activeTab.value === 'vendas'
+    ? 'Gerencie as vendas do seu estabelecimento.'
+    : 'Gerencie os orçamentos do seu estabelecimento.',
+);
+
+const authStore = useAuthStore();
+
+const { openCustomerModal, openCustomerModalForConversion } = useCustomerSearchModal();
 const { openSaleEditModal, saleModalIsOpen } = useSaleModal();
 const { openFinishModal } = useFinishSaleModal();
+const { openOrcamentoModal, closeOrcamentoModal, orcamentoModalIsOpen } = useOrcamentoModal();
+
+const createOrcamentoMutation = useCreateOrcamentoMutation();
+const deleteOrcamentoMutation = useDeleteOrcamentoMutation();
+const converterMutation = useConverterOrcamentoMutation();
 
 const {
   saleForPrint,
@@ -36,10 +69,23 @@ const {
   resolvePaymentMethodName,
 } = useSalePrintFlow();
 
+const {
+  orcamentoForPrint,
+  printFormat: orcPrintFormat,
+  isPrintSelectModalOpen: isOrcPrintSelectOpen,
+  printOrcamento,
+  handlePrintFormatSelected: handleOrcPrintFormatSelected,
+  closePrintSelectModal: closeOrcPrintSelectModal,
+} = useOrcamentoPrintFlow();
+
 const { F2 } = useMagicKeys();
 whenever(F2, () => {
-  if (!saleModalIsOpen.value) {
+  if (saleModalIsOpen.value || orcamentoModalIsOpen.value) return;
+
+  if (activeTab.value === 'vendas') {
     openCustomerModal();
+  } else {
+    handleNewOrcamento();
   }
 });
 
@@ -100,39 +146,137 @@ function handleReopenFromTable(saleId: number) {
   });
 }
 
-async function handlePrintFromTable(saleId: number, status: string) {
-  await printSale(saleId, status === 'FINALIZADA' ? 'VENDA' : 'ORCAMENTO');
+async function handlePrintFromTable(saleId: number, _status: string) {
+  await printSale(saleId, 'VENDA');
+}
+
+async function handlePrintOrcamento(orcamentoId: number) {
+  await printOrcamento(orcamentoId);
+}
+
+// --- Orçamento handlers ---
+
+function handleNewOrcamento() {
+  createOrcamentoMutation.mutate(
+    { funcionario_id: authStore.userData?.funcionario_id as number },
+    {
+      onSuccess: (created) => {
+        openOrcamentoModal(created.id);
+      },
+    },
+  );
+}
+
+function handleDeleteOrcamentoFromTable(orcamentoId: number) {
+  openConfirmModal({
+    title: 'Excluir Orçamento?',
+    message: 'Tem certeza que deseja excluir o Orçamento',
+    highlightText: `Nº ${String(orcamentoId).padStart(6, '0')}`,
+    variant: 'danger',
+    label: 'EXCLUIR',
+    action: () => {
+      confirmModalPending.value = true;
+      deleteOrcamentoMutation.mutate(
+        { orcamentoId },
+        {
+          onSuccess: () => closeConfirmModal(),
+          onSettled: () => { confirmModalPending.value = false; },
+        },
+      );
+    },
+  });
+}
+
+function handleConverterFromTable(orcamentoId: number) {
+  openCustomerModalForConversion((clienteId) => {
+    if (!clienteId) return;
+    converterMutation.mutate(
+      { orcamentoId, payload: { cliente_id: clienteId } },
+      {
+        onSuccess: (createdSale) => {
+          activeTab.value = 'vendas';
+          openSaleEditModal(createdSale.id);
+        },
+      },
+    );
+  });
+}
+
+function handleConverterFromModal(orcamentoId: number) {
+  closeOrcamentoModal();
+  handleConverterFromTable(orcamentoId);
+}
+
+function handleOpenSaleFromOrcamento(saleId: number) {
+  closeOrcamentoModal();
+  activeTab.value = 'vendas';
+  setTimeout(() => openSaleEditModal(saleId), 300);
 }
 </script>
 
 <template>
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
-      <PageReview title="Vendas" description="Gerencie as vendas do seu estabelecimento." />
-      <BaseButton
-        variant="primary"
-        size="md"
-        type="button"
-        class="flex gap-1"
-        @click="openCustomerModal"
-      >
-        <Plus :size="20" />
-        Nova venda
-      </BaseButton>
+      <PageReview
+        :title="pageTitle"
+        :description="pageDescription"
+      />
+
+      <div class="flex gap-5">
+        <BaseTab2 :options="SALES_TAB_OPTIONS" v-model="activeTab" />
+        <BaseButton
+          v-if="activeTab === 'vendas'"
+          variant="primary"
+          size="md"
+          type="button"
+          class="flex gap-1"
+          @click="openCustomerModal"
+        >
+          <Plus :size="20" />
+          Nova venda
+        </BaseButton>
+        <BaseButton
+          v-else
+          variant="primary"
+          size="md"
+          type="button"
+          class="flex gap-1"
+          :is-loading="createOrcamentoMutation.isPending.value"
+          @click="handleNewOrcamento"
+        >
+          <Plus :size="20" />
+          Novo orçamento
+        </BaseButton>
+      </div>
     </div>
 
-    <SalesStatus />
-    <SaleTable
-      @cancel="handleCancelFromTable"
-      @finish="handleFinishFromTable"
-      @reopen="handleReopenFromTable"
-      @print="handlePrintFromTable"
-    />
+    <!-- Tab: Vendas -->
+    <template v-if="activeTab === 'vendas'">
+      <SalesStatus />
+      <SaleTable
+        @cancel="handleCancelFromTable"
+        @finish="handleFinishFromTable"
+        @reopen="handleReopenFromTable"
+        @print="handlePrintFromTable"
+      />
+    </template>
 
+    <!-- Tab: Orçamentos -->
+    <template v-else>
+      <OrcamentosStatus />
+      <OrcamentoTable
+        @delete="handleDeleteOrcamentoFromTable"
+        @converter="handleConverterFromTable"
+        @print="handlePrintOrcamento"
+      />
+    </template>
+
+    <!-- Shared: Confirmation Modal -->
     <BaseModal
       :is-open="confirmModalIsOpen"
       :title="confirmModalState.title"
       size="sm"
+      overlay
       @close="closeConfirmModal"
     >
       <ConfirmationTemplate
@@ -172,6 +316,12 @@ async function handlePrintFromTable(saleId: number, status: string) {
       </ConfirmationTemplate>
     </BaseModal>
 
+    <!-- Sale Modal -->
+    <SaleModal />
+
+    <!-- Orçamento Modal -->
+    <OrcamentoModal @converter="handleConverterFromModal" @open-sale="handleOpenSaleFromOrcamento" @print="handlePrintOrcamento" />
+
     <!-- Print Infrastructure -->
     <PrintFormatSelectModal
       :is-open="isPrintSelectModalOpen"
@@ -183,15 +333,35 @@ async function handlePrintFromTable(saleId: number, status: string) {
     <SalePrintTemplate
       v-if="saleForPrint && printFormat === 'A4'"
       :sale="saleForPrint"
-      :type="printType as 'ORCAMENTO' | 'VENDA'"
+      :type="printType as 'VENDA'"
       :payment-method-resolver="resolvePaymentMethodName"
     />
 
     <SalePrintCupom
       v-if="saleForPrint && printFormat === 'CUPOM'"
       :sale="saleForPrint"
-      :type="printType as 'ORCAMENTO' | 'VENDA'"
+      :type="printType as 'VENDA'"
       :payment-method-resolver="resolvePaymentMethodName"
+    />
+
+    <!-- Orcamento Print Infrastructure -->
+    <PrintFormatSelectModal
+      :is-open="isOrcPrintSelectOpen"
+      subtitle="Selecione o formato para impressão do orçamento."
+      @close="closeOrcPrintSelectModal"
+      @select="handleOrcPrintFormatSelected"
+    />
+
+    <SalePrintTemplate
+      v-if="orcamentoForPrint && orcPrintFormat === 'A4'"
+      :sale="orcamentoForPrint"
+      type="ORCAMENTO"
+    />
+
+    <SalePrintCupom
+      v-if="orcamentoForPrint && orcPrintFormat === 'CUPOM'"
+      :sale="orcamentoForPrint"
+      type="ORCAMENTO"
     />
   </div>
 </template>
