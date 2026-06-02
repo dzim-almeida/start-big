@@ -13,11 +13,13 @@ interface Props {
   prioridadeOptions: SelectOption[];
   funcionariosOptions: SelectOption[];
   isCreateMode?: boolean;
+  canSelectTecnico?: boolean;
   errors?: Record<string, string | undefined>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isCreateMode: false,
+  canSelectTecnico: true,
   errors: () => ({}),
 });
 
@@ -45,6 +47,7 @@ const emit = defineEmits<{
         label="Técnico"
         :options="funcionariosOptions"
         placeholder="-- Selecione --"
+        :disabled="!canSelectTecnico"
         :error="errors?.funcionario_id"
         @update:model-value="emit('update:funcionarioId', $event as string)"
       />
