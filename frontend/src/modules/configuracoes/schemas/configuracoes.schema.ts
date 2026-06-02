@@ -1,5 +1,30 @@
 import { z } from 'zod'
 
+export const ConfiguracaoProdutosSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  exigir_codigo_barras: z.boolean(),
+  exigir_categoria: z.boolean(),
+  exigir_preco_custo: z.boolean(),
+
+  margem_lucro_padrao: z.number(),
+  utilizar_preco_atacado: z.boolean(),
+
+  permitir_venda_estoque_zerado: z.boolean(),
+  quantidade_minima_padrao: z.number(),
+  unidade_medida_padrao: z.string(),
+
+  data_atualizacao: z.string(),
+})
+
+export const ConfiguracaoProdutosUpdateSchema = ConfiguracaoProdutosSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true })
+  .partial()
+
+export type ConfiguracaoProdutosRead = z.infer<typeof ConfiguracaoProdutosSchema>
+export type ConfiguracaoProdutosUpdate = z.infer<typeof ConfiguracaoProdutosUpdateSchema>
+
 export const ConfiguracaoClientesSchema = z.object({
   id: z.number(),
   empresa_id: z.number(),

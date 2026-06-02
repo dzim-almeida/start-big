@@ -138,3 +138,4 @@ class MovimentacaoTipo(str, enum.Enum):
     ENTRADA = "ENTRADA"
     SAIDA = "SAIDA"
     AJUSTE = "AJUSTE"
+    EDICAO_DADOS = "EDICAO_DADOS"

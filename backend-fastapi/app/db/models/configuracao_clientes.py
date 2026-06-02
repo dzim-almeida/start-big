@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -48,8 +48,8 @@ class ConfiguracaoClientes(Base):
     # Metadados
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,
-        default=func.now(),
-        onupdate=func.now(),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 

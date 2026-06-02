@@ -18,6 +18,7 @@ from app.db.models.endereco import Endereco
 if TYPE_CHECKING:
     from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
     from app.db.models.configuracao_clientes import ConfiguracaoClientes
+    from app.db.models.configuracao_produtos import ConfiguracaoProdutos
 
 class Empresa(Base):
     """
@@ -98,4 +99,13 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações do módulo de clientes"
+    )
+
+    # Relacionamento 1:1 com Configurações de Produtos
+    config_produtos: Mapped[Optional["ConfiguracaoProdutos"]] = relationship(
+        "ConfiguracaoProdutos",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações do módulo de produtos e estoque"
     )

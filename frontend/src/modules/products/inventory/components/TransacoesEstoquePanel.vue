@@ -10,7 +10,7 @@
 // ============================================================================
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { X, Plus, ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, PackageSearch, Search } from 'lucide-vue-next';
+import { X, Plus, ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, PackageSearch, Search, Pencil } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import type { FilterOption } from '@/shared/types/filter.types';
@@ -39,12 +39,15 @@ const TIPO_FILTER_CONFIG: Record<string, FilterOption> = {
   ENTRADA: { label: 'Entrada', color: 'bg-brand-primary', class: 'bg-brand-primary/10 text-brand-primary border border-brand-primary/30' },
   SAIDA: { label: 'Saída', color: 'bg-red-500', class: 'bg-red-50 text-red-600 border border-red-200' },
   AJUSTE: { label: 'Ajuste', color: 'bg-amber-500', class: 'bg-amber-50 text-amber-600 border border-amber-200' },
+  EDICAO_DADOS: { label: 'Edição', color: 'bg-violet-500', class: 'bg-violet-50 text-violet-600 border border-violet-200' },
 };
 
-const tipoConfig = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const tipoConfig: Record<string, { icon: any; label: string; class: string }> = {
   ENTRADA: { icon: ArrowDownCircle, label: 'Entrada', class: 'text-brand-primary bg-brand-primary/10 border-brand-primary/30' },
   SAIDA: { icon: ArrowUpCircle, label: 'Saída', class: 'text-red-600 bg-red-50 border-red-200' },
   AJUSTE: { icon: SlidersHorizontal, label: 'Ajuste', class: 'text-amber-600 bg-amber-50 border-amber-200' },
+  EDICAO_DADOS: { icon: Pencil, label: 'Edição', class: 'text-violet-600 bg-violet-50 border-violet-200' },
 };
 
 const filteredMovimentacoes = computed(() => {
@@ -92,12 +95,14 @@ function formatDate(isoString: string) {
 function quantidadeLabel(tipo: string, qtd: number) {
   if (tipo === 'ENTRADA') return `+${qtd}`;
   if (tipo === 'SAIDA') return `-${qtd}`;
+  if (tipo === 'EDICAO_DADOS') return '—';
   return `=${qtd}`;
 }
 
 function quantidadeClass(tipo: string) {
   if (tipo === 'ENTRADA') return 'text-brand-primary font-bold';
   if (tipo === 'SAIDA') return 'text-red-600 font-bold';
+  if (tipo === 'EDICAO_DADOS') return 'text-violet-600 font-bold';
   return 'text-amber-600 font-bold';
 }
 </script>
@@ -216,9 +221,10 @@ function quantidadeClass(tipo: string) {
                   <!-- Right: quantidade -->
                   <div class="text-right shrink-0">
                     <p class="text-base" :class="quantidadeClass(mov.tipo)">
-                      {{ quantidadeLabel(mov.tipo, mov.quantidade) }} un
+                      {{ quantidadeLabel(mov.tipo, mov.quantidade) }}
+                      <span v-if="mov.tipo !== 'EDICAO_DADOS'"> un</span>
                     </p>
-                    <p class="text-xs text-zinc-400">→ {{ mov.quantidade_posterior }} un</p>
+                    <p v-if="mov.tipo !== 'EDICAO_DADOS'" class="text-xs text-zinc-400">→ {{ mov.quantidade_posterior }} un</p>
                   </div>
                 </div>
 

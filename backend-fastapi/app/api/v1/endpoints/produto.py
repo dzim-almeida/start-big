@@ -135,7 +135,8 @@ def update_produto_by_id(
         db,
         produto_service.update_produto_by_id,
         produto_id,
-        produto_to_update
+        produto_to_update,
+        user_token,
     )
 
 @router.put(
@@ -219,9 +220,10 @@ def upload_produto_image(
     return _handle_db_transaction(
         db,
         produto_service.create_produto_image,
-        produto_id, 
-        image_file, 
-        principal
+        produto_id,
+        image_file,
+        principal,
+        user_token,
     )
 
 @router.delete(

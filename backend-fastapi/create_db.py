@@ -1,18 +1,10 @@
-# Entrada do FastAPI
+from app.db.base import Base
+from app.db.session import engine
 
-from fastapi import FastAPI # type: ignore
-from app.api.v1 import api
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-
-from app.db.base import Base  # Importando as classes base
-from app.db.session import engine  # Importando a engine do banco de dados
-from app.core.exceptions import setup_exception_handlers
-from app.core.tarefas import lifespan
-
+# Importa todos os modelos para registrá-los na Base
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
-from app.db.models.cliente import Cliente, ClientePF
+from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.endereco import Endereco
 from app.db.models.token import TokenBlocklist
 from app.db.models.produto import Produto
@@ -36,30 +28,9 @@ from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.log_produto import LogProduto
+from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 
-app = FastAPI(
-    title="BigPDV Backend API",
-    description="Sistema de Ponto de Venda (PDV) - API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-setup_exception_handlers(app)
-
-origins = [
-    "http://localhost:1420",  # URL Tauri/Vite
-    "http://127.0.0.1:1420",
-    "https://softball-nil-cordless-terrace.trycloudflare.com",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-app.include_router(api.router, prefix="/api/v1")
+if __name__ == "__main__":
+    print("Criando tabelas no banco de dados...")
+    Base.metadata.create_all(bind=engine)
+    print("Banco de dados criado com sucesso!")

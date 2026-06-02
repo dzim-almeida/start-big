@@ -21,6 +21,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
 
 import { useConfiguracoesModal } from '../composables/useConfiguracoesModal'
 import { useSalvarConfiguracoesClientesMutation } from '../composables/mutates/useSalvarConfiguracoesClientesMutation'
+import { useSalvarConfiguracoesEstoqueMutation } from '../composables/mutates/useSalvarConfiguracoesEstoqueMutation'
 import type { SecaoConfiguracao, SecaoId } from '../types/configuracoes.types'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
@@ -38,7 +39,10 @@ const props = defineProps<{ isOpen: boolean; secaoInicial?: SecaoId }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { secaoAtiva, irPara } = useConfiguracoesModal()
-const { mutate: salvarClientes, isPending } = useSalvarConfiguracoesClientesMutation()
+const { mutate: salvarClientes, isPending: isPendingClientes } = useSalvarConfiguracoesClientesMutation()
+const { mutate: salvarEstoque, isPending: isPendingEstoque } = useSalvarConfiguracoesEstoqueMutation()
+
+const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value)
 
 const activeComponentRef = ref<{ form?: Record<string, unknown> } | null>(null)
 
@@ -46,12 +50,15 @@ watch(() => props.isOpen, (aberto) => {
   if (aberto) irPara(props.secaoInicial ?? 'regras-de-vendas')
 })
 
-const secoesFuncionais: SecaoId[] = ['clientes-cadastro']
+const secoesFuncionais: SecaoId[] = ['clientes-cadastro', 'produtos-estoque']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
 function salvar() {
   if (secaoAtiva.value === 'clientes-cadastro' && activeComponentRef.value?.form) {
     salvarClientes(activeComponentRef.value.form as any)
+  }
+  if (secaoAtiva.value === 'produtos-estoque' && activeComponentRef.value?.form) {
+    salvarEstoque(activeComponentRef.value.form as any)
   }
 }
 

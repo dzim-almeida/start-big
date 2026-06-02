@@ -4,12 +4,14 @@
  * @description Form section for stock and pricing data
  */
 
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { TrendingUp, DollarSign } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { useProductForm } from '../../composables/useProductForm';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 // =============================================
 // Props
@@ -37,6 +39,8 @@ const {
   errors,
 } = useProductForm();
 
+const { exigirPrecoCusto, utilizarPrecoAtacado, margemLucroPadrao } = storeToRefs(useConfiguracoesStore());
+
 const lucro_varejo = computed(() => {
   if (valor_varejo.value > valor_entrada.value) {
     return valor_varejo.value - valor_entrada.value;
@@ -49,6 +53,19 @@ const lucro_atacado = computed(() => {
     return valor_atacado.value - valor_entrada.value;
   }
   return 0;
+});
+
+// Rastreia o último valor calculado automaticamente para não sobrescrever edições manuais do varejo
+let ultimoVarejoAutoCalculado = 0;
+
+watch(valor_entrada, (custo) => {
+  if (margemLucroPadrao.value > 0 && custo > 0) {
+    const autoValor = parseFloat((custo * (1 + margemLucroPadrao.value / 100)).toFixed(2));
+    if (valor_varejo.value === 0 || valor_varejo.value === ultimoVarejoAutoCalculado) {
+      valor_varejo.value = autoValor;
+      ultimoVarejoAutoCalculado = autoValor;
+    }
+  }
 });
 </script>
 
@@ -70,7 +87,7 @@ const lucro_atacado = computed(() => {
         <BaseMoneyInput
           v-model="valor_entrada"
           label="Valor de Custo"
-          :required="true"
+          :required="exigirPrecoCusto"
           :error="submitCount > 0 ? errors.valor_entrada : ''"
           :disabled="disabled"
         />
@@ -84,12 +101,12 @@ const lucro_atacado = computed(() => {
           :disabled="disabled"
         />
       </div>
-      <div class="col-span-12 md:col-span-4">
+      <div v-if="utilizarPrecoAtacado" class="col-span-12 md:col-span-4">
         <BaseMoneyInput
           v-model="valor_atacado"
           label="Valor de Atacado"
           :error="submitCount > 0 ? errors.valor_atacado : ''"
-          :disabled="true"
+          :disabled="disabled"
         />
       </div>
       <div class="col-span-12 md:col-span-4">
@@ -100,7 +117,7 @@ const lucro_atacado = computed(() => {
           :disabled="true"
         />
       </div>
-      <div class="col-span-12 md:col-span-4">
+      <div v-if="utilizarPrecoAtacado" class="col-span-12 md:col-span-4">
         <BaseMoneyInput
           v-model="lucro_atacado"
           label="Lucro de Atacado"

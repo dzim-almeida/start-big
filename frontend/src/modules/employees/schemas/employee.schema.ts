@@ -72,21 +72,10 @@ export const employeeSchema = z
     pai: z.string().max(255).optional().or(z.literal('')),
     carteira_trabalho: z.string().max(50).optional().or(z.literal('')),
 
-    // Usuario (required only in create mode - validated conditionally)
-    usuario_nome: z
-      .string()
-      .min(3, 'Nome do usuário deve ter no mínimo 3 caracteres')
-      .max(255),
-    usuario_email: z
-      .string()
-      .email('Email do usuario inválido')
-      .max(255),
-    usuario_senha: z
-      .string()
-      .min(8, 'A senha deve ter no mínimo 8 caracteres')
-      .max(72)
-      .regex(/[A-Z]/, 'A senha deve conter ao menos uma letra maiúscula')
-      .regex(/[0-9]/, 'A senha deve conter ao menos um número'),
+    // Usuario (obrigatório só no create — validação manual no onSubmit)
+    usuario_nome: z.string().max(255).optional().or(z.literal('')),
+    usuario_email: z.string().email('Email do usuario inválido').max(255).optional().or(z.literal('')),
+    usuario_senha: z.string().max(72).optional().or(z.literal('')),
 
     // Enderecos (optional array)
     enderecos: z.array(enderecoSchema).optional().default([]),

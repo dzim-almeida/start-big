@@ -91,6 +91,7 @@ export function useUpdateProductMutation(setErrors: any, selectedFile: Ref<File 
       }
       toast.success('Produto atualizado com sucesso!');
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MOVIMENTACOES_QUERY_KEY] });
     },
     onError: (error) => {
       if (isConflictError(error)) {
