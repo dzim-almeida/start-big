@@ -36,6 +36,7 @@ let closeItemModalProxy: (() => void) | null = null;
 function closeItemModal() {
   closeItemModalProxy?.();
 }
+let resetEquipSelectStateProxy: (() => void) | null = null;
 const localOSData = ref<OrderServiceReadDataType | null>(null);
 const currentOSData = computed(() => localOSData.value ?? props.ordemServico ?? null);
 const osNumber = computed(() => currentOSData.value?.numero_os ?? null);
@@ -190,7 +191,7 @@ useOSModalLifecycle({
   form,
   resetReopenState,
   onOpen: () => {
-    // reservado para estados locais na abertura do modal
+    resetEquipSelectStateProxy?.();
   },
 });
 const {
@@ -199,6 +200,7 @@ const {
   isEquipSelectModalOpen,
   handleEquipamentoSelected,
   applyEquipamentoHistorico,
+  resetEquipSelectState,
 } = useOSEquipmentHistory({
   selectedCliente: computed(() => props.selectedCliente as { id?: number } | null),
   ordemServicoCliente: computed(() => currentOSData.value?.cliente as { id?: number } | null),
@@ -208,6 +210,7 @@ const {
   createEquipamentoModelo: form.criar.equipamento_modelo,
   createEquipamentoNumeroSerie: form.criar.equipamento_numero_serie,
 });
+resetEquipSelectStateProxy = resetEquipSelectState;
 const {
   equipamentoFormData,
   controlsStatus,
@@ -256,6 +259,16 @@ function closeEquipamentoModal() {
   isEquipSelectModalOpen.value = false;
 }
 
+const formErrors = computed<Record<string, string | undefined>>(() => {
+  if (isCreateMode.value) {
+    return { ...form.criar.errors.value };
+  }
+  return {
+    ...form.atualizarGeral.errors.value,
+    ...form.atualizarEquipamento.errors.value,
+  };
+});
+
 useOSFormViewProvider({
   isOpen: computed(() => props.isOpen),
   currentOSData,
@@ -282,6 +295,7 @@ useOSFormViewProvider({
   displayValorDesconto,
   displayValorTotal,
   displayValorEntrada,
+  formErrors,
   equipamentoFormData,
   equipamentosHistorico,
   selectedHistorico,

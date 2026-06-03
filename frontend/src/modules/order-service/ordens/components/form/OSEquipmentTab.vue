@@ -27,13 +27,19 @@ interface Props {
   selectedHistorico?: string;
   isLocked?: boolean;
   isCreateMode?: boolean;
+  errors?: Record<string, string | undefined>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   equipamentosHistorico: () => [],
   selectedHistorico: '',
   isLocked: false,
+  errors: () => ({}),
 });
+
+function fieldError(field: string): string | undefined {
+  return props.errors?.[`equipamento.${field}`] ?? props.errors?.[field];
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: EquipamentoForm];
@@ -90,15 +96,16 @@ function handleHistoricoSelectChange(value: string) {
           label="Tipo de Equipamento"
           :options="tipoEquipamentoOptions"
           required
+          :error="fieldError('tipo_equipamento')"
           @update:model-value="updateField('equipamento', $event as string)"
         />
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" required @update:model-value="updateField('marca', $event)" />
-          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" required @update:model-value="updateField('modelo', $event)" />
+          <BaseInput :model-value="modelValue.marca" label="Marca" placeholder="Marca" required :error="fieldError('marca')" @update:model-value="updateField('marca', $event)" />
+          <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" required :error="fieldError('modelo')" @update:model-value="updateField('modelo', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.numero_serie" label="N° Série" placeholder="Número de série" required @update:model-value="updateField('numero_serie', $event)" />
+        <BaseInput :model-value="modelValue.numero_serie" label="N° Série" placeholder="Número de série" required :error="fieldError('numero_serie')" @update:model-value="updateField('numero_serie', $event)" />
       </div>
 
       <div class="space-y-4">
@@ -107,7 +114,7 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" required @update:model-value="updateField('imei', $event)" />
+          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" required :error="fieldError('imei')" @update:model-value="updateField('imei', $event)" />
           <BaseInput :model-value="modelValue.cor" label="Cor" placeholder="Ex: Preto" @update:model-value="updateField('cor', $event)" />
         </div>
 
@@ -124,6 +131,7 @@ function handleHistoricoSelectChange(value: string) {
           :rows="3"
           placeholder="Descreva o problema principal relatado pelo cliente..."
           required
+          :error="fieldError('defeito_relatado')"
           @update:model-value="updateField('defeito_relatado', $event as string)"
         />
       </div>

@@ -55,7 +55,7 @@ const createdAt = computed(() => {
 
   const time = props.sale.criado_em.split('T')[1];
 
-  return `${date} as ${time}`;
+  return `${date} às ${time}`;
 });
 </script>
 <template>

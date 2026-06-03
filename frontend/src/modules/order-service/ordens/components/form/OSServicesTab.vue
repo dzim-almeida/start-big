@@ -71,7 +71,7 @@ function getItemTotal(item: OsItem): number {
       <div v-else class="space-y-2">
         <div
           v-for="(item, index) in itens"
-          :key="index"
+          :key="'id' in item && item.id ? item.id : `new-${index}`"
           class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:border-brand-primary/20 transition-colors group"
         >
           <div class="flex items-center gap-3 overflow-hidden">

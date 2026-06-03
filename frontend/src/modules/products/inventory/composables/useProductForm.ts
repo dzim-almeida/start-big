@@ -45,6 +45,8 @@ const DEFAULT_FORM_VALUES: ProductFormData = {
   quantidade: 0,
   quantidade_minima: 0,
   quantidade_ideal: 0,
+
+  image_url: '',
 };
 
 // =============================================
@@ -85,6 +87,7 @@ export interface ProductFormContext {
   quantidade_ideal: Ref<number>;
 
   imageFile: Ref<File | null>;
+  image_url: Ref<string | null>;
 
   errors: Ref<Record<string, string | undefined>>;
   submitCount: Ref<number>;
@@ -140,6 +143,8 @@ export function useProductFormProvider() {
   const [quantidade] = defineField('quantidade');
   const [quantidade_minima] = defineField('quantidade_minima');
   const [quantidade_ideal] = defineField('quantidade_ideal');
+  
+  const [image_url] = defineField('image_url');
 
   const apiError = ref<string | null>(null);
 
@@ -161,6 +166,7 @@ export function useProductFormProvider() {
       quantidade: product.estoque.quantidade,
       quantidade_minima: product.estoque.quantidade_minima || 0,
       quantidade_ideal: product.estoque.quantidade_ideal || 0,
+      image_url: product.fotos?.find((foto) => foto.principal)?.url || null,
     });
   }
 
@@ -268,6 +274,7 @@ export function useProductFormProvider() {
     quantidade_minima,
     quantidade_ideal,
     imageFile,
+    image_url,
     errors,
     submitCount,
     values,
