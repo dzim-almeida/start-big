@@ -5,7 +5,9 @@
  * Permite buscar e filtrar opções conforme o usuário digita.
  */
 
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch } from 'vue';
+
+import { onClickOutside } from '@vueuse/core';
 
 import LucideIcon from '../../icons/LucideIcon.vue';
 import { ChevronDown } from 'lucide-vue-next';
@@ -36,7 +38,7 @@ const model = defineModel<string | number>();
 
 const searchQuery = ref('');
 const isOpen = ref(false);
-const selectRef = ref<HTMLDivElement>();
+const selectRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<HTMLInputElement>();
 const highlightedIndex = ref(-1);
 
@@ -148,11 +150,11 @@ function scrollToHighlighted() {
   }, 0);
 }
 
-function handleClickOutside(event: MouseEvent) {
-  if (selectRef.value && !selectRef.value.contains(event.target as Node)) {
+onClickOutside(selectRef, () => {
+  if (isOpen.value) {
     closeDropdown();
   }
-}
+});
 
 watch(
   () => filteredOptions.value,
@@ -162,14 +164,6 @@ watch(
     }
   }
 );
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
-});
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
-});
 </script>
 
 <template>

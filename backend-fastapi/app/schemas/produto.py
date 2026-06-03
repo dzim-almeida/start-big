@@ -63,6 +63,7 @@ class ProdutoSimpleRead(BaseModel):
     sku: str = Field(...,  validation_alias="codigo_produto", max_length=50, description="Código SKU único.")
     preco: int = Field(..., validation_alias=AliasPath("estoque", "valor_varejo"), ge=0, description="Preço atual do produto em centavos.")
     estoque: int = Field(..., validation_alias=AliasPath("estoque", "quantidade"), ge=0, description="Quantidade atual em estoque.")
+    quantidade_minima: Optional[int] = Field(None, validation_alias=AliasPath("estoque", "quantidade_minima"), description="Quantidade mínima de estoque.")
     imagem_url: Optional[str] = Field(None, description="URL da imagem principal do produto.")
 
 class ProdutoUpdate(BaseModel):

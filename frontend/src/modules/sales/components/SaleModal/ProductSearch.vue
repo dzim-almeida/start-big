@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ArchiveX, Keyboard } from 'lucide-vue-next';
 
 import ShortcutsModal from './ShortcutsModal.vue';
@@ -13,10 +13,15 @@ import { useItemModal } from '../../composables/flows/useItemModal';
 import UnitValueInput from './UnitValueInput.vue';
 import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 
+import type { ProductSaleRead } from '../../schemas/productSale.schema';
+
 const props = defineProps<{
   saleId: number | null;
   isOrcamento?: boolean;
+  currentItems?: ProductSaleRead[];
 }>();
+
+const currentItemsRef = computed(() => props.currentItems);
 
 const {
   searchTerm,
@@ -27,13 +32,17 @@ const {
   canAddItem,
   isAddingItem,
   quantity,
+  highlightedIndex,
+  searchContainerRef,
+  quantityInputRef,
   handleInputChange,
+  handleKeydown,
   selectProduct,
   increaseQuantity,
   decreaseQuantity,
   addItemToSale,
   resetSelection
-} = useProductSearch(props.isOrcamento);
+} = useProductSearch(props.isOrcamento, currentItemsRef);
 
 const { openCreateItemModal } = useItemModal();
 
@@ -46,18 +55,30 @@ function handleAddAvulso() {
 
 function handleAutoAdd(product: { nome: string; id: number }) {
   selectProduct(product.nome, product.id);
-  addItemToSale(props.saleId);
+  addItemToSale(props.saleId, true);
+}
+
+function handleQuantityKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addItemToSale(props.saleId, false);
+  }
 }
 </script>
 
 <template>
   <div class="w-full flex gap-4">
-    <div class="relative w-full md:max-w-1/2" data-search-products>
-      <BaseSearchInput v-model="searchTerm" placeholder="Digite o nome ou código do produto" @focusChange="handleInputChange" />
+    <div class="relative w-full md:max-w-1/2" data-search-products ref="searchContainerRef">
+      <BaseSearchInput
+        v-model="searchTerm"
+        placeholder="Digite o nome ou código do produto"
+        @focusChange="handleInputChange"
+        @keydown="handleKeydown"
+      />
 
       <div
         v-if="isSearching"
-        class="absolute left-0 top-full z-50 mt-2 w-full min-h-20 rounded-xl shadow-lg bg-zinc-50"
+        class="absolute left-0 top-full z-9999 mt-2 w-full min-h-20 rounded-xl shadow-lg bg-zinc-50"
       >
         <div
           :class="[
@@ -70,7 +91,7 @@ function handleAutoAdd(product: { nome: string; id: number }) {
           </p>
         </div>
 
-        <div class="w-full min-h-20 bg-white flex items-center justify-center">
+        <div class="w-full min-h-20 max-h-80 overflow-y-auto bg-white flex items-center justify-center">
           <div
             v-if="isLoading"
             class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary"
@@ -83,9 +104,11 @@ function handleAutoAdd(product: { nome: string; id: number }) {
           </div>
           <div v-else class="w-full">
             <ProductOption
-              v-for="product in products"
+              v-for="(product, index) in products"
               :key="product.id"
               :product="product"
+              :highlighted="highlightedIndex === index"
+              :data-product-index="index"
               @click="handleAutoAdd(product)"
               @select-for-quantity="selectProduct(product.nome, product.id)"
             />
@@ -111,11 +134,18 @@ function handleAutoAdd(product: { nome: string; id: number }) {
     <div class="flex items-center gap-2">
       <label class="font-poppins font-semibold text-xs">Qtde.</label>
       <div class="w-32 h-full">
-        <UnitValueInput v-model="quantity" :disabled="!selectedProductId" @increase="increaseQuantity" @decrease="decreaseQuantity" />
+        <UnitValueInput
+          ref="quantityInputRef"
+          v-model="quantity"
+          :disabled="!selectedProductId"
+          @increase="increaseQuantity"
+          @decrease="decreaseQuantity"
+          @keydown="handleQuantityKeydown"
+        />
       </div>
-      
+
     </div>
-    <BaseButton size="sm" :disabled="!canAddItem || isAddingItem" @click="addItemToSale(saleId)">
+    <BaseButton size="sm" :disabled="!canAddItem || isAddingItem" @click="addItemToSale(saleId, false)">
       Adicionar Produto
     </BaseButton>
     <button

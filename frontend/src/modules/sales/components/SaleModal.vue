@@ -131,6 +131,11 @@ useSaleShortcuts({
       searchInput?.focus();
     });
   },
+  onFocusSaleInputs: (field) => {
+    nextTick(() => {
+      document.querySelector<HTMLInputElement>(`[data-sale-${field}] input`)?.focus();
+    });
+  },
 });
 
 const saleDisplay = computed(() => {
@@ -190,7 +195,7 @@ const saleDisplay = computed(() => {
 
     <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4">
       <section class="w-full md:w-2/3 flex flex-col gap-5">
-        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId"/>
+        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId" :current-items="sale?.produtos" />
         <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
         <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
       </section>

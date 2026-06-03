@@ -35,6 +35,8 @@ export interface ShortcutItem {
 
 export const SALE_SHORTCUTS: ShortcutItem[] = [
     { keys: 'F2', description: 'Nova venda' },
+    { keys: 'Ctrl+E', description: 'Focar entrega' },
+    { keys: 'Ctrl+D', description: 'Focar desconto' },
     { keys: 'F4', description: 'Produto avulso' },
     { keys: 'F6', description: 'Focar pagamentos' },
     { keys: 'Ctrl+F', description: 'Buscar produto' },
@@ -52,6 +54,8 @@ export const PRODUCT_TYPES = [
 
 export const ORCAMENTO_SHORTCUTS: ShortcutItem[] = [
     { keys: 'F2', description: 'Novo orçamento' },
+    { keys: 'Ctrl+E', description: 'Focar entrega' },
+    { keys: 'Ctrl+D', description: 'Focar desconto' },
     { keys: 'F4', description: 'Produto avulso' },
     { keys: 'Ctrl+F', description: 'Buscar produto' },
     { keys: 'Ctrl+Enter', description: 'Converter em venda' },
