@@ -30,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emits = defineEmits<{
   blur: [];
   enter: [];
+  keydown: [event: KeyboardEvent];
 }>();
 
 const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
@@ -81,6 +82,7 @@ defineExpose({
       :class="inputClasses"
       @blur="$emit('blur')"
       @keydown.enter="$emit('enter')"
+      @keydown="$emit('keydown', $event)"
     />
 
     <p v-if="error" class="mt-0.5 text-xs text-red-500">

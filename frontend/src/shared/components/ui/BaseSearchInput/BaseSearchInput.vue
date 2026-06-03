@@ -6,7 +6,8 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'focusChange': [isFocused: boolean]
+  'focusChange': [isFocused: boolean];
+  'keydown': [event: KeyboardEvent];
 }>();
 
 function handleFocus(isFocused: boolean) {
@@ -27,6 +28,7 @@ const model = defineModel()
         class="w-full border-none rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand-primary transition-all outline-none"
         @focus="handleFocus(true)"
         @blur="handleFocus(false)"
+        @keydown="emit('keydown', $event)"
       />
     </div>
   </div>

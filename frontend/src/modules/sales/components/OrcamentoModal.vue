@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { X, Printer, ShoppingCart } from 'lucide-vue-next';
+import { useMagicKeys, whenever, useEventListener } from '@vueuse/core';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -34,6 +35,27 @@ const logoUrl = computed(() => {
 
 const { orcamentoModalIsOpen, closeOrcamentoModal, orcamento, selectedOrcamentoId } = useOrcamentoModal();
 const { itemModalIsOpen } = useItemModal();
+
+// Atalhos Ctrl+E (entrega) e Ctrl+D (desconto)
+const keys = useMagicKeys();
+
+useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if (e.ctrlKey && (e.key === 'e' || e.key === 'd') && orcamentoModalIsOpen.value && !orcamento.value?.convertido) {
+    e.preventDefault();
+  }
+});
+
+whenever(keys.Ctrl_E, () => {
+  if (orcamentoModalIsOpen.value && !orcamento.value?.convertido && !itemModalIsOpen.value) {
+    nextTick(() => document.querySelector<HTMLInputElement>('[data-sale-entrega] input')?.focus());
+  }
+});
+
+whenever(keys.Ctrl_D, () => {
+  if (orcamentoModalIsOpen.value && !orcamento.value?.convertido && !itemModalIsOpen.value) {
+    nextTick(() => document.querySelector<HTMLInputElement>('[data-sale-desconto] input')?.focus());
+  }
+});
 const deleteMutation = useDeleteOrcamentoMutation();
 const updateMutation = useUpdateOrcamentoMutation();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
@@ -145,7 +167,7 @@ function handlePrint() {
 
     <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4">
       <section class="w-full md:w-2/3 flex flex-col gap-5">
-        <ProductSearch v-if="!orcamento?.convertido" :sale-id="selectedOrcamentoId" is-orcamento />
+        <ProductSearch v-if="!orcamento?.convertido" :sale-id="selectedOrcamentoId" is-orcamento :current-items="orcamento?.produtos" />
         <SaleItemsTable :sale="orcamento" :readonly="!!orcamento?.convertido" is-orcamento />
         <SaleSummary
           :subtotal="orcamento?.subtotal"
