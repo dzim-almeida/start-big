@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 
 import { TicketPercent, Truck, UserRound, CalendarDays, Settings } from 'lucide-vue-next';
 
@@ -20,16 +20,28 @@ const props = defineProps<{
 const saleRef = computed(() => props.sale);
 const { form, isSaving, saveNow } = useSaleDetailsForm(saleRef);
 
+function handleArrowNavigation(e: KeyboardEvent) {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+
+  const active = document.activeElement as HTMLElement | null;
+  const entregaInput = document.querySelector<HTMLInputElement>('[data-sale-entrega] input');
+  const descontoInput = document.querySelector<HTMLInputElement>('[data-sale-desconto] input');
+
+  if (active === entregaInput) {
+    e.preventDefault();
+    descontoInput?.focus();
+  } else if (active === descontoInput) {
+    e.preventDefault();
+    entregaInput?.focus();
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', handleArrowNavigation, true));
+onUnmounted(() => document.removeEventListener('keydown', handleArrowNavigation, true));
+
 const saleDisplay = computed(() => {
   if (!props.sale) return '...';
-
-  const prefix = props.sale.status === 'ORCAMENTO' ? 'ORÇAMENTO' : 'VENDA';   
-
-  if (props.sale.numero_venda) {
-
-    return `${prefix} #${String(props.sale.numero_venda).padStart(6, '0')}`;
-  }
-  return `${prefix} #${String(props.sale.id).padStart(6, '0')}`;
+  return `VENDA #${String(props.sale.id).padStart(6, '0')}`;
 });
 
 const createdAt = computed(() => {
@@ -97,7 +109,7 @@ const createdAt = computed(() => {
       <!-- Entrega -->
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Entrega</h2>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center" data-sale-entrega>
           <Truck :size="18" class="text-zinc-500 shrink-0" />
           <MoneyInput v-model.number="form.entrega" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>
@@ -106,7 +118,7 @@ const createdAt = computed(() => {
       <!-- Desconto -->
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Desconto</h2>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center" data-sale-desconto>
           <TicketPercent :size="18" class="text-zinc-500 shrink-0" />
           <MoneyInput v-model.number="form.desconto" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>

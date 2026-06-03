@@ -175,7 +175,6 @@ def get_ultimas_vendas(db: Session, empresa_id: int) -> UltimasVendasResponse:
     items = [
         UltimaVendaItem(
             id=row.id,
-            numero_venda=row.numero_venda,
             cliente_nome=row.cliente_nome,
             total=row.total,
             status=row.status.value,

@@ -64,7 +64,6 @@ class EstoqueBaixoResponse(BaseModel):
 
 class UltimaVendaItem(BaseModel):
     id: int = Field(..., description="ID da venda")
-    numero_venda: Optional[int] = Field(None, description="Numero sequencial da venda")
     cliente_nome: Optional[str] = Field(None, description="Nome do cliente")
     total: int = Field(0, description="Total da venda (centavos)")
     status: str = Field(..., description="Status da venda")

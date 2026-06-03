@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Printer, ShoppingCart } from 'lucide-vue-next';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -29,6 +30,14 @@ import type { SaleRead } from '../schemas/sale.schema';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const authStore = useAuthStore();
+const logoUrl = computed(() => {
+  const path = authStore.userData?.empresa?.url_logo;
+  if (!path) return null;
+  return `${API_BASE_URL}/${path}`;
+});
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
@@ -93,6 +102,11 @@ function handleCancel() {
   });
 }
 
+function handlePrint() {
+  if (!sale.value) return;
+  printSaleData(sale.value, 'VENDA');
+}
+
 useSaleShortcuts({
   saleModalIsOpen,
   isEditMode,
@@ -117,23 +131,23 @@ useSaleShortcuts({
       searchInput?.focus();
     });
   },
+  onFocusSaleInputs: (field) => {
+    nextTick(() => {
+      document.querySelector<HTMLInputElement>(`[data-sale-${field}] input`)?.focus();
+    });
+  },
 });
 
-const orcamentoDisplay = computed(() => {
+const saleDisplay = computed(() => {
   if (!sale.value) return '...';
-  return `Orçamento #${String(sale.value.id).padStart(6, '0')}`;
-});
-
-const vendaDisplay = computed(() => {
-  if (!sale.value?.numero_venda) return null;
-  return `Venda #${String(sale.value.numero_venda).padStart(6, '0')}`;
+  return `Venda #${String(sale.value.id).padStart(6, '0')}`;
 });
 </script>
 
 <template>
   <BaseModal
     :is-open="saleModalIsOpen"
-    :title="orcamentoDisplay"
+    :title="saleDisplay"
     subtitle="Gerencie os detalhes desta venda, adicione produtos, finalize ou cancele a venda"
     size="4xl"
     @close="closeSaleModal"
@@ -141,12 +155,13 @@ const vendaDisplay = computed(() => {
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" :class="logoUrl ? '' : 'bg-brand-primary'">
+            <img v-if="logoUrl" :src="logoUrl" alt="Logo" class="w-full h-full object-cover rounded-lg" />
+            <ShoppingCart v-else :size="18" class="text-white" />
+          </div>
           <h2 class="text-xl font-bold text-zinc-800">
-            {{ orcamentoDisplay }}
+            {{ saleDisplay }}
           </h2>
-          <span v-if="vendaDisplay" class="text-sm font-medium text-green-700">
-            {{ vendaDisplay }}
-          </span>
           <span
             :class="[
               'px-2 py-0.5 text-xs font-medium rounded-full',
@@ -158,19 +173,29 @@ const vendaDisplay = computed(() => {
           </span>
         </div>
 
-        <button
-          type="button"
-          class="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-          @click="closeSaleModal()"
-        >
-          <X :size="20" />
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+            title="Imprimir"
+            @click="handlePrint"
+          >
+            <Printer :size="18" />
+          </button>
+          <button
+            type="button"
+            class="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+            @click="closeSaleModal()"
+          >
+            <X :size="20" />
+          </button>
+        </div>
       </div>
     </template>
 
     <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4">
       <section class="w-full md:w-2/3 flex flex-col gap-5">
-        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId"/>
+        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId" :current-items="sale?.produtos" />
         <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
         <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
       </section>
@@ -217,14 +242,14 @@ const vendaDisplay = computed(() => {
     <SalePrintTemplate
       v-if="saleForPrint && printFormat === 'A4'"
       :sale="saleForPrint"
-      :type="(printType as 'ORCAMENTO' | 'VENDA')"
+      :type="(printType as 'VENDA')"
       :payment-method-resolver="resolvePaymentMethodName"
     />
 
     <SalePrintCupom
       v-if="saleForPrint && printFormat === 'CUPOM'"
       :sale="saleForPrint"
-      :type="(printType as 'ORCAMENTO' | 'VENDA')"
+      :type="(printType as 'VENDA')"
       :payment-method-resolver="resolvePaymentMethodName"
     />
   </BaseModal>

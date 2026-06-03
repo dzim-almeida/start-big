@@ -15,6 +15,7 @@ interface SaleShortcutsContext {
   onCloseFinishModal: () => void;
   onCloseItemModal: () => void;
   onFocusSearch: () => void;
+  onFocusSaleInputs: (field: 'entrega' | 'desconto') => void;
 }
 
 export function useSaleShortcuts(context: SaleShortcutsContext) {
@@ -52,6 +53,23 @@ export function useSaleShortcuts(context: SaleShortcutsContext) {
   whenever(keys.Ctrl_F, () => {
     if (context.saleModalIsOpen.value && context.isEditMode.value && !context.finishModalIsOpen.value && !context.itemModalIsOpen.value) {
       context.onFocusSearch();
+    }
+  });
+
+  // Ctrl+E — Focar input de entrega / Ctrl+D — Focar input de desconto
+  useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+    if (e.ctrlKey && (e.key === 'e' || e.key === 'd') && context.saleModalIsOpen.value && context.isEditMode.value) {
+      e.preventDefault();
+    }
+  });
+  whenever(keys.Ctrl_E, () => {
+    if (context.saleModalIsOpen.value && context.isEditMode.value && !context.finishModalIsOpen.value && !context.itemModalIsOpen.value) {
+      context.onFocusSaleInputs('entrega');
+    }
+  });
+  whenever(keys.Ctrl_D, () => {
+    if (context.saleModalIsOpen.value && context.isEditMode.value && !context.finishModalIsOpen.value && !context.itemModalIsOpen.value) {
+      context.onFocusSaleInputs('desconto');
     }
   });
 
