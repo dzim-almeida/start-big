@@ -96,6 +96,7 @@ export const ProductSaleListItemSchema = z
     sku: z.string().nullable().optional(),
     preco: z.number(),
     estoque: z.number(),
+    quantidade_minima: z.number().nullable().optional(),
     imagem_url: z.string().nullable().optional(),
   })
   .array();
