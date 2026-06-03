@@ -21,6 +21,7 @@ export function useOSFinalizarForm(opts: {
   const { handleSubmit, errors, defineField, resetForm: veeReset } = useForm({
     validationSchema: orderServiceReadyValidationSchema,
     initialValues: {
+      situacao_equipamento: undefined,
       solucao: '',
       observacoes: '',
       desconto: 0,
@@ -31,6 +32,7 @@ export function useOSFinalizarForm(opts: {
     },
   });
 
+  const [situacao_equipamento] = defineField('situacao_equipamento');
   const [solucao] = defineField('solucao');
   const [observacoes] = defineField('observacoes');
   const [desconto] = defineField('desconto');
@@ -56,6 +58,7 @@ export function useOSFinalizarForm(opts: {
   const resetForm = () => {
     veeReset({
       values: {
+        situacao_equipamento: undefined,
         solucao: '',
         observacoes: '',
         desconto: 0,
@@ -83,6 +86,7 @@ export function useOSFinalizarForm(opts: {
   const isPending = computed(() => finalizarMutation.isPending.value);
 
   return {
+    situacao_equipamento,
     solucao,
     observacoes,
     desconto,

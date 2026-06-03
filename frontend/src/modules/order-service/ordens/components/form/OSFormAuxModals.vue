@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+
 import OSReopenOptionsModal from './OSReopenOptionsModal.vue';
 import OSItemFormModal from './OSItemFormModal.vue';
 import OSEquipamentoSelectModal from './OSEquipamentoSelectModal.vue';
@@ -6,10 +8,37 @@ import OSClientHistoryModal from './OSClientHistoryModal.vue';
 import OSPrintTemplate from '../OSPrintTemplate.vue';
 import OSPrintCupom from '../OSPrintCupom.vue';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
-import OSFinalizarModal from '../OSFinalizarModal.vue';
+import OSFinalizarModal, { type DadosFinalizacaoOS } from '../OSFinalizarModal.vue';
+import OSPagamentoModal from '../OSPagamentoModal.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
 
 const view = useOSFormView();
+
+// ─── Estado do fluxo de finalização (dois modais) ─────────────────────────────
+const isPagamentoOpen = ref(false);
+const dadosFinalizacao = ref<DadosFinalizacaoOS | null>(null);
+
+function handleAdvance(data: DadosFinalizacaoOS) {
+  dadosFinalizacao.value = data;
+  isPagamentoOpen.value = true;
+}
+
+function handlePagamentoVoltar() {
+  isPagamentoOpen.value = false;
+}
+
+function handlePagamentoClose() {
+  isPagamentoOpen.value = false;
+  dadosFinalizacao.value = null;
+  view.closeFinalizarModal();
+}
+
+function handleFinalized(payload: { shouldPrint: boolean }) {
+  isPagamentoOpen.value = false;
+  dadosFinalizacao.value = null;
+  view.closeFinalizarModal();
+  view.onFinalized(payload);
+}
 </script>
 
 <template>
@@ -46,12 +75,25 @@ const view = useOSFormView();
     :type="view.printType.value"
   />
 
+  <!-- Modal 1: Detalhes da finalização -->
   <OSFinalizarModal
     :is-open="view.isFinalizarModalOpen.value"
     :os-numero="view.osNumber.value"
     :ordem-servico="view.currentOSData.value"
     @close="view.closeFinalizarModal"
-    @finalized="view.onFinalized"
+    @advance="handleAdvance"
+  />
+
+  <!-- Modal 2: Pagamento (overlay sobre Modal 1) -->
+  <OSPagamentoModal
+    :is-open="isPagamentoOpen"
+    :os-numero="view.osNumber.value"
+    :ordem-servico="view.currentOSData.value"
+    :dados-os="dadosFinalizacao"
+    :desconto-os="dadosFinalizacao?.desconto ?? 0"
+    @close="handlePagamentoClose"
+    @voltar="handlePagamentoVoltar"
+    @finalized="handleFinalized"
   />
 
   <OSItemFormModal

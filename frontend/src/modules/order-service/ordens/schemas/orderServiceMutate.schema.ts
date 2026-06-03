@@ -3,7 +3,7 @@ import { toTypedSchema } from "@vee-validate/zod";
 
 import { OrderServiceBaseSchema } from "./orderService.schema";
 
-import { OsPriorityEnum, OsStatusEnum } from "./enums/osEnums.schema";
+import { OsPriorityEnum, OsStatusEnum, OsEquipSituacaoEnum } from "./enums/osEnums.schema";
 
 import { OsEquipCreateSchema } from "./relationship/osEquip.schema";
 import { OsItemCreateSchema } from "./relationship/osItem.schema";
@@ -67,6 +67,8 @@ export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpda
 export type OrderServiceUpdateDataType = z.infer<typeof OrderServiceUpdateSchema>
 
 export const OrderServiceReadySchema = z.object({
+  situacao_equipamento: OsEquipSituacaoEnum.optional(),
+  garantia: z.string().max(20).optional(),
   solucao: z.string().max(500, 'Uma descrição deve ter no máximo 500 caracteres').optional(),
   observacoes: z.string().max(500, 'Uma observação deve ter no máximo 500 caracteres'),
   desconto: z.number().int().min(0, 'Desconto não pode ser negativo').default(0),

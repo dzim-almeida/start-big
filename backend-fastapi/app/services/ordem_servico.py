@@ -457,6 +457,8 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
         os_crud.create_os_pagamento(db, pagamento_to_add=pagamento)
 
     # Aplica finalização
+    os_in_db.situacao_equipamento = data.situacao_equipamento
+    os_in_db.garantia = data.garantia
     os_in_db.solucao = data.solucao
     os_in_db.status = OrdemServicoStatus.FINALIZADA
     os_in_db.data_finalizacao = datetime.now()

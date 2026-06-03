@@ -13,11 +13,13 @@ interface Props {
   subtitle?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
   overlay?: boolean;
+  overflow?: 'auto' | 'hidden';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   overlay: false,
+  overflow: 'auto',
 });
 
 const emit = defineEmits<{
@@ -108,7 +110,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div class="p-6 overflow-y-auto flex-initial h-full no-scrollbar">
+          <div :class="['p-6 flex-initial h-full no-scrollbar', props.overflow === 'hidden' ? 'overflow-hidden' : 'overflow-y-auto']">
             <slot />
           </div>
 

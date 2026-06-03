@@ -20,7 +20,7 @@ from fastapi import HTTPException
 
 router = APIRouter()
 
-module_permission = "order-service"
+module_permission = ["servico", "venda"]
 
 
 # ===========================================================================

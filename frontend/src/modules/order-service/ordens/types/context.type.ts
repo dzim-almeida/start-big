@@ -113,6 +113,7 @@ export interface OSItemFormContext {
 
 
 export interface OSFinalizarFormContext {
+  situacao_equipamento: Ref<string | null | undefined>;
   solucao: Ref<string | null | undefined>;
   observacoes: Ref<string | null | undefined>;
   desconto: Ref<number | null | undefined>;

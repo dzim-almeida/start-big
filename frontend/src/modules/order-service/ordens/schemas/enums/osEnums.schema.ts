@@ -48,9 +48,16 @@ export const OsCardsFlagEnum = z.enum([
   'OUTROS',
 ])
 
+export const OsEquipSituacaoEnum = z.enum([
+  'REPARADO',
+  'SEM_REPARO',
+  'CONDENADO',
+])
+
 export type OsStatusEnumDataType = z.infer<typeof OsStatusEnum>
 export type OsPriorityEnumDataType = z.infer<typeof OsPriorityEnum>
 export type OsItemTypeEnumDataType = z.infer<typeof OsItemTypeEnum>
 export type OsEquipTypeEnumDataType = z.infer<typeof OsEquipTypeEnum>
 export type OsItemMeasureEnumDataType = z.infer<typeof OsItemMeasureEnum>
 export type OsCardsFlagEnumDataType = z.infer<typeof OsCardsFlagEnum>
+export type OsEquipSituacaoEnumDataType = z.infer<typeof OsEquipSituacaoEnum>
