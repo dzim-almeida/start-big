@@ -82,6 +82,12 @@ class OrdemServicoPrioridade(str, enum.Enum):
     ALTA = "ALTA"
     URGENTE = "URGENTE"
 
+class SituacaoEquipamento(str, enum.Enum):
+    """Situação final do equipamento ao finalizar a OS."""
+    REPARADO = "REPARADO"
+    SEM_REPARO = "SEM_REPARO"
+    CONDENADO = "CONDENADO"
+
 class OrdemServicoItemTipo(str, enum.Enum):
     PRODUTO = "PRODUTO"
     SERVICO = "SERVICO"  
@@ -138,3 +144,4 @@ class MovimentacaoTipo(str, enum.Enum):
     ENTRADA = "ENTRADA"
     SAIDA = "SAIDA"
     AJUSTE = "AJUSTE"
+    EDICAO_DADOS = "EDICAO_DADOS"

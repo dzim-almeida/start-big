@@ -6,7 +6,8 @@ import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
 import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
-import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
+import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/components/OSFinalizarModal.vue';
+import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 
@@ -44,6 +45,8 @@ const isCancelModalOpen = ref(false);
 const osToCancel = ref<OrderServiceReadDataType | null>(null);
 const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
 const isFinalizarDirectOpen = ref(false);
+const isPagamentoDirectOpen = ref(false);
+const dadosFinalizacaoDirect = ref<DadosFinalizacaoOS | null>(null);
 const osToReopen = ref<OrderServiceReadDataType | null>(null);
 const isReopenDirectOpen = ref(false);
 
@@ -91,7 +94,18 @@ async function handleFinalizar(os: OrderServiceReadDataType) {
 
 function handleCloseFinalizarDirect() {
   isFinalizarDirectOpen.value = false;
+  isPagamentoDirectOpen.value = false;
+  dadosFinalizacaoDirect.value = null;
   osToFinalizar.value = null;
+}
+
+function handleAdvanceDirect(data: DadosFinalizacaoOS) {
+  dadosFinalizacaoDirect.value = data;
+  isPagamentoDirectOpen.value = true;
+}
+
+function handlePagamentoVoltarDirect() {
+  isPagamentoDirectOpen.value = false;
 }
 
 async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean }) {
@@ -245,6 +259,17 @@ function handleClosePrintSelect() {
       :os-numero="osToFinalizar?.numero_os ?? null"
       :ordem-servico="osToFinalizar"
       @close="handleCloseFinalizarDirect"
+      @advance="handleAdvanceDirect"
+    />
+
+    <OSPagamentoModal
+      :is-open="isPagamentoDirectOpen"
+      :os-numero="osToFinalizar?.numero_os ?? null"
+      :ordem-servico="osToFinalizar"
+      :dados-os="dadosFinalizacaoDirect"
+      :desconto-os="dadosFinalizacaoDirect?.desconto ?? 0"
+      @close="handleCloseFinalizarDirect"
+      @voltar="handlePagamentoVoltarDirect"
       @finalized="handleFinalizadoDirect"
     />
 

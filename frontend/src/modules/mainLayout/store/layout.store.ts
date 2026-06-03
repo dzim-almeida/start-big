@@ -31,6 +31,10 @@ export const useLayoutStore = defineStore('layout', () => {
   const activeTab = ref<string>('');
   
   const isQuickOpen = ref<boolean>(false);
+  const isSettingsOpen = ref<boolean>(false);
+  const isMinhaContaOpen = ref<boolean>(false);
+  const isConfiguracoesOpen = ref<boolean>(false);
+  const secaoConfiguracoesAtiva = ref<string>('regras-de-vendas');
 
   //Listener
   function init() {
@@ -61,7 +65,34 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   function toggleQuick() {
-    isQuickOpen.value = !isQuickOpen.value
+    isQuickOpen.value = !isQuickOpen.value;
+  }
+
+  function toggleSettings() {
+    isSettingsOpen.value = !isSettingsOpen.value;
+  }
+
+  function closeSettings() {
+    isSettingsOpen.value = false;
+  }
+
+  function openMinhaConta() {
+    isSettingsOpen.value = false;
+    isMinhaContaOpen.value = true;
+  }
+
+  function closeMinhaConta() {
+    isMinhaContaOpen.value = false;
+  }
+
+  function openConfiguracoes(secao: string = 'regras-de-vendas') {
+    isSettingsOpen.value = false;
+    secaoConfiguracoesAtiva.value = secao;
+    isConfiguracoesOpen.value = true;
+  }
+
+  function closeConfiguracoes() {
+    isConfiguracoesOpen.value = false;
   }
 
   watch(
@@ -82,12 +113,22 @@ export const useLayoutStore = defineStore('layout', () => {
     isMobileOpen,
     isOpen,
     isQuickOpen,
+    isSettingsOpen,
+    isMinhaContaOpen,
+    isConfiguracoesOpen,
+    secaoConfiguracoesAtiva,
 
     //Metodos
     updatePageInfo,
     toggleSidebar,
     closeSidebar,
     toggleQuick,
+    toggleSettings,
+    closeSettings,
+    openMinhaConta,
+    closeMinhaConta,
+    openConfiguracoes,
+    closeConfiguracoes,
 
     // Listeners
     init,

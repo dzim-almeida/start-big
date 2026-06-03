@@ -52,18 +52,22 @@ def create_movimentacao(
         if quantidade_anterior < data.quantidade:
             raise estoque_insuficiente
         quantidade_posterior = quantidade_anterior - data.quantidade
+    elif data.tipo == MovimentacaoTipo.EDICAO_DADOS:
+        quantidade_posterior = quantidade_anterior  # sem alteração de estoque
     else:  # AJUSTE
         quantidade_posterior = data.quantidade
 
-    # Atualiza o estoque
-    estoque.quantidade = quantidade_posterior
+    # Atualiza o estoque apenas para movimentações que afetam quantidade
+    if data.tipo != MovimentacaoTipo.EDICAO_DADOS:
+        estoque.quantidade = quantidade_posterior
 
-    # Determina a quantidade real movimentada para AJUSTE
-    quantidade_real = (
-        abs(quantidade_posterior - quantidade_anterior)
-        if data.tipo == MovimentacaoTipo.AJUSTE
-        else data.quantidade
-    )
+    # Determina a quantidade real movimentada
+    if data.tipo == MovimentacaoTipo.EDICAO_DADOS:
+        quantidade_real = 0
+    elif data.tipo == MovimentacaoTipo.AJUSTE:
+        quantidade_real = abs(quantidade_posterior - quantidade_anterior)
+    else:
+        quantidade_real = data.quantidade
 
     movimentacao = MovimentacaoEstoque(
         produto_id=produto_id,

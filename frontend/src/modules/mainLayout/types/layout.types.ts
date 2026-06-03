@@ -17,6 +17,7 @@ export type SidebarLabelOptions =
     | 'Catálogo'
     | 'Dados da Empresa'
     | 'Gestão de Equipe'
+    | 'Minha Conta'
     
 export interface SidebarOption {
     id: string;

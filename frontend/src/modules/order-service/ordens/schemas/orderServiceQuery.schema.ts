@@ -3,7 +3,7 @@ import { toTypedSchema } from '@vee-validate/zod';
 
 import { OrderServiceBaseSchema } from './orderService.schema';
 
-import { OsStatusEnum } from './enums/osEnums.schema';
+import { OsStatusEnum, OsEquipSituacaoEnum } from './enums/osEnums.schema';
 
 import {
   CustomerPFReadSchema,
@@ -36,6 +36,7 @@ export const OrderServiceReadSchema = z.object({
 
   // Estados
   status: OsStatusEnum,
+  situacao_equipamento: OsEquipSituacaoEnum.optional().nullable(),
 
   // Financeiro
   valor_bruto: z.number().int(),

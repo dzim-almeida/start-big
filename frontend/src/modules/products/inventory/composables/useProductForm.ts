@@ -23,6 +23,7 @@ import type {
 } from '../types/products.types';
 import { useCreateProductMutation, useUpdateProductMutation } from './useProductsQuery';
 import { useProductModal } from './useProductModal';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 // =============================================
 // Constants
@@ -106,7 +107,8 @@ export const PRODUCT_FORM_KEY: InjectionKey<ProductFormContext> = Symbol('produc
 // =============================================
 
 export function useProductFormProvider() {
-  const { selectedProduct, isCreateMode, closeModal } = useProductModal();
+  const { selectedProduct, isCreateMode, closeModal, isOpen } = useProductModal();
+  const configStore = useConfiguracoesStore();
 
   const {
     handleSubmit,
@@ -171,12 +173,19 @@ export function useProductFormProvider() {
   }
 
   watch(
-    selectedProduct,
-    (product) => {
+    [selectedProduct, isOpen],
+    ([product, open]) => {
+      if (!open) return;
       if (product) {
         populateForm(product);
       } else {
-        resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+        resetForm({
+          values: {
+            ...DEFAULT_FORM_VALUES,
+            unidade_medida: configStore.unidadeMedidaPadrao,
+            quantidade_minima: configStore.quantidadeMinimaPadrao,
+          },
+        });
       }
     },
     { immediate: true },
@@ -208,12 +217,33 @@ export function useProductFormProvider() {
     async (formData) => {
       apiError.value = null;
 
+      const errosConfig: Record<string, string> = {};
+      if (configStore.exigirCodigoBarras && !formData.codigo_barras) {
+        errosConfig.codigo_barras = 'Código de barras é obrigatório';
+      }
+      if (configStore.exigirCategoria && !formData.categoria) {
+        errosConfig.categoria = 'Categoria é obrigatória';
+      }
+      if (configStore.exigirPrecoCusto && (!formData.valor_entrada || formData.valor_entrada <= 0)) {
+        errosConfig.valor_entrada = 'Preço de custo é obrigatório';
+      }
+      if (Object.keys(errosConfig).length > 0) {
+        setErrors(errosConfig);
+        return;
+      }
+
       if (isCreateMode.value) {
         const request = transformToCreateRequest(formData);
         createMutation.mutate(request, {
           onSuccess: () => {
             closeModal();
-            resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+            resetForm({
+              values: {
+                ...DEFAULT_FORM_VALUES,
+                unidade_medida: configStore.unidadeMedidaPadrao,
+                quantidade_minima: configStore.quantidadeMinimaPadrao,
+              },
+            });
           },
         });
       } else if (selectedProduct.value) {
@@ -242,7 +272,13 @@ export function useProductFormProvider() {
           {
             onSuccess: () => {
               closeModal();
-              resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+              resetForm({
+                values: {
+                  ...DEFAULT_FORM_VALUES,
+                  unidade_medida: configStore.unidadeMedidaPadrao,
+                  quantidade_minima: configStore.quantidadeMinimaPadrao,
+                },
+              });
             },
           },
         );
@@ -281,7 +317,13 @@ export function useProductFormProvider() {
     apiError,
     isPending,
     onSubmit,
-    resetForm: () => resetForm({ values: { ...DEFAULT_FORM_VALUES } }),
+    resetForm: () => resetForm({
+      values: {
+        ...DEFAULT_FORM_VALUES,
+        unidade_medida: configStore.unidadeMedidaPadrao,
+        quantidade_minima: configStore.quantidadeMinimaPadrao,
+      },
+    }),
   };
 
   provide(PRODUCT_FORM_KEY, context);

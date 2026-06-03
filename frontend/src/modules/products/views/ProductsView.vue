@@ -83,9 +83,18 @@ const mergedProducts = computed(() => {
   return merged;
 });
 
+function normalizarCategoria(cat: string | null | undefined): string {
+  const raw = (cat || 'SEM CATEGORIA').trim().toUpperCase();
+  return raw;
+}
+
+function exibirCategoria(cat: string): string {
+  return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+}
+
 const uniqueCategories = computed(() => {
   const cats = new Set(
-    mergedProducts.value.map((p) => p.categoria || 'SEM CATEGORIA')
+    mergedProducts.value.map((p) => normalizarCategoria(p.categoria))
   );
   return Array.from(cats).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 });
@@ -139,7 +148,7 @@ const groupedProducts = computed(() => {
   if (!isGroupedByCategory.value) return null;
   const groups: Record<string, ProdutoRead[]> = {};
   for (const product of filteredProducts.value) {
-    const cat = product.categoria || 'SEM CATEGORIA';
+    const cat = normalizarCategoria(product.categoria);
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(product);
   }
@@ -325,7 +334,7 @@ function handleEmptyAction() {
       <template v-if="isGroupedByCategory && groupedProducts">
         <div v-for="(products, category) in groupedProducts" :key="category" class="space-y-4">
           <h2 class="text-lg font-bold text-zinc-700 border-b border-zinc-200 pb-2">
-            {{ category }}
+            {{ exibirCategoria(category) }}
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <ProductCard

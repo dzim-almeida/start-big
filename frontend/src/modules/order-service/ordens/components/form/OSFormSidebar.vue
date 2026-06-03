@@ -1,10 +1,34 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue';
 import OSClientCard from './OSClientCard.vue';
 import OSControlsCard from './OSControlsCard.vue';
 import OSSummaryCard from './OSSummaryCard.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 const view = useOSFormView();
+const authStore = useAuthStore();
+
+const canSelectTecnico = computed(() => {
+  const user = authStore.userData;
+  if (!user) return false;
+  if (!user.cargo) return true; // master sem cargo tem acesso total
+  return user.cargo.permissoes?.['funcionario'] === true;
+});
+
+// Pré-preenche o técnico com o funcionário logado quando as opções carregam
+watch(
+  () => view.funcionariosOptions.value.length,
+  (len) => {
+    if (len > 1 && !canSelectTecnico.value && view.isCreateMode.value) {
+      const funcionarioId = authStore.userData?.funcionario_id;
+      if (funcionarioId) {
+        view.handleFuncionarioIdUpdate(String(funcionarioId));
+      }
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -30,6 +54,7 @@ const view = useOSFormView();
       :status-options="view.statusOptions.value"
       :prioridade-options="view.prioridadeOptions.value"
       :funcionarios-options="view.funcionariosOptions.value"
+      :can-select-tecnico="canSelectTecnico"
       :errors="view.formErrors.value"
       @update:status="view.handleStatusUpdate"
       @update:funcionario-id="view.handleFuncionarioIdUpdate"

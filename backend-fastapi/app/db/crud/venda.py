@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, aliased, joinedload
-from sqlalchemy import select, func, or_, cast, String
+from sqlalchemy import select, func, or_, cast, String, extract
+from datetime import datetime
 
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
@@ -134,7 +135,12 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
     )
 
     if funcionario_id:
-        stmt = stmt.where(Venda.funcionario_id == funcionario_id)
+        agora_utc = datetime.utcnow()
+        stmt = stmt.where(
+            Venda.funcionario_id == funcionario_id,
+            extract('month', Venda.criado_em) == agora_utc.month,
+            extract('year', Venda.criado_em) == agora_utc.year,
+        )
 
     result = db.execute(stmt).first()
 

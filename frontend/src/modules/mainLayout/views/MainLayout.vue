@@ -14,24 +14,42 @@ import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.
 import SaleModal from '@/modules/sales/components/SaleModal.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
+import OSEquipamentoSelectModal from '@/modules/order-service/ordens/components/form/OSEquipamentoSelectModal.vue';
 
 import { useLayoutStore } from '../store/layout.store';
+import { useSettingsStore } from '@/shared/stores/settings.store';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { onMounted } from 'vue';
+import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
+import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 
 const layoutStore = useLayoutStore();
-const { isMobile, isMobileOpen, isQuickOpen } = storeToRefs(layoutStore);
+const settingsStore = useSettingsStore();
+const configuracoesStore = useConfiguracoesStore();
+const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
+
+onMounted(() => {
+  settingsStore.init();
+  configuracoesStore.carregarConfiguracoes();
+});
 
 const { openCustomerModal } = useCustomerSearchModal();
 const {
   isClienteSearchOpen,
   isFormModalOpen,
+  isEquipSelectOpen,
   selectedCliente,
   selectedOS,
+  equipamentosHistoricoFlow,
+  selectedEquipamento,
   openNovaOS,
   handleClienteSelected,
+  handleEquipamentoSelectedFlow,
+  skipEquipamentoSelectFlow,
   handleChangeCliente,
   closeClienteSearch,
   closeFormModal,
@@ -69,6 +87,12 @@ whenever(Ctrl_K, () => {
         @click="layoutStore.toggleQuick"
       />
 
+      <div
+        v-if="isSettingsOpen"
+        class="fixed inset-0 bg-transparent z-40"
+        @click="layoutStore.closeSettings"
+      />
+
     <BaseSidebar />
 
     <main class="relative flex-1 overflow-y-auto flex flex-col min-w-0">
@@ -92,6 +116,19 @@ whenever(Ctrl_K, () => {
       </Transition>
     </main>
 
+    <!-- Modal Minha Conta -->
+    <MinhaContaModal
+      :isOpen="isMinhaContaOpen"
+      @close="layoutStore.closeMinhaConta"
+    />
+
+    <!-- Modal Configurações Gerais -->
+    <ConfiguracoesModal
+      :isOpen="isConfiguracoesOpen"
+      :secao-inicial="(secaoConfiguracoesAtiva as any)"
+      @close="layoutStore.closeConfiguracoes"
+    />
+
     <!-- Modais globais (disponíveis em todo o sistema) -->
     <CustomerFormModal />
     <ProductModal />
@@ -105,10 +142,18 @@ whenever(Ctrl_K, () => {
       @select-cliente="handleClienteSelected"
     />
 
+    <OSEquipamentoSelectModal
+      :is-open="isEquipSelectOpen"
+      :equipamentos="equipamentosHistoricoFlow"
+      @close="skipEquipamentoSelectFlow"
+      @select="handleEquipamentoSelectedFlow"
+    />
+
     <OSFormModal
       :is-open="isFormModalOpen"
       :ordem-servico="selectedOS"
       :selected-cliente="selectedCliente"
+      :initial-equipamento="selectedEquipamento"
       @close="closeFormModal"
       @change-cliente="handleChangeCliente"
     />

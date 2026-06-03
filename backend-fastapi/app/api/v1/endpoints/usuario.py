@@ -7,7 +7,7 @@
 from fastapi import APIRouter, Depends, File, status, UploadFile
 from sqlalchemy.orm import Session
 
-from app.schemas.usuario import UsuarioCreate, UsuarioRead
+from app.schemas.usuario import UsuarioCreate, UsuarioRead, UsuarioUpdateMe, UsuarioAlterarSenha
 from app.core.depends import get_current_user, _handle_db_transaction
 from app.db.session import get_db
 from app.services import usuario as usuario_service
@@ -86,5 +86,41 @@ def get_usuario_me(
         db,
         usuario_service.get_usuario_me_by_id,
         token_user.get("sub"),
+    )
+
+@router.patch(
+    "/me",
+    response_model=UsuarioRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar dados da conta do usuário logado"
+)
+def update_usuario_me(
+    dados: UsuarioUpdateMe,
+    token_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        usuario_service.update_usuario_me,
+        token_user.get("sub"),
+        dados
+    )
+
+@router.patch(
+    "/me/senha",
+    response_model=UsuarioRead,
+    status_code=status.HTTP_200_OK,
+    summary="Alterar senha do usuário logado"
+)
+def alterar_senha_me(
+    dados: UsuarioAlterarSenha,
+    token_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        usuario_service.alterar_senha_me,
+        token_user.get("sub"),
+        dados
     )
     

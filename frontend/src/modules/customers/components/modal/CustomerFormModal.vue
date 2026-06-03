@@ -6,10 +6,13 @@
  * Usa BaseModal + provide/inject para compartilhar estado com child components.
  */
 
+import { watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseTab from '@/shared/components/ui/BaseTab/BaseTab.vue';
 import AddressSection from '@/shared/components/form/AddressSection.vue';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 import PersonalDataSection from './form/PersonalDataSection.vue';
 import CompanyDataSection from './form/CompanyDataSection.vue';
@@ -33,7 +36,10 @@ const {
   closeModal,
 } = useCustomerModal();
 
+const { tipoPessoaPadrao } = storeToRefs(useConfiguracoesStore());
+
 // ── Form Provider (DEVE ser chamado antes de qualquer await) ──
+
 
 const {
   customerType,
@@ -46,6 +52,12 @@ const {
   isPending,
   onSubmit,
 } = useCustomerFormProvider();
+
+watch(isOpen, (aberto) => {
+  if (aberto && isCreateMode.value) {
+    setCustomerType(tipoPessoaPadrao.value as TipoCliente)
+  }
+})
 </script>
 
 <template>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import OSFormModalShell from './form/OSFormModalShell.vue';
 import OSFormAuxModals from './form/OSFormAuxModals.vue';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
+import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
 import { getUniqueOS } from '../services/orderServiceGet.service';
 import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
 import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
@@ -26,6 +27,7 @@ interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
   selectedCliente?: CustomerUnionReadSchemaDataType | null;
+  initialEquipamento?: EquipamentoHistorico | null;
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{
@@ -192,6 +194,15 @@ useOSModalLifecycle({
   resetReopenState,
   onOpen: () => {
     resetEquipSelectStateProxy?.();
+    if (props.initialEquipamento && isCreateMode.value) {
+      const equip = props.initialEquipamento;
+      nextTick(() => {
+        form.criar.equipamento_tipo_equipamento.value = equip.equipamento;
+        form.criar.equipamento_marca.value = equip.marca ?? '';
+        form.criar.equipamento_modelo.value = equip.modelo ?? '';
+        form.criar.equipamento_numero_serie.value = equip.numero_serie ?? '';
+      });
+    }
   },
 });
 const {
@@ -205,6 +216,7 @@ const {
   selectedCliente: computed(() => props.selectedCliente as { id?: number } | null),
   ordemServicoCliente: computed(() => currentOSData.value?.cliente as { id?: number } | null),
   isCreateMode,
+  isFormOpen: computed(() => props.isOpen),
   createEquipamentoTipo: form.criar.equipamento_tipo_equipamento,
   createEquipamentoMarca: form.criar.equipamento_marca,
   createEquipamentoModelo: form.criar.equipamento_modelo,

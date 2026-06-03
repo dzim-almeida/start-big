@@ -93,13 +93,13 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
 
     return produto_in_db
 
-def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool) -> ProdutoFotoModel:
-    
+def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool, usuario_token: dict) -> ProdutoFotoModel:
+
     produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
 
     if not produto_in_db:
         raise not_found_exce
-    
+
     image_url = salvar_imagem(arquivo=image_file, entidade_id=produto_id, contexto="produto")
 
     produto_image_to_db = ProdutoFotoModel(
@@ -109,7 +109,11 @@ def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, p
         principal=primary_image,
     )
 
-    return produto_crud.create_produto_image(db, produto_image_to_db)
+    result = produto_crud.create_produto_image(db, produto_image_to_db)
+
+    _registrar_edicao(db, produto_in_db, usuario_token, "Foto do produto atualizada")
+
+    return result
 
 # ===========================================================================
 # LÓGICA DE LEITURA (READ)
@@ -127,39 +131,88 @@ def get_produto_simple_by_search(db: Session, search: str | None) -> Sequence[Pr
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
 # ===========================================================================
 
-def update_produto_by_id(db: Session, produto_id: int, produto_to_update: ProdutoUpdate) -> ProdutoModel:
+_CAMPO_LEGIVEL: dict[str, str] = {
+    "nome": "Nome",
+    "codigo_produto": "Código SKU",
+    "codigo_barras": "Código de Barras",
+    "unidade_medida": "Unidade de Medida",
+    "categoria": "Categoria",
+    "marca": "Marca",
+    "fornecedor_id": "Fornecedor",
+    "localizacao_estoque": "Localização",
+    "observacao": "Descrição",
+    "valor_varejo": "Preço Varejo",
+    "valor_entrada": "Preço Custo",
+    "valor_atacado": "Preço Atacado",
+    "quantidade": "Quantidade",
+    "quantidade_minima": "Qtd. Mínima",
+    "quantidade_ideal": "Qtd. Ideal",
+}
+
+
+def _build_observacao_edicao(campos: list[str]) -> str:
+    nomes = [_CAMPO_LEGIVEL.get(c, c) for c in campos]
+    if len(nomes) == 1:
+        return f"{nomes[0]} alterado"
+    return f"Campos alterados: {', '.join(nomes)}"
+
+
+def _registrar_edicao(db, produto, usuario_token: dict, observacao: str) -> None:
+    mov = MovimentacaoEstoque(
+        produto_id=produto.id,
+        produto_nome=produto.nome,
+        usuario_id=int(usuario_token["sub"]) if usuario_token.get("sub") else None,
+        usuario_nome=usuario_token.get("nome", "Sistema"),
+        tipo=MovimentacaoTipo.EDICAO_DADOS,
+        quantidade=0,
+        quantidade_anterior=produto.estoque.quantidade,
+        quantidade_posterior=produto.estoque.quantidade,
+        observacao=observacao,
+    )
+    mov_crud.create_movimentacao(db, mov)
+
+
+def update_produto_by_id(db: Session, produto_id: int, produto_to_update: ProdutoUpdate, usuario_token: dict) -> ProdutoModel:
     """
     Atualiza produto e dados de estoque aninhados.
     """
     produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-    
+
     if not produto_in_db:
         raise not_found_exce
-    
+
     data_to_update = produto_to_update.model_dump(exclude_unset=True)
+    campos_alterados: list[str] = []
 
     # Tratamento para atualização de Estoque (Tabela Filha)
     if "estoque" in data_to_update:
         storage_data_to_update = produto_to_update.estoque.model_dump(exclude_unset=True)
-        
-        # Atualiza atributos do objeto Estoque já existente na sessão
+
         for key, value in storage_data_to_update.items():
+            if getattr(produto_in_db.estoque, key, None) != value:
+                campos_alterados.append(key)
             setattr(produto_in_db.estoque, key, value)
-        
-        # Remove do dicionário principal para evitar erro de atribuição direta
+
         del data_to_update["estoque"]
 
     # Atualiza atributos do Produto (Tabela Pai)
     for key, value in data_to_update.items():
+        if getattr(produto_in_db, key, None) != value:
+            campos_alterados.append(key)
         setattr(produto_in_db, key, value)
 
-    return produto_crud.update_produto(db, produto_in_db)
+    produto_result = produto_crud.update_produto(db, produto_in_db)
+
+    if campos_alterados:
+        _registrar_edicao(db, produto_result, usuario_token, _build_observacao_edicao(campos_alterados))
+
+    return produto_result
 
 # ===========================================================================
 # LÓGICA DE STATUS (TOGGLE)
 # ===========================================================================
 
-def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None) -> ProdutoModel:
+def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produto_code: str | None, usuario_token: dict) -> ProdutoModel:
     """
     Alterna status Ativo/Inativo.
     Se estiver reativando, verifica conflito de código e permite atualização.
@@ -190,7 +243,12 @@ def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produt
     # Inverte o status
     produto_in_db.ativo = not produto_in_db.ativo
 
-    return produto_crud.update_produto(db, produto_to_update=produto_in_db)
+    produto_result = produto_crud.update_produto(db, produto_to_update=produto_in_db)
+
+    observacao = "Produto reativado" if produto_result.ativo else "Produto desabilitado"
+    _registrar_edicao(db, produto_result, usuario_token, observacao)
+
+    return produto_result
 
 # ===========================================================================
 # LÓGICA DE DELEÇÃO (DELETE)

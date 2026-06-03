@@ -28,7 +28,7 @@ router = APIRouter()
     summary="Cria um novo fornecedor e seus endereços associados"
 )
 def create_fornecedor(
-    user_token: dict = Depends(check_permission(required_permission="fornecedor")),
+    user_token: dict = Depends(check_permission(required_permission=["fornecedor", "produto"])),
     *,
     fornecedor_to_add: FornecedorCreate,
     db: Session = Depends(get_db)
@@ -65,7 +65,7 @@ def create_fornecedor(
     summary="Buscar os fornecedores por nome ou CNPJ, ou retorna todos"
 )
 def get_fornecedor_by_search(
-    user_token: dict = Depends(check_permission(required_permission="fornecedor")),
+    user_token: dict = Depends(check_permission(required_permission=["fornecedor", "produto"])),
     *,
     buscar: Optional[str] = Query(
         None,
@@ -106,7 +106,7 @@ def get_fornecedor_by_search(
     summary="Atualiza os dados de um fornecedor pelo ID"
 )
 def update_fornecedor_by_id(
-    user_token: dict = Depends(check_permission(required_permission="fornecedor")),
+    user_token: dict = Depends(check_permission(required_permission=["fornecedor", "produto"])),
     fornecedor_id: int = Path(..., description="ID do fornecedor a ser atualizado", ge=1),
     *,
     fornecedor_to_update: FornecedorUpdate,
@@ -145,7 +145,7 @@ def update_fornecedor_by_id(
     summary="Ativa/Desativa um Fornecedor logicamente no BD"
 )
 def toggle_status_fornecedor(
-    user_token: dict = Depends(check_permission(required_permission="fornecedor")),
+    user_token: dict = Depends(check_permission(required_permission=["fornecedor", "produto"])),
     fornecedor_id: int = Path(..., description="ID do Fornecedor a ser ativado/desativado", ge=1),
     *,
     db: Session = Depends(get_db)

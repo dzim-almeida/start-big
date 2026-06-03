@@ -8,6 +8,9 @@ import { Phone } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+
+const configStore = useConfiguracoesStore();
 
 // =============================================
 // Props
@@ -52,6 +55,7 @@ const {
           type="email"
           label="E-mail"
           placeholder="email@exemplo.com"
+          :required="configStore.exigirEmail"
           :error="submitCount > 0 ? errors.email : ''"
           :disabled="disabled"
         />
@@ -65,7 +69,7 @@ const {
           label="Celular - WhatsApp"
           placeholder="(00) 00000-0000"
           mask="(##) #####-####"
-          :required="true"
+          :required="configStore.exigirCelular"
           :error="submitCount > 0 ? errors.celular : ''"
           :disabled="disabled"
         />

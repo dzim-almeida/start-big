@@ -1,10 +1,23 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { Bell, Menu, Settings } from 'lucide-vue-next';
 import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
+import SettingsMenu from '../ui/SettingsMenu.vue';
 
 const layoutStore = useLayoutStore();
-const { pageTitle, pageSubtitle, isMobile } = storeToRefs(layoutStore);
+const { pageTitle, pageSubtitle, isMobile, isSettingsOpen } = storeToRefs(layoutStore);
+
+const settingsButtonRef = ref<HTMLButtonElement | null>(null);
+
+const menuStyle = computed(() => {
+  if (!settingsButtonRef.value) return {};
+  const rect = settingsButtonRef.value.getBoundingClientRect();
+  return {
+    top: `${rect.bottom + 8}px`,
+    right: `${window.innerWidth - rect.right}px`,
+  };
+});
 </script>
 
 <template>
@@ -49,11 +62,36 @@ const { pageTitle, pageSubtitle, isMobile } = storeToRefs(layoutStore);
 
       <!-- Settings Icon -->
       <button
-        class="relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+        ref="settingsButtonRef"
+        @click="layoutStore.toggleSettings"
+        :class="[
+          'relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer',
+          isSettingsOpen && 'bg-zinc-100 text-zinc-800',
+        ]"
         aria-label="Configurações"
       >
         <Settings :size="20" />
       </button>
     </div>
   </header>
+
+  <!-- Menu renderizado no body via Teleport para escapar do z-index do header -->
+  <Teleport to="body">
+    <Transition name="dropdown">
+      <SettingsMenu v-if="isSettingsOpen" :style="menuStyle" />
+    </Transition>
+  </Teleport>
 </template>
+
+<style scoped>
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+}
+</style>

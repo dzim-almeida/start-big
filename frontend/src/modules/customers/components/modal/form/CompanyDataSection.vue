@@ -10,6 +10,9 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
 import { REGIME_TRIBUTARIO_OPTIONS } from '@/modules/enterprise/constants/empresa.constants';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+
+const configStore = useConfiguracoesStore();
 
 // =============================================
 // Props
@@ -80,7 +83,7 @@ const {
           label="CNPJ"
           placeholder="00.000.000/0000-00"
           mask="##.###.###/####-##"
-          :required="true"
+          :required="configStore.exigirCnpjPj"
           :error="submitCount > 0 ? errors.cnpj : ''"
           :disabled="disabled"
         />
@@ -101,6 +104,7 @@ const {
           v-model="ie"
           label="Inscrição Estadual"
           placeholder="000.000.000.000"
+          :required="configStore.exigirIePj"
           :error="submitCount > 0 ? errors.ie : ''"
           :disabled="disabled"
         />

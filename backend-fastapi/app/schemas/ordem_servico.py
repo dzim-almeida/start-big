@@ -28,7 +28,8 @@ from app.core.enum import (
     UnidadeMedida,
     OrdemServicoStatus,
     TipoEquipamento,
-    OrdemServicoPrioridade
+    OrdemServicoPrioridade,
+    SituacaoEquipamento,
 )
 
 from app.schemas.cliente import ClienteRead
@@ -263,6 +264,7 @@ class OrdemServicoRead(OrdemServicoBase):
 
     # Estado
     status: OrdemServicoStatus = Field(..., description="Status atual da OS")
+    situacao_equipamento: Optional[SituacaoEquipamento] = Field(None, description="Situação final do equipamento: REPARADO, SEM_REPARO ou CONDENADO")
 
     # Financeiro
     valor_bruto: int = Field(..., description="Soma dos valores dos itens antes do desconto (centavos)")
@@ -301,6 +303,8 @@ class OrdemServicoFinalizar(BaseModel):
     - A OS não pode estar com status FINALIZADA ou CANCELADA.
     - Uma OS só é finalizada se for integralmente paga.
     """
+    situacao_equipamento: Optional[SituacaoEquipamento] = Field(None, description="Situação final do equipamento: REPARADO, SEM_REPARO ou CONDENADO")
+    garantia: Optional[str] = Field(None, max_length=20, description="Prazo de garantia do serviço (ex: '90 dias', '6 meses')")
     solucao: Optional[str] = Field(None, max_length=500, description="Descrição da solução aplicada")
     observacoes: Optional[str] = Field(None, max_length=500, description="Observações adicionais de finalização")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto final em centavos (recalcula valor_total se informado)")
