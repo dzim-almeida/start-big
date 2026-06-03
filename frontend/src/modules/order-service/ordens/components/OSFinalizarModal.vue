@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { CheckCircle2, AlertTriangle, XCircle, ShieldCheck, User, Cpu } from 'lucide-vue-next';
+import { CheckCircle2, AlertTriangle, XCircle, ShieldCheck, User, Cpu, Calendar } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -140,8 +140,8 @@ function handleAdvance() {
   >
     <div class="flex flex-col gap-4">
 
-      <!-- ── Linha 1: Cliente + Equipamento ── -->
-      <div class="grid grid-cols-2 gap-3">
+      <!-- ── Linha 1: Cliente + Equipamento + Previsão ── -->
+      <div class="grid grid-cols-3 gap-3">
         <div class="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex items-center gap-3">
           <div class="p-2 bg-brand-primary/10 rounded-lg shrink-0">
             <User :size="16" class="text-brand-primary" />
@@ -163,6 +163,48 @@ function handleAdvance() {
               {{ ordemServico?.equipamento?.marca }} {{ ordemServico?.equipamento?.modelo }}
             </p>
             <p class="text-xs text-zinc-400">Série: {{ ordemServico?.equipamento?.numero_serie }}</p>
+          </div>
+        </div>
+
+        <div
+          class="rounded-xl p-3 flex items-center gap-3 border"
+          :class="ordemServico?.data_previsao
+            ? new Date(ordemServico.data_previsao) < new Date()
+              ? 'bg-red-50 border-red-200'
+              : 'bg-zinc-50 border-zinc-200'
+            : 'bg-zinc-50 border-zinc-200'"
+        >
+          <div
+            class="p-2 rounded-lg shrink-0"
+            :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+              ? 'bg-red-100'
+              : 'bg-brand-primary/10'"
+          >
+            <Calendar
+              :size="16"
+              :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+                ? 'text-red-500'
+                : 'text-brand-primary'"
+            />
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Data de Entrega</p>
+            <p
+              class="font-semibold text-sm leading-tight"
+              :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+                ? 'text-red-600'
+                : 'text-zinc-800'"
+            >
+              {{ ordemServico?.data_previsao
+                ? new Date(ordemServico.data_previsao).toLocaleDateString('pt-BR')
+                : new Date().toLocaleDateString('pt-BR') }}
+            </p>
+            <p
+              v-if="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()"
+              class="text-[10px] text-red-500"
+            >
+              Em atraso
+            </p>
           </div>
         </div>
       </div>
