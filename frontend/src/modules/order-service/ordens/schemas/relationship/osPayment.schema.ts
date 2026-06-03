@@ -9,6 +9,7 @@ export const OsPaymentCreateSchema = z.object({
   valor: z.number().int().min(1, 'O valor deve ser maior que 0'),
   parcelas: z.number().int().min(1, 'O número de parcelas deve ser maior que 0'),
   bandeira_cartao: OsCardsFlagEnum.optional(),
+  vencimento: z.string().optional(),
   detalhes: string().max(500, 'Detalhes deve ter no máximo 500 caracteres').optional(),
 });
 
@@ -21,5 +22,6 @@ export const OsPaymentReadSchema = z.object({
   valor: z.number().int(),
   parcelas: z.number().int(),
   bandeira_cartao: OsCardsFlagEnum.optional().nullable(),
+  vencimento: z.string().optional().nullable(),
   detalhes: z.string().max(500, 'Detalhes deve ter no máximo 500 caracteres').optional().nullable()
 });

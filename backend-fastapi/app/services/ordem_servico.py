@@ -452,6 +452,7 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
             valor=pagamento_data.valor,
             parcelas=pagamento_data.parcelas,
             bandeira_cartao=pagamento_data.bandeira_cartao,
+            vencimento=pagamento_data.vencimento,
             detalhes=pagamento_data.detalhes,
         )
         os_crud.create_os_pagamento(db, pagamento_to_add=pagamento)

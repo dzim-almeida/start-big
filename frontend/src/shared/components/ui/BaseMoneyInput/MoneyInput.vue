@@ -13,6 +13,7 @@ interface Props {
   disabled?: boolean;
   id?: string;
   options?: CurrencyInputOptions; // Adicionado para flexibilidade
+  inputClass?: string;
 }
 
 // 2. Use withDefaults com uma função para a propriedade 'options'
@@ -45,6 +46,7 @@ const inputClasses = computed(() => [
     ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
     : 'border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary',
   props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
+  props.inputClass,
 ]);
 
 watch(
@@ -57,6 +59,10 @@ watch(
     }
   },
 );
+
+defineExpose({
+  inputRef,
+});
 </script>
 
 <template>

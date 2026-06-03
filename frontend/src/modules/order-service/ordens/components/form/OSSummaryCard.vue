@@ -28,6 +28,9 @@ const emit = defineEmits<{
 const servicosCount = computed(() => props.itens.filter(i => i.tipo === 'SERVICO').length);
 const produtosCount = computed(() => props.itens.filter(i => i.tipo === 'PRODUTO').length);
 
+const totalServicos = computed(() => props.itens.filter(i => i.tipo === 'SERVICO').reduce((acc, curr) => acc + getItemTotal(curr), 0));
+const totalProdutos = computed(() => props.itens.filter(i => i.tipo === 'PRODUTO').reduce((acc, curr) => acc + getItemTotal(curr), 0));
+
 const valorEntradaReais = computed({
   get: () => (props.valorEntrada || 0) / 100,
   set: (val: number) => emit('update:valorEntrada', Math.round((val || 0) * 100)),
@@ -98,8 +101,18 @@ function getItemTotal(item: OsItem): number {
 
       <!-- Resumo financeiro -->
       <div class="border-t border-slate-200 pt-3 space-y-2">
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-500">Subtotal</span>
+        <div v-if="servicosCount > 0" class="flex items-center justify-between text-sm">
+          <span class="text-slate-500">Mão-de-obra</span>
+          <span class="font-medium text-slate-700">{{ formatCurrency(totalServicos) }}</span>
+        </div>
+
+        <div v-if="produtosCount > 0" class="flex items-center justify-between text-sm">
+          <span class="text-slate-500">Peças</span>
+          <span class="font-medium text-slate-700">{{ formatCurrency(totalProdutos) }}</span>
+        </div>
+
+        <div class="flex items-center justify-between text-sm pt-1 border-t border-slate-100 border-dashed">
+          <span class="text-slate-500 font-medium">Subtotal</span>
           <span class="font-semibold text-brand-primary">{{ formatCurrency(subtotal) }}</span>
         </div>
 
@@ -114,16 +127,17 @@ function getItemTotal(item: OsItem): number {
         </div>
 
         <!-- Adiantamento / Entrada -->
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center justify-between gap-2 pt-2">
           <div class="flex items-center gap-1.5">
             <Banknote :size="14" class="text-emerald-500" />
-            <span class="text-sm text-emerald-600 font-medium">Entrada</span>
+            <span class="text-sm text-emerald-600 font-medium">Adiantamento</span>
           </div>
           <div class="w-28">
             <BaseMoneyInput
               v-model="valorEntradaReais"
               :disabled="isLocked"
-              class="text-right text-sm"
+              class="text-sm"
+              input-class="text-right"
             />
           </div>
         </div>

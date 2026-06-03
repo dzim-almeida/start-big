@@ -19,7 +19,7 @@
 #   OrdemServicoStats           → estatísticas agregadas
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Sequence, List
 
@@ -133,6 +133,7 @@ class OSPagamentoCreate(BaseModel):
     valor: int = Field(..., gt=0, description="Valor pago nesta forma de pagamento (centavos)")
     parcelas: int = Field(1, ge=1, description="Número de parcelas (mínimo 1)")
     bandeira_cartao: Optional[str] = Field(None, max_length=50, description="Bandeira do cartão (VISA, MASTERCARD, etc.)")
+    vencimento: Optional[date] = Field(None, description="Data de vencimento do pagamento (ex: boletos)")
     detalhes: Optional[dict] = Field(None, description="Dados adicionais do pagamento em formato JSON")
 
     model_config = ConfigDict(from_attributes=True)
@@ -146,6 +147,7 @@ class OSPagamentoRead(BaseModel):
     valor: int = Field(..., description="Valor pago (centavos)")
     parcelas: int = Field(..., description="Número de parcelas")
     bandeira_cartao: Optional[str] = Field(None, description="Bandeira do cartão")
+    vencimento: Optional[date] = Field(None, description="Data de vencimento do pagamento")
     detalhes: Optional[dict] = Field(None, description="Dados adicionais")
 
     model_config = ConfigDict(from_attributes=True)

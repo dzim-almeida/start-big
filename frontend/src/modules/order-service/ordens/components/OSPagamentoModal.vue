@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import {
   FileText, CreditCard, Wallet, QrCode,
   Banknote, Trash2, Percent, Tag, Truck, ArrowLeft, CheckCircle2,
@@ -26,6 +26,8 @@ interface Pagamento {
   valor: number;
   parcelas: number;
   bandeira_cartao?: OsCardsFlagEnumDataType;
+  vencimento?: string;
+  detalhes?: string;
 }
 
 interface Props {
@@ -55,14 +57,35 @@ const pagamentosJuros = ref<number[]>([]);
 const confirmacao = ref(false);
 const hasAttemptedSubmit = ref(false);
 
+const moneyInputRef = ref();
+
 const showPaymentDetails = ref(false);
 const currentPaymentMethod = ref<PaymentFormReadDataType | null>(null);
 const paymentDetails = ref<{
   parcelas: number;
   bandeira: OsCardsFlagEnumDataType | '';
   taxa_juros: number;
-}>({ parcelas: 1, bandeira: '', taxa_juros: 0 });
+  vencimento?: string;
+  banco_destino?: string;
+  codigo_transacao?: string;
+}>({ parcelas: 1, bandeira: '', taxa_juros: 0, vencimento: new Date().toISOString().split('T')[0], banco_destino: '', codigo_transacao: '' });
 const paymentValueReais = ref(0);
+
+const parcelasOptions = computed(() => {
+  const options = [{ value: 1, label: 'À vista' }];
+  const baseValor = Math.round(paymentValueReais.value * 100);
+  const jurosAmount = Math.round(baseValor * (paymentDetails.value.taxa_juros / 100));
+  const totalParcelar = baseValor + jurosAmount;
+
+  for (let i = 2; i <= 12; i++) {
+    const valorParcela = totalParcelar / i;
+    options.push({
+      value: i,
+      label: `${i}x de ${formatCurrency(Math.round(valorParcela))}`
+    });
+  }
+  return options;
+});
 
 // ─── Cálculos financeiros ─────────────────────────────────────────────────────
 const subtotalItens = computed(() => {
@@ -125,19 +148,38 @@ function getPaymentIconById(id: number) {
 function handleAddPaymentClick(method: PaymentFormReadDataType) {
   currentPaymentMethod.value = method;
   paymentValueReais.value = restante.value / 100;
-  paymentDetails.value = { parcelas: 1, bandeira: '', taxa_juros: 0 };
+  paymentDetails.value = { parcelas: 1, bandeira: '', taxa_juros: 0, vencimento: new Date().toISOString().split('T')[0], banco_destino: '', codigo_transacao: '' };
   showPaymentDetails.value = true;
+  
+  nextTick(() => {
+    if (moneyInputRef.value?.inputRef) {
+      moneyInputRef.value.inputRef.select();
+    }
+  });
 }
 
 function confirmAddPayment() {
   if (!currentPaymentMethod.value) return;
   const baseValor = Math.round(paymentValueReais.value * 100);
   const jurosAmount = Math.round(baseValor * (paymentDetails.value.taxa_juros / 100));
+
+  let payloadDetalhes = undefined;
+  if (getMethodTipo(currentPaymentMethod.value).includes('TRANSFERENCIA')) {
+    if (paymentDetails.value.banco_destino || paymentDetails.value.codigo_transacao) {
+      payloadDetalhes = JSON.stringify({
+        banco_destino: paymentDetails.value.banco_destino,
+        codigo_transacao: paymentDetails.value.codigo_transacao
+      });
+    }
+  }
+
   pagamentos.value.push({
     forma_pagamento_id: currentPaymentMethod.value.id,
     valor: baseValor + jurosAmount,
     parcelas: paymentDetails.value.parcelas,
     bandeira_cartao: (paymentDetails.value.bandeira || undefined) as OsCardsFlagEnumDataType | undefined,
+    vencimento: paymentDetails.value.vencimento,
+    detalhes: payloadDetalhes,
   });
   pagamentosJuros.value.push(jurosAmount);
   showPaymentDetails.value = false;
@@ -171,6 +213,8 @@ function handleSubmit() {
           valor: p.valor,
           parcelas: p.parcelas,
           bandeira_cartao: p.bandeira_cartao,
+          vencimento: p.vencimento,
+          detalhes: p.detalhes,
         })),
       },
     },
@@ -421,30 +465,35 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
         </div>
       </div>
 
-      <BaseMoneyInput v-model="paymentValueReais" label="Inserir Valor" />
+      <BaseMoneyInput 
+        ref="moneyInputRef"
+        v-model="paymentValueReais" 
+        label="Inserir Valor" 
+        @enter="confirmAddPayment"
+      />
 
-      <div v-if="getMethodPermiteParcelamento(currentPaymentMethod)">
+      <div v-if="getMethodPermiteParcelamento(currentPaymentMethod) || getMethodTipo(currentPaymentMethod) === 'BOLETO'" class="space-y-3">
         <BaseSelect
           v-model="paymentDetails.parcelas"
           label="Parcelamento"
-          :options="[
-            { value: 1, label: 'À vista' },
-            { value: 2, label: '2x' },  { value: 3, label: '3x' },
-            { value: 4, label: '4x' },  { value: 5, label: '5x' },
-            { value: 6, label: '6x' },  { value: 7, label: '7x' },
-            { value: 8, label: '8x' },  { value: 9, label: '9x' },
-            { value: 10, label: '10x' },{ value: 11, label: '11x' },
-            { value: 12, label: '12x' },
-          ]"
+          :options="parcelasOptions"
+        />
+      </div>
+
+      <div v-if="getMethodTipo(currentPaymentMethod) === 'BOLETO'" class="pt-1">
+        <BaseInput 
+          v-model="paymentDetails.vencimento" 
+          type="date" 
+          label="Data de Vencimento" 
         />
       </div>
 
       <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')" class="space-y-3">
         <BaseSelect
           v-model="paymentDetails.bandeira"
-          label="Bandeira"
+          label="Bandeira (Opcional)"
           :options="[
-            { value: '', label: 'Selecione...' },
+            { value: '', label: 'Não informada' },
             { value: 'VISA', label: 'Visa' },
             { value: 'MASTERCARD', label: 'Mastercard' },
             { value: 'ELO', label: 'Elo' },
@@ -453,7 +502,7 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
         />
         <div class="flex justify-between items-center gap-3">
           <label class="text-sm font-medium text-zinc-600 flex items-center gap-1.5">
-            <Percent :size="14" /> Juros (%)
+            <Percent :size="14" /> Taxa de Juros
           </label>
           <div class="w-24">
             <BaseInput v-model="paymentDetails.taxa_juros" type="number" placeholder="0" />
@@ -465,6 +514,29 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
             {{ formatCurrency(Math.round(paymentValueReais * 100 * (1 + paymentDetails.taxa_juros / 100))) }}
           </span>
         </div>
+      </div>
+
+      <div v-if="getMethodTipo(currentPaymentMethod).includes('TRANSFERENCIA')" class="space-y-3">
+        <BaseSelect
+          v-model="paymentDetails.banco_destino"
+          label="Conta de Destino (Opcional)"
+          :options="[
+            { value: '', label: 'Não informada' },
+            { value: 'ITAU', label: 'Itaú' },
+            { value: 'BRADESCO', label: 'Bradesco' },
+            { value: 'BB', label: 'Banco do Brasil' },
+            { value: 'CAIXA', label: 'Caixa Econômica' },
+            { value: 'SICREDI', label: 'Sicredi' },
+            { value: 'NUBANK', label: 'Nubank' },
+            { value: 'OUTROS', label: 'Outros' }
+          ]"
+        />
+        <BaseInput 
+          v-model="paymentDetails.codigo_transacao" 
+          type="text" 
+          label="Código da Transação/NSU (Opcional)" 
+          placeholder="Ex: E123456789"
+        />
       </div>
 
       <div v-if="getMethodTipo(currentPaymentMethod) === 'PIX'" class="text-center py-2">
