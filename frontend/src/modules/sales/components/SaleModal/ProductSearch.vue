@@ -27,6 +27,7 @@ const {
   canAddItem,
   isAddingItem,
   quantity,
+  searchContainerRef, // Ignore this, it's used for the click outside directive
   handleInputChange,
   selectProduct,
   increaseQuantity,
@@ -52,12 +53,12 @@ function handleAutoAdd(product: { nome: string; id: number }) {
 
 <template>
   <div class="w-full flex gap-4">
-    <div class="relative w-full md:max-w-1/2" data-search-products>
+    <div class="relative w-full md:max-w-1/2" data-search-products ref="searchContainerRef">
       <BaseSearchInput v-model="searchTerm" placeholder="Digite o nome ou código do produto" @focusChange="handleInputChange" />
 
       <div
         v-if="isSearching"
-        class="absolute left-0 top-full z-50 mt-2 w-full min-h-20 rounded-xl shadow-lg bg-zinc-50"
+        class="absolute left-0 top-full z-9999 mt-2 w-full min-h-20 rounded-xl shadow-lg bg-zinc-50"
       >
         <div
           :class="[

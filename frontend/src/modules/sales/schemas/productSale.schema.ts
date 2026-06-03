@@ -9,7 +9,7 @@ export const ProductSaleBaseSchema = z.object({
     .number()
     .min(0)
     .optional()
-    .transform((val) => (!val ? 0 : val)),
+    .transform((val) => (!!val ? 0 : val)),
   desconto: z.number().nullable().optional(),
 });
 

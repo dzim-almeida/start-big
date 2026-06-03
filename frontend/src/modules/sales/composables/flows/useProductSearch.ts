@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue';
-import { refDebounced } from '@vueuse/core';
+import { refDebounced, onClickOutside } from '@vueuse/core';
 
 import { useProductQuery } from '../queries/useProductQuery';
 import { useAddItemSaleMutation } from '../mutates/useItemSaleMutation';
@@ -25,6 +25,8 @@ export function useProductSearch(isOrcamento = false) {
   const productQuery = useProductQuery(debouncedSearchTerm);
   const addItemSaleMutation = useAddItemSaleMutation();
   const addItemOrcamentoMutation = useAddItemOrcamentoMutation();
+
+  const searchContainerRef = ref<HTMLElement | null>(null);
 
   const isSearching = computed(() => {
     return (
@@ -87,6 +89,12 @@ export function useProductSearch(isOrcamento = false) {
     }
   }
 
+  onClickOutside(searchContainerRef, () => {
+    if (isSearching.value) {
+      resetSelection();
+    }
+  })
+
   watch(searchTerm, (term) => {
     if (!selectedProductId.value) return;
 
@@ -108,6 +116,7 @@ export function useProductSearch(isOrcamento = false) {
     selectedProductId,
     selectedProductName,
     quantity,
+    searchContainerRef,
 
     isSearching,
     canAddItem,
