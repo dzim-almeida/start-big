@@ -21,6 +21,9 @@ export const OrderServiceCreateSchema = z.object({
   // Aninhamento
   equipamento: OsEquipCreateSchema,
   itens: z.array(OsItemCreateSchema).default([]),
+
+  // Crédito
+  usar_credito_cliente: z.boolean().default(false),
 });
 
 export const orderServiceCreateValidationSchema = toTypedSchema(OrderServiceCreateSchema)
@@ -54,6 +57,7 @@ export const OrderServiceUpdateSchema = z.object({
   // Financeiro
   desconto: z.number().int().optional(),
   valor_entrada: z.number().int().optional(),
+  taxa_entrega: z.number().int().min(0).optional(),
 
   // Relações
   funcionario_id: z.number({ required_error: 'O técnico é obrigatório' }).int().positive().optional(),
@@ -75,9 +79,7 @@ export const OrderServiceReadySchema = z.object({
   taxa_entrega: z.number().int().min(0, 'Taxa de entrega inválida').default(0),
   acrescimo: z.number().int().min(0, 'Acréscimo inválido').default(0),
   valor_entrada: z.number().int().min(0, 'Adiantamento não pode ser negativo').optional(),
-  pagamentos: z
-    .array(OsPaymentCreateSchema)
-    .min(1, 'Para finalizar precisa de ao menos um pagamento válido'),
+  pagamentos: z.array(OsPaymentCreateSchema).default([]),
 });
 
 export const orderServiceReadyValidationSchema = toTypedSchema(OrderServiceReadySchema)
@@ -85,6 +87,7 @@ export type OrderServiceReadyDataType = z.infer<typeof OrderServiceReadySchema>
 
 export const OrderServiceCancelSchema = z.object({
   motivo: z.string().max(500, 'Um motivo deve ter no máximo 500 caracteres'),
+  zerar_adiantamento: z.boolean().optional(),
 });
 
 export const orderServiceCancelValidationSchema = toTypedSchema(OrderServiceCancelSchema)

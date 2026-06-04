@@ -192,10 +192,26 @@ const paymentTotal = computed(() => {
           <span>Desconto:</span>
           <span>-{{ formatCurrency(orderService.desconto ?? 0) }}</span>
         </div>
+        <div v-if="(orderService.acrescimo ?? 0) > 0" class="flex justify-between">
+          <span>Juros:</span>
+          <span>+{{ formatCurrency(orderService.acrescimo ?? 0) }}</span>
+        </div>
         <div class="flex justify-between font-bold text-sm mt-1">
           <span>TOTAL:</span>
           <span>{{ formatCurrency(paymentTotal) }}</span>
         </div>
+        <template v-if="(orderService.acrescimo ?? 0) > 0">
+          <div class="separator">{{ SEPARATOR }}</div>
+          <div class="font-bold text-[9px] uppercase mb-0.5">Devolucao</div>
+          <div class="flex justify-between text-[9px]">
+            <span>Servico (dinheiro):</span>
+            <span>{{ formatCurrency(paymentTotal - (orderService.acrescimo ?? 0)) }}</span>
+          </div>
+          <div class="flex justify-between text-[9px]">
+            <span>Estorno cartao:</span>
+            <span>{{ formatCurrency(paymentTotal) }}</span>
+          </div>
+        </template>
       </div>
     </template>
 

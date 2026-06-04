@@ -175,9 +175,24 @@ const totalPago = computed(() => {
             <span>Desconto:</span>
             <span>- {{ formatCurrency(ordemServico.desconto ?? 0) }}</span>
           </div>
+          <div v-if="(ordemServico.acrescimo ?? 0) > 0" class="flex justify-between text-xs text-amber-600">
+            <span>Juros:</span>
+            <span>+ {{ formatCurrency(ordemServico.acrescimo ?? 0) }}</span>
+          </div>
           <div class="border-t border-slate-800 my-1 pt-1 flex justify-between items-end">
             <span class="text-sm font-bold text-slate-900 uppercase">Total Pago:</span>
             <span class="text-xl font-black text-slate-900 leading-none">{{ formatCurrency(totalPago) }}</span>
+          </div>
+          <div v-if="(ordemServico.acrescimo ?? 0) > 0" class="mt-1 border border-amber-300 bg-amber-50 rounded p-1.5 space-y-0.5">
+            <p class="text-[9px] font-bold text-amber-700 uppercase">Em caso de devolução</p>
+            <div class="flex justify-between text-[9px] text-slate-600">
+              <span>Valor do serviço (dinheiro):</span>
+              <span class="font-semibold">{{ formatCurrency(totalPago - (ordemServico.acrescimo ?? 0)) }}</span>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-600">
+              <span>Estorno no cartão:</span>
+              <span class="font-semibold">{{ formatCurrency(totalPago) }}</span>
+            </div>
           </div>
         </div>
       </div>

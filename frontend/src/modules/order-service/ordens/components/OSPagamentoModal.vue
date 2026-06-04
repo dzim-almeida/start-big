@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import {
   FileText, CreditCard, Wallet, QrCode,
-  Banknote, Trash2, Percent, Tag, Truck, ArrowLeft, CheckCircle2,
+  Banknote, Trash2, Percent, Tag, Truck, ArrowLeft, CheckCircle2, RotateCcw,
 } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -36,6 +36,7 @@ interface Props {
   ordemServico: OrderServiceReadDataType | null;
   dadosOs: DadosFinalizacaoOS | null;
   descontoOs: number;
+  creditoAoReabrir?: number | null;
 }
 
 const props = defineProps<Props>();
@@ -51,7 +52,6 @@ const { formasPagamento } = useOsPaymentMethodsGet();
 const finalizarMutation = useReadyOrderServiceMutation();
 
 // ─── Estado ──────────────────────────────────────────────────────────────────
-const taxaEntregaDisplay = ref(0);
 const pagamentos = ref<Pagamento[]>([]);
 const pagamentosJuros = ref<number[]>([]);
 const confirmacao = ref(false);
@@ -94,7 +94,7 @@ const subtotalItens = computed(() => {
 });
 
 const desconto = computed(() => props.descontoOs);
-const taxaEntrega = computed(() => Math.round(taxaEntregaDisplay.value * 100));
+const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
 const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
 const acrescimoTotal = computed(() => pagamentosJuros.value.reduce((sum, v) => sum + v, 0));
 
@@ -102,7 +102,21 @@ const valorTotal = computed(() =>
   Math.max(0, subtotalItens.value - desconto.value + taxaEntrega.value + acrescimoTotal.value),
 );
 
-const totalAReceber = computed(() => Math.max(0, valorTotal.value - valorEntrada.value));
+// Pagamentos de finalizações anteriores (preservados após reopen)
+const pagamentosAnteriores = computed(() => props.ordemServico?.pagamentos ?? []);
+const totalPagamentosAnteriores = computed(() => {
+  const raw = pagamentosAnteriores.value.reduce((sum, p) => sum + p.valor, 0);
+  if (props.creditoAoReabrir != null) {
+    // Exclui juros (acrescimo) da finalização anterior — juros não viram crédito de serviço
+    const acrescimoAnterior = props.ordemServico?.acrescimo ?? 0;
+    return Math.min(raw, Math.max(0, props.creditoAoReabrir - acrescimoAnterior));
+  }
+  return raw;
+});
+
+const totalAReceber = computed(() =>
+  Math.max(0, valorTotal.value - valorEntrada.value - totalPagamentosAnteriores.value),
+);
 const totalPago = computed(() => pagamentos.value.reduce((sum, p) => sum + p.valor, 0));
 const restante = computed(() => Math.max(0, totalAReceber.value - totalPago.value));
 const troco = computed(() => Math.max(0, totalPago.value - totalAReceber.value));
@@ -191,6 +205,13 @@ function removePayment(index: number) {
   pagamentosJuros.value.splice(index, 1);
 }
 
+function zerarPagamentos() {
+  pagamentos.value = [];
+  pagamentosJuros.value = [];
+  showPaymentDetails.value = false;
+  currentPaymentMethod.value = null;
+}
+
 // ─── Submit ───────────────────────────────────────────────────────────────────
 function handleSubmit() {
   hasAttemptedSubmit.value = true;
@@ -224,7 +245,6 @@ function handleSubmit() {
 
 // ─── Reset / Init ─────────────────────────────────────────────────────────────
 function resetState() {
-  taxaEntregaDisplay.value = 0;
   pagamentos.value = [];
   pagamentosJuros.value = [];
   confirmacao.value = false;
@@ -294,7 +314,18 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
           <div class="border border-zinc-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
           <div class="bg-zinc-100 px-4 py-2 border-b border-zinc-200 flex items-center justify-between shrink-0">
             <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Pagamentos</p>
-            <span class="text-[10px] text-zinc-400">{{ pagamentos.length }} item(s)</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-zinc-400">{{ pagamentos.length }} item(s)</span>
+              <button
+                v-if="pagamentos.length > 0"
+                type="button"
+                class="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                @click="zerarPagamentos"
+              >
+                <RotateCcw :size="11" />
+                Zerar
+              </button>
+            </div>
           </div>
 
           <div class="flex-1 overflow-y-auto p-3 space-y-2">
@@ -314,11 +345,18 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
                 <div>
                   <p class="text-xs font-semibold text-zinc-700">
                     {{ getPaymentDisplayName(getPaymentMethodById(pgto.forma_pagamento_id)?.nome ?? 'Pagamento') }}
+                    <span v-if="pgto.parcelas > 1" class="font-normal text-zinc-400"> · {{ pgto.parcelas }}x</span>
                   </p>
-                  <p class="text-[10px] text-zinc-400">
-                    {{ formatCurrency(pgto.valor) }}
-                    <span v-if="pgto.parcelas > 1"> · {{ pgto.parcelas }}x</span>
-                  </p>
+                  <template v-if="pagamentosJuros[idx] > 0">
+                    <p class="text-[10px] text-zinc-400">
+                      Serviço: {{ formatCurrency(pgto.valor - pagamentosJuros[idx]) }}
+                      <span class="text-amber-500"> + Juros: {{ formatCurrency(pagamentosJuros[idx]) }}</span>
+                      = {{ formatCurrency(pgto.valor) }}
+                    </p>
+                  </template>
+                  <template v-else>
+                    <p class="text-[10px] text-zinc-400">{{ formatCurrency(pgto.valor) }}</p>
+                  </template>
                 </div>
               </div>
               <button type="button" @click="removePayment(idx)" class="text-zinc-300 hover:text-red-500 p-1.5 cursor-pointer transition-colors">
@@ -327,7 +365,7 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
             </div>
           </div>
 
-          <div v-if="hasAttemptedSubmit && pagamentos.length === 0"
+          <div v-if="hasAttemptedSubmit && pagamentos.length === 0 && totalPagamentosAnteriores === 0"
             class="px-3 pb-2 text-[10px] text-red-500 shrink-0">
             Adicione ao menos uma forma de pagamento.
           </div>
@@ -342,48 +380,53 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
           </div>
           <div class="p-4 space-y-2.5 overflow-y-auto flex-1 no-scrollbar">
 
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-zinc-500">Valor OS</span>
-              <span class="font-semibold text-zinc-800">{{ formatCurrency(subtotalItens) }}</span>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500">Valor OS</span>
+              <span class="text-base font-semibold text-zinc-800">{{ formatCurrency(subtotalItens) }}</span>
             </div>
 
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-zinc-500 flex items-center gap-1">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500 flex items-center gap-1">
                 <Tag :size="12" /> Desconto
               </span>
-              <span :class="desconto > 0 ? 'font-semibold text-emerald-600' : 'font-medium text-zinc-400'">
+              <span class="text-base" :class="desconto > 0 ? 'font-semibold text-emerald-600' : 'font-medium text-zinc-400'">
                 {{ desconto > 0 ? `- ${formatCurrency(desconto)}` : '—' }}
               </span>
             </div>
 
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-zinc-500 flex items-center gap-1">
-                <Truck :size="12" /> Entrega
+            <div v-if="taxaEntrega > 0" class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500 flex items-center gap-1">
+                <Truck :size="12" /> Deslocamento
               </span>
-              <div class="w-24">
-                <BaseMoneyInput v-model="taxaEntregaDisplay" label="" />
-              </div>
+              <span class="text-base font-medium text-zinc-700">{{ formatCurrency(taxaEntrega) }}</span>
             </div>
 
-            <div v-if="valorEntrada > 0" class="flex justify-between items-center text-sm">
-              <span class="text-emerald-600 flex items-center gap-1">
+            <div v-if="valorEntrada > 0" class="flex justify-between items-center">
+              <span class="text-xs text-emerald-600 flex items-center gap-1">
                 <CheckCircle2 :size="12" /> Adiantamento
               </span>
-              <span class="font-semibold text-emerald-600">- {{ formatCurrency(valorEntrada) }}</span>
+              <span class="text-base font-semibold text-emerald-600">- {{ formatCurrency(valorEntrada) }}</span>
             </div>
 
-            <div v-if="acrescimoTotal > 0" class="flex justify-between items-center text-sm">
-              <span class="text-amber-600 flex items-center gap-1">
+            <div v-if="totalPagamentosAnteriores > 0" class="flex justify-between items-center">
+              <span class="text-xs text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 :size="12" /> Pago anteriormente
+              </span>
+              <span class="text-base font-semibold text-emerald-600">- {{ formatCurrency(totalPagamentosAnteriores) }}</span>
+            </div>
+
+            <div v-if="acrescimoTotal > 0" class="flex justify-between items-center">
+              <span class="text-xs text-amber-600 flex items-center gap-1">
                 <Percent :size="12" /> Juros
               </span>
-              <span class="font-medium text-amber-600">+ {{ formatCurrency(acrescimoTotal) }}</span>
+              <span class="text-base font-medium text-amber-600">+ {{ formatCurrency(acrescimoTotal) }}</span>
             </div>
 
             <!-- Divisor -->
-            <div class="border-t border-zinc-200 pt-2.5 space-y-2">
+            <div class="border-t border-zinc-200 pt-2.5 space-y-3">
               <div class="flex justify-between items-center">
                 <span class="text-sm font-bold text-zinc-700">Total a pagar</span>
-                <span class="text-base font-bold text-brand-primary">{{ formatCurrency(valorTotal) }}</span>
+                <span class="text-xl font-bold text-brand-primary">{{ formatCurrency(valorTotal) }}</span>
               </div>
 
               <div v-if="valorEntrada > 0" class="flex justify-between items-center text-xs text-zinc-500">
@@ -391,20 +434,34 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
                 <span>- {{ formatCurrency(valorEntrada) }}</span>
               </div>
 
-              <div class="flex justify-between items-center text-sm font-semibold"
+              <div class="flex justify-between items-center font-semibold"
                 :class="totalPago >= totalAReceber ? 'text-emerald-600' : 'text-zinc-400'">
-                <span>Total recebido</span>
-                <span>{{ formatCurrency(totalPago) }}</span>
+                <span class="text-sm">Total recebido</span>
+                <span class="text-lg">{{ formatCurrency(totalPago) }}</span>
               </div>
 
-              <div v-if="restante > 0" class="flex justify-between items-center text-sm font-bold text-red-500">
-                <span>Faltam</span>
-                <span>{{ formatCurrency(restante) }}</span>
+              <!-- Breakdown de devolução (só exibe quando há juros) -->
+              <div v-if="acrescimoTotal > 0 && totalPago > 0" class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 space-y-1">
+                <p class="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Em caso de devolução</p>
+                <div class="flex justify-between items-center text-xs text-zinc-600">
+                  <span>Serviço (dinheiro)</span>
+                  <span class="font-semibold">{{ formatCurrency(totalPago - acrescimoTotal) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-xs text-zinc-600">
+                  <span>Estorno cartão (total pago)</span>
+                  <span class="font-semibold">{{ formatCurrency(totalPago) }}</span>
+                </div>
+                <p class="text-[10px] text-amber-600">Juros pagos à operadora: {{ formatCurrency(acrescimoTotal) }}</p>
               </div>
 
-              <div v-if="troco > 0" class="flex justify-between items-center text-sm font-bold text-amber-500">
-                <span>Troco</span>
-                <span>{{ formatCurrency(troco) }}</span>
+              <div v-if="restante > 0" class="flex justify-between items-center font-bold text-red-500">
+                <span class="text-sm">Faltam</span>
+                <span class="text-lg">{{ formatCurrency(restante) }}</span>
+              </div>
+
+              <div v-if="troco > 0" class="flex justify-between items-center font-bold text-amber-500">
+                <span class="text-sm">Troco</span>
+                <span class="text-lg">{{ formatCurrency(troco) }}</span>
               </div>
             </div>
           </div>

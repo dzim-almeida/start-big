@@ -110,7 +110,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Body -->
-          <div :class="['p-6 flex-initial h-full no-scrollbar', props.overflow === 'hidden' ? 'overflow-hidden' : 'overflow-y-auto']">
+          <div :class="['p-6 flex-1 h-full no-scrollbar', props.overflow === 'hidden' ? 'overflow-hidden' : 'overflow-y-auto']">
             <slot />
           </div>
 

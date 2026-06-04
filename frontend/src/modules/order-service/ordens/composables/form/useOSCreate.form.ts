@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useForm, useFieldArray } from 'vee-validate';
 
 import { orderServiceCreateValidationSchema } from '../../schemas/orderServiceMutate.schema';
@@ -61,12 +61,15 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     updateItemField(index, item);
   };
 
+  const usar_credito_cliente = ref(false);
+
   const resetForm = () => {
     veeReset({ values: { ...DEFAULT_OS_CREATE_VALUES } });
+    usar_credito_cliente.value = false;
   };
 
   const onSubmit = handleSubmit((formData) => {
-    createMutation.mutate(formData, {
+    createMutation.mutate({ ...formData, usar_credito_cliente: usar_credito_cliente.value }, {
       onSuccess: (data) => {
         opts?.onSuccess?.(data);
       },
@@ -99,6 +102,7 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     handleAddItem,
     handleRemoveItem,
     handleUpdateItem,
+    usar_credito_cliente,
     errors,
     isPending,
     onSubmit,

@@ -14,7 +14,8 @@ const props = defineProps<{
   funcionariosOptions: SelectOption[];
   canSelectTecnico?: boolean;
   isCreateMode?: boolean;
-  errors?: Record<string, string[]>;
+  isLocked?: boolean;
+  errors?: Record<string, string | string[] | undefined>;
 }>();
 
 const emit = defineEmits<{
@@ -56,7 +57,9 @@ const localDataPrevisao = computed({
         <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Situação</span>
         <select
           v-model="localStatus"
-          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 cursor-pointer outline-none p-0 -ml-1 w-full"
+          :disabled="isLocked"
+          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 outline-none p-0 -ml-1 w-full disabled:cursor-not-allowed disabled:opacity-70"
+          :class="isLocked ? '' : 'cursor-pointer'"
         >
           <option v-for="opt in statusOptions" :key="opt.value" :value="String(opt.value)">{{ opt.label }}</option>
         </select>
@@ -66,7 +69,7 @@ const localDataPrevisao = computed({
       <div class="flex flex-col px-4 py-2 hover:bg-slate-50 transition-colors">
         <span class="text-[10px] font-bold uppercase tracking-wider mb-0.5" :class="errors?.funcionario_id ? 'text-red-500' : 'text-slate-400'">Técnico</span>
         <select
-          v-if="canSelectTecnico"
+          v-if="canSelectTecnico && !isLocked"
           v-model="localFuncionarioId"
           class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 cursor-pointer outline-none p-0 -ml-1 w-full truncate"
         >
@@ -83,7 +86,9 @@ const localDataPrevisao = computed({
         <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Prioridade</span>
         <select
           v-model="localPrioridade"
-          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 cursor-pointer outline-none p-0 -ml-1 w-full"
+          :disabled="isLocked"
+          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 outline-none p-0 -ml-1 w-full disabled:cursor-not-allowed disabled:opacity-70"
+          :class="isLocked ? '' : 'cursor-pointer'"
         >
           <option v-for="opt in prioridadeOptions" :key="opt.value" :value="String(opt.value)">{{ opt.label }}</option>
         </select>
@@ -95,7 +100,9 @@ const localDataPrevisao = computed({
         <input
           type="date"
           v-model="localDataPrevisao"
-          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 cursor-pointer outline-none p-0 w-full"
+          :disabled="isLocked"
+          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 outline-none p-0 w-full disabled:cursor-not-allowed disabled:opacity-70"
+          :class="isLocked ? '' : 'cursor-pointer'"
         />
       </div>
 

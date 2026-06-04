@@ -14,6 +14,7 @@ export const OsPaymentCreateSchema = z.object({
 });
 
 export type OsPaymentCreateSchemaDataType = z.infer<typeof OsPaymentCreateSchema>;
+export type OsPaymentReadSchemaDataType = z.infer<typeof OsPaymentReadSchema>;
 
 export const OsPaymentReadSchema = z.object({
   id: z.number().int().positive(),

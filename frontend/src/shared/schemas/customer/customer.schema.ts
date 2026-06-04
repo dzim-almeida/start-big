@@ -30,6 +30,7 @@ const CustomerBaseSchema = z.object({
     return val.length === 0 ? null : val[0];
   }, AddressReadSchema.optional().nullable()),
   ativo: z.boolean(),
+  saldo_credito: z.number().int().default(0),
 });
 
 export const CustomerPFReadSchema = z.object({

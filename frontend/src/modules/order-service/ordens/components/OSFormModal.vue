@@ -44,6 +44,17 @@ const currentOSData = computed(() => localOSData.value ?? props.ordemServico ?? 
 const osNumber = computed(() => currentOSData.value?.numero_os ?? null);
 const isCreateMode = computed(() => !props.ordemServico);
 
+// Crédito capturado ao reabrir — limita o crédito anterior ao valor que foi cobrado
+// (não ao dinheiro entregue, que pode incluir troco)
+const creditoAoReabrir = ref<number | null>(null);
+
+function capturarCreditoAnterior() {
+  const os = currentOSData.value;
+  if (!os || !os.pagamentos?.length) { creditoAoReabrir.value = null; return; }
+  const totalPago = os.pagamentos.reduce((s, p) => s + p.valor, 0);
+  creditoAoReabrir.value = Math.min(totalPago, os.valor_total);
+}
+
 const {
   printType,
   printFormat,
@@ -94,10 +105,15 @@ const {
   resetReopenState,
 } = useOSReopenState({
   osNumber,
-  onReopenRequest: (numeroOS) => reopenMutation.mutate(numeroOS),
-  onFullReopen: () => handleClose(),
+  onReopenRequest: (numeroOS) => reopenMutation.mutate(numeroOS, {
+    onSuccess: async () => {
+      await refreshCurrentOSData();
+      capturarCreditoAnterior();
+    },
+  }),
+  onFullReopen: () => {},
 });
-const { isStructureLocked, isItemsLocked } = useOSStatusLocks({ isFinalizada, isCancelada, reopenMode });
+const { isStructureLocked, isDiagnosticoLocked, isItemsLocked } = useOSStatusLocks({ isFinalizada, isCancelada, reopenMode });
 const addItemMutation = useCreateItemOSMutation();
 const deleteItemMutation = useOrderServiceDeleteItem();
 
@@ -135,7 +151,9 @@ const {
   displayValorDesconto,
   displayValorTotal,
   displayValorEntrada,
+  displayValorAcrescimo,
   handleValorEntradaUpdate,
+  handleValorEntregaUpdate,
 } = useOSFinancialSummary({
   isCreateMode,
   createItems: computed(() => form.criar.itens.value.map(item => item.value)),
@@ -143,6 +161,7 @@ const {
   createDesconto: form.criar.desconto,
   createValorEntrada: form.criar.valor_entrada,
   updateValorEntrada: form.atualizarGeral.valor_entrada,
+  updateTaxaEntrega: form.atualizarGeral.taxa_entrega,
 });
 const {
   pendingPhotos,
@@ -164,8 +183,7 @@ function handleLocalSubmit() {
     if (clienteId) form.criar.cliente_id.value = clienteId;
     form.criar.onSubmit();
   } else if (reopenMode.value === 'TEXT_ONLY') {
-    form.atualizarGeral.status.value = 'FINALIZADA';
-    form.atualizarGeral.onSubmit();
+    form.atualizarGeral.onSubmitTextOnly();
   } else {
     form.atualizarGeral.onSubmit();
   }
@@ -179,6 +197,7 @@ function handleClose() {
   resetReopenState();
   localOSData.value = null;
   updatedClienteRef.value = null;
+  creditoAoReabrir.value = null;
   emit('close');
 }
 
@@ -194,6 +213,11 @@ useOSModalLifecycle({
   resetReopenState,
   onOpen: () => {
     resetEquipSelectStateProxy?.();
+    // Captura crédito se a OS já foi reaberta anteriormente (vem da tabela)
+    const os = currentOSData.value;
+    if (os && os.pagamentos?.length > 0 && os.status !== 'FINALIZADA' && os.status !== 'CANCELADA') {
+      capturarCreditoAnterior();
+    }
     if (props.initialEquipamento && isCreateMode.value) {
       const equip = props.initialEquipamento;
       nextTick(() => {
@@ -244,6 +268,17 @@ const currentCliente = computed(
   () => updatedClienteRef.value ?? props.selectedCliente ?? currentOSData.value?.cliente ?? null,
 );
 
+const saldoCreditoCliente = computed(() => {
+  const c = currentCliente.value as { saldo_credito?: number } | null;
+  return c?.saldo_credito ?? 0;
+});
+
+function handleUsarCredito() {
+  if (!isCreateMode.value || saldoCreditoCliente.value <= 0) return;
+  form.criar.valor_entrada.value = saldoCreditoCliente.value;
+  form.criar.usar_credito_cliente.value = true;
+}
+
 function handleUpdateCliente(cliente: CustomerUnionReadSchemaDataType) {
   updatedClienteRef.value = cliente;
 }
@@ -293,7 +328,9 @@ useOSFormViewProvider({
   isCancelada,
   reopenMode,
   isStructureLocked,
+  isDiagnosticoLocked,
   isItemsLocked,
+  creditoAoReabrir,
   controlsStatus,
   controlsFuncionarioId,
   controlsPrioridade,
@@ -307,6 +344,7 @@ useOSFormViewProvider({
   displayValorDesconto,
   displayValorTotal,
   displayValorEntrada,
+  displayValorAcrescimo,
   formErrors,
   equipamentoFormData,
   equipamentosHistorico,
@@ -334,6 +372,9 @@ useOSFormViewProvider({
   handlePrioridadeUpdate,
   handleDataPrevisaoUpdate,
   handleValorEntradaUpdate,
+  handleValorEntregaUpdate,
+  handleUsarCredito,
+  saldoCreditoCliente,
   setEquipamentoFormData,
   setSelectedHistorico,
   applyEquipamentoHistorico,

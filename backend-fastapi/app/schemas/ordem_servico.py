@@ -215,6 +215,9 @@ class OrdemServicoCreate(OrdemServicoBase):
     equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
     itens: Sequence[OSItemCreate] = Field(default_factory=list, description="Lista de itens/serviços da OS")
 
+    # Crédito
+    usar_credito_cliente: Optional[bool] = Field(False, description="Se True, deduz valor_entrada do saldo de crédito do cliente")
+
     model_config = ConfigDict(
         json_schema_extra=os_example,
     )
@@ -273,6 +276,7 @@ class OrdemServicoRead(OrdemServicoBase):
     valor_total: int = Field(..., description="Valor final após desconto (centavos)")
     taxa_entrega: int = Field(0, description="Taxa de entrega/frete (centavos)")
     acrescimo: int = Field(0, description="Acréscimo de juros/cartão (centavos)")
+    credito_anterior: Optional[int] = Field(None, description="Crédito efetivo da finalização anterior ao reabrir (centavos)")
 
     # Datas
     data_finalizacao: Optional[datetime] = Field(None, description="Data de finalização efetiva")
@@ -337,9 +341,10 @@ class OrdemServicoFinalizar(BaseModel):
 class OrdemServicoCancelar(BaseModel):
     """Payload para cancelar uma OS. O motivo é registrado nas observações da OS."""
     motivo: Optional[str] = Field(None, max_length=500, description="Motivo do cancelamento (acrescentado às observações)")
+    zerar_adiantamento: Optional[bool] = Field(False, description="Se True, zera o valor_entrada (adiantamento devolvido ao cliente)")
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço."}}
+        json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço.", "zerar_adiantamento": True}}
     )
 
 

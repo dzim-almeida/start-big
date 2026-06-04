@@ -43,6 +43,7 @@ export const OrderServiceReadSchema = z.object({
   valor_total: z.number().int(),
   taxa_entrega: z.number().int().default(0),
   acrescimo: z.number().int().default(0),
+  credito_anterior: z.number().int().nullable().optional(),
 
   // Datas
   data_finalizacao: z.string().optional().nullable(),

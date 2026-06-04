@@ -39,6 +39,9 @@ export interface OSCreateFormContext {
   handleRemoveItem: (index: number) => void;
   handleUpdateItem: (index: number, item: OsItemCreateSchemaDataType) => void;
 
+  // Crédito
+  usar_credito_cliente: Ref<boolean>;
+
   // Estado do formulário
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
@@ -58,6 +61,7 @@ export interface OSUpdateGeralFormContext {
   observacoes: Ref<string | null | undefined>;
   desconto: Ref<number | null | undefined>;
   valor_entrada: Ref<number | null | undefined>;
+  taxa_entrega: Ref<number | null | undefined>;
   garantia: Ref<string | null | undefined>;
   data_previsao: Ref<string | null | undefined>;
   senha_aparelho: Ref<string | null | undefined>;
@@ -69,6 +73,7 @@ export interface OSUpdateGeralFormContext {
   isPending: ComputedRef<boolean>;
 
   onSubmit: (e?: Event) => void;
+  onSubmitTextOnly: () => void;
   resetForm: () => void;
   populateForm: (os: OrderServiceReadDataType) => void;
 }
@@ -140,6 +145,7 @@ export interface OSCancelarFormContext {
   isPending: ComputedRef<boolean>;
 
   onSubmit: (e?: Event) => void;
+  submitDireto: (zerar: boolean) => void;
   resetForm: () => void;
 }
 

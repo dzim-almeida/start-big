@@ -50,6 +50,15 @@ const dadosFinalizacaoDirect = ref<DadosFinalizacaoOS | null>(null);
 const osToReopen = ref<OrderServiceReadDataType | null>(null);
 const isReopenDirectOpen = ref(false);
 
+const creditoAoReabrirDirect = computed(() => {
+  const os = osToFinalizar.value;
+  if (!os) return null;
+  if (os.credito_anterior != null) return os.credito_anterior;
+  if (!os.pagamentos?.length) return null;
+  const totalPago = os.pagamentos.reduce((s, p) => s + p.valor, 0);
+  return Math.min(totalPago, os.valor_total);
+});
+
 const osToPrint = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
 const printFormat = ref<PrintFormat>('A4');
@@ -250,6 +259,7 @@ function handleClosePrintSelect() {
       :is-open="isCancelModalOpen"
       :os-numero="osToCancel?.numero_os ?? null"
       :os-display-number="osToCancel?.numero_os"
+      :valor-entrada="osToCancel?.valor_entrada ?? 0"
       @close="handleCloseCancelModal"
       @cancelled="handleCancelled"
     />
@@ -268,6 +278,7 @@ function handleClosePrintSelect() {
       :ordem-servico="osToFinalizar"
       :dados-os="dadosFinalizacaoDirect"
       :desconto-os="dadosFinalizacaoDirect?.desconto ?? 0"
+      :credito-ao-reabrir="creditoAoReabrirDirect"
       @close="handleCloseFinalizarDirect"
       @voltar="handlePagamentoVoltarDirect"
       @finalized="handleFinalizadoDirect"

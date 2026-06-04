@@ -53,8 +53,8 @@ class ClientePFCreate(ClienteBase):
         max_length=255,
         description="Nome civil completo."
     )
-    cpf: str = Field(
-        ...,
+    cpf: Optional[str] = Field(
+        None,
         pattern=r"^\d{11}$",
         description="CPF (apenas números, 11 dígitos)."
     )
@@ -104,7 +104,7 @@ class ClientePFCreate(ClienteBase):
 
 class ClientePFRead(ClientePFCreate):
     """Modelo de saída (Response) para Pessoa Física."""
-    
+
     id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PF] = Field(
         default=ClientType.PF,
@@ -112,16 +112,18 @@ class ClientePFRead(ClientePFCreate):
     )
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
+    saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 
 class ClientePFSimpleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PF] = Field(default=ClientType.PF, description="Discriminador de tipo: PF")
     nome: str = Field(..., description="Nome do cliente.")
-    cpf: str = Field(..., description="CPF do cliente.")
+    cpf: Optional[str] = Field(None, description="CPF do cliente.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
+    saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 
 class ClientePFUpdate(ClienteBase):
     """Modelo de entrada para atualização parcial de Pessoa Física."""
@@ -143,8 +145,8 @@ class ClientePJCreate(ClienteBase):
     """Modelo de entrada para criação de Pessoa Jurídica."""
     tipo: Literal[ClientType.PJ] = ClientType.PJ
     razao_social: str = Field(..., max_length=255, description="Razão Social da empresa.")
-    cnpj: str = Field(..., pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
-    nome_fantasia: str = Field(..., max_length=255, description="Nome Fantasia / Marca.")
+    cnpj: Optional[str] = Field(None, pattern=r"^\d{14}$", description="CNPJ (apenas números, 14 dígitos).")
+    nome_fantasia: Optional[str] = Field(None, max_length=255, description="Nome Fantasia / Marca.")
     ie: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Estadual.")
     im: Optional[str] = Field(None, pattern=r"^\d{9,14}$", description="Inscrição Municipal.")
     regime_tributario: Optional[str] = Field(None, description="Código do Regime Tributário.")
@@ -182,11 +184,12 @@ class ClientePJCreate(ClienteBase):
 
 class ClientePJRead(ClientePJCreate):
     """Modelo de saída (Response) para Pessoa Jurídica."""
-    
+
     id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PJ] = Field(default=ClientType.PJ, description="Discriminador de tipo: PJ")
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
+    saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 
 class ClientePJSimpleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -194,9 +197,10 @@ class ClientePJSimpleRead(BaseModel):
     id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PJ] = Field(default=ClientType.PJ, description="Discriminador de tipo: PJ")
     razao_social: str = Field(..., description="Razão Social da empresa.")
-    cnpj: str = Field(..., description="CNPJ da empresa.")
+    cnpj: Optional[str] = Field(None, description="CNPJ da empresa.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
+    saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 
 class ClientePJUpdate(ClienteBase):
     """Modelo de entrada para atualização parcial de Pessoa Jurídica."""

@@ -15,8 +15,15 @@ const view = useOSFormView();
       :valor-desconto="view.displayValorDesconto.value"
       :valor-total="view.displayValorTotal.value"
       :valor-entrada="view.displayValorEntrada.value"
+      :valor-acrescimo="view.displayValorAcrescimo.value"
       :is-locked="view.isStructureLocked.value"
+      :is-finalizada="view.isFinalizada.value"
+      :pagamentos="view.currentOSData.value?.pagamentos ?? []"
+      :credito-ao-reabrir="view.currentOSData.value?.credito_anterior ?? view.creditoAoReabrir.value"
+      :saldo-credito-cliente="view.saldoCreditoCliente.value"
       @update:valor-entrada="view.handleValorEntradaUpdate"
+      @update:valor-entrega="view.handleValorEntregaUpdate"
+      @usar-credito="view.handleUsarCredito"
     />
 
     <OSClientCard

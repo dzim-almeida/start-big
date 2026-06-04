@@ -75,6 +75,7 @@ class OrdemServico(Base):
     valor_entrada: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada/adiantamento (centavos)")
     taxa_entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Taxa de entrega/frete (centavos)")
     acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Acréscimo de juros/cartão (centavos)")
+    credito_anterior: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None, doc="Crédito efetivo da finalização anterior ao reabrir (centavos)")
 
     # --- Datas ---
     garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")
