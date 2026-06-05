@@ -440,7 +440,8 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
 
     # Aplica campos financeiros se informados
     if data.desconto is not None:
-        os_in_db.desconto = data.desconto
+        # Acumula desconto de todas as finalizações (não sobrescreve) — mesmo padrão do acrescimo
+        os_in_db.desconto = (os_in_db.desconto or 0) + data.desconto
     if data.valor_entrada is not None:
         os_in_db.valor_entrada = data.valor_entrada
     if data.taxa_entrega is not None:
