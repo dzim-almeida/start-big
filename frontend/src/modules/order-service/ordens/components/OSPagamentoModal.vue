@@ -229,6 +229,7 @@ function handleSubmit() {
         taxa_entrega: taxaEntrega.value,
         acrescimo: acrescimoTotal.value,
         valor_entrada: valorEntrada.value,
+        zerar_adiantamento: props.dadosOs?.zerarAdiantamento ?? false,
         pagamentos: pagamentos.value.map(p => ({
           forma_pagamento_id: p.forma_pagamento_id,
           valor: p.valor,
@@ -239,7 +240,7 @@ function handleSubmit() {
         })),
       },
     },
-    { onSuccess: () => emit('finalized', { shouldPrint: false }) },
+    { onSuccess: () => emit('finalized', { shouldPrint: props.dadosOs?.shouldPrint ?? false }) },
   );
 }
 
@@ -365,7 +366,7 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
             </div>
           </div>
 
-          <div v-if="hasAttemptedSubmit && pagamentos.length === 0 && totalPagamentosAnteriores === 0"
+          <div v-if="hasAttemptedSubmit && pagamentos.length === 0 && totalPagamentosAnteriores === 0 && totalAReceber > 0"
             class="px-3 pb-2 text-[10px] text-red-500 shrink-0">
             Adicione ao menos uma forma de pagamento.
           </div>

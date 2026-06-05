@@ -6,6 +6,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { OsEquipSituacaoEnumDataType } from '../schemas/enums/osEnums.schema';
@@ -18,6 +19,7 @@ export interface DadosFinalizacaoOS {
   observacoes?: string;
   desconto: number;
   zerarAdiantamento?: boolean;
+  shouldPrint?: boolean;
 }
 
 interface Props {
@@ -43,7 +45,8 @@ const observacoes = ref('');
 const descontoDisplay = ref(0);
 const descontoPercentual = ref(0);
 const descontoTipo = ref<'valor' | 'percentual'>('valor');
-const stepAdiantamento = ref(false);
+const stepAdiantamento = ref(false)
+const shouldPrint = ref(false);
 
 const opcoesGarantia = ['Sem garantia', '30 dias', '60 dias', '90 dias', '6 meses', '1 ano'];
 
@@ -111,7 +114,14 @@ function setDescontoTipo(tipo: 'valor' | 'percentual') {
 const isEntregaFlow = computed(() =>
   situacao_equipamento.value === 'SEM_REPARO' || situacao_equipamento.value === 'CONDENADO'
 );
-const adiantamentoParaDecisao = computed(() => (props.ordemServico?.valor_entrada ?? 0) > 0);
+
+// Valor que sobra do adiantamento após descontar os serviços cobrados (ex: taxa de orçamento)
+const excedente = computed(() => {
+  const entrada = props.ordemServico?.valor_entrada ?? 0;
+  return Math.max(0, entrada - aCobrar.value);
+});
+
+const adiantamentoParaDecisao = computed(() => excedente.value > 0);
 
 // ─── Reset ───────────────────────────────────────────────────────────────────
 watch(() => props.isOpen, (open) => {
@@ -125,6 +135,7 @@ watch(() => props.isOpen, (open) => {
     garantia.value = undefined;
     hasAttemptedAdvance.value = false;
     stepAdiantamento.value = false;
+    shouldPrint.value = false;
     solucao.value = '';
     observacoes.value = '';
     descontoDisplay.value = 0;
@@ -174,6 +185,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
     observacoes: observacoes.value || undefined,
     desconto: buildDesconto(),
     zerarAdiantamento,
+    shouldPrint: shouldPrint.value,
   });
 }
 </script>
@@ -183,7 +195,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
     :is-open="isOpen"
     :title="stepAdiantamento ? 'Adiantamento recebido' : 'Finalizar Ordem de Serviço'"
     :subtitle="stepAdiantamento ? '' : (osNumero ? `OS: ${osNumero}` : '')"
-    size="xl"
+    :size="stepAdiantamento ? 'sm' : 'xl'"
     overflow="hidden"
     @close="emit('close')"
   >
@@ -194,8 +206,11 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
       </div>
       <div class="text-center space-y-1">
         <p class="text-sm font-semibold text-zinc-800">
-          Esta OS tinha um adiantamento de
-          <span class="text-amber-600 font-bold">{{ formatCurrency(ordemServico?.valor_entrada ?? 0) }}</span>
+          Excedente do adiantamento:
+          <span class="text-amber-600 font-bold">{{ formatCurrency(excedente) }}</span>
+        </p>
+        <p v-if="aCobrar > 0" class="text-xs text-zinc-400">
+          Adiantamento {{ formatCurrency(ordemServico?.valor_entrada ?? 0) }} − Serviços {{ formatCurrency(aCobrar) }}
         </p>
         <p class="text-xs text-zinc-500">O que deseja fazer com esse valor?</p>
       </div>
@@ -217,6 +232,10 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
           <span class="text-xs font-semibold text-center leading-tight">Devolver em<br>dinheiro</span>
         </button>
       </div>
+      <div class="flex justify-center">
+        <BaseCheckbox v-model="shouldPrint" label="Imprimir Comprovante" />
+      </div>
+
       <button type="button" class="text-xs text-zinc-400 hover:text-zinc-600 transition-colors" @click="stepAdiantamento = false">
         ← Voltar
       </button>

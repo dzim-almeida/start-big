@@ -318,9 +318,12 @@ class OrdemServicoFinalizar(BaseModel):
     taxa_entrega: Optional[int] = Field(None, ge=0, description="Taxa de entrega/frete em centavos")
     acrescimo: Optional[int] = Field(None, ge=0, description="Acréscimo de juros/cartão em centavos")
     pagamentos: List[OSPagamentoCreate] = Field(
-        ...,
-        min_length=1,
+        default=[],
         description="Lista de pagamentos. A soma dos valores deve ser igual ao valor_total da OS."
+    )
+    zerar_adiantamento: Optional[bool] = Field(
+        False,
+        description="Se True, o adiantamento foi devolvido em dinheiro. Se False, vira crédito para o cliente (apenas para SEM_REPARO/CONDENADO)."
     )
 
     model_config = ConfigDict(

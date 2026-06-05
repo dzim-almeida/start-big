@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Receipt, Wrench, ShoppingBag, Banknote, CreditCard, Wallet, QrCode, FileText, Truck } from 'lucide-vue-next';
+import { Receipt, Wrench, ShoppingBag, Banknote, CreditCard, Wallet, QrCode, FileText, Truck, CheckCircle2 } from 'lucide-vue-next';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
@@ -45,6 +45,21 @@ function getPaymentIcon(tipo: string) {
 const totalRecebido = computed(() =>
   (props.pagamentos ?? []).reduce((sum, p) => sum + p.valor, 0)
 );
+
+// Quanto do adiantamento foi consumido pelo valor do serviço (só em OS finalizada)
+const adiantamentoUtilizado = computed(() => {
+  if (!props.isFinalizada || !props.valorEntrada || !props.valorTotal) return 0;
+  return Math.min(props.valorEntrada, props.valorTotal);
+});
+
+// Só muda o "Valor Pago" quando o adiantamento cobriu tudo e não há pagamentos adicionais
+// Nos outros casos mantém o comportamento atual (restante) para não quebrar nada
+const valorPagoDisplay = computed(() => {
+  if (props.isFinalizada && adiantamentoUtilizado.value > 0 && totalRecebido.value === 0) {
+    return adiantamentoUtilizado.value;
+  }
+  return restante.value;
+});
 
 // Troco só faz sentido em OS FINALIZADA (já foi calculado e entregue ao cliente)
 // Em OS reaberta com pagamentos anteriores, o troco já foi dado — não exibir
@@ -204,7 +219,7 @@ function getItemTotal(item: OsItem): number {
 
         <!-- Crédito disponível do cliente -->
         <div
-          v-if="!isFinalizada && !isLocked && (saldoCreditoCliente ?? 0) > 0"
+          v-if="!isFinalizada && !isLocked && (saldoCreditoCliente ?? 0) > 0 && valorEntrada < (saldoCreditoCliente ?? 0)"
           class="flex items-center justify-between gap-2"
         >
           <span class="text-xs text-emerald-600 font-medium">
@@ -241,18 +256,29 @@ function getItemTotal(item: OsItem): number {
           <span class="text-slate-800 font-bold text-sm">
             {{ isFinalizada ? 'Valor Pago' : (pagamentos && pagamentos.length > 0 ? 'Restante a Pagar' : 'Valor a Pagar') }}
           </span>
-          <span class="text-lg font-black text-slate-800">{{ formatCurrency(restante) }}</span>
+          <span class="text-lg font-black text-slate-800">{{ formatCurrency(isFinalizada ? valorPagoDisplay : restante) }}</span>
         </div>
       </div>
 
       <!-- Pagamentos históricos -->
-      <div v-if="pagamentos && pagamentos.length > 0" class="border-t border-slate-200 pt-3 space-y-2">
+      <div v-if="(pagamentos && pagamentos.length > 0) || adiantamentoUtilizado > 0" class="border-t border-slate-200 pt-3 space-y-2">
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
           {{ isFinalizada ? 'Pagamentos Recebidos' : 'Crédito Anterior' }}
         </p>
 
         <!-- OS FINALIZADA: mostra cada pagamento com valor real + troco -->
         <template v-if="isFinalizada">
+          <!-- Adiantamento aplicado: aparece quando o adiantamento cobriu parte ou tudo -->
+          <div v-if="adiantamentoUtilizado > 0 && pagamentos.length === 0" class="flex items-center justify-between py-1">
+            <div class="flex items-center gap-2">
+              <div class="p-1 bg-emerald-50 rounded-md text-emerald-600">
+                <Banknote :size="11" />
+              </div>
+              <p class="text-xs font-medium text-slate-700">Adiantamento aplicado</p>
+            </div>
+            <span class="text-xs font-semibold text-emerald-600">{{ formatCurrency(adiantamentoUtilizado) }}</span>
+          </div>
+
           <div
             v-for="pgto in pagamentos"
             :key="pgto.id"

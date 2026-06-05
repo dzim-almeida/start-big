@@ -40,7 +40,7 @@ from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.db.crud import forma_pagamento as fp_crud
 
-from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus
+from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento
 from app.helpers.set_pagination import _set_pagination
 
 
@@ -480,6 +480,14 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
             detalhes=pagamento_data.detalhes,
         )
         os_crud.create_os_pagamento(db, pagamento_to_add=pagamento)
+
+    # Para SEM_REPARO / CONDENADO: trata o excedente do adiantamento (entrada - total cobrado)
+    if situacao_sem_cobranca and (os_in_db.valor_entrada or 0) > 0:
+        excedente = max(0, (os_in_db.valor_entrada or 0) - (os_in_db.valor_total or 0))
+        if excedente > 0 and not data.zerar_adiantamento:
+            cliente = os_in_db.equipamento.cliente if os_in_db.equipamento else None
+            if cliente:
+                cliente.saldo_credito = (cliente.saldo_credito or 0) + excedente
 
     # Aplica finalização
     os_in_db.situacao_equipamento = data.situacao_equipamento

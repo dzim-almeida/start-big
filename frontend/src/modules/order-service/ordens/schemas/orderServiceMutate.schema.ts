@@ -80,6 +80,7 @@ export const OrderServiceReadySchema = z.object({
   acrescimo: z.number().int().min(0, 'Acréscimo inválido').default(0),
   valor_entrada: z.number().int().min(0, 'Adiantamento não pode ser negativo').optional(),
   pagamentos: z.array(OsPaymentCreateSchema).default([]),
+  zerar_adiantamento: z.boolean().optional(),
 });
 
 export const orderServiceReadyValidationSchema = toTypedSchema(OrderServiceReadySchema)

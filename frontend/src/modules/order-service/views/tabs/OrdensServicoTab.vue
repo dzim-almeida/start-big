@@ -17,11 +17,12 @@ import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
-import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
+import { useReopenOrderServiceMutation, useReadyOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
 import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
 
 const toast = useToast();
 const reopenMutation = useReopenOrderServiceMutation();
+const finalizarEntregaMutation = useReadyOrderServiceMutation();
 
 const {
   searchQuery,
@@ -109,6 +110,35 @@ function handleCloseFinalizarDirect() {
 }
 
 function handleAdvanceDirect(data: DadosFinalizacaoOS) {
+  const isEntrega = data.situacao_equipamento === 'SEM_REPARO' || data.situacao_equipamento === 'CONDENADO';
+
+  if (isEntrega) {
+    if (!osToFinalizar.value?.numero_os) return;
+    finalizarEntregaMutation.mutate(
+      {
+        osNumber: osToFinalizar.value.numero_os,
+        readyOs: {
+          situacao_equipamento: data.situacao_equipamento,
+          garantia: data.garantia,
+          solucao: data.solucao,
+          observacoes: data.observacoes ?? '',
+          desconto: data.desconto,
+          taxa_entrega: osToFinalizar.value?.taxa_entrega ?? 0,
+          acrescimo: 0,
+          valor_entrada: data.zerarAdiantamento ? 0 : undefined,
+          zerar_adiantamento: data.zerarAdiantamento ?? false,
+          pagamentos: [],
+        },
+      },
+      {
+        onSuccess: async () => {
+          await handleFinalizadoDirect({ shouldPrint: data.shouldPrint ?? false });
+        },
+      },
+    );
+    return;
+  }
+
   dadosFinalizacaoDirect.value = data;
   isPagamentoDirectOpen.value = true;
 }
