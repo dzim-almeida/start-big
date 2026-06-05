@@ -139,7 +139,7 @@ defineExpose({ form })
         >
           <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.exigir_ie_pj ? 'translate-x-5' : 'translate-x-0.5']" />
         </button>
-      </div>
+      </div>p
 
       <div class="flex items-center justify-between py-3 border-b border-zinc-100">
         <div>

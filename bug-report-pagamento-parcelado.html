@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bug Report — Pagamento Parcelado</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    h1 { color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 8px; }
+    h2 { color: #2c3e50; margin-top: 32px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    .badge-error { background: #fdecea; color: #c0392b; border: 1px solid #e74c3c; }
+    .badge-fixed { background: #eafaf1; color: #1e8449; border: 1px solid #27ae60; }
+    .info-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .info-table td { padding: 8px 12px; border: 1px solid #ddd; }
+    .info-table td:first-child { font-weight: bold; background: #f8f9fa; width: 180px; }
+    code {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .error-block { background: #fdecea; border-left: 4px solid #e74c3c; padding: 12px 16px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+    .fix-block   { background: #eafaf1; border-left: 4px solid #27ae60; padding: 12px 16px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+    .warning-block { background: #fef9e7; border-left: 4px solid #f39c12; padding: 12px 16px; margin: 16px 0; border-radius: 0 4px 4px 0; }
+    footer { margin-top: 48px; border-top: 1px solid #ddd; padding-top: 16px; font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+
+  <h1>Bug Report — Pagamento Parcelado com Erro 500</h1>
+
+  <span class="badge badge-error">ERRO CRÍTICO</span>
+  &nbsp;
+  <span class="badge badge-fixed">CORRIGIDO NO BANCO</span>
+
+  <table class="info-table">
+    <tr><td>Módulo</td><td>Vendas — Finalizar Venda</td></tr>
+    <tr><td>Data</td><td>02/06/2026</td></tr>
+    <tr><td>Ambiente</td><td>Desenvolvimento local (SQLite)</td></tr>
+    <tr><td>Endpoint</td><td><code>POST /api/v1/vendas/{id}/finalizar</code></td></tr>
+    <tr><td>Arquivo de origem</td><td><code>backend-fastapi/app/db/models/venda_pagamento.py</code></td></tr>
+    <tr><td>Tabela afetada</td><td><code>pagamentos_venda</code></td></tr>
+  </table>
+
+  <h2>Descrição do Erro</h2>
+  <p>
+    Ao tentar finalizar uma venda com pagamento <strong>parcelado</strong> (ex: Cartão de Crédito em 2x),
+    o sistema retornava erro 500 com a mensagem:
+  </p>
+
+  <div class="error-block">
+    <strong>sqlite3.IntegrityError:</strong> CHECK constraint failed: ck_pagamento_venda_min_1<br/>
+    <code>INSERT INTO pagamentos_venda (venda_id, forma_pagamento_id, valor, parcelado, qtd_parcelas, data_pagamento)</code><br/>
+    <code>VALUES (2, 3, 25000, 1, 2, CURRENT_TIMESTAMP)</code>
+  </div>
+
+  <h2>Causa Raiz</h2>
+  <p>
+    A constraint <code>ck_pagamento_venda_parcelas_min_1</code> no modelo <code>PagamentoVenda</code>
+    foi definida com <strong>AND</strong> em vez de <strong>OR</strong>:
+  </p>
+
+  <pre><span style="color:#ff6b6b">-- ERRADO (AND — só passa quando parcelado = FALSE)</span>
+CONSTRAINT ck_pagamento_venda_parcelas_min_1
+  CHECK ((parcelado IS FALSE) AND (qtd_parcelas >= 1))</pre>
+
+  <p>
+    Com <code>AND</code>, a constraint exige que <strong>ambas</strong> as condições sejam verdadeiras simultaneamente:
+    <code>parcelado = FALSE</code> e <code>qtd_parcelas >= 1</code>.
+    Isso torna <strong>impossível</strong> inserir qualquer pagamento parcelado (<code>parcelado = TRUE</code>),
+    pois a primeira condição sempre falha.
+  </p>
+
+  <h2>Correção Aplicada</h2>
+  <p>A tabela foi recriada com a constraint corrigida usando <strong>OR</strong>:</p>
+
+  <pre><span style="color:#6bff9e">-- CORRETO (OR — passa se não parcelado OU se parcelado com >= 1 parcela)</span>
+CONSTRAINT ck_pagamento_venda_parcelas_min_1
+  CHECK ((parcelado IS NOT TRUE) OR (qtd_parcelas >= 1))</pre>
+
+  <div class="fix-block">
+    <strong>Correção no banco:</strong> tabela <code>pagamentos_venda</code> recriada via script Python com a lógica correta. Os dados existentes foram preservados.
+  </div>
+
+  <h2>Ação Necessária no Código-Fonte</h2>
+
+  <div class="warning-block">
+    <strong>Atenção:</strong> a correção foi aplicada apenas no banco de dados local.
+    O arquivo de modelo do SQLAlchemy ainda contém o bug original.
+    Se o banco for recriado (novo PC, reset de ambiente), o erro vai voltar.
+  </div>
+
+  <p>O arquivo <code>backend-fastapi/app/db/models/venda_pagamento.py</code> precisa ser corrigido:</p>
+
+  <pre><span style="color:#ff6b6b"># ANTES (bugado)
+CheckConstraint(
+    "(parcelado IS FALSE) AND (qtd_parcelas >= 1)",
+    name="ck_pagamento_venda_parcelas_min_1"
+)</span>
+
+<span style="color:#6bff9e"># DEPOIS (correto)
+CheckConstraint(
+    "(parcelado IS NOT TRUE) OR (qtd_parcelas >= 1)",
+    name="ck_pagamento_venda_parcelas_min_1"
+)</span></pre>
+
+  <h2>Impacto</h2>
+  <ul>
+    <li>Qualquer pagamento com <code>parcelado = True</code> retornava erro 500</li>
+    <li>Vendas à vista (não parceladas) funcionavam normalmente</li>
+    <li>O erro não aparecia nos testes com a conta master sem parcelamento</li>
+  </ul>
+
+  <footer>
+    Relatório gerado em 02/06/2026 · Projeto BigPDV · Branch: feat/configuracoes-menu
+  </footer>
+
+</body>
+</html>

@@ -13,6 +13,7 @@ interface Props {
   disabled?: boolean;
   id?: string;
   options?: CurrencyInputOptions; // Adicionado para flexibilidade
+  inputClass?: string;
 }
 
 // 2. Use withDefaults com uma função para a propriedade 'options'
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emits = defineEmits<{
   blur: [];
   enter: [];
+  keydown: [event: KeyboardEvent];
 }>();
 
 const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
@@ -45,6 +47,7 @@ const inputClasses = computed(() => [
     ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
     : 'border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary',
   props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
+  props.inputClass,
 ]);
 
 watch(
@@ -57,6 +60,10 @@ watch(
     }
   },
 );
+
+defineExpose({
+  inputRef,
+});
 </script>
 
 <template>
@@ -75,6 +82,7 @@ watch(
       :class="inputClasses"
       @blur="$emit('blur')"
       @keydown.enter="$emit('enter')"
+      @keydown="$emit('keydown', $event)"
     />
 
     <p v-if="error" class="mt-0.5 text-xs text-red-500">

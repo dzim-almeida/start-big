@@ -87,7 +87,7 @@ const createdAt = computed(() => {
       <!-- Entrega -->
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Entrega</h2>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center" data-sale-entrega>
           <Truck :size="18" class="text-zinc-500 shrink-0" />
           <MoneyInput v-model.number="form.entrega" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>
@@ -96,7 +96,7 @@ const createdAt = computed(() => {
       <!-- Desconto -->
       <div class="flex flex-col gap-1">
         <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Desconto</h2>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center" data-sale-desconto>
           <TicketPercent :size="18" class="text-zinc-500 shrink-0" />
           <MoneyInput v-model.number="form.desconto" :disabled="isSaving || readonly" @blur="saveNow" @enter="saveNow" class="w-auto" />
         </div>

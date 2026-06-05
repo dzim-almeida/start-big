@@ -28,6 +28,7 @@ export function useOSUpdateGeralForm(opts: {
   const [observacoes] = defineField('observacoes');
   const [desconto] = defineField('desconto');
   const [valor_entrada] = defineField('valor_entrada');
+  const [taxa_entrega] = defineField('taxa_entrega');
   const [garantia] = defineField('garantia');
   const [data_previsao] = defineField('data_previsao');
   const [senha_aparelho] = defineField('senha_aparelho');
@@ -45,6 +46,7 @@ export function useOSUpdateGeralForm(opts: {
       observacoes: os.observacoes ?? undefined,
       desconto: os.desconto ?? undefined,
       valor_entrada: os.valor_entrada ?? 0,
+      taxa_entrega: os.taxa_entrega ?? 0,
       garantia: os.garantia ?? undefined,
       data_previsao: os.data_previsao ?? undefined,
       senha_aparelho: os.senha_aparelho ?? undefined,
@@ -62,6 +64,22 @@ export function useOSUpdateGeralForm(opts: {
     );
   });
 
+  const onSubmitTextOnly = () => {
+    if (!opts.osNumber.value) return;
+    updateMutation.mutate(
+      {
+        osNumber: opts.osNumber.value,
+        updatedOS: {
+          defeito_relatado: defeito_relatado.value ?? undefined,
+          diagnostico: diagnostico.value ?? undefined,
+          solucao: solucao.value ?? undefined,
+          observacoes: observacoes.value ?? undefined,
+        },
+      },
+      { onSuccess: () => opts.onSuccess?.() },
+    );
+  };
+
   const resetForm = () => {
     veeReset();
   };
@@ -77,6 +95,7 @@ export function useOSUpdateGeralForm(opts: {
     observacoes,
     desconto,
     valor_entrada,
+    taxa_entrega,
     garantia,
     data_previsao,
     senha_aparelho,
@@ -86,6 +105,7 @@ export function useOSUpdateGeralForm(opts: {
     errors,
     isPending,
     onSubmit,
+    onSubmitTextOnly,
     resetForm,
     populateForm,
   };

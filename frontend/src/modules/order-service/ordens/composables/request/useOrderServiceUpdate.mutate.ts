@@ -24,7 +24,7 @@ import {
   OsCancelUpdateRequest,
 } from '../../types/requests.type';
 
-import { ORDER_SERVICE_QUERY_KEY } from '../../constants/core.constant';
+import { ORDER_SERVICE_QUERY_KEY, OS_CUSTOMER_QUERY_KEY } from '../../constants/core.constant';
 
 export function useUpdateOrderServiceMutation() {
   const toast = useToast();
@@ -83,6 +83,7 @@ export function useReadyOrderServiceMutation() {
     onSuccess: (data) => {
       toast.success(`${data.numero_os} finalizada com sucesso`);
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao finalizar a ordem de serviço') as string);
@@ -99,6 +100,7 @@ export function useCancelOrderServiceMutation() {
     onSuccess: (data) => {
       toast.success(`${data.numero_os} cancelada com sucesso`);
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao cancelar a ordem de serviço') as string);

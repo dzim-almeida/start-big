@@ -10,6 +10,7 @@ interface UseOSFinancialSummaryParams {
   createDesconto: Ref<number | undefined>;
   createValorEntrada: Ref<number | undefined>;
   updateValorEntrada: Ref<number | undefined>;
+  updateTaxaEntrega: Ref<number | undefined>;
 }
 
 export function useOSFinancialSummary({
@@ -19,6 +20,7 @@ export function useOSFinancialSummary({
   createDesconto,
   createValorEntrada,
   updateValorEntrada,
+  updateTaxaEntrega,
 }: UseOSFinancialSummaryParams) {
   const displaySubtotal = computed(() => {
     if (isCreateMode.value) {
@@ -30,7 +32,13 @@ export function useOSFinancialSummary({
     return (currentOSData.value?.itens ?? []).reduce((sum, item) => sum + item.valor_total, 0);
   });
 
-  const displayValorEntrega = computed(() => currentOSData.value?.taxa_entrega ?? 0);
+  const displayValorEntrega = computed(() =>
+    updateTaxaEntrega.value ?? currentOSData.value?.taxa_entrega ?? 0
+  );
+
+  function handleValorEntregaUpdate(value: number) {
+    if (!isCreateMode.value) updateTaxaEntrega.value = value;
+  }
 
   const displayValorDesconto = computed(() => {
     if (isCreateMode.value) return createDesconto.value ?? 0;
@@ -41,7 +49,12 @@ export function useOSFinancialSummary({
     if (isCreateMode.value) {
       return Math.max(0, displaySubtotal.value - displayValorDesconto.value);
     }
-    return currentOSData.value?.valor_total ?? 0;
+    const dbTotal = currentOSData.value?.valor_total ?? 0;
+    if (updateTaxaEntrega.value !== undefined && updateTaxaEntrega.value !== null) {
+      const dbEntrega = currentOSData.value?.taxa_entrega ?? 0;
+      return Math.max(0, dbTotal - dbEntrega + updateTaxaEntrega.value);
+    }
+    return dbTotal;
   });
 
   const displayValorEntrada = computed(() => {
@@ -57,12 +70,16 @@ export function useOSFinancialSummary({
     updateValorEntrada.value = value;
   }
 
+  const displayValorAcrescimo = computed(() => currentOSData.value?.acrescimo ?? 0);
+
   return {
     displaySubtotal,
     displayValorEntrega,
     displayValorDesconto,
     displayValorTotal,
     displayValorEntrada,
+    displayValorAcrescimo,
     handleValorEntradaUpdate,
+    handleValorEntregaUpdate,
   };
 }

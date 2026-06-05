@@ -1,36 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
-import {
-  FileText,
-  AlertTriangle,
-  CreditCard,
-  Wallet,
-  QrCode,
-  Banknote,
-  CheckCircle2,
-  Trash2,
-  Package,
-  Percent,
-  Tag,
-  Truck,
-  Wrench,
-  ShoppingBag,
-} from 'lucide-vue-next';
-import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import { ref, computed, watch } from 'vue';
+import { CheckCircle2, AlertTriangle, XCircle, ShieldCheck, User, Cpu, Calendar, Banknote, BookmarkCheck } from 'lucide-vue-next';
+
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
-import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
-import type { PaymentFormReadDataType } from '@/shared/schemas/payments/payment.schema';
+import type { OsEquipSituacaoEnumDataType } from '../schemas/enums/osEnums.schema';
 import { formatCurrency } from '@/shared/utils/finance';
-import { useOSFinalizarForm } from '../composables/form/useOSFinalizar.form';
-import { useOsPaymentMethodsGet } from '../composables/request/relationship/useOSPaymentMethods.queries';
-import { inferPaymentType, inferPermiteParcelamento, getPaymentDisplayName } from '../../shared/utils/formatters';
-import type { OsCardsFlagEnumDataType } from '../schemas/enums/osEnums.schema';
+
+export interface DadosFinalizacaoOS {
+  situacao_equipamento?: OsEquipSituacaoEnumDataType;
+  garantia?: string;
+  solucao?: string;
+  observacoes?: string;
+  desconto: number;
+  zerarAdiantamento?: boolean;
+  shouldPrint?: boolean;
+}
 
 interface Props {
   isOpen: boolean;
@@ -42,554 +32,478 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  finalized: [payload: { shouldPrint: boolean }];
+  advance: [data: DadosFinalizacaoOS];
 }>();
 
-// ─── Estado local ──────────────────────────────────────────────────────────
-const shouldPrint = ref(false);
-const confirmacao = ref(false);
-const hasAttemptedSubmit = ref(false);
-
-const showPaymentDetails = ref(false);
-const currentPaymentMethod = ref<PaymentFormReadDataType | null>(null);
-const paymentDetails = ref<{ valor: number; parcelas: number; bandeira: OsCardsFlagEnumDataType | ''; taxa_juros: number }>({ valor: 0, parcelas: 1, bandeira: '', taxa_juros: 0 });
-
-const osNumberRef = computed(() => props.osNumero);
-
-// ─── Form composable ──────────────────────────────────────────────────────
-const finalizarForm = useOSFinalizarForm({
-  osNumber: osNumberRef,
-  onSuccess: () => {
-    emit('finalized', { shouldPrint: shouldPrint.value });
-    shouldPrint.value = false;
-    confirmacao.value = false;
-  },
-});
-
-const { formasPagamento } = useOsPaymentMethodsGet();
-
-// ─── Display values (reais) sincronizados com form (centavos) ──────────────
+// ─── Estado ──────────────────────────────────────────────────────────────────
+const situacao_equipamento = ref<OsEquipSituacaoEnumDataType | undefined>('REPARADO');
+const garantia = ref<string | undefined>(undefined);
+const hasAttemptedAdvance = ref(false);
+const showOsVaziaModal = ref(false);
+const solucao = ref('');
+const observacoes = ref('');
 const descontoDisplay = ref(0);
-watch(descontoDisplay, (val) => {
-  const maxCents = Math.max(0, valorTotal.value - (finalizarForm.valor_entrada.value ?? 0));
-  const maxReais = Math.round(maxCents) / 100;
-  const clamped = Math.round(Math.max(0, Math.min(val, maxReais)) * 100) / 100;
-  finalizarForm.desconto.value = Math.round(clamped * 100);
-  if (val !== clamped) nextTick(() => { descontoDisplay.value = clamped; });
+const descontoPercentual = ref(0);
+const descontoTipo = ref<'valor' | 'percentual'>('valor');
+const stepAdiantamento = ref(false)
+const shouldPrint = ref(false);
+
+const opcoesGarantia = ['Sem garantia', '30 dias', '60 dias', '90 dias', '6 meses', '1 ano'];
+
+// ─── Computeds ───────────────────────────────────────────────────────────────
+const clienteNome = computed(() => {
+  const c = props.ordemServico?.cliente as any;
+  return c?.nome ?? c?.razao_social ?? '—';
 });
 
-const taxaEntregaDisplay = ref(0);
-watch(taxaEntregaDisplay, (val) => {
-  finalizarForm.taxa_entrega.value = Math.round(val * 100);
+const clienteDoc = computed(() => {
+  const c = props.ordemServico?.cliente as any;
+  return c?.cpf ?? c?.cnpj ?? null;
 });
 
-const valorEntradaDisplay = ref(0);
-watch(valorEntradaDisplay, (val) => {
-  const maxCents = Math.max(0, valorTotal.value - (finalizarForm.desconto.value ?? 0));
-  const maxReais = Math.round(maxCents) / 100;
-  const clamped = Math.round(Math.max(0, Math.min(val, maxReais)) * 100) / 100;
-  finalizarForm.valor_entrada.value = Math.round(clamped * 100);
-  if (val !== clamped) nextTick(() => { valorEntradaDisplay.value = clamped; });
-});
-
-// ─── Cálculos financeiros ─────────────────────────────────────────────────
 const subtotalItens = computed(() => {
   if (!props.ordemServico?.itens) return 0;
   return props.ordemServico.itens.reduce((sum, item) => sum + item.valor_total, 0);
 });
 
-// ─── Juros por pagamento (centavos, paralelo ao array de pagamentos) ─────────
-const pagamentosJuros = ref<number[]>([]);
-
-const acrescimoTotal = computed(() =>
-  pagamentosJuros.value.reduce((sum, v) => sum + v, 0),
-);
-
-watch(acrescimoTotal, (val) => {
-  finalizarForm.acrescimo.value = val;
-}, { immediate: true });
-
-watch(() => paymentDetails.value.taxa_juros, (v) => {
-  const clamped = Math.min(100, Math.max(0, v ?? 0));
-  if (v !== clamped) paymentDetails.value.taxa_juros = clamped;
+const creditoAnterior = computed(() => {
+  const raw = props.ordemServico?.credito_anterior ?? 0;
+  const acrescimo = props.ordemServico?.acrescimo ?? 0;
+  return Math.max(0, raw - acrescimo);
 });
 
-// ─── Reset ao fechar / populate ao abrir ──────────────────────────────────
+const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
+
+const aCobrar = computed(() => {
+  // Juros da finalização anterior não entram no cálculo — não viram crédito de serviço
+  const total = Math.max(0, subtotalItens.value + taxaEntrega.value - desconto.value);
+  return Math.max(0, total - creditoAnterior.value);
+});
+
+const desconto = computed(() => {
+  if (descontoTipo.value === 'percentual') {
+    const pct = Math.min(100, Math.max(0, descontoPercentual.value));
+    return Math.round(subtotalItens.value * (pct / 100));
+  }
+  return Math.round(descontoDisplay.value * 100);
+});
+
+// ─── Situação ─────────────────────────────────────────────────────────────────
+const situacoesEquipamento: {
+  value: OsEquipSituacaoEnumDataType;
+  label: string;
+  icon: unknown;
+  activeClass: string;
+}[] = [
+  { value: 'REPARADO',   label: 'Reparado',   icon: CheckCircle2,  activeClass: 'border-emerald-500 bg-emerald-50 text-emerald-700' },
+  { value: 'SEM_REPARO', label: 'Sem reparo', icon: AlertTriangle, activeClass: 'border-amber-400 bg-amber-50 text-amber-700' },
+  { value: 'CONDENADO',  label: 'Condenado',  icon: XCircle,       activeClass: 'border-red-500 bg-red-50 text-red-700' },
+];
+
+function toggleSituacao(value: OsEquipSituacaoEnumDataType) {
+  situacao_equipamento.value = situacao_equipamento.value === value ? undefined : value;
+}
+
+function setDescontoTipo(tipo: 'valor' | 'percentual') {
+  descontoTipo.value = tipo;
+  if (tipo === 'valor') descontoPercentual.value = 0;
+  else descontoDisplay.value = 0;
+}
+
+// ─── Fluxo de entrega (Sem reparo / Condenado) ───────────────────────────────
+const isEntregaFlow = computed(() =>
+  situacao_equipamento.value === 'SEM_REPARO' || situacao_equipamento.value === 'CONDENADO'
+);
+
+// Valor que sobra do adiantamento após descontar os serviços cobrados (ex: taxa de orçamento)
+const excedente = computed(() => {
+  const entrada = props.ordemServico?.valor_entrada ?? 0;
+  return Math.max(0, entrada - aCobrar.value);
+});
+
+const adiantamentoParaDecisao = computed(() => excedente.value > 0);
+
+// ─── Reset ───────────────────────────────────────────────────────────────────
 watch(() => props.isOpen, (open) => {
   if (open) {
-    valorEntradaDisplay.value = (props.ordemServico?.valor_entrada ?? 0) / 100;
+    if (props.ordemServico?.credito_anterior && props.ordemServico?.desconto) {
+      descontoDisplay.value = props.ordemServico.desconto / 100;
+      descontoTipo.value = 'valor';
+    }
   } else {
-    hasAttemptedSubmit.value = false;
-    finalizarForm.resetForm();
-    descontoDisplay.value = 0;
-    taxaEntregaDisplay.value = 0;
-    valorEntradaDisplay.value = 0;
-    pagamentosJuros.value = [];
+    situacao_equipamento.value = 'REPARADO';
+    garantia.value = undefined;
+    hasAttemptedAdvance.value = false;
+    stepAdiantamento.value = false;
     shouldPrint.value = false;
-    confirmacao.value = false;
-    showPaymentDetails.value = false;
-    currentPaymentMethod.value = null;
+    solucao.value = '';
+    observacoes.value = '';
+    descontoDisplay.value = 0;
+    descontoPercentual.value = 0;
+    descontoTipo.value = 'valor';
   }
 });
 
-const valorTotal = computed(() => {
-  const entrega = finalizarForm.taxa_entrega.value ?? 0;
-  const acresc = finalizarForm.acrescimo.value ?? 0;
-  return Math.max(0, subtotalItens.value + entrega + acresc);
-});
+// ─── Avançar ─────────────────────────────────────────────────────────────────
+const garantiaObrigatoria = computed(() => situacao_equipamento.value === 'REPARADO' || !situacao_equipamento.value);
 
-const valorEntrada = computed(() => finalizarForm.valor_entrada.value ?? 0);
-
-const valorDesconto = computed(() => finalizarForm.desconto.value ?? 0);
-
-const valorAdiantamento = computed(() => finalizarForm.valor_entrada.value ?? 0);
-
-const totalPago = computed(() =>
-  finalizarForm.pagamentos.value.reduce((sum, p) => sum + (p.value.valor ?? 0), 0),
-);
-
-// Valor líquido a cobrar via pagamentos (após descontos antecipados)
-const totalAReceber = computed(() =>
-  Math.max(0, valorTotal.value - valorAdiantamento.value - valorDesconto.value)
-);
-
-const restante = computed(() => Math.max(0, totalAReceber.value - totalPago.value));
-const troco = computed(() => Math.max(0, totalPago.value - totalAReceber.value));
-
-const canSubmit = computed(() =>
-  confirmacao.value &&
-  restante.value === 0,
-);
-
-// ─── Helpers de pagamento ─────────────────────────────────────────────────
-function getMethodTipo(method: PaymentFormReadDataType): string {
-  return method.tipo ?? inferPaymentType(method.nome);
+function buildDesconto() {
+  return descontoTipo.value === 'percentual'
+    ? Math.round(subtotalItens.value * (Math.min(100, Math.max(0, descontoPercentual.value)) / 100))
+    : Math.round(descontoDisplay.value * 100);
 }
 
-function getMethodPermiteParcelamento(method: PaymentFormReadDataType): boolean {
-  return method.permite_parcelamento ?? inferPermiteParcelamento(getMethodTipo(method));
-}
+function handleAdvance() {
+  hasAttemptedAdvance.value = true;
+  if (garantiaObrigatoria.value && !garantia.value) return;
 
-function getPaymentIcon(tipo: string) {
-  switch (tipo) {
-    case 'DINHEIRO': return Banknote;
-    case 'PIX': return QrCode;
-    case 'CARTAO_CREDITO': return CreditCard;
-    case 'CARTAO_DEBITO': return Wallet;
-    case 'BOLETO': return FileText;
-    default: return Banknote;
+  if (subtotalItens.value === 0 && situacao_equipamento.value === 'REPARADO') {
+    showOsVaziaModal.value = true;
+    return;
   }
-}
 
-function getPaymentMethodById(id: number): PaymentFormReadDataType | undefined {
-  return formasPagamento.value.find((f) => f.id === id);
-}
+  // Sem reparo / Condenado: pergunta sobre adiantamento antes de emitir
+  if (isEntregaFlow.value && adiantamentoParaDecisao.value) {
+    stepAdiantamento.value = true;
+    return;
+  }
 
-function getPaymentIconById(id: number) {
-  const method = getPaymentMethodById(id);
-  return getPaymentIcon(method ? getMethodTipo(method) : '');
-}
-
-// ─── Ações de pagamento ───────────────────────────────────────────────────
-const paymentValueReais = ref(0);
-
-function handleAddPaymentClick(method: PaymentFormReadDataType) {
-  currentPaymentMethod.value = method;
-  paymentValueReais.value = restante.value / 100;
-  paymentDetails.value = { valor: 0, parcelas: 1, bandeira: '', taxa_juros: 0 };
-  showPaymentDetails.value = true;
-}
-
-function confirmAddPayment() {
-  if (!currentPaymentMethod.value) return;
-  const baseValor = Math.round(paymentValueReais.value * 100);
-  const jurosAmount = Math.round(baseValor * (paymentDetails.value.taxa_juros / 100));
-  const totalValor = baseValor + jurosAmount;
-
-  finalizarForm.handleAddPagamento({
-    forma_pagamento_id: currentPaymentMethod.value.id,
-    valor: totalValor,
-    parcelas: paymentDetails.value.parcelas,
-    bandeira_cartao: paymentDetails.value.bandeira || undefined,
+  emit('advance', {
+    situacao_equipamento: situacao_equipamento.value,
+    garantia: garantia.value,
+    solucao: solucao.value || undefined,
+    observacoes: observacoes.value || undefined,
+    desconto: buildDesconto(),
   });
-  pagamentosJuros.value = [...pagamentosJuros.value, jurosAmount];
-  showPaymentDetails.value = false;
-  currentPaymentMethod.value = null;
 }
 
-function removePayment(index: number) {
-  finalizarForm.handleRemovePagamento(index);
-  pagamentosJuros.value = pagamentosJuros.value.filter((_, i) => i !== index);
-}
-
-function handleSubmit() {
-  hasAttemptedSubmit.value = true;
-  finalizarForm.onSubmit();
+function handleEmitEntrega(zerarAdiantamento: boolean) {
+  emit('advance', {
+    situacao_equipamento: situacao_equipamento.value,
+    garantia: garantia.value,
+    solucao: solucao.value || undefined,
+    observacoes: observacoes.value || undefined,
+    desconto: buildDesconto(),
+    zerarAdiantamento,
+    shouldPrint: shouldPrint.value,
+  });
 }
 </script>
 
 <template>
   <BaseModal
     :is-open="isOpen"
-    title="Finalizar Ordem de Serviço"
-    :subtitle="osNumero ? `OS: ${osNumero}` : ''"
-    size="2xl"
+    :title="stepAdiantamento ? 'Adiantamento recebido' : 'Finalizar Ordem de Serviço'"
+    :subtitle="stepAdiantamento ? '' : (osNumero ? `OS: ${osNumero}` : '')"
+    :size="stepAdiantamento ? 'sm' : 'xl'"
+    overflow="hidden"
     @close="emit('close')"
   >
-    <!-- Alerta de erro de pagamentos -->
-    <div v-if="hasAttemptedSubmit && finalizarForm.errors.value.pagamentos" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3">
-      <AlertTriangle :size="20" class="shrink-0 mt-0.5" />
-      <span>{{ finalizarForm.errors.value.pagamentos }}</span>
+    <!-- ── Step adiantamento: substitui todo o conteúdo ── -->
+    <div v-if="stepAdiantamento" class="flex flex-col items-center gap-5 py-2">
+      <div class="p-4 bg-amber-50 rounded-full">
+        <Banknote :size="32" class="text-amber-500" />
+      </div>
+      <div class="text-center space-y-1">
+        <p class="text-sm font-semibold text-zinc-800">
+          Excedente do adiantamento:
+          <span class="text-amber-600 font-bold">{{ formatCurrency(excedente) }}</span>
+        </p>
+        <p v-if="aCobrar > 0" class="text-xs text-zinc-400">
+          Adiantamento {{ formatCurrency(ordemServico?.valor_entrada ?? 0) }} − Serviços {{ formatCurrency(aCobrar) }}
+        </p>
+        <p class="text-xs text-zinc-500">O que deseja fazer com esse valor?</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 w-full">
+        <button
+          type="button"
+          class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 border-emerald-400 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all"
+          @click="handleEmitEntrega(false)"
+        >
+          <BookmarkCheck :size="20" />
+          <span class="text-xs font-semibold text-center leading-tight">Manter como<br>crédito</span>
+        </button>
+        <button
+          type="button"
+          class="flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 border-brand-primary bg-brand-primary/5 text-brand-primary hover:bg-brand-primary/10 transition-all"
+          @click="handleEmitEntrega(true)"
+        >
+          <Banknote :size="20" />
+          <span class="text-xs font-semibold text-center leading-tight">Devolver em<br>dinheiro</span>
+        </button>
+      </div>
+      <div class="flex justify-center">
+        <BaseCheckbox v-model="shouldPrint" label="Imprimir Comprovante" />
+      </div>
+
+      <button type="button" class="text-xs text-zinc-400 hover:text-zinc-600 transition-colors" @click="stepAdiantamento = false">
+        ← Voltar
+      </button>
     </div>
 
-    <form @submit.prevent="handleSubmit" class="flex flex-col lg:flex-row gap-8">
+    <!-- ── Formulário principal ── -->
+    <div v-else class="flex flex-col h-full">
 
-      <!-- ═══════════ COLUNA ESQUERDA ═══════════ -->
-      <div class="flex-1 space-y-6 min-w-0">
+      <!-- ── Área scrollável (informações, campos e opções) ── -->
+      <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col gap-4 pb-2">
 
-        <!-- Tabela de itens unificada -->
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <Package :size="18" class="text-brand-primary" />
-            <h3 class="text-sm font-semibold text-zinc-700">Itens da OS</h3>
-            <span class="text-xs text-zinc-400">({{ ordemServico?.itens.length ?? 0 }})</span>
+      <!-- ── Linha 1: Cliente + Equipamento + Previsão ── -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex items-center gap-3">
+          <div class="p-2 bg-brand-primary/10 rounded-lg shrink-0">
+            <User :size="16" class="text-brand-primary" />
           </div>
-
-          <div v-if="ordemServico?.itens && ordemServico.itens.length > 0" class="border border-zinc-200 rounded-xl overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-zinc-100">
-                  <th class="text-left px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400">Item</th>
-                  <th class="text-center px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-12">Qtd</th>
-                  <th class="text-right px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-24">Unitário</th>
-                  <th class="text-right px-3 py-2 text-xs font-medium uppercase tracking-wide text-zinc-400 w-24">Total</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-100">
-                <tr v-for="item in ordemServico.itens" :key="item.id" class="hover:bg-zinc-50/40 transition-colors">
-                  <td class="px-3 py-2.5">
-                    <div class="flex items-center gap-2">
-                      <component
-                        :is="item.tipo === 'SERVICO' ? Wrench : ShoppingBag"
-                        :size="13"
-                        class="shrink-0 text-brand-primary opacity-70"
-                      />
-                      <span class="text-zinc-700 truncate">{{ item.nome }}</span>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2.5 text-center text-zinc-500">{{ item.quantidade }}</td>
-                  <td class="px-3 py-2.5 text-right text-zinc-500">{{ formatCurrency(item.valor_unitario) }}</td>
-                  <td class="px-3 py-2.5 text-right font-medium text-zinc-700">{{ formatCurrency(item.valor_total) }}</td>
-                </tr>
-              </tbody>
-              <tfoot class="bg-zinc-50 border-t border-zinc-200">
-                <tr>
-                  <td colspan="3" class="px-3 py-2 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Subtotal</td>
-                  <td class="px-3 py-2 text-right text-sm font-bold text-zinc-800">{{ formatCurrency(subtotalItens) }}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div v-else class="text-center py-6 border-2 border-dashed border-zinc-200 rounded-xl">
-            <p class="text-sm text-zinc-400">Nenhum item na OS</p>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Cliente</p>
+            <p class="font-semibold text-zinc-800 text-sm truncate leading-tight">{{ clienteNome }}</p>
+            <p v-if="clienteDoc" class="text-xs text-zinc-400">{{ clienteDoc }}</p>
           </div>
         </div>
 
-        <!-- Solução Aplicada -->
+        <div class="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex items-center gap-3">
+          <div class="p-2 bg-brand-primary/10 rounded-lg shrink-0">
+            <Cpu :size="16" class="text-brand-primary" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Equipamento</p>
+            <p class="font-semibold text-zinc-800 text-sm truncate leading-tight">
+              {{ ordemServico?.equipamento?.marca }} {{ ordemServico?.equipamento?.modelo }}
+            </p>
+            <p class="text-xs text-zinc-400">Série: {{ ordemServico?.equipamento?.numero_serie }}</p>
+          </div>
+        </div>
+
+        <div
+          class="rounded-xl p-3 flex items-center gap-3 border"
+          :class="ordemServico?.data_previsao
+            ? new Date(ordemServico.data_previsao) < new Date()
+              ? 'bg-red-50 border-red-200'
+              : 'bg-zinc-50 border-zinc-200'
+            : 'bg-zinc-50 border-zinc-200'"
+        >
+          <div
+            class="p-2 rounded-lg shrink-0"
+            :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+              ? 'bg-red-100'
+              : 'bg-brand-primary/10'"
+          >
+            <Calendar
+              :size="16"
+              :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+                ? 'text-red-500'
+                : 'text-brand-primary'"
+            />
+          </div>
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Data de Entrega</p>
+            <p
+              class="font-semibold text-sm leading-tight"
+              :class="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()
+                ? 'text-red-600'
+                : 'text-zinc-800'"
+            >
+              {{ ordemServico?.data_previsao
+                ? new Date(ordemServico.data_previsao).toLocaleDateString('pt-BR')
+                : new Date().toLocaleDateString('pt-BR') }}
+            </p>
+            <p
+              v-if="ordemServico?.data_previsao && new Date(ordemServico.data_previsao) < new Date()"
+              class="text-[10px] text-red-500"
+            >
+              Em atraso
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Linha 2: Solução + Observações lado a lado ── -->
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <div class="flex items-center gap-2 mb-2">
-            <CheckCircle2 :size="18" class="text-brand-primary" />
-            <label class="text-sm font-semibold text-zinc-700">Solução Aplicada</label>
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <CheckCircle2 :size="13" class="text-brand-primary" />
+            <label class="text-xs font-semibold text-zinc-600">Solução Aplicada</label>
+            <span class="text-[10px] text-zinc-400">(opcional)</span>
           </div>
           <BaseTextarea
-            v-model="finalizarForm.solucao.value"
-            placeholder="Descreva o serviço realizado, peças substituídas, testes efetuados..."
-            :rows="4"
+            v-model="solucao"
+            placeholder="Descreva o serviço realizado, peças substituídas..."
+            :rows="3"
           />
         </div>
-
-        <!-- Observações -->
         <div>
-          <label class="text-sm font-semibold text-zinc-700">Observações</label>
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <label class="text-xs font-semibold text-zinc-600">Observações</label>
+            <span class="text-[10px] text-zinc-400">(opcional)</span>
+          </div>
           <BaseTextarea
-            v-model="finalizarForm.observacoes.value"
-            :rows="4"
-            placeholder="Notas adicionais, condições de garantia, orientações ao cliente..."
-            class="mt-2"
+            v-model="observacoes"
+            :rows="3"
+            placeholder="Garantia, orientações ao cliente..."
           />
         </div>
       </div>
 
-      <!-- ═══════════ COLUNA DIREITA ═══════════ -->
-      <div class="w-full lg:w-96 space-y-6 shrink-0">
-
-        <!-- Resumo Financeiro -->
-        <div class="bg-zinc-50 rounded-2xl p-5 border border-zinc-200 shadow-sm space-y-3">
-          <h3 class="text-sm font-semibold text-zinc-700 mb-1">Resumo Financeiro</h3>
-
-          <!-- Subtotal -->
-          <div class="flex justify-between text-base">
-            <span class="text-zinc-600">Subtotal</span>
-            <span class="font-medium">{{ formatCurrency(subtotalItens) }}</span>
-          </div>
-
-          <!-- Taxa de Entrega -->
-          <div class="flex justify-between items-center text-sm">
-            <span class="text-zinc-500 flex items-center gap-1.5">
-              <Truck :size="14" />
-              Entrega
-            </span>
-            <div class="w-32">
-              <BaseMoneyInput v-model="taxaEntregaDisplay" label="" />
-            </div>
-          </div>
-
-          <!-- Desconto -->
-          <div class="flex justify-between items-center text-sm">
-            <span class="text-zinc-500 flex items-center gap-1.5">
-              <Tag :size="14" />
-              Desconto
-            </span>
-            <div class="w-32">
-              <BaseMoneyInput v-model="descontoDisplay" label="" />
-            </div>
-          </div>
-
-          <!-- Adiantamento -->
-          <div class="flex justify-between items-center text-sm">
-            <span class="text-emerald-600 flex items-center gap-1.5">
-              <Banknote :size="14" />
-              Adiantamento
-            </span>
-            <div class="w-32">
-              <BaseMoneyInput v-model="valorEntradaDisplay" label="" />
-            </div>
-          </div>
-
-          <!-- Juros / Acréscimo (read-only, reflexo dos juros por pagamento) -->
-          <div v-if="(finalizarForm.acrescimo.value ?? 0) > 0" class="flex justify-between items-center text-sm">
-            <span class="text-amber-600 flex items-center gap-1.5">
-              <Percent :size="14" />
-              Juros / Acréscimo
-            </span>
-            <span class="font-medium text-amber-600">+ {{ formatCurrency(finalizarForm.acrescimo.value ?? 0) }}</span>
-          </div>
-
-          <!-- Divisor -->
-          <div class="border-t border-zinc-300 pt-3">
-            <!-- Total -->
-            <div class="flex justify-between items-center text-lg font-bold">
-              <span class="text-zinc-800">Total</span>
-              <span class="text-brand-primary">{{ formatCurrency(valorTotal) }}</span>
-            </div>
-
-            <!-- Desconto -->
-            <div v-if="valorDesconto > 0" class="flex justify-between items-center text-sm font-bold mt-2">
-              <span class="text-zinc-700">Desconto</span>
-              <span class="text-zinc-800">- {{ formatCurrency(valorDesconto) }}</span>
-            </div>
-
-            <!-- Adiantamento -->
-            <div v-if="valorEntrada > 0" class="flex justify-between items-center text-sm font-bold mt-2">
-              <span class="text-zinc-700">Adiantamento</span>
-              <span class="text-zinc-800">- {{ formatCurrency(valorAdiantamento) }}</span>
-            </div>
-
-            <!-- Restante / Troco -->
-            <div v-if="restante > 0" class="flex justify-between items-center text-sm text-red-600 font-medium mt-2">
-              <span>Faltam</span>
-              <span>{{ formatCurrency(restante) }}</span>
-            </div>
-            <div v-if="troco > 0" class="flex justify-between items-center text-sm text-brand-primary font-medium mt-2">
-              <span>Troco</span>
-              <span>{{ formatCurrency(troco) }}</span>
-            </div>
-          </div>
+      <!-- ── Linha 3: Situação do Equipamento ── -->
+      <div>
+        <div class="flex items-center gap-1.5 mb-2">
+          <ShieldCheck :size="14" class="text-brand-primary" />
+          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Situação do Equipamento</span>
+          <span class="text-[10px] text-zinc-400">(opcional)</span>
         </div>
-
-        <!-- Lista de Pagamentos -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="text-sm font-semibold text-zinc-700">Pagamentos</label>
-            <span class="text-xs text-zinc-500">{{ finalizarForm.pagamentos.value.length }} item(s)</span>
-          </div>
-
-          <!-- Adiantamento como pagamento já efetuado -->
-          <div
-            v-if="valorEntrada > 0"
-            class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl"
-          >
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-emerald-100 rounded-lg text-emerald-600">
-                <CheckCircle2 :size="16" />
-              </div>
-              <div>
-                <p class="text-sm font-medium text-emerald-700">Adiantamento</p>
-                <p class="text-xs text-emerald-500">Pago anteriormente</p>
-              </div>
-            </div>
-            <span class="text-sm font-bold text-emerald-700">{{ formatCurrency(valorEntrada) }}</span>
-          </div>
-
-          <div v-if="finalizarForm.pagamentos.value.length === 0" class="text-center py-5 border-2 border-dashed border-zinc-200 rounded-xl">
-            <p class="text-xs text-zinc-400">Nenhum pagamento registrado</p>
-          </div>
-
-          <div v-else class="space-y-2 max-h-40 overflow-y-auto">
-            <div v-for="(pgto, idx) in finalizarForm.pagamentos.value" :key="idx" class="flex items-center justify-between p-3 bg-white border border-zinc-100 rounded-xl shadow-sm">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-zinc-50 rounded-lg text-brand-primary">
-                  <component :is="getPaymentIconById(pgto.value.forma_pagamento_id)" :size="16" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-zinc-700">{{ getPaymentDisplayName(getPaymentMethodById(pgto.value.forma_pagamento_id)?.nome ?? 'Pagamento') }}</p>
-                  <p class="text-xs text-zinc-400">
-                    {{ formatCurrency(pgto.value.valor) }}
-                    <span v-if="pgto.value.parcelas > 1">em {{ pgto.value.parcelas }}x</span>
-                  </p>
-                </div>
-              </div>
-              <button type="button" @click="removePayment(idx)" class="text-zinc-400 hover:text-red-500 p-2 cursor-pointer">
-                <Trash2 :size="16" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Grid de Formas de Pagamento -->
         <div class="grid grid-cols-3 gap-2">
           <button
-            v-for="method in formasPagamento"
-            :key="method.id"
+            v-for="opcao in situacoesEquipamento"
+            :key="opcao.value"
             type="button"
-            class="flex flex-col items-center justify-center p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-brand-primary hover:text-brand-primary transition-all gap-1 h-16 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="restante <= 0"
-            @click="handleAddPaymentClick(method)"
+            :class="[
+              'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all',
+              situacao_equipamento === opcao.value
+                ? opcao.activeClass
+                : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:border-zinc-300',
+            ]"
+            @click="toggleSituacao(opcao.value)"
           >
-            <component :is="getPaymentIcon(getMethodTipo(method))" :size="20" />
-            <span class="text-[10px] font-medium text-center leading-tight">{{ getPaymentDisplayName(method.nome) }}</span>
+            <component :is="opcao.icon" :size="16" />
+            <span class="text-xs font-semibold">{{ opcao.label }}</span>
           </button>
         </div>
+      </div>
 
-        <!-- Confirmação + Submit -->
-        <div class="space-y-3 pt-2 border-t border-zinc-200">
-          <BaseCheckbox
-            v-model="confirmacao"
-            :label="`Confirmo a conclusão e recebimento (${formatCurrency(totalPago)})`"
-          />
+      <!-- ── Linha 4: Garantia ── -->
+      <div>
+        <div class="flex items-center gap-1.5 mb-2">
+          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Garantia</span>
+          <span v-if="garantiaObrigatoria" class="text-[10px] text-red-400">*obrigatório</span>
+          <span v-else class="text-[10px] text-zinc-400">(opcional)</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="opcao in opcoesGarantia"
+            :key="opcao"
+            type="button"
+            :class="[
+              'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all',
+              garantia === opcao
+                ? 'border-brand-primary bg-brand-primary text-white'
+                : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-primary hover:text-brand-primary',
+            ]"
+            @click="garantia = garantia === opcao ? undefined : opcao"
+          >
+            {{ opcao }}
+          </button>
+        </div>
+        <p v-if="garantiaObrigatoria && hasAttemptedAdvance && !garantia" class="text-xs text-red-500 mt-1.5">
+          Selecione um prazo de garantia para continuar.
+        </p>
+      </div>
+
+      </div><!-- fim da área scrollável -->
+
+      <!-- ── Barra financeira fixa na base ── -->
+      <div class="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 space-y-3 shrink-0 mt-2">
+
+        <!-- Linha principal: subtotal + desconto + total + botão -->
+        <div class="flex items-end gap-4">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Subtotal</span>
+            <span class="font-semibold text-zinc-700 text-sm">{{ formatCurrency(subtotalItens) }}</span>
+          </div>
+
+          <div class="h-8 w-px bg-zinc-200 mb-0.5" />
+
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Desconto</span>
+            <div class="flex rounded-lg border border-zinc-200 overflow-hidden text-[10px] font-semibold">
+              <button type="button" :class="['px-2 py-1 transition-colors', descontoTipo === 'valor' ? 'bg-brand-primary text-white' : 'bg-white text-zinc-400 hover:text-zinc-600']" @click="setDescontoTipo('valor')">R$</button>
+              <button type="button" :class="['px-2 py-1 transition-colors', descontoTipo === 'percentual' ? 'bg-brand-primary text-white' : 'bg-white text-zinc-400 hover:text-zinc-600']" @click="setDescontoTipo('percentual')">%</button>
+            </div>
+            <div v-if="descontoTipo === 'valor'" class="w-28">
+              <BaseMoneyInput v-model="descontoDisplay" label="" />
+            </div>
+            <div v-else class="flex items-center gap-1">
+              <input v-model.number="descontoPercentual" type="number" min="0" max="100" class="w-16 text-sm font-medium text-zinc-800 border border-zinc-200 rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" placeholder="0" />
+              <span class="text-sm font-semibold text-zinc-500">%</span>
+            </div>
+          </div>
+
+          <template v-if="desconto > 0">
+            <div class="h-8 w-px bg-zinc-200" />
+            <div class="flex flex-col gap-0.5">
+              <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Total</span>
+              <span class="font-bold text-brand-primary text-sm">{{ formatCurrency(subtotalItens - desconto) }}</span>
+            </div>
+          </template>
 
           <BaseButton
-            type="submit"
+            type="button"
             variant="primary"
-            :is-loading="finalizarForm.isPending.value"
-            :disabled="!canSubmit"
-            class="w-full py-3 shadow-lg shadow-blue-600/20"
+            class="ml-auto px-6 py-2.5 shadow-md shadow-blue-600/20 whitespace-nowrap"
+            @click="handleAdvance"
           >
-            Finalizar OS
+            {{ isEntregaFlow ? 'Finalizar Entrega →' : 'Ir para Pagamento →' }}
           </BaseButton>
         </div>
-      </div>
-    </form>
 
+        <!-- Linha de crédito anterior (só quando OS reaberta) -->
+        <div v-if="creditoAnterior > 0" class="flex items-center gap-6 pt-2 border-t border-zinc-200">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Já pago</span>
+            <span class="font-semibold text-emerald-600 text-sm">- {{ formatCurrency(creditoAnterior) }}</span>
+          </div>
+          <div class="h-6 w-px bg-zinc-200" />
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">A cobrar</span>
+            <span class="font-bold text-sm" :class="aCobrar === 0 ? 'text-emerald-600' : 'text-zinc-800'">
+              {{ aCobrar === 0 ? 'Nada a cobrar' : formatCurrency(aCobrar) }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
     <template #footer><span></span></template>
   </BaseModal>
 
-  <!-- ═══════════ Modal de detalhes do pagamento (aninhado) ═══════════ -->
+  <!-- Modal de aviso: OS sem itens -->
   <BaseModal
-    :is-open="showPaymentDetails && !!currentPaymentMethod"
-    :title="currentPaymentMethod ? getPaymentDisplayName(currentPaymentMethod.nome) : ''"
-    subtitle="Detalhes do pagamento"
+    :is-open="showOsVaziaModal"
+    title="OS sem itens declarados"
     size="sm"
-    @close="showPaymentDetails = false"
+    :overlay="true"
+    @close="showOsVaziaModal = false"
   >
-    <div v-if="currentPaymentMethod" class="space-y-4">
-      <div class="flex items-center gap-3 pb-3 border-b border-zinc-100">
-        <div class="p-3 bg-brand-secondary/20 text-brand-primary rounded-xl">
-          <component :is="getPaymentIcon(getMethodTipo(currentPaymentMethod))" :size="24" />
-        </div>
-        <div>
-          <p class="font-bold text-lg text-zinc-800">{{ getPaymentDisplayName(currentPaymentMethod.nome) }}</p>
-          <p class="text-xs text-zinc-500">Restante: {{ formatCurrency(restante) }}</p>
-        </div>
+    <div class="flex flex-col items-center text-center gap-4">
+      <div class="p-4 bg-amber-50 rounded-full">
+        <AlertTriangle :size="36" class="text-amber-500" />
       </div>
 
-      <BaseMoneyInput
-        v-model="paymentValueReais"
-        label="Valor a Pagar"
-      />
-
-      <div v-if="getMethodPermiteParcelamento(currentPaymentMethod)">
-        <BaseSelect
-          v-model="paymentDetails.parcelas"
-          label="Parcelamento"
-          :options="[
-            { value: 1, label: 'À vista' },
-            { value: 2, label: '2x' },
-            { value: 3, label: '3x' },
-            { value: 4, label: '4x' },
-            { value: 5, label: '5x' },
-            { value: 6, label: '6x' },
-            { value: 7, label: '7x' },
-            { value: 8, label: '8x' },
-            { value: 9, label: '9x' },
-            { value: 10, label: '10x' },
-            { value: 11, label: '11x' },
-            { value: 12, label: '12x' },
-          ]"
-        />
+      <div class="space-y-1.5">
+        <p class="text-sm text-zinc-700 font-medium">
+          Não é possível finalizar como <span class="font-bold text-emerald-600">Reparado</span> sem nenhum serviço ou peça cadastrado.
+        </p>
+        <p class="text-xs text-zinc-500">
+          Volte ao cadastro da OS e declare o que foi realizado, ou altere a situação do equipamento.
+        </p>
       </div>
 
-      <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')" class="space-y-3">
-        <BaseSelect
-          v-model="paymentDetails.bandeira"
-          label="Bandeira"
-          :options="[
-            { value: '', label: 'Selecione...' },
-            { value: 'VISA', label: 'Visa' },
-            { value: 'MASTERCARD', label: 'Mastercard' },
-            { value: 'ELO', label: 'Elo' },
-            { value: 'OUTROS', label: 'Outros' },
-          ]"
-        />
-
-        <!-- Juros por pagamento -->
-        <div class="space-y-1.5">
-          <div class="flex justify-between items-center gap-3">
-            <label class="text-sm font-medium text-zinc-600 flex items-center gap-1.5">
-              <Percent :size="14" />
-              Juros (%)
-            </label>
-            <div class="w-24">
-              <BaseInput
-                v-model="paymentDetails.taxa_juros"
-                type="number"
-                placeholder="0"
-              />
-            </div>
-          </div>
-          <div v-if="paymentDetails.taxa_juros > 0" class="flex justify-between text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">
-            <span>Valor com juros</span>
-            <span class="font-semibold">
-              {{ formatCurrency(Math.round(paymentValueReais * 100 * (1 + paymentDetails.taxa_juros / 100))) }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="getMethodTipo(currentPaymentMethod) === 'PIX'" class="text-center py-2">
-        <div class="border-2 border-dashed border-emerald-500/30 bg-emerald-50 rounded-lg p-4 inline-block">
-          <QrCode :size="48" class="text-emerald-700" />
-        </div>
-        <p class="text-[10px] text-zinc-500 mt-2">QR Code gerado para cobrança.</p>
-      </div>
-
-      <div class="pt-4 flex gap-3">
-        <BaseButton variant="secondary" class="flex-1" @click="showPaymentDetails = false">Cancelar</BaseButton>
-        <BaseButton variant="primary" class="flex-1" @click="confirmAddPayment">Confirmar</BaseButton>
+      <div class="flex flex-col gap-2 w-full pt-2">
+        <BaseButton
+          variant="primary"
+          class="w-full"
+          @click="emit('close'); showOsVaziaModal = false"
+        >
+          Voltar ao cadastro da OS
+        </BaseButton>
+        <BaseButton
+          variant="secondary"
+          class="w-full"
+          @click="showOsVaziaModal = false"
+        >
+          Alterar situação do equipamento
+        </BaseButton>
       </div>
     </div>
-
     <template #footer><span></span></template>
   </BaseModal>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, Trash2, Package, Wrench, ShoppingBag } from 'lucide-vue-next';
+import { Plus, Trash2, Package, Wrench, ShoppingBag, Pencil } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
@@ -100,7 +100,7 @@ function getItemTotal(item: OsItem): number {
 
             <div v-if="!isLocked" class="flex items-center gap-1 pl-2 border-l border-slate-100">
               <BaseButton variant="ghost" size="sm" class="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-primary-light" @click="emit('editItem', index)">
-                <Wrench :size="14" />
+                <Pencil :size="14" />
               </BaseButton>
               <BaseButton variant="ghost" size="sm" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50" @click="emit('removeItem', index)">
                 <Trash2 :size="14" />

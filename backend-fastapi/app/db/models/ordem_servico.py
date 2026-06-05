@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, TYPE_CHECKING
 
 from app.db.base import Base
-from app.core.enum import OrdemServicoStatus, OrdemServicoPrioridade
+from app.core.enum import OrdemServicoStatus, OrdemServicoPrioridade, SituacaoEquipamento
 
 if TYPE_CHECKING:
     from .cliente import Cliente
@@ -56,6 +56,11 @@ class OrdemServico(Base):
     defeito_relatado: Mapped[str] = mapped_column(Text, nullable=False, doc="Defeito relatado pelo cliente")
     diagnostico: Mapped[Optional[str]] = mapped_column(Text, nullable=True, doc="Diagnostico tecnico")
     solucao: Mapped[Optional[str]] = mapped_column(Text, nullable=True, doc="Solucao aplicada")
+    situacao_equipamento: Mapped[Optional[SituacaoEquipamento]] = mapped_column(
+        SqlAlchemyEnum(SituacaoEquipamento),
+        nullable=True,
+        doc="Situação final do equipamento: REPARADO, SEM_REPARO ou CONDENADO"
+    )
    
     # --- Observações do Servico ---
     senha_aparelho: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Senha do aparelho")
@@ -70,6 +75,7 @@ class OrdemServico(Base):
     valor_entrada: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor de entrada/adiantamento (centavos)")
     taxa_entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Taxa de entrega/frete (centavos)")
     acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Acréscimo de juros/cartão (centavos)")
+    credito_anterior: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None, doc="Crédito efetivo da finalização anterior ao reabrir (centavos)")
 
     # --- Datas ---
     garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")

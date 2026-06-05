@@ -40,7 +40,7 @@ from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.db.crud import forma_pagamento as fp_crud
 
-from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus
+from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento
 from app.helpers.set_pagination import _set_pagination
 
 
@@ -164,8 +164,17 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
     equipamento_data = os_to_create.equipamento.model_dump(exclude_unset=True)
     equipamento_to_db = OSEquipamentoModel(**equipamento_data, cliente=cliente_in_db)
 
+    valor_entrada = os_to_create.valor_entrada or 0
+    if os_to_create.usar_credito_cliente and valor_entrada > 0:
+        if (cliente_in_db.saldo_credito or 0) < valor_entrada:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Saldo de crédito insuficiente para cobrir o valor de entrada informado"
+            )
+        cliente_in_db.saldo_credito = (cliente_in_db.saldo_credito or 0) - valor_entrada
+
     os_data = os_to_create.model_dump(
-        exclude={"cliente_id", "itens", "equipamento", "valor_bruto"},
+        exclude={"cliente_id", "itens", "equipamento", "valor_bruto", "usar_credito_cliente"},
         exclude_unset=True
     )
     os_to_db = OSModel(
@@ -254,20 +263,28 @@ def get_ordem_servico_stats(db: Session) -> OrdemServicoStats:
 # ATUALIZAÇÃO (UPDATE)
 # ===========================================================================
 
+_CAMPOS_TEXTO = frozenset({
+    'defeito_relatado', 'diagnostico', 'solucao',
+    'observacoes', 'senha_aparelho', 'acessorios', 'condicoes_aparelho'
+})
+
 def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) -> OSModel:
     """
     Atualiza campos gerais de uma OS.
 
     Restrições:
-    - OS FINALIZADA ou CANCELADA não pode ser editada.
+    - OS FINALIZADA ou CANCELADA só aceita atualização de campos de texto.
     - Transições para FINALIZADA e CANCELADA são bloqueadas (use /finalizar ou /cancelar).
     - Se desconto mudar, valor_total é recalculado automaticamente.
     - Se funcionario_id mudar, o funcionário é validado no banco.
     """
     os_in_db = _get_os_or_raise(db, numero_os)
-    _assert_os_editavel(os_in_db)
 
     update_data = data.model_dump(exclude_unset=True)
+
+    is_texto_only = update_data.keys() <= _CAMPOS_TEXTO
+    if not is_texto_only:
+        _assert_os_editavel(os_in_db)
 
     # Bloqueia transições que têm endpoints próprios
     new_status = update_data.get("status")
@@ -429,16 +446,23 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
     if data.taxa_entrega is not None:
         os_in_db.taxa_entrega = data.taxa_entrega
     if data.acrescimo is not None:
-        os_in_db.acrescimo = data.acrescimo
+        # Acumula juros de todas as finalizações (não sobrescreve) para preservar histórico
+        os_in_db.acrescimo = (os_in_db.acrescimo or 0) + data.acrescimo
 
     # Recalcula valor_total com todos os campos financeiros atualizados
     _recalcular_valor_total_os(os_in_db)
 
-    # Valida valor total dos pagamentos (pagamentos + entrada = valor_total)
-    total_pagamentos = sum(p.valor for p in data.pagamentos)
+    # Valida valor total: pagamentos anteriores + novos + entrada >= valor_total
+    # Sem reparo e Condenado: equipamento devolvido sem cobrança, ignora validação
+    total_anteriores = sum(p.valor for p in os_in_db.pagamentos)
+    total_novos = sum(p.valor for p in data.pagamentos)
     valor_entrada = os_in_db.valor_entrada or 0
-    if (total_pagamentos + valor_entrada) != os_in_db.valor_total:
-        raise pagamento_valor_invalido_exce
+    situacao_sem_cobranca = data.situacao_equipamento in (
+        SituacaoEquipamento.SEM_REPARO, SituacaoEquipamento.CONDENADO
+    )
+    if not situacao_sem_cobranca:
+        if (total_anteriores + total_novos + valor_entrada) < os_in_db.valor_total:
+            raise pagamento_valor_invalido_exce
 
     # Valida e cria cada pagamento
     for pagamento_data in data.pagamentos:
@@ -452,11 +476,22 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
             valor=pagamento_data.valor,
             parcelas=pagamento_data.parcelas,
             bandeira_cartao=pagamento_data.bandeira_cartao,
+            vencimento=pagamento_data.vencimento,
             detalhes=pagamento_data.detalhes,
         )
         os_crud.create_os_pagamento(db, pagamento_to_add=pagamento)
 
+    # Para SEM_REPARO / CONDENADO: trata o excedente do adiantamento (entrada - total cobrado)
+    if situacao_sem_cobranca and (os_in_db.valor_entrada or 0) > 0:
+        excedente = max(0, (os_in_db.valor_entrada or 0) - (os_in_db.valor_total or 0))
+        if excedente > 0 and not data.zerar_adiantamento:
+            cliente = os_in_db.equipamento.cliente if os_in_db.equipamento else None
+            if cliente:
+                cliente.saldo_credito = (cliente.saldo_credito or 0) + excedente
+
     # Aplica finalização
+    os_in_db.situacao_equipamento = data.situacao_equipamento
+    os_in_db.garantia = data.garantia
     os_in_db.solucao = data.solucao
     os_in_db.status = OrdemServicoStatus.FINALIZADA
     os_in_db.data_finalizacao = datetime.now()
@@ -488,6 +523,13 @@ def cancelar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoCancel
         obs_atual = os_in_db.observacoes or ""
         os_in_db.observacoes = f"{obs_atual}\n[CANCELAMENTO] {data.motivo}".strip()
 
+    if data.zerar_adiantamento:
+        os_in_db.valor_entrada = 0
+    elif os_in_db.valor_entrada > 0:
+        cliente = os_in_db.equipamento.cliente if os_in_db.equipamento else None
+        if cliente:
+            cliente.saldo_credito = (cliente.saldo_credito or 0) + os_in_db.valor_entrada
+
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 
 
@@ -503,11 +545,10 @@ def reabrir_ordem_servico(db: Session, numero_os: str) -> OSModel:
     if os_in_db.status not in (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA):
         raise os_nao_pode_reabrir_exce
 
-    # Remove pagamentos existentes (cascade via relacionamento SQLAlchemy)
-    os_in_db.pagamentos = []
+    total_pago = sum(p.valor for p in os_in_db.pagamentos)
+    os_in_db.credito_anterior = min(total_pago, os_in_db.valor_total) if total_pago > 0 else None
 
     os_in_db.status = OrdemServicoStatus.EM_ANDAMENTO
     os_in_db.data_finalizacao = None
-    os_in_db.solucao = None
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)

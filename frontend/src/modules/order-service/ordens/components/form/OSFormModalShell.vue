@@ -4,10 +4,31 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import OSFormHeader from './OSFormHeader.vue';
 import OSFormFooter from './OSFormFooter.vue';
 import OSFormSidebar from './OSFormSidebar.vue';
+import OSControlsCard from './OSControlsCard.vue';
 import OSFormTabsContent from './OSFormTabsContent.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
+import { useAuthStore } from '@/shared/stores/auth.store';
+import { computed, watch } from 'vue';
 
 const view = useOSFormView();
+const authStore = useAuthStore();
+
+const canSelectTecnico = computed(() => {
+  const user = authStore.userData;
+  if (!user) return false;
+  if (!user.cargo) return true;
+  return user.cargo.permissoes?.['funcionario'] === true;
+});
+
+watch(
+  () => authStore.userData?.funcionario_id,
+  (funcionarioId) => {
+    if (!canSelectTecnico.value && funcionarioId) {
+      view.handleFuncionarioIdUpdate(String(funcionarioId));
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -23,9 +44,29 @@ const view = useOSFormView();
     </template>
 
     <form class="space-y-4" @submit.prevent="view.handleLocalSubmit">
-      <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-5 items-start">
-        <OSFormSidebar />
+      
+      <!-- Status Bar Operacional -->
+      <OSControlsCard
+        :status="view.controlsStatus.value"
+        :is-create-mode="view.isCreateMode.value"
+        :funcionario-id="view.controlsFuncionarioId.value"
+        :prioridade="view.controlsPrioridade.value"
+        :data-previsao="view.controlsDataPrevisao.value"
+        :status-options="view.statusOptions.value"
+        :prioridade-options="view.prioridadeOptions.value"
+        :funcionarios-options="view.funcionariosOptions.value"
+        :errors="view.formErrors.value"
+        :can-select-tecnico="canSelectTecnico"
+        :is-locked="view.isStructureLocked.value"
+        @update:status="view.handleStatusUpdate"
+        @update:funcionario-id="view.handleFuncionarioIdUpdate"
+        @update:prioridade="view.handlePrioridadeUpdate"
+        @update:data-previsao="view.handleDataPrevisaoUpdate"
+      />
+
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-5 items-start">
         <OSFormTabsContent />
+        <OSFormSidebar />
       </div>
     </form>
 

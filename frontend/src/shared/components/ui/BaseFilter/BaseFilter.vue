@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onClickOutside } from '@vueuse/core';
+
 import { Funnel, Check } from 'lucide-vue-next';
 
 import { FilterOption } from '@/shared/types/filter.types';
@@ -19,6 +21,12 @@ const selectedFilter = defineModel<string | null>();
 
 const isFilterMenuOpen = ref<boolean>(false);
 
+const filterContainer = ref<HTMLElement | null>(null);
+
+onClickOutside(filterContainer, () => {
+  isFilterMenuOpen.value = false;
+});
+
 function toggleFilterMenu() {
   isFilterMenuOpen.value = !isFilterMenuOpen.value;
 }
@@ -30,7 +38,7 @@ function selectFilter(filter: string | null) {
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative" ref="filterContainer">
     <button
       @click="toggleFilterMenu()"
       :class="[

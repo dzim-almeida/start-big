@@ -4,6 +4,7 @@ import type { OSFormContext } from '../../types/context.type';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
 import type { OSReopenMode } from './useOSStatusLocks';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 interface UseOSModalLifecycleParams {
   isOpen: ComputedRef<boolean>;
@@ -30,6 +31,7 @@ export function useOSModalLifecycle({
   resetReopenState,
   onOpen,
 }: UseOSModalLifecycleParams) {
+  const authStore = useAuthStore();
   function populateEditForm(os: OrderServiceReadDataType) {
     form.atualizarGeral.populateForm(os);
 
@@ -56,6 +58,9 @@ export function useOSModalLifecycle({
         populateEditForm(currentOSData.value);
       } else {
         form.criar.resetForm();
+        if (authStore.userData?.funcionario_id) {
+          form.criar.funcionario_id.value = authStore.userData.funcionario_id;
+        }
       }
       return;
     }
@@ -67,8 +72,7 @@ export function useOSModalLifecycle({
   watch(() => currentOSData.value?.status, (newStatus, oldStatus) => {
     if (
       (oldStatus === 'FINALIZADA' || oldStatus === 'CANCELADA') &&
-      newStatus === 'EM_ANDAMENTO' &&
-      reopenMode.value === 'FULL'
+      newStatus === 'EM_ANDAMENTO'
     ) {
       form.atualizarGeral.status.value = 'EM_ANDAMENTO';
     }

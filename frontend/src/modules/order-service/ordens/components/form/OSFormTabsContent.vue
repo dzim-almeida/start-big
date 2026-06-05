@@ -56,8 +56,8 @@ const equipamentoModel = computed<EquipamentoFormData>({
       </button>
     </div>
 
-    <fieldset :disabled="view.isStructureLocked.value" class="contents">
-      <div class="min-h-125">
+    <div class="min-h-125">
+      <fieldset v-if="activeTab !== 'diagnostico'" :disabled="view.isStructureLocked.value" class="contents">
         <OSEquipmentTab
           v-if="activeTab === 'equipamento'"
           v-model="equipamentoModel"
@@ -70,19 +70,6 @@ const equipamentoModel = computed<EquipamentoFormData>({
           @apply-historico="view.applyEquipamentoHistorico"
         />
 
-        <OSDiagnosticoTab
-          v-if="activeTab === 'diagnostico'"
-          :diagnostico="view.currentDiagnostico.value"
-          :os-numero="view.currentOSData.value?.numero_os"
-          :fotos="view.currentOSData.value?.fotos ?? []"
-          :pending-photos="view.pendingPhotos.value"
-          :is-locked="view.isStructureLocked.value"
-          @update:diagnostico="view.handleDiagnosticoUpdate"
-          @add-photo="view.handleAddPhoto"
-          @remove-pending="view.handleRemovePending"
-          @photo-change="view.handlePhotoChange"
-        />
-
         <OSServicesTab
           v-if="activeTab === 'servicos'"
           :itens="view.displayItems.value"
@@ -91,7 +78,20 @@ const equipamentoModel = computed<EquipamentoFormData>({
           @edit-item="view.openEditItemModal"
           @remove-item="view.handleRemoveItem"
         />
-      </div>
-    </fieldset>
+      </fieldset>
+
+      <OSDiagnosticoTab
+        v-if="activeTab === 'diagnostico'"
+        :diagnostico="view.currentDiagnostico.value"
+        :os-numero="view.currentOSData.value?.numero_os"
+        :fotos="view.currentOSData.value?.fotos ?? []"
+        :pending-photos="view.pendingPhotos.value"
+        :is-locked="view.isDiagnosticoLocked.value"
+        @update:diagnostico="view.handleDiagnosticoUpdate"
+        @add-photo="view.handleAddPhoto"
+        @remove-pending="view.handleRemovePending"
+        @photo-change="view.handlePhotoChange"
+      />
+    </div>
   </div>
 </template>

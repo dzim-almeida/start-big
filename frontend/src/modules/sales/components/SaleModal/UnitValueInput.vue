@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { CirclePlus, CircleMinus } from 'lucide-vue-next';
 
 const props = withDefaults(
@@ -9,6 +10,13 @@ const props = withDefaults(
     disabled: false,
   },
 );
+
+const inputRef = ref<HTMLInputElement | null>(null);
+
+defineExpose({
+  focus: () => inputRef.value?.focus(),
+  inputRef,
+});
 
 const emit = defineEmits<{
   (e: 'increase'): void;
@@ -45,6 +53,7 @@ function increase() {
       <CircleMinus :size="15" />
     </button>
     <input
+      ref="inputRef"
       type="text"
       inputmode="numeric"
       v-model="quantity"

@@ -6,7 +6,8 @@ import OSStats from '../../ordens/components/OSStats.vue';
 import OSPrintTemplate from '../../ordens/components/OSPrintTemplate.vue';
 import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
-import OSFinalizarModal from '../../ordens/components/OSFinalizarModal.vue';
+import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/components/OSFinalizarModal.vue';
+import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 
@@ -16,11 +17,12 @@ import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
-import { useReopenOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
+import { useReopenOrderServiceMutation, useReadyOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
 import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
 
 const toast = useToast();
 const reopenMutation = useReopenOrderServiceMutation();
+const finalizarEntregaMutation = useReadyOrderServiceMutation();
 
 const {
   searchQuery,
@@ -44,8 +46,19 @@ const isCancelModalOpen = ref(false);
 const osToCancel = ref<OrderServiceReadDataType | null>(null);
 const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
 const isFinalizarDirectOpen = ref(false);
+const isPagamentoDirectOpen = ref(false);
+const dadosFinalizacaoDirect = ref<DadosFinalizacaoOS | null>(null);
 const osToReopen = ref<OrderServiceReadDataType | null>(null);
 const isReopenDirectOpen = ref(false);
+
+const creditoAoReabrirDirect = computed(() => {
+  const os = osToFinalizar.value;
+  if (!os) return null;
+  if (os.credito_anterior != null) return os.credito_anterior;
+  if (!os.pagamentos?.length) return null;
+  const totalPago = os.pagamentos.reduce((s, p) => s + p.valor, 0);
+  return Math.min(totalPago, os.valor_total);
+});
 
 const osToPrint = ref<OrderServiceReadDataType | null>(null);
 const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
@@ -91,7 +104,47 @@ async function handleFinalizar(os: OrderServiceReadDataType) {
 
 function handleCloseFinalizarDirect() {
   isFinalizarDirectOpen.value = false;
+  isPagamentoDirectOpen.value = false;
+  dadosFinalizacaoDirect.value = null;
   osToFinalizar.value = null;
+}
+
+function handleAdvanceDirect(data: DadosFinalizacaoOS) {
+  const isEntrega = data.situacao_equipamento === 'SEM_REPARO' || data.situacao_equipamento === 'CONDENADO';
+
+  if (isEntrega) {
+    if (!osToFinalizar.value?.numero_os) return;
+    finalizarEntregaMutation.mutate(
+      {
+        osNumber: osToFinalizar.value.numero_os,
+        readyOs: {
+          situacao_equipamento: data.situacao_equipamento,
+          garantia: data.garantia,
+          solucao: data.solucao,
+          observacoes: data.observacoes ?? '',
+          desconto: data.desconto,
+          taxa_entrega: osToFinalizar.value?.taxa_entrega ?? 0,
+          acrescimo: 0,
+          valor_entrada: data.zerarAdiantamento ? 0 : undefined,
+          zerar_adiantamento: data.zerarAdiantamento ?? false,
+          pagamentos: [],
+        },
+      },
+      {
+        onSuccess: async () => {
+          await handleFinalizadoDirect({ shouldPrint: data.shouldPrint ?? false });
+        },
+      },
+    );
+    return;
+  }
+
+  dadosFinalizacaoDirect.value = data;
+  isPagamentoDirectOpen.value = true;
+}
+
+function handlePagamentoVoltarDirect() {
+  isPagamentoDirectOpen.value = false;
 }
 
 async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean }) {
@@ -236,6 +289,7 @@ function handleClosePrintSelect() {
       :is-open="isCancelModalOpen"
       :os-numero="osToCancel?.numero_os ?? null"
       :os-display-number="osToCancel?.numero_os"
+      :valor-entrada="osToCancel?.valor_entrada ?? 0"
       @close="handleCloseCancelModal"
       @cancelled="handleCancelled"
     />
@@ -245,6 +299,18 @@ function handleClosePrintSelect() {
       :os-numero="osToFinalizar?.numero_os ?? null"
       :ordem-servico="osToFinalizar"
       @close="handleCloseFinalizarDirect"
+      @advance="handleAdvanceDirect"
+    />
+
+    <OSPagamentoModal
+      :is-open="isPagamentoDirectOpen"
+      :os-numero="osToFinalizar?.numero_os ?? null"
+      :ordem-servico="osToFinalizar"
+      :dados-os="dadosFinalizacaoDirect"
+      :desconto-os="dadosFinalizacaoDirect?.desconto ?? 0"
+      :credito-ao-reabrir="creditoAoReabrirDirect"
+      @close="handleCloseFinalizarDirect"
+      @voltar="handlePagamentoVoltarDirect"
       @finalized="handleFinalizadoDirect"
     />
 

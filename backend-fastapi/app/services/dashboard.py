@@ -27,30 +27,29 @@ from app.schemas.dashboard import (
 
 def _calcular_periodo(periodo: str) -> tuple[datetime, datetime, datetime, datetime]:
     """
-    Retorna (inicio_atual, fim_atual, inicio_anterior, fim_anterior)
-    para o periodo solicitado.
+    Retorna (inicio_atual, fim_atual, inicio_anterior, fim_anterior) em UTC.
+    O SQLite armazena timestamps via func.now() em UTC, entao todas as
+    comparacoes devem usar UTC para evitar divergencias de fuso horario.
     """
-    hoje = date.today()
+    agora = datetime.utcnow()
+    hoje = agora.date()
 
     if periodo == "hoje":
         inicio = datetime.combine(hoje, datetime.min.time())
-        fim = datetime.now()
+        fim = agora
         ontem = hoje - timedelta(days=1)
         inicio_ant = datetime.combine(ontem, datetime.min.time())
         fim_ant = datetime.combine(ontem, datetime.max.time())
 
     elif periodo == "semana":
-        # Segunda-feira da semana atual
         inicio = datetime.combine(hoje - timedelta(days=hoje.weekday()), datetime.min.time())
-        fim = datetime.now()
-        # Semana anterior: segunda a domingo
+        fim = agora
         inicio_ant = inicio - timedelta(days=7)
         fim_ant = datetime.combine(inicio.date() - timedelta(days=1), datetime.max.time())
 
     else:  # mes
         inicio = datetime.combine(hoje.replace(day=1), datetime.min.time())
-        fim = datetime.now()
-        # Mes anterior
+        fim = agora
         if hoje.month == 1:
             mes_ant = 12
             ano_ant = hoje.year - 1

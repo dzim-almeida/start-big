@@ -36,6 +36,7 @@ class Cliente(Base):
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone de contato do cliente")
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Celular para contato")
     observacoes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observacoes gerais sobre o cliente")
+    saldo_credito: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Saldo de credito disponivel do cliente em centavos")
 
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao do cliente")
 
@@ -75,7 +76,7 @@ class ClientePF(Cliente):
     id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), primary_key=True, index=True, doc="ID do cliente (FK de clientes)")
 
     nome: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome completo do cliente")
-    cpf: Mapped[str] = mapped_column(String(11), unique=True, index=True, nullable=False, doc="CPF do cliente (11 digitos)")
+    cpf: Mapped[Optional[str]] = mapped_column(String(11), unique=True, index=True, nullable=True, doc="CPF do cliente (11 digitos)")
     rg: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, doc="RG do cliente")
     genero: Mapped[Optional[Gender]] = mapped_column(SqlAlchemyEnum(Gender), nullable=True, doc="Genero do cliente")
     data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de nascimento do cliente")
@@ -95,8 +96,8 @@ class ClientePJ(Cliente):
     id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), primary_key=True, index=True, doc="ID do cliente (FK de clientes)")
 
     razao_social: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Razao social da empresa")
-    cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True, nullable=False, doc="CNPJ da empresa (14 digitos)")
-    nome_fantasia: Mapped[str] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=False, doc="Nome fantasia da empresa")
+    cnpj: Mapped[Optional[str]] = mapped_column(String(14), unique=True, index=True, nullable=True, doc="CNPJ da empresa (14 digitos)")
+    nome_fantasia: Mapped[Optional[str]] = mapped_column(String(255, collation="NOCASE"), index=True, nullable=True, doc="Nome fantasia da empresa")
     ie: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, doc="Inscricao Estadual (IE) da empresa")
     im: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, doc="Inscricao Municipal (IM) da empresa")
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Regime tributario do juridico")

@@ -14,12 +14,14 @@ export function useOSStatusLocks({
   reopenMode,
 }: UseOSStatusLocksParams) {
   const isLocked = computed(() => isFinalizada.value || isCancelada.value);
-  const isStructureLocked = computed(() => isLocked.value && reopenMode.value === 'NONE');
+  const isStructureLocked = computed(() => (isLocked.value && reopenMode.value === 'NONE') || reopenMode.value === 'TEXT_ONLY');
+  const isDiagnosticoLocked = computed(() => isLocked.value && reopenMode.value === 'NONE');
   const isItemsLocked = computed(() => isLocked.value || reopenMode.value === 'TEXT_ONLY');
 
   return {
     isLocked,
     isStructureLocked,
+    isDiagnosticoLocked,
     isItemsLocked,
   };
 }
