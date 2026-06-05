@@ -86,7 +86,7 @@ class OSEquipamentoCreate(BaseModel):
     marca: str = Field(..., max_length=100, description="Marca do equipamento")
     modelo: str = Field(..., max_length=100, description="Modelo do equipamento")
     numero_serie: str = Field(..., max_length=100, description="Número de série")
-    imei: str = Field(..., max_length=20, description="IMEI (use '0' para equipamentos sem IMEI)")
+    imei: Optional[str] = Field(None, max_length=20, description="IMEI do equipamento (opcional)")
     cor: Optional[str] = Field(None, max_length=50, description="Cor do equipamento")
 
     model_config = ConfigDict(from_attributes=True)
