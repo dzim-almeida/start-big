@@ -1,20 +1,23 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getConfiguracoesClientes, getConfiguracoesProdutos } from '@/modules/configuracoes/services/configuracoes.service'
-import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS } from '@/modules/configuracoes/services/configuracoes.service'
+import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const configClientes = ref<ConfiguracaoClientesRead | null>(null)
   const configProdutos = ref<ConfiguracaoProdutosRead | null>(null)
+  const configOS = ref<ConfiguracaoOSRead | null>(null)
 
   async function carregarConfiguracoes() {
     try {
-      const [clientes, produtos] = await Promise.all([
+      const [clientes, produtos, os] = await Promise.all([
         getConfiguracoesClientes(),
         getConfiguracoesProdutos(),
+        getConfiguracoesOS(),
       ])
       configClientes.value = clientes
       configProdutos.value = produtos
+      configOS.value = os
     } catch {
       // silencioso — usa os defaults dos computed abaixo
     }
@@ -56,9 +59,16 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const quantidadeMinimaPadrao = computed(() => configProdutos.value?.quantidade_minima_padrao ?? 5)
   const unidadeMedidaPadrao = computed(() => configProdutos.value?.unidade_medida_padrao ?? 'UN')
 
+  // ── OS: prazos e padrões ──
+  const prazoEntregaPadrao = computed(() => configOS.value?.prazo_entrega_padrao ?? 7)
+  const garantiaPadrao = computed(() => configOS.value?.garantia_padrao ?? '90 dias')
+  const prazoAbandonoDias = computed(() => configOS.value?.prazo_abandono_dias ?? 90)
+  const taxaDiagnosticoPadrao = computed(() => configOS.value?.taxa_diagnostico_padrao ?? 0)
+
   return {
     configClientes,
     configProdutos,
+    configOS,
     carregarConfiguracoes,
 
     exigirCpfPf,
@@ -89,5 +99,10 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     permitirVendaEstoqueZerado,
     quantidadeMinimaPadrao,
     unidadeMedidaPadrao,
+
+    prazoEntregaPadrao,
+    garantiaPadrao,
+    prazoAbandonoDias,
+    taxaDiagnosticoPadrao,
   }
 })

@@ -56,3 +56,31 @@ export const ConfiguracaoClientesUpdateSchema = ConfiguracaoClientesSchema
 
 export type ConfiguracaoClientesRead = z.infer<typeof ConfiguracaoClientesSchema>
 export type ConfiguracaoClientesUpdate = z.infer<typeof ConfiguracaoClientesUpdateSchema>
+
+export const GARANTIA_OPTIONS = [
+  'Sem garantia',
+  '30 dias',
+  '60 dias',
+  '90 dias',
+  '6 meses',
+  '1 ano',
+] as const
+
+export const ConfiguracaoOSSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  prazo_entrega_padrao: z.number().int().min(1),
+  garantia_padrao: z.enum(GARANTIA_OPTIONS),
+  prazo_abandono_dias: z.number().int().min(1),
+  taxa_diagnostico_padrao: z.number().int().min(0),
+
+  data_atualizacao: z.string(),
+})
+
+export const ConfiguracaoOSUpdateSchema = ConfiguracaoOSSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true })
+  .partial()
+
+export type ConfiguracaoOSRead = z.infer<typeof ConfiguracaoOSSchema>
+export type ConfiguracaoOSUpdate = z.infer<typeof ConfiguracaoOSUpdateSchema>

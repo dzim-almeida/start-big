@@ -1,5 +1,43 @@
 <script setup lang="ts">
-import { ChevronDown } from 'lucide-vue-next'
+import { ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue'
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
+import { useConfiguracoesOSQuery } from '@/modules/configuracoes/composables/queries/useConfiguracoesOSQuery'
+import { GARANTIA_OPTIONS } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import type { ConfiguracaoOSUpdate } from '@/modules/configuracoes/schemas/configuracoes.schema'
+
+const configStore = useConfiguracoesStore()
+const { prazoEntregaPadrao, garantiaPadrao, prazoAbandonoDias, taxaDiagnosticoPadrao } = storeToRefs(configStore)
+
+useConfiguracoesOSQuery()
+
+const form = ref<ConfiguracaoOSUpdate>({
+  prazo_entrega_padrao: prazoEntregaPadrao.value,
+  garantia_padrao: garantiaPadrao.value as typeof GARANTIA_OPTIONS[number],
+  prazo_abandono_dias: prazoAbandonoDias.value,
+  taxa_diagnostico_padrao: taxaDiagnosticoPadrao.value,
+})
+
+watch(
+  () => configStore.configOS,
+  () => {
+    form.value.prazo_entrega_padrao = prazoEntregaPadrao.value
+    form.value.garantia_padrao = garantiaPadrao.value as typeof GARANTIA_OPTIONS[number]
+    form.value.prazo_abandono_dias = prazoAbandonoDias.value
+    form.value.taxa_diagnostico_padrao = taxaDiagnosticoPadrao.value
+  },
+)
+
+const taxaReais = ref(taxaDiagnosticoPadrao.value / 100)
+watch(taxaReais, (val) => {
+  form.value.taxa_diagnostico_padrao = Math.round((val || 0) * 100)
+})
+watch(taxaDiagnosticoPadrao, (val) => {
+  taxaReais.value = val / 100
+})
+
+defineExpose({ form })
 </script>
 
 <template>
@@ -9,21 +47,77 @@ import { ChevronDown } from 'lucide-vue-next'
       <p class="text-sm text-zinc-500 mt-0.5">Configure os padrões e fluxos das ordens de serviço</p>
     </div>
 
+    <!-- PRAZOS -->
     <div class="flex flex-col">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Prazos</p>
 
       <div class="py-3 border-b border-zinc-100">
         <label class="text-xs font-medium text-zinc-600">Prazo padrão de entrega (dias)</label>
-        <div class="mt-1.5 border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700">
-          7
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Ao criar uma nova OS, o campo "Previsão" será preenchido automaticamente com esta quantidade de dias
+        </p>
+        <input
+          v-model.number="form.prazo_entrega_padrao"
+          type="number"
+          min="1"
+          max="365"
+          class="mt-1 w-24 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+        />
+        <span class="ml-2 text-xs text-zinc-400">dias</span>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Prazo de abandono (dias)</label>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Dias após a conclusão para considerar o equipamento abandonado. Exibido nos comprovantes de entrada.
+        </p>
+        <input
+          v-model.number="form.prazo_abandono_dias"
+          type="number"
+          min="1"
+          max="365"
+          class="mt-1 w-24 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+        />
+        <span class="ml-2 text-xs text-zinc-400">dias</span>
+      </div>
+    </div>
+
+    <!-- PADRÕES -->
+    <div class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Padrões</p>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Garantia padrão</label>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Opção pré-selecionada ao finalizar uma OS. Pode ser alterada durante a finalização.
+        </p>
+        <select
+          v-model="form.garantia_padrao"
+          class="mt-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+        >
+          <option v-for="opcao in GARANTIA_OPTIONS" :key="opcao" :value="opcao">{{ opcao }}</option>
+        </select>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Taxa de diagnóstico padrão</label>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Adicionada automaticamente como primeiro item ao criar uma nova OS. Defina R$ 0,00 para desativar.
+        </p>
+        <div class="mt-1 w-36">
+          <BaseMoneyInput v-model="taxaReais" />
         </div>
       </div>
     </div>
 
+    <!-- NOTIFICAÇÕES (visual only) -->
     <div class="flex flex-col">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Notificações</p>
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">
+        Notificações
+        <span class="ml-2 text-[9px] text-zinc-300 normal-case font-normal">(em breve)</span>
+      </p>
 
-      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100 opacity-40 cursor-not-allowed">
         <div>
           <p class="text-sm font-medium text-zinc-800">Notificar cliente ao criar OS</p>
           <p class="text-xs text-zinc-500 mt-0.5">Envia mensagem automática ao abrir a ordem</p>
@@ -33,7 +127,7 @@ import { ChevronDown } from 'lucide-vue-next'
         </div>
       </div>
 
-      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100 opacity-40 cursor-not-allowed">
         <div>
           <p class="text-sm font-medium text-zinc-800">Notificar cliente ao concluir OS</p>
           <p class="text-xs text-zinc-500 mt-0.5">Envia mensagem automática ao finalizar</p>
@@ -44,18 +138,14 @@ import { ChevronDown } from 'lucide-vue-next'
       </div>
     </div>
 
+    <!-- FLUXO (visual only) -->
     <div class="flex flex-col gap-3">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Fluxo</p>
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+        Fluxo
+        <span class="ml-2 text-[9px] text-zinc-300 normal-case font-normal">(em breve)</span>
+      </p>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-zinc-600">Status inicial padrão</label>
-        <div class="flex items-center justify-between border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50">
-          <span class="text-sm text-zinc-700">Em Aberto</span>
-          <ChevronDown :size="14" class="text-zinc-400 shrink-0" />
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between py-3 border-t border-zinc-100">
+      <div class="flex items-center justify-between py-3 border-t border-zinc-100 opacity-40 cursor-not-allowed">
         <div>
           <p class="text-sm font-medium text-zinc-800">Exigir aprovação do cliente</p>
           <p class="text-xs text-zinc-500 mt-0.5">Cliente deve aprovar o orçamento antes de iniciar</p>
