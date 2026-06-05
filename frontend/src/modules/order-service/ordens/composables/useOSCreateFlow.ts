@@ -11,10 +11,34 @@ import { getClientEquipments } from '@/modules/customers/services/customerGet.se
 const isClienteSearchOpen = ref(false);
 const isFormModalOpen = ref(false);
 const isEquipSelectOpen = ref(false);
+const isCreditAlertOpen = ref(false);
 const selectedCliente = ref<CustomerUnionReadSchemaDataType | null>(null);
 const selectedOS = ref<OrderServiceReadDataType | null>(null);
 const equipamentosHistoricoFlow = ref<EquipamentoHistorico[]>([]);
 const selectedEquipamento = ref<EquipamentoHistorico | null>(null);
+const autoUsarCredito = ref(false);
+
+// =============================================
+// Helper privado — continua o fluxo após a decisão de crédito
+// =============================================
+
+async function _continuarFluxoCliente() {
+  const cliente = selectedCliente.value;
+  if (!cliente) return;
+
+  try {
+    const history = await getClientEquipments(cliente.id);
+    if (history.length > 0) {
+      equipamentosHistoricoFlow.value = history;
+      isEquipSelectOpen.value = true;
+      return;
+    }
+  } catch {
+    // histórico de equipamentos é opcional
+  }
+
+  isFormModalOpen.value = true;
+}
 
 // =============================================
 // Composable
@@ -25,6 +49,7 @@ export function useOSCreateFlow() {
     selectedOS.value = null;
     selectedCliente.value = null;
     selectedEquipamento.value = null;
+    autoUsarCredito.value = false;
     isClienteSearchOpen.value = true;
   }
 
@@ -40,18 +65,25 @@ export function useOSCreateFlow() {
     selectedEquipamento.value = null;
     isClienteSearchOpen.value = false;
 
-    try {
-      const history = await getClientEquipments(cliente.id);
-      if (history.length > 0) {
-        equipamentosHistoricoFlow.value = history;
-        isEquipSelectOpen.value = true;
-        return;
-      }
-    } catch {
-      // histórico de equipamentos é opcional
+    const saldo = (cliente as { saldo_credito?: number }).saldo_credito ?? 0;
+    if (saldo > 0) {
+      isCreditAlertOpen.value = true;
+      return;
     }
 
-    isFormModalOpen.value = true;
+    await _continuarFluxoCliente();
+  }
+
+  async function handleCreditoUsado() {
+    autoUsarCredito.value = true;
+    isCreditAlertOpen.value = false;
+    await _continuarFluxoCliente();
+  }
+
+  async function handleCreditoIgnorado() {
+    autoUsarCredito.value = false;
+    isCreditAlertOpen.value = false;
+    await _continuarFluxoCliente();
   }
 
   function handleEquipamentoSelectedFlow(equip: EquipamentoHistorico) {
@@ -81,19 +113,24 @@ export function useOSCreateFlow() {
     selectedCliente.value = null;
     selectedEquipamento.value = null;
     equipamentosHistoricoFlow.value = [];
+    autoUsarCredito.value = false;
   }
 
   return {
     isClienteSearchOpen,
     isFormModalOpen,
     isEquipSelectOpen,
+    isCreditAlertOpen,
     selectedCliente,
     selectedOS,
     equipamentosHistoricoFlow,
     selectedEquipamento,
+    autoUsarCredito,
     openNovaOS,
     openExistingOS,
     handleClienteSelected,
+    handleCreditoUsado,
+    handleCreditoIgnorado,
     handleEquipamentoSelectedFlow,
     skipEquipamentoSelectFlow,
     handleChangeCliente,

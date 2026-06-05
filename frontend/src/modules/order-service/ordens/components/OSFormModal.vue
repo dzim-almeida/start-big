@@ -28,6 +28,7 @@ interface Props {
   ordemServico?: OrderServiceReadDataType | null;
   selectedCliente?: CustomerUnionReadSchemaDataType | null;
   initialEquipamento?: EquipamentoHistorico | null;
+  autoUsarCredito?: boolean;
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{
@@ -226,6 +227,9 @@ useOSModalLifecycle({
         form.criar.equipamento_modelo.value = equip.modelo ?? '';
         form.criar.equipamento_numero_serie.value = equip.numero_serie ?? '';
       });
+    }
+    if (props.autoUsarCredito && isCreateMode.value) {
+      nextTick(() => handleUsarCredito());
     }
   },
 });
