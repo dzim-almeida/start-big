@@ -16,9 +16,9 @@ export function getClienteDoc(cliente?: { cpf?: string; cnpj?: string } | null):
   return (cliente as { cpf?: string }).cpf || (cliente as { cnpj?: string }).cnpj || '';
 }
 
-export function getClientePhone(cliente?: { celular?: string; telefone?: string } | null): string {
+export function getClientePhone(cliente?: { celular?: string | null; telefone?: string | null } | null): string {
   if (!cliente) return '';
-  return (cliente as { celular?: string }).celular || (cliente as { telefone?: string }).telefone || '';
+  return (cliente as { celular?: string | null }).celular || (cliente as { telefone?: string | null }).telefone || '';
 }
 
 // --- Payment helpers ---
