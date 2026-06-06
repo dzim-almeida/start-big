@@ -121,6 +121,7 @@ class ClientePFSimpleRead(BaseModel):
     nome: str = Field(..., description="Nome do cliente.")
     cpf: str = Field(..., description="CPF do cliente.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    celular: Optional[str] = Field(None, description="Celular do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
 
 class ClientePFUpdate(ClienteBase):
@@ -196,6 +197,7 @@ class ClientePJSimpleRead(BaseModel):
     razao_social: str = Field(..., description="Razão Social da empresa.")
     cnpj: str = Field(..., description="CNPJ da empresa.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    celular: Optional[str] = Field(None, description="Celular do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
 
 class ClientePJUpdate(ClienteBase):

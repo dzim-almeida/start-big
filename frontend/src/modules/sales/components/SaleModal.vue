@@ -208,11 +208,11 @@ const saleDisplay = computed(() => {
           <div v-if="isEditMode" class="flex justify-around gap-5 w-full">
             <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
               <div class="flex flex-col items-center">
-                <span>Cancelar Venda</span>
+                <span>Cancelar Orçamento</span>
                 <span class="text-[9px] opacity-70 font-normal">Ctrl+Backspace</span>
               </div>
             </BaseButton>
-            <BaseButton variant="primary" size="md" class="flex-1" @click="openFinishModal">
+            <BaseButton variant="primary" size="md" class="flex-1" :disabled="!sale?.produtos?.length" @click="openFinishModal">
               <div class="flex flex-col items-center">
                 <span>Finalizar</span>
                 <span class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>

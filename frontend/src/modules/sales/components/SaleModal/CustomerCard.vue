@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { maskPhoneNumber } from '@/shared/utils/mask.utils';
+
 import { User2, Building2, House, Phone, UserX, RefreshCw } from 'lucide-vue-next';
 
 import BaseInfoCard from '@/shared/components/layout/StatsCard/BaseInfoCard.vue';
@@ -58,7 +60,7 @@ const address = computed(() => {
         </div>
         <div class="flex gap-2 items-center">
           <Phone :size="15" />
-          <p class="font-poppins text-xs">{{ customer?.telefone || 'Contato não informado' }}</p>
+          <p class="font-poppins text-xs">{{ maskPhoneNumber(customer?.telefone) || maskPhoneNumber(customer?.celular) || 'Contato não informado' }}</p>
         </div>
       </div>
     </div>
