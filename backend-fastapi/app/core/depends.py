@@ -70,12 +70,6 @@ def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[st
         usuario_token["permissoes"] = {}
         usuario_token["cargo"] = "Sem Cargo" # Define um valor padrão
 
-    # Adiciona o funcionario_id ao token para uso em filtros de endpoint
-    if usuario_in_db.funcionario:
-        usuario_token["funcionario_id"] = usuario_in_db.funcionario.id
-    else:
-        usuario_token["funcionario_id"] = None
-
     return usuario_token
     
     

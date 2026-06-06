@@ -6,7 +6,7 @@ export function useAppNavigation() {
 
   const goToLogin = () => router.push({ name: 'auth.user' });
 
-  const goToEnterpriseRegister = () => router.push({ name: 'onboarding' });
+  const goToSignIn = () => router.push({ name: 'sign-in' });
 
   const goToHome = () => router.push({ name: 'home' });
 
@@ -19,7 +19,7 @@ export function useAppNavigation() {
 
   return {
     goToLogin,
-    goToEnterpriseRegister,
+    goToSignIn,
     goToHome,
     goToMinhaConta,
     logoutAndRedirect,
