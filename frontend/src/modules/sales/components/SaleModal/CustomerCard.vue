@@ -17,7 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const address = computed(() => {
-  if (!props.customer?.endereco) return 'Endereço não informado';
+  if (!props.customer?.endereco?.[0]) return 'Endereço não informado';
 
   const address = props.customer.endereco[0];
   return `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ''} - ${address.bairro}, ${address.cidade}/${address.estado}`;

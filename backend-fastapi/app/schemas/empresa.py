@@ -130,8 +130,8 @@ class EmpresaBase(BaseModel):
     """
 
     # Identificacao
-    razao_social: str = Field(
-        ...,
+    razao_social: Optional[str] = Field(
+        None,
         max_length=255,
         description="Razao Social da empresa",
     )
@@ -144,8 +144,8 @@ class EmpresaBase(BaseModel):
         ...,
         description="Define se o documento e um CPF ou CNPJ",
     )
-    documento: str = Field(
-        ...,
+    documento: Optional[str] = Field(
+        None,
         pattern=r"^\d{11,14}$",
         description="Documento CPF/CNPJ (apenas numeros, 11 a 14 digitos)",
     )
@@ -402,8 +402,8 @@ class EmpresaUserRead(BaseModel):
 
     id: int = Field(..., description="ID unico da empresa")
     ativo: bool = Field(..., description="Status da empresa")
-    razao_social: str = Field(
-        ...,
+    razao_social: Optional[str] = Field(
+        None,
         max_length=255,
         description="Razao Social da empresa",
     )

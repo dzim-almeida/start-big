@@ -20,29 +20,6 @@ export interface LoginRequest {
 export interface LoginResponse extends User {}
 
 /**
- * Payload de requisição para cadastro de novo usuário
- */
-export interface RegisterRequest {
-  nome: string;
-  email: string;
-  senha: string;
-}
-
-export interface RegisterResponse {
-  nome: string,
-  email: string,
-  id: number,
-  empresa_id: number,
-  ativo: boolean,
-  is_master: boolean
-}
-
-/**
- * Tipo para as abas de autenticação
- */
-export type AuthTab = 'entrar' | 'cadastrar';
-
-/**
  * Payload de requisição para verificação de e-mail
  */
 export interface VerifyEmailRequest {
