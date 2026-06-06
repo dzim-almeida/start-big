@@ -26,12 +26,14 @@ interface SelectProps {
   disabled?: boolean;
   id?: string;
   emptyMessage?: string;
+  hideChevron?: boolean;
 }
 
 const props = withDefaults(defineProps<SelectProps>(), {
   required: false,
   disabled: false,
   emptyMessage: 'Nenhuma opção encontrada',
+  hideChevron: false,
 });
 
 const model = defineModel<string | number>();
@@ -193,6 +195,7 @@ watch(
       />
 
       <div
+        v-if="!hideChevron"
         class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
       >
         <LucideIcon :icon="ChevronDown" />

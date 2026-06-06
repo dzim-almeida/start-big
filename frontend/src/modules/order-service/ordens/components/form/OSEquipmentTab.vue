@@ -114,7 +114,7 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" required :error="fieldError('imei')" @update:model-value="updateField('imei', $event)" />
+          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI" :error="fieldError('imei')" @update:model-value="updateField('imei', $event)" />
           <BaseInput :model-value="modelValue.cor" label="Cor" placeholder="Ex: Preto" @update:model-value="updateField('cor', $event)" />
         </div>
 

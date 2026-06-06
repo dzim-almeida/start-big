@@ -57,7 +57,5 @@ const emit = defineEmits<{
         </button>
       </div>
     </div>
-
-    <template #footer><span></span></template>
   </BaseModal>
 </template>

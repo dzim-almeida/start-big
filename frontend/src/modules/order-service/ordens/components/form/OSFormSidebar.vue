@@ -9,7 +9,6 @@ const view = useOSFormView();
 <template>
   <fieldset :disabled="view.isStructureLocked.value" class="contents lg:block space-y-4">
     <OSSummaryCard
-      :itens="view.displayItems.value"
       :subtotal="view.displaySubtotal.value"
       :valor-entrega="view.displayValorEntrega.value"
       :valor-desconto="view.displayValorDesconto.value"
@@ -21,6 +20,10 @@ const view = useOSFormView();
       :pagamentos="view.currentOSData.value?.pagamentos ?? []"
       :credito-ao-reabrir="view.currentOSData.value?.credito_anterior ?? view.creditoAoReabrir.value"
       :saldo-credito-cliente="view.isCreateMode.value ? view.saldoCreditoCliente.value : 0"
+      :status="view.currentOSData.value?.status"
+      :os-number="view.osNumber.value"
+      :data-criacao="view.currentOSData.value?.data_criacao"
+      :data-finalizacao="view.currentOSData.value?.data_finalizacao"
       @update:valor-entrada="view.handleValorEntradaUpdate"
       @update:valor-entrega="view.handleValorEntregaUpdate"
       @usar-credito="view.handleUsarCredito"
@@ -28,11 +31,8 @@ const view = useOSFormView();
 
     <OSClientCard
       :cliente="view.currentCliente.value"
-      :status="view.currentOSData.value?.status"
-      :data-criacao="view.currentOSData.value?.data_criacao"
-      :data-finalizacao="view.currentOSData.value?.data_finalizacao"
       :is-edit-mode="view.isEditMode.value"
-      :is-finalizada="view.isFinalizada.value"
+      :is-locked="view.isStructureLocked.value"
       @change-cliente="view.handleChangeCliente"
       @update-cliente="view.handleUpdateCliente"
       @open-historico="view.openHistoricoModal"

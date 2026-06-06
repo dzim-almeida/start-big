@@ -43,7 +43,8 @@ const inputClasses = computed(() => [
     : 'border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary',
   props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
   props.type === 'password' ? 'pr-10' : '',
-  props.type === 'date' ? 'pr-1' : ''
+  props.type === 'date' ? 'pr-1' : '',
+  props.type === 'number' ? 'input-number-no-spinner' : ''
 ]);
 
 function togglePasswordVisibility() {

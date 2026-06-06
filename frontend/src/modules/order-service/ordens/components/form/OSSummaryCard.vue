@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Receipt, Wrench, ShoppingBag, Banknote, CreditCard, Wallet, QrCode, FileText, Truck, CheckCircle2 } from 'lucide-vue-next';
+import { Receipt, Banknote, CreditCard, Wallet, QrCode, FileText, Truck, CheckCircle2, Calendar } from 'lucide-vue-next';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
-import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
 import type { OsPaymentReadSchemaDataType } from '../../schemas/relationship/osPayment.schema';
+import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 import { inferPaymentType, getPaymentDisplayName } from '@/shared/utils/print.utils';
-
-type OsItem = OsItemCreateSchemaDataType | OsItemReadSchemaDataType;
+import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
 
 interface Props {
-  itens: OsItem[];
   subtotal: number;
   valorEntrega: number;
   valorDesconto: number;
@@ -22,6 +20,10 @@ interface Props {
   pagamentos?: OsPaymentReadSchemaDataType[];
   creditoAoReabrir?: number | null;
   saldoCreditoCliente?: number;
+  status?: OsStatusEnumDataType | null;
+  osNumber?: string | null;
+  dataCriacao?: string | Date;
+  dataFinalizacao?: string | Date | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -74,12 +76,6 @@ const emit = defineEmits<{
   'usarCredito': [];
 }>();
 
-const servicosCount = computed(() => props.itens.filter(i => i.tipo === 'SERVICO').length);
-const produtosCount = computed(() => props.itens.filter(i => i.tipo === 'PRODUTO').length);
-
-const totalServicos = computed(() => props.itens.filter(i => i.tipo === 'SERVICO').reduce((acc, curr) => acc + getItemTotal(curr), 0));
-const totalProdutos = computed(() => props.itens.filter(i => i.tipo === 'PRODUTO').reduce((acc, curr) => acc + getItemTotal(curr), 0));
-
 const valorEntradaReais = computed({
   get: () => (props.valorEntrada || 0) / 100,
   set: (val: number) => emit('update:valorEntrada', Math.round((val || 0) * 100)),
@@ -111,10 +107,40 @@ const restante = computed(() => {
   return base;
 });
 
-function getItemTotal(item: OsItem): number {
-  if ('valor_total' in item && item.valor_total !== undefined) return item.valor_total;
-  return item.quantidade * item.valor_unitario;
-}
+// --- Dados de OS (movidos de OSClientCard) ---
+
+const statusLabel = computed(() => {
+  if (!props.status) return 'Nova OS';
+  return getStatusLabel(props.status);
+});
+
+const statusColorClass = computed(() => {
+  const status = props.status || 'ABERTA';
+  const color = getStatusColor(status);
+  const map: Record<string, string> = {
+    blue: 'bg-brand-primary-light text-brand-primary border-brand-primary/20',
+    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    orange: 'bg-orange-50 text-orange-700 border-orange-200',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
+    gray: 'bg-zinc-50 text-zinc-700 border-zinc-200',
+  };
+  return map[color] || map.gray;
+});
+
+const formattedDataEntrada = computed(() => {
+  if (!props.dataCriacao) return '-';
+  const date = typeof props.dataCriacao === 'string' ? new Date(props.dataCriacao) : props.dataCriacao;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+});
+
+const formattedDataSaida = computed(() => {
+  if (!props.dataFinalizacao) return '-';
+  const date = typeof props.dataFinalizacao === 'string' ? new Date(props.dataFinalizacao) : props.dataFinalizacao;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+});
 </script>
 
 <template>
@@ -126,65 +152,40 @@ function getItemTotal(item: OsItem): number {
     </div>
 
     <div class="p-4 space-y-4">
-      <!-- Contadores -->
+      <!-- Número da OS + Status -->
       <div class="flex items-center gap-2">
+        <h2 class="font-poppins font-bold text-sm text-zinc-800 underline underline-offset-2">
+          {{ osNumber ? `#${osNumber}` : 'Nova OS' }}
+        </h2>
         <span
-          v-if="servicosCount > 0"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary-light text-brand-primary"
+          v-if="status"
+          :class="['px-2.5 py-0.5 text-[10px] font-semibold rounded-full border', statusColorClass]"
         >
-          <Wrench :size="12" />
-          {{ servicosCount }} {{ servicosCount === 1 ? 'Serviço' : 'Serviços' }}
-        </span>
-        <span
-          v-if="produtosCount > 0"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand-primary-light text-brand-primary"
-        >
-          <ShoppingBag :size="12" />
-          {{ produtosCount }} {{ produtosCount === 1 ? 'Produto' : 'Produtos' }}
-        </span>
-        <span
-          v-if="itens.length === 0"
-          class="text-xs text-slate-400 italic"
-        >
-          Nenhum item adicionado
+          {{ statusLabel }}
         </span>
       </div>
 
-      <!-- Lista compacta de itens -->
-      <div v-if="itens.length > 0" class="max-h-36 overflow-y-auto space-y-1 custom-scrollbar">
-        <div
-          v-for="(item, index) in itens"
-          :key="index"
-          class="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors"
-        >
-          <div class="flex items-center gap-2 min-w-0">
-            <component
-              :is="item.tipo === 'SERVICO' ? Wrench : ShoppingBag"
-              :size="12"
-              class="text-brand-primary shrink-0"
-            />
-            <span class="text-xs text-slate-600 truncate">{{ item.nome }}</span>
-          </div>
-          <div class="flex items-center gap-3 shrink-0 ml-2">
-            <span class="text-[10px] text-slate-400">×{{ item.quantidade }}</span>
-            <span class="text-xs font-bold text-slate-700 w-20 text-right">{{ formatCurrency(getItemTotal(item)) }}</span>
-          </div>
+      <!-- Datas da OS -->
+      <div v-if="dataCriacao" class="grid grid-cols-2 gap-2">
+        <div class="flex flex-col">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Entrada</span>
+          <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+            <Calendar :size="12" class="text-slate-400" />
+            {{ formattedDataEntrada }}
+          </span>
+        </div>
+        <div v-if="formattedDataSaida !== '-'" class="flex flex-col">
+          <span class="text-[10px] text-slate-400 font-bold uppercase">Saída/Finalização</span>
+          <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+            <CheckCircle2 :size="12" class="text-emerald-500" />
+            {{ formattedDataSaida }}
+          </span>
         </div>
       </div>
 
       <!-- Resumo financeiro -->
-      <div class="border-t border-slate-200 pt-3 space-y-2">
-        <div v-if="servicosCount > 0" class="flex items-center justify-between text-sm">
-          <span class="text-slate-500">Mão-de-obra</span>
-          <span class="font-medium text-slate-700">{{ formatCurrency(totalServicos) }}</span>
-        </div>
-
-        <div v-if="produtosCount > 0" class="flex items-center justify-between text-sm">
-          <span class="text-slate-500">Peças</span>
-          <span class="font-medium text-slate-700">{{ formatCurrency(totalProdutos) }}</span>
-        </div>
-
-        <div class="flex items-center justify-between text-sm pt-1 border-t border-slate-100 border-dashed">
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-sm">
           <span class="text-slate-500 font-medium">Subtotal</span>
           <span class="font-semibold text-brand-primary">{{ formatCurrency(subtotal) }}</span>
         </div>
@@ -250,7 +251,7 @@ function getItemTotal(item: OsItem): number {
           </div>
         </div>
 
-        <div class="border-t border-slate-300 my-1"></div>
+        <div class="border-t border-slate-300 mt-1 mb-3"></div>
 
         <div class="flex items-center justify-between">
           <span class="text-slate-800 font-bold text-sm">
@@ -331,10 +332,3 @@ function getItemTotal(item: OsItem): number {
     </div>
   </div>
 </template>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #d4d4d8; }
-</style>

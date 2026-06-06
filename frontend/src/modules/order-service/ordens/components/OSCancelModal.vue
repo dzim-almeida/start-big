@@ -101,7 +101,7 @@ function handleConfirmarPasso2(devolver: boolean) {
       </div>
 
       <template #footer>
-        <div class="flex gap-3 w-full">
+        <div class="mt-4 flex gap-3 w-full">
           <BaseButton variant="secondary" class="flex-1" @click="handleClose">
             VOLTAR
           </BaseButton>
@@ -149,16 +149,6 @@ function handleConfirmarPasso2(devolver: boolean) {
       <div class="flex justify-center">
         <BaseCheckbox v-model="shouldPrint" label="Imprimir Comprovante" />
       </div>
-
-      <button
-        type="button"
-        class="text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
-        @click="showAdiantamento = false"
-      >
-        ← Voltar
-      </button>
     </div>
-
-    <template #footer><span></span></template>
   </BaseModal>
 </template>
