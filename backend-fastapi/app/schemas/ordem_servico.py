@@ -19,7 +19,7 @@
 #   OrdemServicoStats           → estatísticas agregadas
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Sequence, List
 
@@ -133,6 +133,7 @@ class OSPagamentoCreate(BaseModel):
     valor: int = Field(..., gt=0, description="Valor pago nesta forma de pagamento (centavos)")
     parcelas: int = Field(1, ge=1, description="Número de parcelas (mínimo 1)")
     bandeira_cartao: Optional[str] = Field(None, max_length=50, description="Bandeira do cartão (VISA, MASTERCARD, etc.)")
+    vencimento: Optional[date] = Field(None, description="Data de vencimento do pagamento (ex: boletos)")
     detalhes: Optional[dict] = Field(None, description="Dados adicionais do pagamento em formato JSON")
 
     model_config = ConfigDict(from_attributes=True)
@@ -146,6 +147,7 @@ class OSPagamentoRead(BaseModel):
     valor: int = Field(..., description="Valor pago (centavos)")
     parcelas: int = Field(..., description="Número de parcelas")
     bandeira_cartao: Optional[str] = Field(None, description="Bandeira do cartão")
+    vencimento: Optional[date] = Field(None, description="Data de vencimento do pagamento")
     detalhes: Optional[dict] = Field(None, description="Dados adicionais")
 
     model_config = ConfigDict(from_attributes=True)
@@ -213,6 +215,9 @@ class OrdemServicoCreate(OrdemServicoBase):
     equipamento: OSEquipamentoCreate = Field(..., description="Dados do equipamento a ser cadastrado")
     itens: Sequence[OSItemCreate] = Field(default_factory=list, description="Lista de itens/serviços da OS")
 
+    # Crédito
+    usar_credito_cliente: Optional[bool] = Field(False, description="Se True, deduz valor_entrada do saldo de crédito do cliente")
+
     model_config = ConfigDict(
         json_schema_extra=os_example,
     )
@@ -271,6 +276,7 @@ class OrdemServicoRead(OrdemServicoBase):
     valor_total: int = Field(..., description="Valor final após desconto (centavos)")
     taxa_entrega: int = Field(0, description="Taxa de entrega/frete (centavos)")
     acrescimo: int = Field(0, description="Acréscimo de juros/cartão (centavos)")
+    credito_anterior: Optional[int] = Field(None, description="Crédito efetivo da finalização anterior ao reabrir (centavos)")
 
     # Datas
     data_finalizacao: Optional[datetime] = Field(None, description="Data de finalização efetiva")
@@ -312,9 +318,12 @@ class OrdemServicoFinalizar(BaseModel):
     taxa_entrega: Optional[int] = Field(None, ge=0, description="Taxa de entrega/frete em centavos")
     acrescimo: Optional[int] = Field(None, ge=0, description="Acréscimo de juros/cartão em centavos")
     pagamentos: List[OSPagamentoCreate] = Field(
-        ...,
-        min_length=1,
+        default=[],
         description="Lista de pagamentos. A soma dos valores deve ser igual ao valor_total da OS."
+    )
+    zerar_adiantamento: Optional[bool] = Field(
+        False,
+        description="Se True, o adiantamento foi devolvido em dinheiro. Se False, vira crédito para o cliente (apenas para SEM_REPARO/CONDENADO)."
     )
 
     model_config = ConfigDict(
@@ -335,9 +344,10 @@ class OrdemServicoFinalizar(BaseModel):
 class OrdemServicoCancelar(BaseModel):
     """Payload para cancelar uma OS. O motivo é registrado nas observações da OS."""
     motivo: Optional[str] = Field(None, max_length=500, description="Motivo do cancelamento (acrescentado às observações)")
+    zerar_adiantamento: Optional[bool] = Field(False, description="Se True, zera o valor_entrada (adiantamento devolvido ao cliente)")
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço."}}
+        json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço.", "zerar_adiantamento": True}}
     )
 
 

@@ -3,9 +3,10 @@
 # DESCRICAO: Modelo SQLAlchemy para a tabela 'ordem_servico_pagamentos'.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, JSON, String
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, JSON, String, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, TYPE_CHECKING
+from datetime import date
 
 from app.db.base import Base
 
@@ -42,6 +43,7 @@ class OrdemServicoPagamento(Base):
     valor: Mapped[int] = mapped_column(Integer, nullable=False, doc="Valor pago (centavos)")
     parcelas: Mapped[int] = mapped_column(Integer, default=1, nullable=False, doc="Numero de parcelas")
     bandeira_cartao: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Bandeira do cartao (VISA, MASTERCARD, etc)")
+    vencimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de vencimento do pagamento (boletos ou combinado)")
     detalhes: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, doc="Detalhes adicionais do pagamento")
 
     # --- Relacionamentos ---

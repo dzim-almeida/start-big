@@ -26,12 +26,8 @@ export function useOSReopenState({
   }
 
   function handleReopenTextOnly() {
-    const currentOsNumber = osNumber.value;
-    if (!currentOsNumber) return;
-
     reopenMode.value = 'TEXT_ONLY';
     isReopenOptionsOpen.value = false;
-    onReopenRequest(currentOsNumber);
   }
 
   function handleReopenFull() {
@@ -41,7 +37,6 @@ export function useOSReopenState({
     reopenMode.value = 'FULL';
     isReopenOptionsOpen.value = false;
     onReopenRequest(currentOsNumber);
-    onFullReopen();
   }
 
   function resetReopenState() {

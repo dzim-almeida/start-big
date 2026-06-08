@@ -15,11 +15,12 @@ import SaleModal from '@/modules/sales/components/SaleModal.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
 import OSEquipamentoSelectModal from '@/modules/order-service/ordens/components/form/OSEquipamentoSelectModal.vue';
+import OSCreditoAlertModal from '@/modules/order-service/ordens/components/OSCreditoAlertModal.vue';
 
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
 import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
@@ -42,18 +43,33 @@ const {
   isClienteSearchOpen,
   isFormModalOpen,
   isEquipSelectOpen,
+  isCreditAlertOpen,
   selectedCliente,
   selectedOS,
   equipamentosHistoricoFlow,
   selectedEquipamento,
+  autoUsarCredito,
   openNovaOS,
   handleClienteSelected,
+  handleCreditoUsado,
+  handleCreditoIgnorado,
   handleEquipamentoSelectedFlow,
   skipEquipamentoSelectFlow,
   handleChangeCliente,
   closeClienteSearch,
   closeFormModal,
 } = useOSCreateFlow();
+
+const nomeCreditoCliente = computed(() => {
+  const c = selectedCliente.value as { tipo?: string; nome?: string; nome_fantasia?: string; razao_social?: string } | null;
+  if (!c) return '';
+  if (c.tipo === 'PF') return c.nome || '';
+  return c.nome_fantasia || c.razao_social || '';
+});
+
+const valorCreditoCliente = computed(() =>
+  (selectedCliente.value as { saldo_credito?: number } | null)?.saldo_credito ?? 0
+);
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
@@ -142,6 +158,14 @@ whenever(Ctrl_K, () => {
       @select-cliente="handleClienteSelected"
     />
 
+    <OSCreditoAlertModal
+      :is-open="isCreditAlertOpen"
+      :valor-credito="valorCreditoCliente"
+      :nome-cliente="nomeCreditoCliente"
+      @usar="handleCreditoUsado"
+      @fechar="handleCreditoIgnorado"
+    />
+
     <OSEquipamentoSelectModal
       :is-open="isEquipSelectOpen"
       :equipamentos="equipamentosHistoricoFlow"
@@ -154,6 +178,7 @@ whenever(Ctrl_K, () => {
       :ordem-servico="selectedOS"
       :selected-cliente="selectedCliente"
       :initial-equipamento="selectedEquipamento"
+      :auto-usar-credito="autoUsarCredito"
       @close="closeFormModal"
       @change-cliente="handleChangeCliente"
     />

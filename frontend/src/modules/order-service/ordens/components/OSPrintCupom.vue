@@ -27,30 +27,33 @@ const { companyInfo } = useCompanyPrintInfo();
 
 const SEPARATOR = '────────────────────────────';
 
+const situacao = computed(() => props.orderService?.situacao_equipamento ?? null);
+
+const isSemReparo = computed(() =>
+  situacao.value === 'SEM_REPARO' || situacao.value === 'CONDENADO'
+);
+
 const title = computed(() => {
   switch (props.type) {
-    case 'ENTRADA':
-      return 'COMPROVANTE DE ENTRADA';
+    case 'ENTRADA': return 'COMPROVANTE DE ENTRADA';
+    case 'CANCELAMENTO': return 'CANCELAMENTO DE OS';
     case 'SAIDA':
+      if (situacao.value === 'SEM_REPARO') return 'ENTREGA SEM REPARO';
+      if (situacao.value === 'CONDENADO') return 'EQUIPAMENTO CONDENADO';
       return 'RECIBO E GARANTIA';
-    case 'CANCELAMENTO':
-      return 'CANCELAMENTO DE OS';
-    default:
-      return 'Cupom';
+    default: return 'Cupom';
   }
 });
 
 const date = computed(() => {
+  if (!props.orderService) return '';
   let dateStr: string;
   switch (props.type) {
-    case 'ENTRADA':
-      dateStr = props.orderService!.data_criacao;
-      break;
     case 'SAIDA':
-      dateStr = (props.orderService!.data_finalizacao as string) || props.orderService!.data_criacao;
+      dateStr = (props.orderService.data_finalizacao as string) || props.orderService.data_criacao;
       break;
     default:
-      dateStr = props.orderService!.data_criacao;
+      dateStr = props.orderService.data_criacao;
   }
   return formatPrintDate(dateStr);
 });
@@ -64,15 +67,31 @@ const clientePhone = computed(() => {
   return getClientePhone(props.orderService?.cliente);
 });
 
+const motivoCancelamento = computed(() => {
+  const obs = props.orderService?.observacoes ?? '';
+  const match = obs.match(/\[CANCELAMENTO\]\s*([\s\S]+)/);
+  return match ? match[1].trim() : 'Motivo nao informado.';
+});
+
 const subTotal = computed(() => {
   if (!props.orderService) return 0;
   return props.orderService.itens.reduce((acc, item) => acc + item.valor_total, 0);
+});
+
+const adiantamento = computed(() => props.orderService?.valor_entrada ?? 0);
+
+const adiantamentoUtilizado = computed(() => {
+  const entrada = adiantamento.value;
+  const total = props.orderService?.valor_total ?? 0;
+  return Math.min(entrada, total);
 });
 
 const paymentTotal = computed(() => {
   if (!props.orderService?.pagamentos) return 0;
   return props.orderService.pagamentos.reduce((acc, pay) => acc + pay.valor, 0);
 });
+
+const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.value);
 </script>
 
 <template>
@@ -102,7 +121,12 @@ const paymentTotal = computed(() => {
 
     <div class="section">
       <div class="font-bold mb-0.5">EQUIPAMENTO</div>
-      <div>{{ orderService.equipamento.tipo_equipamento }}</div>
+      <div class="flex items-center gap-1">
+        <span>{{ orderService.equipamento.tipo_equipamento }}</span>
+        <span v-if="situacao && type === 'SAIDA'" class="text-[9px] font-bold uppercase">
+          ({{ situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado' }})
+        </span>
+      </div>
       <div v-if="orderService.equipamento.marca">
         Marca: {{ orderService.equipamento.marca }}
       </div>
@@ -132,6 +156,7 @@ const paymentTotal = computed(() => {
       </div>
     </template>
 
+    <!-- ── SAÍDA ── -->
     <template v-if="type === 'SAIDA'">
       <template v-if="orderService.diagnostico || orderService.solucao">
         <div class="separator">{{ SEPARATOR }}</div>
@@ -164,6 +189,19 @@ const paymentTotal = computed(() => {
         </div>
       </template>
 
+      <!-- Adiantamento -->
+      <template v-if="adiantamento > 0">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <div class="section">
+          <div class="font-bold mb-0.5">ADIANTAMENTO (ENTRADA)</div>
+          <div class="flex justify-between">
+            <span>Recebido na entrada:</span>
+            <span class="font-bold">{{ formatCurrency(adiantamento) }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Pagamentos no fechamento -->
       <template v-if="orderService.pagamentos?.length">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section">
@@ -192,18 +230,61 @@ const paymentTotal = computed(() => {
           <span>Desconto:</span>
           <span>-{{ formatCurrency(orderService.desconto ?? 0) }}</span>
         </div>
-        <div class="flex justify-between font-bold text-sm mt-1">
-          <span>TOTAL:</span>
-          <span>{{ formatCurrency(paymentTotal) }}</span>
+        <div v-if="(orderService.taxa_entrega ?? 0) > 0" class="flex justify-between">
+          <span>Deslocamento:</span>
+          <span>+{{ formatCurrency(orderService.taxa_entrega ?? 0) }}</span>
         </div>
+        <div v-if="(orderService.acrescimo ?? 0) > 0" class="flex justify-between">
+          <span>Juros:</span>
+          <span>+{{ formatCurrency(orderService.acrescimo ?? 0) }}</span>
+        </div>
+        <div v-if="adiantamento > 0" class="flex justify-between">
+          <span>Adiantamento:</span>
+          <span>-{{ formatCurrency(adiantamentoUtilizado) }}</span>
+        </div>
+        <div class="flex justify-between font-bold text-sm mt-1">
+          <span>TOTAL PAGO:</span>
+          <span>{{ formatCurrency(totalRecebido) }}</span>
+        </div>
+        <template v-if="(orderService.acrescimo ?? 0) > 0">
+          <div class="separator">{{ SEPARATOR }}</div>
+          <div class="font-bold text-[9px] uppercase mb-0.5">Devolucao</div>
+          <div class="flex justify-between text-[9px]">
+            <span>Servico (dinheiro):</span>
+            <span>{{ formatCurrency(paymentTotal - (orderService.acrescimo ?? 0)) }}</span>
+          </div>
+          <div class="flex justify-between text-[9px]">
+            <span>Estorno cartao:</span>
+            <span>{{ formatCurrency(paymentTotal) }}</span>
+          </div>
+        </template>
       </div>
+
+      <!-- Garantia (só para REPARADO) -->
+      <template v-if="!isSemReparo && orderService.garantia">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <div class="section text-justify">
+          <div class="font-bold mb-0.5">GARANTIA: {{ orderService.garantia }}</div>
+          Cobre servicos prestados e pecas substituidas neste documento. Nao cobre mau uso, liquidos, quedas ou intervencao de terceiros.
+        </div>
+      </template>
+
+      <!-- Entrega sem reparo -->
+      <template v-else-if="isSemReparo">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <div class="section text-justify">
+          Equipamento devolvido sem reparo.
+          Sem garantia aplicavel a esta OS.
+        </div>
+      </template>
     </template>
 
+    <!-- ── CANCELAMENTO ── -->
     <template v-else-if="type === 'CANCELAMENTO'">
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section">
         <div class="font-bold mb-0.5">MOTIVO DO CANCELAMENTO</div>
-        <div>{{ (orderService as any).motivo_cancelamento || 'Motivo nao informado.' }}</div>
+        <div>{{ motivoCancelamento }}</div>
       </div>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
@@ -215,6 +296,7 @@ const paymentTotal = computed(() => {
       </div>
     </template>
 
+    <!-- ── ENTRADA ── -->
     <template v-else>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
@@ -223,6 +305,14 @@ const paymentTotal = computed(() => {
         perda de dados nem por chips/cartoes
         deixados no aparelho. Autorizo a
         analise tecnica do equipamento.
+      </div>
+      <div class="separator">{{ SEPARATOR }}</div>
+      <div class="section text-justify">
+        PRAZO DE RETIRADA: Equipamentos nao
+        retirados em 90 dias apos aviso de
+        conclusao serao considerados
+        abandonados, conforme Art. 1.275
+        do Codigo Civil Brasileiro.
       </div>
     </template>
 

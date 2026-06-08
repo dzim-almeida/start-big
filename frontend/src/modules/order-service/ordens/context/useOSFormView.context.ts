@@ -32,7 +32,9 @@ export interface OSFormViewContext {
   isCancelada: ComputedRef<boolean>;
   reopenMode: Ref<OSReopenMode>;
   isStructureLocked: ComputedRef<boolean>;
+  isDiagnosticoLocked: ComputedRef<boolean>;
   isItemsLocked: ComputedRef<boolean>;
+  creditoAoReabrir: Ref<number | null>;
   controlsStatus: ComputedRef<OsStatusEnumDataType>;
   controlsFuncionarioId: ComputedRef<string>;
   controlsPrioridade: ComputedRef<OsPriorityEnumDataType>;
@@ -46,6 +48,7 @@ export interface OSFormViewContext {
   displayValorDesconto: ComputedRef<number>;
   displayValorTotal: ComputedRef<number>;
   displayValorEntrada: ComputedRef<number>;
+  displayValorAcrescimo: ComputedRef<number>;
   formErrors: ComputedRef<Record<string, string | undefined>>;
   equipamentoFormData: ComputedRef<EquipamentoFormData>;
   equipamentosHistorico: Ref<EquipamentoHistorico[]>;
@@ -73,6 +76,9 @@ export interface OSFormViewContext {
   handlePrioridadeUpdate: (value: OsPriorityEnumDataType) => void;
   handleDataPrevisaoUpdate: (value: string) => void;
   handleValorEntradaUpdate: (value: number) => void;
+  handleValorEntregaUpdate: (value: number) => void;
+  handleUsarCredito: () => void;
+  saldoCreditoCliente: ComputedRef<number>;
   setEquipamentoFormData: (value: EquipamentoFormData) => void;
   setSelectedHistorico: (value: string) => void;
   applyEquipamentoHistorico: () => void;

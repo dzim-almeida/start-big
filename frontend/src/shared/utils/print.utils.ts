@@ -16,24 +16,30 @@ export function getClienteDoc(cliente?: { cpf?: string; cnpj?: string } | null):
   return (cliente as { cpf?: string }).cpf || (cliente as { cnpj?: string }).cnpj || '';
 }
 
-export function getClientePhone(cliente?: { celular?: string; telefone?: string } | null): string {
+export function getClientePhone(cliente?: { celular?: string | null; telefone?: string | null } | null): string {
   if (!cliente) return '';
-  return (cliente as { celular?: string }).celular || (cliente as { telefone?: string }).telefone || '';
+  return (cliente as { celular?: string | null }).celular || (cliente as { telefone?: string | null }).telefone || '';
 }
 
 // --- Payment helpers ---
 
 export function getPaymentDisplayName(nome: string): string {
+  if (!nome) return '';
+  const cleanName = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   const map: Record<string, string> = {
     'PIX': 'Pix',
     'DINHEIRO': 'Dinheiro',
     'CARTAO_CREDITO': 'Cartão de Crédito',
+    'CARTAO DE CREDITO': 'Cartão de Crédito',
     'CARTAO_DEBITO': 'Cartão de Débito',
+    'CARTAO DE DEBITO': 'Cartão de Débito',
     'BOLETO': 'Boleto',
     'TRANSFERENCIA': 'Transferência',
+    'TRANSFERENCIA BANCARIA': 'Transferência Bancária',
+    'TRANSFERENCIA_BANCARIA': 'Transferência Bancária',
   };
 
-  const mapped = map[nome.toUpperCase()];
+  const mapped = map[cleanName] || map[nome.toUpperCase()];
   if (mapped) return mapped;
 
   return nome
