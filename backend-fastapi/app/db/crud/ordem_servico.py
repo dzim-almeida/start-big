@@ -276,3 +276,36 @@ def delete_os_foto(db: Session, foto_to_delete: OSFotoModel) -> None:
     """Remove o registro de uma foto de OS do banco."""
     db.delete(foto_to_delete)
     db.flush()
+
+
+# ===========================================================================
+# LEITURA — Alertas de Abandono
+# ===========================================================================
+
+def get_os_abandono(db: Session, empresa_id: int, prazo_abandono_dias: int) -> list[OSModel]:
+    """Retorna OS em aberto criadas há mais de prazo_abandono_dias sem resolução."""
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=prazo_abandono_dias)
+    stmt = (
+        select(OSModel)
+        .where(
+            OSModel.status.notin_([OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA]),
+            OSModel.data_criacao <= cutoff,
+        )
+        .order_by(OSModel.data_criacao.asc())
+    )
+    return list(db.scalars(stmt).all())
+
+
+def get_os_atrasadas(db: Session, empresa_id: int) -> list[OSModel]:
+    """Retorna OS abertas/em andamento com data_previsao vencida."""
+    stmt = (
+        select(OSModel)
+        .where(
+            OSModel.status.notin_([OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA]),
+            OSModel.data_previsao.isnot(None),
+            OSModel.data_previsao < datetime.utcnow(),
+        )
+        .order_by(OSModel.data_previsao.asc())
+    )
+    return list(db.scalars(stmt).all())

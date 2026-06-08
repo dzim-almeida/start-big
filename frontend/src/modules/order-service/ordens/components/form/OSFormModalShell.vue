@@ -16,8 +16,9 @@ const authStore = useAuthStore();
 const canSelectTecnico = computed(() => {
   const user = authStore.userData;
   if (!user) return false;
-  if (!user.cargo) return true;
-  return user.cargo.permissoes?.['funcionario'] === true;
+  if (!user.cargo) return false;
+  const p = user.cargo.permissoes;
+  return p?.['all'] === true || p?.['funcionario'] === true;
 });
 
 watch(

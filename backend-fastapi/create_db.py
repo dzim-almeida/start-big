@@ -24,6 +24,7 @@ from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.configuracao_clientes import ConfiguracaoClientes
 from app.db.models.configuracao_produtos import ConfiguracaoProdutos
 from app.db.models.configuracao_os import ConfiguracaoOS
+from app.db.models.comunicado import Comunicado, ComunicadoLeitura
 from app.db.models.sessao_caixa import SessaoCaixa
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda

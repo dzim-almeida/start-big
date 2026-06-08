@@ -69,11 +69,8 @@ const subtotalItens = computed(() => {
   return props.ordemServico.itens.reduce((sum, item) => sum + item.valor_total, 0);
 });
 
-const creditoAnterior = computed(() => {
-  const raw = props.ordemServico?.credito_anterior ?? 0;
-  const acrescimo = props.ordemServico?.acrescimo ?? 0;
-  return Math.max(0, raw - acrescimo);
-});
+// Valor pago em finalizações anteriores — deduzido do cálculo atual como crédito
+const pagoAnteriormente = computed(() => props.ordemServico?.credito_anterior ?? 0);
 
 const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
 
@@ -85,12 +82,11 @@ const existingDesconto = computed(() =>
 const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
 
 const aCobrar = computed(() => {
-  // Juros da finalização anterior não entram no cálculo — não viram crédito de serviço
   const total = Math.max(0, subtotalItens.value + taxaEntrega.value - existingDesconto.value - desconto.value);
-  return Math.max(0, total - creditoAnterior.value - valorEntrada.value);
+  return Math.max(0, total - pagoAnteriormente.value - valorEntrada.value);
 });
 
-const jaPago = computed(() => creditoAnterior.value + valorEntrada.value);
+const jaPago = computed(() => pagoAnteriormente.value + valorEntrada.value);
 
 const desconto = computed(() => {
   if (descontoTipo.value === 'percentual') {

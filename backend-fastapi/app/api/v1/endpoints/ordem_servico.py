@@ -29,7 +29,7 @@
 from fastapi import APIRouter, Depends, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, _handle_db_transaction
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
     OrdemServicoCreate,
@@ -117,6 +117,41 @@ def get_ordem_servico_stats(
     db: Session = Depends(get_db)
 ):
     return os_service.get_ordem_servico_stats(db)
+
+
+# ===========================================================================
+# ALERTAS DE ABANDONO (GET /abandono)
+# NOTA: Declarada ANTES de /{os_number} para não ser capturada como param
+# ===========================================================================
+
+@router.get(
+    "/abandono",
+    response_model=list[OrdemServicoRead],
+    status_code=status.HTTP_200_OK,
+    summary="OS em Abandono",
+    description="Retorna OS finalizadas cujo prazo de abandono (configurável) já venceu."
+)
+def get_os_abandono(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    empresa_id = int(user_token.get("empresa_id"))
+    return os_service.get_os_abandono(db, empresa_id)
+
+
+@router.get(
+    "/atrasadas",
+    response_model=list[OrdemServicoRead],
+    status_code=status.HTTP_200_OK,
+    summary="OS Atrasadas",
+    description="Retorna OS abertas/em andamento com previsão de entrega vencida."
+)
+def get_os_atrasadas(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    empresa_id = int(user_token.get("empresa_id"))
+    return os_service.get_os_atrasadas(db, empresa_id)
 
 
 # ===========================================================================

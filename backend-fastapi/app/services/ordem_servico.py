@@ -453,16 +453,18 @@ def finalizar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoFinal
     # Recalcula valor_total com todos os campos financeiros atualizados
     _recalcular_valor_total_os(os_in_db)
 
-    # Valida valor total: pagamentos anteriores + novos + entrada >= valor_total
-    # Sem reparo e Condenado: equipamento devolvido sem cobrança, ignora validação
-    total_anteriores = sum(p.valor for p in os_in_db.pagamentos)
+    # Valida valor total: pagamentos desta sessão + novos + entrada >= valor_total
+    # credito_anterior = total pago em finalizações anteriores (pagamentos + entrada anterior)
+    # max(0,...) evita negativo: se os pagamentos em DB são todos históricos, total_anteriores = 0
+    total_historico = os_in_db.credito_anterior or 0
+    total_anteriores = max(0, sum(p.valor for p in os_in_db.pagamentos) - total_historico)
     total_novos = sum(p.valor for p in data.pagamentos)
     valor_entrada = os_in_db.valor_entrada or 0
     situacao_sem_cobranca = data.situacao_equipamento in (
         SituacaoEquipamento.SEM_REPARO, SituacaoEquipamento.CONDENADO
     )
     if not situacao_sem_cobranca:
-        if (total_anteriores + total_novos + valor_entrada) < os_in_db.valor_total:
+        if (total_historico + total_anteriores + total_novos + valor_entrada) < os_in_db.valor_total:
             raise pagamento_valor_invalido_exce
 
     # Valida e cria cada pagamento
@@ -546,10 +548,24 @@ def reabrir_ordem_servico(db: Session, numero_os: str) -> OSModel:
     if os_in_db.status not in (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA):
         raise os_nao_pode_reabrir_exce
 
-    total_pago = sum(p.valor for p in os_in_db.pagamentos)
-    os_in_db.credito_anterior = min(total_pago, os_in_db.valor_total) if total_pago > 0 else None
+    total_bruto = sum(p.valor for p in os_in_db.pagamentos) + (os_in_db.valor_entrada or 0)
+    valor_total = os_in_db.valor_total or 0
+    os_in_db.credito_anterior = min(total_bruto, valor_total) or None
+    os_in_db.valor_entrada = 0
 
     os_in_db.status = OrdemServicoStatus.EM_ANDAMENTO
     os_in_db.data_finalizacao = None
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
+
+
+def get_os_abandono(db: Session, empresa_id: int) -> list[OSModel]:
+    """Retorna OS finalizadas cujo prazo de abandono já venceu, usando config da empresa."""
+    from app.services.configuracao_os import get_or_create_configuracao_os
+    config = get_or_create_configuracao_os(db, empresa_id)
+    return os_crud.get_os_abandono(db, empresa_id, config.prazo_abandono_dias)
+
+
+def get_os_atrasadas(db: Session, empresa_id: int) -> list[OSModel]:
+    """Retorna OS abertas com prazo de entrega vencido."""
+    return os_crud.get_os_atrasadas(db, empresa_id)

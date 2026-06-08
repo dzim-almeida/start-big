@@ -1,18 +1,46 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Bell, Menu, Settings } from 'lucide-vue-next';
 import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
 import SettingsMenu from '../ui/SettingsMenu.vue';
+import NotificacoesPanel from '../ui/NotificacoesPanel.vue';
+import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
+import { onClickOutside } from '@vueuse/core';
+import { useQueryClient } from '@tanstack/vue-query';
 
 const layoutStore = useLayoutStore();
 const { pageTitle, pageSubtitle, isMobile, isSettingsOpen } = storeToRefs(layoutStore);
+const notificacoesStore = useNotificacoesStore();
 
 const settingsButtonRef = ref<HTMLButtonElement | null>(null);
+const notifButtonRef = ref<HTMLButtonElement | null>(null);
+const notifPanelRef = ref<HTMLElement | null>(null);
+const isNotifOpen = ref(false);
+const queryClient = useQueryClient();
 
-const menuStyle = computed(() => {
+onClickOutside([notifButtonRef, notifPanelRef] as any, () => { isNotifOpen.value = false; });
+
+watch(isNotifOpen, (open) => {
+  if (open) {
+    queryClient.invalidateQueries({ queryKey: ['comunicados'] });
+    queryClient.invalidateQueries({ queryKey: ['os-atrasadas'] });
+    queryClient.invalidateQueries({ queryKey: ['os-abandono'] });
+  }
+});
+
+const menuStyle = computed((): Record<string, string> => {
   if (!settingsButtonRef.value) return {};
   const rect = settingsButtonRef.value.getBoundingClientRect();
+  return {
+    top: `${rect.bottom + 8}px`,
+    right: `${window.innerWidth - rect.right}px`,
+  };
+});
+
+const notifStyle = computed((): Record<string, string> => {
+  if (!notifButtonRef.value) return {};
+  const rect = notifButtonRef.value.getBoundingClientRect();
   return {
     top: `${rect.bottom + 8}px`,
     right: `${window.innerWidth - rect.right}px`,
@@ -51,13 +79,17 @@ const menuStyle = computed(() => {
     <div class="flex flex-1 items-center justify-end xl:max-w-2xl lg:max-w-md gap-2 md:gap-4">
       <!-- Notifications -->
       <button
+        ref="notifButtonRef"
         class="relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+        :class="isNotifOpen && 'bg-zinc-100 text-zinc-800'"
         aria-label="Notificações"
+        @click="isNotifOpen = !isNotifOpen"
       >
         <Bell :size="20" />
         <span
-          class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full"
-        ></span>
+          v-if="notificacoesStore.totalNaoLidas > 0"
+          class="absolute top-1 right-1 min-w-4 h-4 px-0.5 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+        >{{ notificacoesStore.totalNaoLidas > 9 ? '9+' : notificacoesStore.totalNaoLidas }}</span>
       </button>
 
       <!-- Settings Icon -->
@@ -75,8 +107,13 @@ const menuStyle = computed(() => {
     </div>
   </header>
 
-  <!-- Menu renderizado no body via Teleport para escapar do z-index do header -->
+  <!-- Menus renderizados no body via Teleport para escapar do z-index do header -->
   <Teleport to="body">
+    <div ref="notifPanelRef">
+      <Transition name="dropdown">
+        <NotificacoesPanel v-if="isNotifOpen" :style="notifStyle" @close="isNotifOpen = false" />
+      </Transition>
+    </div>
     <Transition name="dropdown">
       <SettingsMenu v-if="isSettingsOpen" :style="menuStyle" />
     </Transition>

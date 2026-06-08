@@ -20,7 +20,11 @@ import OSCreditoAlertModal from '@/modules/order-service/ordens/components/OSCre
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
-import { onMounted, computed } from 'vue';
+import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
+import { useQuery } from '@tanstack/vue-query';
+import { getOsAbandono, getOsAtrasadas } from '@/modules/order-service/ordens/services/orderServiceGet.service';
+import { getComunicados } from '../services/comunicado.service';
+import { watch, onMounted, computed } from 'vue';
 import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
 import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
@@ -31,7 +35,35 @@ import { useServicoModal } from '@/modules/order-service/servicos/composables/us
 const layoutStore = useLayoutStore();
 const settingsStore = useSettingsStore();
 const configuracoesStore = useConfiguracoesStore();
+const notificacoesStore = useNotificacoesStore();
 const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
+
+const { data: osAbandonoData } = useQuery({
+  queryKey: ['os-abandono'],
+  queryFn: getOsAbandono,
+  refetchInterval: 1000 * 60 * 15,
+});
+watch(osAbandonoData, (lista) => {
+  if (lista) notificacoesStore.setOsAbandono(lista);
+}, { immediate: true });
+
+const { data: osAtrasadasData } = useQuery({
+  queryKey: ['os-atrasadas'],
+  queryFn: getOsAtrasadas,
+  refetchInterval: 1000 * 60 * 15,
+});
+watch(osAtrasadasData, (lista) => {
+  if (lista) notificacoesStore.setOsAtrasadas(lista);
+}, { immediate: true });
+
+const { data: comunicadosData } = useQuery({
+  queryKey: ['comunicados'],
+  queryFn: getComunicados,
+  refetchInterval: 1000 * 60 * 5,
+});
+watch(comunicadosData, (lista) => {
+  if (lista) notificacoesStore.setComunicados(lista);
+}, { immediate: true });
 
 onMounted(() => {
   settingsStore.init();

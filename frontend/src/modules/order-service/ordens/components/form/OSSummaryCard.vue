@@ -87,21 +87,17 @@ const valorEntregaReais = computed({
 });
 
 const totalPagamentosAnteriores = computed(() => {
-  const raw = (props.pagamentos ?? []).reduce((sum, p) => sum + p.valor, 0);
   if (props.creditoAoReabrir != null) {
-    const acrescimoAnterior = props.valorAcrescimo ?? 0;
-    return Math.min(raw, Math.max(0, props.creditoAoReabrir - acrescimoAnterior));
+    // credito_anterior = total histórico pago (pagamentos + entrada anterior)
+    // exibe diretamente como informação, sem deduzir do cálculo atual
+    return props.creditoAoReabrir;
   }
-  return raw;
+  return (props.pagamentos ?? []).reduce((sum, p) => sum + p.valor, 0);
 });
 
 const restante = computed(() => {
-  let base = Math.max(0, props.valorTotal - (props.valorEntrada || 0));
+  const base = Math.max(0, props.valorTotal - (props.valorEntrada || 0));
   if (!props.isFinalizada && totalPagamentosAnteriores.value > 0) {
-    // Em OS reaberta, o acrescimo antigo já está no valor_total do banco mas já foi pago —
-    // subtrai para que não seja cobrado novamente do cliente
-    const acrescimoAnterior = props.valorAcrescimo ?? 0;
-    base = Math.max(0, base - acrescimoAnterior);
     return Math.max(0, base - totalPagamentosAnteriores.value);
   }
   return base;

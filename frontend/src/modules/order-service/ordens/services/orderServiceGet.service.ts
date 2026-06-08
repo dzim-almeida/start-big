@@ -52,3 +52,13 @@ export async function getStatsOS(): Promise<OrderServiceStatsDataType> {
   const { data } = await api.get<OrderServiceStatsDataType>(`${BASE_ORDER_SERVICE_URL}/stats`);
   return safeParseResponse(OrderServiceStatsSchema, data, 'getStatsOS');
 }
+
+export async function getOsAbandono(): Promise<OrderServiceReadDataType[]> {
+  const { data } = await api.get<OrderServiceReadDataType[]>(`${BASE_ORDER_SERVICE_URL}/abandono`);
+  return data;
+}
+
+export async function getOsAtrasadas(): Promise<OrderServiceReadDataType[]> {
+  const { data } = await api.get<OrderServiceReadDataType[]>(`${BASE_ORDER_SERVICE_URL}/atrasadas`);
+  return data;
+}
