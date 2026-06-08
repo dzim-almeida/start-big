@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "frontend",
+  "productName": "StartBig ERP",
   "version": "0.1.0",
-  "identifier": "com.usuário.frontend",
+  "identifier": "br.com.startbig.erp",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "frontend",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "StartBig ERP",
+        "width": 1024,
+        "height": 750,
+        "maximized": true,
+        "resizable": false
       }
     ],
     "security": {
