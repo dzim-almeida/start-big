@@ -33,6 +33,7 @@ def _aplicar_migracoes():
     """Aplica colunas novas que ainda não existem no banco (safe migrations)."""
     migracoes = [
         ("clientes", "saldo_credito", "ALTER TABLE clientes ADD COLUMN saldo_credito INTEGER NOT NULL DEFAULT 0"),
+        ("vendas", "observacao_interna", "ALTER TABLE vendas ADD COLUMN observacao_interna VARCHAR(500)"),
     ]
     with engine.connect() as conn:
         for tabela, coluna, sql in migracoes:

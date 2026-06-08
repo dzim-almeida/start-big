@@ -32,7 +32,8 @@ export const SaleUpdateSchema = SaleCreateSchema.extend({
     .optional()
     .default(0)
     .transform((val) => val * 100),
-  observacao: z.string().max(255).nullable().optional(),
+  observacao: z.string().max(500).nullable().optional(),
+  observacao_interna: z.string().max(500).nullable().optional(),
 }).partial();
 
 export type SaleUpdate = z.infer<typeof SaleUpdateSchema>;
@@ -70,6 +71,7 @@ export const SaleReadSchema = SaleSimpleReadSchema.extend({
   troco: z.number(),
 
   observacao: z.string().nullable().optional(),
+  observacao_interna: z.string().nullable().optional(),
 
   produtos: z.array(ProductSaleReadSchema),
   pagamentos: z.array(PaymentSaleReadSchema),

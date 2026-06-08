@@ -53,6 +53,7 @@ const totalPago = computed(() => {
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="sale" class="print-cupom-container hidden print:block">
     <PrintCupomHeader :company="companyInfo" />
 
@@ -167,6 +168,7 @@ const totalPago = computed(() => {
 
     <PrintCupomFooter />
   </div>
+  </Teleport>
 </template>
 
 <style>

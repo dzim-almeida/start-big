@@ -1,15 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import {
   X,
-  CheckCircle,
   Trash2,
   CreditCard,
   Wallet,
   QrCode,
   Banknote,
   FileText,
-  Info,
+  RotateCcw,
 } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
@@ -28,7 +27,6 @@ import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import { useFinishSaleModal } from '../../composables/flows/useFinishSaleModal';
 import { useFinishSaleMutation } from '../../composables/mutates/useFinishSaleMutation';
 import { usePaymentMethodsQuery } from '../../composables/queries/usePaymentMethodsQuery';
-import { useSaleModal } from '../../composables/flows/useSaleModal';
 
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { PaymentFormReadDataType } from '@/shared/schemas/payments/payment.schema';
@@ -57,12 +55,12 @@ const {
 
 const finishMutation = useFinishSaleMutation();
 const { formasPagamento } = usePaymentMethodsQuery();
-const { closeSaleModal } = useSaleModal();
 
 // Estado local do modal aninhado de pagamento
 const showPaymentDetails = ref(false);
 const currentPaymentMethod = ref<PaymentFormReadDataType | null>(null);
 const paymentValueReais = ref(0);
+const moneyInputRef = ref();
 const paymentParcelas = ref(1);
 const confirmacao = ref(false);
 
@@ -77,7 +75,6 @@ const displayDelivery = computed(() => formatCurrency(props.sale?.entrega ?? 0))
 const displayTotal = computed(() => formatCurrency(props.sale?.total ?? 0));
 const displayTotalPago = computed(() => formatCurrency(totalPago.value));
 const displayTroco = computed(() => formatCurrency(troco.value));
-const displayRestante = computed(() => formatCurrency(restante.value));
 
 const canFinishWithConfirmation = computed(() => canFinish.value && confirmacao.value);
 
@@ -97,12 +94,12 @@ function getMethodPermiteParcelamento(method: PaymentFormReadDataType): boolean 
 
 function getPaymentIcon(tipo: string) {
   switch (tipo) {
-    case 'DINHEIRO': return Banknote;
-    case 'PIX': return QrCode;
+    case 'DINHEIRO':       return Banknote;
+    case 'PIX':            return QrCode;
     case 'CARTAO_CREDITO': return CreditCard;
-    case 'CARTAO_DEBITO': return Wallet;
-    case 'BOLETO': return FileText;
-    default: return Banknote;
+    case 'CARTAO_DEBITO':  return Wallet;
+    case 'BOLETO':         return FileText;
+    default:               return Banknote;
   }
 }
 
@@ -116,12 +113,29 @@ function getPaymentMethodName(formaId: number): string {
   return getPaymentDisplayName(method?.nome ?? 'Desconhecido');
 }
 
+function getValorPorMetodo(formaId: number): number {
+  return payments.value
+    .filter(p => p.forma_pagamento_id === formaId)
+    .reduce((sum, p) => sum + p.valor, 0);
+}
+
+function clearPayments() {
+  while (payments.value.length > 0) {
+    removePayment(0);
+  }
+}
+
 // Ações de pagamento
 function handleAddPaymentClick(method: PaymentFormReadDataType) {
   currentPaymentMethod.value = method;
   paymentValueReais.value = restante.value / 100;
   paymentParcelas.value = 1;
   showPaymentDetails.value = true;
+  nextTick(() => {
+    if (moneyInputRef.value?.inputRef) {
+      moneyInputRef.value.inputRef.select();
+    }
+  });
 }
 
 function confirmAddPayment() {
@@ -167,13 +181,10 @@ function handleFinish() {
 </script>
 
 <template>
-  <BaseModal :is-open="finishModalIsOpen" title="Finalizar Venda" size="xl">
+  <BaseModal :is-open="finishModalIsOpen" title="Finalizar Venda" size="3xl" overflow="hidden">
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div class="flex items-center gap-3">
-          <h2 class="text-xl font-bold text-zinc-800">Finalizar Venda</h2>
-        </div>
-
+        <h2 class="text-xl font-bold text-zinc-800">Finalizar Venda</h2>
         <button
           type="button"
           class="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
@@ -184,157 +195,179 @@ function handleFinish() {
       </div>
     </template>
 
-    <div class="w-full flex flex-col gap-4">
-      <!-- Info Banner -->
-      <div class="p-4 w-full bg-brand-primary/20 rounded-xl">
-        <div class="flex items-center gap-5">
-          <Info :size="35" class="text-brand-primary" />
-          <div class="flex flex-col gap-1">
-            <h1 class="font-bold text-sm text-brand-primary">
-              Revise os valores da venda e informe as formas de pagamentos
-            </h1>
-            <p class="font-medium text-xs text-zinc-500">
-              Após a finalização da venda, o estoque será baixado e a venda não poderá ser editada.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div class="flex flex-col gap-4 h-[calc(90vh-140px)]">
 
-      <!-- Conteúdo principal: 2 colunas -->
-      <div class="w-full border border-zinc-200 rounded-xl flex">
-        <!-- COLUNA ESQUERDA: Resumo Financeiro -->
-        <div class="p-5 w-1/2 flex flex-col gap-2 border-r border-zinc-200">
-          <h3 class="mb-2 font-poppins font-bold text-md text-zinc-800 uppercase tracking-wider">
-            Resumo Financeiro
-          </h3>
-          <div class="flex justify-between items-center">
-            <span class="font-medium text-sm text-zinc-600">Subtotal dos itens</span>
-            <span class="font-bold text-sm text-zinc-600">{{ displaySubtotal }}</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="font-medium text-sm text-zinc-600">Desconto</span>
-            <span class="font-bold text-sm text-red-600">- {{ displayDiscount }}</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="font-medium text-sm text-zinc-600">Entrega</span>
-            <span class="font-bold text-sm text-green-600">+ {{ displayDelivery }}</span>
-          </div>
+      <!-- Linha principal: esq (formas + pagamentos) + dir (resumo) -->
+      <div class="grid grid-cols-2 gap-4 flex-1 min-h-0">
 
-          <div class="mt-auto pt-5 flex items-start justify-between border-t border-zinc-200">
-            <span class="font-bold text-lg text-zinc-700">Total da Venda</span>
-            <span class="font-bold text-2xl text-zinc-700">{{ displayTotal }}</span>
-          </div>
-        </div>
+        <!-- Coluna esquerda: formas de pagamento + lista -->
+        <div class="flex flex-col gap-2 min-h-0">
 
-        <!-- COLUNA DIREITA: Pagamentos -->
-        <div class="p-5 flex-1 flex flex-col gap-4">
-          <!-- Header pagamentos -->
-          <div class="flex items-center justify-between">
-            <h3 class="font-poppins font-bold text-md text-zinc-800 uppercase tracking-wider">
-              Pagamentos
-            </h3>
-            <span class="text-xs text-zinc-500">{{ payments.length }} item(s)</span>
-          </div>
-
-          <!-- Lista de pagamentos como cards -->
-          <div v-if="payments.length === 0" class="text-center py-5 border-2 border-dashed border-zinc-200 rounded-xl">
-            <p class="text-xs text-zinc-400">Nenhum pagamento registrado</p>
-          </div>
-
-          <div v-else class="space-y-2 max-h-40 overflow-y-auto">
-            <div
-              v-for="(payment, idx) in payments"
-              :key="idx"
-              class="flex items-center justify-between p-3 bg-white border border-zinc-100 rounded-xl shadow-sm"
-            >
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-zinc-50 rounded-lg text-brand-primary">
-                  <component :is="getPaymentIconById(payment.forma_pagamento_id)" :size="16" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-zinc-700">
-                    {{ getPaymentMethodName(payment.forma_pagamento_id) }}
-                  </p>
-                  <p class="text-xs text-zinc-400">
-                    {{ formatCurrency(payment.valor) }}
-                    <span v-if="payment.parcelado"> em {{ payment.qtd_parcelas }}x</span>
-                  </p>
-                </div>
-              </div>
+          <!-- Formas de pagamento (compact 3-col) -->
+          <div class="shrink-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">Selecionar Forma de Pagamento</p>
+            <div data-payment-grid class="grid grid-cols-3 gap-1.5">
               <button
+                v-for="method in activePaymentMethods"
+                :key="method.id"
                 type="button"
-                class="text-zinc-400 hover:text-red-500 p-2 cursor-pointer"
-                @click="handleRemovePayment(idx)"
+                :disabled="restante <= 0"
+                class="flex flex-col items-center justify-center p-1.5 rounded-lg border-2 transition-all gap-0.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                :class="getValorPorMetodo(method.id) > 0
+                  ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
+                  : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:border-zinc-300'"
+                @click="handleAddPaymentClick(method)"
               >
-                <Trash2 :size="16" />
+                <component :is="getPaymentIcon(getMethodTipo(method))" :size="14" />
+                <span class="text-[9px] font-medium text-center leading-tight">
+                  {{ getPaymentDisplayName(method.nome) }}
+                </span>
+                <span
+                  class="text-[9px] font-bold tabular-nums"
+                  :class="getValorPorMetodo(method.id) > 0 ? 'text-brand-primary' : 'text-zinc-300'"
+                >
+                  {{ getValorPorMetodo(method.id) > 0 ? formatCurrency(getValorPorMetodo(method.id)) : '—' }}
+                </span>
               </button>
             </div>
           </div>
 
-          <!-- Grid de formas de pagamento -->
-          <div data-payment-grid class="grid grid-cols-3 gap-2">
-            <button
-              v-for="method in activePaymentMethods"
-              :key="method.id"
-              type="button"
-              class="flex flex-col items-center justify-center p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 hover:border-brand-primary hover:text-brand-primary transition-all gap-1 h-16 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              :disabled="restante <= 0"
-              @click="handleAddPaymentClick(method)"
-            >
-              <component :is="getPaymentIcon(getMethodTipo(method))" :size="20" />
-              <span class="text-[10px] font-medium text-center leading-tight">
-                {{ getPaymentDisplayName(method.nome) }}
+          <!-- Lista de pagamentos -->
+          <div class="border border-zinc-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+            <div class="bg-zinc-100 px-4 py-2 border-b border-zinc-200 flex items-center justify-between shrink-0">
+              <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Pagamentos</p>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] text-zinc-400">{{ payments.length }} item(s)</span>
+                <button
+                  type="button"
+                  :disabled="payments.length === 0"
+                  class="flex items-center gap-1 text-[10px] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  :class="payments.length > 0 ? 'text-red-400 hover:text-red-600 cursor-pointer' : 'text-zinc-400'"
+                  @click="clearPayments"
+                >
+                  <RotateCcw :size="11" />
+                  Zerar
+                </button>
+              </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-3 space-y-2">
+              <div v-if="payments.length === 0" class="h-full flex items-center justify-center py-8">
+                <p class="text-xs text-zinc-400">Nenhum pagamento registrado</p>
+              </div>
+
+              <div
+                v-for="(payment, idx) in payments"
+                :key="idx"
+                class="flex items-center justify-between p-2.5 bg-white border border-zinc-100 rounded-lg shadow-sm"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="p-1.5 bg-zinc-50 rounded-lg text-brand-primary">
+                    <component :is="getPaymentIconById(payment.forma_pagamento_id)" :size="14" />
+                  </div>
+                  <div>
+                    <p class="text-xs font-semibold text-zinc-700">
+                      {{ getPaymentMethodName(payment.forma_pagamento_id) }}
+                      <span v-if="payment.parcelado" class="font-normal text-zinc-400"> · {{ payment.qtd_parcelas }}x</span>
+                    </p>
+                    <p class="text-[10px] text-zinc-400">{{ formatCurrency(payment.valor) }}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="text-zinc-300 hover:text-red-500 p-1.5 cursor-pointer transition-colors"
+                  @click="handleRemovePayment(idx)"
+                >
+                  <Trash2 :size="14" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- fim coluna esquerda -->
+
+        <!-- Coluna direita: Resumo financeiro -->
+        <div class="border border-zinc-200 rounded-xl overflow-hidden flex flex-col">
+          <div class="bg-zinc-100 px-4 py-2 border-b border-zinc-200">
+            <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Resumo Financeiro</p>
+          </div>
+          <div class="p-4 space-y-2.5 overflow-y-auto flex-1 no-scrollbar">
+
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500">Subtotal dos itens</span>
+              <span class="text-base font-semibold text-zinc-800">{{ displaySubtotal }}</span>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500">Desconto</span>
+              <span
+                class="text-base"
+                :class="(sale?.descontos ?? 0) > 0 ? 'font-semibold text-emerald-600' : 'font-medium text-zinc-400'"
+              >
+                {{ (sale?.descontos ?? 0) > 0 ? `- ${displayDiscount}` : '—' }}
               </span>
-            </button>
-          </div>
-
-          <!-- Restante / Troco -->
-          <div class="pt-3 border-t border-zinc-200 space-y-2">
-            <div v-if="restante > 0" class="flex justify-between items-center text-sm text-red-600 font-medium">
-              <span>Faltam</span>
-              <span>{{ displayRestante }}</span>
             </div>
-            <div v-if="troco > 0" class="flex justify-between items-center text-sm text-amber-600 font-medium">
-              <span>Troco</span>
-              <span>{{ displayTroco }}</span>
+
+            <div v-if="(sale?.entrega ?? 0) > 0" class="flex justify-between items-center">
+              <span class="text-xs text-zinc-500">Entrega</span>
+              <span class="text-base font-medium text-zinc-700">{{ displayDelivery }}</span>
             </div>
-          </div>
 
-          <!-- Total Pago card -->
-          <div class="p-4 w-full bg-green-200 border border-green-500 rounded-xl">
-            <h4 class="mb-1 font-poppins font-bold text-md text-green-700 uppercase tracking-wider">
-              <CheckCircle :size="20" class="inline-block mr-2 text-green-700" /> Total Pago
-            </h4>
-            <p class="font-bold text-3xl text-green-700">{{ displayTotalPago }}</p>
-          </div>
+            <!-- Divisor -->
+            <div class="border-t border-zinc-200 pt-2.5 space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-bold text-zinc-700">Total a pagar</span>
+                <span class="text-xl font-bold text-brand-primary">{{ displayTotal }}</span>
+              </div>
 
-          <!-- Checkbox de confirmação -->
-          <div class="pt-2">
-            <BaseCheckbox
-              v-model="confirmacao"
-              :label="`Confirmo o recebimento de ${displayTotalPago}`"
-            />
+              <div
+                class="flex justify-between items-center font-semibold"
+                :class="totalPago >= saleTotal ? 'text-emerald-600' : 'text-zinc-400'"
+              >
+                <span class="text-sm">Total recebido</span>
+                <span class="text-lg">{{ displayTotalPago }}</span>
+              </div>
+
+              <div v-if="restante > 0" class="flex justify-between items-center font-bold text-red-500">
+                <span class="text-sm">Faltam</span>
+                <span class="text-lg">{{ formatCurrency(restante) }}</span>
+              </div>
+
+              <div v-if="troco > 0" class="flex justify-between items-center font-bold text-amber-500">
+                <span class="text-sm">Troco</span>
+                <span class="text-lg">{{ displayTroco }}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <template #footer>
-      <div class="flex items-center justify-end gap-3">
-        <BaseButton variant="secondary" size="md" @click="handleCloseFinishModal">Cancelar</BaseButton>
-        <BaseButton
-          variant="primary"
-          size="md"
-          :disabled="!canFinishWithConfirmation || finishMutation.isPending.value"
-          @click="handleFinish"
-        >
-          {{ finishMutation.isPending.value ? 'Finalizando...' : 'Finalizar Venda' }}
-        </BaseButton>
+      </div><!-- fim grid -->
+
+      <!-- Confirmação + botões (dentro do body) -->
+      <div class="flex items-center gap-4 pt-3 border-t border-zinc-200 shrink-0">
+        <BaseCheckbox
+          v-model="confirmacao"
+          :label="`Confirmo o recebimento de ${displayTotalPago}`"
+        />
+        <div class="flex gap-3 ml-auto">
+          <BaseButton variant="secondary" class="px-5" @click="handleCloseFinishModal">Cancelar</BaseButton>
+          <BaseButton
+            variant="primary"
+            :is-loading="finishMutation.isPending.value"
+            :disabled="!canFinishWithConfirmation"
+            class="px-6 shadow-lg shadow-blue-600/20"
+            @click="handleFinish"
+          >
+            Finalizar Venda
+          </BaseButton>
+        </div>
       </div>
-    </template>
+
+    </div>
+    <template #footer><span></span></template>
   </BaseModal>
 
-  <!-- Modal aninhado: Detalhes do pagamento -->
+  <!-- Sub-modal: Detalhes do pagamento -->
   <BaseModal
     :is-open="showPaymentDetails && !!currentPaymentMethod"
     :title="currentPaymentMethod ? getPaymentDisplayName(currentPaymentMethod.nome) : ''"
@@ -344,20 +377,19 @@ function handleFinish() {
   >
     <div v-if="currentPaymentMethod" class="space-y-4">
       <div class="flex items-center gap-3 pb-3 border-b border-zinc-100">
-        <div class="p-3 bg-brand-secondary/20 text-brand-primary rounded-xl">
-          <component :is="getPaymentIcon(getMethodTipo(currentPaymentMethod))" :size="24" />
+        <div class="p-3 bg-brand-primary/10 rounded-xl">
+          <component :is="getPaymentIcon(getMethodTipo(currentPaymentMethod))" :size="22" class="text-brand-primary" />
         </div>
         <div>
-          <p class="font-bold text-lg text-zinc-800">
-            {{ getPaymentDisplayName(currentPaymentMethod.nome) }}
-          </p>
-          <p class="text-xs text-zinc-500">Restante: {{ displayRestante }}</p>
+          <p class="font-bold text-zinc-800">{{ getPaymentDisplayName(currentPaymentMethod.nome) }}</p>
+          <p class="text-xs text-zinc-500">Restante: {{ formatCurrency(restante) }}</p>
         </div>
       </div>
 
       <BaseMoneyInput
+        ref="moneyInputRef"
         v-model="paymentValueReais"
-        label="Valor a Pagar"
+        label="Inserir Valor"
       />
 
       <div v-if="getMethodPermiteParcelamento(currentPaymentMethod)">
@@ -368,10 +400,8 @@ function handleFinish() {
         />
       </div>
 
-      <div class="pt-4 flex gap-3">
-        <BaseButton variant="secondary" class="flex-1" @click="showPaymentDetails = false">
-          Cancelar
-        </BaseButton>
+      <div class="flex gap-3 pt-2">
+        <BaseButton variant="secondary" class="flex-1" @click="showPaymentDetails = false">Cancelar</BaseButton>
         <BaseButton
           variant="primary"
           class="flex-1"

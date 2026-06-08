@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { ArchiveX, Keyboard } from 'lucide-vue-next';
 
 import ShortcutsModal from './ShortcutsModal.vue';
-
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
-import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import ProductOption from './ProductOption.vue';
 
 import { useProductSearch } from '../../composables/flows/useProductSearch';
 import { useItemModal } from '../../composables/flows/useItemModal';
-import UnitValueInput from './UnitValueInput.vue';
 import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 
 import type { ProductSaleRead } from '../../schemas/productSale.schema';
@@ -22,27 +19,21 @@ const props = defineProps<{
 }>();
 
 const currentItemsRef = computed(() => props.currentItems);
+const searchContainerRef = ref<HTMLElement | null>(null);
 
 const {
   searchTerm,
   isSearching,
   products,
   isLoading,
-  selectedProductId,
   canAddItem,
-  isAddingItem,
-  quantity,
   highlightedIndex,
-  searchContainerRef,
-  quantityInputRef,
   handleInputChange,
-  handleKeydown,
+  handleKeydown: composableKeydown,
   selectProduct,
-  increaseQuantity,
-  decreaseQuantity,
   addItemToSale,
-  resetSelection
-} = useProductSearch(props.isOrcamento, currentItemsRef);
+  resetSelection,
+} = useProductSearch(props.isOrcamento, currentItemsRef, searchContainerRef);
 
 const { openCreateItemModal } = useItemModal();
 
@@ -58,17 +49,24 @@ function handleAutoAdd(product: { nome: string; id: number }) {
   addItemToSale(props.saleId, true);
 }
 
-function handleQuantityKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    addItemToSale(props.saleId, false);
+// Enter no teclado: seleciona e já adiciona com qtde 1 (sem campo de quantidade)
+function handleKeydown(e: KeyboardEvent) {
+  const wasSearching = isSearching.value;
+  composableKeydown(e);
+  if (e.key === 'Enter' && wasSearching) {
+    nextTick(() => {
+      if (canAddItem.value) {
+        addItemToSale(props.saleId, true);
+      }
+    });
   }
 }
 </script>
 
 <template>
-  <div class="w-full flex gap-4">
-    <div class="relative w-full md:max-w-1/2" data-search-products ref="searchContainerRef">
+  <div class="flex items-center gap-2 w-full">
+    <!-- Campo de busca + dropdown -->
+    <div class="relative flex-1" data-search-products ref="searchContainerRef">
       <BaseSearchInput
         v-model="searchTerm"
         placeholder="Digite o nome ou código do produto"
@@ -95,7 +93,7 @@ function handleQuantityKeydown(e: KeyboardEvent) {
           <div
             v-if="isLoading"
             class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary"
-          ></div>
+          />
           <div v-else-if="products?.length == 0" class="py-5 flex flex-col items-center">
             <ArchiveX :size="30" class="text-mid-gray" />
             <p class="mt-1 font-poppins font-semibold text-xs text-mid-gray">
@@ -115,39 +113,24 @@ function handleQuantityKeydown(e: KeyboardEvent) {
           </div>
         </div>
 
-        <div>
-          <div class="w-full py-3 px-6">
-            <p class="font-poppins font-bold text-[10px] text-mid-gray">
-              Não encontrou o produto?
-              <span
-                class="font-poppins font-semibold text-[10px] text-brand-primary/90 hover:underline cursor-pointer"
-                @click="handleAddAvulso"
-              >
-                Adicionar produto avulso
-                <kbd class="ml-1 inline-flex items-center rounded border border-zinc-300 bg-zinc-100 px-1 text-[9px] font-semibold text-zinc-500">F4</kbd>
-              </span>
-            </p>
-          </div>
+        <div class="w-full py-3 px-6">
+          <p class="font-poppins font-bold text-[10px] text-mid-gray">
+            Não encontrou o produto?
+            <span
+              class="font-poppins font-semibold text-[10px] text-brand-primary/90 hover:underline cursor-pointer"
+              @click="handleAddAvulso"
+            >
+              Adicionar produto avulso
+              <kbd
+                class="ml-1 inline-flex items-center rounded border border-zinc-300 bg-zinc-100 px-1 text-[9px] font-semibold text-zinc-500"
+              >F4</kbd>
+            </span>
+          </p>
         </div>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <label class="font-poppins font-semibold text-xs">Qtde.</label>
-      <div class="w-32 h-full">
-        <UnitValueInput
-          ref="quantityInputRef"
-          v-model="quantity"
-          :disabled="!selectedProductId"
-          @increase="increaseQuantity"
-          @decrease="decreaseQuantity"
-          @keydown="handleQuantityKeydown"
-        />
-      </div>
 
-    </div>
-    <BaseButton size="sm" :disabled="!canAddItem || isAddingItem" @click="addItemToSale(saleId, false)">
-      Adicionar Produto
-    </BaseButton>
+    <!-- Botão de atalhos -->
     <button
       type="button"
       class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 text-zinc-400 hover:bg-brand-primary/10 hover:text-brand-primary hover:border-brand-primary/30 transition-all cursor-pointer"
@@ -157,6 +140,10 @@ function handleQuantityKeydown(e: KeyboardEvent) {
       <Keyboard :size="16" />
     </button>
 
-    <ShortcutsModal :is-open="shortcutsModalIsOpen" :shortcuts="isOrcamento ? ORCAMENTO_SHORTCUTS : SALE_SHORTCUTS" @close="shortcutsModalIsOpen = false" />
+    <ShortcutsModal
+      :is-open="shortcutsModalIsOpen"
+      :shortcuts="isOrcamento ? ORCAMENTO_SHORTCUTS : SALE_SHORTCUTS"
+      @close="shortcutsModalIsOpen = false"
+    />
   </div>
 </template>

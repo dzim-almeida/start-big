@@ -150,6 +150,6 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
         vendas_ativas=result.rascunho or 0,
         vendas_finalizadas=result.finalizada or 0,
         vendas_canceladas=result.cancelada or 0,
-        ticket_medio=int(round(ticket_medio * 100)),
+        ticket_medio=int(round(ticket_medio)),
     )
  

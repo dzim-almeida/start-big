@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
-import { X, Printer, ShoppingCart } from 'lucide-vue-next';
+import { X, Printer, ShoppingCart, PackagePlus } from 'lucide-vue-next';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -13,6 +13,7 @@ import SaleItemsTable from './SaleModal/SaleItemsTable.vue';
 import SaleSummary from './SaleModal/SaleSummary.vue';
 import ItemModal from './SaleModal/ItemModal.vue';
 import FinishSaleModal from './SaleModal/FinishSaleModal.vue';
+import AddProductModal from './SaleModal/AddProductModal.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
@@ -25,6 +26,8 @@ import { useUpdateSaleMutation } from '../composables/mutates/useUpdateSaleMutat
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
 import { useSalePrintFlow } from '../composables/flows/useSalePrintFlow';
+import { useSaleDetailsForm } from '../composables/flows/useSaleDetailsForm';
+import { useAddProductModal } from '../composables/flows/useAddProductModal';
 import type { SaleRead } from '../schemas/sale.schema';
 
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
@@ -40,6 +43,8 @@ const logoUrl = computed(() => {
 });
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
+const addProductModal = useAddProductModal();
+const { form: saleForm, isSaving: isSaleFormSaving, saveNow: saveSaleForm } = useSaleDetailsForm(sale);
 const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
@@ -149,7 +154,8 @@ const saleDisplay = computed(() => {
     :is-open="saleModalIsOpen"
     :title="saleDisplay"
     subtitle="Gerencie os detalhes desta venda, adicione produtos, finalize ou cancele a venda"
-    size="4xl"
+    size="full"
+    overflow="hidden"
     @close="closeSaleModal"
   >
     <template #header>
@@ -193,42 +199,76 @@ const saleDisplay = computed(() => {
       </div>
     </template>
 
-    <main class="w-full min-h-[80vh] flex flex-wrap md:flex-nowrap gap-4">
-      <section class="w-full md:w-2/3 flex flex-col gap-5">
-        <ProductSearch v-if="isEditMode" :sale-id="selectedSaleId" :current-items="sale?.produtos" />
-        <SaleItemsTable :sale="sale" :readonly="isViewMode"/>
-        <SaleSummary :subtotal="sale?.subtotal"  :discount="sale?.descontos" :delivery="sale?.entrega" :total="sale?.total"/>
-      </section>
-      <section class="w-full md:w-1/3 flex flex-col min-h-0 max-h-[80vh]">
-        <div class="flex-1 overflow-y-scroll flex flex-col gap-4 pr-1">
-          <CustomerCard :customer="sale?.cliente" :readonly="isViewMode" @change-cliente="handleChangeCliente" />
-          <SaleCard :sale="sale" :readonly="isViewMode" />
+    <main class="w-full h-full flex flex-nowrap gap-4">
+      <!-- Área de produtos -->
+      <section class="flex-1 min-w-0 flex flex-col gap-3 h-full">
+        <div v-if="isEditMode" class="flex items-center gap-2">
+          <ProductSearch class="flex-1" :sale-id="selectedSaleId" :current-items="sale?.produtos" />
+          <button
+            type="button"
+            class="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand-primary text-white text-sm font-semibold hover:bg-brand-primary/90 transition-colors shrink-0 cursor-pointer"
+            @click="addProductModal.openAddProductModal"
+          >
+            <PackagePlus :size="16" />
+            Adicionar Produto
+          </button>
         </div>
-        <div class="shrink-0 pt-4">
-          <div v-if="isEditMode" class="flex justify-around gap-5 w-full">
-            <BaseButton variant="danger" size="md" class="flex-1" @click="handleCancel">
+        <SaleItemsTable :sale="sale" :readonly="isViewMode" class="flex-1 min-h-0" />
+        <SaleSummary
+          :subtotal="sale?.subtotal"
+          :discount="sale?.descontos"
+          :delivery="sale?.entrega"
+          :total="sale?.total"
+          :form="saleForm"
+          :is-saving="isSaleFormSaving"
+          :readonly="isViewMode"
+          :on-save="saveSaleForm"
+        />
+      </section>
+
+      <!-- Painel lateral -->
+      <section class="w-80 shrink-0 flex flex-col h-full gap-3">
+        <CustomerCard :customer="sale?.cliente" :readonly="isViewMode" @change-cliente="handleChangeCliente" />
+        <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <SaleCard :sale="sale" :readonly="isViewMode" :form="saleForm" :is-saving="isSaleFormSaving" :on-save="saveSaleForm" />
+        </div>
+
+        <div class="shrink-0 pt-4 flex flex-col gap-2">
+          <template v-if="isEditMode">
+            <BaseButton
+              variant="primary"
+              size="lg"
+              class="w-full text-base font-bold"
+              :disabled="!sale?.produtos?.length"
+              @click="openFinishModal"
+            >
               <div class="flex flex-col items-center">
-                <span>Cancelar Orçamento</span>
-                <span class="text-[9px] opacity-70 font-normal">Ctrl+Backspace</span>
-              </div>
-            </BaseButton>
-            <BaseButton variant="primary" size="md" class="flex-1" :disabled="!sale?.produtos?.length" @click="openFinishModal">
-              <div class="flex flex-col items-center">
-                <span>Finalizar</span>
+                <span>Finalizar Venda</span>
                 <span class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>
               </div>
             </BaseButton>
-          </div>
-          <div v-else class="flex justify-center w-full">
-            <BaseButton variant="secondary" size="md" class="flex-1" @click="closeSaleModal()">
+            <BaseButton variant="danger" size="md" class="w-full" @click="handleCancel">
+              <div class="flex flex-col items-center">
+                <span>Cancelar Venda</span>
+                <span class="text-[9px] opacity-70 font-normal">Ctrl+Backspace</span>
+              </div>
+            </BaseButton>
+          </template>
+          <template v-else>
+            <BaseButton variant="secondary" size="md" class="w-full" @click="closeSaleModal()">
               Fechar
             </BaseButton>
-          </div>
+          </template>
         </div>
       </section>
-
     </main>
     <ItemModal :sale-id="selectedSaleId" />
+    <AddProductModal
+      :is-open="addProductModal.isAddProductModalOpen"
+      :sale-id="selectedSaleId"
+      :current-items="sale?.produtos"
+      @close="addProductModal.closeAddProductModal"
+    />
     <FinishSaleModal :sale="sale" @finalized="handleFinalized" />
 
     <!-- Print Infrastructure -->

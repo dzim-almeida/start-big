@@ -10,6 +10,7 @@ import type { ProductSaleCreate, ProductSaleRead } from '../../schemas/productSa
 export function useProductSearch(
   isOrcamento = false,
   currentItems?: Ref<ProductSaleRead[] | undefined>,
+  externalContainerRef?: Ref<HTMLElement | null>,
 ) {
   const inputOnFocus = ref(false);
 
@@ -31,7 +32,7 @@ export function useProductSearch(
   const addItemOrcamentoMutation = useAddItemOrcamentoMutation();
   const updateItemSaleMutation = useUpdateItemSaleMutation();
 
-  const searchContainerRef = ref<HTMLElement | null>(null);
+  const searchContainerRef: Ref<HTMLElement | null> = externalContainerRef ?? ref<HTMLElement | null>(null);
   const quantityInputRef = ref<{ focus: () => void } | null>(null);
 
   const isSearching = computed(() => {

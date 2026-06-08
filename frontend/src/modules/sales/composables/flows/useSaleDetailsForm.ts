@@ -13,6 +13,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     desconto: 0,
     entrega: 0,
     observacao: '',
+    observacao_interna: '',
   });
 
   const saleId = computed(() => unref(sale)?.id);
@@ -25,6 +26,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     form.desconto = currentSale.descontos ? currentSale.descontos / 100 : 0;
     form.entrega = currentSale.entrega ? currentSale.entrega / 100 : 0;
     form.observacao = currentSale.observacao ?? '';
+    form.observacao_interna = currentSale.observacao_interna ?? '';
 
     queueMicrotask(() => {
       isHydrating = false;
@@ -46,7 +48,8 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     const currentSale = unref(sale);
     const subtotal = currentSale?.subtotal ?? 0;
 
-    if (Math.round(form.desconto * 100) > subtotal) {
+    const descontoAtual = form.desconto ?? 0;
+    if (Math.round(descontoAtual * 100) > subtotal) {
       form.desconto = subtotal / 100;
       toast.warning('Desconto ajustado para o valor máximo permitido');
     }
@@ -63,7 +66,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   }, 700);
 
   watch(
-    () => form.observacao,
+    () => [form.observacao, form.observacao_interna],
     () => {
       if (isHydrating) return;
       debouncedSave();

@@ -133,15 +133,19 @@ function getClienteTelefone(cliente: CustomerUnionReadSchemaDataType): string | 
 
       <!-- Estado vazio -->
       <div v-else class="py-10 text-center text-zinc-400">
-        <p class="text-sm font-medium">Nenhum cliente encontrado</p>
-        <p class="text-xs mt-1">
-          {{ searchQuery ? 'Tente outro termo ou cadastre um novo cliente.' : 'Cadastre o primeiro cliente abaixo.' }}
-        </p>
+        <template v-if="!searchQuery">
+          <p class="text-sm font-medium">Digite para buscar</p>
+          <p class="text-xs mt-1">Busque por nome, CPF/CNPJ ou telefone.</p>
+        </template>
+        <template v-else>
+          <p class="text-sm font-medium">Nenhum cliente encontrado</p>
+          <p class="text-xs mt-1">Tente outro termo ou cadastre um novo cliente.</p>
+        </template>
       </div>
     </div>
 
     <template #footer>
-      <BaseButton variant="secondary" class="w-full" @click="handleCadastrarNovo">
+      <BaseButton variant="primary" class="w-full" @click="handleCadastrarNovo">
         <Plus :size="16" class="mr-1.5" />
         Cadastrar novo cliente
       </BaseButton>

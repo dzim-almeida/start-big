@@ -1,55 +1,81 @@
 <script setup lang="ts">
-import { ListPlus, TicketPercent, BadgeDollarSign, Truck } from 'lucide-vue-next';
-
+import { ListPlus, BadgeDollarSign, Truck, TicketPercent } from 'lucide-vue-next';
 import { formatCurrency } from '@/shared/utils/finance';
+import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import type { SaleUpdate } from '../../schemas/sale.schema';
 
-defineProps<{
+const props = defineProps<{
   subtotal?: number;
   discount?: number;
   delivery?: number;
   total?: number;
-}>()
+  form?: SaleUpdate;
+  isSaving?: boolean;
+  readonly?: boolean;
+  onSave?: () => void;
+}>();
 </script>
 
 <template>
-    <section class="mt-auto py-5 w-full flex items-center justify-between bg-brand-primary/10 border border-brand-primary/20 rounded-lg shadow-sm overflow-hidden">
-        <div class="px-10 flex-1 flex justify-between gap-2 min-w-1/2">
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <ListPlus :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Subtotal</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(subtotal ? subtotal : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <TicketPercent :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Desconto</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(discount ? discount : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <Truck :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Entrega</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(delivery ? delivery : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-15 h-15 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center">
-                    <BadgeDollarSign :size="25" class="text-brand-primary" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-sm text-mid-gray uppercase">Total</p>
-                    <span class="font-bold text-2xl sm:text-xl text-brand-primary">{{ formatCurrency(total ? total : 0) }}</span>
-                </div>
-            </div>
-        </div>
-    </section>
+  <section class="w-full flex items-center bg-brand-primary/10 border border-brand-primary/20 rounded-lg px-4 py-3 gap-2">
+    <!-- Subtotal -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <ListPlus :size="15" class="text-brand-action shrink-0" />
+      <div class="min-w-0">
+        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Subtotal</p>
+        <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Desconto -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <TicketPercent :size="15" class="text-brand-action shrink-0" />
+      <div class="min-w-0 flex-1">
+        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Desconto</p>
+        <MoneyInput
+          v-if="form && !readonly"
+          v-model.number="form.desconto"
+          :disabled="isSaving"
+          class="w-full max-w-28 bg-white/80"
+          data-sale-desconto
+          @blur="onSave"
+          @enter="onSave"
+        />
+        <span v-else class="font-bold text-base text-zinc-700">{{ formatCurrency(discount ?? 0) }}</span>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Entrega -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <Truck :size="15" class="text-brand-action shrink-0" />
+      <div class="min-w-0 flex-1">
+        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Entrega</p>
+        <MoneyInput
+          v-if="form && !readonly"
+          v-model.number="form.entrega"
+          :disabled="isSaving"
+          class="w-full max-w-28 bg-white/80"
+          data-sale-entrega
+          @blur="onSave"
+          @enter="onSave"
+        />
+        <span v-else class="font-bold text-base text-zinc-700">{{ formatCurrency(delivery ?? 0) }}</span>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Total -->
+    <div class="flex items-center gap-2 shrink-0">
+      <BadgeDollarSign :size="18" class="text-brand-primary shrink-0" />
+      <div>
+        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Total</p>
+        <span class="font-bold text-xl text-brand-primary whitespace-nowrap">{{ formatCurrency(total ?? 0) }}</span>
+      </div>
+    </div>
+  </section>
 </template>

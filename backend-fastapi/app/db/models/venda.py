@@ -68,6 +68,11 @@ class Venda(Base):
         nullable=True,
         doc="Campo livre para anotacoes ou observacoes sobre a venda"
     )
+    observacao_interna: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+        doc="Observacao interna (nao impressa no comprovante)"
+    )
 
     # --- Financeiro (valores em centavos) ---
     subtotal: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Soma dos itens sem descontos e fretes (centavos)")
