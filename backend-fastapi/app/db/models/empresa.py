@@ -30,10 +30,10 @@ class Empresa(Base):
 
     # --- Identificação Principal ---
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, doc="ID único da empresa (Chave primária)")
-    razao_social: Mapped[str] = mapped_column(String(255), nullable=False, doc="Razão social registrada")
+    razao_social: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Razão social registrada")
     nome_fantasia: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome comercial da empresa")
     is_cnpj: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Indica se o documento é CPF ou CNPJ")
-    documento: Mapped[str] = mapped_column(String(14), unique=True, nullable=False, index=True, doc="CNPJ (incluindo máscara/formato)")
+    documento: Mapped[Optional[str]] = mapped_column(String(14), unique=True, nullable=True, index=True, doc="CPF ou CNPJ (apenas números)")
     
     # --- Dados Fiscais ---
     inscricao_estadual: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Estadual (IE)")

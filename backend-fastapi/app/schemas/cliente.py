@@ -123,6 +123,7 @@ class ClientePFSimpleRead(BaseModel):
     nome: str = Field(..., description="Nome do cliente.")
     cpf: Optional[str] = Field(None, description="CPF do cliente.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    celular: Optional[str] = Field(None, description="Celular do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
     saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 
@@ -201,6 +202,7 @@ class ClientePJSimpleRead(BaseModel):
     razao_social: str = Field(..., description="Razão Social da empresa.")
     cnpj: Optional[str] = Field(None, description="CNPJ da empresa.")
     telefone: Optional[str] = Field(None, description="Telefone do cliente.")
+    celular: Optional[str] = Field(None, description="Celular do cliente.")
     endereco: Optional[Sequence[EnderecoRead]] = Field(None, description="Endereços do cliente.")
     saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
 

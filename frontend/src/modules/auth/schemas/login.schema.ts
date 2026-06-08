@@ -12,14 +12,15 @@ import { toTypedSchema } from '@vee-validate/zod';
  */
 export const loginSchema = z.object({
   email: z
-    .string()
+    .string({ required_error: 'E-mail é obrigatório' })
     .trim()
     .toLowerCase()
-    .email('Digite um email válido'),
+    .email('Digite um e-mail válido'),
 
   senha: z
-    .string()
+    .string({ required_error: 'Senha é obrigatória' })
     .trim()
+    .min(1, 'Senha é obrigatória')
 });
 
 /**

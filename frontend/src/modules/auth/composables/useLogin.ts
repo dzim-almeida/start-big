@@ -30,7 +30,7 @@ import { storeToRefs } from 'pinia';
 export function useLogin() {
   const authStore = useAuthStore();
   const { userData } = storeToRefs(authStore);
-  const { goToHome, goToEnterpriseRegister } = useAppNavigation();
+  const { goToHome, goToSignIn } = useAppNavigation();
   const toast = useToast();
   const rememberMe = ref(false);
   const savedEmail = ref<string | null>(null);
@@ -81,7 +81,7 @@ export function useLogin() {
       if (userData.value.empresa) {
         goToHome();
       } else {
-        goToEnterpriseRegister();
+        goToSignIn();
       }
     },
     onError: (error) => {

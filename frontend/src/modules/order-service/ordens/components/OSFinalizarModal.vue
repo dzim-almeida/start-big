@@ -7,10 +7,12 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
+import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { OsEquipSituacaoEnumDataType } from '../schemas/enums/osEnums.schema';
 import { formatCurrency } from '@/shared/utils/finance';
+
 
 export interface DadosFinalizacaoOS {
   situacao_equipamento?: OsEquipSituacaoEnumDataType;
@@ -264,7 +266,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
           <div class="min-w-0">
             <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Cliente</p>
             <p class="font-semibold text-zinc-800 text-sm truncate leading-tight">{{ clienteNome }}</p>
-            <p v-if="clienteDoc" class="text-xs text-zinc-400">{{ clienteDoc }}</p>
+            <p v-if="clienteDoc" class="mt-0.5 text-xs text-zinc-400">{{ clienteDoc }}</p>
           </div>
         </div>
 
@@ -277,7 +279,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             <p class="font-semibold text-zinc-800 text-sm truncate leading-tight">
               {{ ordemServico?.equipamento?.marca }} {{ ordemServico?.equipamento?.modelo }}
             </p>
-            <p class="text-xs text-zinc-400">Série: {{ ordemServico?.equipamento?.numero_serie }}</p>
+            <p class="mt-0.5 text-xs text-zinc-400">Série: {{ ordemServico?.equipamento?.numero_serie }}</p>
           </div>
         </div>
 
@@ -364,10 +366,10 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             :key="opcao.value"
             type="button"
             :class="[
-              'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all',
+              'flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all cursor-pointer',
               situacao_equipamento === opcao.value
                 ? opcao.activeClass
-                : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:border-zinc-300',
+                : 'border-zinc-200 bg-white hover:bg-zinc-50 hover:border-brand-primary hover:text-brand-primary',
             ]"
             @click="toggleSituacao(opcao.value)"
           >
@@ -381,7 +383,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
       <div>
         <div class="flex items-center gap-1.5 mb-2">
           <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Garantia</span>
-          <span v-if="garantiaObrigatoria" class="text-[10px] text-red-400">*obrigatório</span>
+          <span v-if="garantiaObrigatoria" class="text-[10px] text-red-400">*</span>
           <span v-else class="text-[10px] text-zinc-400">(opcional)</span>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -390,7 +392,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             :key="opcao"
             type="button"
             :class="[
-              'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all',
+              'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
               garantia === opcao
                 ? 'border-brand-primary bg-brand-primary text-white'
                 : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-primary hover:text-brand-primary',
@@ -442,8 +444,8 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             <div v-if="descontoTipo === 'valor'" class="w-28">
               <BaseMoneyInput v-model="descontoDisplay" label="" />
             </div>
-            <div v-else class="flex items-center gap-1">
-              <input v-model.number="descontoPercentual" type="number" min="0" max="100" class="w-16 text-sm font-medium text-zinc-800 border border-zinc-200 rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary" placeholder="0" />
+            <div v-else class="flex items-center gap-1 w-28">
+              <BaseInput v-model.number="descontoPercentual" type="number" min="0" max="100" placeholder="0" />
               <span class="text-sm font-semibold text-zinc-500">%</span>
             </div>
           </div>
@@ -485,7 +487,6 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
       </div>
 
     </div>
-    <template #footer><span></span></template>
   </BaseModal>
 
   <!-- Modal de aviso: OS sem itens -->

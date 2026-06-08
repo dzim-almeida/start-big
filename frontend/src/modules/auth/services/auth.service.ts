@@ -9,8 +9,6 @@ import api from '@/api/axios';
 import type {
   LoginRequest,
   LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
 } from '../types/auth.types';
 
 /**
@@ -27,16 +25,6 @@ const REMEMBER_ME = 'rememberMe';
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('auth/login', credentials);
     return response.data;
-}
-
-/**
- * Realiza o cadastro do usuário
- * @param data - Dados de cadastro (nome, email, senha)
- * @returns Promise com os dados de resposta do cadastro
- */
-export async function register(registerData: RegisterRequest): Promise<RegisterResponse> {
-  const response = await api.post<RegisterResponse>('usuarios/', registerData);
-  return response.data;
 }
 
 /**

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Banco de Dados
     DATABASE_URL: str
 
+    # Ambiente
+    DEBUG: bool = True
+
     # Segurança (JWT)
     SECRET_KEY: str
     ALGORITHM: str = "HS256"

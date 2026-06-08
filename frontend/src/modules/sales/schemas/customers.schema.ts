@@ -18,6 +18,7 @@ const CustomerPFSimpleReadSchema = z.object({
   nome: z.string(),
   cpf: z.string().transform((cpf) => maskCpfCnpj(cpf)),
   telefone: z.string().nullable().optional(),
+  celular: z.string().nullable().optional(),
   endereco: z.array(CustomerAddressSchema).optional(),
 });
 
@@ -27,6 +28,7 @@ const CustomerPJSimpleReadSchema = z.object({
   razao_social: z.string(),
   cnpj: z.string().transform((cnpj) => maskCpfCnpj(cnpj)),
   telefone: z.string().nullable().optional(),
+  celular: z.string().nullable().optional(),
   endereco: z.array(CustomerAddressSchema).optional(),
 });
 
