@@ -174,19 +174,19 @@ function handleCloseCancelModal() {
 }
 
 async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
-  if (shouldPrint && osToCancel.value) {
+  const osCancelada = osToCancel.value;
+  handleCloseCancelModal();
+  if (shouldPrint && osCancelada) {
     try {
-      const osAtualizada = await getUniqueOS(osToCancel.value.numero_os);
+      const osAtualizada = await getUniqueOS(osCancelada.numero_os);
       osToPrint.value = osAtualizada;
       printType.value = 'CANCELAMENTO';
-      pendingPrintAfterSelect.value = () => handleCloseCancelModal();
+      pendingPrintAfterSelect.value = null;
       isPrintSelectOpen.value = true;
-      return;
     } catch {
       toast.error('Erro ao preparar impressão do cancelamento');
     }
   }
-  handleCloseCancelModal();
 }
 
 function handleReabrir(os: OrderServiceReadDataType) {
