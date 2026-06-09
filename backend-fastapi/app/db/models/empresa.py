@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from app.db.models.configuracao_clientes import ConfiguracaoClientes
     from app.db.models.configuracao_produtos import ConfiguracaoProdutos
     from app.db.models.configuracao_os import ConfiguracaoOS
+    from app.db.models.configuracao_vendas import ConfiguracaoVendas
 
 class Empresa(Base):
     """
@@ -118,4 +119,13 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações do módulo de ordens de serviço"
+    )
+
+    # Relacionamento 1:1 com Configurações de Vendas
+    config_vendas: Mapped[Optional["ConfiguracaoVendas"]] = relationship(
+        "ConfiguracaoVendas",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações de regras de vendas"
     )

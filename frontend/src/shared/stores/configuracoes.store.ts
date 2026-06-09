@@ -1,23 +1,26 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS } from '@/modules/configuracoes/services/configuracoes.service'
-import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS, getConfiguracoesVendas } from '@/modules/configuracoes/services/configuracoes.service'
+import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead, ConfiguracaoVendasRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const configClientes = ref<ConfiguracaoClientesRead | null>(null)
   const configProdutos = ref<ConfiguracaoProdutosRead | null>(null)
   const configOS = ref<ConfiguracaoOSRead | null>(null)
+  const configVendas = ref<ConfiguracaoVendasRead | null>(null)
 
   async function carregarConfiguracoes() {
     try {
-      const [clientes, produtos, os] = await Promise.all([
+      const [clientes, produtos, os, vendas] = await Promise.all([
         getConfiguracoesClientes(),
         getConfiguracoesProdutos(),
         getConfiguracoesOS(),
+        getConfiguracoesVendas(),
       ])
       configClientes.value = clientes
       configProdutos.value = produtos
       configOS.value = os
+      configVendas.value = vendas
     } catch {
       // silencioso — usa os defaults dos computed abaixo
     }
@@ -65,10 +68,17 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const prazoAbandonoDias = computed(() => configOS.value?.prazo_abandono_dias ?? 90)
   const taxaDiagnosticoPadrao = computed(() => configOS.value?.taxa_diagnostico_padrao ?? 0)
 
+  // ── Vendas: regras ──
+  const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
+  const descontoMaximoPercent = computed(() => configVendas.value?.desconto_maximo_percent ?? 30)
+  const exigirClienteIdentificado = computed(() => configVendas.value?.exigir_cliente_identificado ?? false)
+  const acaoAoFinalizar = computed(() => configVendas.value?.acao_ao_finalizar ?? 'perguntar')
+
   return {
     configClientes,
     configProdutos,
     configOS,
+    configVendas,
     carregarConfiguracoes,
 
     exigirCpfPf,
@@ -104,5 +114,10 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     garantiaPadrao,
     prazoAbandonoDias,
     taxaDiagnosticoPadrao,
+
+    permitirDesconto,
+    descontoMaximoPercent,
+    exigirClienteIdentificado,
+    acaoAoFinalizar,
   }
 })

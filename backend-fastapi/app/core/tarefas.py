@@ -53,6 +53,21 @@ def _aplicar_migracoes():
         ))
         conn.commit()
 
+        # Cria tabela configuracoes_vendas se não existir
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS configuracoes_vendas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL UNIQUE REFERENCES empresas(id) ON DELETE CASCADE,
+                permitir_desconto BOOLEAN NOT NULL DEFAULT 1,
+                desconto_maximo_percent INTEGER NOT NULL DEFAULT 30,
+                exigir_cliente_identificado BOOLEAN NOT NULL DEFAULT 0,
+                acao_ao_finalizar VARCHAR(20) NOT NULL DEFAULT 'perguntar',
+                data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.commit()
+        logger.info("Tabela configuracoes_vendas verificada/inicializada")
+
         # Cria tabela contador_venda se não existir e inicializa com o registro único
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS contador_venda (

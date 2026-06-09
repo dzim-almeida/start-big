@@ -83,6 +83,7 @@ def get_sales_by_search(
         like_search = f"%{search}%"
         query = query.where(
             or_(
+                cast(Venda.numero_venda, String).startswith(like_search),
                 cast(Venda.id, String).startswith(like_search),
                 cliente_pf.nome.ilike(like_search),
                 cliente_pj.razao_social.ilike(like_search),

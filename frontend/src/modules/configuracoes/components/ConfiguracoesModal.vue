@@ -23,6 +23,7 @@ import { useConfiguracoesModal } from '../composables/useConfiguracoesModal'
 import { useSalvarConfiguracoesClientesMutation } from '../composables/mutates/useSalvarConfiguracoesClientesMutation'
 import { useSalvarConfiguracoesEstoqueMutation } from '../composables/mutates/useSalvarConfiguracoesEstoqueMutation'
 import { useSalvarConfiguracoesOSMutation } from '../composables/mutates/useSalvarConfiguracoesOSMutation'
+import { useSalvarConfiguracoesVendasMutation } from '../composables/mutates/useSalvarConfiguracoesVendasMutation'
 import type { SecaoConfiguracao, SecaoId } from '../types/configuracoes.types'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
@@ -43,8 +44,9 @@ const { secaoAtiva, irPara } = useConfiguracoesModal()
 const { mutate: salvarClientes, isPending: isPendingClientes } = useSalvarConfiguracoesClientesMutation()
 const { mutate: salvarEstoque, isPending: isPendingEstoque } = useSalvarConfiguracoesEstoqueMutation()
 const { mutate: salvarOS, isPending: isPendingOS } = useSalvarConfiguracoesOSMutation()
+const { mutate: salvarVendas, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
 
-const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value)
+const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value)
 
 const activeComponentRef = ref<{ form?: Record<string, unknown> } | null>(null)
 
@@ -52,7 +54,7 @@ watch(() => props.isOpen, (aberto) => {
   if (aberto) irPara(props.secaoInicial ?? 'regras-de-vendas')
 })
 
-const secoesFuncionais: SecaoId[] = ['clientes-cadastro', 'produtos-estoque', 'ordens-de-servico']
+const secoesFuncionais: SecaoId[] = ['clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
 function salvar() {
@@ -64,6 +66,11 @@ function salvar() {
   }
   if (secaoAtiva.value === 'ordens-de-servico' && activeComponentRef.value?.form) {
     salvarOS(activeComponentRef.value.form as any)
+  }
+  if (secaoAtiva.value === 'regras-de-vendas' && activeComponentRef.value?.form) {
+    const { vendas, estoque } = activeComponentRef.value.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }
+    salvarVendas(vendas as any)
+    salvarEstoque(estoque as any)
   }
 }
 

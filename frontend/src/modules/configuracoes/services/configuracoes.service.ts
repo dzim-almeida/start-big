@@ -1,5 +1,5 @@
 import api from '@/api/axios'
-import type { ConfiguracaoClientesRead, ConfiguracaoClientesUpdate, ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate, ConfiguracaoOSRead, ConfiguracaoOSUpdate } from '../schemas/configuracoes.schema'
+import type { ConfiguracaoClientesRead, ConfiguracaoClientesUpdate, ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate, ConfiguracaoOSRead, ConfiguracaoOSUpdate, ConfiguracaoVendasRead, ConfiguracaoVendasUpdate } from '../schemas/configuracoes.schema'
 
 const BASE_URL = '/configuracoes'
 
@@ -36,5 +36,17 @@ export async function updateConfiguracoesOS(
   data: ConfiguracaoOSUpdate,
 ): Promise<ConfiguracaoOSRead> {
   const response = await api.put<ConfiguracaoOSRead>(`${BASE_URL}/os`, data)
+  return response.data
+}
+
+export async function getConfiguracoesVendas(): Promise<ConfiguracaoVendasRead> {
+  const response = await api.get<ConfiguracaoVendasRead>(`${BASE_URL}/vendas`)
+  return response.data
+}
+
+export async function updateConfiguracoesVendas(
+  data: ConfiguracaoVendasUpdate,
+): Promise<ConfiguracaoVendasRead> {
+  const response = await api.put<ConfiguracaoVendasRead>(`${BASE_URL}/vendas`, data)
   return response.data
 }
