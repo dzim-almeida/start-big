@@ -70,11 +70,11 @@ const props = defineProps<{
     <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
 
     <!-- Total -->
-    <div class="flex items-center gap-2 shrink-0">
-      <BadgeDollarSign :size="18" class="text-brand-primary shrink-0" />
+    <div class="flex items-center gap-3 shrink-0 bg-brand-primary rounded-lg px-5 py-2.5 text-white shadow-lg shadow-brand-primary/20 transform hover:scale-[1.02] transition-transform">
+      <BadgeDollarSign :size="24" class="text-white opacity-80 shrink-0" />
       <div>
-        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Total</p>
-        <span class="font-bold text-xl text-brand-primary whitespace-nowrap">{{ formatCurrency(total ?? 0) }}</span>
+        <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Total Final</p>
+        <span class="font-black text-2xl whitespace-nowrap tracking-tight">{{ formatCurrency(total ?? 0) }}</span>
       </div>
     </div>
   </section>

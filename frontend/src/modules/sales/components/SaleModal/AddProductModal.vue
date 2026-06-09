@@ -30,9 +30,12 @@ const {
   isLoading,
   selectedProductId,
   selectedProductName,
+  selectedProduct,
   canAddItem,
   isAddingItem,
   quantity,
+  desconto,
+  totalItem,
   handleInputChange,
   selectProduct,
   increaseQuantity,
@@ -84,7 +87,10 @@ function handleAdd() {
       />
 
       <!-- Lista de produtos -->
-      <div class="rounded-xl border border-zinc-200 overflow-hidden" style="min-height: 260px; max-height: 50vh; overflow-y: auto">
+      <div
+        class="rounded-xl border border-zinc-200 overflow-hidden overflow-y-auto transition-all"
+        :style="selectedProductId ? 'min-height: 0; max-height: 180px' : 'min-height: 260px; max-height: 50vh'"
+      >
         <!-- Carregando -->
         <div v-if="isLoading" class="flex items-center justify-center py-16">
           <div class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary" />
@@ -186,42 +192,94 @@ function handleAdd() {
           </div>
         </div>
       </div>
+
+      <!-- Painel de detalhes (aparece ao selecionar produto) -->
+      <div v-if="selectedProductId" class="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+        <!-- Cabeçalho: nome + estoque -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Produto selecionado</p>
+            <p class="text-sm font-semibold text-zinc-800 truncate">{{ selectedProductName }}</p>
+          </div>
+          <div class="text-right shrink-0 ml-4">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Estoque disp.</p>
+            <p class="text-sm font-bold text-zinc-700">{{ selectedProduct?.estoque ?? 0 }} un.</p>
+          </div>
+        </div>
+
+        <!-- Grid de campos -->
+        <div class="grid grid-cols-4 gap-3">
+          <!-- Valor unitário (somente leitura) -->
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Valor unit.</p>
+            <div class="h-9 bg-white border border-zinc-200 rounded-lg flex items-center px-3">
+              <span class="text-sm font-semibold text-zinc-600">{{ formatCurrency(selectedProduct?.preco ?? 0) }}</span>
+            </div>
+          </div>
+
+          <!-- Quantidade -->
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Quantidade</p>
+            <div class="flex items-center border border-zinc-200 rounded-lg overflow-hidden bg-white h-9">
+              <button
+                type="button"
+                :disabled="quantity <= 1"
+                class="w-8 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-100 disabled:opacity-30 transition-colors"
+                @click="decreaseQuantity"
+              >
+                <Minus :size="13" />
+              </button>
+              <input
+                v-model.number="quantity"
+                type="number"
+                min="1"
+                class="flex-1 min-w-0 text-center text-sm font-bold text-zinc-800 bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <button
+                type="button"
+                class="w-8 h-full flex items-center justify-center text-zinc-400 hover:bg-zinc-100 transition-colors"
+                @click="increaseQuantity"
+              >
+                <Plus :size="13" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Desconto -->
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Desconto (R$)</p>
+            <div
+              class="flex items-center gap-1 border rounded-lg bg-white h-9 px-3"
+              :class="desconto > (selectedProduct?.preco ?? 0) * quantity ? 'border-red-400' : 'border-zinc-200'"
+            >
+              <span class="text-xs text-zinc-400 shrink-0">R$</span>
+              <input
+                v-model.number="desconto"
+                type="number"
+                min="0"
+                step="0.01"
+                class="flex-1 min-w-0 text-sm text-zinc-700 bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          </div>
+
+          <!-- Total -->
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Total</p>
+            <div class="h-9 bg-brand-primary rounded-lg flex items-center justify-center px-3">
+              <span class="text-sm font-bold text-white">{{ formatCurrency(totalItem) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Rodapé -->
     <template #footer>
-      <!-- Produto selecionado: mostra nome + qtde + botão -->
-      <div v-if="selectedProductId" class="flex items-center gap-4 w-full">
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-zinc-800 truncate">{{ selectedProductName }}</p>
-          <p class="text-xs text-zinc-400">Produto selecionado</p>
-        </div>
-
-        <!-- Stepper de quantidade -->
-        <div class="flex items-center border border-zinc-200 rounded-lg overflow-hidden">
-          <button
-            type="button"
-            :disabled="quantity <= 1"
-            class="w-9 h-9 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            @click="decreaseQuantity"
-          >
-            <Minus :size="16" />
-          </button>
-          <span class="min-w-10 text-center text-sm font-bold text-zinc-800 select-none px-1">
-            {{ quantity }}
-          </span>
-          <button
-            type="button"
-            class="w-9 h-9 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 transition-colors"
-            @click="increaseQuantity"
-          >
-            <Plus :size="16" />
-          </button>
-        </div>
-
-        <BaseButton variant="secondary" class="px-4" @click="emit('close')">Fechar</BaseButton>
-
+      <div class="flex justify-end gap-3 w-full">
+        <BaseButton variant="secondary" class="px-5" @click="emit('close')">Fechar</BaseButton>
         <BaseButton
+          v-if="selectedProductId"
           variant="primary"
           :is-loading="isAddingItem"
           :disabled="!canAddItem"
@@ -231,11 +289,6 @@ function handleAdd() {
           <ShoppingCart :size="16" />
           Adicionar ao Carrinho
         </BaseButton>
-      </div>
-
-      <!-- Sem produto selecionado -->
-      <div v-else class="flex justify-end w-full">
-        <BaseButton variant="secondary" class="px-5" @click="emit('close')">Fechar</BaseButton>
       </div>
     </template>
   </BaseModal>

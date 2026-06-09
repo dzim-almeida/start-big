@@ -5,7 +5,7 @@ import { useProductQuery } from '../queries/useProductQuery';
 import { useAddItemSaleMutation, useUpdateItemSaleMutation } from '../mutates/useItemSaleMutation';
 import { useAddItemOrcamentoMutation } from '../mutates/useItemOrcamentoMutation';
 
-import type { ProductSaleCreate, ProductSaleRead } from '../../schemas/productSale.schema';
+import type { ProductSaleCreate, ProductSaleRead, ProductSaleListItem } from '../../schemas/productSale.schema';
 
 export function useProductSearch(
   isOrcamento = false,
@@ -25,6 +25,8 @@ export function useProductSearch(
   const selectedProductName = ref<string | null>(null);
 
   const quantity = ref(1);
+  const desconto = ref(0);
+  const selectedProduct = ref<ProductSaleListItem[number] | null>(null);
   const highlightedIndex = ref(-1);
 
   const productQuery = useProductQuery(debouncedSearchTerm);
@@ -47,6 +49,12 @@ export function useProductSearch(
     return !!selectedProductId.value && quantity.value > 0;
   });
 
+  const totalItem = computed(() => {
+    if (!selectedProduct.value) return 0;
+    const subtotal = selectedProduct.value.preco * quantity.value;
+    return Math.max(0, subtotal - desconto.value);
+  });
+
   // Ordenar: produtos sem estoque vão para o final
   const sortedProducts = computed(() => {
     if (!productQuery.data.value) return [];
@@ -63,7 +71,9 @@ export function useProductSearch(
     selectedProductName.value = productName;
     selectedProductId.value = productId;
     quantity.value = 1;
+    desconto.value = 0;
     highlightedIndex.value = -1;
+    selectedProduct.value = sortedProducts.value.find((p) => p.id === productId) ?? null;
   }
 
   function increaseQuantity() {
@@ -80,7 +90,9 @@ export function useProductSearch(
     searchTerm.value = '';
     selectedProductName.value = null;
     selectedProductId.value = null;
+    selectedProduct.value = null;
     quantity.value = 1;
+    desconto.value = 0;
     inputOnFocus.value = false;
     highlightedIndex.value = -1;
   }
@@ -113,7 +125,14 @@ export function useProductSearch(
         : existingItem.quantidade + quantity.value;
 
       updateItemSaleMutation.mutate(
-        { saleId, productId: existingItem.id, payload: { quantidade: novaQtd } },
+        {
+          saleId,
+          productId: existingItem.id,
+          payload: {
+            quantidade: novaQtd,
+            ...(desconto.value > 0 && { desconto: desconto.value }),
+          },
+        },
         { onSuccess: onSuccessCallback },
       );
       return;
@@ -123,6 +142,7 @@ export function useProductSearch(
       tipo_produto: 'CADASTRADO',
       quantidade: autoAdd ? 1 : quantity.value,
       produto_id: selectedProductId.value,
+      ...(desconto.value > 0 && { desconto: desconto.value }),
     };
 
     if (isOrcamento) {
@@ -209,7 +229,9 @@ export function useProductSearch(
     if (term !== selectedProductName.value) {
       selectedProductId.value = null;
       selectedProductName.value = null;
+      selectedProduct.value = null;
       quantity.value = 1;
+      desconto.value = 0;
     }
   });
 
@@ -223,7 +245,10 @@ export function useProductSearch(
 
     selectedProductId,
     selectedProductName,
+    selectedProduct,
     quantity,
+    desconto,
+    totalItem,
     searchContainerRef,
     quantityInputRef,
     highlightedIndex,

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { UserRound, CalendarDays } from 'lucide-vue-next';
-import { STATUS_COLORS, SALE_FILTERS } from '../../constants';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
@@ -12,11 +11,6 @@ const props = defineProps<{
   isSaving: boolean;
   onSave: () => void;
 }>();
-
-const saleDisplay = computed(() => {
-  if (!props.sale) return '...';
-  return `VENDA #${String(props.sale.id).padStart(6, '0')}`;
-});
 
 const createdAt = computed(() => {
   if (!props.sale?.criado_em) return null;
@@ -32,20 +26,6 @@ const createdAt = computed(() => {
 
 <template>
   <div class="rounded-xl border border-zinc-200 bg-white p-3 flex flex-col gap-3">
-    <!-- Número + Status -->
-    <div class="flex items-center justify-between">
-      <span class="font-bold text-sm text-zinc-800">{{ saleDisplay }}</span>
-      <span
-        v-if="sale?.status"
-        :class="[
-          'px-2 py-0.5 text-[10px] font-semibold rounded-full border',
-          STATUS_COLORS[sale.status].text,
-          STATUS_COLORS[sale.status].bg,
-        ]"
-      >
-        {{ SALE_FILTERS[sale.status].label }}
-      </span>
-    </div>
 
     <!-- Funcionário + Data lado a lado -->
     <div class="grid grid-cols-2 gap-2">
@@ -75,8 +55,8 @@ const createdAt = computed(() => {
         v-model="form.observacao"
         :disabled="isSaving || readonly"
         placeholder="Adicione uma observação..."
-        :rows="2"
-        class="w-full"
+        :rows="3"
+        class="w-full text-sm"
         @blur="onSave"
       />
     </div>
@@ -87,9 +67,9 @@ const createdAt = computed(() => {
       <BaseTextarea
         v-model="form.observacao_interna"
         :disabled="isSaving || readonly"
-        placeholder="Nota interna (não impressa no comprovante)..."
-        :rows="2"
-        class="w-full"
+        placeholder="Nota interna..."
+        :rows="3"
+        class="w-full text-sm"
         @blur="onSave"
       />
     </div>

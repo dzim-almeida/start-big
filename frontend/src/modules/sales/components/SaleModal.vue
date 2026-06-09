@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
-import { X, Printer, ShoppingCart, PackagePlus } from 'lucide-vue-next';
+import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -177,9 +177,25 @@ const saleDisplay = computed(() => {
           >
             {{ SALE_FILTERS[sale?.status!].label }}
           </span>
+          <span
+            v-if="sale?.produtos?.length"
+            class="px-2 py-0.5 text-xs font-medium rounded-full bg-zinc-100 text-zinc-500"
+          >
+            {{ sale.produtos.length }} {{ sale.produtos.length === 1 ? 'item' : 'itens' }}
+          </span>
         </div>
 
         <div class="flex items-center gap-1">
+          <button
+            v-if="isEditMode"
+            type="button"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mr-1"
+            title="Cancelar Venda (Ctrl+Backspace)"
+            @click="handleCancel"
+          >
+            <Trash2 :size="16" />
+            <span class="hidden sm:inline">Cancelar Venda</span>
+          </button>
           <button
             type="button"
             class="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
@@ -238,19 +254,13 @@ const saleDisplay = computed(() => {
             <BaseButton
               variant="primary"
               size="lg"
-              class="w-full text-base font-bold"
+              class="w-full text-base font-bold py-4 shadow-lg shadow-brand-primary/20"
               :disabled="!sale?.produtos?.length"
               @click="openFinishModal"
             >
               <div class="flex flex-col items-center">
                 <span>Finalizar Venda</span>
                 <span class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>
-              </div>
-            </BaseButton>
-            <BaseButton variant="danger" size="md" class="w-full" @click="handleCancel">
-              <div class="flex flex-col items-center">
-                <span>Cancelar Venda</span>
-                <span class="text-[9px] opacity-70 font-normal">Ctrl+Backspace</span>
               </div>
             </BaseButton>
           </template>
