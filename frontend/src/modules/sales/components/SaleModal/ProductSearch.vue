@@ -5,6 +5,7 @@ import { ArchiveX, Keyboard } from 'lucide-vue-next';
 import ShortcutsModal from './ShortcutsModal.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import ProductOption from './ProductOption.vue';
+import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import { useProductSearch } from '../../composables/flows/useProductSearch';
 import { useItemModal } from '../../composables/flows/useItemModal';
@@ -28,6 +29,7 @@ const {
   isLoading,
   canAddItem,
   highlightedIndex,
+  selectedProduct,
   handleInputChange,
   handleKeydown: composableKeydown,
   selectProduct,
@@ -39,14 +41,36 @@ const { openCreateItemModal } = useItemModal();
 
 const shortcutsModalIsOpen = ref(false);
 
+type PendingAutoAdd = { saleId: number | null; nome: string; estoqueAtual: number; qtdDesejada: number };
+const avisoEstoqueOpen = ref(false);
+const pendingAutoAdd = ref<PendingAutoAdd | null>(null);
+
 function handleAddAvulso() {
   resetSelection();
   openCreateItemModal();
 }
 
-function handleAutoAdd(product: { nome: string; id: number }) {
+function tryAutoAdd(saleId: number | null, produtoId: number, nome: string, estoque: number) {
+  const existingQty = currentItemsRef.value?.find(i => i.produto_id === produtoId)?.quantidade ?? 0;
+  const novaQtd = existingQty + 1;
+  if (novaQtd > estoque) {
+    pendingAutoAdd.value = { saleId, nome, estoqueAtual: estoque, qtdDesejada: novaQtd };
+    avisoEstoqueOpen.value = true;
+    return;
+  }
+  addItemToSale(saleId, true);
+}
+
+function confirmarAutoAdd() {
+  if (!pendingAutoAdd.value) return;
+  addItemToSale(pendingAutoAdd.value.saleId, true);
+  avisoEstoqueOpen.value = false;
+  pendingAutoAdd.value = null;
+}
+
+function handleAutoAdd(product: { nome: string; id: number; estoque: number }) {
   selectProduct(product.nome, product.id);
-  addItemToSale(props.saleId, true);
+  tryAutoAdd(props.saleId, product.id, product.nome, product.estoque);
 }
 
 // Enter no teclado: seleciona e já adiciona com qtde 1 (sem campo de quantidade)
@@ -55,8 +79,8 @@ function handleKeydown(e: KeyboardEvent) {
   composableKeydown(e);
   if (e.key === 'Enter' && wasSearching) {
     nextTick(() => {
-      if (canAddItem.value) {
-        addItemToSale(props.saleId, true);
+      if (canAddItem.value && selectedProduct.value) {
+        tryAutoAdd(props.saleId, selectedProduct.value.id, selectedProduct.value.nome, selectedProduct.value.estoque);
       }
     });
   }
@@ -64,6 +88,14 @@ function handleKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
+  <AvisoEstoqueNegativoModal
+    :is-open="avisoEstoqueOpen"
+    :nome-produto="pendingAutoAdd?.nome ?? ''"
+    :estoque-atual="pendingAutoAdd?.estoqueAtual ?? 0"
+    :quantidade-desejada="pendingAutoAdd?.qtdDesejada ?? 1"
+    @confirmar="confirmarAutoAdd"
+    @cancelar="avisoEstoqueOpen = false; pendingAutoAdd = null"
+  />
   <div class="flex items-center gap-2 w-full">
     <!-- Campo de busca + dropdown -->
     <div class="relative flex-1" data-search-products ref="searchContainerRef">

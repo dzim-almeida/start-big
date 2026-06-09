@@ -101,6 +101,7 @@ class ProdutoVendaRead(BaseModel):
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto, preenchido automaticamente com base no tipo do produto e suas referências")
     unidade_medida: Optional[str] = Field(None, description="Unidade de medida do produto (ex: UN, KG, CX)")
+    estoque_disponivel: Optional[int] = Field(None, description="Estoque atual do produto no momento da consulta")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")

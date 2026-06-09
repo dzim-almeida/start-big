@@ -6,6 +6,7 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import UnitValueInput from './UnitValueInput.vue';
+import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import { useItemModal } from '../../composables/flows/useItemModal';
 import { useItemSaleForm } from '../../composables/form/useItemSaleForm';
@@ -35,6 +36,8 @@ const {
   resetForm,
   increaseQuantity,
   decreaseQuantity,
+  avisoEstoqueOpen,
+  confirmarSalvarComEstoqueNegativo,
 } = useItemSaleForm(props.saleId, selectedItem, onSucess, props.isOrcamento);
 
 const displaySubtotal = computed(() => {
@@ -56,6 +59,14 @@ function handleCloseModal() {
 </script>
 
 <template>
+  <AvisoEstoqueNegativoModal
+    :is-open="avisoEstoqueOpen"
+    :nome-produto="selectedItem?.nome ?? ''"
+    :estoque-atual="selectedItem?.estoque_disponivel ?? 0"
+    :quantidade-desejada="quantidade"
+    @confirmar="confirmarSalvarComEstoqueNegativo"
+    @cancelar="avisoEstoqueOpen = false"
+  />
   <BaseModal :is-open="itemModalIsOpen" title="Produto Avulso" size="lg">
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">

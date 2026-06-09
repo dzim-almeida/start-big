@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
-import { useAuthStore } from '@/shared/stores/auth.store';
-
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -34,9 +32,6 @@ import type { SaleRead } from '../schemas/sale.schema';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const authStore = useAuthStore();
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const addProductModal = useAddProductModal();
@@ -154,7 +149,7 @@ useSaleShortcuts({
 const saleDisplay = computed(() => {
   if (!sale.value) return '...';
   if (sale.value.numero_venda) return `Venda #${String(sale.value.numero_venda).padStart(6, '0')}`;
-  return 'Rascunho';
+  return `#${String(sale.value.id).padStart(6, '0')}`;
 });
 </script>
 
@@ -300,7 +295,7 @@ const saleDisplay = computed(() => {
     />
     <CancelSaleModal
       :is-open="cancelSaleModalIsOpen"
-      :sale="sale"
+      :sale="sale ?? null"
       @close="cancelSaleModalIsOpen = false"
       @success="cancelSaleModalIsOpen = false; closeSaleModal()"
     />

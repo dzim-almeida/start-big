@@ -100,8 +100,8 @@ def get_sales_by_search(
     total = db.scalar(count_stmt) or 0   
 
     stmt = query.order_by(
+        Venda.atualizado_em.desc(),
         nullslast(Venda.numero_venda.desc()),
-        Venda.atualizado_em.desc()
     ).offset(skip).limit(limit)
     sales = db.scalars(stmt).unique().all()
 

@@ -70,6 +70,7 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   total: z.number().min(0),
   imagem_url: z.string().nullable().optional(),
   unidade_medida: z.string().nullable().optional(),
+  estoque_disponivel: z.number().nullable().optional(),
   valor_unitario: z.number().transform((val) => (!val ? 0 : val)),
   desconto: z.number().transform((val) => (!val ? 0 : val)),
 }).omit({ descricao_avulsa: true });

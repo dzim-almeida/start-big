@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Trash2, Minus, Plus, PackagePlus } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import {
   useUpdateItemSaleMutation,
@@ -29,6 +30,9 @@ const props = defineProps<{
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const { openEditItemModal } = useItemModal();
+
+const avisoEstoqueOpen = ref(false);
+const pendingItem = ref<SaleOrOrcamento['produtos'][number] | null>(null);
 
 const updateSaleMut = useUpdateItemSaleMutation();
 const deleteSaleMut = useDeleteItemSaleMutation();
@@ -76,7 +80,24 @@ function increaseQuantity(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
 
+  const estoque = item.estoque_disponivel;
+  if (estoque !== null && estoque !== undefined) {
+    const novaQtd = item.quantidade + 1;
+    if (novaQtd > estoque) {
+      pendingItem.value = item;
+      avisoEstoqueOpen.value = true;
+      return;
+    }
+  }
+
   mutateUpdate(props.sale.id, item.id, { quantidade: item.quantidade + 1 });
+}
+
+function confirmarIncremento() {
+  if (!pendingItem.value || !props.sale?.id) return;
+  mutateUpdate(props.sale.id, pendingItem.value.id, { quantidade: pendingItem.value.quantidade + 1 });
+  avisoEstoqueOpen.value = false;
+  pendingItem.value = null;
 }
 
 function removeItem(item: SaleOrOrcamento['produtos'][number]) {
@@ -88,6 +109,14 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
 </script>
 
 <template>
+  <AvisoEstoqueNegativoModal
+    :is-open="avisoEstoqueOpen"
+    :nome-produto="pendingItem?.nome ?? ''"
+    :estoque-atual="pendingItem?.estoque_disponivel ?? 0"
+    :quantidade-desejada="pendingItem ? pendingItem.quantidade + 1 : 1"
+    @confirmar="confirmarIncremento"
+    @cancelar="avisoEstoqueOpen = false; pendingItem = null"
+  />
   <section class="w-full h-full overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-brand-primary/30 transition-colors flex flex-col">
     <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar">
       <table class="w-full border-collapse text-sm">

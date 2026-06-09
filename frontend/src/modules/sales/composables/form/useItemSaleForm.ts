@@ -1,4 +1,4 @@
-import { type Ref, type MaybeRef, watch, computed, unref } from 'vue';
+import { type Ref, type MaybeRef, watch, computed, unref, ref } from 'vue';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 
@@ -106,23 +106,21 @@ export function useItemSaleForm(
     setFieldValue('quantidade', Math.max(currentQuantity - 1, 1));
   }
 
-  const submit = handleSubmit((values) => {
-    const saleIdValue = unref(saleId);
+  const avisoEstoqueOpen = ref(false);
+  const pendingSubmitValues = ref<ItemSaleForm | null>(null);
 
-    if (!saleIdValue) return;
-
+  function executarSalvar(saleIdValue: number, formValues: ItemSaleForm) {
     if (selectedItem.value) {
-      
       const payload: ProductSaleUpdate = {
-        quantidade: values.quantidade,
-        desconto: values.desconto * 100,
-      }
+        quantidade: formValues.quantidade,
+        desconto: formValues.desconto * 100,
+      };
 
       if (selectedItem.value.tipo_produto === 'AVULSO') {
-        payload.descricao_avulsa = values.descricao;
-        payload.valor_unitario = values.valor_unitario * 100;
+        payload.descricao_avulsa = formValues.descricao;
+        payload.valor_unitario = formValues.valor_unitario * 100;
       }
-      
+
       if (isOrcamento) {
         updateItemOrcamentoMutation.mutate(
           { orcamentoId: saleIdValue, productId: selectedItem.value.id, payload },
@@ -140,10 +138,10 @@ export function useItemSaleForm(
 
     const payload: ProductSaleCreate = {
       tipo_produto: 'AVULSO' as const,
-      descricao_avulsa: values.descricao,
-      valor_unitario: values.valor_unitario * 100,
-      quantidade: values.quantidade,
-      desconto: values.desconto * 100,
+      descricao_avulsa: formValues.descricao,
+      valor_unitario: formValues.valor_unitario * 100,
+      quantidade: formValues.quantidade,
+      desconto: formValues.desconto * 100,
     };
 
     if (isOrcamento) {
@@ -157,7 +155,32 @@ export function useItemSaleForm(
         { onSuccess },
       );
     }
+  }
+
+  const submit = handleSubmit((formValues) => {
+    const saleIdValue = unref(saleId);
+
+    if (!saleIdValue) return;
+
+    if (selectedItem.value && selectedItem.value.tipo_produto !== 'AVULSO') {
+      const estoque = selectedItem.value.estoque_disponivel;
+      if (estoque !== null && estoque !== undefined && formValues.quantidade > estoque) {
+        pendingSubmitValues.value = formValues;
+        avisoEstoqueOpen.value = true;
+        return;
+      }
+    }
+
+    executarSalvar(saleIdValue, formValues);
   });
+
+  function confirmarSalvarComEstoqueNegativo() {
+    const saleIdValue = unref(saleId);
+    if (!saleIdValue || !pendingSubmitValues.value) return;
+    executarSalvar(saleIdValue, pendingSubmitValues.value);
+    avisoEstoqueOpen.value = false;
+    pendingSubmitValues.value = null;
+  }
 
   return {
     errors,
@@ -172,5 +195,7 @@ export function useItemSaleForm(
     decreaseQuantity,
     resetForm,
     isSubmitting,
+    avisoEstoqueOpen,
+    confirmarSalvarComEstoqueNegativo,
   };
 }

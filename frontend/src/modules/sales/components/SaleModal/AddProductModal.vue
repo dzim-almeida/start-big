@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { PackageSearch, ArchiveX, ShoppingCart, Plus, Minus, Check } from 'lucide-vue-next';
-
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
+import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import { useProductSearch } from '../../composables/flows/useProductSearch';
 import { formatCurrency } from '@/shared/utils/finance';
@@ -23,6 +23,9 @@ const emit = defineEmits<{
 
 const currentItemsRef = computed(() => props.currentItems);
 const searchContainerRef = ref<HTMLElement | null>(null);
+
+const avisoEstoqueOpen = ref(false);
+const pendingSaleId = ref<number | null>(null);
 
 const {
   searchTerm,
@@ -72,7 +75,29 @@ function handleProductClick(product: { nome: string; id: number; estoque: number
 }
 
 function handleAdd() {
+  if (!props.saleId) return;
+
+  const produtoAtual = products.value?.find(p => p.id === selectedProductId.value) ?? selectedProduct.value;
+  const estoque = produtoAtual?.estoque;
+
+  if (estoque !== undefined && estoque !== null) {
+    const existingItem = props.currentItems?.find(i => i.produto_id === selectedProductId.value);
+    const qtdTotal = existingItem ? existingItem.quantidade + quantity.value : quantity.value;
+
+    if (qtdTotal > estoque) {
+      pendingSaleId.value = props.saleId;
+      avisoEstoqueOpen.value = true;
+      return;
+    }
+  }
+
   addItemToSale(props.saleId, false);
+}
+
+function confirmarVendaNegativa() {
+  avisoEstoqueOpen.value = false;
+  addItemToSale(pendingSaleId.value, false);
+  pendingSaleId.value = null;
 }
 </script>
 
@@ -292,4 +317,13 @@ function handleAdd() {
       </div>
     </template>
   </BaseModal>
+
+  <AvisoEstoqueNegativoModal
+    :is-open="avisoEstoqueOpen"
+    :nome-produto="selectedProductName ?? ''"
+    :estoque-atual="selectedProduct?.estoque ?? 0"
+    :quantidade-desejada="quantity"
+    @confirmar="confirmarVendaNegativa()"
+    @cancelar="avisoEstoqueOpen = false"
+  />
 </template>
