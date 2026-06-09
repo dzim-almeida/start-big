@@ -34,6 +34,8 @@ def _aplicar_migracoes():
     migracoes = [
         ("clientes", "saldo_credito", "ALTER TABLE clientes ADD COLUMN saldo_credito INTEGER NOT NULL DEFAULT 0"),
         ("vendas", "observacao_interna", "ALTER TABLE vendas ADD COLUMN observacao_interna VARCHAR(500)"),
+        ("vendas", "numero_venda", "ALTER TABLE vendas ADD COLUMN numero_venda INTEGER"),
+        ("vendas", "motivo_cancelamento", "ALTER TABLE vendas ADD COLUMN motivo_cancelamento VARCHAR(500)"),
     ]
     with engine.connect() as conn:
         for tabela, coluna, sql in migracoes:
@@ -43,6 +45,26 @@ def _aplicar_migracoes():
                 conn.execute(text(sql))
                 conn.commit()
                 logger.info("Migração aplicada: %s.%s", tabela, coluna)
+
+        # Índice único para numero_venda (SQLite não aceita UNIQUE em ALTER TABLE ADD COLUMN)
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uix_vendas_numero_venda ON vendas (numero_venda) "
+            "WHERE numero_venda IS NOT NULL"
+        ))
+        conn.commit()
+
+        # Cria tabela contador_venda se não existir e inicializa com o registro único
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS contador_venda (
+                id INTEGER PRIMARY KEY,
+                proximo_numero INTEGER NOT NULL DEFAULT 1
+            )
+        """))
+        resultado = conn.execute(text("SELECT COUNT(*) FROM contador_venda"))
+        if resultado.scalar() == 0:
+            conn.execute(text("INSERT INTO contador_venda (id, proximo_numero) VALUES (1, 1)"))
+        conn.commit()
+        logger.info("Tabela contador_venda verificada/inicializada")
 
 
 @asynccontextmanager

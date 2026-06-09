@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { UserRound, CalendarDays } from 'lucide-vue-next';
+import { UserRound, CalendarDays, XCircle } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
@@ -73,5 +73,18 @@ const createdAt = computed(() => {
         @blur="onSave"
       />
     </div>
+
+    <!-- Motivo do Cancelamento (apenas para vendas canceladas) -->
+    <template v-if="sale?.status === 'CANCELADA' && sale?.motivo_cancelamento">
+      <div class="border-t border-zinc-100" />
+      <div class="flex flex-col gap-1.5">
+        <span class="text-[10px] font-semibold text-red-400 uppercase tracking-wide flex items-center gap-1">
+          <XCircle :size="10" /> Motivo do Cancelamento
+        </span>
+        <p class="text-xs text-zinc-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 leading-relaxed">
+          {{ sale.motivo_cancelamento }}
+        </p>
+      </div>
+    </template>
   </div>
 </template>

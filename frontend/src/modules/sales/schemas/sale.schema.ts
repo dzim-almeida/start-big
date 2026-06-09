@@ -40,6 +40,7 @@ export type SaleUpdate = z.infer<typeof SaleUpdateSchema>;
 
 export const SaleSimpleReadSchema = z.object({
   id: z.number(),
+  numero_venda: z.number().nullable().optional(),
 
   cliente_id: z.number().nullable().optional(),
   funcionario_id: z.number(),
@@ -72,6 +73,7 @@ export const SaleReadSchema = SaleSimpleReadSchema.extend({
 
   observacao: z.string().nullable().optional(),
   observacao_interna: z.string().nullable().optional(),
+  motivo_cancelamento: z.string().nullable().optional(),
 
   produtos: z.array(ProductSaleReadSchema),
   pagamentos: z.array(PaymentSaleReadSchema),

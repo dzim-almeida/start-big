@@ -63,10 +63,18 @@ const emit = defineEmits<{
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
               <div
+                v-if="sale.numero_venda"
                 class="w-10 h-10 bg-brand-primary/10 rounded-xl flex flex-col items-center justify-center text-brand-primary"
               >
                 <span class="text-[7px] opacity-70 font-medium leading-none">VENDA</span>
-                <span class="text-sm font-bold leading-none mt-0.5">{{ sale.id }}</span>
+                <span class="text-sm font-bold leading-none mt-0.5">{{ sale.numero_venda }}</span>
+              </div>
+              <div
+                v-else
+                class="w-10 h-10 bg-zinc-100 rounded-xl flex flex-col items-center justify-center text-zinc-400"
+              >
+                <span class="text-[7px] opacity-70 font-medium leading-none">RASCUNHO</span>
+                <span class="text-[10px] font-bold leading-none mt-0.5">—</span>
               </div>
             </td>
 

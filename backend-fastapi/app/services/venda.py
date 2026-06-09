@@ -4,6 +4,7 @@ from typing import Sequence
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
+from app.db.models.contador_venda import ContadorVenda
 from app.schemas.vendas import VendaCreate, VendaSearchFilters, VendaStatusSummary, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, PagamentoVendaCreate, VendaRead
 
 from app.services.cliente import cliente_exists
@@ -196,37 +197,62 @@ def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
     
     return _recalc_total_sale(db, sale_in_db)
 
+def delete_draft_sale(db: Session, sale_id: int) -> None:
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    if sale_in_db.status != VendaStatus.ATIVA:
+        raise BadRequestException(detail="Apenas vendas ativas podem ser descartadas")
+    db.delete(sale_in_db)
+    db.commit()
+
+
 def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate]):
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    
+
     if sale_in_db.status != VendaStatus.ATIVA:
         raise BadRequestException(detail="Esta venda não pode ser finalizada")
-    
+
     valid_payments_to_db = _payments_valid(db, payments)
-    
+
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
     total_sale = sale_in_db.total or 0
 
     if total_payments < total_sale:
         raise BadRequestException(detail="Os pagamentos não conferem ao total da venda")
-    
+
+    # Atribui número sequencial oficial
+    contador = db.query(ContadorVenda).filter(ContadorVenda.id == 1).with_for_update().first()
+    if contador:
+        sale_in_db.numero_venda = contador.proximo_numero
+        contador.proximo_numero += 1
+
     products_in_db = sale_in_db.itens
 
     for product in products_in_db:
         if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
             produto_service.decrease_product_in_stock(db, produto_id=product.produto_id, quantidade=product.quantidade, funcionario_id=sale_in_db.funcionario_id, venda_id=sale_in_db.id)
-    
+
     sale_in_db.status = VendaStatus.FINALIZADA
     sale_in_db.pagamentos = valid_payments_to_db
     return venda_crud.update_sale(db, sale_in_db)
 
-def cancel_sale(db: Session, sale_id: int) -> Venda:
+def cancel_sale(db: Session, sale_id: int, motivo: str) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    
-    if sale_in_db.status != VendaStatus.ATIVA:
-        raise BadRequestException("Esta venda não pode ser cancelada")
-    
+
+    if sale_in_db.status != VendaStatus.FINALIZADA:
+        raise BadRequestException("Apenas vendas finalizadas podem ser canceladas")
+
+    for product in sale_in_db.itens:
+        if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
+            produto_service.restore_product_to_stock(
+                db,
+                produto_id=product.produto_id,
+                quantidade=product.quantidade,
+                funcionario_id=sale_in_db.funcionario_id,
+                venda_id=sale_in_db.id,
+            )
+
     sale_in_db.status = VendaStatus.CANCELADA
+    sale_in_db.motivo_cancelamento = motivo
     return venda_crud.update_sale(db, sale_in_db)
 
 def reopen_sale(db: Session, sale_id: int) -> Venda:

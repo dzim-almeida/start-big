@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
@@ -14,6 +14,7 @@ import SaleSummary from './SaleModal/SaleSummary.vue';
 import ItemModal from './SaleModal/ItemModal.vue';
 import FinishSaleModal from './SaleModal/FinishSaleModal.vue';
 import AddProductModal from './SaleModal/AddProductModal.vue';
+import CancelSaleModal from './SaleModal/CancelSaleModal.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
@@ -21,7 +22,7 @@ import { useFinishSaleModal } from '../composables/flows/useFinishSaleModal';
 import { useSaleModal } from '../composables/flows/useSaleModal';
 import { useItemModal } from '../composables/flows/useItemModal';
 import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
-import { useCancelSaleMutation } from '../composables/mutates/useCancelSaleMutation';
+import { useDeleteSaleMutation } from '../composables/mutates/useDeleteSaleMutation';
 import { useUpdateSaleMutation } from '../composables/mutates/useUpdateSaleMutation';
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
@@ -43,8 +44,9 @@ const { form: saleForm, isSaving: isSaleFormSaving, saveNow: saveSaleForm } = us
 const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
-const cancelMutation = useCancelSaleMutation();
+const deleteMutation = useDeleteSaleMutation();
 const updateSaleMutation = useUpdateSaleMutation();
+const cancelSaleModalIsOpen = ref(false);
 const { openCustomerModalForChange } = useCustomerSearchModal();
 
 const {
@@ -87,17 +89,15 @@ function handleCancel() {
   if (!sale.value) return;
 
   const saleId = sale.value.id;
-  const displayNumber = String(saleId).padStart(6, '0');
 
   openConfirmModal({
-    title: 'Cancelar Venda?',
-    message: 'Tem certeza que deseja cancelar a Venda',
-    highlightText: `Nº ${displayNumber}`,
+    title: 'Descartar Venda?',
+    message: 'Tem certeza que deseja descartar este rascunho? Esta ação não pode ser desfeita.',
     variant: 'danger',
-    label: 'CONFIRMAR',
+    label: 'DESCARTAR',
     action: () => {
       confirmModalPending.value = true;
-      cancelMutation.mutate(
+      deleteMutation.mutate(
         { saleId },
         {
           onSuccess: () => {
@@ -109,6 +109,10 @@ function handleCancel() {
       );
     },
   });
+}
+
+function handleCancelFinalized() {
+  cancelSaleModalIsOpen.value = true;
 }
 
 function handlePrint() {
@@ -149,7 +153,8 @@ useSaleShortcuts({
 
 const saleDisplay = computed(() => {
   if (!sale.value) return '...';
-  return `Venda #${String(sale.value.id).padStart(6, '0')}`;
+  if (sale.value.numero_venda) return `Venda #${String(sale.value.numero_venda).padStart(6, '0')}`;
+  return 'Rascunho';
 });
 </script>
 
@@ -193,8 +198,18 @@ const saleDisplay = computed(() => {
             v-if="isEditMode"
             type="button"
             class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mr-1"
-            title="Cancelar Venda (Ctrl+Backspace)"
+            title="Descartar Venda (Ctrl+Backspace)"
             @click="handleCancel"
+          >
+            <Trash2 :size="16" />
+            <span class="hidden sm:inline">Descartar Venda</span>
+          </button>
+          <button
+            v-if="isViewMode && sale?.status === 'FINALIZADA'"
+            type="button"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mr-1"
+            title="Cancelar Venda"
+            @click="handleCancelFinalized"
           >
             <Trash2 :size="16" />
             <span class="hidden sm:inline">Cancelar Venda</span>
@@ -282,6 +297,12 @@ const saleDisplay = computed(() => {
       :sale-id="selectedSaleId"
       :current-items="sale?.produtos"
       @close="addProductModal.closeAddProductModal"
+    />
+    <CancelSaleModal
+      :is-open="cancelSaleModalIsOpen"
+      :sale="sale"
+      @close="cancelSaleModalIsOpen = false"
+      @success="cancelSaleModalIsOpen = false; closeSaleModal()"
     />
     <FinishSaleModal :sale="sale" @finalized="handleFinalized" />
 

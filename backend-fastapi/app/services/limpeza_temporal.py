@@ -16,8 +16,8 @@ DIAS_EXPIRACAO_ORCAMENTO = 7
 
 def cancelar_vendas_ativas_expiradas(db: Session) -> int:
     """
-    Cancela vendas ATIVAS que nao foram atualizadas nos ultimos
-    DIAS_EXPIRACAO_VENDA_ATIVA dias. Retorna a quantidade cancelada.
+    Deleta vendas ATIVAS (rascunhos) que nao foram atualizadas nos ultimos
+    DIAS_EXPIRACAO_VENDA_ATIVA dias. Retorna a quantidade deletada.
     """
     limite = datetime.now() - timedelta(days=DIAS_EXPIRACAO_VENDA_ATIVA)
 
@@ -29,12 +29,12 @@ def cancelar_vendas_ativas_expiradas(db: Session) -> int:
     quantidade = len(vendas_expiradas)
 
     for venda in vendas_expiradas:
-        venda.status = VendaStatus.CANCELADA
+        db.delete(venda)
 
     if quantidade > 0:
         db.commit()
         logger.info(
-            "Limpeza automatica: %d venda(s) ativa(s) cancelada(s) (anterior a %s)",
+            "Limpeza automatica: %d rascunho(s) de venda deletado(s) (anterior a %s)",
             quantidade,
             limite.isoformat(),
         )

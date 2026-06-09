@@ -23,6 +23,7 @@ from app.core.depends import check_permission, get_db, _handle_db_transaction
 from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,
+    CancelarVendaPayload,
     ProdutoVendaCreate,
     ProdutoVendaUpdate,
     VendaCreate,
@@ -194,14 +195,32 @@ def remover_item(
 # AÇÕES DA VENDA (cancelar/ reabrir / finalizar)
 # ===========================================================================
 
+@router.delete(
+    "/{venda_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Descartar Rascunho de Venda",
+    description=(
+        "Deleta permanentemente uma venda ATIVA que não foi finalizada. "
+        "Use este endpoint para descartar rascunhos/carrinhos abandonados."
+    ),
+)
+def descartar_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    venda_id: int = Path(..., description="ID da venda"),
+):
+    _handle_db_transaction(db, venda_service.delete_draft_sale, venda_id)
+
+
 @router.post(
     "/{venda_id}/cancelar",
     response_model=VendaRead,
     status_code=status.HTTP_200_OK,
-    summary="Cancelar Venda",
+    summary="Cancelar Venda Finalizada",
     description=(
-        "Invalida o rascunho ou a venda em andamento, interrompendo o fluxo "
-        "e descartando qualquer reserva de estoque provisória."
+        "Reservado para cancelamento de vendas já finalizadas (devolução/estorno). "
+        "Para descartar rascunhos use DELETE /{venda_id}."
     ),
 )
 def cancelar_venda(
@@ -209,11 +228,13 @@ def cancelar_venda(
     *,
     db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
+    payload: CancelarVendaPayload,
 ):
-    return  _handle_db_transaction(
+    return _handle_db_transaction(
         db,
         venda_service.cancel_sale,
-        venda_id
+        venda_id,
+        payload.motivo,
     )
 
 @router.post(

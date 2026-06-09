@@ -74,6 +74,21 @@ class Venda(Base):
         doc="Observacao interna (nao impressa no comprovante)"
     )
 
+    # --- Cancelamento ---
+    motivo_cancelamento: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+        doc="Motivo informado ao cancelar uma venda finalizada",
+    )
+
+    # --- Numeração oficial (atribuída apenas ao finalizar) ---
+    numero_venda: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        unique=True,
+        doc="Número sequencial oficial da venda, atribuído somente ao finalizar",
+    )
+
     # --- Financeiro (valores em centavos) ---
     subtotal: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Soma dos itens sem descontos e fretes (centavos)")
     entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor do frete/motoboy (centavos)")

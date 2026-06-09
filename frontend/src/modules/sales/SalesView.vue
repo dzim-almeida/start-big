@@ -24,7 +24,7 @@ import { useCustomerSearchModal } from './composables/flows/useCustomerSearchMod
 import { useSaleModal } from './composables/flows/useSaleModal';
 import { useFinishSaleModal } from './composables/flows/useFinishSaleModal';
 import { useConfirmSaleAction } from './composables/flows/useConfirmSaleAction';
-import { useCancelSaleMutation } from './composables/mutates/useCancelSaleMutation';
+import { useDeleteSaleMutation } from './composables/mutates/useDeleteSaleMutation';
 import { useReopenSaleMutation } from './composables/mutates/useReopenSaleMutation';
 import { useSalePrintFlow } from './composables/flows/useSalePrintFlow';
 import { useOrcamentoPrintFlow } from './composables/flows/useOrcamentoPrintFlow';
@@ -98,7 +98,7 @@ const {
   handleConfirm,
 } = useConfirmSaleAction();
 
-const cancelMutation = useCancelSaleMutation();
+const discardMutation = useDeleteSaleMutation();
 const reopenMutation = useReopenSaleMutation();
 
 function handleFinishFromTable(saleId: number) {
@@ -108,14 +108,13 @@ function handleFinishFromTable(saleId: number) {
 
 function handleCancelFromTable(saleId: number) {
   openConfirmModal({
-    title: 'Cancelar Venda?',
-    message: 'Tem certeza que deseja cancelar a Venda',
-    highlightText: `Nº ${String(saleId).padStart(6, '0')}`,
+    title: 'Descartar Rascunho?',
+    message: 'Tem certeza que deseja descartar este rascunho de venda? Esta ação não pode ser desfeita.',
     variant: 'danger',
-    label: 'CONFIRMAR',
+    label: 'DESCARTAR',
     action: () => {
       confirmModalPending.value = true;
-      cancelMutation.mutate(
+      discardMutation.mutate(
         { saleId },
         {
           onSuccess: () => closeConfirmModal(),
