@@ -100,7 +100,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
             <th class="w-32.5 px-4 text-center">Qtde.</th>
             <th class="w-37.5 px-4 text-center">Preço unit.</th>
             <th class="w-35 px-4 text-center">Desconto</th>
-            <th class="w-35 px-4 text-center">Total</th>
+            <th class="w-35 px-4 text-right">Total</th>
             <th v-if="!readonly" class="w-18 px-4 text-center"></th>
           </tr>
         </thead>
@@ -201,7 +201,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
               {{ formatCurrency(item.desconto) }}
             </td>
 
-            <td class="px-4 text-center text-sm font-semibold text-zinc-800">
+            <td class="px-4 text-right text-sm font-semibold text-zinc-800">
               {{ formatCurrency(item.total) }}
             </td>
 

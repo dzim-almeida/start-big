@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
@@ -36,11 +36,6 @@ import SalePrintCupom from './print/SalePrintCupom.vue';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
-const logoUrl = computed(() => {
-  const path = authStore.userData?.empresa?.url_logo;
-  if (!path) return null;
-  return `${API_BASE_URL}/${path}`;
-});
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const addProductModal = useAddProductModal();
@@ -62,6 +57,15 @@ const {
   closePrintSelectModal,
   resolvePaymentMethodName,
 } = useSalePrintFlow();
+
+watch(saleModalIsOpen, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');
+      searchInput?.focus();
+    });
+  }
+}, { immediate: true });
 
 function handleFinalized(finishedSale: SaleRead) {
   printSaleData(finishedSale, 'VENDA', () => closeSaleModal());
@@ -161,9 +165,8 @@ const saleDisplay = computed(() => {
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" :class="logoUrl ? '' : 'bg-brand-primary'">
-            <img v-if="logoUrl" :src="logoUrl" alt="Logo" class="w-full h-full object-cover rounded-lg" />
-            <ShoppingCart v-else :size="18" class="text-white" />
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-brand-primary shadow-sm shadow-brand-primary/20">
+            <ShoppingCart :size="18" class="text-white" />
           </div>
           <h2 class="text-xl font-bold text-zinc-800">
             {{ saleDisplay }}
@@ -197,9 +200,10 @@ const saleDisplay = computed(() => {
             <span class="hidden sm:inline">Cancelar Venda</span>
           </button>
           <button
+            v-if="!isEditMode"
             type="button"
             class="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
-            title="Imprimir"
+            title="Imprimir Comprovante"
             @click="handlePrint"
           >
             <Printer :size="18" />
@@ -222,7 +226,7 @@ const saleDisplay = computed(() => {
           <ProductSearch class="flex-1" :sale-id="selectedSaleId" :current-items="sale?.produtos" />
           <button
             type="button"
-            class="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand-primary text-white text-sm font-semibold hover:bg-brand-primary/90 transition-colors shrink-0 cursor-pointer"
+            class="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-sm font-semibold hover:bg-brand-primary/20 hover:border-brand-primary/30 transition-all shrink-0 cursor-pointer"
             @click="addProductModal.openAddProductModal"
           >
             <PackagePlus :size="16" />

@@ -31,12 +31,13 @@ def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
     return venda_crud.update_sale(db, sale_in_db)
 
 def _aplly_discount(sale_in_db: Venda, discount: int) -> Venda:
+    items_subtotal = sum(item.subtotal for item in sale_in_db.itens)
     discount_remaining = discount
     for index, item in enumerate(sale_in_db.itens):
-        if (index == len(sale_in_db.itens) - 1):
+        if index == len(sale_in_db.itens) - 1:
             item.desconto = discount_remaining
         else:
-            item_discount = ((item.total * discount) // (sale_in_db.total or 1))
+            item_discount = (item.subtotal * discount) // (items_subtotal or 1)
             item.desconto = item_discount
             discount_remaining -= item_discount
     return sale_in_db
@@ -123,7 +124,7 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
     if desconto > quantidade * valor_unitario:
         raise BadRequestException(detail="O desconto não pode ser maior que o total do produto")
     
-    subtotal = quantidade * valor_unitario - desconto
+    subtotal = quantidade * valor_unitario
 
     product_data = ProdutoVenda(
         **item_data.model_dump(exclude={"valor_unitario"}),

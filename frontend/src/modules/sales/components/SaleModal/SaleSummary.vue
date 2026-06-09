@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { ListPlus, BadgeDollarSign, Truck, TicketPercent } from 'lucide-vue-next';
 import { formatCurrency } from '@/shared/utils/finance';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
@@ -14,6 +15,20 @@ const props = defineProps<{
   readonly?: boolean;
   onSave?: () => void;
 }>();
+
+const hasDiscount = computed(() => {
+  if (props.form && props.form.desconto !== undefined) {
+    return props.form.desconto > 0;
+  }
+  return (props.discount ?? 0) > 0;
+});
+
+const hasDelivery = computed(() => {
+  if (props.form && props.form.entrega !== undefined) {
+    return props.form.entrega > 0;
+  }
+  return (props.delivery ?? 0) > 0;
+});
 </script>
 
 <template>
@@ -23,7 +38,9 @@ const props = defineProps<{
       <ListPlus :size="15" class="text-brand-action shrink-0" />
       <div class="min-w-0">
         <p class="text-[10px] font-semibold text-zinc-500 uppercase">Subtotal</p>
-        <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
+        <div class="h-[38px] flex items-center">
+          <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
+        </div>
       </div>
     </div>
 
@@ -31,19 +48,42 @@ const props = defineProps<{
 
     <!-- Desconto -->
     <div class="flex-1 flex items-center gap-2 min-w-0">
-      <TicketPercent :size="15" class="text-brand-action shrink-0" />
+      <TicketPercent
+        :size="15"
+        :class="[
+          'shrink-0 transition-all duration-300',
+          hasDiscount ? 'text-emerald-500 scale-110' : 'text-brand-action'
+        ]"
+      />
       <div class="min-w-0 flex-1">
-        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Desconto</p>
+        <p
+          :class="[
+            'text-[10px] font-semibold uppercase transition-colors duration-300',
+            hasDiscount ? 'text-emerald-600 font-bold' : 'text-zinc-500'
+          ]"
+        >
+          Desconto
+        </p>
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.desconto"
           :disabled="isSaving"
+          :variant="hasDiscount ? 'success' : 'default'"
           class="w-full max-w-28 bg-white/80"
           data-sale-desconto
           @blur="onSave"
           @enter="onSave"
         />
-        <span v-else class="font-bold text-base text-zinc-700">{{ formatCurrency(discount ?? 0) }}</span>
+        <div v-else class="h-[38px] flex items-center">
+          <span
+            :class="[
+              'font-bold text-base transition-colors duration-300',
+              hasDiscount ? 'text-emerald-600' : 'text-zinc-700'
+            ]"
+          >
+            {{ formatCurrency(discount ?? 0) }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -51,19 +91,42 @@ const props = defineProps<{
 
     <!-- Entrega -->
     <div class="flex-1 flex items-center gap-2 min-w-0">
-      <Truck :size="15" class="text-brand-action shrink-0" />
+      <Truck
+        :size="15"
+        :class="[
+          'shrink-0 transition-all duration-300',
+          hasDelivery ? 'text-amber-500 scale-110' : 'text-brand-action'
+        ]"
+      />
       <div class="min-w-0 flex-1">
-        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Entrega</p>
+        <p
+          :class="[
+            'text-[10px] font-semibold uppercase transition-colors duration-300',
+            hasDelivery ? 'text-amber-600 font-bold' : 'text-zinc-500'
+          ]"
+        >
+          Entrega
+        </p>
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.entrega"
           :disabled="isSaving"
+          :variant="hasDelivery ? 'warning' : 'default'"
           class="w-full max-w-28 bg-white/80"
           data-sale-entrega
           @blur="onSave"
           @enter="onSave"
         />
-        <span v-else class="font-bold text-base text-zinc-700">{{ formatCurrency(delivery ?? 0) }}</span>
+        <div v-else class="h-[38px] flex items-center">
+          <span
+            :class="[
+              'font-bold text-base transition-colors duration-300',
+              hasDelivery ? 'text-amber-600' : 'text-zinc-700'
+            ]"
+          >
+            {{ formatCurrency(delivery ?? 0) }}
+          </span>
+        </div>
       </div>
     </div>
 
