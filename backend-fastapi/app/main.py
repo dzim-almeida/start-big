@@ -1,3 +1,6 @@
+import os
+import sys
+
 # Entrada do FastAPI
 
 from fastapi import FastAPI # type: ignore
@@ -39,6 +42,16 @@ from app.db.models.log_produto import LogProduto
 from app.db.models.orcamento import Orcamento
 from app.db.models.orcamento_produto import OrcamentoProduto
 
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+if not os.path.exists(STATIC_DIR):
+    os.makedirs(STATIC_DIR, exist_ok=True)
+    
 app = FastAPI(
     title="BigPDV Backend API",
     description="Sistema de Ponto de Venda (PDV) - API",
@@ -62,6 +75,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(api.router, prefix="/api/v1")
