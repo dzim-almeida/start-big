@@ -61,12 +61,34 @@ def _aplicar_migracoes():
                 permitir_desconto BOOLEAN NOT NULL DEFAULT 1,
                 desconto_maximo_percent INTEGER NOT NULL DEFAULT 30,
                 exigir_cliente_identificado BOOLEAN NOT NULL DEFAULT 0,
-                acao_ao_finalizar VARCHAR(20) NOT NULL DEFAULT 'perguntar',
+                valor_minimo_venda INTEGER NOT NULL DEFAULT 0,
+                permitir_parcelamento BOOLEAN NOT NULL DEFAULT 1,
+                parcelas_maximas INTEGER NOT NULL DEFAULT 12,
                 data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """))
         conn.commit()
         logger.info("Tabela configuracoes_vendas verificada/inicializada")
+
+        # Cria tabela configuracoes_seguranca se não existir
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS configuracoes_seguranca (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL UNIQUE REFERENCES empresas(id) ON DELETE CASCADE,
+                pin_gerente VARCHAR(255),
+                requer_pin_acessar_config_sensivel BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_cancelar_venda BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_reabrir_venda BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_desconto_venda BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_alterar_preco_venda BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_cancelar_os BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_reabrir_os BOOLEAN NOT NULL DEFAULT 0,
+                requer_pin_desconto_os BOOLEAN NOT NULL DEFAULT 0,
+                data_atualizacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.commit()
+        logger.info("Tabela configuracoes_seguranca verificada/inicializada")
 
         # Cria tabela contador_venda se não existir e inicializa com o registro único
         conn.execute(text("""

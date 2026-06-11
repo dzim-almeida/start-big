@@ -1,5 +1,5 @@
 import api from '@/api/axios'
-import type { ConfiguracaoClientesRead, ConfiguracaoClientesUpdate, ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate, ConfiguracaoOSRead, ConfiguracaoOSUpdate, ConfiguracaoVendasRead, ConfiguracaoVendasUpdate } from '../schemas/configuracoes.schema'
+import type { ConfiguracaoClientesRead, ConfiguracaoClientesUpdate, ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate, ConfiguracaoOSRead, ConfiguracaoOSUpdate, ConfiguracaoVendasRead, ConfiguracaoVendasUpdate, ConfiguracaoSegurancaRead, ConfiguracaoSegurancaUpdate } from '../schemas/configuracoes.schema'
 
 const BASE_URL = '/configuracoes'
 
@@ -49,4 +49,20 @@ export async function updateConfiguracoesVendas(
 ): Promise<ConfiguracaoVendasRead> {
   const response = await api.put<ConfiguracaoVendasRead>(`${BASE_URL}/vendas`, data)
   return response.data
+}
+
+export async function getConfiguracoesSeguranca(): Promise<ConfiguracaoSegurancaRead> {
+  const response = await api.get<ConfiguracaoSegurancaRead>(`${BASE_URL}/seguranca`)
+  return response.data
+}
+
+export async function updateConfiguracoesSeguranca(
+  data: ConfiguracaoSegurancaUpdate,
+): Promise<ConfiguracaoSegurancaRead> {
+  const response = await api.put<ConfiguracaoSegurancaRead>(`${BASE_URL}/seguranca`, data)
+  return response.data
+}
+
+export async function verificarPinSeguranca(pin: string): Promise<void> {
+  await api.post(`${BASE_URL}/seguranca/verificar-pin`, { pin })
 }

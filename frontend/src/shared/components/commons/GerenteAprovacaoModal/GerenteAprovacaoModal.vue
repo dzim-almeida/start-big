@@ -1,0 +1,101 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import { Eye, EyeOff, ShieldAlert } from 'lucide-vue-next'
+import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
+
+const props = defineProps<{
+  isOpen: boolean
+  isLoading?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'confirmar', pin: string): void
+  (e: 'cancelar'): void
+}>()
+
+const pin = ref('')
+const showPin = ref(false)
+
+watch(() => props.isOpen, (aberto) => {
+  if (aberto) {
+    pin.value = ''
+    showPin.value = false
+  }
+})
+
+function handleConfirmar() {
+  if (!pin.value.trim()) return
+  const pinValue = pin.value
+  pin.value = ''
+  emit('confirmar', pinValue)
+}
+
+function handleCancelar() {
+  pin.value = ''
+  showPin.value = false
+  emit('cancelar')
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') handleConfirmar()
+  if (e.key === 'Escape') handleCancelar()
+}
+</script>
+
+<template>
+  <BaseModal :is-open="isOpen" title="Aprovação do Gerente" size="sm" overlay>
+    <template #header>
+      <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+            <ShieldAlert :size="18" class="text-amber-600" />
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-zinc-800">Aprovação do Gerente</h2>
+            <p class="text-xs text-zinc-500">Desconto acima do limite configurado</p>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <div class="px-6 py-5">
+      <p class="text-sm text-zinc-600 mb-4">
+        O desconto informado excede o limite permitido. Insira o PIN do gerente para autorizar.
+      </p>
+      <label class="text-xs font-medium text-zinc-700 block mb-1.5">PIN do gerente</label>
+      <div class="relative">
+        <input
+          v-model="pin"
+          :type="showPin ? 'text' : 'password'"
+          class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 pr-10 bg-zinc-50 text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+          placeholder="Digite o PIN..."
+          autofocus
+          @keydown="handleKeydown"
+        />
+        <button
+          type="button"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+          @click="showPin = !showPin"
+        >
+          <component :is="showPin ? EyeOff : Eye" :size="15" />
+        </button>
+      </div>
+    </div>
+
+    <template #footer>
+      <div class="flex items-center justify-end gap-3">
+        <BaseButton variant="secondary" size="md" @click="handleCancelar">Cancelar</BaseButton>
+        <BaseButton
+          variant="primary"
+          size="md"
+          :loading="isLoading"
+          :disabled="!pin.trim()"
+          @click="handleConfirmar"
+        >
+          Confirmar
+        </BaseButton>
+      </div>
+    </template>
+  </BaseModal>
+</template>

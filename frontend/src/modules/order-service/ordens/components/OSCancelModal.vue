@@ -7,6 +7,7 @@ import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import { AlertTriangle, Banknote, BookmarkCheck } from 'lucide-vue-next';
 import { useOSCancelarForm } from '../composables/form/useOSCancelar.form';
 import { formatCurrency } from '@/shared/utils/finance';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 
 interface Props {
   isOpen: boolean;
@@ -64,6 +65,12 @@ function handleConfirmarPasso2(devolver: boolean) {
 </script>
 
 <template>
+  <GerenteAprovacaoModal
+    :is-open="cancelarForm.gerenteCancelar.isOpen.value"
+    :is-loading="cancelarForm.gerenteCancelar.isLoading.value"
+    @confirmar="cancelarForm.gerenteCancelar.confirmar"
+    @cancelar="cancelarForm.gerenteCancelar.cancelar"
+  />
   <BaseModal
     :is-open="isOpen"
     :title="showAdiantamento ? 'Adiantamento recebido' : 'Cancelar OS'"

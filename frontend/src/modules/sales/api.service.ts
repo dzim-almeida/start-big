@@ -75,13 +75,13 @@ export const saleService = {
     await api.delete(`${SALE_ENDPOINT}/${sale_id}`);
   },
 
-  async cancelSale(sale_id: number, motivo: string): Promise<SaleRead> {
-    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/cancelar`, { motivo });
+  async cancelSale(sale_id: number, motivo: string, codigo_gerente?: string | null): Promise<SaleRead> {
+    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/cancelar`, { motivo, ...(codigo_gerente ? { codigo_gerente } : {}) });
     return parseSchema(SaleReadSchema, data, 'saleService.cancelSale.response');
   },
 
-  async reopenSale(sale_id: number): Promise<SaleRead> {
-    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/reabrir`);
+  async reopenSale(sale_id: number, codigo_gerente?: string | null): Promise<SaleRead> {
+    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/reabrir`, codigo_gerente ? { codigo_gerente } : {});
     return parseSchema(SaleReadSchema, data, 'saleService.reopenSale.response');
   },
 

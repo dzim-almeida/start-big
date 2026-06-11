@@ -43,6 +43,7 @@ from app.schemas.ordem_servico import (
     OSItemUpdate,
     OrdemServicoFinalizar,
     OrdemServicoCancelar,
+    OrdemServicoReabrir,
     OSFotoRead,
 )
 from app.services import ordem_servico as os_service
@@ -373,9 +374,10 @@ def reabrir_ordem_servico(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     os_number: str = Path(..., description="Número da OS"),
     *,
+    payload: OrdemServicoReabrir = OrdemServicoReabrir(),
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number)
+    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number, payload.codigo_gerente)
 
 
 # ===========================================================================

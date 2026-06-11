@@ -345,10 +345,16 @@ class OrdemServicoCancelar(BaseModel):
     """Payload para cancelar uma OS. O motivo é registrado nas observações da OS."""
     motivo: Optional[str] = Field(None, max_length=500, description="Motivo do cancelamento (acrescentado às observações)")
     zerar_adiantamento: Optional[bool] = Field(False, description="Se True, zera o valor_entrada (adiantamento devolvido ao cliente)")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar cancelamento")
 
     model_config = ConfigDict(
         json_schema_extra={"example": {"motivo": "Cliente desistiu do serviço.", "zerar_adiantamento": True}}
     )
+
+
+class OrdemServicoReabrir(BaseModel):
+    """Payload para reabrir uma OS."""
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar reabertura")
 
 
 # ===========================================================================

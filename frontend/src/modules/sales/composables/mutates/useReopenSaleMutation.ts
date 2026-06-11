@@ -10,12 +10,14 @@ import { saleKeys } from "../../query.keys";
 
 import { SaleRead } from "../../schemas/sale.schema";
 
+const PIN_CODES = ['REQUER_APROVACAO_GERENTE', 'PIN_GERENTE_INVALIDO'];
+
 export function useReopenSaleMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number }>({
-        mutationFn: ({ saleId }) => saleService.reopenSale(saleId),
+    return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number; codigoGerente?: string }>({
+        mutationFn: ({ saleId, codigoGerente }) => saleService.reopenSale(saleId, codigoGerente),
         onSuccess: (reopenedSale) => {
             toast.success('Venda reaberta com sucesso');
             queryClient.setQueryData(saleKeys.draft(reopenedSale.id), reopenedSale);
@@ -27,6 +29,8 @@ export function useReopenSaleMutation() {
             });
         },
         onError: (error) => {
+            const detail = (error?.response?.data as any)?.detail;
+            if (PIN_CODES.includes(detail)) return;
             toast.error(getErrorMessage(error, 'Erro ao reabrir venda'));
         }
     })

@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 
 export type SecaoId =
+  | 'seguranca'
   | 'regras-de-vendas'
   | 'produtos-estoque'
   | 'ordens-de-servico'

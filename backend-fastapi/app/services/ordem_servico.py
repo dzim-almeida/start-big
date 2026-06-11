@@ -39,8 +39,10 @@ from app.db.crud import ordem_servico as os_crud
 from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.db.crud import forma_pagamento as fp_crud
+from app.db.crud import configuracao_seguranca as config_seg_crud
 
 from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento
+from app.core.security import verify_password
 from app.helpers.set_pagination import _set_pagination
 
 
@@ -520,6 +522,15 @@ def cancelar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoCancel
             detail="Esta OS já está cancelada"
         )
 
+    if os_in_db.funcionario:
+        empresa_id = os_in_db.funcionario.empresa_id
+        config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+        if config_seg and config_seg.requer_pin_cancelar_os:
+            if not data.codigo_gerente:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="REQUER_APROVACAO_GERENTE")
+            if not config_seg.pin_gerente or not verify_password(data.codigo_gerente, config_seg.pin_gerente):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN_GERENTE_INVALIDO")
+
     os_in_db.status = OrdemServicoStatus.CANCELADA
 
     if data.motivo:
@@ -536,7 +547,7 @@ def cancelar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoCancel
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 
 
-def reabrir_ordem_servico(db: Session, numero_os: str) -> OSModel:
+def reabrir_ordem_servico(db: Session, numero_os: str, codigo_gerente: str | None = None) -> OSModel:
     """
     Reabre uma OS FINALIZADA ou CANCELADA.
 
@@ -547,6 +558,15 @@ def reabrir_ordem_servico(db: Session, numero_os: str) -> OSModel:
 
     if os_in_db.status not in (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA):
         raise os_nao_pode_reabrir_exce
+
+    if os_in_db.funcionario:
+        empresa_id = os_in_db.funcionario.empresa_id
+        config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+        if config_seg and config_seg.requer_pin_reabrir_os:
+            if not codigo_gerente:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="REQUER_APROVACAO_GERENTE")
+            if not config_seg.pin_gerente or not verify_password(codigo_gerente, config_seg.pin_gerente):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN_GERENTE_INVALIDO")
 
     total_bruto = sum(p.valor for p in os_in_db.pagamentos) + (os_in_db.valor_entrada or 0)
     valor_total = os_in_db.valor_total or 0

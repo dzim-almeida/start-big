@@ -57,12 +57,6 @@ export const ConfiguracaoClientesUpdateSchema = ConfiguracaoClientesSchema
 export type ConfiguracaoClientesRead = z.infer<typeof ConfiguracaoClientesSchema>
 export type ConfiguracaoClientesUpdate = z.infer<typeof ConfiguracaoClientesUpdateSchema>
 
-export const ACAO_FINALIZAR_OPTIONS = [
-  { value: 'perguntar', label: 'Perguntar o que fazer' },
-  { value: 'nova_venda', label: 'Iniciar nova venda' },
-  { value: 'fechar', label: 'Fechar carrinho' },
-] as const
-
 export const ConfiguracaoVendasSchema = z.object({
   id: z.number(),
   empresa_id: z.number(),
@@ -70,7 +64,9 @@ export const ConfiguracaoVendasSchema = z.object({
   permitir_desconto: z.boolean(),
   desconto_maximo_percent: z.number().int().min(0).max(100),
   exigir_cliente_identificado: z.boolean(),
-  acao_ao_finalizar: z.string(),
+  valor_minimo_venda: z.number().int().min(0),
+  permitir_parcelamento: z.boolean(),
+  parcelas_maximas: z.number().int().min(1).max(48),
 
   data_atualizacao: z.string(),
 })
@@ -109,3 +105,29 @@ export const ConfiguracaoOSUpdateSchema = ConfiguracaoOSSchema
 
 export type ConfiguracaoOSRead = z.infer<typeof ConfiguracaoOSSchema>
 export type ConfiguracaoOSUpdate = z.infer<typeof ConfiguracaoOSUpdateSchema>
+
+export const ConfiguracaoSegurancaSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  tem_pin_configurado: z.boolean(),
+
+  requer_pin_acessar_config_sensivel: z.boolean(),
+  requer_pin_cancelar_venda: z.boolean(),
+  requer_pin_reabrir_venda: z.boolean(),
+  requer_pin_desconto_venda: z.boolean(),
+  requer_pin_alterar_preco_venda: z.boolean(),
+  requer_pin_cancelar_os: z.boolean(),
+  requer_pin_reabrir_os: z.boolean(),
+  requer_pin_desconto_os: z.boolean(),
+
+  data_atualizacao: z.string(),
+})
+
+export const ConfiguracaoSegurancaUpdateSchema = ConfiguracaoSegurancaSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true, tem_pin_configurado: true })
+  .partial()
+  .extend({ pin_gerente: z.string().optional() })
+
+export type ConfiguracaoSegurancaRead = z.infer<typeof ConfiguracaoSegurancaSchema>
+export type ConfiguracaoSegurancaUpdate = z.infer<typeof ConfiguracaoSegurancaUpdateSchema>

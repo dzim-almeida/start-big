@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING
-from sqlalchemy import Boolean, DateTime, Integer, String, ForeignKey
+from sqlalchemy import Boolean, DateTime, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -22,7 +22,10 @@ class ConfiguracaoVendas(Base):
     permitir_desconto: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     desconto_maximo_percent: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     exigir_cliente_identificado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    acao_ao_finalizar: Mapped[str] = mapped_column(String(20), default="perguntar", nullable=False)
+
+    valor_minimo_venda: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    permitir_parcelamento: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    parcelas_maximas: Mapped[int] = mapped_column(Integer, default=12, nullable=False)
 
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,

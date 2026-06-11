@@ -32,7 +32,8 @@ export async function updateCancelOS(cancelOs: OsCancelUpdateRequest): Promise<O
     return safeParseResponse(OrderServiceReadSchema, data, 'updateCancelOS');
 }
 
-export async function updateReopen(os_number: string): Promise<OrderServiceReadDataType> {
-    const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${os_number}/reabrir`)
+export async function updateReopen({ osNumber, codigoGerente }: { osNumber: string; codigoGerente?: string }): Promise<OrderServiceReadDataType> {
+    const body = codigoGerente ? { codigo_gerente: codigoGerente } : undefined;
+    const { data } = await api.put<OrderServiceReadDataType>(`${BASE_ORDER_SERVICE_URL}/${osNumber}/reabrir`, body)
     return safeParseResponse(OrderServiceReadSchema, data, 'updateReopen');
 }

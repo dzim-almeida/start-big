@@ -67,6 +67,7 @@ class ProdutoVendaUpdate(BaseModel):
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descrição do produto avulso")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto do produto")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar alteração de preço")
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaUpdate':
@@ -83,6 +84,7 @@ class VendaUpdate(BaseModel):
     desconto: Optional[int] = Field(None, ge=0, description="Desconto da venda")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
     observacao_interna: Optional[str] = Field(None, max_length=500, description="Observação interna (não impressa no comprovante)")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar desconto acima do limite")
 
 # Schemas para leitura de venda, produtos e pagamentos relacionados a uma venda
 
@@ -167,6 +169,10 @@ class FinalizarVendaPayload(BaseModel):
 
 class CancelarVendaPayload(BaseModel):
     motivo: str = Field(..., min_length=10, max_length=500, description="Motivo do cancelamento da venda (mínimo 10 caracteres)")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar cancelamento")
+
+class ReabrirVendaPayload(BaseModel):
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar reabertura")
 
 class VendaSearchFilters(BaseModel):
     search: Optional[str] = Field(None, max_length=255, description="Termo de busca para filtrar vendas por número da venda, nome do cliente ou nome do funcionário")

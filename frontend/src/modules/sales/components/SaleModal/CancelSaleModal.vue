@@ -6,6 +6,9 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import { useCancelSaleMutation } from '../../composables/mutates/useCancelSaleMutation';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
+import { useToast } from '@/shared/composables/useToast';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 import type { SaleRead } from '../../schemas/sale.schema';
 
 const MIN_MOTIVO = 10;
@@ -23,6 +26,8 @@ const emit = defineEmits<{
 const motivo = ref('');
 const touched = ref(false);
 const cancelMutation = useCancelSaleMutation();
+const gerente = useGerenteAprovacao();
+const toast = useToast();
 
 const motivoTrimmed = computed(() => motivo.value.trim());
 const isValid = computed(() => motivoTrimmed.value.length >= MIN_MOTIVO);
@@ -32,20 +37,35 @@ const errorMessage = computed(() => {
   return `Mínimo de ${MIN_MOTIVO} caracteres (${motivoTrimmed.value.length}/${MIN_MOTIVO}).`;
 });
 
+async function executarCancelamento(codigoGerente?: string) {
+  if (!props.sale) return;
+  try {
+    gerente.isLoading.value = true;
+    await cancelMutation.mutateAsync(
+      { saleId: props.sale.id, motivo: motivoTrimmed.value, codigoGerente },
+    );
+    motivo.value = '';
+    touched.value = false;
+    emit('success');
+  } catch (error: any) {
+    const detail = error?.response?.data?.detail;
+    if (detail === 'REQUER_APROVACAO_GERENTE') {
+      const pin = await gerente.pedirPin();
+      if (pin) await executarCancelamento(pin);
+    } else if (detail === 'PIN_GERENTE_INVALIDO') {
+      toast.error('PIN do gerente inválido');
+      const pin = await gerente.pedirPin();
+      if (pin) await executarCancelamento(pin);
+    }
+  } finally {
+    gerente.isLoading.value = false;
+  }
+}
+
 function handleConfirm() {
   touched.value = true;
-  if (!props.sale || !isValid.value) return;
-
-  cancelMutation.mutate(
-    { saleId: props.sale.id, motivo: motivoTrimmed.value },
-    {
-      onSuccess: () => {
-        motivo.value = '';
-        touched.value = false;
-        emit('success');
-      },
-    },
-  );
+  if (!isValid.value) return;
+  executarCancelamento();
 }
 
 function handleClose() {
@@ -123,4 +143,11 @@ function handleClose() {
       </div>
     </template>
   </BaseModal>
+
+  <GerenteAprovacaoModal
+    :is-open="gerente.isOpen.value"
+    :is-loading="gerente.isLoading.value"
+    @confirmar="gerente.confirmar"
+    @cancelar="gerente.cancelar"
+  />
 </template>

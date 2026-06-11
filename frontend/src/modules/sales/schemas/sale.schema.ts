@@ -34,6 +34,7 @@ export const SaleUpdateSchema = SaleCreateSchema.extend({
     .transform((val) => val * 100),
   observacao: z.string().max(500).nullable().optional(),
   observacao_interna: z.string().max(500).nullable().optional(),
+  codigo_gerente: z.string().nullable().optional(),
 }).partial();
 
 export type SaleUpdate = z.infer<typeof SaleUpdateSchema>;

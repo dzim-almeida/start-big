@@ -1,26 +1,29 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS, getConfiguracoesVendas } from '@/modules/configuracoes/services/configuracoes.service'
-import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead, ConfiguracaoVendasRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS, getConfiguracoesVendas, getConfiguracoesSeguranca } from '@/modules/configuracoes/services/configuracoes.service'
+import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead, ConfiguracaoVendasRead, ConfiguracaoSegurancaRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const configClientes = ref<ConfiguracaoClientesRead | null>(null)
   const configProdutos = ref<ConfiguracaoProdutosRead | null>(null)
   const configOS = ref<ConfiguracaoOSRead | null>(null)
   const configVendas = ref<ConfiguracaoVendasRead | null>(null)
+  const configSeguranca = ref<ConfiguracaoSegurancaRead | null>(null)
 
   async function carregarConfiguracoes() {
     try {
-      const [clientes, produtos, os, vendas] = await Promise.all([
+      const [clientes, produtos, os, vendas, seguranca] = await Promise.all([
         getConfiguracoesClientes(),
         getConfiguracoesProdutos(),
         getConfiguracoesOS(),
         getConfiguracoesVendas(),
+        getConfiguracoesSeguranca(),
       ])
       configClientes.value = clientes
       configProdutos.value = produtos
       configOS.value = os
       configVendas.value = vendas
+      configSeguranca.value = seguranca
     } catch {
       // silencioso — usa os defaults dos computed abaixo
     }
@@ -72,13 +75,26 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
   const descontoMaximoPercent = computed(() => configVendas.value?.desconto_maximo_percent ?? 30)
   const exigirClienteIdentificado = computed(() => configVendas.value?.exigir_cliente_identificado ?? false)
-  const acaoAoFinalizar = computed(() => configVendas.value?.acao_ao_finalizar ?? 'perguntar')
+  const valorMinimoVenda = computed(() => configVendas.value?.valor_minimo_venda ?? 0)
+  const permitirParcelamento = computed(() => configVendas.value?.permitir_parcelamento ?? true)
+  const parcelasMaximas = computed(() => configVendas.value?.parcelas_maximas ?? 12)
+
+  // ── Segurança: PINs ──
+  const requerPinDescontoVenda = computed(() => configSeguranca.value?.requer_pin_desconto_venda ?? false)
+  const requerPinAlterarPreco = computed(() => configSeguranca.value?.requer_pin_alterar_preco_venda ?? false)
+  const requerPinCancelarVenda = computed(() => configSeguranca.value?.requer_pin_cancelar_venda ?? false)
+  const requerPinReabrirVenda = computed(() => configSeguranca.value?.requer_pin_reabrir_venda ?? false)
+  const requerPinCancelarOS = computed(() => configSeguranca.value?.requer_pin_cancelar_os ?? false)
+  const requerPinReabrirOS = computed(() => configSeguranca.value?.requer_pin_reabrir_os ?? false)
+  const requerPinAcessarConfigSensivel = computed(() => configSeguranca.value?.requer_pin_acessar_config_sensivel ?? false)
+  const temPinConfigurado = computed(() => configSeguranca.value?.tem_pin_configurado ?? false)
 
   return {
     configClientes,
     configProdutos,
     configOS,
     configVendas,
+    configSeguranca,
     carregarConfiguracoes,
 
     exigirCpfPf,
@@ -118,6 +134,17 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     permitirDesconto,
     descontoMaximoPercent,
     exigirClienteIdentificado,
-    acaoAoFinalizar,
+    valorMinimoVenda,
+    permitirParcelamento,
+    parcelasMaximas,
+
+    requerPinDescontoVenda,
+    requerPinAlterarPreco,
+    requerPinCancelarVenda,
+    requerPinReabrirVenda,
+    requerPinCancelarOS,
+    requerPinReabrirOS,
+    requerPinAcessarConfigSensivel,
+    temPinConfigurado,
   }
 })

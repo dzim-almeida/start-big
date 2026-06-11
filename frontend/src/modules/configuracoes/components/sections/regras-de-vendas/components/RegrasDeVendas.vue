@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
-import { ChevronDown } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
-import { ACAO_FINALIZAR_OPTIONS } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 const configStore = useConfiguracoesStore()
 const {
   permitirDesconto,
   descontoMaximoPercent,
-  permitirVendaEstoqueZerado,
   exigirClienteIdentificado,
-  acaoAoFinalizar,
+  valorMinimoVenda,
+  permitirParcelamento,
+  parcelasMaximas,
+  permitirVendaEstoqueZerado,
 } = storeToRefs(configStore)
 
 const form = reactive({
@@ -19,7 +19,9 @@ const form = reactive({
     permitir_desconto: permitirDesconto.value,
     desconto_maximo_percent: descontoMaximoPercent.value,
     exigir_cliente_identificado: exigirClienteIdentificado.value,
-    acao_ao_finalizar: acaoAoFinalizar.value,
+    valor_minimo_venda_reais: (valorMinimoVenda.value / 100) as number,
+    permitir_parcelamento: permitirParcelamento.value,
+    parcelas_maximas: parcelasMaximas.value,
   },
   estoque: {
     permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
@@ -30,14 +32,32 @@ watch(() => configStore.configVendas, () => {
   form.vendas.permitir_desconto = permitirDesconto.value
   form.vendas.desconto_maximo_percent = descontoMaximoPercent.value
   form.vendas.exigir_cliente_identificado = exigirClienteIdentificado.value
-  form.vendas.acao_ao_finalizar = acaoAoFinalizar.value
+  form.vendas.valor_minimo_venda_reais = valorMinimoVenda.value / 100
+  form.vendas.permitir_parcelamento = permitirParcelamento.value
+  form.vendas.parcelas_maximas = parcelasMaximas.value
 })
 
 watch(() => configStore.configProdutos, () => {
   form.estoque.permitir_venda_estoque_zerado = permitirVendaEstoqueZerado.value
 })
 
-defineExpose({ form })
+defineExpose({
+  get form() {
+    return {
+      vendas: {
+        permitir_desconto: form.vendas.permitir_desconto,
+        desconto_maximo_percent: form.vendas.desconto_maximo_percent,
+        exigir_cliente_identificado: form.vendas.exigir_cliente_identificado,
+        valor_minimo_venda: Math.round(form.vendas.valor_minimo_venda_reais * 100),
+        permitir_parcelamento: form.vendas.permitir_parcelamento,
+        parcelas_maximas: form.vendas.parcelas_maximas,
+      },
+      estoque: {
+        permitir_venda_estoque_zerado: form.estoque.permitir_venda_estoque_zerado,
+      },
+    }
+  },
+})
 </script>
 
 <template>
@@ -66,7 +86,7 @@ defineExpose({ form })
       </div>
 
       <div class="py-3 border-b border-zinc-100">
-        <label class="text-xs font-medium text-zinc-600">Desconto máximo permitido (%)</label>
+        <label class="text-xs font-medium text-zinc-600">Desconto máximo permitido (%) — 0 = bloqueia todo desconto</label>
         <input
           v-model.number="form.vendas.desconto_maximo_percent"
           type="number"
@@ -109,25 +129,48 @@ defineExpose({ form })
           <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.exigir_cliente_identificado ? 'translate-x-5' : 'translate-x-0.5']" />
         </button>
       </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Valor mínimo de venda — 0 = sem mínimo</label>
+        <input
+          v-model.number="form.vendas.valor_minimo_venda_reais"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0,00"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+        />
+      </div>
     </div>
 
-    <!-- Comportamento -->
-    <div class="flex flex-col gap-3">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Comportamento</p>
+    <!-- Pagamentos -->
+    <div class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Pagamentos</p>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-zinc-600">Ação ao finalizar venda</label>
-        <div class="relative">
-          <select
-            v-model="form.vendas.acao_ao_finalizar"
-            class="w-full appearance-none border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-          >
-            <option v-for="opt in ACAO_FINALIZAR_OPTIONS" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-          <ChevronDown :size="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+        <div>
+          <p class="text-sm font-medium text-zinc-800">Permitir parcelamento</p>
+          <p class="text-xs text-zinc-500 mt-0.5">Habilita pagamentos parcelados nas vendas</p>
         </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.vendas.permitir_parcelamento ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.vendas.permitir_parcelamento = !form.vendas.permitir_parcelamento"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.permitir_parcelamento ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Máximo de parcelas (1–48)</label>
+        <input
+          v-model.number="form.vendas.parcelas_maximas"
+          type="number"
+          min="1"
+          max="48"
+          :disabled="!form.vendas.permitir_parcelamento"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        />
       </div>
     </div>
   </div>

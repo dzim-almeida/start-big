@@ -13,6 +13,7 @@ import ItemModal from './SaleModal/ItemModal.vue';
 import FinishSaleModal from './SaleModal/FinishSaleModal.vue';
 import AddProductModal from './SaleModal/AddProductModal.vue';
 import CancelSaleModal from './SaleModal/CancelSaleModal.vue';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 
 import { SALE_FILTERS, STATUS_COLORS } from '../constants';
 
@@ -28,6 +29,8 @@ import { useSalePrintFlow } from '../composables/flows/useSalePrintFlow';
 import { useSaleDetailsForm } from '../composables/flows/useSaleDetailsForm';
 import { useAddProductModal } from '../composables/flows/useAddProductModal';
 import type { SaleRead } from '../schemas/sale.schema';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
@@ -35,7 +38,12 @@ import SalePrintCupom from './print/SalePrintCupom.vue';
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const addProductModal = useAddProductModal();
-const { form: saleForm, isSaving: isSaleFormSaving, saveNow: saveSaleForm } = useSaleDetailsForm(sale);
+const {
+  form: saleForm,
+  isSaving: isSaleFormSaving,
+  saveNow: saveSaleForm,
+  gerenteDesconto,
+} = useSaleDetailsForm(sale);
 const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
@@ -43,6 +51,7 @@ const deleteMutation = useDeleteSaleMutation();
 const updateSaleMutation = useUpdateSaleMutation();
 const cancelSaleModalIsOpen = ref(false);
 const { openCustomerModalForChange } = useCustomerSearchModal();
+const { valorMinimoVenda } = storeToRefs(useConfiguracoesStore());
 
 const {
   saleForPrint,
@@ -252,6 +261,7 @@ const saleDisplay = computed(() => {
           :form="saleForm"
           :is-saving="isSaleFormSaving"
           :readonly="isViewMode"
+          :valor-minimo-venda="valorMinimoVenda"
           :on-save="saveSaleForm"
         />
       </section>
@@ -300,6 +310,12 @@ const saleDisplay = computed(() => {
       @success="cancelSaleModalIsOpen = false; closeSaleModal()"
     />
     <FinishSaleModal :sale="sale" @finalized="handleFinalized" />
+    <GerenteAprovacaoModal
+      :is-open="gerenteDesconto.isOpen.value"
+      :is-loading="gerenteDesconto.isLoading.value"
+      @confirmar="gerenteDesconto.confirmar"
+      @cancelar="gerenteDesconto.cancelar"
+    />
 
     <!-- Print Infrastructure -->
     <PrintFormatSelectModal

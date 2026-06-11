@@ -14,19 +14,28 @@ import {
   Monitor,
   HardDrive,
   Headphones,
+  ShieldCheck,
 } from 'lucide-vue-next'
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue'
 
 import { useConfiguracoesModal } from '../composables/useConfiguracoesModal'
 import { useSalvarConfiguracoesClientesMutation } from '../composables/mutates/useSalvarConfiguracoesClientesMutation'
 import { useSalvarConfiguracoesEstoqueMutation } from '../composables/mutates/useSalvarConfiguracoesEstoqueMutation'
 import { useSalvarConfiguracoesOSMutation } from '../composables/mutates/useSalvarConfiguracoesOSMutation'
 import { useSalvarConfiguracoesVendasMutation } from '../composables/mutates/useSalvarConfiguracoesVendasMutation'
+import { useSalvarConfiguracoesSegurancaMutation } from '../composables/mutates/useSalvarConfiguracoesSegurancaMutation'
 import type { SecaoConfiguracao, SecaoId } from '../types/configuracoes.types'
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao'
+import { verificarPinSeguranca } from '../services/configuracoes.service'
+import { useToast } from '@/shared/composables/useToast'
+import { storeToRefs } from 'pinia'
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
+import Seguranca from './sections/seguranca/components/Seguranca.vue'
 import ProdutosEstoque from './sections/produtos-estoque/components/ProdutosEstoque.vue'
 import OrdensDeServico from './sections/ordens-de-servico/components/OrdensDeServico.vue'
 import ClientesCadastro from './sections/clientes-cadastro/components/ClientesCadastro.vue'
@@ -45,8 +54,47 @@ const { mutate: salvarClientes, isPending: isPendingClientes } = useSalvarConfig
 const { mutate: salvarEstoque, isPending: isPendingEstoque } = useSalvarConfiguracoesEstoqueMutation()
 const { mutate: salvarOS, isPending: isPendingOS } = useSalvarConfiguracoesOSMutation()
 const { mutate: salvarVendas, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
+const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConfiguracoesSegurancaMutation()
 
-const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value)
+const { requerPinAcessarConfigSensivel, temPinConfigurado } = storeToRefs(useConfiguracoesStore())
+const gerenteConfig = useGerenteAprovacao()
+const toast = useToast()
+
+const SECOES_OUTRAS_SENSIVEIS: SecaoId[] = ['regras-de-vendas', 'financeiro-taxas']
+
+function precisaPin(secaoId: SecaoId): boolean {
+  if (secaoId === 'seguranca') return temPinConfigurado.value
+  return requerPinAcessarConfigSensivel.value && SECOES_OUTRAS_SENSIVEIS.includes(secaoId)
+}
+
+async function verificarENavegar(secaoId: SecaoId, pin: string): Promise<void> {
+  try {
+    gerenteConfig.isLoading.value = true
+    await verificarPinSeguranca(pin)
+    irPara(secaoId)
+  } catch (error: any) {
+    const detail = error?.response?.data?.detail
+    if (detail === 'PIN_GERENTE_INVALIDO') {
+      toast.error('PIN do gerente inválido. Tente novamente.')
+      const novoPIN = await gerenteConfig.pedirPin()
+      if (novoPIN) await verificarENavegar(secaoId, novoPIN)
+    }
+  } finally {
+    gerenteConfig.isLoading.value = false
+  }
+}
+
+async function navegarParaSecao(secaoId: SecaoId): Promise<void> {
+  if (!precisaPin(secaoId)) {
+    irPara(secaoId)
+    return
+  }
+  const pin = await gerenteConfig.pedirPin()
+  if (!pin) return
+  await verificarENavegar(secaoId, pin)
+}
+
+const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value)
 
 const activeComponentRef = ref<{ form?: Record<string, unknown> } | null>(null)
 
@@ -54,7 +102,7 @@ watch(() => props.isOpen, (aberto) => {
   if (aberto) irPara(props.secaoInicial ?? 'regras-de-vendas')
 })
 
-const secoesFuncionais: SecaoId[] = ['clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas']
+const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
 function salvar() {
@@ -72,9 +120,13 @@ function salvar() {
     salvarVendas(vendas as any)
     salvarEstoque(estoque as any)
   }
+  if (secaoAtiva.value === 'seguranca' && activeComponentRef.value?.form) {
+    salvarSeguranca(activeComponentRef.value.form as any)
+  }
 }
 
 const secoes: SecaoConfiguracao[] = [
+  { id: 'seguranca',         label: 'Segurança',             icone: ShieldCheck },
   { id: 'regras-de-vendas',  label: 'Regras de Vendas',      icone: Tag },
   { id: 'produtos-estoque',  label: 'Produtos e Estoque',    icone: Package },
   { id: 'ordens-de-servico', label: 'Ordens de Serviço',     icone: ClipboardList },
@@ -88,6 +140,7 @@ const secoes: SecaoConfiguracao[] = [
 ]
 
 const componenteMap: Record<SecaoId, Component> = {
+  'seguranca':         Seguranca,
   'regras-de-vendas':  RegrasDeVendas,
   'produtos-estoque':  ProdutosEstoque,
   'ordens-de-servico': OrdensDeServico,
@@ -104,6 +157,12 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
 </script>
 
 <template>
+  <GerenteAprovacaoModal
+    :is-open="gerenteConfig.isOpen.value"
+    :is-loading="gerenteConfig.isLoading.value"
+    @confirmar="gerenteConfig.confirmar"
+    @cancelar="gerenteConfig.cancelar"
+  />
   <BaseModal :is-open="isOpen" size="xl" title="Configurações Gerais" @close="emit('close')">
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
@@ -146,7 +205,7 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
               ? 'bg-brand-primary/8 text-brand-primary'
               : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-800',
           ]"
-          @click="irPara(secao.id)"
+          @click="navegarParaSecao(secao.id)"
         >
           <component
             :is="secao.icone"

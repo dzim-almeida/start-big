@@ -7,12 +7,15 @@ import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import UnitValueInput from './UnitValueInput.vue';
 import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 
 import { useItemModal } from '../../composables/flows/useItemModal';
 import { useItemSaleForm } from '../../composables/form/useItemSaleForm';
 
 import { formatCurrency } from '@/shared/utils/finance';
 import { computed } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 const props = defineProps<{
   saleId: number | null;
@@ -20,6 +23,13 @@ const props = defineProps<{
 }>();
 
 const { closeItemModal, itemModalIsOpen, isCreateMode, selectedItem } = useItemModal();
+const { requerPinAlterarPreco } = storeToRefs(useConfiguracoesStore());
+
+const canEditPrice = computed(() =>
+  isCreateMode.value ||
+  selectedItem.value?.tipo_produto === 'AVULSO' ||
+  requerPinAlterarPreco.value
+);
 
 const onSucess = () => closeItemModal();
 
@@ -38,7 +48,8 @@ const {
   decreaseQuantity,
   avisoEstoqueOpen,
   confirmarSalvarComEstoqueNegativo,
-} = useItemSaleForm(props.saleId, selectedItem, onSucess, props.isOrcamento);
+  gerentePreco,
+} = useItemSaleForm(props.saleId, selectedItem, onSucess, props.isOrcamento, requerPinAlterarPreco);
 
 const displaySubtotal = computed(() => {
   return formatCurrency(subtotal.value * 100);
@@ -66,6 +77,12 @@ function handleCloseModal() {
     :quantidade-desejada="quantidade"
     @confirmar="confirmarSalvarComEstoqueNegativo"
     @cancelar="avisoEstoqueOpen = false"
+  />
+  <GerenteAprovacaoModal
+    :is-open="gerentePreco.isOpen.value"
+    :is-loading="gerentePreco.isLoading.value"
+    @confirmar="gerentePreco.confirmar"
+    @cancelar="gerentePreco.cancelar"
   />
   <BaseModal :is-open="itemModalIsOpen" title="Produto Avulso" size="lg">
     <template #header>
@@ -124,7 +141,7 @@ function handleCloseModal() {
           <div class="col-span-5">
             <MoneyInput
               v-model="valorUnitario"
-              :disabled="!isCreateMode"
+              :disabled="!canEditPrice"
               :required="isCreateMode ? true : false"
               label="Preço unitário"
               :error="errors.valor_unitario"

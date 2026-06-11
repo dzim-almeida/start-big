@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.db.models.configuracao_produtos import ConfiguracaoProdutos
     from app.db.models.configuracao_os import ConfiguracaoOS
     from app.db.models.configuracao_vendas import ConfiguracaoVendas
+    from app.db.models.configuracao_seguranca import ConfiguracaoSeguranca
 
 class Empresa(Base):
     """
@@ -128,4 +129,13 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações de regras de vendas"
+    )
+
+    # Relacionamento 1:1 com Configurações de Segurança
+    config_seguranca: Mapped[Optional["ConfiguracaoSeguranca"]] = relationship(
+        "ConfiguracaoSeguranca",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações de segurança e aprovações por PIN"
     )

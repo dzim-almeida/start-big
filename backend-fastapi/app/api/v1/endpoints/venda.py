@@ -24,6 +24,7 @@ from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,
     CancelarVendaPayload,
+    ReabrirVendaPayload,
     ProdutoVendaCreate,
     ProdutoVendaUpdate,
     VendaCreate,
@@ -235,6 +236,7 @@ def cancelar_venda(
         venda_service.cancel_sale,
         venda_id,
         payload.motivo,
+        payload.codigo_gerente,
     )
 
 @router.post(
@@ -250,11 +252,13 @@ def reabrir_venda(
     *,
     db: Session = Depends(get_db),
     venda_id: int = Path(..., description="ID da venda"),
+    payload: ReabrirVendaPayload = ReabrirVendaPayload(),
 ):
     return _handle_db_transaction(
         db,
         venda_service.reopen_sale,
-        venda_id
+        venda_id,
+        payload.codigo_gerente,
     )   
 
 

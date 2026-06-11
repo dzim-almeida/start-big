@@ -60,7 +60,7 @@ export const ProductSaleUpdateSchema = ProductSaleBaseSchema
     },
   );
 
-export type ProductSaleUpdate = z.infer<typeof ProductSaleUpdateSchema>;
+export type ProductSaleUpdate = z.infer<typeof ProductSaleUpdateSchema> & { codigo_gerente?: string };
 
 export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   id: z.number(),

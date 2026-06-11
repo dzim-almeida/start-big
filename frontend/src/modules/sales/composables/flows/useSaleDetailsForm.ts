@@ -3,11 +3,13 @@ import { useDebounceFn } from '@vueuse/core';
 
 import { useUpdateSaleMutation } from '../mutates/useUpdateSaleMutation';
 import { useToast } from '@/shared/composables/useToast';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
 export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   const updateSaleMutation = useUpdateSaleMutation();
   const toast = useToast();
+  const gerenteDesconto = useGerenteAprovacao();
 
   const form: SaleUpdate = reactive({
     desconto: 0,
@@ -48,7 +50,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     { immediate: true },
   );
 
-  function saveNow() {
+  async function saveNow(codigoGerente?: string): Promise<void> {
     if (!saleId.value) return;
 
     const currentSale = unref(sale);
@@ -60,20 +62,29 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
       toast.warning('Desconto ajustado para o valor máximo permitido');
     }
 
-    updateSaleMutation.mutate({
-        payload: form,
-        saleId: saleId.value
-    }, {
-        onError: () => {
-            const currentSale = unref(sale);
-            if (currentSale) hydrateForm(currentSale, false);
-        }
-    })
+    const payload: SaleUpdate = { ...form, ...(codigoGerente ? { codigo_gerente: codigoGerente } : {}) };
+
+    try {
+      await updateSaleMutation.mutateAsync({ payload, saleId: saleId.value });
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      if (detail === 'REQUER_APROVACAO_GERENTE') {
+        const pin = await gerenteDesconto.pedirPin();
+        if (pin) await saveNow(pin);
+      } else if (detail === 'PIN_GERENTE_INVALIDO') {
+        toast.error('PIN inválido. Tente novamente.');
+        const pin = await gerenteDesconto.pedirPin();
+        if (pin) await saveNow(pin);
+      } else {
+        const sale_ = unref(sale);
+        if (sale_) hydrateForm(sale_, false);
+      }
+    }
   }
 
   const debouncedSave = useDebounceFn(() => {
     if (isHydrating) return;
-    saveNow();
+    void saveNow();
   }, 700);
 
   watch(
@@ -87,6 +98,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   return {
     form,
     isSaving: updateSaleMutation.isPending,
-    saveNow,
+    saveNow: (codigoGerente?: string) => void saveNow(codigoGerente),
+    gerenteDesconto,
   }
 }

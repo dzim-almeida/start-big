@@ -10,6 +10,9 @@ import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
 import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
 import { useCreateItemOSMutation } from '../composables/request/useOrderServiceCreate.mutate';
 import { useReopenOrderServiceMutation } from '../composables/request/useOrderServiceUpdate.mutate';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
+import { useToast } from '@/shared/composables/useToast';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 import { useOrderServiceDeleteItem } from '../composables/request/useOrderServiceDelete.mutate';
 import { useOSStatusLocks } from '../composables/modal/useOSStatusLocks';
 import { useOSFinancialSummary } from '../composables/modal/useOSFinancialSummary';
@@ -96,6 +99,27 @@ const { funcionariosOptions, statusOptions, prioridadeOptions } = useOSSelectOpt
   currentStatus: computed(() => currentOSData.value?.status),
 });
 const reopenMutation = useReopenOrderServiceMutation();
+const gerenteReopen = useGerenteAprovacao();
+const toast = useToast();
+
+async function executarReopenOS(numeroOS: string, codigoGerente?: string): Promise<void> {
+  try {
+    await reopenMutation.mutateAsync({ osNumber: numeroOS, codigoGerente });
+    await refreshCurrentOSData();
+    capturarCreditoAnterior();
+  } catch (error: any) {
+    const detail = error?.response?.data?.detail;
+    if (detail === 'REQUER_APROVACAO_GERENTE') {
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopenOS(numeroOS, pin);
+    } else if (detail === 'PIN_GERENTE_INVALIDO') {
+      toast.error('PIN do gerente inválido');
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopenOS(numeroOS, pin);
+    }
+  }
+}
+
 const {
   isReopenOptionsOpen,
   reopenMode,
@@ -106,12 +130,7 @@ const {
   resetReopenState,
 } = useOSReopenState({
   osNumber,
-  onReopenRequest: (numeroOS) => reopenMutation.mutate(numeroOS, {
-    onSuccess: async () => {
-      await refreshCurrentOSData();
-      capturarCreditoAnterior();
-    },
-  }),
+  onReopenRequest: (numeroOS) => void executarReopenOS(numeroOS),
   onFullReopen: () => {},
 });
 const { isStructureLocked, isDiagnosticoLocked, isItemsLocked } = useOSStatusLocks({ isFinalizada, isCancelada, reopenMode });
@@ -410,4 +429,10 @@ useOSFormViewProvider({
 <template>
   <OSFormModalShell />
   <OSFormAuxModals />
+  <GerenteAprovacaoModal
+    :is-open="gerenteReopen.isOpen.value"
+    :is-loading="gerenteReopen.isLoading.value"
+    @confirmar="gerenteReopen.confirmar"
+    @cancelar="gerenteReopen.cancelar"
+  />
 </template>

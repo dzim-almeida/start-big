@@ -10,7 +10,9 @@ class ConfiguracaoVendasRead(BaseModel):
     permitir_desconto: bool
     desconto_maximo_percent: int
     exigir_cliente_identificado: bool
-    acao_ao_finalizar: str
+    valor_minimo_venda: int
+    permitir_parcelamento: bool
+    parcelas_maximas: int
 
     data_atualizacao: datetime
 
@@ -21,4 +23,6 @@ class ConfiguracaoVendasUpdate(BaseModel):
     permitir_desconto: Optional[bool] = None
     desconto_maximo_percent: Optional[int] = Field(None, ge=0, le=100)
     exigir_cliente_identificado: Optional[bool] = None
-    acao_ao_finalizar: Optional[str] = None
+    valor_minimo_venda: Optional[int] = Field(None, ge=0)
+    permitir_parcelamento: Optional[bool] = None
+    parcelas_maximas: Optional[int] = Field(None, ge=1, le=48)
