@@ -14,6 +14,7 @@ from app.services import produto as produto_service
 from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
 from app.db.crud import configuracao_produtos as config_produtos_crud
+from app.db.crud import configuracao_vendas as config_vendas_crud
 
 from app.core.enum import VendaStatus, TipoProdutoVenda
 
@@ -95,6 +96,14 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
     if update_data.desconto is not None:
         if update_data.desconto > sale_in_db.subtotal:
             raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
+        empresa_id = sale_in_db.funcionario.empresa_id
+        config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+        if config_vendas and config_vendas.permitir_desconto and sale_in_db.subtotal > 0 and update_data.desconto > 0:
+            percentual = (update_data.desconto * 100) // sale_in_db.subtotal
+            if percentual > config_vendas.desconto_maximo_percent:
+                raise BadRequestException(
+                    detail=f"Desconto máximo permitido é de {config_vendas.desconto_maximo_percent}%"
+                )
         sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto)
 
     if update_data.observacao is not None:
@@ -222,6 +231,11 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
     if sale_in_db.status != VendaStatus.ATIVA:
         raise BadRequestException(detail="Esta venda não pode ser finalizada")
 
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+    if config_vendas and config_vendas.exigir_cliente_identificado and not sale_in_db.cliente_id:
+        raise BadRequestException(detail="Esta venda exige um cliente identificado para ser finalizada")
+
     valid_payments_to_db = _payments_valid(db, payments)
 
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
@@ -229,6 +243,15 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
 
     if total_payments < total_sale:
         raise BadRequestException(detail="Os pagamentos não conferem ao total da venda")
+
+    # Zera desconto se exceder o limite configurado no momento da finalização
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+    if config_vendas and config_vendas.permitir_desconto and sale_in_db.total_bruto > 0 and sale_in_db.descontos > 0:
+        percentual = (sale_in_db.descontos * 100) // sale_in_db.total_bruto
+        if percentual > config_vendas.desconto_maximo_percent:
+            sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=0)
+            sale_in_db = _recalc_total_sale(db, sale_in_db)
 
     # Atribui número sequencial oficial
     contador = db.query(ContadorVenda).filter(ContadorVenda.id == 1).with_for_update().first()

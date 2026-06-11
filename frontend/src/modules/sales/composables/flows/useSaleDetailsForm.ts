@@ -19,14 +19,18 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   const saleId = computed(() => unref(sale)?.id);
 
   let isHydrating = false;
+  let lastHydratedId: number | null = null;
 
-  function hydrateForm(currentSale: SaleRead) {
+  function hydrateForm(currentSale: SaleRead, forceTextFields = false) {
     isHydrating = true;
 
     form.desconto = currentSale.descontos ? currentSale.descontos / 100 : 0;
     form.entrega = currentSale.entrega ? currentSale.entrega / 100 : 0;
-    form.observacao = currentSale.observacao ?? '';
-    form.observacao_interna = currentSale.observacao_interna ?? '';
+
+    if (forceTextFields) {
+      form.observacao = currentSale.observacao ?? '';
+      form.observacao_interna = currentSale.observacao_interna ?? '';
+    }
 
     queueMicrotask(() => {
       isHydrating = false;
@@ -37,7 +41,9 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     () => unref(sale),
     (currentSale) => {
       if (!currentSale) return;
-      hydrateForm(currentSale);
+      const isNewSale = currentSale.id !== lastHydratedId;
+      hydrateForm(currentSale, isNewSale);
+      lastHydratedId = currentSale.id;
     },
     { immediate: true },
   );
@@ -57,6 +63,11 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     updateSaleMutation.mutate({
         payload: form,
         saleId: saleId.value
+    }, {
+        onError: () => {
+            const currentSale = unref(sale);
+            if (currentSale) hydrateForm(currentSale, false);
+        }
     })
   }
 

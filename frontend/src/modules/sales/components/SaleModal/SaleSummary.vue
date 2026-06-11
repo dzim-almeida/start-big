@@ -13,6 +13,7 @@ const props = defineProps<{
   form?: SaleUpdate;
   isSaving?: boolean;
   readonly?: boolean;
+  descontoDesabilitado?: boolean;
   onSave?: () => void;
 }>();
 
@@ -38,7 +39,7 @@ const hasDelivery = computed(() => {
       <ListPlus :size="15" class="text-brand-action shrink-0" />
       <div class="min-w-0">
         <p class="text-[10px] font-semibold text-zinc-500 uppercase">Subtotal</p>
-        <div class="h-[38px] flex items-center">
+        <div class="h-9.5 flex items-center">
           <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
         </div>
       </div>
@@ -67,14 +68,14 @@ const hasDelivery = computed(() => {
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.desconto"
-          :disabled="isSaving"
+          :disabled="isSaving || descontoDesabilitado"
           :variant="hasDiscount ? 'success' : 'default'"
           class="w-full max-w-28 bg-white/80"
           data-sale-desconto
           @blur="onSave"
           @enter="onSave"
         />
-        <div v-else class="h-[38px] flex items-center">
+        <div v-else class="h-9.5 flex items-center">
           <span
             :class="[
               'font-bold text-base transition-colors duration-300',
@@ -117,7 +118,7 @@ const hasDelivery = computed(() => {
           @blur="onSave"
           @enter="onSave"
         />
-        <div v-else class="h-[38px] flex items-center">
+        <div v-else class="h-9.5 flex items-center">
           <span
             :class="[
               'font-bold text-base transition-colors duration-300',

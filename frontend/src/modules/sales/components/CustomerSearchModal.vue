@@ -6,12 +6,14 @@ import {
   Plus,
   UserRoundX
  } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 import { getInitials } from '@/shared/utils/string.utils';
 
@@ -25,6 +27,8 @@ const {
   openCreateCustomerModal,
   selectCustomer,
 } = useCustomerSearchModal();
+
+const { exigirClienteIdentificado } = storeToRefs(useConfiguracoesStore());
 
 const isChangeMode = computed(() => modalMode.value === 'change');
 const isConverterMode = computed(() => modalMode.value === 'converter');
@@ -119,7 +123,7 @@ const modalSubtitle = computed(() => {
           <Plus :size="16" class="mr-1.5" />
           Cadastrar novo cliente
         </BaseButton>
-        <BaseButton v-if="!isConverterMode" variant="secondary" class="w-full" @click="selectCustomer(null)">
+        <BaseButton v-if="!isConverterMode && !exigirClienteIdentificado" variant="secondary" class="w-full" @click="selectCustomer(null)">
           <UserRoundX :size="16" class="mr-1.5" />
           {{ isChangeMode ? 'Remover cliente' : 'Venda sem cliente' }}
         </BaseButton>

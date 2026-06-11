@@ -20,7 +20,7 @@ class ConfiguracaoVendas(Base):
     )
 
     permitir_desconto: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    desconto_maximo_percent: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    desconto_maximo_percent: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     exigir_cliente_identificado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     acao_ao_finalizar: Mapped[str] = mapped_column(String(20), default="perguntar", nullable=False)
 
