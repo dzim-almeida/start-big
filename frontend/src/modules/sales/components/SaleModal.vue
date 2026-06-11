@@ -169,7 +169,7 @@ const saleDisplay = computed(() => {
             <ShoppingCart :size="18" class="text-white" />
           </div>
           <h2 class="text-xl font-bold text-zinc-800">
-            {{ saleDisplay }}
+            Atendimento Atual
           </h2>
           <span
             :class="[

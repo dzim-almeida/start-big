@@ -74,7 +74,7 @@ const emit = defineEmits<{
                 class="w-10 h-10 bg-zinc-100 rounded-xl flex flex-col items-center justify-center text-zinc-400"
               >
                 <span class="text-[7px] opacity-70 font-medium leading-none">RASCUNHO</span>
-                <span class="text-[10px] font-bold leading-none mt-0.5">{{ String(sale.id).padStart(6, '0') }}</span>
+                <span class="text-[10px] font-bold leading-none mt-0.5">---</span>
               </div>
             </td>
 

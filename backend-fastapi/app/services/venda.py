@@ -18,7 +18,7 @@ from app.db.crud import configuracao_produtos as config_produtos_crud
 from app.core.enum import VendaStatus, TipoProdutoVenda
 
 from app.helpers.set_pagination import _set_pagination
-from app.helpers.exceptions import BadRequestException, NotFoundException
+from app.helpers.exceptions import BadRequestException, InternalServerException, NotFoundException
 
 def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
 
@@ -232,9 +232,10 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
 
     # Atribui número sequencial oficial
     contador = db.query(ContadorVenda).filter(ContadorVenda.id == 1).with_for_update().first()
-    if contador:
-        sale_in_db.numero_venda = contador.proximo_numero
-        contador.proximo_numero += 1
+    if not contador:
+        raise InternalServerException(detail="Contador de vendas não inicializado. Contate o suporte.")
+    sale_in_db.numero_venda = contador.proximo_numero
+    contador.proximo_numero += 1
 
     products_in_db = sale_in_db.itens
 
