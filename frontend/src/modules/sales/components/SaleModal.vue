@@ -59,6 +59,7 @@ const {
   printFormat,
   isPrintSelectModalOpen,
   printSaleData,
+  imprimirAposFinalizar,
   handlePrintFormatSelected,
   closePrintSelectModal,
   resolvePaymentMethodName,
@@ -74,7 +75,7 @@ watch(saleModalIsOpen, (isOpen) => {
 }, { immediate: true });
 
 function handleFinalized(finishedSale: SaleRead) {
-  printSaleData(finishedSale, 'VENDA', () => closeSaleModal());
+  imprimirAposFinalizar(finishedSale, () => closeSaleModal());
 }
 
 function handleChangeCliente() {

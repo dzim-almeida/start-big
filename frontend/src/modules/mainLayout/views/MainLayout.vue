@@ -20,6 +20,8 @@ import OSCreditoAlertModal from '@/modules/order-service/ordens/components/OSCre
 import { useLayoutStore } from '../store/layout.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useImpressaoStore } from '@/shared/stores/impressao.store';
+import { sincronizarServidorImpressao } from '@/shared/services/impressao.service';
 import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
 import { useQuery } from '@tanstack/vue-query';
 import { getOsAbandono, getOsAtrasadas } from '@/modules/order-service/ordens/services/orderServiceGet.service';
@@ -35,6 +37,7 @@ import { useServicoModal } from '@/modules/order-service/servicos/composables/us
 const layoutStore = useLayoutStore();
 const settingsStore = useSettingsStore();
 const configuracoesStore = useConfiguracoesStore();
+const impressaoStore = useImpressaoStore();
 const notificacoesStore = useNotificacoesStore();
 const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
@@ -68,6 +71,11 @@ watch(comunicadosData, (lista) => {
 onMounted(() => {
   settingsStore.init();
   configuracoesStore.carregarConfiguracoes();
+  impressaoStore.carregar();
+  // Religa o servidor de impressão na LAN se este PC compartilha a térmica
+  sincronizarServidorImpressao(impressaoStore.config).catch((e) => {
+    console.error('[Impressão] Falha ao iniciar servidor de impressão:', e);
+  });
 });
 
 const { openCustomerModal } = useCustomerSearchModal();

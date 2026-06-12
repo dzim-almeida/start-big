@@ -32,9 +32,11 @@ import type { SecaoConfiguracao, SecaoExposta, SecaoId } from '../types/configur
 import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao'
 import { useConfirmacao } from '@/shared/composables/useConfirmacao'
 import { verificarPinSeguranca } from '../services/configuracoes.service'
+import { sincronizarServidorImpressao } from '@/shared/services/impressao.service'
 import { useToast } from '@/shared/composables/useToast'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
+import { useImpressaoStore } from '@/shared/stores/impressao.store'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
 import Seguranca from './sections/seguranca/components/Seguranca.vue'
@@ -59,6 +61,7 @@ const { mutateAsync: salvarVendasAsync, isPending: isPendingVendas } = useSalvar
 const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConfiguracoesSegurancaMutation()
 
 const configuracoesStore = useConfiguracoesStore()
+const impressaoStore = useImpressaoStore()
 const { secoesProtegidas, temPinConfigurado } = storeToRefs(configuracoesStore)
 const gerenteConfig = useGerenteAprovacao()
 const confirmacao = useConfirmacao()
@@ -132,7 +135,7 @@ watch(() => props.isOpen, (aberto) => {
   }
 })
 
-const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas']
+const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
 const SECOES_CONFIRMAR_SALVAR: SecaoId[] = ['seguranca', 'regras-de-vendas']
@@ -165,6 +168,17 @@ async function salvar(): Promise<void> {
       break
     case 'seguranca':
       salvarSeguranca(comp.form as any, fecharAposSalvar)
+      break
+    case 'impressao':
+      // Config local deste PC (localStorage) — sem chamada ao backend
+      impressaoStore.salvar(comp.form as any)
+      try {
+        await sincronizarServidorImpressao(impressaoStore.config)
+      } catch (error: any) {
+        toast.warning('Configuração salva, mas o compartilhamento falhou', String(error))
+      }
+      toast.success('Configurações de impressão salvas!')
+      emit('close')
       break
     case 'regras-de-vendas': {
       const { vendas, estoque } = comp.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }

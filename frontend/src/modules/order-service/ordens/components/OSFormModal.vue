@@ -74,6 +74,7 @@ const {
   closePrintSelectModal,
 } = useOSPrintFlow({
   onClose: handleClose,
+  getOS: () => currentOSData.value,
 });
 
 const form = useOSFormProvider({
