@@ -100,9 +100,14 @@ async function testarGaveta() {
 }
 
 const OPCOES_AUTO = [
-  { value: 'automatico', label: 'Imprimir cupom automaticamente' },
+  { value: 'automatico', label: 'Imprimir automaticamente' },
   { value: 'perguntar', label: 'Perguntar o formato' },
   { value: 'nao', label: 'Não imprimir' },
+] as const
+
+const OPCOES_FORMATO = [
+  { value: 'cupom', label: 'Cupom térmico (bobina)' },
+  { value: 'a4', label: 'Folha A4 (recibo)' },
 ] as const
 
 // ── Compartilhamento da impressora na LAN ──
@@ -320,7 +325,7 @@ function usarServidor(servidor: ServidorDescoberto) {
       <div class="flex items-center justify-between py-3 border-b border-zinc-100">
         <div>
           <p class="text-sm font-medium text-zinc-800">Permitir que outros caixas usem esta impressora</p>
-          <p class="text-xs text-zinc-500 mt-0.5">O BigPDV deste PC vira um servidor de impressão — sem compartilhamento do Windows</p>
+          <p class="text-xs text-zinc-500 mt-0.5">O StartBig deste PC vira um servidor de impressão — sem compartilhamento do Windows</p>
         </div>
         <button
           type="button"
@@ -375,32 +380,62 @@ function usarServidor(servidor: ServidorDescoberto) {
       </template>
     </div>
 
-    <!-- Comportamento -->
+    <!-- Documentos -->
     <div class="flex flex-col">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Impressão Automática</p>
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Documentos</p>
 
       <div class="py-2 border-b border-zinc-100">
-        <label class="text-xs font-medium text-zinc-600">Ao finalizar uma venda</label>
-        <select
-          v-model="form.auto_imprimir_venda"
-          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-        >
-          <option v-for="op in OPCOES_AUTO" :key="op.value" :value="op.value">{{ op.label }}</option>
-        </select>
+        <p class="text-sm font-medium text-zinc-800 mb-1.5">Vendas</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="text-xs font-medium text-zinc-600">Documento padrão</label>
+            <select
+              v-model="form.formato_venda"
+              class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            >
+              <option v-for="op in OPCOES_FORMATO" :key="op.value" :value="op.value">{{ op.label }}</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="text-xs font-medium text-zinc-600">Ao finalizar a venda</label>
+            <select
+              v-model="form.auto_imprimir_venda"
+              class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            >
+              <option v-for="op in OPCOES_AUTO" :key="op.value" :value="op.value">{{ op.label }}</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div class="py-2 border-b border-zinc-100">
-        <label class="text-xs font-medium text-zinc-600">Ao criar ou finalizar uma OS</label>
-        <select
-          v-model="form.auto_imprimir_os"
-          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-        >
-          <option v-for="op in OPCOES_AUTO" :key="op.value" :value="op.value">{{ op.label }}</option>
-        </select>
+        <p class="text-sm font-medium text-zinc-800 mb-1.5">Ordens de Serviço</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="text-xs font-medium text-zinc-600">Documento padrão</label>
+            <select
+              v-model="form.formato_os"
+              class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            >
+              <option v-for="op in OPCOES_FORMATO" :key="op.value" :value="op.value">{{ op.label }}</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="text-xs font-medium text-zinc-600">Ao criar ou finalizar a OS</label>
+            <select
+              v-model="form.auto_imprimir_os"
+              class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            >
+              <option v-for="op in OPCOES_AUTO" :key="op.value" :value="op.value">{{ op.label }}</option>
+            </select>
+          </div>
+        </div>
       </div>
+
       <p class="text-[11px] text-zinc-400 mt-1.5">
-        "Automaticamente" exige impressora térmica configurada; sem ela, o sistema pergunta o formato.
-        Orçamentos e reimpressões sempre perguntam.
+        Cupom térmico imprime direto, sem janelas (exige impressora configurada acima; sem ela, o sistema pergunta).
+        Folha A4 abre o diálogo de impressão do Windows com o documento pronto.
+        Orçamentos e reimpressões sempre perguntam o formato.
       </p>
     </div>
 

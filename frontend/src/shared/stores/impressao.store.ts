@@ -10,6 +10,7 @@ import type { Bobina } from '@/shared/services/escpos'
 
 export type TipoConexaoImpressora = 'windows' | 'rede'
 export type ModoAutoImpressao = 'automatico' | 'perguntar' | 'nao'
+export type FormatoDocumento = 'cupom' | 'a4'
 
 export interface ConfigImpressao {
   tipo_conexao: TipoConexaoImpressora
@@ -19,6 +20,9 @@ export interface ConfigImpressao {
   bobina: Bobina
   auto_imprimir_venda: ModoAutoImpressao
   auto_imprimir_os: ModoAutoImpressao
+  // Documento padrão de cada operação (cupom térmico ou recibo em folha A4)
+  formato_venda: FormatoDocumento
+  formato_os: FormatoDocumento
   gaveta_ativa: boolean
   abrir_gaveta_na_venda: boolean
   // Servidor de impressão na LAN: este PC compartilha sua térmica com os outros caixas
@@ -37,6 +41,8 @@ const CONFIG_PADRAO: ConfigImpressao = {
   bobina: '80',
   auto_imprimir_venda: 'automatico',
   auto_imprimir_os: 'automatico',
+  formato_venda: 'cupom',
+  formato_os: 'cupom',
   gaveta_ativa: false,
   abrir_gaveta_na_venda: true,
   compartilhar_impressora: false,

@@ -16,6 +16,7 @@ export function useSalePrintFlow() {
     printFormat,
     isPrintSelectModalOpen,
     openPrintSelect,
+    printDirect,
     handlePrintFormatSelected,
     closePrintSelectModal,
   } = usePrintFlow<SalePrintType>();
@@ -57,8 +58,10 @@ export function useSalePrintFlow() {
 
   /**
    * Impressão pós-finalização da venda conforme a configuração local:
-   * automático → ESC/POS direto na térmica; perguntar → modal de formato;
-   * não imprimir → só executa o callback. Falha no ESC/POS cai no modal.
+   * automático + cupom → ESC/POS silencioso na térmica;
+   * automático + A4 → abre o diálogo do Windows direto com o recibo pronto;
+   * perguntar → modal de formato; não imprimir → só executa o callback.
+   * Falha no ESC/POS cai no modal de formato.
    */
   async function imprimirAposFinalizar(sale: SaleRead, afterPrint?: () => void) {
     const config = impressaoStore.config;
@@ -68,16 +71,27 @@ export function useSalePrintFlow() {
       return;
     }
 
-    if (config.auto_imprimir_venda === 'automatico' && impressao.podeImprimirDireto.value) {
-      const dados = saleToEscPos(sale, {
-        bobina: config.bobina,
-        empresa: companyInfo.value,
-        resolverPagamento: resolvePaymentMethodName,
-        abrirGaveta: config.gaveta_ativa && config.abrir_gaveta_na_venda && vendaTemPagamentoDinheiro(sale),
-      });
-      if (await impressao.imprimirCupom(dados)) {
-        afterPrint?.();
+    if (config.auto_imprimir_venda === 'automatico') {
+      if (config.formato_venda === 'a4') {
+        saleForPrint.value = sale;
+        printDirect('VENDA', 'A4', () => {
+          saleForPrint.value = null;
+          afterPrint?.();
+        });
         return;
+      }
+
+      if (impressao.podeImprimirDireto.value) {
+        const dados = saleToEscPos(sale, {
+          bobina: config.bobina,
+          empresa: companyInfo.value,
+          resolverPagamento: resolvePaymentMethodName,
+          abrirGaveta: config.gaveta_ativa && config.abrir_gaveta_na_venda && vendaTemPagamentoDinheiro(sale),
+        });
+        if (await impressao.imprimirCupom(dados)) {
+          afterPrint?.();
+          return;
+        }
       }
     }
 

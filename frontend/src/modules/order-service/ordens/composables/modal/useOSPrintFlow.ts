@@ -20,6 +20,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     printFormat,
     isPrintSelectModalOpen,
     openPrintSelect,
+    printDirect,
     handlePrintFormatSelected,
     closePrintSelectModal,
   } = usePrintFlow<'ENTRADA' | 'SAIDA'>();
@@ -51,6 +52,19 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     openPrintSelect('SAIDA');
   }
 
+  /** Imprime conforme a config (A4 direto, cupom silencioso ou modal) e fecha */
+  async function imprimirAutomaticoEFechar(tipo: 'ENTRADA' | 'SAIDA') {
+    if (impressaoStore.config.auto_imprimir_os === 'automatico' && impressaoStore.config.formato_os === 'a4') {
+      printDirect(tipo, 'A4', () => onClose());
+      return;
+    }
+    if (await tentarImpressaoDireta(tipo)) {
+      onClose();
+      return;
+    }
+    openPrintSelect(tipo, () => onClose());
+  }
+
   async function printEntradaAndClose() {
     // 'nao' vale só para a impressão automática pós-criação;
     // a reimpressão manual (printEntrada) continua disponível
@@ -58,11 +72,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
       onClose();
       return;
     }
-    if (await tentarImpressaoDireta('ENTRADA')) {
-      onClose();
-      return;
-    }
-    openPrintSelect('ENTRADA', () => onClose());
+    await imprimirAutomaticoEFechar('ENTRADA');
   }
 
   function handleFinalizarOS() {
@@ -80,11 +90,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
       onClose();
       return;
     }
-    if (await tentarImpressaoDireta('SAIDA')) {
-      onClose();
-      return;
-    }
-    openPrintSelect('SAIDA', () => onClose());
+    await imprimirAutomaticoEFechar('SAIDA');
   }
 
   return {

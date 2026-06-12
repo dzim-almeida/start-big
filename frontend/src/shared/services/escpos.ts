@@ -136,7 +136,7 @@ export function gerarCupomTeste(bobina: Bobina, opts?: { gaveta?: boolean }): Ui
   const b = new EscPosBuilder(bobina)
   b.alinhar('centro')
     .tamanhoDuplo(true)
-    .linha('BigPDV')
+    .linha('StartBig')
     .tamanhoDuplo(false)
     .linha('Cupom de teste de impressão')
     .pular()
