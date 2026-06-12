@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey
+from sqlalchemy import JSON, Boolean, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -21,7 +21,8 @@ class ConfiguracaoSeguranca(Base):
 
     pin_gerente: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    requer_pin_acessar_config_sensivel: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Lista de ids de seções do painel de configurações que exigem PIN para acessar
+    secoes_protegidas: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     requer_pin_cancelar_venda: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     requer_pin_reabrir_venda: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { toast } from 'vue-sonner'
 import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS, getConfiguracoesVendas, getConfiguracoesSeguranca } from '@/modules/configuracoes/services/configuracoes.service'
 import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead, ConfiguracaoVendasRead, ConfiguracaoSegurancaRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
@@ -11,21 +12,28 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const configSeguranca = ref<ConfiguracaoSegurancaRead | null>(null)
 
   async function carregarConfiguracoes() {
-    try {
-      const [clientes, produtos, os, vendas, seguranca] = await Promise.all([
-        getConfiguracoesClientes(),
-        getConfiguracoesProdutos(),
-        getConfiguracoesOS(),
-        getConfiguracoesVendas(),
-        getConfiguracoesSeguranca(),
-      ])
-      configClientes.value = clientes
-      configProdutos.value = produtos
-      configOS.value = os
-      configVendas.value = vendas
-      configSeguranca.value = seguranca
-    } catch {
-      // silencioso — usa os defaults dos computed abaixo
+    // allSettled: a falha de uma requisição não descarta as demais —
+    // cada config que carregar com sucesso é aplicada individualmente
+    const [clientes, produtos, os, vendas, seguranca] = await Promise.allSettled([
+      getConfiguracoesClientes(),
+      getConfiguracoesProdutos(),
+      getConfiguracoesOS(),
+      getConfiguracoesVendas(),
+      getConfiguracoesSeguranca(),
+    ])
+
+    if (clientes.status === 'fulfilled') configClientes.value = clientes.value
+    if (produtos.status === 'fulfilled') configProdutos.value = produtos.value
+    if (os.status === 'fulfilled') configOS.value = os.value
+    if (vendas.status === 'fulfilled') configVendas.value = vendas.value
+    if (seguranca.status === 'fulfilled') configSeguranca.value = seguranca.value
+
+    const falhas = [clientes, produtos, os, vendas, seguranca].filter((r) => r.status === 'rejected')
+    if (falhas.length > 0) {
+      console.error('[Configurações] Falha ao carregar:', falhas.map((f) => (f as PromiseRejectedResult).reason))
+      toast.warning('Não foi possível carregar todas as configurações', {
+        description: 'O sistema pode exibir valores padrão. Verifique a conexão e tente novamente.',
+      })
     }
   }
 
@@ -86,7 +94,7 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const requerPinReabrirVenda = computed(() => configSeguranca.value?.requer_pin_reabrir_venda ?? false)
   const requerPinCancelarOS = computed(() => configSeguranca.value?.requer_pin_cancelar_os ?? false)
   const requerPinReabrirOS = computed(() => configSeguranca.value?.requer_pin_reabrir_os ?? false)
-  const requerPinAcessarConfigSensivel = computed(() => configSeguranca.value?.requer_pin_acessar_config_sensivel ?? false)
+  const secoesProtegidas = computed<string[]>(() => configSeguranca.value?.secoes_protegidas ?? [])
   const temPinConfigurado = computed(() => configSeguranca.value?.tem_pin_configurado ?? false)
 
   return {
@@ -144,7 +152,7 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     requerPinReabrirVenda,
     requerPinCancelarOS,
     requerPinReabrirOS,
-    requerPinAcessarConfigSensivel,
+    secoesProtegidas,
     temPinConfigurado,
   }
 })

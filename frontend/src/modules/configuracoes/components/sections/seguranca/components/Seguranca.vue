@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { Eye, EyeOff } from 'lucide-vue-next'
+import { computed, nextTick, ref, reactive, watch } from 'vue'
+import { AlertTriangle } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
+import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
+import PinGerenteModal from '@/modules/configuracoes/components/PinGerenteModal.vue'
+import type { ModoPinGerente } from '@/modules/configuracoes/components/PinGerenteModal.vue'
+import type { ConfiguracaoSegurancaRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 const configStore = useConfiguracoesStore()
 const {
@@ -12,39 +16,70 @@ const {
   requerPinReabrirVenda,
   requerPinCancelarOS,
   requerPinReabrirOS,
-  requerPinAcessarConfigSensivel,
+  secoesProtegidas,
   temPinConfigurado,
 } = storeToRefs(configStore)
 
-const showPin = ref(false)
+// Seções do painel que podem ser protegidas por PIN
+// (Segurança é sempre protegida quando há PIN; Suporte nunca é)
+const SECOES_PROTEGIVEIS = [
+  { id: 'regras-de-vendas', label: 'Regras de Vendas' },
+  { id: 'produtos-estoque', label: 'Produtos e Estoque' },
+  { id: 'ordens-de-servico', label: 'Ordens de Serviço' },
+  { id: 'clientes-cadastro', label: 'Clientes e Cadastro' },
+  { id: 'financeiro-taxas', label: 'Financeiro e Taxas' },
+  { id: 'integracoes-apis', label: 'Integrações e APIs' },
+  { id: 'impressao', label: 'Impressão e Periféricos' },
+  { id: 'formatos-exibicao', label: 'Formatos e Exibição' },
+  { id: 'backup-dados', label: 'Backup dos Dados' },
+] as const
 
-const form = reactive({
-  pin_gerente: '' as string,
-  requer_pin_acessar_config_sensivel: requerPinAcessarConfigSensivel.value,
-  requer_pin_desconto_venda: requerPinDescontoVenda.value,
-  requer_pin_alterar_preco_venda: requerPinAlterarPreco.value,
-  requer_pin_cancelar_venda: requerPinCancelarVenda.value,
-  requer_pin_reabrir_venda: requerPinReabrirVenda.value,
-  requer_pin_cancelar_os: requerPinCancelarOS.value,
-  requer_pin_reabrir_os: requerPinReabrirOS.value,
-})
+function valoresDoStore() {
+  return {
+    secoes_protegidas: Object.fromEntries(
+      SECOES_PROTEGIVEIS.map((s) => [s.id, secoesProtegidas.value.includes(s.id)]),
+    ) as Record<string, boolean>,
+    requer_pin_desconto_venda: requerPinDescontoVenda.value,
+    requer_pin_alterar_preco_venda: requerPinAlterarPreco.value,
+    requer_pin_cancelar_venda: requerPinCancelarVenda.value,
+    requer_pin_reabrir_venda: requerPinReabrirVenda.value,
+    requer_pin_cancelar_os: requerPinCancelarOS.value,
+    requer_pin_reabrir_os: requerPinReabrirOS.value,
+  }
+}
 
-watch(() => configStore.configSeguranca, () => {
-  form.pin_gerente = ''
-  form.requer_pin_acessar_config_sensivel = requerPinAcessarConfigSensivel.value
-  form.requer_pin_desconto_venda = requerPinDescontoVenda.value
-  form.requer_pin_alterar_preco_venda = requerPinAlterarPreco.value
-  form.requer_pin_cancelar_venda = requerPinCancelarVenda.value
-  form.requer_pin_reabrir_venda = requerPinReabrirVenda.value
-  form.requer_pin_cancelar_os = requerPinCancelarOS.value
-  form.requer_pin_reabrir_os = requerPinReabrirOS.value
-})
+const form = reactive(valoresDoStore())
+
+function resetar() {
+  Object.assign(form, valoresDoStore())
+}
+
+watch(() => configStore.configSeguranca, resetar)
+
+const isDirty = computed(() => JSON.stringify({ ...form }) !== JSON.stringify(valoresDoStore()))
+
+// ── Modal de PIN (definir/alterar/remover) ──
+const pinModalAberto = ref(false)
+const pinModalModo = ref<ModoPinGerente>('definir')
+
+function abrirPinModal(modo: ModoPinGerente) {
+  pinModalModo.value = modo
+  pinModalAberto.value = true
+}
+
+function aoSalvarPin(config: ConfiguracaoSegurancaRead) {
+  // Atualiza o store sem perder os toggles ainda não salvos:
+  // o watch acima reseta o form ao trocar configSeguranca, então
+  // capturamos as edições atuais e restauramos após o flush
+  const edicoes = JSON.parse(JSON.stringify(form))
+  configStore.configSeguranca = config
+  void nextTick(() => Object.assign(form, edicoes))
+}
 
 defineExpose({
   get form() {
     return {
-      ...(form.pin_gerente ? { pin_gerente: form.pin_gerente } : {}),
-      requer_pin_acessar_config_sensivel: form.requer_pin_acessar_config_sensivel,
+      secoes_protegidas: SECOES_PROTEGIVEIS.filter((s) => form.secoes_protegidas[s.id]).map((s) => s.id),
       requer_pin_desconto_venda: form.requer_pin_desconto_venda,
       requer_pin_alterar_preco_venda: form.requer_pin_alterar_preco_venda,
       requer_pin_cancelar_venda: form.requer_pin_cancelar_venda,
@@ -53,6 +88,8 @@ defineExpose({
       requer_pin_reabrir_os: form.requer_pin_reabrir_os,
     }
   },
+  isDirty,
+  resetar,
 })
 </script>
 
@@ -67,56 +104,82 @@ defineExpose({
     <div class="flex flex-col">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">PIN do Gerente</p>
 
-      <div class="py-3 border-b border-zinc-100">
-        <div class="flex items-center justify-between mb-0.5">
-          <label class="text-xs font-medium text-zinc-600">PIN de aprovação</label>
-          <span v-if="temPinConfigurado" class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-            ✓ Configurado
-          </span>
-          <span v-else class="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-full">
-            Não configurado
-          </span>
+      <div class="flex items-center justify-between gap-3 p-4 border border-zinc-200 rounded-xl">
+        <div>
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-medium text-zinc-800">PIN de aprovação</p>
+            <span v-if="temPinConfigurado" class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+              ✓ Configurado
+            </span>
+            <span v-else class="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-full">
+              Não configurado
+            </span>
+          </div>
+          <p class="text-xs text-zinc-500 mt-0.5">Exigido nas ações de aprovação e nas seções protegidas abaixo</p>
         </div>
-        <p class="text-[11px] text-zinc-400 mt-0.5 mb-1.5">Deixe em branco para manter o PIN atual</p>
-        <div class="relative">
-          <input
-            v-model="form.pin_gerente"
-            :type="showPin ? 'text' : 'password'"
-            placeholder="Novo PIN..."
-            class="w-full border border-zinc-200 rounded-lg px-3 py-2.5 pr-10 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-          />
-          <button
-            type="button"
-            class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-            @click="showPin = !showPin"
-          >
-            <component :is="showPin ? EyeOff : Eye" :size="15" />
-          </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <template v-if="temPinConfigurado">
+            <BaseButton variant="secondary" size="sm" @click="abrirPinModal('alterar')">
+              Alterar PIN
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              class="text-red-500 hover:text-red-600"
+              @click="abrirPinModal('remover')"
+            >
+              Remover
+            </BaseButton>
+          </template>
+          <BaseButton v-else variant="primary" size="sm" @click="abrirPinModal('definir')">
+            Definir PIN
+          </BaseButton>
         </div>
       </div>
     </div>
 
-    <!-- Configurações -->
-    <div class="flex flex-col">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Configurações Gerais</p>
+    <PinGerenteModal
+      :is-open="pinModalAberto"
+      :modo="pinModalModo"
+      @close="pinModalAberto = false"
+      @sucesso="aoSalvarPin"
+    />
 
-      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
-        <div>
-          <p class="text-sm font-medium text-zinc-800">Proteger seções sensíveis</p>
-          <p class="text-xs text-zinc-500 mt-0.5">Exige PIN para acessar Segurança, Financeiro e Regras de Vendas</p>
-        </div>
+    <!-- Aviso: proteções sem efeito enquanto não houver PIN -->
+    <div v-if="!temPinConfigurado" class="flex items-start gap-2.5 p-3 -mt-2 bg-amber-50 border border-amber-100 rounded-xl">
+      <AlertTriangle :size="16" class="text-amber-500 shrink-0 mt-0.5" />
+      <p class="text-xs text-amber-700 leading-snug">
+        Sem um PIN configurado, as proteções e aprovações abaixo <strong>não têm efeito</strong>.
+        Você pode deixá-las marcadas, mas elas só passam a valer depois de definir um PIN.
+      </p>
+    </div>
+
+    <!-- Seções protegidas -->
+    <div class="flex flex-col" :class="{ 'opacity-60': !temPinConfigurado }">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Seções Protegidas</p>
+      <p class="text-xs text-zinc-500 mb-2">
+        Cada seção marcada exigirá o PIN do gerente para ser acessada.
+        A seção Segurança é sempre protegida quando há um PIN configurado.
+      </p>
+
+      <div
+        v-for="secao in SECOES_PROTEGIVEIS"
+        :key="secao.id"
+        class="flex items-center justify-between py-3 border-b border-zinc-100"
+      >
+        <p class="text-sm font-medium text-zinc-800">{{ secao.label }}</p>
         <button
           type="button"
-          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.requer_pin_acessar_config_sensivel ? 'bg-brand-primary' : 'bg-zinc-200']"
-          @click="form.requer_pin_acessar_config_sensivel = !form.requer_pin_acessar_config_sensivel"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.secoes_protegidas[secao.id] ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.secoes_protegidas[secao.id] = !form.secoes_protegidas[secao.id]"
         >
-          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.requer_pin_acessar_config_sensivel ? 'translate-x-5' : 'translate-x-0.5']" />
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.secoes_protegidas[secao.id] ? 'translate-x-5' : 'translate-x-0.5']" />
         </button>
       </div>
     </div>
 
     <!-- Vendas -->
-    <div class="flex flex-col">
+    <div class="flex flex-col" :class="{ 'opacity-60': !temPinConfigurado }">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Vendas</p>
 
       <div class="flex items-center justify-between py-3 border-b border-zinc-100">
@@ -177,7 +240,7 @@ defineExpose({
     </div>
 
     <!-- Ordens de Serviço -->
-    <div class="flex flex-col">
+    <div class="flex flex-col" :class="{ 'opacity-60': !temPinConfigurado }">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Ordens de Serviço</p>
 
       <div class="flex items-center justify-between py-3 border-b border-zinc-100">

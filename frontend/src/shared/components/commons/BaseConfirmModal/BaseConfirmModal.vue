@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Power, AlertTriangle, Info, AlertCircle } from 'lucide-vue-next';
+import { AlertTriangle, Info, AlertCircle } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -15,6 +15,7 @@ interface Props {
   isDanger?: boolean;
   isLoading?: boolean;
   icon?: any;
+  overlay?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'info',
   isDanger: false,
   isLoading: false,
+  overlay: false,
 });
 
 const emit = defineEmits<{
@@ -72,7 +74,7 @@ const defaultIcon = computed(() => {
 </script>
 
 <template>
-  <BaseModal :is-open="isOpen" :title="title" size="sm" @close="emit('close')">
+  <BaseModal :is-open="isOpen" :title="title" size="sm" :overlay="overlay" @close="emit('close')">
     <div :class="['flex items-start gap-3 p-3 border rounded-xl', bannerClasses]">
       <component
         :is="icon || defaultIcon"

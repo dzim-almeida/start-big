@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
@@ -12,22 +12,16 @@ const { prazoEntregaPadrao, garantiaPadrao, prazoAbandonoDias, taxaDiagnosticoPa
 
 useConfiguracoesOSQuery()
 
-const form = ref<ConfiguracaoOSUpdate>({
-  prazo_entrega_padrao: prazoEntregaPadrao.value,
-  garantia_padrao: garantiaPadrao.value as typeof GARANTIA_OPTIONS[number],
-  prazo_abandono_dias: prazoAbandonoDias.value,
-  taxa_diagnostico_padrao: taxaDiagnosticoPadrao.value,
-})
+function valoresDoStore(): ConfiguracaoOSUpdate {
+  return {
+    prazo_entrega_padrao: prazoEntregaPadrao.value,
+    garantia_padrao: garantiaPadrao.value as typeof GARANTIA_OPTIONS[number],
+    prazo_abandono_dias: prazoAbandonoDias.value,
+    taxa_diagnostico_padrao: taxaDiagnosticoPadrao.value,
+  }
+}
 
-watch(
-  () => configStore.configOS,
-  () => {
-    form.value.prazo_entrega_padrao = prazoEntregaPadrao.value
-    form.value.garantia_padrao = garantiaPadrao.value as typeof GARANTIA_OPTIONS[number]
-    form.value.prazo_abandono_dias = prazoAbandonoDias.value
-    form.value.taxa_diagnostico_padrao = taxaDiagnosticoPadrao.value
-  },
-)
+const form = ref<ConfiguracaoOSUpdate>(valoresDoStore())
 
 const taxaReais = ref(taxaDiagnosticoPadrao.value / 100)
 watch(taxaReais, (val) => {
@@ -37,7 +31,16 @@ watch(taxaDiagnosticoPadrao, (val) => {
   taxaReais.value = val / 100
 })
 
-defineExpose({ form })
+function resetar() {
+  Object.assign(form.value, valoresDoStore())
+  taxaReais.value = taxaDiagnosticoPadrao.value / 100
+}
+
+watch(() => configStore.configOS, resetar)
+
+const isDirty = computed(() => JSON.stringify(form.value) !== JSON.stringify(valoresDoStore()))
+
+defineExpose({ form, isDirty, resetar })
 </script>
 
 <template>

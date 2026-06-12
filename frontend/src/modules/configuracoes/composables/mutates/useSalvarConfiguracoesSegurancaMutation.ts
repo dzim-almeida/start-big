@@ -17,7 +17,11 @@ export function useSalvarConfiguracoesSegurancaMutation() {
       toast.success('Configurações de segurança salvas com sucesso!')
       configuracoesStore.carregarConfiguracoes()
     },
-    onError: () => {
+    onError: (error) => {
+      if (error.response?.status === 422) {
+        toast.error('O PIN deve ter de 4 a 6 dígitos numéricos.')
+        return
+      }
       toast.error('Erro ao salvar as configurações. Tente novamente.')
     },
   })

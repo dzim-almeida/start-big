@@ -112,7 +112,7 @@ export const ConfiguracaoSegurancaSchema = z.object({
 
   tem_pin_configurado: z.boolean(),
 
-  requer_pin_acessar_config_sensivel: z.boolean(),
+  secoes_protegidas: z.array(z.string()),
   requer_pin_cancelar_venda: z.boolean(),
   requer_pin_reabrir_venda: z.boolean(),
   requer_pin_desconto_venda: z.boolean(),
@@ -124,10 +124,14 @@ export const ConfiguracaoSegurancaSchema = z.object({
   data_atualizacao: z.string(),
 })
 
+export const PinGerenteSchema = z
+  .string()
+  .regex(/^\d{4,6}$/, 'O PIN deve ter de 4 a 6 dígitos numéricos')
+
 export const ConfiguracaoSegurancaUpdateSchema = ConfiguracaoSegurancaSchema
   .omit({ id: true, empresa_id: true, data_atualizacao: true, tem_pin_configurado: true })
   .partial()
-  .extend({ pin_gerente: z.string().optional() })
+  .extend({ pin_gerente: PinGerenteSchema.optional() })
 
 export type ConfiguracaoSegurancaRead = z.infer<typeof ConfiguracaoSegurancaSchema>
 export type ConfiguracaoSegurancaUpdate = z.infer<typeof ConfiguracaoSegurancaUpdateSchema>

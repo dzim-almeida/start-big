@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 
@@ -14,34 +14,44 @@ const {
   permitirVendaEstoqueZerado,
 } = storeToRefs(configStore)
 
-const form = reactive({
-  vendas: {
-    permitir_desconto: permitirDesconto.value,
-    desconto_maximo_percent: descontoMaximoPercent.value,
-    exigir_cliente_identificado: exigirClienteIdentificado.value,
-    valor_minimo_venda_reais: (valorMinimoVenda.value / 100) as number,
-    permitir_parcelamento: permitirParcelamento.value,
-    parcelas_maximas: parcelasMaximas.value,
-  },
-  estoque: {
-    permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
-  },
-})
+function valoresDoStore() {
+  return {
+    vendas: {
+      permitir_desconto: permitirDesconto.value,
+      desconto_maximo_percent: descontoMaximoPercent.value,
+      exigir_cliente_identificado: exigirClienteIdentificado.value,
+      valor_minimo_venda_reais: (valorMinimoVenda.value / 100) as number,
+      permitir_parcelamento: permitirParcelamento.value,
+      parcelas_maximas: parcelasMaximas.value,
+    },
+    estoque: {
+      permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
+    },
+  }
+}
+
+const form = reactive(valoresDoStore())
+
+function resetar() {
+  Object.assign(form.vendas, valoresDoStore().vendas)
+  Object.assign(form.estoque, valoresDoStore().estoque)
+}
 
 watch(() => configStore.configVendas, () => {
-  form.vendas.permitir_desconto = permitirDesconto.value
-  form.vendas.desconto_maximo_percent = descontoMaximoPercent.value
-  form.vendas.exigir_cliente_identificado = exigirClienteIdentificado.value
-  form.vendas.valor_minimo_venda_reais = valorMinimoVenda.value / 100
-  form.vendas.permitir_parcelamento = permitirParcelamento.value
-  form.vendas.parcelas_maximas = parcelasMaximas.value
+  Object.assign(form.vendas, valoresDoStore().vendas)
 })
 
 watch(() => configStore.configProdutos, () => {
-  form.estoque.permitir_venda_estoque_zerado = permitirVendaEstoqueZerado.value
+  Object.assign(form.estoque, valoresDoStore().estoque)
 })
 
+const isDirty = computed(
+  () => JSON.stringify({ vendas: { ...form.vendas }, estoque: { ...form.estoque } }) !== JSON.stringify(valoresDoStore()),
+)
+
 defineExpose({
+  isDirty,
+  resetar,
   get form() {
     return {
       vendas: {

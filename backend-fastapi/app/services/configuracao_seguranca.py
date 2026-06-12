@@ -30,8 +30,10 @@ def update_configuracao_seguranca(
         config = create_configuracao_seguranca(db, empresa_id)
 
     campos = data.model_dump(exclude_unset=True)
-    if "pin_gerente" in campos and campos["pin_gerente"]:
-        campos["pin_gerente"] = hash_password(campos["pin_gerente"])
+    if "pin_gerente" in campos:
+        # Valor preenchido = define/troca o PIN; vazio/None = remove o PIN.
+        # Campo ausente do payload (exclude_unset) = mantém o PIN atual.
+        campos["pin_gerente"] = hash_password(campos["pin_gerente"]) if campos["pin_gerente"] else None
     for campo, valor in campos.items():
         setattr(config, campo, valor)
 

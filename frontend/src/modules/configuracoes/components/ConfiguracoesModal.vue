@@ -20,6 +20,7 @@ import {
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
 import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue'
+import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue'
 
 import { useConfiguracoesModal } from '../composables/useConfiguracoesModal'
 import { useSalvarConfiguracoesClientesMutation } from '../composables/mutates/useSalvarConfiguracoesClientesMutation'
@@ -27,8 +28,9 @@ import { useSalvarConfiguracoesEstoqueMutation } from '../composables/mutates/us
 import { useSalvarConfiguracoesOSMutation } from '../composables/mutates/useSalvarConfiguracoesOSMutation'
 import { useSalvarConfiguracoesVendasMutation } from '../composables/mutates/useSalvarConfiguracoesVendasMutation'
 import { useSalvarConfiguracoesSegurancaMutation } from '../composables/mutates/useSalvarConfiguracoesSegurancaMutation'
-import type { SecaoConfiguracao, SecaoId } from '../types/configuracoes.types'
+import type { SecaoConfiguracao, SecaoExposta, SecaoId } from '../types/configuracoes.types'
 import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao'
+import { useConfirmacao } from '@/shared/composables/useConfirmacao'
 import { verificarPinSeguranca } from '../services/configuracoes.service'
 import { useToast } from '@/shared/composables/useToast'
 import { storeToRefs } from 'pinia'
@@ -51,77 +53,128 @@ const emit = defineEmits<{ close: [] }>()
 
 const { secaoAtiva, irPara } = useConfiguracoesModal()
 const { mutate: salvarClientes, isPending: isPendingClientes } = useSalvarConfiguracoesClientesMutation()
-const { mutate: salvarEstoque, isPending: isPendingEstoque } = useSalvarConfiguracoesEstoqueMutation()
+const { mutate: salvarEstoque, mutateAsync: salvarEstoqueAsync, isPending: isPendingEstoque } = useSalvarConfiguracoesEstoqueMutation()
 const { mutate: salvarOS, isPending: isPendingOS } = useSalvarConfiguracoesOSMutation()
-const { mutate: salvarVendas, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
+const { mutateAsync: salvarVendasAsync, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
 const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConfiguracoesSegurancaMutation()
 
-const { requerPinAcessarConfigSensivel, temPinConfigurado } = storeToRefs(useConfiguracoesStore())
+const configuracoesStore = useConfiguracoesStore()
+const { secoesProtegidas, temPinConfigurado } = storeToRefs(configuracoesStore)
 const gerenteConfig = useGerenteAprovacao()
+const confirmacao = useConfirmacao()
 const toast = useToast()
 
-const SECOES_OUTRAS_SENSIVEIS: SecaoId[] = ['regras-de-vendas', 'financeiro-taxas']
-
 function precisaPin(secaoId: SecaoId): boolean {
-  if (secaoId === 'seguranca') return temPinConfigurado.value
-  return requerPinAcessarConfigSensivel.value && SECOES_OUTRAS_SENSIVEIS.includes(secaoId)
+  if (!temPinConfigurado.value) return false
+  if (secaoId === 'seguranca') return true
+  return secoesProtegidas.value.includes(secaoId)
 }
 
-async function verificarENavegar(secaoId: SecaoId, pin: string): Promise<void> {
+async function verificarPinComRetry(pin: string): Promise<boolean> {
   try {
     gerenteConfig.isLoading.value = true
     await verificarPinSeguranca(pin)
-    irPara(secaoId)
+    return true
   } catch (error: any) {
     const detail = error?.response?.data?.detail
     if (detail === 'PIN_GERENTE_INVALIDO') {
       toast.error('PIN do gerente inválido. Tente novamente.')
       const novoPIN = await gerenteConfig.pedirPin()
-      if (novoPIN) await verificarENavegar(secaoId, novoPIN)
+      if (novoPIN) return verificarPinComRetry(novoPIN)
     }
+    return false
   } finally {
     gerenteConfig.isLoading.value = false
   }
 }
 
 async function navegarParaSecao(secaoId: SecaoId): Promise<void> {
+  if (secaoId === secaoAtiva.value) return
+  if (!(await confirmarDescarteSeNecessario())) return
   if (!precisaPin(secaoId)) {
     irPara(secaoId)
     return
   }
   const pin = await gerenteConfig.pedirPin()
   if (!pin) return
-  await verificarENavegar(secaoId, pin)
+  if (await verificarPinComRetry(pin)) irPara(secaoId)
 }
 
 const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value)
 
-const activeComponentRef = ref<{ form?: Record<string, unknown> } | null>(null)
+const activeComponentRef = ref<SecaoExposta | null>(null)
+const isDirtyAtivo = computed(() => activeComponentRef.value?.isDirty === true)
+
+async function confirmarDescarteSeNecessario(): Promise<boolean> {
+  if (!isDirtyAtivo.value) return true
+  const ok = await confirmacao.pedirConfirmacao({
+    titulo: 'Descartar alterações?',
+    descricao: `Você tem alterações não salvas em <strong>${labelSecaoAtiva.value}</strong>. Se continuar, elas serão perdidas.`,
+    confirmLabel: 'Descartar',
+    cancelLabel: 'Continuar editando',
+    variant: 'warning',
+  })
+  if (ok) activeComponentRef.value?.resetar?.()
+  return ok
+}
+
+async function fecharModal(): Promise<void> {
+  if (isPending.value) return
+  if (!(await confirmarDescarteSeNecessario())) return
+  emit('close')
+}
 
 watch(() => props.isOpen, (aberto) => {
-  if (aberto) irPara(props.secaoInicial ?? 'regras-de-vendas')
+  if (aberto) {
+    // Garante dados frescos mesmo se o carregamento do boot tiver falhado
+    configuracoesStore.carregarConfiguracoes()
+    irPara(props.secaoInicial ?? 'regras-de-vendas')
+  }
 })
 
 const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
-function salvar() {
-  if (secaoAtiva.value === 'clientes-cadastro' && activeComponentRef.value?.form) {
-    salvarClientes(activeComponentRef.value.form as any)
+const SECOES_CONFIRMAR_SALVAR: SecaoId[] = ['seguranca', 'regras-de-vendas']
+
+async function salvar(): Promise<void> {
+  const comp = activeComponentRef.value
+  if (!comp?.form || !isDirtyAtivo.value) return
+
+  if (SECOES_CONFIRMAR_SALVAR.includes(secaoAtiva.value)) {
+    const ok = await confirmacao.pedirConfirmacao({
+      titulo: `Aplicar alterações de ${labelSecaoAtiva.value}?`,
+      descricao: `As alterações de <strong>${labelSecaoAtiva.value}</strong> serão aplicadas imediatamente.`,
+      confirmLabel: 'Aplicar',
+      variant: 'warning',
+    })
+    if (!ok) return
   }
-  if (secaoAtiva.value === 'produtos-estoque' && activeComponentRef.value?.form) {
-    salvarEstoque(activeComponentRef.value.form as any)
-  }
-  if (secaoAtiva.value === 'ordens-de-servico' && activeComponentRef.value?.form) {
-    salvarOS(activeComponentRef.value.form as any)
-  }
-  if (secaoAtiva.value === 'regras-de-vendas' && activeComponentRef.value?.form) {
-    const { vendas, estoque } = activeComponentRef.value.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }
-    salvarVendas(vendas as any)
-    salvarEstoque(estoque as any)
-  }
-  if (secaoAtiva.value === 'seguranca' && activeComponentRef.value?.form) {
-    salvarSeguranca(activeComponentRef.value.form as any)
+
+  const fecharAposSalvar = { onSuccess: () => emit('close') }
+
+  switch (secaoAtiva.value) {
+    case 'clientes-cadastro':
+      salvarClientes(comp.form as any, fecharAposSalvar)
+      break
+    case 'produtos-estoque':
+      salvarEstoque(comp.form as any, fecharAposSalvar)
+      break
+    case 'ordens-de-servico':
+      salvarOS(comp.form as any, fecharAposSalvar)
+      break
+    case 'seguranca':
+      salvarSeguranca(comp.form as any, fecharAposSalvar)
+      break
+    case 'regras-de-vendas': {
+      const { vendas, estoque } = comp.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }
+      const resultados = await Promise.allSettled([
+        salvarVendasAsync(vendas as any),
+        salvarEstoqueAsync(estoque as any),
+      ])
+      if (resultados.every((r) => r.status === 'fulfilled')) emit('close')
+      break
+    }
   }
 }
 
@@ -154,6 +207,7 @@ const componenteMap: Record<SecaoId, Component> = {
 }
 
 const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
+const labelSecaoAtiva = computed(() => secoes.find((s) => s.id === secaoAtiva.value)?.label ?? '')
 </script>
 
 <template>
@@ -163,7 +217,18 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
     @confirmar="gerenteConfig.confirmar"
     @cancelar="gerenteConfig.cancelar"
   />
-  <BaseModal :is-open="isOpen" size="xl" title="Configurações Gerais" @close="emit('close')">
+  <BaseConfirmModal
+    :is-open="confirmacao.isOpen.value"
+    :title="confirmacao.opcoes.value.titulo"
+    :description="confirmacao.opcoes.value.descricao"
+    :confirm-label="confirmacao.opcoes.value.confirmLabel"
+    :cancel-label="confirmacao.opcoes.value.cancelLabel"
+    :variant="confirmacao.opcoes.value.variant"
+    overlay
+    @confirm="confirmacao.confirmar"
+    @close="confirmacao.cancelar"
+  />
+  <BaseModal :is-open="isOpen" size="xl" title="Configurações Gerais" @close="fecharModal">
     <template #header>
       <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
         <div class="flex items-center gap-2.5">
@@ -178,7 +243,7 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
         <button
           type="button"
           class="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
-          @click="emit('close')"
+          @click="fecharModal"
         >
           <X :size="18" />
         </button>
@@ -227,10 +292,10 @@ const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
 
     <template #footer>
       <div class="flex justify-end gap-2">
-        <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="emit('close')">
+        <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="fecharModal">
           Cancelar
         </BaseButton>
-        <BaseButton variant="primary" size="sm" :isLoading="isPending" :disabled="!secaoFuncional || isPending" @click="salvar">
+        <BaseButton variant="primary" size="sm" :isLoading="isPending" :disabled="!secaoFuncional || isPending || !isDirtyAtivo" @click="salvar">
           Salvar Alterações
         </BaseButton>
       </div>

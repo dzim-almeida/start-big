@@ -18,3 +18,9 @@ export interface SecaoConfiguracao {
   label: string
   icone: Component
 }
+
+export interface SecaoExposta {
+  form?: Record<string, unknown>
+  isDirty?: boolean
+  resetar?: () => void
+}
