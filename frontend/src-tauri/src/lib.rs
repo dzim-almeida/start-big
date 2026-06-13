@@ -38,6 +38,34 @@ fn imprimir_raw(nome_impressora: String, dados: Vec<u8>) -> Result<(), String> {
 // por TCP (como a porta 9100 de uma térmica Ethernet) e repassa ao spooler.
 // A descoberta UDP permite que os outros caixas o encontrem sem digitar IP.
 
+fn ip_e_privado(ip: std::net::IpAddr) -> bool {
+    if let std::net::IpAddr::V4(v4) = ip {
+        let o = v4.octets();
+        return o[0] == 10
+            || (o[0] == 172 && o[1] >= 16 && o[1] <= 31)
+            || (o[0] == 192 && o[1] == 168);
+    }
+    false
+}
+
+// Descobre o IP LAN privado deste PC tentando múltiplos destinos e filtrando
+// IPs públicos (ex: adaptadores Topaz Loopback, VPN, etc.)
+fn ip_lan_privado() -> Option<std::net::IpAddr> {
+    let candidatos = ["8.8.8.8:80", "192.168.0.1:80", "192.168.1.1:80", "10.0.0.1:80"];
+    for dest in &candidatos {
+        if let Ok(s) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            if s.connect(dest).is_ok() {
+                if let Ok(addr) = s.local_addr() {
+                    if ip_e_privado(addr.ip()) {
+                        return Some(addr.ip());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 const PORTA_DESCOBERTA: u16 = 9101;
 const MENSAGEM_DESCOBERTA: &[u8] = b"BIGPDV_DISCOVER";
 
@@ -145,13 +173,8 @@ fn iniciar_servidor_impressao(
             while rodando.load(Ordering::SeqCst) {
                 match udp.recv_from(&mut buffer) {
                     Ok((n, origem)) if &buffer[..n] == MENSAGEM_DESCOBERTA => {
-                        // Descobre qual IP local seria usado para chegar neste cliente
-                        // (sempre será o IP da LAN, ignorando VPN ou outras interfaces)
-                        let ip_lan = std::net::UdpSocket::bind("0.0.0.0:0")
-                            .ok()
-                            .and_then(|s| s.connect(origem).ok().map(|_| s))
-                            .and_then(|s| s.local_addr().ok())
-                            .map(|a| a.ip().to_string())
+                        let ip_lan = ip_lan_privado()
+                            .map(|ip| ip.to_string())
                             .unwrap_or_default();
                         let resposta = format!(
                             "{{\"nome\":{:?},\"porta\":{},\"ip\":\"{}\"}}",
@@ -225,9 +248,9 @@ fn descobrir_servidores_impressao() -> Result<Vec<ServidorDescoberto>, String> {
 
 #[tauri::command(async)]
 fn obter_ip_local() -> Result<String, String> {
-    let udp = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    udp.connect("8.8.8.8:80").map_err(|e| e.to_string())?;
-    Ok(udp.local_addr().map_err(|e| e.to_string())?.ip().to_string())
+    ip_lan_privado()
+        .map(|ip| ip.to_string())
+        .ok_or_else(|| "Nenhum IP privado encontrado".to_string())
 }
 
 #[tauri::command(async)]
