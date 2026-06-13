@@ -7,8 +7,11 @@
  */
 
 import { Building, Save, Globe } from 'lucide-vue-next';
+import { onBeforeRouteLeave } from 'vue-router';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
+import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 
 // Section Components
 import IdentificationSection from './form/IdentificationSection.vue';
@@ -24,21 +27,48 @@ import { useEmpresaFormProvider } from '../composables/useEmpresaFormProvider';
 // Provider Setup
 // =============================================
 
-// Setup provider - fornece context para todas as sections
 const {
-  // Fields
   is_cnpj,
   fiscal_settings,
-
-  // State
   apiError,
   isLoading,
   isPending,
   isDirty,
-
-  // Actions
   onSubmit,
 } = useEmpresaFormProvider();
+
+// =============================================
+// Confirmações
+// =============================================
+
+const confirmacao = useConfirmacao();
+
+async function handleSave(e?: Event) {
+  e?.preventDefault();
+  if (!isDirty.value) return;
+
+  const ok = await confirmacao.pedirConfirmacao({
+    titulo: 'Salvar alterações da empresa?',
+    descricao: 'As informações serão atualizadas imediatamente em todos os documentos futuros.',
+    confirmLabel: 'Salvar',
+    variant: 'warning',
+  });
+
+  if (ok) onSubmit();
+}
+
+// Avisa ao tentar sair com alterações não salvas
+onBeforeRouteLeave(async () => {
+  if (!isDirty.value) return true;
+
+  return confirmacao.pedirConfirmacao({
+    titulo: 'Sair sem salvar?',
+    descricao: 'Você tem <strong>alterações não salvas</strong>. Se sair agora, todas as alterações serão perdidas.',
+    confirmLabel: 'Sair sem salvar',
+    cancelLabel: 'Continuar editando',
+    variant: 'danger',
+  });
+});
 </script>
 
 <template>
@@ -60,7 +90,7 @@ const {
       <p class="text-gray-500 font-medium animate-pulse">Carregando informações...</p>
     </div>
 
-    <form v-else class="space-y-8 animate-in fade-in duration-500" @submit.prevent="onSubmit">
+    <form v-else class="space-y-8 animate-in fade-in duration-500" @submit.prevent="handleSave">
       <!-- Header Card -->
       <div
         class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-start justify-between"
@@ -86,7 +116,7 @@ const {
             :class="
               fiscal_settings.ambiente_emissao === 1
                 ? 'bg-red-50 text-red-600 border-red-200'
-                : 'bg-blue-50 text-blue-600 border-blue-200'
+                : 'bg-brand-primary-light text-brand-primary border-brand-primary/20'
             "
           >
             <Globe :size="12" class="inline mb-0.5 mr-1" />
@@ -133,4 +163,17 @@ const {
       </div>
     </form>
   </div>
+
+  <!-- Modal de confirmação (salvar + sair sem salvar) -->
+  <BaseConfirmModal
+    :is-open="confirmacao.isOpen.value"
+    :title="confirmacao.opcoes.value.titulo"
+    :description="confirmacao.opcoes.value.descricao"
+    :confirm-label="confirmacao.opcoes.value.confirmLabel"
+    :cancel-label="confirmacao.opcoes.value.cancelLabel"
+    :variant="confirmacao.opcoes.value.variant"
+    :is-loading="isPending"
+    @confirm="confirmacao.confirmar"
+    @close="confirmacao.cancelar"
+  />
 </template>

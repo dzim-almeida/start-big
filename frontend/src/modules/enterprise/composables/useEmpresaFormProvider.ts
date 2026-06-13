@@ -1,4 +1,6 @@
 import { ref, computed, watch, provide, inject, type InjectionKey } from 'vue';
+import { useToast } from '@/shared/composables/useToast';
+import { buscarDadosCNPJ } from './useConsultaCNPJ';
 import { useForm } from 'vee-validate';
 import { empresaValidationSchema, EmpresaFormSchema } from '../schemas/empresa.schema';
 import {
@@ -51,6 +53,12 @@ const DEFAULT_FORM_VALUES: EmpresaFormData = {
   inscricao_municipal: '',
   regime_tributario: '',
   cnae_principal: '',
+  indicador_ie: '',
+  natureza_juridica: '',
+  tipo_atividade: '',
+  cnaes_secundarios: '',
+  data_abertura: '',
+  website: '',
   url_logo: '',
   fiscal_settings: { ...DEFAULT_FISCAL_SETTINGS },
   endereco_principal: { ...DEFAULT_ENDERECO },
@@ -97,6 +105,12 @@ function normalizeEmpresaToForm(data: EmpresaRead): EmpresaFormData {
     inscricao_municipal: data.inscricao_municipal ?? '',
     regime_tributario: data.regime_tributario?.toString() ?? '',
     cnae_principal: data.cnae_principal ?? '',
+    indicador_ie: data.indicador_ie ?? '',
+    natureza_juridica: data.natureza_juridica ?? '',
+    tipo_atividade: data.tipo_atividade ?? '',
+    cnaes_secundarios: data.cnaes_secundarios ?? '',
+    data_abertura: data.data_abertura ?? '',
+    website: data.website ?? '',
     url_logo: data.url_logo ?? '',
     fiscal_settings: data.fiscal_settings ?? DEFAULT_FISCAL_SETTINGS,
     endereco_principal: enderecoPrincipal
@@ -124,6 +138,7 @@ function normalizeEmpresaToForm(data: EmpresaRead): EmpresaFormData {
 export function useEmpresaFormProvider() {
   // Dependencies
   const authStore = useAuthStore();
+  const toast = useToast();
   const empresaId = computed(() => authStore.userData?.empresa?.id);
 
   // TanStack Query hooks
@@ -158,6 +173,12 @@ export function useEmpresaFormProvider() {
   const [inscricao_municipal] = defineField('inscricao_municipal');
   const [regime_tributario] = defineField('regime_tributario');
   const [cnae_principal] = defineField('cnae_principal');
+  const [indicador_ie] = defineField('indicador_ie');
+  const [natureza_juridica] = defineField('natureza_juridica');
+  const [tipo_atividade] = defineField('tipo_atividade');
+  const [cnaes_secundarios] = defineField('cnaes_secundarios');
+  const [data_abertura] = defineField('data_abertura');
+  const [website] = defineField('website');
   const [url_logo] = defineField('url_logo');
   const [fiscal_settings] = defineField('fiscal_settings');
   const [endereco_principal] = defineField('endereco_principal');
@@ -244,6 +265,12 @@ export function useEmpresaFormProvider() {
       inscricao_municipal: formData.inscricao_municipal || undefined,
       regime_tributario: formData.regime_tributario || undefined,
       cnae_principal: formData.cnae_principal || undefined,
+      indicador_ie: formData.indicador_ie || undefined,
+      natureza_juridica: formData.natureza_juridica || undefined,
+      tipo_atividade: formData.tipo_atividade || undefined,
+      cnaes_secundarios: formData.cnaes_secundarios || undefined,
+      data_abertura: formData.data_abertura || undefined,
+      website: formData.website || undefined,
     };
 
     // Transform endereco_principal -> endereco[]
@@ -310,6 +337,51 @@ export function useEmpresaFormProvider() {
         },
       }
     );
+  }
+
+  // =============================================
+  // CNPJ Lookup (BrasilAPI / Receita Federal)
+  // =============================================
+
+  const isConsultingCNPJ = ref(false);
+
+  async function consultarCNPJ(cnpjDigits: string) {
+    if (isConsultingCNPJ.value) return;
+    isConsultingCNPJ.value = true;
+
+    try {
+      const dados = await buscarDadosCNPJ(cnpjDigits);
+
+      razao_social.value = dados.razao_social || razao_social.value;
+      nome_fantasia.value = dados.nome_fantasia || nome_fantasia.value;
+      cnae_principal.value = dados.cnae_principal || cnae_principal.value;
+      cnaes_secundarios.value = dados.cnaes_secundarios || cnaes_secundarios.value;
+      if (dados.natureza_juridica) natureza_juridica.value = dados.natureza_juridica;
+      data_abertura.value = dados.data_abertura || data_abertura.value;
+
+      // Contato: preenche só se vazio
+      if (!email.value && dados.email) email.value = dados.email;
+      if (!telefone.value && dados.telefone) telefone.value = formatTelefone(dados.telefone);
+
+      // Endereço completo
+      endereco_principal.value = {
+        ...endereco_principal.value,
+        logradouro: dados.logradouro || endereco_principal.value.logradouro,
+        numero: dados.numero || endereco_principal.value.numero,
+        complemento: dados.complemento || endereco_principal.value.complemento,
+        bairro: dados.bairro || endereco_principal.value.bairro,
+        cidade: dados.cidade || endereco_principal.value.cidade,
+        estado: dados.estado || endereco_principal.value.estado,
+        cep: dados.cep ? formatCEP(dados.cep) : endereco_principal.value.cep,
+        codigo_ibge: dados.codigo_ibge || endereco_principal.value.codigo_ibge,
+      };
+
+      toast.success('Dados da Receita Federal preenchidos automaticamente!');
+    } catch {
+      toast.error('CNPJ não encontrado na Receita Federal.');
+    } finally {
+      isConsultingCNPJ.value = false;
+    }
   }
 
   function handleTestSefaz() {
@@ -380,6 +452,12 @@ export function useEmpresaFormProvider() {
     inscricao_municipal,
     regime_tributario,
     cnae_principal,
+    indicador_ie,
+    natureza_juridica,
+    tipo_atividade,
+    cnaes_secundarios,
+    data_abertura,
+    website,
     url_logo,
     fiscal_settings,
     endereco_principal,
@@ -407,6 +485,10 @@ export function useEmpresaFormProvider() {
 
     // Window Certificates
     windowsCertificates: windowsCertificates.value || [],
+
+    // CNPJ Lookup
+    isConsultingCNPJ,
+    consultarCNPJ,
 
     // Actions
     onSubmit,

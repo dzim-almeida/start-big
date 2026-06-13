@@ -85,6 +85,12 @@ export interface EmpresaRead {
   regime_tributario?: string;
   cnae_principal?: string;
   segmento?: string;
+  indicador_ie?: string;
+  natureza_juridica?: string;
+  tipo_atividade?: string;
+  cnaes_secundarios?: string;
+  data_abertura?: string;
+  website?: string;
   email?: string;
   telefone?: string;
   celular?: string;
@@ -105,6 +111,12 @@ export interface EmpresaUpdate {
   inscricao_municipal?: string;
   regime_tributario?: string;
   cnae_principal?: string;
+  indicador_ie?: string;
+  natureza_juridica?: string;
+  tipo_atividade?: string;
+  cnaes_secundarios?: string;
+  data_abertura?: string;
+  website?: string;
   email?: string;
   telefone?: string;
   celular?: string;
@@ -139,6 +151,12 @@ export interface EmpresaFormData {
   inscricao_municipal: string;
   regime_tributario: string;
   cnae_principal: string;
+  indicador_ie: string;
+  natureza_juridica: string;
+  tipo_atividade: string;
+  cnaes_secundarios: string;
+  data_abertura: string;
+  website: string;
   url_logo: string;
   fiscal_settings: Partial<FiscalSettings>;
   endereco_principal: Partial<Endereco>;
@@ -170,6 +188,12 @@ export interface EmpresaFormContext {
   inscricao_municipal: Ref<string>;
   regime_tributario: Ref<string>;
   cnae_principal: Ref<string>;
+  indicador_ie: Ref<string>;
+  natureza_juridica: Ref<string>;
+  tipo_atividade: Ref<string>;
+  cnaes_secundarios: Ref<string>;
+  data_abertura: Ref<string>;
+  website: Ref<string>;
   url_logo: Ref<string>;
   fiscal_settings: Ref<Partial<FiscalSettings>>;
   endereco_principal: Ref<Partial<Endereco>>;
@@ -197,6 +221,10 @@ export interface EmpresaFormContext {
 
   // ========== WINDOW CERTIFICATES ==========
   windowsCertificates: WindowsCertificate[];
+
+  // ========== CNPJ LOOKUP ==========
+  isConsultingCNPJ: Ref<boolean>;
+  consultarCNPJ: (cnpj: string) => void;
 
   // ========== ACTIONS ==========
   onSubmit: (e?: Event) => void;

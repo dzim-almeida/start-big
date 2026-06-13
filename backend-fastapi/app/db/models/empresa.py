@@ -43,6 +43,12 @@ class Empresa(Base):
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
     cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
     segmento: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Segmento de negócio da empresa (ex: assistencia_tecnica, oficina_mecanica)")
+    indicador_ie: Mapped[Optional[str]] = mapped_column(String(1), nullable=True, doc="Indicador de IE para NF-e: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte")
+    natureza_juridica: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)")
+    tipo_atividade: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO")
+    cnaes_secundarios: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="CNAEs secundários separados por vírgula")
+    data_abertura: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Data de abertura no formato YYYY-MM-DD")
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Site da empresa")
 
     # --- Contato e Visual ---
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")

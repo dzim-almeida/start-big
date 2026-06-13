@@ -150,6 +150,12 @@ export const EmpresaFormValidationSchema = z.object({
   is_cnpj: z.boolean().default(true),
   documento: z.string().min(1, 'Documento é obrigatório'),
   cnae_principal: z.string().optional().or(z.literal('')),
+  indicador_ie: z.string().optional().or(z.literal('')),
+  natureza_juridica: z.string().optional().or(z.literal('')),
+  tipo_atividade: z.string().optional().or(z.literal('')),
+  cnaes_secundarios: z.string().optional().or(z.literal('')),
+  data_abertura: z.string().optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
   url_logo: z.string().optional().or(z.literal('')),
 
   // Contato
@@ -188,6 +194,12 @@ export const EmpresaFormSchema = z.object({
     z.string().min(11, 'Documento inválido').max(14, 'Documento inválido')
   ),
   cnae_principal: z.string().optional().or(z.literal('')),
+  indicador_ie: z.string().optional().or(z.literal('')),
+  natureza_juridica: z.string().optional().or(z.literal('')),
+  tipo_atividade: z.string().optional().or(z.literal('')),
+  cnaes_secundarios: z.string().optional().or(z.literal('')),
+  data_abertura: z.string().optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
   url_logo: z.string().optional().or(z.literal('')),
 
   // Contato

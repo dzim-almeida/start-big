@@ -138,23 +138,20 @@ watch(() => props.isOpen, (aberto) => {
 const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
-const SECOES_CONFIRMAR_SALVAR: SecaoId[] = ['seguranca', 'regras-de-vendas']
-
 async function salvar(): Promise<void> {
   const comp = activeComponentRef.value
   if (!comp?.form || !isDirtyAtivo.value) return
 
-  if (SECOES_CONFIRMAR_SALVAR.includes(secaoAtiva.value)) {
-    const ok = await confirmacao.pedirConfirmacao({
-      titulo: `Aplicar alterações de ${labelSecaoAtiva.value}?`,
-      descricao: `As alterações de <strong>${labelSecaoAtiva.value}</strong> serão aplicadas imediatamente.`,
-      confirmLabel: 'Aplicar',
-      variant: 'warning',
-    })
-    if (!ok) return
-  }
+  const ok = await confirmacao.pedirConfirmacao({
+    titulo: `Aplicar alterações de ${labelSecaoAtiva.value}?`,
+    descricao: `As alterações de <strong>${labelSecaoAtiva.value}</strong> serão aplicadas imediatamente.`,
+    confirmLabel: 'Aplicar',
+    variant: 'warning',
+  })
+  if (!ok) return
 
-  const fecharAposSalvar = { onSuccess: () => emit('close') }
+  const fecharComDelay = () => setTimeout(() => emit('close'), 600)
+  const fecharAposSalvar = { onSuccess: fecharComDelay }
 
   switch (secaoAtiva.value) {
     case 'clientes-cadastro':
@@ -178,7 +175,7 @@ async function salvar(): Promise<void> {
         toast.warning('Configuração salva, mas o compartilhamento falhou', String(error))
       }
       toast.success('Configurações de impressão salvas!')
-      emit('close')
+      fecharComDelay()
       break
     case 'regras-de-vendas': {
       const { vendas, estoque } = comp.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }
@@ -186,7 +183,7 @@ async function salvar(): Promise<void> {
         salvarVendasAsync(vendas as any),
         salvarEstoqueAsync(estoque as any),
       ])
-      if (resultados.every((r) => r.status === 'fulfilled')) emit('close')
+      if (resultados.every((r) => r.status === 'fulfilled')) fecharComDelay()
       break
     }
   }
