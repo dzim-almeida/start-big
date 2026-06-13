@@ -223,20 +223,45 @@ export function useEmpresaFormProvider() {
   // Watchers - Sync com API
   // =============================================
 
+  // CNPJ salvo no servidor — usado para evitar lookup automático no carregamento
+  const cnpjSalvo = ref('');
+
+  // Snapshot JSON dos valores carregados do servidor.
+  // Comparado com os valores atuais do formulário para detectar alterações reais.
+  // Evita dependência do meta.dirty do VeeValidate, que pode ter falsos positivos
+  // ao comparar objetos com campos null (API) vs campos ausentes (DEFAULT_FORM_VALUES).
+  const snapshotServidor = ref('');
+
+  // Flag: true após resetForm ter se propagado completamente (2 ticks).
+  // Impede que o guard de saída dispare durante o carregamento inicial.
+  const formPronto = ref(false);
+
   watch(
     empresaData,
     (data) => {
       if (!data) return;
-      // Populate form from API data
-      resetForm({
-        values: {
-          ...DEFAULT_FORM_VALUES,
-          ...normalizeEmpresaToForm(data),
-        },
-      });
+      formPronto.value = false;
+      cnpjSalvo.value = (data.documento || '').replace(/\D/g, '');
+      const formValues = { ...DEFAULT_FORM_VALUES, ...normalizeEmpresaToForm(data) };
+      resetForm({ values: formValues });
+      // setTimeout(0) garante que TODA operação assíncrona do VeeValidate (cast do
+      // toTypedSchema, validações, etc.) já completou antes de tirar o snapshot.
+      // nextTick apenas garante o ciclo reativo do Vue, mas o VeeValidate pode
+      // processar a Zod schema fora do ciclo Vue. O macrotask (setTimeout) cobre ambos.
+      setTimeout(() => {
+        snapshotServidor.value = JSON.stringify(values);
+        formPronto.value = true;
+      }, 0);
     },
     { immediate: true },
   );
+
+  // True quando há alterações reais do usuário não salvas.
+  // Usa comparação JSON em vez de meta.dirty para evitar falsos positivos.
+  const temAlteracoesPendentes = computed(() => {
+    if (!formPronto.value || !snapshotServidor.value) return false;
+    return JSON.stringify(values) !== snapshotServidor.value;
+  });
 
   // =============================================
   // Transform Functions
@@ -424,6 +449,11 @@ export function useEmpresaFormProvider() {
       updateMutation.mutate(
         { data: payload },
         {
+          onSuccess: () => {
+            // Sincroniza snapshot com os valores atuais para zerar temAlteracoesPendentes
+            snapshotServidor.value = JSON.stringify(values);
+            resetForm({ values: { ...values } });
+          },
           onError: (error: any) => {
             apiError.value = error?.response?.data?.detail || 'Erro ao salvar empresa';
           },
@@ -487,8 +517,13 @@ export function useEmpresaFormProvider() {
     windowsCertificates: windowsCertificates.value || [],
 
     // CNPJ Lookup
+    cnpjSalvo,
     isConsultingCNPJ,
     consultarCNPJ,
+
+    // Alterações pendentes
+    formPronto,
+    temAlteracoesPendentes,
 
     // Actions
     onSubmit,

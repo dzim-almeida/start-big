@@ -33,7 +33,7 @@ const {
   apiError,
   isLoading,
   isPending,
-  isDirty,
+  temAlteracoesPendentes,
   onSubmit,
 } = useEmpresaFormProvider();
 
@@ -45,7 +45,7 @@ const confirmacao = useConfirmacao();
 
 async function handleSave(e?: Event) {
   e?.preventDefault();
-  if (!isDirty.value) return;
+  if (!temAlteracoesPendentes.value) return;
 
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Salvar alterações da empresa?',
@@ -57,9 +57,11 @@ async function handleSave(e?: Event) {
   if (ok) onSubmit();
 }
 
-// Avisa ao tentar sair com alterações não salvas
+// Avisa ao tentar sair com alterações não salvas.
+// temAlteracoesPendentes usa comparação JSON (não meta.dirty do VeeValidate)
+// para evitar falsos positivos no carregamento inicial da página.
 onBeforeRouteLeave(async () => {
-  if (!isDirty.value) return true;
+  if (!temAlteracoesPendentes.value) return true;
 
   return confirmacao.pedirConfirmacao({
     titulo: 'Sair sem salvar?',
@@ -149,7 +151,7 @@ onBeforeRouteLeave(async () => {
               type="submit"
               variant="primary"
               :loading="isPending"
-              :disabled="!isDirty"
+              :disabled="!temAlteracoesPendentes"
               class="w-full justify-center py-3 text-sm font-bold shadow-brand-primary-light/20 shadow-lg hover:shadow-brand-primary-light/30 transition-all transform active:scale-95"
             >
               <Save :size="18" class="mr-2" />

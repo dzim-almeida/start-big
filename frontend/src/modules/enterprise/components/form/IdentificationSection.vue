@@ -42,7 +42,8 @@ const {
   url_logo,
   handleLogoUpload,
   isUploadingLogo,
-  isDirty,
+  temAlteracoesPendentes,
+  cnpjSalvo,
   isConsultingCNPJ,
   consultarCNPJ,
   errors,
@@ -56,7 +57,10 @@ const {
 const documentoDigits = computed(() => documento.value.replace(/\D/g, ''));
 
 watch(documentoDigits, (digits) => {
-  if (!is_cnpj.value || digits.length !== 14 || !isDirty.value) return;
+  if (!is_cnpj.value || digits.length !== 14) return;
+  // Só consulta se o CNPJ for diferente do que já está salvo no servidor
+  // Isso evita disparar o lookup no carregamento inicial da página
+  if (digits === cnpjSalvo.value) return;
   consultarCNPJ(digits);
 });
 
@@ -200,7 +204,7 @@ function onLogoFileChange(event: Event) {
             Consultando Receita Federal...
           </div>
           <div
-            v-else-if="documentoDigits.length === 14 && isDirty"
+            v-else-if="documentoDigits.length === 14 && temAlteracoesPendentes"
             class="mt-1.5 flex items-center gap-1 text-xs text-gray-400"
           >
             <Search :size="11" />

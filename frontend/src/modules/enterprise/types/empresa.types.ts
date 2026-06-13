@@ -223,8 +223,13 @@ export interface EmpresaFormContext {
   windowsCertificates: WindowsCertificate[];
 
   // ========== CNPJ LOOKUP ==========
+  cnpjSalvo: Ref<string>;
   isConsultingCNPJ: Ref<boolean>;
   consultarCNPJ: (cnpj: string) => void;
+
+  // ========== DIRTY TRACKING ==========
+  formPronto: Ref<boolean>;
+  temAlteracoesPendentes: ComputedRef<boolean>;
 
   // ========== ACTIONS ==========
   onSubmit: (e?: Event) => void;
