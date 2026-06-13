@@ -7,7 +7,7 @@
 import { computed } from 'vue';
 
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
-import { ArrowLeft, ArrowRight, Loader2, MapPin, Upload, X } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Loader2, Upload, X } from 'lucide-vue-next';
 
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';

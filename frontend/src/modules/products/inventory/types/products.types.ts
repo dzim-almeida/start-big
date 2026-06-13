@@ -92,7 +92,7 @@ export interface CardInfo {
 // MOVIMENTAÇÃO TYPES
 // =============================================
 
-export type MovimentacaoTipo = 'ENTRADA' | 'SAIDA' | 'AJUSTE';
+export type MovimentacaoTipo = 'ENTRADA' | 'SAIDA' | 'AJUSTE' | 'EDICAO_DADOS';
 
 export interface MovimentacaoRead {
   id: number;

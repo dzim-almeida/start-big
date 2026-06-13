@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   })
 });
 
-const emits = defineEmits<{
+defineEmits<{
   blur: [];
   enter: [];
   keydown: [event: KeyboardEvent];

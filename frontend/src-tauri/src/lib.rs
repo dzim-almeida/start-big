@@ -145,9 +145,17 @@ fn iniciar_servidor_impressao(
             while rodando.load(Ordering::SeqCst) {
                 match udp.recv_from(&mut buffer) {
                     Ok((n, origem)) if &buffer[..n] == MENSAGEM_DESCOBERTA => {
+                        // Descobre qual IP local seria usado para chegar neste cliente
+                        // (sempre será o IP da LAN, ignorando VPN ou outras interfaces)
+                        let ip_lan = std::net::UdpSocket::bind("0.0.0.0:0")
+                            .ok()
+                            .and_then(|s| s.connect(origem).ok().map(|_| s))
+                            .and_then(|s| s.local_addr().ok())
+                            .map(|a| a.ip().to_string())
+                            .unwrap_or_default();
                         let resposta = format!(
-                            "{{\"nome\":{:?},\"porta\":{}}}",
-                            nome_terminal, porta
+                            "{{\"nome\":{:?},\"porta\":{},\"ip\":\"{}\"}}",
+                            nome_terminal, porta, ip_lan
                         );
                         let _ = udp.send_to(resposta.as_bytes(), origem);
                     }
@@ -185,11 +193,18 @@ fn descobrir_servidores_impressao() -> Result<Vec<ServidorDescoberto>, String> {
     while inicio.elapsed() < Duration::from_millis(1500) {
         if let Ok((n, origem)) = udp.recv_from(&mut buffer) {
             let texto = String::from_utf8_lossy(&buffer[..n]);
-            let ip = origem.ip().to_string();
+            // Prefere o IP que o servidor incluiu no corpo (IP da LAN real),
+            // com fallback para origem.ip() em servidores com versão antiga
+            let ip = texto
+                .split("\"ip\":\"")
+                .nth(1)
+                .and_then(|s| s.split('"').next())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| origem.ip().to_string());
             if servidores.iter().any(|s| s.ip == ip) {
                 continue;
             }
-            // Resposta esperada: {"nome":"...","porta":9100}
             let nome = texto
                 .split("\"nome\":")
                 .nth(1)
@@ -199,7 +214,8 @@ fn descobrir_servidores_impressao() -> Result<Vec<ServidorDescoberto>, String> {
             let porta = texto
                 .split("\"porta\":")
                 .nth(1)
-                .and_then(|s| s.trim_end_matches('}').trim().parse::<u16>().ok())
+                .and_then(|s| s.split(|c| c == ',' || c == '}').next())
+                .and_then(|n| n.trim().parse::<u16>().ok())
                 .unwrap_or(9100);
             servidores.push(ServidorDescoberto { nome, ip, porta });
         }

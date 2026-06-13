@@ -113,7 +113,7 @@ const valorCreditoCliente = computed(() =>
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
-const quickActions = [
+const quickActions: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
   { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
   { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
   { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },

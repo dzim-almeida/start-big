@@ -5,7 +5,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 
 import { SALE_SHORTCUTS, type ShortcutItem } from '../../constants';
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   isOpen: boolean;
   shortcuts?: ShortcutItem[];
 }>(), {

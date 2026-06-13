@@ -27,7 +27,6 @@ export function useOSModalLifecycle({
   currentOSData,
   localOSData,
   isCreateMode,
-  reopenMode,
   form,
   resetReopenState,
   onOpen,

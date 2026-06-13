@@ -60,7 +60,7 @@ const statusColorMap: Record<string, string> = {
 };
 
 function getStatusClass(status: string): string {
-  return statusColorMap[getStatusColor(status)] || statusColorMap.gray;
+  return statusColorMap[getStatusColor(status as Parameters<typeof getStatusColor>[0])] || statusColorMap.gray;
 }
 </script>
 
@@ -119,7 +119,7 @@ function getStatusClass(status: string): string {
             <td class="px-4 py-3 text-slate-600">
               {{ getEquipamentoLabel(os) }}
             </td>
-            <td class="px-4 py-3 text-slate-500 max-w-[200px]">
+            <td class="px-4 py-3 text-slate-500 max-w-50">
               {{ truncate(os.defeito_relatado, 50) }}
             </td>
             <td class="px-4 py-3 text-right">

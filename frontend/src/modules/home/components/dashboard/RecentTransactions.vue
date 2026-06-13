@@ -42,9 +42,6 @@ function getInitial(name: string | null): string {
   return name.charAt(0).toUpperCase();
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR');
-}
 </script>
 
 <template>

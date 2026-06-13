@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { User2, Building2, UserX, RefreshCw } from 'lucide-vue-next';
+import { User2, UserX, RefreshCw } from 'lucide-vue-next';
 import { getInitials } from '@/shared/utils/string.utils';
 import type { CustomerSimpleRead } from '../../schemas/customers.schema';
 
