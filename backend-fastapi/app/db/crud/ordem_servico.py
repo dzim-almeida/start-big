@@ -289,7 +289,7 @@ def delete_os_foto(db: Session, foto_to_delete: OSFotoModel) -> None:
 # LEITURA — Alertas de Abandono
 # ===========================================================================
 
-def get_os_abandono(db: Session, empresa_id: int, prazo_abandono_dias: int) -> list[OSModel]:
+def get_os_abandono(db: Session, empresa_id: int, prazo_abandono_dias: int, funcionario_id: int | None = None) -> list[OSModel]:
     """Retorna OS em aberto criadas há mais de prazo_abandono_dias sem resolução."""
     from datetime import timedelta
     cutoff = datetime.utcnow() - timedelta(days=prazo_abandono_dias)
@@ -301,10 +301,12 @@ def get_os_abandono(db: Session, empresa_id: int, prazo_abandono_dias: int) -> l
         )
         .order_by(OSModel.data_criacao.asc())
     )
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
     return list(db.scalars(stmt).all())
 
 
-def get_os_atrasadas(db: Session, empresa_id: int) -> list[OSModel]:
+def get_os_atrasadas(db: Session, empresa_id: int, funcionario_id: int | None = None) -> list[OSModel]:
     """Retorna OS abertas/em andamento com data_previsao vencida."""
     stmt = (
         select(OSModel)
@@ -315,4 +317,6 @@ def get_os_atrasadas(db: Session, empresa_id: int) -> list[OSModel]:
         )
         .order_by(OSModel.data_previsao.asc())
     )
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
     return list(db.scalars(stmt).all())

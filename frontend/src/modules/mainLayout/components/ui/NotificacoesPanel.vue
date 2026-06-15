@@ -21,9 +21,12 @@ const mensagem = ref('')
 const enviando = ref(false)
 const expandidos = ref<Set<number>>(new Set())
 
+const CARGOS_GERENCIAIS = ['administrador', 'gerente']
+
 const isMasterOuGerente = computed(() => {
-  const p = authStore.userData?.cargo?.permissoes
-  return p?.['all'] === true || p?.['funcionario'] === true
+  if (authStore.userData?.is_master) return true
+  const cargo = authStore.userData?.cargo?.nome?.toLowerCase() ?? ''
+  return CARGOS_GERENCIAIS.some((c) => cargo.includes(c))
 })
 
 function formatarData(d: string | null | undefined) {

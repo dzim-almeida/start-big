@@ -579,13 +579,13 @@ def reabrir_ordem_servico(db: Session, numero_os: str, codigo_gerente: str | Non
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 
 
-def get_os_abandono(db: Session, empresa_id: int) -> list[OSModel]:
+def get_os_abandono(db: Session, empresa_id: int, funcionario_id: int | None = None) -> list[OSModel]:
     """Retorna OS finalizadas cujo prazo de abandono já venceu, usando config da empresa."""
     from app.services.configuracao_os import get_or_create_configuracao_os
     config = get_or_create_configuracao_os(db, empresa_id)
-    return os_crud.get_os_abandono(db, empresa_id, config.prazo_abandono_dias)
+    return os_crud.get_os_abandono(db, empresa_id, config.prazo_abandono_dias, funcionario_id=funcionario_id)
 
 
-def get_os_atrasadas(db: Session, empresa_id: int) -> list[OSModel]:
+def get_os_atrasadas(db: Session, empresa_id: int, funcionario_id: int | None = None) -> list[OSModel]:
     """Retorna OS abertas com prazo de entrega vencido."""
-    return os_crud.get_os_atrasadas(db, empresa_id)
+    return os_crud.get_os_atrasadas(db, empresa_id, funcionario_id=funcionario_id)

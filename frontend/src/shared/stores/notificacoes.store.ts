@@ -1,13 +1,28 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { OrderServiceReadDataType } from '@/modules/order-service/ordens/schemas/orderServiceQuery.schema'
 import type { Comunicado } from '@/modules/mainLayout/services/comunicado.service'
+
+const STORAGE_KEY = 'notif_os_vistos'
+
+function carregarVistos(): Set<number> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? new Set<number>(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
 
 export const useNotificacoesStore = defineStore('notificacoes', () => {
   const osAbandono = ref<OrderServiceReadDataType[]>([])
   const osAtrasadas = ref<OrderServiceReadDataType[]>([])
   const comunicados = ref<Comunicado[]>([])
-  const osVistos = ref<Set<number>>(new Set())
+  const osVistos = ref<Set<number>>(carregarVistos())
+
+  watch(osVistos, (val) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...val]))
+  })
 
   const totalNaoLidas = computed(() => {
     const alertas = [
@@ -56,6 +71,7 @@ export const useNotificacoesStore = defineStore('notificacoes', () => {
     osAtrasadas.value = []
     comunicados.value = []
     osVistos.value = new Set()
+    localStorage.removeItem(STORAGE_KEY)
   }
 
   return {

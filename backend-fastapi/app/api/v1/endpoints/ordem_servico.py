@@ -140,7 +140,8 @@ def get_os_abandono(
     db: Session = Depends(get_db)
 ):
     empresa_id = int(user_token.get("empresa_id"))
-    return os_service.get_os_abandono(db, empresa_id)
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_os_abandono(db, empresa_id, funcionario_id=funcionario_id)
 
 
 @router.get(
@@ -155,7 +156,8 @@ def get_os_atrasadas(
     db: Session = Depends(get_db)
 ):
     empresa_id = int(user_token.get("empresa_id"))
-    return os_service.get_os_atrasadas(db, empresa_id)
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_os_atrasadas(db, empresa_id, funcionario_id=funcionario_id)
 
 
 # ===========================================================================
