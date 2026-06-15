@@ -6,8 +6,8 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 
 import SidebarItem from './SidebarItem.vue';
 import CompanyCard from '../../ui/CompanyCard.vue';
-import UserCard from '../../ui/UserCard.vue';
 import SidebarSectionSkeleton from './SidebarSectionSkeleton.vue';
+import startLogo from '@/shared/assets/images/login/start-logo.png';
 
 import { SIDEBAR_SECTIONS } from '@/modules/mainLayout/constants/layout.constants';
 import { computed, onMounted, onUnmounted } from 'vue';
@@ -58,7 +58,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 px-4 space-y-4 mt-2 mb-4 overflow-y-auto custom-scrollbar">
+      <nav class="flex-1 px-4 space-y-4 mt-2 mb-2 overflow-y-auto custom-scrollbar">
         <SidebarSectionSkeleton v-if="isLoading" />
 
         <div v-else v-for="(section, index) in filteredSidebar" :key="index" class="space-y-1">
@@ -76,15 +76,9 @@ onUnmounted(() => {
         </div>
       </nav>
 
-      <!-- User Profile -->
-      <div class="p-4 mt-auto border-t border-zinc-700/50">
-        <UserCard
-          :user-name="userData?.nome"
-          :user-cargo="userData?.cargo?.nome"
-          :image-url="userData?.url_perfil"
-          :status="userData?.ativo"
-          :is-loading="isLoading"
-        />
+      <!-- Logo rodapé -->
+      <div class="p-4 mt-auto border-t border-zinc-800/60 flex items-center justify-center">
+        <img :src="startLogo" alt="StartBig" class="h-10 w-10 opacity-80" />
       </div>
     </aside>
   </Transition>

@@ -15,7 +15,7 @@ export function useAtualizarContaMutation() {
   return useMutation<UserResponse, AxiosError<ApiError>, AtualizarContaPayload>({
     mutationFn: atualizarConta,
     onSuccess: () => {
-      toast.success('Dados atualizados com sucesso!');
+      toast.success('Informações atualizadas!', 'Seus dados de usuário foram salvos com sucesso.');
       queryClient.invalidateQueries({ queryKey: ['user-me'] });
     },
     onError: (error) => {

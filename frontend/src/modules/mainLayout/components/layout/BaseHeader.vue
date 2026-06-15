@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Bell, Menu, Settings } from 'lucide-vue-next';
+import { Bell, Menu, ChevronDown, User } from 'lucide-vue-next';
 import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
 import SettingsMenu from '../ui/SettingsMenu.vue';
 import NotificacoesPanel from '../ui/NotificacoesPanel.vue';
 import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
+import { useAuthStore } from '@/shared/stores/auth.store';
 import { onClickOutside } from '@vueuse/core';
 import { useQueryClient } from '@tanstack/vue-query';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const layoutStore = useLayoutStore();
 const { pageTitle, pageSubtitle, isMobile, isSettingsOpen } = storeToRefs(layoutStore);
 const notificacoesStore = useNotificacoesStore();
+const authStore = useAuthStore();
+const { userData } = storeToRefs(authStore);
 
 const settingsButtonRef = ref<HTMLButtonElement | null>(null);
 const notifButtonRef = ref<HTMLButtonElement | null>(null);
@@ -92,17 +97,30 @@ const notifStyle = computed((): Record<string, string> => {
         >{{ notificacoesStore.totalNaoLidas > 9 ? '9+' : notificacoesStore.totalNaoLidas }}</span>
       </button>
 
-      <!-- Settings Icon -->
+      <!-- User Avatar Button -->
       <button
         ref="settingsButtonRef"
         @click="layoutStore.toggleSettings"
         :class="[
-          'relative p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer',
-          isSettingsOpen && 'bg-zinc-100 text-zinc-800',
+          'flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-xl transition-colors cursor-pointer',
+          isSettingsOpen ? 'bg-zinc-100' : 'hover:bg-zinc-100',
         ]"
         aria-label="Configurações"
       >
-        <Settings :size="20" />
+        <div class="w-8 h-8 rounded-lg bg-brand-primary flex items-end justify-center overflow-hidden shrink-0">
+          <img
+            v-if="userData?.url_perfil"
+            :src="`${API_BASE_URL}/${userData.url_perfil}`"
+            alt="Foto do usuário"
+            class="w-full h-full object-cover"
+          />
+          <User v-else :size="22" class="text-white" />
+        </div>
+        <ChevronDown
+          :size="14"
+          class="text-zinc-400 transition-transform duration-200"
+          :class="isSettingsOpen && 'rotate-180'"
+        />
       </button>
     </div>
   </header>
