@@ -14,7 +14,6 @@ import {
 } from 'lucide-vue-next';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
-import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { useLayoutStore } from '../../store/layout.store';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -28,7 +27,6 @@ const LINKS = {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const authStore = useAuthStore();
-const settingsStore = useSettingsStore();
 const layoutStore = useLayoutStore();
 
 const { userData } = storeToRefs(authStore);

@@ -241,7 +241,7 @@ function onLogoFileChange(event: Event) {
       <BaseInput
         v-model="website"
         label="Website"
-        type="url"
+        type="text"
         placeholder="https://www.suaempresa.com.br"
         :disabled="disabled"
       />

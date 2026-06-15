@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Headphones, BookOpen, Globe, Youtube, ExternalLink } from 'lucide-vue-next'
+import { Headphones, Globe, Youtube, ExternalLink } from 'lucide-vue-next'
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 
