@@ -8,6 +8,7 @@ interface Props {
   vendas: UltimaVendaItemData[];
   isLoading: boolean;
   isError: boolean;
+  showTime?: boolean;
 }
 
 defineProps<Props>();
@@ -42,6 +43,9 @@ function getInitial(name: string | null): string {
   return name.charAt(0).toUpperCase();
 }
 
+function formatTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 </script>
 
 <template>
@@ -73,6 +77,7 @@ function getInitial(name: string | null): string {
           >
             <th class="px-4 py-3">Cliente</th>
             <th class="px-4 py-3 text-right">Total</th>
+            <th v-if="showTime" class="px-4 py-3 text-right">Hora</th>
             <th class="px-4 py-3 text-right">Status</th>
           </tr>
         </thead>
@@ -103,6 +108,11 @@ function getInitial(name: string | null): string {
             <!-- Total -->
             <td class="px-4 py-2.5 text-xs md:text-sm font-bold text-zinc-900 text-right whitespace-nowrap">
               {{ formatCurrency(venda.total) }}
+            </td>
+
+            <!-- Hora -->
+            <td v-if="showTime" class="px-4 py-2.5 text-xs text-zinc-400 text-right whitespace-nowrap">
+              {{ formatTime(venda.criado_em) }}
             </td>
 
             <!-- Status -->

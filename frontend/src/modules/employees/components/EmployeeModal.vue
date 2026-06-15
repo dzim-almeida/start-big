@@ -103,6 +103,7 @@ watch(isOpen, (open) => {
           <div
             v-if="isOpen"
             class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col mx-4"
+            @click.stop
           >
             <!-- Header -->
             <div

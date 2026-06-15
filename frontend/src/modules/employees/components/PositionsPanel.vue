@@ -25,6 +25,7 @@ interface Props {
   employees: FuncionarioRead[];
   isLoading?: boolean;
   isError?: boolean;
+  canManage?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -32,6 +33,7 @@ const props = withDefaults(defineProps<Props>(), {
   employees: () => [],
   isLoading: false,
   isError: false,
+  canManage: false,
 });
 
 const emit = defineEmits<{
@@ -201,6 +203,7 @@ function handleRemove(position: CargoRead) {
         :permissions-enabled="item.permissions.enabled"
         :permissions-total="item.permissions.total"
         :theme-index="index"
+        :can-manage="canManage"
         @view="handleView(item.position)"
         @edit="handleEdit(item.position)"
         @remove="handleRemove(item.position)"

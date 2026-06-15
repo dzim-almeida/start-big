@@ -18,6 +18,23 @@ from app.schemas.dashboard import (
     EstoqueBaixoResponse,
     UltimaVendaItem,
     UltimasVendasResponse,
+    MeuResumoStats,
+    MinhaFilaItem,
+    MinhaFilaResponse,
+    OSAtrasadaItem,
+    OSAtrasadaResponse,
+    OSAguardandoRetiradaItem,
+    OSAguardandoRetiradaResponse,
+    AtividadeItem,
+    AtividadeHojeResponse,
+    RankingFuncionarioItem,
+    RankingFuncionariosResponse,
+    OSPorStatusItem,
+    OSPorStatusResponse,
+    FormaPagamentoItem,
+    FormasPagamentoResponse,
+    OSAtrasadaEmpresaItem,
+    OSAtrasadaEmpresaResponse,
 )
 
 
@@ -166,6 +183,207 @@ def get_estoque_baixo(db: Session) -> EstoqueBaixoResponse:
 # ===========================================================================
 # ULTIMAS VENDAS
 # ===========================================================================
+
+def get_meu_resumo(db: Session, periodo: str, funcionario_id: int) -> MeuResumoStats:
+    """Stats pessoais do funcionario logado, filtradas pelo seu ID."""
+    inicio, fim, _, _ = _calcular_periodo(periodo)
+    dados = dashboard_crud.get_meu_resumo_stats(db, inicio, fim, funcionario_id)
+    return MeuResumoStats(
+        minhas_vendas_valor=dados.minhas_vendas_valor,
+        minhas_vendas_count=dados.minhas_vendas_count,
+        minhas_os_abertas=dados.minhas_os_abertas,
+        minhas_os_concluidas=dados.minhas_os_concluidas,
+    )
+
+
+def get_minhas_os_vencendo(db: Session, funcionario_id: int) -> OSVencendoResponse:
+    """OS do funcionario proximas/passadas do prazo."""
+    rows = dashboard_crud.get_minhas_os_vencendo(db, funcionario_id)
+    items = [
+        OSVencendoItem(
+            numero_os=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            defeito_relatado=row.defeito_relatado,
+            data_previsao=row.data_previsao,
+            urgencia=_calcular_urgencia(row.data_previsao),
+        )
+        for row in rows
+    ]
+    return OSVencendoResponse(items=items)
+
+
+def get_minhas_ultimas_vendas(db: Session, funcionario_id: int) -> UltimasVendasResponse:
+    """Ultimas vendas do funcionario logado."""
+    rows = dashboard_crud.get_minhas_ultimas_vendas(db, funcionario_id)
+    items = [
+        UltimaVendaItem(
+            id=row.id,
+            cliente_nome=row.cliente_nome,
+            total=row.total,
+            status=row.status.value,
+            criado_em=row.criado_em,
+        )
+        for row in rows
+    ]
+    return UltimasVendasResponse(items=items)
+
+
+def get_minha_fila(db: Session, funcionario_id: int) -> MinhaFilaResponse:
+    """Fila de trabalho: OS abertas do funcionario ordenadas por prioridade e prazo."""
+    rows = dashboard_crud.get_minha_fila(db, funcionario_id)
+    items = [
+        MinhaFilaItem(
+            numero_os=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            defeito_relatado=row.defeito_relatado,
+            prioridade=row.prioridade.value,
+            status=row.status.value,
+            data_previsao=row.data_previsao,
+        )
+        for row in rows
+    ]
+    return MinhaFilaResponse(items=items)
+
+
+def get_minhas_os_atrasadas(db: Session, funcionario_id: int) -> OSAtrasadaResponse:
+    """OS com prazo vencido do funcionario."""
+    rows = dashboard_crud.get_minhas_os_atrasadas(db, funcionario_id)
+    hoje = date.today()
+    items = [
+        OSAtrasadaItem(
+            numero_os=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            defeito_relatado=row.defeito_relatado,
+            data_previsao=row.data_previsao,
+            dias_atraso=(hoje - row.data_previsao.date()).days,
+        )
+        for row in rows
+    ]
+    return OSAtrasadaResponse(items=items, total=len(items))
+
+
+def get_os_aguardando_retirada(db: Session, funcionario_id: int) -> OSAguardandoRetiradaResponse:
+    """OS prontas aguardando retirada do cliente."""
+    rows = dashboard_crud.get_os_aguardando_retirada(db, funcionario_id)
+    items = [
+        OSAguardandoRetiradaItem(
+            numero_os=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            equipamento=f"{row.tipo_equipamento.value} {row.marca} {row.modelo}",
+            data_finalizacao=row.data_finalizacao,
+        )
+        for row in rows
+    ]
+    return OSAguardandoRetiradaResponse(items=items)
+
+
+def get_minha_atividade_hoje(db: Session, funcionario_id: int) -> AtividadeHojeResponse:
+    """Timeline de vendas e OS do funcionario criadas hoje."""
+    vendas = dashboard_crud.get_minhas_vendas_hoje(db, funcionario_id)
+    ordens = dashboard_crud.get_minhas_os_hoje(db, funcionario_id)
+
+    itens_venda = [
+        AtividadeItem(
+            tipo="venda",
+            referencia=f"#{row.id}",
+            cliente_nome=row.cliente_nome,
+            valor=row.total,
+            status=row.status.value,
+            horario=row.criado_em,
+        )
+        for row in vendas
+    ]
+
+    itens_os = [
+        AtividadeItem(
+            tipo="os",
+            referencia=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            valor=row.valor_total,
+            status=row.status.value,
+            horario=row.data_criacao,
+        )
+        for row in ordens
+    ]
+
+    todos = itens_venda + itens_os
+    todos.sort(key=lambda x: x.horario, reverse=True)
+    return AtividadeHojeResponse(items=todos[:20])
+
+
+_STATUS_LABELS = {
+    "ABERTA": "Aberta",
+    "EM_ANDAMENTO": "Em andamento",
+    "AGUARDANDO_PECAS": "Aguard. peças",
+    "AGUARDANDO_APROVACAO": "Aguard. aprovação",
+    "AGUARDANDO_RETIRADA": "Aguard. retirada",
+}
+
+
+def get_ranking_funcionarios(db: Session, periodo: str, empresa_id: int) -> RankingFuncionariosResponse:
+    inicio, fim, _, _ = _calcular_periodo(periodo)
+    rows = dashboard_crud.get_ranking_funcionarios(db, inicio, fim, empresa_id)
+    items = [
+        RankingFuncionarioItem(
+            posicao=i + 1,
+            id=row.id,
+            nome=row.nome,
+            total_vendas_valor=row.total_vendas_valor,
+            qtd_vendas=row.qtd_vendas,
+            qtd_os_fechadas=row.qtd_os_fechadas,
+        )
+        for i, row in enumerate(rows)
+    ]
+    return RankingFuncionariosResponse(items=items)
+
+
+def get_os_por_status(db: Session, empresa_id: int) -> OSPorStatusResponse:
+    rows = dashboard_crud.get_os_por_status(db, empresa_id)
+    items = [
+        OSPorStatusItem(
+            status=row.status.value,
+            status_label=_STATUS_LABELS.get(row.status.value, row.status.value),
+            count=row.count,
+        )
+        for row in rows
+    ]
+    return OSPorStatusResponse(items=items, total_ativas=sum(i.count for i in items))
+
+
+def get_formas_pagamento(db: Session, periodo: str, empresa_id: int) -> FormasPagamentoResponse:
+    inicio, fim, _, _ = _calcular_periodo(periodo)
+    vendas_rows = dashboard_crud.get_formas_pagamento_vendas(db, inicio, fim, empresa_id)
+    os_rows = dashboard_crud.get_formas_pagamento_os(db, inicio, fim, empresa_id)
+
+    totais: dict[str, int] = {}
+    for row in vendas_rows:
+        totais[row.nome] = totais.get(row.nome, 0) + (row.total or 0)
+    for row in os_rows:
+        totais[row.nome] = totais.get(row.nome, 0) + (row.total or 0)
+
+    items = [
+        FormaPagamentoItem(nome=nome, valor_total=valor)
+        for nome, valor in sorted(totais.items(), key=lambda x: x[1], reverse=True)
+    ]
+    return FormasPagamentoResponse(items=items, total=sum(i.valor_total for i in items))
+
+
+def get_os_atrasadas_empresa(db: Session, empresa_id: int) -> OSAtrasadaEmpresaResponse:
+    rows = dashboard_crud.get_os_atrasadas_empresa(db, empresa_id)
+    hoje = date.today()
+    items = [
+        OSAtrasadaEmpresaItem(
+            numero_os=row.numero_os,
+            cliente_nome=row.cliente_nome,
+            funcionario_nome=row.funcionario_nome,
+            defeito_relatado=row.defeito_relatado,
+            data_previsao=row.data_previsao,
+            dias_atraso=(hoje - row.data_previsao.date()).days,
+        )
+        for row in rows
+    ]
+    return OSAtrasadaEmpresaResponse(items=items, total=len(items))
+
 
 def get_ultimas_vendas(db: Session, empresa_id: int) -> UltimasVendasResponse:
     """Retorna as vendas mais recentes."""

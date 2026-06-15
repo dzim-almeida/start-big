@@ -19,7 +19,7 @@
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_db, _handle_db_transaction
+from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial
 from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,
@@ -40,7 +40,7 @@ from app.services import venda as venda_service
 
 router = APIRouter()
 
-module_permission = "venda"
+module_permission = ["venda", "view_sales", "manage_sales", "delete_sales"]
 
 # ===========================================================================
 # CRIAÇÃO (POST /)
@@ -301,8 +301,7 @@ def listar_vendas(
     page: int = Query(1, ge=1, description="Número da página para paginação"),
     filters: VendaSearchFilters = Depends()
 ):
-    # Não-master vê apenas suas próprias vendas
-    if not user_token.get("is_master"):
+    if not is_visao_gerencial(user_token):
         filters.funcionario_id = user_token.get("funcionario_id")
 
     sales_in_db, total_sales, total_pages, links = venda_service.get_sales(
@@ -349,7 +348,7 @@ def resumo_status_vendas(
     *,
     db: Session = Depends(get_db),
 ):
-    funcionario_id = None if user_token.get("is_master") else user_token.get("funcionario_id")
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
     return venda_service.get_sales_status(db, funcionario_id=funcionario_id)
 
     

@@ -256,9 +256,9 @@ def get_ordens_servico_by_cliente_id(
     )
 
 
-def get_ordem_servico_stats(db: Session) -> OrdemServicoStats:
+def get_ordem_servico_stats(db: Session, funcionario_id: int | None = None) -> OrdemServicoStats:
     """Retorna estatísticas agregadas das OS."""
-    return os_crud.get_ordem_servico_stats(db)
+    return os_crud.get_ordem_servico_stats(db, funcionario_id=funcionario_id)
 
 
 # ===========================================================================

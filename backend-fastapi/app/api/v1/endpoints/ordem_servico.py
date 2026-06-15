@@ -29,7 +29,7 @@
 from fastapi import APIRouter, Depends, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
     OrdemServicoCreate,
@@ -102,6 +102,8 @@ def get_ordens_servico(
     db: Session = Depends(get_db)
 ):
     filters_dict = filters.model_dump(exclude_unset=True)
+    if not is_visao_gerencial(user_token):
+        filters_dict["funcionario_id"] = user_token.get("funcionario_id")
     return os_service.get_ordem_servico_by_search(db, filters=filters_dict, page=page, limit=limit)
 
 
@@ -117,7 +119,8 @@ def get_ordem_servico_stats(
     *,
     db: Session = Depends(get_db)
 ):
-    return os_service.get_ordem_servico_stats(db)
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_ordem_servico_stats(db, funcionario_id=funcionario_id)
 
 
 # ===========================================================================

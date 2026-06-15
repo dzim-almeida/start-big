@@ -80,6 +80,10 @@ def get_ordens_servico_by_search(
             )
         )
 
+    funcionario_id = filters.get("funcionario_id")
+    if funcionario_id:
+        query = query.where(OSModel.funcionario_id == funcionario_id)
+
     status = filters.get("status")
     if status:
         query = query.where(OSModel.status == status)
@@ -137,7 +141,7 @@ def get_ordens_servico_by_cliente_id(
     return order_services, total
 
 
-def get_ordem_servico_stats(db: Session) -> dict:
+def get_ordem_servico_stats(db: Session, funcionario_id: int | None = None) -> dict:
     """Retorna estatísticas agregadas: total, abertas, finalizadas e ticket médio."""
     subq_values = (
         select(
@@ -154,6 +158,9 @@ def get_ordem_servico_stats(db: Session) -> dict:
         func.count(OSModel.id).filter(OSModel.status == OrdemServicoStatus.FINALIZADA).label("finalizadas"),
         func.avg(subq_values.c.valor_total).label("ticket_medio")
     ).outerjoin(subq_values, OSModel.id == subq_values.c.ordem_servico_id)
+
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
 
     result = db.execute(stmt).first()
 
