@@ -104,11 +104,11 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
         if config_vendas and config_vendas.permitir_desconto and sale_in_db.subtotal > 0 and update_data.desconto > 0:
             percentual = (update_data.desconto * 100) // sale_in_db.subtotal
             if percentual > config_vendas.desconto_maximo_percent:
-                if config_seg and config_seg.requer_pin_desconto_venda:
+                if config_seg and config_seg.requer_pin_desconto_venda and config_seg.pin_gerente:
                     codigo = update_data.codigo_gerente
                     if not codigo:
                         raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
-                    if not config_seg.pin_gerente or not verify_password(codigo, config_seg.pin_gerente):
+                    if not verify_password(codigo, config_seg.pin_gerente):
                         raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
                 else:
                     raise BadRequestException(
@@ -182,12 +182,14 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
         if item_update.valor_unitario:
             empresa_id = sale_in_db.funcionario.empresa_id
             config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-            if not config_seg or not config_seg.requer_pin_alterar_preco_venda:
+            pin_configurado = bool(config_seg and config_seg.pin_gerente)
+            permite_com_pin = config_seg and config_seg.requer_pin_alterar_preco_venda and pin_configurado
+            if not permite_com_pin:
                 raise BadRequestException(detail="Um produto cadastrado não pode ter valor unitário definido manualmente")
             codigo = item_update.codigo_gerente
             if not codigo:
                 raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
-            if not config_seg.pin_gerente or not verify_password(codigo, config_seg.pin_gerente):
+            if not verify_password(codigo, config_seg.pin_gerente):
                 raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
 
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
@@ -308,10 +310,10 @@ def cancel_sale(db: Session, sale_id: int, motivo: str, codigo_gerente: str | No
 
     empresa_id = sale_in_db.funcionario.empresa_id
     config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-    if config_seg and config_seg.requer_pin_cancelar_venda:
+    if config_seg and config_seg.requer_pin_cancelar_venda and config_seg.pin_gerente:
         if not codigo_gerente:
             raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
-        if not config_seg.pin_gerente or not verify_password(codigo_gerente, config_seg.pin_gerente):
+        if not verify_password(codigo_gerente, config_seg.pin_gerente):
             raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
 
     for product in sale_in_db.itens:
@@ -336,10 +338,10 @@ def reopen_sale(db: Session, sale_id: int, codigo_gerente: str | None = None) ->
 
     empresa_id = sale_in_db.funcionario.empresa_id
     config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-    if config_seg and config_seg.requer_pin_reabrir_venda:
+    if config_seg and config_seg.requer_pin_reabrir_venda and config_seg.pin_gerente:
         if not codigo_gerente:
             raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
-        if not config_seg.pin_gerente or not verify_password(codigo_gerente, config_seg.pin_gerente):
+        if not verify_password(codigo_gerente, config_seg.pin_gerente):
             raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
 
     sale_in_db.status = VendaStatus.ATIVA

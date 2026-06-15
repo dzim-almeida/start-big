@@ -375,7 +375,7 @@ function handleFinish() {
     size="sm"
     @close="showPaymentDetails = false"
   >
-    <div v-if="currentPaymentMethod" class="space-y-4">
+    <form v-if="currentPaymentMethod" class="space-y-4" @submit.prevent="confirmAddPayment">
       <div class="flex items-center gap-3 pb-3 border-b border-zinc-100">
         <div class="p-3 bg-brand-primary/10 rounded-xl">
           <component :is="getPaymentIcon(getMethodTipo(currentPaymentMethod))" :size="22" class="text-brand-primary" />
@@ -401,17 +401,17 @@ function handleFinish() {
       </div>
 
       <div class="flex gap-3 pt-2">
-        <BaseButton variant="secondary" class="flex-1" @click="showPaymentDetails = false">Cancelar</BaseButton>
+        <BaseButton variant="secondary" class="flex-1" type="button" @click="showPaymentDetails = false">Cancelar</BaseButton>
         <BaseButton
           variant="primary"
           class="flex-1"
+          type="submit"
           :disabled="paymentValueReais <= 0"
-          @click="confirmAddPayment"
         >
           Confirmar
         </BaseButton>
       </div>
-    </div>
+    </form>
 
     <template #footer><span></span></template>
   </BaseModal>

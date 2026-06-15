@@ -123,8 +123,11 @@ export function useItemSaleForm(
         payload.descricao_avulsa = formValues.descricao;
         payload.valor_unitario = formValues.valor_unitario * 100;
       } else if (selectedItem.value.tipo_produto === 'CADASTRADO' && unref(requerPinAlterarPreco)) {
-        payload.valor_unitario = formValues.valor_unitario * 100;
-        if (codigoGerente) payload.codigo_gerente = codigoGerente;
+        const novoPreco = Math.round(formValues.valor_unitario * 100);
+        if (novoPreco !== selectedItem.value.valor_unitario) {
+          payload.valor_unitario = novoPreco;
+          if (codigoGerente) payload.codigo_gerente = codigoGerente;
+        }
       }
 
       if (isOrcamento) {

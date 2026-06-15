@@ -525,10 +525,10 @@ def cancelar_ordem_servico(db: Session, numero_os: str, data: OrdemServicoCancel
     if os_in_db.funcionario:
         empresa_id = os_in_db.funcionario.empresa_id
         config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-        if config_seg and config_seg.requer_pin_cancelar_os:
+        if config_seg and config_seg.requer_pin_cancelar_os and config_seg.pin_gerente:
             if not data.codigo_gerente:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="REQUER_APROVACAO_GERENTE")
-            if not config_seg.pin_gerente or not verify_password(data.codigo_gerente, config_seg.pin_gerente):
+            if not verify_password(data.codigo_gerente, config_seg.pin_gerente):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN_GERENTE_INVALIDO")
 
     os_in_db.status = OrdemServicoStatus.CANCELADA
@@ -562,10 +562,10 @@ def reabrir_ordem_servico(db: Session, numero_os: str, codigo_gerente: str | Non
     if os_in_db.funcionario:
         empresa_id = os_in_db.funcionario.empresa_id
         config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-        if config_seg and config_seg.requer_pin_reabrir_os:
+        if config_seg and config_seg.requer_pin_reabrir_os and config_seg.pin_gerente:
             if not codigo_gerente:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="REQUER_APROVACAO_GERENTE")
-            if not config_seg.pin_gerente or not verify_password(codigo_gerente, config_seg.pin_gerente):
+            if not verify_password(codigo_gerente, config_seg.pin_gerente):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN_GERENTE_INVALIDO")
 
     total_bruto = sum(p.valor for p in os_in_db.pagamentos) + (os_in_db.valor_entrada or 0)
