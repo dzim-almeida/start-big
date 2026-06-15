@@ -2,7 +2,6 @@
 import { storeToRefs } from 'pinia';
 import {
   User,
-  Moon,
   Settings,
   Printer,
   MessageCircle,
@@ -18,6 +17,13 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { useLayoutStore } from '../../store/layout.store';
+import { openUrl } from '@tauri-apps/plugin-opener';
+
+const LINKS = {
+  whatsapp: 'https://wa.me/5588996971128?text=Ol%C3%A1!%20Obrigado%20por%20entrar%20em%20contato%20com%20o%20suporte%20do%20StartBig.%20%F0%9F%91%8B%0A%0APara%20que%20eu%20possa%20direcionar%20sua%20solicita%C3%A7%C3%A3o%20o%20mais%20r%C3%A1pido%20poss%C3%ADvel%2C%20por%20favor%2C%20digite%20o%20n%C3%BAmero%20da%20op%C3%A7%C3%A3o%20que%20melhor%20descreve%20o%20que%20voc%C3%AA%20precisa%3A%0A%0A1%EF%B8%8F%E2%83%A3%20-%20D%C3%BAvidas%20sobre%20o%20sistema%20(Como%20usar)%0A2%EF%B8%8F%E2%83%A3%20-%20Relatar%20um%20erro%20ou%20instabilidade%0A3%EF%B8%8F%E2%83%A3%20-%20Sugest%C3%A3o%20de%20nova%20funcionalidade%0A4%EF%B8%8F%E2%83%A3%20-%20Assuntos%20financeiros%20%2F%20Mensalidade%0A%0APor%20favor%2C%20digite%20tamb%C3%A9m%20o%20seu%20nome%20e%20empresa.%20J%C3%A1%20volto%20para%20te%20atender',
+  site: 'https://startbig.com.br',
+  youtube: 'https://www.youtube.com/@StartBigOficial',
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -26,7 +32,6 @@ const settingsStore = useSettingsStore();
 const layoutStore = useLayoutStore();
 
 const { userData } = storeToRefs(authStore);
-const { isDarkMode } = storeToRefs(settingsStore);
 const { logoutAndRedirect } = useAppNavigation();
 
 function abrirMinhaConta() {
@@ -78,36 +83,7 @@ function abrirConfiguracoes() {
         </button>
       </div>
 
-      <!-- PREFERÊNCIAS -->
-      <div class="px-2.5 py-2 border-b border-zinc-100">
-        <p class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest px-1 mb-1">
-          Preferências
-        </p>
-
-        <div class="flex items-center justify-between px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors">
-          <div class="flex items-center gap-2">
-            <Moon :size="14" class="text-zinc-500" />
-            <span class="text-xs text-zinc-700">Modo Escuro</span>
-          </div>
-          <button
-            @click="settingsStore.toggleDarkMode"
-            :class="[
-              'relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer',
-              isDarkMode ? 'bg-brand-primary' : 'bg-zinc-200',
-            ]"
-            aria-label="Alternar modo escuro"
-          >
-            <span
-              :class="[
-                'absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200',
-                isDarkMode ? 'translate-x-4.75' : 'translate-x-0.5',
-              ]"
-            />
-          </button>
-        </div>
-      </div>
-
-      <!-- PAINEL DO SISTEMA -->
+<!-- PAINEL DO SISTEMA -->
       <div class="px-2.5 py-2 border-b border-zinc-100">
         <p class="text-[9px] font-bold text-zinc-400 uppercase tracking-widest px-1 mb-1">
           Painel do Sistema
@@ -143,24 +119,24 @@ function abrirConfiguracoes() {
         </p>
 
         <button
-          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg opacity-40 cursor-not-allowed"
-          disabled
+          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
+          @click="openUrl(LINKS.whatsapp)"
         >
           <MessageCircle :size="14" class="text-zinc-500" />
           <span class="text-xs text-zinc-700">Falar com o Suporte</span>
         </button>
 
         <button
-          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg opacity-40 cursor-not-allowed"
-          disabled
+          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
+          @click="openUrl(LINKS.site)"
         >
           <HelpCircle :size="14" class="text-zinc-500" />
           <span class="text-xs text-zinc-700">Central de Ajuda</span>
         </button>
 
         <button
-          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg opacity-40 cursor-not-allowed"
-          disabled
+          class="w-full flex items-center gap-2 px-1.5 py-1.5 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
+          @click="openUrl(LINKS.youtube)"
         >
           <BookOpen :size="14" class="text-zinc-500" />
           <span class="text-xs text-zinc-700">Tutoriais</span>
