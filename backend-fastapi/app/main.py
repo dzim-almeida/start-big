@@ -64,6 +64,7 @@ setup_exception_handlers(app)
 origins = [
     "http://localhost:1420",  # URL Tauri/Vite
     "http://127.0.0.1:1420",
+    "http://tauri.localhost",  # Tauri production webview
     "https://softball-nil-cordless-terrace.trycloudflare.com",
 ]
 

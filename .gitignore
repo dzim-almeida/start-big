@@ -40,4 +40,5 @@ backend-fastapi/alembic.ini
 seeds/
 /backend-fastapi/run.py
 /backend-fastapi/run.spec
+/frontend/src-tauri/binaries
 

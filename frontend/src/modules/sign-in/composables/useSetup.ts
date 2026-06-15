@@ -23,13 +23,13 @@ export function useSetup() {
   const apiError = ref<string | null>(null);
 
   const setupMutation = useMutation<
-    { message: string },
+    { access_token: string; token_type: string },
     AxiosError<ApiError>,
     SetupRequest
   >({
     mutationFn: setupSistema,
     onSuccess: async () => {
-      // Revalidar usuário (cookie JWT já foi setado pelo backend)
+      // Revalidar usuário (JWT já foi salvo no localStorage pelo service)
       await authStore.revalidateUser();
 
       // Upload da logo se houver

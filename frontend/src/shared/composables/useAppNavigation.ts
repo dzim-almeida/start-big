@@ -1,5 +1,6 @@
 import router from '@/router';
 import { useAuthStore } from '../stores/auth.store';
+import { logout } from '@/modules/auth/services/auth.service';
 
 export function useAppNavigation() {
   const authStore = useAuthStore();
@@ -12,7 +13,12 @@ export function useAppNavigation() {
 
   const goToMinhaConta = () => router.push({ name: 'minha-conta' });
 
-  const logoutAndRedirect = () => {
+  const logoutAndRedirect = async () => {
+    try {
+      await logout();
+    } catch {
+      // Mesmo se a API falhar, limpa o estado local
+    }
     authStore.logoutUser();
     router.replace({ name: 'auth.user' });
   };

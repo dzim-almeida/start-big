@@ -10,13 +10,26 @@ import { toast } from 'vue-sonner';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
 
+export const TOKEN_KEY = 'access_token';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 /**
  * Instância do Axios configurada com a URL base da API
  */
 export const api = axios.create({
-  // baseURL: "https://attorney-constitutes-attempts-congressional.trycloudflare.com/api/v1",
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
-  withCredentials: true,
+  baseURL: API_BASE_URL,
+});
+
+/**
+ * Interceptor de requisição para anexar o JWT Bearer Token
+ */
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 /**
@@ -32,19 +45,18 @@ api.interceptors.response.use(
     }
 
     if (axios.isAxiosError(error)) {
-      const { status, data } = error.response;
+      const { status } = error.response;
 
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
         const authStore = useAuthStore();
-        if (data.detail === 'Credenciais Inválidas') {
-          toast.error(
-            'Sessão Expirada',
-            {
-              description: 'Faça login novamente'
-            }
-          )
-        }
+        localStorage.removeItem(TOKEN_KEY);
+        toast.error(
+          'Sessão Expirada',
+          {
+            description: 'Faça login novamente'
+          }
+        )
         authStore.logoutUser();
         router.replace({ name: 'auth.user' });
         return Promise.reject(error);

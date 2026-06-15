@@ -1,41 +1,61 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri_plugin_stronghold::Builder as StrongholdBuilder;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+use std::sync::Mutex;
+use tauri::{Manager, RunEvent};
+use tauri_plugin_shell::process::CommandChild;
+use tauri_plugin_shell::ShellExt;
+
+struct SidecarState {
+    process: Mutex<Option<CommandChild>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(
-            StrongholdBuilder::new(|password| {
-                use argon2::{hash_raw, Config, Variant, Version};
+        .setup(|app| {
+            let sidecar_command = app
+                .shell()
+                .sidecar("erp-api")
+                .expect("Falha ao criar o comando do sidecar FastAPI");
 
-                // Configuração do Argon2 para derivação de chave
-                // NOTA: Esses valores são para teste. Em produção, aumentar mem_cost
-                let config = Config {
-                    lanes: 4,
-                    mem_cost: 4096,    // 4MB - valor baixo para teste
-                    time_cost: 1,      // 1 iteração para teste
-                    variant: Variant::Argon2id,
-                    version: Version::Version13,
-                    hash_length: 32,
-                    ..Default::default()
-                };
+            let (mut rx, child) = sidecar_command
+                .spawn()
+                .expect("Falha ao inicializar o processo do FastAPI");
 
-                let salt = "gyUw!mNy=WE)".as_bytes();
-                let key =
-                    hash_raw(password.as_ref(), salt, &config).expect("failed to hash password");
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                            println!("FastAPI [LOG]: {}", String::from_utf8_lossy(&line));
+                        }
+                        tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                            println!("FastAPI [ERR]: {}", String::from_utf8_lossy(&line));
+                        }
+                        _ => {}
+                    }
+                }
+            });
 
-                key.to_vec()
-            })
-            .build(),
-        )
-        .plugin(tauri_plugin_keyring::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
+            app.manage(SidecarState {
+                process: Mutex::new(Some(child)),
+            });
+
+            Ok(())
+        })
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    app.run(|app_handle, event| {
+        if let RunEvent::Exit = event {
+            let state = app_handle.state::<SidecarState>();
+
+            if let Ok(mut process_guard) = state.inner().process.lock() {
+                if let Some(process) = process_guard.take() {
+                    let _ = process.kill();
+                }
+            }
+        }
+    });
 }

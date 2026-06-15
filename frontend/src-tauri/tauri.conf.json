@@ -17,22 +17,36 @@
         "width": 1024,
         "height": 750,
         "maximized": true,
-        "resizable": false
+        "resizable": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' asset: data:;" 
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "publisher": "StartBig LTDA ME",
+    "shortDescription": "StartBig ERP é um sistema de gestão empresarial completo e fácil de usar, projetado para ajudar pequenas e médias empresas a gerenciar suas operações de forma eficiente.",
+    "externalBin": [
+      "bin/erp-api"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true
+      }
+    }
   }
 }
