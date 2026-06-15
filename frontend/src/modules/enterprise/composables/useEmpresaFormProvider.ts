@@ -1,4 +1,4 @@
-import { ref, computed, watch, provide, inject, type InjectionKey } from 'vue';
+import { ref, computed, watch, nextTick, provide, inject, type InjectionKey } from 'vue';
 import { useToast } from '@/shared/composables/useToast';
 import { buscarDadosCNPJ } from './useConsultaCNPJ';
 import { useForm } from 'vee-validate';
@@ -244,16 +244,34 @@ export function useEmpresaFormProvider() {
       cnpjSalvo.value = (data.documento || '').replace(/\D/g, '');
       const formValues = { ...DEFAULT_FORM_VALUES, ...normalizeEmpresaToForm(data) };
       resetForm({ values: formValues });
-      // setTimeout(0) garante que TODA operação assíncrona do VeeValidate (cast do
-      // toTypedSchema, validações, etc.) já completou antes de tirar o snapshot.
-      // nextTick apenas garante o ciclo reativo do Vue, mas o VeeValidate pode
-      // processar a Zod schema fora do ciclo Vue. O macrotask (setTimeout) cobre ambos.
-      setTimeout(() => {
-        snapshotServidor.value = JSON.stringify(values);
-        formPronto.value = true;
-      }, 0);
+      // Aguarda dois ciclos para cobrir:
+      // 1. nextTick interno do VeeValidate (validate silent pós-reset)
+      // 2. debounce de 5ms da validação silenciosa (debouncedSilentValidation)
+      // 3. maska e demais diretivas que podem alterar values via input event
+      // O watcher de values (flush:'post') mantém snapshotServidor atualizado durante
+      // esse período; o setTimeout apenas sinaliza que a inicialização terminou.
+      nextTick(() => {
+        setTimeout(() => {
+          snapshotServidor.value = JSON.stringify(values);
+          formPronto.value = true;
+        }, 50);
+      });
     },
     { immediate: true },
+  );
+
+  // Mantém snapshotServidor sincronizado com values enquanto o formulário ainda
+  // está em fase de inicialização (formPronto = false). Isso garante que qualquer
+  // atualização pós-render (maska, coerção Zod via VeeValidate, etc.) seja
+  // capturada no snapshot antes do guard de saída ser ativado.
+  watch(
+    values,
+    () => {
+      if (!formPronto.value) {
+        snapshotServidor.value = JSON.stringify(values);
+      }
+    },
+    { deep: true, flush: 'post' },
   );
 
   // True quando há alterações reais do usuário não salvas.
