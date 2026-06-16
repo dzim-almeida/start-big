@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' asset: data:;" 
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://viacep.com.br; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' asset: data: http://localhost:8000 http://127.0.0.1:8000;" 
     }
   },
   "bundle": {

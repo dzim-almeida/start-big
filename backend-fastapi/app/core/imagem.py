@@ -7,12 +7,19 @@
 # ---------------------------------------------------------------------------
 
 import os
+import sys
 import uuid
 from io import BytesIO
 
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+def get_base_dir() -> str:
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+BASE_DIR = get_base_dir()
 
 # ---------------------------------------------------------------------------
 # CONSTANTES
@@ -175,7 +182,7 @@ def salvar_imagem(arquivo: UploadFile, entidade_id: int, contexto: str) -> str:
         nome_arquivo = f"{uuid.uuid4()}.webp"
 
         # 4. Criar diretorio
-        diretorio = os.path.join(config["diretorio_base"], str(entidade_id))
+        diretorio = os.path.join(BASE_DIR, config["diretorio_base"], str(entidade_id))
         os.makedirs(diretorio, exist_ok=True)
 
         # 5. Escrever no disco
@@ -204,16 +211,18 @@ def deletar_imagem(caminho_arquivo: str) -> bool:
     Returns:
         True se o arquivo foi removido, False se nao existia.
     """
-    if not os.path.exists(caminho_arquivo):
+    caminho_abs = os.path.join(BASE_DIR, caminho_arquivo)
+
+    if not os.path.exists(caminho_abs):
         return False
 
     try:
-        os.remove(caminho_arquivo)
+        os.remove(caminho_abs)
     except OSError:
         return False
 
     # Tenta remover diretorio vazio (entidade sem mais imagens)
-    diretorio = os.path.dirname(caminho_arquivo)
+    diretorio = os.path.dirname(caminho_abs)
     try:
         os.rmdir(diretorio)
     except OSError:

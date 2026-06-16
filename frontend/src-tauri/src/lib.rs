@@ -53,7 +53,17 @@ pub fn run() {
 
             if let Ok(mut process_guard) = state.inner().process.lock() {
                 if let Some(process) = process_guard.take() {
-                    let _ = process.kill();
+                    let pid = process.pid();
+                    #[cfg(target_os = "windows")]
+                    {
+                        let _ = std::process::Command::new("taskkill")
+                            .args(["/F", "/T", "/PID", &pid.to_string()])
+                            .output();
+                    }
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                        let _ = process.kill();
+                    }
                 }
             }
         }

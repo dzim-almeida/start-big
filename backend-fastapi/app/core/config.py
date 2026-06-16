@@ -12,18 +12,6 @@ from pydantic import ConfigDict
 
 app_name = "startbig-erp"
 
-# .env path
-
-if getattr(sys, 'frozen', False):
-    aplication_path = os.path.dirname(sys.executable)
-else:
-    aplication_path = os.getcwd()
-    
-env_path = os.path.join(aplication_path, '.env')
-
-if not os.path.exists(env_path):
-    raise FileNotFoundError(f"Pare tudo! Eu tentei procurar o .env EXATAMENTE neste caminho, mas não achei: {env_path}")
-
 # .db path
 
 if platform.system() == "Windows":
@@ -46,7 +34,6 @@ def _load_or_create_secret_key(path: str) -> str:
         f.write(key)
     return key
 
-
 _secret_key_value = _load_or_create_secret_key(os.path.join(base_dir, "secret.key"))
 
 class Settings(BaseSettings):
@@ -63,8 +50,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str = _secret_key_value
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 180
-
-    model_config = ConfigDict(env_file=env_path)
 
 # Instância única (Singleton)
 settings = Settings()
