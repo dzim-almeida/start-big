@@ -11,7 +11,7 @@ interface Props {
   isOpen: boolean;
   title: string;
   subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
   overlay?: boolean;
   overflow?: 'auto' | 'hidden';
 }
@@ -34,6 +34,7 @@ const sizeClasses = {
   '2xl': 'max-w-6xl',
   '3xl': 'max-w-7xl',
   '4xl': 'max-w-[90rem]',
+  full: 'w-full h-full',
 };
 
 function handleClose() {
@@ -76,7 +77,7 @@ onUnmounted(() => {
     <Transition name="modal">
       <div
         v-if="isOpen"
-        :class="['fixed inset-0 flex items-center justify-center p-4', overlay ? 'z-60' : 'z-50']"
+        :class="['fixed inset-0 flex items-center justify-center', size !== 'full' ? 'p-4' : '', overlay ? 'z-60' : 'z-50']"
       >
         <!-- Backdrop -->
         <div
@@ -86,7 +87,8 @@ onUnmounted(() => {
         <!-- Modal Content -->
         <div
           :class="[
-            'relative w-full bg-white rounded-2xl shadow-2xl transform transition-all z-10 flex flex-col max-h-[95vh]',
+            'relative w-full bg-white shadow-2xl transform transition-all z-10 flex flex-col',
+            size !== 'full' ? 'rounded-2xl max-h-[95vh]' : 'h-full rounded-none',
             sizeClasses[size],
           ]"
           @click.stop

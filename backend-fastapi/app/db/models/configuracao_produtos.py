@@ -29,7 +29,7 @@ class ConfiguracaoProdutos(Base):
     utilizar_preco_atacado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Controle de estoque
-    permitir_venda_estoque_zerado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    permitir_venda_estoque_zerado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     quantidade_minima_padrao: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     unidade_medida_padrao: Mapped[str] = mapped_column(String(10), default="UN", nullable=False)
 

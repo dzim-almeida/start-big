@@ -103,6 +103,8 @@ export function useCancelOrderServiceMutation() {
       queryClient.invalidateQueries({ queryKey: [OS_CUSTOMER_QUERY_KEY] });
     },
     onError: (error) => {
+      const detail = (error?.response?.data as any)?.detail;
+      if (['REQUER_APROVACAO_GERENTE', 'PIN_GERENTE_INVALIDO'].includes(detail)) return;
       toast.error(getErrorMessage(error, 'Erro ao cancelar a ordem de serviço') as string);
     },
   });
@@ -112,13 +114,15 @@ export function useReopenOrderServiceMutation() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, string>({
+  return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, { osNumber: string; codigoGerente?: string }>({
     mutationFn: updateReopen,
     onSuccess: (data) => {
       toast.success(`${data.numero_os} reaberta com sucesso`);
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
     },
     onError: (error) => {
+      const detail = (error?.response?.data as any)?.detail;
+      if (['REQUER_APROVACAO_GERENTE', 'PIN_GERENTE_INVALIDO'].includes(detail)) return;
       toast.error(getErrorMessage(error, 'Erro ao reabrir a ordem de serviço') as string);
     },
   });

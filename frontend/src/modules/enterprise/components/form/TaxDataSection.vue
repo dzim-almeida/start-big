@@ -9,7 +9,7 @@ import { Landmark } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import { SECTION_LABELS, REGIME_TRIBUTARIO_OPTIONS } from '../../constants/empresa.constants';
+import { SECTION_LABELS, REGIME_TRIBUTARIO_OPTIONS, INDICADOR_IE_OPTIONS, NATUREZA_JURIDICA_OPTIONS, TIPO_ATIVIDADE_OPTIONS } from '../../constants/empresa.constants';
 import { useEmpresaForm } from '../../composables/useEmpresaFormProvider';
 
 // =============================================
@@ -20,7 +20,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   disabled: false,
 });
 
@@ -32,6 +32,9 @@ const {
   inscricao_estadual,
   inscricao_municipal,
   regime_tributario,
+  indicador_ie,
+  natureza_juridica,
+  tipo_atividade,
   errors,
   submitCount,
 } = useEmpresaForm();
@@ -42,7 +45,7 @@ const {
     <!-- Header -->
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Landmark"/>
       </div>
@@ -78,6 +81,35 @@ const {
           placeholder="Selecione o regime..."
           :disabled="disabled"
           :error="submitCount > 0 ? errors.regime_tributario : ''"
+        />
+      </div>
+
+      <!-- Indicador de IE -->
+      <BaseSelect
+        v-model="indicador_ie"
+        label="Indicador de IE"
+        :options="INDICADOR_IE_OPTIONS"
+        placeholder="Selecione..."
+        :disabled="disabled"
+      />
+
+      <!-- Natureza Jurídica -->
+      <BaseSelect
+        v-model="natureza_juridica"
+        label="Natureza Jurídica"
+        :options="NATUREZA_JURIDICA_OPTIONS"
+        placeholder="Selecione..."
+        :disabled="disabled"
+      />
+
+      <!-- Tipo de Atividade -->
+      <div class="md:col-span-2">
+        <BaseSelect
+          v-model="tipo_atividade"
+          label="Tipo de Atividade"
+          :options="TIPO_ATIVIDADE_OPTIONS"
+          placeholder="Selecione..."
+          :disabled="disabled"
         />
       </div>
     </div>

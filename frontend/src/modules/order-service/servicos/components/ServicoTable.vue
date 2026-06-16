@@ -17,7 +17,7 @@ interface Props {
   totalItems?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isLoading: false,
   isError: false,
   currentPage: 1,

@@ -9,7 +9,7 @@ import type { TipoPessoa } from '../types/sign-in.types';
 export function useResponsavelForm() {
   const { signInData, nextStep, updateResponsavelData } = useSignIn();
 
-  const { handleSubmit, errors, defineField, submitCount, setFieldValue, resetField } =
+  const { handleSubmit, errors, defineField, submitCount, setFieldValue } =
     useForm<ResponsavelFormData>({
       validationSchema: responsavelValidationSchema,
       initialValues: {

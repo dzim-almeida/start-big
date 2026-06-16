@@ -1,10 +1,11 @@
-import { type Ref, type MaybeRef, watch, computed, unref } from 'vue';
+import { type Ref, type MaybeRef, watch, computed, unref, ref, type ComputedRef } from 'vue';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 
 import { useAddItemSaleMutation, useUpdateItemSaleMutation } from '../mutates/useItemSaleMutation';
 import { useAddItemOrcamentoMutation, useUpdateItemOrcamentoMutation } from '../mutates/useItemOrcamentoMutation';
 import { useToast } from '@/shared/composables/useToast';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 
 import {
   ItemSaleFormSchema,
@@ -19,12 +20,14 @@ export function useItemSaleForm(
   selectedItem: Ref<ProductSaleRead | null>,
   onSuccess?: () => void,
   isOrcamento = false,
+  requerPinAlterarPreco: MaybeRef<boolean> | ComputedRef<boolean> = false,
 ) {
   const addItemSaleMutation = useAddItemSaleMutation();
   const updateItemSaleMutation = useUpdateItemSaleMutation();
   const addItemOrcamentoMutation = useAddItemOrcamentoMutation();
   const updateItemOrcamentoMutation = useUpdateItemOrcamentoMutation();
   const toast = useToast();
+  const gerentePreco = useGerenteAprovacao();
 
   const { handleSubmit, defineField, values, errors, setFieldValue, resetForm, isSubmitting } =
     useForm<ItemSaleForm>({
@@ -106,33 +109,49 @@ export function useItemSaleForm(
     setFieldValue('quantidade', Math.max(currentQuantity - 1, 1));
   }
 
-  const submit = handleSubmit((values) => {
-    const saleIdValue = unref(saleId);
+  const avisoEstoqueOpen = ref(false);
+  const pendingSubmitValues = ref<ItemSaleForm | null>(null);
 
-    if (!saleIdValue) return;
-
+  async function executarSalvar(saleIdValue: number, formValues: ItemSaleForm, codigoGerente?: string): Promise<void> {
     if (selectedItem.value) {
-      
       const payload: ProductSaleUpdate = {
-        quantidade: values.quantidade,
-        desconto: values.desconto * 100,
-      }
+        quantidade: formValues.quantidade,
+        desconto: formValues.desconto * 100,
+      };
 
       if (selectedItem.value.tipo_produto === 'AVULSO') {
-        payload.descricao_avulsa = values.descricao;
-        payload.valor_unitario = values.valor_unitario * 100;
+        payload.descricao_avulsa = formValues.descricao;
+        payload.valor_unitario = formValues.valor_unitario * 100;
+      } else if (selectedItem.value.tipo_produto === 'CADASTRADO' && unref(requerPinAlterarPreco)) {
+        const novoPreco = Math.round(formValues.valor_unitario * 100);
+        if (novoPreco !== selectedItem.value.valor_unitario) {
+          payload.valor_unitario = novoPreco;
+          if (codigoGerente) payload.codigo_gerente = codigoGerente;
+        }
       }
-      
+
       if (isOrcamento) {
         updateItemOrcamentoMutation.mutate(
           { orcamentoId: saleIdValue, productId: selectedItem.value.id, payload },
           { onSuccess },
         );
       } else {
-        updateItemSaleMutation.mutate(
-          { saleId: saleIdValue, productId: selectedItem.value.id, payload },
-          { onSuccess },
-        );
+        try {
+          await updateItemSaleMutation.mutateAsync(
+            { saleId: saleIdValue, productId: selectedItem.value.id, payload },
+          );
+          onSuccess?.();
+        } catch (error: any) {
+          const detail = error?.response?.data?.detail;
+          if (detail === 'REQUER_APROVACAO_GERENTE') {
+            const pin = await gerentePreco.pedirPin();
+            if (pin) await executarSalvar(saleIdValue, formValues, pin);
+          } else if (detail === 'PIN_GERENTE_INVALIDO') {
+            toast.error('PIN do gerente inválido');
+            const pin = await gerentePreco.pedirPin();
+            if (pin) await executarSalvar(saleIdValue, formValues, pin);
+          }
+        }
       }
 
       return;
@@ -140,10 +159,10 @@ export function useItemSaleForm(
 
     const payload: ProductSaleCreate = {
       tipo_produto: 'AVULSO' as const,
-      descricao_avulsa: values.descricao,
-      valor_unitario: values.valor_unitario * 100,
-      quantidade: values.quantidade,
-      desconto: values.desconto * 100,
+      descricao_avulsa: formValues.descricao,
+      valor_unitario: formValues.valor_unitario * 100,
+      quantidade: formValues.quantidade,
+      desconto: formValues.desconto * 100,
     };
 
     if (isOrcamento) {
@@ -157,7 +176,32 @@ export function useItemSaleForm(
         { onSuccess },
       );
     }
+  }
+
+  const submit = handleSubmit((formValues) => {
+    const saleIdValue = unref(saleId);
+
+    if (!saleIdValue) return;
+
+    if (selectedItem.value && selectedItem.value.tipo_produto !== 'AVULSO') {
+      const estoque = selectedItem.value.estoque_disponivel;
+      if (estoque !== null && estoque !== undefined && formValues.quantidade > estoque) {
+        pendingSubmitValues.value = formValues;
+        avisoEstoqueOpen.value = true;
+        return;
+      }
+    }
+
+    void executarSalvar(saleIdValue, formValues);
   });
+
+  function confirmarSalvarComEstoqueNegativo() {
+    const saleIdValue = unref(saleId);
+    if (!saleIdValue || !pendingSubmitValues.value) return;
+    void executarSalvar(saleIdValue, pendingSubmitValues.value);
+    avisoEstoqueOpen.value = false;
+    pendingSubmitValues.value = null;
+  }
 
   return {
     errors,
@@ -172,5 +216,8 @@ export function useItemSaleForm(
     decreaseQuantity,
     resetForm,
     isSubmitting,
+    avisoEstoqueOpen,
+    confirmarSalvarComEstoqueNegativo,
+    gerentePreco,
   };
 }

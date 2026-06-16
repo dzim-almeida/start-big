@@ -22,7 +22,7 @@ interface Props {
   title?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   email: '',
   telefone: '',
   celular: '',

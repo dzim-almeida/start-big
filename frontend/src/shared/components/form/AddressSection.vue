@@ -29,7 +29,7 @@ interface Props {
   onRemove: (index: number) => void;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields

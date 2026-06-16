@@ -14,8 +14,10 @@ export const OsEquipCreateSchema = z.object({
     .string({ required_error: 'O número de série é obrigatório' })
     .max(100, 'O número de série deve ter no máximo 100 caracteres'),
   imei: z
-    .string({ required_error: 'O IMEI é obrigatório' })
-    .max(20, 'O IMEI deve ter no máximo 20 caracteres'),
+    .string()
+    .max(20, 'O IMEI deve ter no máximo 20 caracteres')
+    .optional()
+    .default(''),
   cor: z.string().max(50, 'A cor deve ter no máximo 50 caracteres').optional(),
 });
 

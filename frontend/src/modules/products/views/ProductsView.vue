@@ -334,7 +334,7 @@ function handleEmptyAction() {
       <template v-if="isGroupedByCategory && groupedProducts">
         <div v-for="(products, category) in groupedProducts" :key="category" class="space-y-4">
           <h2 class="text-lg font-bold text-zinc-700 border-b border-zinc-200 pb-2">
-            {{ exibirCategoria(category) }}
+            {{ exibirCategoria(String(category)) }}
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <ProductCard

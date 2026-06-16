@@ -71,9 +71,9 @@ class UsuarioRead(UsuarioBase):
     funcionario_id: Optional[int] = Field(None, description="ID do funcionário vinculado")
     url_perfil: Optional[str] = Field(None, description="URL da foto de perfil")
     ativo: bool = Field(..., description="Status de ativo/inativo")
+    is_master: bool = Field(False, description="Se é o usuário master da instalação")
     empresa: Optional[EmpresaUserRead] = Field(None, description="Dados da empresa do usuario")
     cargo: Optional[CargoBase] = Field(None, description="Cargo com nome e permissoes")
-    # Nota: data_criacao é comum em retornos, mantive o comentário.
 
 # =========================
 # Update Me (Dados da Conta)

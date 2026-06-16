@@ -14,10 +14,12 @@ interface Props {
   id?: string;
   options?: CurrencyInputOptions; // Adicionado para flexibilidade
   inputClass?: string;
+  variant?: 'default' | 'success' | 'warning' | 'info';
 }
 
 // 2. Use withDefaults com uma função para a propriedade 'options'
 const props = withDefaults(defineProps<Props>(), {
+  variant: 'default',
   options: () => ({
     currency: 'BRL',
     locale: 'pt-BR',
@@ -27,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   })
 });
 
-const emits = defineEmits<{
+defineEmits<{
   blur: [];
   enter: [];
   keydown: [event: KeyboardEvent];
@@ -40,15 +42,36 @@ const model = defineModel<number>();
 // 3. Inicialize o hook usando as props.options
 const { inputRef, setValue } = useCurrencyInput(props.options);
 
-const inputClasses = computed(() => [
-  'w-full px-3 py-2 border rounded-md transition-colors duration-200 outline-none text-sm',
-  'placeholder:text-gray-400 text-gray-700',
-  props.error
-    ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
-    : 'border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary',
-  props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
-  props.inputClass,
-]);
+const inputClasses = computed(() => {
+  let stateClasses = 'border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary';
+  let bgClass = props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white';
+  let textClass = 'text-gray-700';
+
+  if (props.error) {
+    stateClasses = 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500';
+    textClass = 'text-red-700';
+  } else if (props.variant === 'success') {
+    stateClasses = 'border-emerald-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500';
+    bgClass = props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-emerald-50/50';
+    textClass = 'text-emerald-700 font-bold';
+  } else if (props.variant === 'warning') {
+    stateClasses = 'border-amber-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500';
+    bgClass = props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-amber-50/50';
+    textClass = 'text-amber-700 font-bold';
+  } else if (props.variant === 'info') {
+    stateClasses = 'border-blue-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
+    bgClass = props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-blue-50/50';
+    textClass = 'text-blue-700 font-bold';
+  }
+
+  return [
+    'w-full px-3 py-2 border rounded-md transition-all duration-200 outline-none text-sm placeholder:text-gray-400',
+    stateClasses,
+    bgClass,
+    textClass,
+    props.inputClass,
+  ];
+});
 
 watch(
   () => model.value,

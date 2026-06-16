@@ -14,8 +14,8 @@ export function useCancelSaleMutation() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number }>({
-    mutationFn: ({ saleId }) => saleService.cancelSale(saleId),
+  return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number; motivo: string; codigoGerente?: string }>({
+    mutationFn: ({ saleId, motivo, codigoGerente }) => saleService.cancelSale(saleId, motivo, codigoGerente),
     onSuccess: (canceledSale) => {
       toast.success('Venda cancelada');
       queryClient.invalidateQueries({

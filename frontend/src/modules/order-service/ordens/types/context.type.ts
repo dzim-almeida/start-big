@@ -147,6 +147,14 @@ export interface OSCancelarFormContext {
   onSubmit: (e?: Event) => void;
   submitDireto: (zerar: boolean) => void;
   resetForm: () => void;
+
+  gerenteCancelar: {
+    isOpen: Ref<boolean>;
+    isLoading: Ref<boolean>;
+    pedirPin: () => Promise<string | null>;
+    confirmar: (pin: string) => void;
+    cancelar: () => void;
+  };
 }
 
 export interface OSFormContext {

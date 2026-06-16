@@ -323,6 +323,25 @@ def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, ven
 
     return produto_crud.update_produto(db, product_in_db)
 
+def restore_product_to_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
+    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
+    if not product_in_db:
+        raise not_found_exce
+
+    product_in_db.estoque.quantidade = (product_in_db.estoque.quantidade or 0) + quantidade
+
+    product_log = LogProdutoModel(
+        produto_id=produto_id,
+        venda_id=venda_id,
+        funcionario_id=funcionario_id,
+        tipo_transacao=TipoTransacaoEstoque.ESTORNO,
+        quantidade=quantidade
+    )
+
+    product_in_db.logs.append(product_log)
+
+    return produto_crud.update_produto(db, product_in_db)
+
 def get_produto_by_id(db: Session, produto_id: int) -> ProdutoModel:
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
     if not product_in_db:

@@ -7,10 +7,10 @@ interface UseOSFinancialSummaryParams {
   isCreateMode: ComputedRef<boolean>;
   createItems: ComputedRef<OsItemCreateSchemaDataType[]>;
   currentOSData: ComputedRef<OrderServiceReadDataType | null>;
-  createDesconto: Ref<number | undefined>;
-  createValorEntrada: Ref<number | undefined>;
-  updateValorEntrada: Ref<number | undefined>;
-  updateTaxaEntrega: Ref<number | undefined>;
+  createDesconto: Ref<number | null | undefined>;
+  createValorEntrada: Ref<number | null | undefined>;
+  updateValorEntrada: Ref<number | null | undefined>;
+  updateTaxaEntrega: Ref<number | null | undefined>;
 }
 
 export function useOSFinancialSummary({

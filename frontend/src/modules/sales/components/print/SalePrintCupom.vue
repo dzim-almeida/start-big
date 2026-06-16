@@ -32,7 +32,9 @@ const title = computed(() => isVenda.value ? 'COMPROVANTE DE VENDA' : 'ORÇAMENT
 
 const documentId = computed(() => {
   const prefix = isVenda.value ? 'VENDA' : 'ORC';
-  return `${prefix}: ${String(props.sale?.id ?? 0).padStart(6, '0')}`;
+  const sale = props.sale as SaleRead | null;
+  const num = isVenda.value ? (sale?.numero_venda ?? sale?.id ?? 0) : (props.sale?.id ?? 0);
+  return `${prefix}: ${String(num).padStart(6, '0')}`;
 });
 
 const saleData = computed(() => isVenda.value ? props.sale as SaleRead : null);
@@ -53,6 +55,7 @@ const totalPago = computed(() => {
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="sale" class="print-cupom-container hidden print:block">
     <PrintCupomHeader :company="companyInfo" />
 
@@ -167,6 +170,7 @@ const totalPago = computed(() => {
 
     <PrintCupomFooter />
   </div>
+  </Teleport>
 </template>
 
 <style>

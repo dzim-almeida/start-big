@@ -76,3 +76,178 @@ export const UltimasVendasResponseSchema = z.object({
 });
 
 export type UltimasVendasResponseData = z.infer<typeof UltimasVendasResponseSchema>;
+
+// ===========================================================================
+// Meu Resumo (Dashboard do Funcionário)
+// ===========================================================================
+
+export const MeuResumoStatsSchema = z.object({
+  minhas_vendas_valor: z.number(),
+  minhas_vendas_count: z.number(),
+  minhas_os_abertas: z.number(),
+  minhas_os_concluidas: z.number(),
+});
+
+export type MeuResumoStatsData = z.infer<typeof MeuResumoStatsSchema>;
+
+// ===========================================================================
+// Minha Fila
+// ===========================================================================
+
+export const MinhaFilaItemSchema = z.object({
+  numero_os: z.string(),
+  cliente_nome: z.string(),
+  defeito_relatado: z.string(),
+  prioridade: z.string(),
+  status: z.string(),
+  data_previsao: z.string().nullable(),
+});
+
+export type MinhaFilaItemData = z.infer<typeof MinhaFilaItemSchema>;
+
+export const MinhaFilaResponseSchema = z.object({
+  items: z.array(MinhaFilaItemSchema),
+});
+
+export type MinhaFilaResponseData = z.infer<typeof MinhaFilaResponseSchema>;
+
+// ===========================================================================
+// OS Atrasadas
+// ===========================================================================
+
+export const OSAtrasadaItemSchema = z.object({
+  numero_os: z.string(),
+  cliente_nome: z.string(),
+  defeito_relatado: z.string(),
+  data_previsao: z.string(),
+  dias_atraso: z.number(),
+});
+
+export type OSAtrasadaItemData = z.infer<typeof OSAtrasadaItemSchema>;
+
+export const OSAtrasadaResponseSchema = z.object({
+  items: z.array(OSAtrasadaItemSchema),
+  total: z.number(),
+});
+
+export type OSAtrasadaResponseData = z.infer<typeof OSAtrasadaResponseSchema>;
+
+// ===========================================================================
+// OS Aguardando Retirada
+// ===========================================================================
+
+export const OSAguardandoRetiradaItemSchema = z.object({
+  numero_os: z.string(),
+  cliente_nome: z.string(),
+  equipamento: z.string(),
+  data_finalizacao: z.string().nullable(),
+});
+
+export type OSAguardandoRetiradaItemData = z.infer<typeof OSAguardandoRetiradaItemSchema>;
+
+export const OSAguardandoRetiradaResponseSchema = z.object({
+  items: z.array(OSAguardandoRetiradaItemSchema),
+});
+
+export type OSAguardandoRetiradaResponseData = z.infer<typeof OSAguardandoRetiradaResponseSchema>;
+
+// ===========================================================================
+// Atividade de Hoje
+// ===========================================================================
+
+export const AtividadeItemSchema = z.object({
+  tipo: z.enum(['venda', 'os']),
+  referencia: z.string(),
+  cliente_nome: z.string().nullable(),
+  valor: z.number(),
+  status: z.string(),
+  horario: z.string(),
+});
+
+export type AtividadeItemData = z.infer<typeof AtividadeItemSchema>;
+
+export const AtividadeHojeResponseSchema = z.object({
+  items: z.array(AtividadeItemSchema),
+});
+
+export type AtividadeHojeResponseData = z.infer<typeof AtividadeHojeResponseSchema>;
+
+// ===========================================================================
+// Master — Ranking de Funcionários
+// ===========================================================================
+
+export const RankingFuncionarioItemSchema = z.object({
+  posicao: z.number(),
+  id: z.number(),
+  nome: z.string(),
+  total_vendas_valor: z.number(),
+  qtd_vendas: z.number(),
+  qtd_os_fechadas: z.number(),
+});
+
+export type RankingFuncionarioItemData = z.infer<typeof RankingFuncionarioItemSchema>;
+
+export const RankingFuncionariosResponseSchema = z.object({
+  items: z.array(RankingFuncionarioItemSchema),
+});
+
+export type RankingFuncionariosResponseData = z.infer<typeof RankingFuncionariosResponseSchema>;
+
+// ===========================================================================
+// Master — OS por Status
+// ===========================================================================
+
+export const OSPorStatusItemSchema = z.object({
+  status: z.string(),
+  status_label: z.string(),
+  count: z.number(),
+});
+
+export type OSPorStatusItemData = z.infer<typeof OSPorStatusItemSchema>;
+
+export const OSPorStatusResponseSchema = z.object({
+  items: z.array(OSPorStatusItemSchema),
+  total_ativas: z.number(),
+});
+
+export type OSPorStatusResponseData = z.infer<typeof OSPorStatusResponseSchema>;
+
+// ===========================================================================
+// Master — Formas de Pagamento
+// ===========================================================================
+
+export const FormaPagamentoItemSchema = z.object({
+  nome: z.string(),
+  valor_total: z.number(),
+});
+
+export type FormaPagamentoItemData = z.infer<typeof FormaPagamentoItemSchema>;
+
+export const FormasPagamentoResponseSchema = z.object({
+  items: z.array(FormaPagamentoItemSchema),
+  total: z.number(),
+});
+
+export type FormasPagamentoResponseData = z.infer<typeof FormasPagamentoResponseSchema>;
+
+// ===========================================================================
+// Master — OS Atrasadas da Empresa
+// ===========================================================================
+
+export const OSAtrasadaEmpresaItemSchema = z.object({
+  numero_os: z.string(),
+  cliente_nome: z.string(),
+  funcionario_nome: z.string().nullable(),
+  defeito_relatado: z.string(),
+  data_previsao: z.string(),
+  dias_atraso: z.number(),
+});
+
+export type OSAtrasadaEmpresaItemData = z.infer<typeof OSAtrasadaEmpresaItemSchema>;
+
+export const OSAtrasadaEmpresaResponseSchema = z.object({
+  items: z.array(OSAtrasadaEmpresaItemSchema),
+  total: z.number(),
+});
+
+export type OSAtrasadaEmpresaResponseData = z.infer<typeof OSAtrasadaEmpresaResponseSchema>;

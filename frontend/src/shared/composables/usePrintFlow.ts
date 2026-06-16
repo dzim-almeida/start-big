@@ -31,11 +31,19 @@ export function usePrintFlow<T extends string>() {
     pendingPrintAction.value = null;
   }
 
+  /** Imprime direto num formato definido, sem abrir o modal de escolha */
+  function printDirect(type: T, format: PrintFormat, afterPrint?: () => void) {
+    printType.value = type as typeof printType.value;
+    pendingPrintAction.value = afterPrint ?? null;
+    handlePrintFormatSelected(format);
+  }
+
   return {
     printType,
     printFormat,
     isPrintSelectModalOpen,
     openPrintSelect,
+    printDirect,
     handlePrintFormatSelected,
     closePrintSelectModal,
   };

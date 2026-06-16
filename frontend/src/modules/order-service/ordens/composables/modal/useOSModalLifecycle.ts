@@ -5,6 +5,7 @@ import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.s
 import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
 import type { OSReopenMode } from './useOSStatusLocks';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 interface UseOSModalLifecycleParams {
   isOpen: ComputedRef<boolean>;
@@ -26,12 +27,13 @@ export function useOSModalLifecycle({
   currentOSData,
   localOSData,
   isCreateMode,
-  reopenMode,
   form,
   resetReopenState,
   onOpen,
 }: UseOSModalLifecycleParams) {
   const authStore = useAuthStore();
+  const configStore = useConfiguracoesStore();
+
   function populateEditForm(os: OrderServiceReadDataType) {
     form.atualizarGeral.populateForm(os);
 
@@ -60,6 +62,23 @@ export function useOSModalLifecycle({
         form.criar.resetForm();
         if (authStore.userData?.funcionario_id) {
           form.criar.funcionario_id.value = authStore.userData.funcionario_id;
+        }
+        const prazo = configStore.prazoEntregaPadrao;
+        if (prazo > 0) {
+          const previsao = new Date();
+          previsao.setDate(previsao.getDate() + prazo);
+          form.criar.data_previsao.value = previsao.toISOString().split('T')[0];
+        }
+
+        const taxa = configStore.taxaDiagnosticoPadrao;
+        if (taxa > 0) {
+          form.criar.handleAddItem({
+            tipo: 'SERVICO',
+            nome: 'Diagnóstico',
+            unidade_medida: 'UN',
+            quantidade: 1,
+            valor_unitario: taxa,
+          });
         }
       }
       return;

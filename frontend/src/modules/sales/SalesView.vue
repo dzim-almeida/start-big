@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { Plus, AlertTriangle } from 'lucide-vue-next';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
+import { useToast } from '@/shared/composables/useToast';
 import { useMagicKeys, whenever } from '@vueuse/core';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
@@ -24,7 +27,7 @@ import { useCustomerSearchModal } from './composables/flows/useCustomerSearchMod
 import { useSaleModal } from './composables/flows/useSaleModal';
 import { useFinishSaleModal } from './composables/flows/useFinishSaleModal';
 import { useConfirmSaleAction } from './composables/flows/useConfirmSaleAction';
-import { useCancelSaleMutation } from './composables/mutates/useCancelSaleMutation';
+import { useDeleteSaleMutation } from './composables/mutates/useDeleteSaleMutation';
 import { useReopenSaleMutation } from './composables/mutates/useReopenSaleMutation';
 import { useSalePrintFlow } from './composables/flows/useSalePrintFlow';
 import { useOrcamentoPrintFlow } from './composables/flows/useOrcamentoPrintFlow';
@@ -98,8 +101,10 @@ const {
   handleConfirm,
 } = useConfirmSaleAction();
 
-const cancelMutation = useCancelSaleMutation();
+const discardMutation = useDeleteSaleMutation();
 const reopenMutation = useReopenSaleMutation();
+const gerenteReopen = useGerenteAprovacao();
+const toast = useToast();
 
 function handleFinishFromTable(saleId: number) {
   openSaleEditModal(saleId);
@@ -108,14 +113,13 @@ function handleFinishFromTable(saleId: number) {
 
 function handleCancelFromTable(saleId: number) {
   openConfirmModal({
-    title: 'Cancelar Venda?',
-    message: 'Tem certeza que deseja cancelar a Venda',
-    highlightText: `Nº ${String(saleId).padStart(6, '0')}`,
+    title: 'Descartar Rascunho?',
+    message: 'Tem certeza que deseja descartar este rascunho de venda? Esta ação não pode ser desfeita.',
     variant: 'danger',
-    label: 'CONFIRMAR',
+    label: 'DESCARTAR',
     action: () => {
       confirmModalPending.value = true;
-      cancelMutation.mutate(
+      discardMutation.mutate(
         { saleId },
         {
           onSuccess: () => closeConfirmModal(),
@@ -124,6 +128,26 @@ function handleCancelFromTable(saleId: number) {
       );
     },
   });
+}
+
+async function executarReopen(saleId: number, codigoGerente?: string): Promise<void> {
+  try {
+    await reopenMutation.mutateAsync({ saleId, codigoGerente });
+    closeConfirmModal();
+  } catch (error: any) {
+    const detail = error?.response?.data?.detail;
+    if (detail === 'REQUER_APROVACAO_GERENTE') {
+      closeConfirmModal();
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopen(saleId, pin);
+    } else if (detail === 'PIN_GERENTE_INVALIDO') {
+      toast.error('PIN do gerente inválido');
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopen(saleId, pin);
+    }
+  } finally {
+    confirmModalPending.value = false;
+  }
 }
 
 function handleReopenFromTable(saleId: number) {
@@ -135,13 +159,7 @@ function handleReopenFromTable(saleId: number) {
     label: 'CONFIRMAR',
     action: () => {
       confirmModalPending.value = true;
-      reopenMutation.mutate(
-        { saleId },
-        {
-          onSuccess: () => closeConfirmModal(),
-          onSettled: () => { confirmModalPending.value = false; },
-        },
-      );
+      void executarReopen(saleId);
     },
   });
 }
@@ -318,6 +336,13 @@ function handleOpenSaleFromOrcamento(saleId: number) {
 
     <!-- Sale Modal -->
     <SaleModal />
+
+    <GerenteAprovacaoModal
+      :is-open="gerenteReopen.isOpen.value"
+      :is-loading="gerenteReopen.isLoading.value"
+      @confirmar="gerenteReopen.confirmar"
+      @cancelar="gerenteReopen.cancelar"
+    />
 
     <!-- Orçamento Modal -->
     <OrcamentoModal @converter="handleConverterFromModal" @open-sale="handleOpenSaleFromOrcamento" @print="handlePrintOrcamento" />

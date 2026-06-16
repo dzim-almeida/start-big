@@ -87,6 +87,18 @@ class ProdutoVenda(Base):
             return self.produto.imagem_url
         return None
 
+    @property
+    def unidade_medida(self):
+        if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:
+            return self.produto.unidade_medida
+        return None
+
+    @property
+    def estoque_disponivel(self):
+        if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto and self.produto.estoque:
+            return self.produto.estoque.quantidade
+        return None
+
     # --- Relacionamentos ---
     venda: Mapped["Venda"] = relationship(back_populates="itens")
     produto: Mapped[Optional["Produto"]] = relationship(doc="Produto do catalogo associado")

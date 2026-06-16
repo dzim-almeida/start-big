@@ -5,8 +5,8 @@
  * Refatorado para usar inject pattern
  */
 
-import { ref, computed } from 'vue';
-import { Building2, Upload, Image as ImageIcon } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
+import { Building2, Upload, Image as ImageIcon, Search } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import { SECTION_LABELS } from '../../constants/empresa.constants';
@@ -22,7 +22,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   disabled: false,
 });
 
@@ -34,13 +34,35 @@ const {
   razao_social,
   nome_fantasia,
   documento,
+  is_cnpj,
   cnae_principal,
+  cnaes_secundarios,
+  data_abertura,
+  website,
   url_logo,
   handleLogoUpload,
   isUploadingLogo,
+  temAlteracoesPendentes,
+  cnpjSalvo,
+  isConsultingCNPJ,
+  consultarCNPJ,
   errors,
   submitCount,
 } = useEmpresaForm();
+
+// =============================================
+// CNPJ Auto-lookup
+// =============================================
+
+const documentoDigits = computed(() => documento.value.replace(/\D/g, ''));
+
+watch(documentoDigits, (digits) => {
+  if (!is_cnpj.value || digits.length !== 14) return;
+  // Só consulta se o CNPJ for diferente do que já está salvo no servidor
+  // Isso evita disparar o lookup no carregamento inicial da página
+  if (digits === cnpjSalvo.value) return;
+  consultarCNPJ(digits);
+});
 
 // =============================================
 // Refs
@@ -82,7 +104,7 @@ function onLogoFileChange(event: Event) {
   <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Building2"/>
       </div>
@@ -164,23 +186,65 @@ function onLogoFileChange(event: Event) {
 
       <!-- CNPJ / CNAE -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <BaseInput
-          v-model="documento"
-          label="CNPJ"
-          mask="##.###.###/####-##"
-          placeholder="00.000.000/0000-00"
-          :required="true"
-          :disabled="disabled"
-          :error="submitCount > 0 ? errors.documento : ''"
-        />
+        <div>
+          <BaseInput
+            v-model="documento"
+            label="CNPJ"
+            mask="##.###.###/####-##"
+            placeholder="00.000.000/0000-00"
+            :required="true"
+            :disabled="disabled || isConsultingCNPJ"
+            :error="submitCount > 0 ? errors.documento : ''"
+          />
+          <div
+            v-if="isConsultingCNPJ"
+            class="mt-1.5 flex items-center gap-1.5 text-xs text-brand-primary animate-pulse"
+          >
+            <span class="loading loading-spinner loading-xs"></span>
+            Consultando Receita Federal...
+          </div>
+          <div
+            v-else-if="documentoDigits.length === 14 && temAlteracoesPendentes"
+            class="mt-1.5 flex items-center gap-1 text-xs text-gray-400"
+          >
+            <Search :size="11" />
+            Dados preenchidos automaticamente pela Receita Federal
+          </div>
+        </div>
         <BaseInput
           v-model="cnae_principal"
           label="CNAE Principal"
           type="text"
-          :disabled="disabled"
+          :disabled="disabled || isConsultingCNPJ"
           :error="submitCount > 0 ? errors.cnae_principal : ''"
         />
       </div>
+
+      <!-- CNAE Secundários / Data de Abertura -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <BaseInput
+          v-model="cnaes_secundarios"
+          label="CNAEs Secundários"
+          type="text"
+          placeholder="Ex: 4751-2/01, 4753-9/00"
+          :disabled="disabled"
+        />
+        <BaseInput
+          v-model="data_abertura"
+          label="Data de Abertura"
+          type="date"
+          :disabled="disabled"
+        />
+      </div>
+
+      <!-- Website -->
+      <BaseInput
+        v-model="website"
+        label="Website"
+        type="text"
+        placeholder="https://www.suaempresa.com.br"
+        :disabled="disabled"
+      />
     </div>
   </section>
 </template>

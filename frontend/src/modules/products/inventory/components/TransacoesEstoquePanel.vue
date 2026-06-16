@@ -24,7 +24,7 @@ interface Props {
   produtos: ProdutoRead[];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
 const isMovimentacaoModalOpen = ref(false);

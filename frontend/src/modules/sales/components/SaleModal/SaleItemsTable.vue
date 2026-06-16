@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Trash2, Minus, Plus, PackagePlus } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import {
   useUpdateItemSaleMutation,
@@ -29,6 +30,9 @@ const props = defineProps<{
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const { openEditItemModal } = useItemModal();
+
+const avisoEstoqueOpen = ref(false);
+const pendingItem = ref<SaleOrOrcamento['produtos'][number] | null>(null);
 
 const updateSaleMut = useUpdateItemSaleMutation();
 const deleteSaleMut = useDeleteItemSaleMutation();
@@ -76,7 +80,24 @@ function increaseQuantity(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
 
+  const estoque = item.estoque_disponivel;
+  if (estoque !== null && estoque !== undefined) {
+    const novaQtd = item.quantidade + 1;
+    if (novaQtd > estoque) {
+      pendingItem.value = item;
+      avisoEstoqueOpen.value = true;
+      return;
+    }
+  }
+
   mutateUpdate(props.sale.id, item.id, { quantidade: item.quantidade + 1 });
+}
+
+function confirmarIncremento() {
+  if (!pendingItem.value || !props.sale?.id) return;
+  mutateUpdate(props.sale.id, pendingItem.value.id, { quantidade: pendingItem.value.quantidade + 1 });
+  avisoEstoqueOpen.value = false;
+  pendingItem.value = null;
 }
 
 function removeItem(item: SaleOrOrcamento['produtos'][number]) {
@@ -88,36 +109,40 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
 </script>
 
 <template>
-  <section class="w-full overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-brand-primary/30 transition-colors">
-    <div class="max-h-[50vh] overflow-y-auto">
+  <AvisoEstoqueNegativoModal
+    :is-open="avisoEstoqueOpen"
+    :nome-produto="pendingItem?.nome ?? ''"
+    :estoque-atual="pendingItem?.estoque_disponivel ?? 0"
+    :quantidade-desejada="pendingItem ? pendingItem.quantidade + 1 : 1"
+    @confirmar="confirmarIncremento"
+    @cancelar="avisoEstoqueOpen = false; pendingItem = null"
+  />
+  <section class="w-full h-full overflow-hidden rounded-xl border border-zinc-200 bg-white hover:border-brand-primary/30 transition-colors flex flex-col">
+    <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar">
       <table class="w-full border-collapse text-sm">
         <thead class="sticky top-0 z-10 bg-zinc-50">
           <tr
             class="h-12 border-b border-zinc-200 bg-zinc-50 text-left text-[11px] font-bold uppercase text-zinc-600"
           >
             <th class="px-5">Produto</th>
+            <th class="w-16 px-2 text-center">Un.</th>
             <th class="w-32.5 px-4 text-center">Qtde.</th>
             <th class="w-37.5 px-4 text-center">Preço unit.</th>
             <th class="w-35 px-4 text-center">Desconto</th>
-            <th class="w-35 px-4 text-center">Total</th>
+            <th class="w-35 px-4 text-right">Total</th>
             <th v-if="!readonly" class="w-18 px-4 text-center"></th>
           </tr>
         </thead>
         <tbody class="max-h-96 overflow-y-scroll">
           <tr v-if="items.length === 0">
-            <td :colspan="readonly ? 5 : 6" class="px-6 py-14">
-              <div class="mx-auto flex max-w-md flex-col items-center justify-center text-center">
-                <div
-                  class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-primary"
-                >
-                  <PackagePlus class="h-8 w-8" />
+            <td :colspan="readonly ? 6 : 7" class="px-6 py-8">
+              <div class="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
+                <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand-primary">
+                  <PackagePlus class="h-5 w-5" />
                 </div>
-
-                <h3 class="text-base font-bold text-zinc-900">Nenhum produto adicionado</h3>
-
-                <p class="mt-2 text-sm leading-6 text-zinc-500">
-                  Use a busca acima para localizar um produto pelo nome, SKU ou código de barras e
-                  adicioná-lo a esta venda.
+                <h3 class="text-sm font-bold text-zinc-800">Nenhum produto adicionado</h3>
+                <p class="mt-1 text-xs leading-5 text-zinc-400">
+                  Use a busca acima para localizar um produto pelo nome, SKU ou código de barras.
                 </p>
               </div>
             </td>
@@ -155,14 +180,18 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                     {{ getProductDescription(item) }}
                   </p>
 
-                  <p
-                    v-if="item.tipo_produto === 'CADASTRADO' && item.produto_id"
-                    class="mt-0.5 truncate text-[11px] text-zinc-400"
-                  >
-                    Produto ID: {{ item.produto_id }}
-                  </p>
                 </div>
               </div>
+            </td>
+
+            <td class="px-2 text-center">
+              <span
+                v-if="'unidade_medida' in item && item.unidade_medida"
+                class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-zinc-100 text-zinc-500 uppercase"
+              >
+                {{ item.unidade_medida }}
+              </span>
+              <span v-else class="text-xs text-zinc-300">—</span>
             </td>
 
             <td class="px-4 text-center">
@@ -201,7 +230,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
               {{ formatCurrency(item.desconto) }}
             </td>
 
-            <td class="px-4 text-center text-sm font-semibold text-zinc-800">
+            <td class="px-4 text-right text-sm font-semibold text-zinc-800">
               {{ formatCurrency(item.total) }}
             </td>
 

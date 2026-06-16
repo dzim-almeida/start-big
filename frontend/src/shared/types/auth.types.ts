@@ -29,6 +29,7 @@ export interface User {
   email: string;
   url_perfil?: string;
   ativo: boolean;
+  is_master: boolean;
   empresa?: Company;
   cargo?: Position;
 }

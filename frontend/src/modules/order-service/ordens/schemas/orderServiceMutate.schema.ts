@@ -89,6 +89,7 @@ export type OrderServiceReadyDataType = z.infer<typeof OrderServiceReadySchema>
 export const OrderServiceCancelSchema = z.object({
   motivo: z.string().max(500, 'Um motivo deve ter no máximo 500 caracteres'),
   zerar_adiantamento: z.boolean().optional(),
+  codigo_gerente: z.string().optional(),
 });
 
 export const orderServiceCancelValidationSchema = toTypedSchema(OrderServiceCancelSchema)

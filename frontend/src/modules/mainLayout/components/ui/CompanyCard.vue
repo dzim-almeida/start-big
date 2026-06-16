@@ -5,7 +5,7 @@ import StatusPulse from '../icons/StatusPulse.vue';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const props = defineProps<{
+defineProps<{
   companyName: string;
   imageUrl?: string;
   status: boolean;

@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
     from app.db.models.configuracao_clientes import ConfiguracaoClientes
     from app.db.models.configuracao_produtos import ConfiguracaoProdutos
+    from app.db.models.configuracao_os import ConfiguracaoOS
+    from app.db.models.configuracao_vendas import ConfiguracaoVendas
+    from app.db.models.configuracao_seguranca import ConfiguracaoSeguranca
 
 class Empresa(Base):
     """
@@ -40,6 +43,12 @@ class Empresa(Base):
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
     cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
     segmento: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Segmento de negócio da empresa (ex: assistencia_tecnica, oficina_mecanica)")
+    indicador_ie: Mapped[Optional[str]] = mapped_column(String(1), nullable=True, doc="Indicador de IE para NF-e: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte")
+    natureza_juridica: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)")
+    tipo_atividade: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO")
+    cnaes_secundarios: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="CNAEs secundários separados por vírgula")
+    data_abertura: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Data de abertura no formato YYYY-MM-DD")
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Site da empresa")
 
     # --- Contato e Visual ---
     telefone: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Telefone principal de contato")
@@ -108,4 +117,31 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações do módulo de produtos e estoque"
+    )
+
+    # Relacionamento 1:1 com Configurações de OS
+    config_os: Mapped[Optional["ConfiguracaoOS"]] = relationship(
+        "ConfiguracaoOS",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações do módulo de ordens de serviço"
+    )
+
+    # Relacionamento 1:1 com Configurações de Vendas
+    config_vendas: Mapped[Optional["ConfiguracaoVendas"]] = relationship(
+        "ConfiguracaoVendas",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações de regras de vendas"
+    )
+
+    # Relacionamento 1:1 com Configurações de Segurança
+    config_seguranca: Mapped[Optional["ConfiguracaoSeguranca"]] = relationship(
+        "ConfiguracaoSeguranca",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Configurações de segurança e aprovações por PIN"
     )

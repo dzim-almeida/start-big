@@ -4,6 +4,7 @@ from typing import Sequence
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
+from app.db.models.contador_venda import ContadorVenda
 from app.schemas.vendas import VendaCreate, VendaSearchFilters, VendaStatusSummary, VendaUpdate, ProdutoVendaCreate, ProdutoVendaUpdate, PagamentoVendaCreate, VendaRead
 
 from app.services.cliente import cliente_exists
@@ -12,11 +13,15 @@ from app.services import produto as produto_service
 
 from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
+from app.db.crud import configuracao_produtos as config_produtos_crud
+from app.db.crud import configuracao_vendas as config_vendas_crud
+from app.db.crud import configuracao_seguranca as config_seg_crud
 
 from app.core.enum import VendaStatus, TipoProdutoVenda
 
 from app.helpers.set_pagination import _set_pagination
-from app.helpers.exceptions import BadRequestException, NotFoundException
+from app.core.security import verify_password
+from app.helpers.exceptions import BadRequestException, InternalServerException, NotFoundException
 
 def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
 
@@ -31,12 +36,13 @@ def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
     return venda_crud.update_sale(db, sale_in_db)
 
 def _aplly_discount(sale_in_db: Venda, discount: int) -> Venda:
+    items_subtotal = sum(item.subtotal for item in sale_in_db.itens)
     discount_remaining = discount
     for index, item in enumerate(sale_in_db.itens):
-        if (index == len(sale_in_db.itens) - 1):
+        if index == len(sale_in_db.itens) - 1:
             item.desconto = discount_remaining
         else:
-            item_discount = ((item.total * discount) // (sale_in_db.total or 1))
+            item_discount = (item.subtotal * discount) // (items_subtotal or 1)
             item.desconto = item_discount
             discount_remaining -= item_discount
     return sale_in_db
@@ -92,6 +98,22 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
     if update_data.desconto is not None:
         if update_data.desconto > sale_in_db.subtotal:
             raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
+        empresa_id = sale_in_db.funcionario.empresa_id
+        config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+        config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+        if config_vendas and config_vendas.permitir_desconto and sale_in_db.subtotal > 0 and update_data.desconto > 0:
+            percentual = (update_data.desconto * 100) // sale_in_db.subtotal
+            if percentual > config_vendas.desconto_maximo_percent:
+                if config_seg and config_seg.requer_pin_desconto_venda and config_seg.pin_gerente:
+                    codigo = update_data.codigo_gerente
+                    if not codigo:
+                        raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
+                    if not verify_password(codigo, config_seg.pin_gerente):
+                        raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
+                else:
+                    raise BadRequestException(
+                        detail=f"Desconto máximo permitido é de {config_vendas.desconto_maximo_percent}%"
+                    )
         sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto)
 
     if update_data.observacao is not None:
@@ -111,11 +133,17 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
     if item_data.produto_id:
         if item_data.tipo_produto == TipoProdutoVenda.AVULSO:
             raise BadRequestException(detail="Um produto avulso não pode estar cadastrado")
-        
+
         product_in_db = produto_service.get_produto_by_id(db, produto_id=item_data.produto_id)
-        if quantidade > product_in_db.estoque.quantidade:
-            raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
-        
+
+        estoque_disponivel = product_in_db.estoque.quantidade
+        if quantidade > estoque_disponivel:
+            empresa_id = sale_in_db.funcionario.empresa_id
+            config = config_produtos_crud.get_configuracao_produtos(db, empresa_id=empresa_id)
+            permitir = config.permitir_venda_estoque_zerado if config else False
+            if not permitir:
+                raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
+
         valor_unitario = product_in_db.estoque.valor_varejo
     if item_data.tipo_produto == TipoProdutoVenda.AVULSO and item_data.descricao_avulsa is None:
         raise BadRequestException(detail="Um produto avulso deve ter descrição")
@@ -123,7 +151,7 @@ def add_item_to_sale(db: Session, sale_id: int, item_data: ProdutoVendaCreate) -
     if desconto > quantidade * valor_unitario:
         raise BadRequestException(detail="O desconto não pode ser maior que o total do produto")
     
-    subtotal = quantidade * valor_unitario - desconto
+    subtotal = quantidade * valor_unitario
 
     product_data = ProdutoVenda(
         **item_data.model_dump(exclude={"valor_unitario"}),
@@ -152,12 +180,26 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
         if item_update.descricao_avulsa:
             raise BadRequestException(detail="Um produto cadastrado não pode ter descrição avulsa")
         if item_update.valor_unitario:
-            raise BadRequestException(detail="Um produto cadastrado não pode ter valor unitário definido manualmente")
+            empresa_id = sale_in_db.funcionario.empresa_id
+            config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+            pin_configurado = bool(config_seg and config_seg.pin_gerente)
+            permite_com_pin = config_seg and config_seg.requer_pin_alterar_preco_venda and pin_configurado
+            if not permite_com_pin:
+                raise BadRequestException(detail="Um produto cadastrado não pode ter valor unitário definido manualmente")
+            codigo = item_update.codigo_gerente
+            if not codigo:
+                raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
+            if not verify_password(codigo, config_seg.pin_gerente):
+                raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
 
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
 
     if item_in_db.produto.estoque.quantidade < quantidade:
-        raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {item_in_db.nome}")
+        empresa_id = sale_in_db.funcionario.empresa_id
+        config = config_produtos_crud.get_configuracao_produtos(db, empresa_id=empresa_id)
+        permitir = config.permitir_venda_estoque_zerado if config else False
+        if not permitir:
+            raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {item_in_db.nome}")
     
     preco_unitario = item_update.valor_unitario or (item_in_db.valor_unitario or 0)
     
@@ -195,45 +237,113 @@ def remove_item_from_sale(db: Session, sale_id: int, item_id: int) -> None:
     
     return _recalc_total_sale(db, sale_in_db)
 
+def delete_draft_sale(db: Session, sale_id: int) -> None:
+    sale_in_db = get_sale_by_id(db, sale_id=sale_id)
+    if sale_in_db.status != VendaStatus.ATIVA:
+        raise BadRequestException(detail="Apenas vendas ativas podem ser descartadas")
+    db.delete(sale_in_db)
+    db.commit()
+
+
 def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate]):
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    
+
     if sale_in_db.status != VendaStatus.ATIVA:
         raise BadRequestException(detail="Esta venda não pode ser finalizada")
-    
+
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+    if config_vendas and config_vendas.exigir_cliente_identificado and not sale_in_db.cliente_id:
+        raise BadRequestException(detail="Esta venda exige um cliente identificado para ser finalizada")
+
     valid_payments_to_db = _payments_valid(db, payments)
-    
+
+    # Valida parcelamento
+    if config_vendas:
+        for p in valid_payments_to_db:
+            if p.parcelado and not config_vendas.permitir_parcelamento:
+                raise BadRequestException(detail="Parcelamento não é permitido nas configurações de vendas")
+            if p.parcelado and p.qtd_parcelas and p.qtd_parcelas > config_vendas.parcelas_maximas:
+                raise BadRequestException(detail=f"Máximo de {config_vendas.parcelas_maximas} parcelas permitido")
+
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
     total_sale = sale_in_db.total or 0
 
     if total_payments < total_sale:
         raise BadRequestException(detail="Os pagamentos não conferem ao total da venda")
-    
+
+    # Valida valor mínimo de venda
+    if config_vendas and config_vendas.valor_minimo_venda > 0 and total_sale < config_vendas.valor_minimo_venda:
+        raise BadRequestException(detail=f"Valor mínimo de venda não atingido")
+
+    # Zera desconto se exceder o limite configurado no momento da finalização
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
+    if config_vendas and config_vendas.permitir_desconto and sale_in_db.total_bruto > 0 and sale_in_db.descontos > 0:
+        percentual = (sale_in_db.descontos * 100) // sale_in_db.total_bruto
+        if percentual > config_vendas.desconto_maximo_percent:
+            sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=0)
+            sale_in_db = _recalc_total_sale(db, sale_in_db)
+
+    # Atribui número sequencial oficial
+    contador = db.query(ContadorVenda).filter(ContadorVenda.id == 1).with_for_update().first()
+    if not contador:
+        raise InternalServerException(detail="Contador de vendas não inicializado. Contate o suporte.")
+    sale_in_db.numero_venda = contador.proximo_numero
+    contador.proximo_numero += 1
+
     products_in_db = sale_in_db.itens
 
     for product in products_in_db:
         if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
             produto_service.decrease_product_in_stock(db, produto_id=product.produto_id, quantidade=product.quantidade, funcionario_id=sale_in_db.funcionario_id, venda_id=sale_in_db.id)
-    
+
     sale_in_db.status = VendaStatus.FINALIZADA
     sale_in_db.pagamentos = valid_payments_to_db
     return venda_crud.update_sale(db, sale_in_db)
 
-def cancel_sale(db: Session, sale_id: int) -> Venda:
+def cancel_sale(db: Session, sale_id: int, motivo: str, codigo_gerente: str | None = None) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    
-    if sale_in_db.status != VendaStatus.ATIVA:
-        raise BadRequestException("Esta venda não pode ser cancelada")
-    
+
+    if sale_in_db.status != VendaStatus.FINALIZADA:
+        raise BadRequestException("Apenas vendas finalizadas podem ser canceladas")
+
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+    if config_seg and config_seg.requer_pin_cancelar_venda and config_seg.pin_gerente:
+        if not codigo_gerente:
+            raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
+        if not verify_password(codigo_gerente, config_seg.pin_gerente):
+            raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
+
+    for product in sale_in_db.itens:
+        if product.tipo_produto == TipoProdutoVenda.CADASTRADO:
+            produto_service.restore_product_to_stock(
+                db,
+                produto_id=product.produto_id,
+                quantidade=product.quantidade,
+                funcionario_id=sale_in_db.funcionario_id,
+                venda_id=sale_in_db.id,
+            )
+
     sale_in_db.status = VendaStatus.CANCELADA
+    sale_in_db.motivo_cancelamento = motivo
     return venda_crud.update_sale(db, sale_in_db)
 
-def reopen_sale(db: Session, sale_id: int) -> Venda:
+def reopen_sale(db: Session, sale_id: int, codigo_gerente: str | None = None) -> Venda:
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
-    
+
     if sale_in_db.status != VendaStatus.CANCELADA:
         raise BadRequestException(detail="Venda não pode ser reaberta")
-    
+
+    empresa_id = sale_in_db.funcionario.empresa_id
+    config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
+    if config_seg and config_seg.requer_pin_reabrir_venda and config_seg.pin_gerente:
+        if not codigo_gerente:
+            raise BadRequestException(detail="REQUER_APROVACAO_GERENTE")
+        if not verify_password(codigo_gerente, config_seg.pin_gerente):
+            raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
+
     sale_in_db.status = VendaStatus.ATIVA
     return venda_crud.update_sale(db, sale_in_db)
 

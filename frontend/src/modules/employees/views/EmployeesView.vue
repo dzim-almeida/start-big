@@ -6,6 +6,8 @@
 
 import { ref, computed, watch } from 'vue';
 import { Plus } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/shared/stores/auth.store';
 
 import { TAB_OPTIONS, CARDS_INFO } from '../constants/employees.constants';
 
@@ -27,6 +29,10 @@ import { usePositionModal } from '../composables/usePositionModal';
 // =============================================
 // State
 // =============================================
+
+const authStore = useAuthStore();
+const { userData } = storeToRefs(authStore);
+const isMaster = computed(() => userData.value?.is_master === true);
 
 const activeTeam = ref('employee');
 const searchTerm = ref('');
@@ -126,6 +132,7 @@ function handleRemovePosition(positionId: number) {
       <div class="flex gap-5">
         <BaseTab2 :options="TAB_OPTIONS" v-model="activeTeam" />
         <BaseButton
+          v-if="activeTeam === 'employee' || isMaster"
           variant="primary"
           size="md"
           type="button"
@@ -133,11 +140,7 @@ function handleRemovePosition(positionId: number) {
           @click="handleAddClick"
         >
           <Plus :size="20" />
-          {{
-            activeTeam === 'employee'
-              ? 'Adicionar Funcionario'
-              : 'Adicionar Cargo'
-          }}
+          {{ activeTeam === 'employee' ? 'Adicionar Funcionario' : 'Adicionar Cargo' }}
         </BaseButton>
       </div>
     </div>
@@ -175,6 +178,7 @@ function handleRemovePosition(positionId: number) {
         :employees="employees || []"
         :is-loading="isPositionsLoading"
         :is-error="isPositionsError"
+        :can-manage="isMaster"
         @view="(position) => handleViewPosition(position.id)"
         @edit="(position) => handleEditPosition(position.id)"
         @remove="(position) => handleRemovePosition(position.id)"
