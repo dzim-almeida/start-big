@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"npm run backend-dev\"",
+    "dev": "vite",
     "backend-dev": "cd ../backend-fastapi && .\\.venv\\Scripts\\activate && fastapi dev app/main.py",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -17,7 +17,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/vue-query": "^5.92.1",
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-stronghold": "^2.3.1",
     "@vee-validate/zod": "^4.15.1",

@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------
 
 from typing import Callable, Dict, Any
-from fastapi import Depends, HTTPException, status, Cookie
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from app.services import usuario as usuario
 from app.db.crud import token as token_crud
 from app.db.session import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login_data")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[str, Any]:
@@ -78,15 +78,14 @@ def data_token_validation(db: Session, usuario_token: Dict[str, Any]) -> Dict[st
 # =========================
 def get_token(
     db: Session = Depends(get_db),
-    token: str | None = Cookie(default=None, alias="access_token")
-    # token: str | None = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme)
 ) -> Dict[str, Any]:
     """
     Dependência principal: Decodifica o token, valida a assinatura e verifica a blocklist.
 
     Args:
         db (Session): Sessão de banco de dados.
-        token (str): O token JWT extraído do cabeçalho 'Authorization'.
+        token (str): O token JWT extraído do cabeçalho 'Authorization: Bearer'.
 
     Raises:
         HTTPException 401 UNAUTHORIZED: Se a assinatura for inválida ou o token tiver sido revogado.
@@ -94,10 +93,6 @@ def get_token(
     Returns:
         Dict[str, Any]: O payload decodificado e validado do token.
     """
-
-    # verificar se um token foi enviado na requisição
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais Inválidas")
 
     # Valida assinatura e decodifica. Se falhar, levanta 401.
     token_data = verify_token_data(token)

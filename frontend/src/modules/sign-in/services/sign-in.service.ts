@@ -1,4 +1,5 @@
 import api from '@/api/axios';
+import { TOKEN_KEY } from '@/api/axios';
 import axios from 'axios';
 import type { SetupRequest, StatusResponse, ViaCepResponse } from '../types/sign-in.types';
 
@@ -16,12 +17,12 @@ export async function checkSystemStatus(): Promise<StatusResponse> {
  * Executa o setup inicial do sistema (público, sem auth)
  * Usa axios plain para evitar interceptor 401 que redirecionaria para login.
  */
-export async function setupSistema(setupData: SetupRequest): Promise<{ message: string }> {
-  const { data } = await axios.post<{ message: string }>(
+export async function setupSistema(setupData: SetupRequest): Promise<{ access_token: string; token_type: string }> {
+  const { data } = await axios.post<{ access_token: string; token_type: string }>(
     `${API_BASE_URL}/auth/setup`,
     setupData,
-    { withCredentials: true },
   );
+  localStorage.setItem(TOKEN_KEY, data.access_token);
   return data;
 }
 

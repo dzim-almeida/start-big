@@ -4,7 +4,7 @@
  * autenticação da API (login, logout, etc.).
  */
 
-import api from '@/api/axios';
+import api, { TOKEN_KEY } from '@/api/axios';
 
 import type {
   LoginRequest,
@@ -24,7 +24,19 @@ const REMEMBER_ME = 'rememberMe';
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>('auth/login', credentials);
+    localStorage.setItem(TOKEN_KEY, response.data.access_token);
     return response.data;
+}
+
+/**
+ * Realiza o logout do usuário (revoga token no backend)
+ */
+export async function logout(): Promise<void> {
+    try {
+        await api.post('auth/logout');
+    } finally {
+        localStorage.removeItem(TOKEN_KEY);
+    }
 }
 
 /**
