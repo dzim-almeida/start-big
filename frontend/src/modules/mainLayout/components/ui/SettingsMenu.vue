@@ -18,8 +18,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { useSettingsStore } from '@/shared/stores/settings.store';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { useLayoutStore } from '../../store/layout.store';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
@@ -58,7 +57,7 @@ function abrirConfiguracoes() {
           >
             <img
               v-if="userData?.url_perfil"
-              :src="`${API_BASE_URL}/${userData.url_perfil}`"
+              :src="getImageUrl(userData.url_perfil) ?? ''"
               alt="Foto do usuário"
               class="w-full h-full object-cover rounded-lg"
             />

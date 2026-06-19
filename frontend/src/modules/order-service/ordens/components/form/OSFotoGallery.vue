@@ -7,6 +7,7 @@ import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.sch
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
+import { getBackendBaseUrl } from '@/api/backendUrl';
 
 export interface PendingPhoto {
   file: File;
@@ -126,14 +127,13 @@ function handleRemovePhoto(photo: { id: number; isPending: boolean }, index: num
   }
 }
 
-function getImageUrl(url: string) {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+function getImageUrlFromBackend(url: string) {
   const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
-  return `${base}${normalizedUrl}`;
+  return `${getBackendBaseUrl()}${normalizedUrl}`;
 }
 
 function getPhotoSrc(photo: { url: string; isPending: boolean }) {
-  return photo.isPending ? photo.url : getImageUrl(photo.url);
+  return photo.isPending ? photo.url : getImageUrlFromBackend(photo.url);
 }
 </script>
 

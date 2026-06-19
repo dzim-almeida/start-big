@@ -1,24 +1,43 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+use std::net::TcpListener;
 use std::sync::Mutex;
 use tauri::{Manager, RunEvent};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
-struct SidecarState {
+struct AppState {
     process: Mutex<Option<CommandChild>>,
+    port: u16,
+}
+
+fn get_free_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("Falha ao busca uma porta livre no sistema")
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+#[tauri::command]
+fn get_backend_port(state: tauri::State<AppState>) -> u16 {
+    state.port
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let port = get_free_port();
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
+        .invoke_handler(tauri::generate_handler![get_backend_port])
+        .setup(move |app| {
             let sidecar_command = app
                 .shell()
                 .sidecar("erp-api")
-                .expect("Falha ao criar o comando do sidecar FastAPI");
+                .expect("Falha ao criar o comando do sidecar FastAPI")
+                .arg(port.to_string());
 
             let (mut rx, child) = sidecar_command
                 .spawn()
@@ -38,8 +57,9 @@ pub fn run() {
                 }
             });
 
-            app.manage(SidecarState {
+            app.manage(AppState {
                 process: Mutex::new(Some(child)),
+                port,
             });
 
             Ok(())
@@ -49,17 +69,22 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         if let RunEvent::Exit = event {
-            let state = app_handle.state::<SidecarState>();
+            let state = app_handle.state::<AppState>();
 
             if let Ok(mut process_guard) = state.inner().process.lock() {
                 if let Some(process) = process_guard.take() {
                     let pid = process.pid();
                     #[cfg(target_os = "windows")]
                     {
+                        use std::os::windows::process::CommandExt;
+                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
                         let _ = std::process::Command::new("taskkill")
                             .args(["/F", "/T", "/PID", &pid.to_string()])
+                            .creation_flags(CREATE_NO_WINDOW)
                             .output();
                     }
+
                     #[cfg(not(target_os = "windows"))]
                     {
                         let _ = process.kill();

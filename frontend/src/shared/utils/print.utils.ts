@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { formatCNPJ } from '@/shared/utils/document.utils';
+import { getBackendBaseUrl } from '@/api/backendUrl';
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types';
 
 // --- Cliente helpers (union type PF/PJ) ---
@@ -103,8 +104,7 @@ export function getImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
   if (path.startsWith('http')) return path;
   const cleanPath = path.replace(/^static\//, '');
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  return `${base}/static/${cleanPath}`;
+  return `${getBackendBaseUrl()}/static/${cleanPath}`;
 }
 
 // --- Company info composable ---

@@ -26,18 +26,14 @@ import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchMo
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
 import { useSalePrintFlow } from '../composables/flows/useSalePrintFlow';
 import type { SaleRead } from '../schemas/sale.schema';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
-const logoUrl = computed(() => {
-  const path = authStore.userData?.empresa?.url_logo;
-  if (!path) return null;
-  return `${API_BASE_URL}/${path}`;
-});
+const logoUrl = computed(() => getImageUrl(authStore.userData?.empresa?.url_logo));
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();

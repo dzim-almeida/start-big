@@ -40,7 +40,7 @@ const {
   openViewModal: openViewFornecedorModal,
 } = useFornecedorModal();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const activeTab = ref('product');
 const searchTerm = ref<string | null>('');
@@ -346,7 +346,7 @@ function handleEmptyAction() {
               :category="product.categoria || 'SEM CATEGORIA'"
               :price="product.estoque.valor_varejo / 100"
               :storage="product.estoque.quantidade || 0"
-              :image_url="getProductImage(product) ? `${API_BASE_URL}/${getProductImage(product)}` : ''"
+              :image_url="getImageUrl(getProductImage(product)) ?? ''"
               :status="product.ativo"
               @view="handleViewProduct"
               @edit="handleEditProduct"
@@ -369,7 +369,7 @@ function handleEmptyAction() {
           :category="product.categoria || 'SEM CATEGORIA'"
           :price="product.estoque.valor_varejo / 100"
           :storage="product.estoque.quantidade || 0"
-          :image_url="getProductImage(product) ? `${API_BASE_URL}/${getProductImage(product)}` : ''"
+          :image_url="getImageUrl(getProductImage(product)) ?? ''"
           :status="product.ativo"
           @view="handleViewProduct"
           @edit="handleEditProduct"

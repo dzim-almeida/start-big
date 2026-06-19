@@ -8,8 +8,7 @@ import { ref, computed } from 'vue';
 import { X, Image as ImageIcon } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import { useProductForm } from '../../composables/useProductForm';
-
-const API_BASE_URL = 'http://localhost:8000/';
+import { getBackendBaseUrl } from '@/api/backendUrl';
 
 // =============================================
 // Props
@@ -41,7 +40,7 @@ const previewSource = computed(() => {
   if (imagePreview.value) {
     return imagePreview.value;
   } else if (image_url.value) {
-    return `${API_BASE_URL}${image_url.value}`;
+    return `${getBackendBaseUrl()}/${image_url.value}`;
   }
   return '';
 });
