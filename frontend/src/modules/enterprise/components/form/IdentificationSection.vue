@@ -94,7 +94,7 @@ function onLogoFileChange(event: Event) {
           >
             <img
               v-if="logoUrl"
-              :src="`${API_BASE_URL}/${url_logo}`"
+              :src="logoUrl"
               alt="Logo Empresa"
               class="w-full h-full object-contain p-1"
             />

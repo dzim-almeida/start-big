@@ -47,15 +47,21 @@ api.interceptors.response.use(
 
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
+        const hadToken = !!localStorage.getItem(TOKEN_KEY);
         const authStore = useAuthStore();
-        localStorage.removeItem(TOKEN_KEY);
-        toast.error(
-          'Sessão Expirada',
-          {
-            description: 'Faça login novamente'
-          }
-        )
+
         authStore.logoutUser();
+
+        // Só mostra toast se havia sessão ativa (token expirou de verdade)
+        if (hadToken) {
+          toast.error(
+            'Sessão Expirada',
+            {
+              description: 'Faça login novamente'
+            }
+          )
+        }
+
         router.replace({ name: 'auth.user' });
         return Promise.reject(error);
       }
