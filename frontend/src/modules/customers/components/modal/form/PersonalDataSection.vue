@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import { User } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useCustomerForm } from '@/modules/customers/composables/modal/context/useCustomerForm.context';
 import { GENDER_OPTIONS } from '@/modules/customers/composables/modal/constants/modal.constant';
@@ -107,11 +108,9 @@ const {
         />
       </div>
       <div v-if="configStore.exibirDataNascimento" class="col-span-12 md:col-span-4">
-        <BaseInput
+        <BaseDateInput
           v-model="data_nascimento"
-          type="date"
           label="Data de Nascimento"
-          placeholder="DD/MM/AAAA"
           :error="submitCount > 0 ? errors.data_nascimento : ''"
           :disabled="disabled"
         />

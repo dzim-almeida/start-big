@@ -6,6 +6,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { OsStatusEnumDataType, OsPriorityEnumDataType } from '../../schemas/enums/osEnums.schema';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 
 const props = defineProps<{
   status?: OsStatusEnumDataType;
@@ -209,14 +210,10 @@ function getSelectedLabel(options: SelectOption[], value: string) {
       <!-- Previsão -->
       <div class="flex flex-col px-4 py-2 hover:bg-slate-50 transition-colors">
         <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Previsão</span>
-        <input
-          type="date"
+        <BaseDateInput
           v-model="localDataPrevisao"
           :disabled="isLocked"
-          class="bg-transparent border-none text-left font-semibold text-slate-700 focus:ring-0 outline-none p-0 w-full disabled:cursor-not-allowed disabled:opacity-70"
-          :class="[
-            isLocked ? '[&::-webkit-calendar-picker-indicator]:hidden' : 'cursor-pointer',
-          ]"
+          input-class="bg-transparent border-none font-semibold text-slate-700 focus:ring-0 outline-none p-0 disabled:cursor-not-allowed disabled:opacity-70"
         />
       </div>
 

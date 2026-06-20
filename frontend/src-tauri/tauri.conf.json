@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "StartBig ERP",
+  "productName": "StartBigERP",
   "version": "0.1.0",
   "identifier": "br.com.startbig.erp",
   "build": {
@@ -17,22 +17,37 @@
         "width": 1024,
         "height": 750,
         "maximized": true,
-        "resizable": false
+        "resizable": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://viacep.com.br https://servicodados.ibge.gov.br; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; img-src 'self' asset: data: blob: http://localhost:* http://127.0.0.1:*;" 
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "publisher": "StartBig LTDA ME",
+    "shortDescription": "StartBig ERP é um sistema de gestão empresarial completo e fácil de usar, projetado para ajudar pequenas e médias empresas a gerenciar suas operações de forma eficiente.",
+    "licenseFile": "LICENSE.txt",
+    "externalBin": [
+      "bin/erp-api"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": true
+      }
+    }
   }
 }

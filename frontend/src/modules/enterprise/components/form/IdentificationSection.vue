@@ -11,8 +11,7 @@ import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import { SECTION_LABELS } from '../../constants/empresa.constants';
 import { useEmpresaForm } from '../../composables/useEmpresaFormProvider';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 // =============================================
 // Props
@@ -74,13 +73,7 @@ const logoInput = ref<HTMLInputElement | null>(null);
 // Computed
 // =============================================
 
-const logoUrl = computed(() => {
-  const path = url_logo.value;
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const cleanPath = path.replace(/^static\//, '');
-  return `http://localhost:8000/static/${cleanPath}`;
-});
+const logoUrl = computed(() => getImageUrl(url_logo.value) ?? '');
 
 // =============================================
 // Methods
@@ -123,7 +116,7 @@ function onLogoFileChange(event: Event) {
           >
             <img
               v-if="logoUrl"
-              :src="`${API_BASE_URL}/${url_logo}`"
+              :src="logoUrl"
               alt="Logo Empresa"
               class="w-full h-full object-contain p-1"
             />

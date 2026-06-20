@@ -18,6 +18,7 @@ import { useItemModal } from '../../composables/flows/useItemModal';
 
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
+import { getBackendBaseUrl } from '@/api/backendUrl';
 
 type SaleOrOrcamento = SaleRead | OrcamentoRead;
 
@@ -26,8 +27,6 @@ const props = defineProps<{
   readonly?: boolean;
   isOrcamento?: boolean;
 }>();
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const { openEditItemModal } = useItemModal();
 
@@ -161,7 +160,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                 >
                   <img
                     v-if="'imagem_url' in item && item.imagem_url"
-                    :src="`${API_BASE_URL}/${item.imagem_url}`"
+                    :src="`${getBackendBaseUrl()}/${item.imagem_url}`"
                     :alt="item.nome"
                     class="h-full w-full object-fit"
                   />

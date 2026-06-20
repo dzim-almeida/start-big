@@ -31,10 +31,14 @@ import { useAddProductModal } from '../composables/flows/useAddProductModal';
 import type { SaleRead } from '../schemas/sale.schema';
 import { storeToRefs } from 'pinia';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
 import SalePrintCupom from './print/SalePrintCupom.vue';
+
+const authStore = useAuthStore();
+const logoUrl = computed(() => getImageUrl(authStore.userData?.empresa?.url_logo));
 
 const { saleModalIsOpen, closeSaleModal, sale, selectedSaleId, isEditMode, isViewMode } = useSaleModal();
 const addProductModal = useAddProductModal();

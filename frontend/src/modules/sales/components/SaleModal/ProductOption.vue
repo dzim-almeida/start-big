@@ -17,7 +17,7 @@ const emit = defineEmits<{
   selectForQuantity: [];
 }>();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getBackendBaseUrl } from '@/api/backendUrl';
 
 const estoqueStatus = computed<EstoqueStatus>(() => {
   const qty = props.product.estoque;
@@ -49,7 +49,7 @@ function handleSelectForQuantity() {
 
 const imgUrl = computed(() => {
     if (!props.product.imagem_url) return null;
-    return `${API_BASE_URL}/${props.product.imagem_url}`;
+    return `${getBackendBaseUrl()}/${props.product.imagem_url}`;
 })
 </script>
 

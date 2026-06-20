@@ -6,10 +6,14 @@ import { VueQueryPlugin } from '@tanstack/vue-query';
 import { vueQueryOptions } from './core/config/vueQueryConfig';
 import { vMaska } from 'maska/vue';
 
+import { initBackendUrl } from '@/api/backendUrl';
+
 import '@/shared/assets/styles/global.css';
 import 'vue-sonner/style.css';
 
 async function startApp() {
+  await initBackendUrl();
+
   const app = createApp(App);
   const pinia = createPinia();
   app.use(pinia);

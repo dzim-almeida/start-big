@@ -9,14 +9,25 @@ import router from '@/router';
 import { toast } from 'vue-sonner';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { getApiBaseUrl } from '@/api/backendUrl';
+
+export const TOKEN_KEY = 'access_token';
 
 /**
  * Instância do Axios configurada com a URL base da API
  */
-export const api = axios.create({
-  // baseURL: "https://attorney-constitutes-attempts-congressional.trycloudflare.com/api/v1",
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
-  withCredentials: true,
+export const api = axios.create({});
+
+/**
+ * Interceptor de requisição para definir baseURL dinâmica e anexar o JWT Bearer Token
+ */
+api.interceptors.request.use((config) => {
+  config.baseURL ??= getApiBaseUrl();
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 /**
@@ -32,12 +43,17 @@ api.interceptors.response.use(
     }
 
     if (axios.isAxiosError(error)) {
-      const { status, data } = error.response;
+      const { status } = error.response;
 
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
+        const hadToken = !!localStorage.getItem(TOKEN_KEY);
         const authStore = useAuthStore();
-        if (data.detail === 'Credenciais Inválidas') {
+
+        authStore.logoutUser();
+
+        // Só mostra toast se havia sessão ativa (token expirou de verdade)
+        if (hadToken) {
           toast.error(
             'Sessão Expirada',
             {
@@ -45,7 +61,7 @@ api.interceptors.response.use(
             }
           )
         }
-        authStore.logoutUser();
+
         router.replace({ name: 'auth.user' });
         return Promise.reject(error);
       }

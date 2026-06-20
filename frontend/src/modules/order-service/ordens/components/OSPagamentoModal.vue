@@ -8,6 +8,7 @@ import {
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
@@ -538,10 +539,9 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
       </div>
 
       <div v-if="getMethodTipo(currentPaymentMethod) === 'BOLETO'" class="pt-1">
-        <BaseInput 
-          v-model="paymentDetails.vencimento" 
-          type="date" 
-          label="Data de Vencimento" 
+        <BaseDateInput
+          v-model="paymentDetails.vencimento"
+          label="Data de Vencimento"
         />
       </div>
 

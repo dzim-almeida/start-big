@@ -4,8 +4,6 @@
  * cadastro e gerenciamento de sessão do usuário.
  */
 
-import { User } from "@/shared/types/auth.types";
-
 /**
  * Payload de requisição para login do usuário
  */
@@ -17,7 +15,10 @@ export interface LoginRequest {
 /**
  * Resposta da API após login bem-sucedido
  */
-export interface LoginResponse extends User {}
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
 
 /**
  * Payload de requisição para verificação de e-mail

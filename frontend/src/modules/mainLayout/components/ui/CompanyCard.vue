@@ -2,8 +2,7 @@
 import { ShoppingCart } from 'lucide-vue-next';
 
 import StatusPulse from '../icons/StatusPulse.vue';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 defineProps<{
   companyName: string;
@@ -36,7 +35,7 @@ defineProps<{
     >
       <img
         v-if="imageUrl"
-        :src="`${API_BASE_URL}/${imageUrl}`"
+        :src="getImageUrl(imageUrl) ?? ''"
         alt="Logo da Empresa"
         class="w-full h-full object-cover rounded-lg"
       />

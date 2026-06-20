@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.db.session import SessionLocal, engine
+from app.db.base import Base
 from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados
 
 logger = logging.getLogger(__name__)
@@ -143,6 +144,8 @@ async def lifespan(app: FastAPI):
     Gerenciador de ciclo de vida do FastAPI.
     Inicia tarefas em segundo plano ao iniciar e cancela ao encerrar.
     """
+    Base.metadata.create_all(bind=engine)
+    
     _aplicar_migracoes()
     logger.info("Iniciando tarefa de limpeza automatica temporal...")
     tarefa = asyncio.create_task(_loop_limpeza_temporal())

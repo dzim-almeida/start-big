@@ -15,8 +15,7 @@ import { useAtualizarContaMutation } from '../composables/mutates/useAtualizarCo
 import { useAlterarSenhaMutation } from '../composables/mutates/useAlterarSenhaMutation';
 import { useUploadFotoPerfilMutation } from '../composables/mutates/useUploadFotoPerfilMutation';
 import { AtualizarContaSchema, AlterarSenhaSchema } from '../schemas/minhaConta.schema';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -183,7 +182,7 @@ function salvarSenha() {
           >
             <img
               v-if="userData?.url_perfil"
-              :src="`${API_BASE_URL}/${userData.url_perfil}`"
+              :src="getImageUrl(userData.url_perfil) ?? ''"
               alt="Foto de perfil"
               class="w-full h-full object-cover"
             />

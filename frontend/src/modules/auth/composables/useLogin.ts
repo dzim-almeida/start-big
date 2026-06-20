@@ -62,7 +62,7 @@ export function useLogin() {
 
       // 2. Verificação de segurança: Se após revalidar, o usuário ainda for null, algo falhou.
       if (!userData.value) {
-        apiError.value = 'Erro ao recuperar sessão. Verifique os cookies.';
+        apiError.value = 'Erro ao recuperar sessão. Faça login novamente.';
         authStore.logoutUser();
         return;
       }

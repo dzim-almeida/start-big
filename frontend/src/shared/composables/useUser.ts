@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/vue-query";
 import { getUser } from "../services/user.service";
+import { TOKEN_KEY } from "@/api/axios";
 
 export function useUserQuery() {
     return useQuery({
         queryKey: ['user-me'],
         queryFn: () => getUser(),
-        staleTime: 1000 * 60 * 5,
-        refetchOnWindowFocus: true,
+        enabled: () => !!localStorage.getItem(TOKEN_KEY),
+        staleTime: 1000 * 60 * 30
     });
 }
