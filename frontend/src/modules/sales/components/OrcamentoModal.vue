@@ -16,7 +16,6 @@ import OrcamentoCard from './OrcamentoModal/OrcamentoCard.vue';
 import { useOrcamentoModal } from '../composables/flows/useOrcamentoModal';
 import { useItemModal } from '../composables/flows/useItemModal';
 import { useDeleteOrcamentoMutation } from '../composables/mutates/useDeleteOrcamentoMutation';
-import { useUpdateOrcamentoMutation } from '../composables/mutates/useUpdateOrcamentoMutation';
 import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
 import { getImageUrl } from '@/shared/utils/print.utils';
 
@@ -53,7 +52,6 @@ whenever(keys.Ctrl_D, () => {
   }
 });
 const deleteMutation = useDeleteOrcamentoMutation();
-const updateMutation = useUpdateOrcamentoMutation();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 
 const headerDisplay = computed(() => {

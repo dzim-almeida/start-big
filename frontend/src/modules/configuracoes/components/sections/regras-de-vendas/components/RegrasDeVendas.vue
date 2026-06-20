@@ -1,5 +1,73 @@
 <script setup lang="ts">
-import { ChevronDown } from 'lucide-vue-next'
+import { computed, reactive, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
+
+const configStore = useConfiguracoesStore()
+const {
+  permitirDesconto,
+  descontoMaximoPercent,
+  exigirClienteIdentificado,
+  valorMinimoVenda,
+  permitirParcelamento,
+  parcelasMaximas,
+  permitirVendaEstoqueZerado,
+} = storeToRefs(configStore)
+
+function valoresDoStore() {
+  return {
+    vendas: {
+      permitir_desconto: permitirDesconto.value,
+      desconto_maximo_percent: descontoMaximoPercent.value,
+      exigir_cliente_identificado: exigirClienteIdentificado.value,
+      valor_minimo_venda_reais: (valorMinimoVenda.value / 100) as number,
+      permitir_parcelamento: permitirParcelamento.value,
+      parcelas_maximas: parcelasMaximas.value,
+    },
+    estoque: {
+      permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
+    },
+  }
+}
+
+const form = reactive(valoresDoStore())
+
+function resetar() {
+  Object.assign(form.vendas, valoresDoStore().vendas)
+  Object.assign(form.estoque, valoresDoStore().estoque)
+}
+
+watch(() => configStore.configVendas, () => {
+  Object.assign(form.vendas, valoresDoStore().vendas)
+})
+
+watch(() => configStore.configProdutos, () => {
+  Object.assign(form.estoque, valoresDoStore().estoque)
+})
+
+const isDirty = computed(
+  () => JSON.stringify({ vendas: { ...form.vendas }, estoque: { ...form.estoque } }) !== JSON.stringify(valoresDoStore()),
+)
+
+defineExpose({
+  isDirty,
+  resetar,
+  get form() {
+    return {
+      vendas: {
+        permitir_desconto: form.vendas.permitir_desconto,
+        desconto_maximo_percent: form.vendas.desconto_maximo_percent,
+        exigir_cliente_identificado: form.vendas.exigir_cliente_identificado,
+        valor_minimo_venda: Math.round(form.vendas.valor_minimo_venda_reais * 100),
+        permitir_parcelamento: form.vendas.permitir_parcelamento,
+        parcelas_maximas: form.vendas.parcelas_maximas,
+      },
+      estoque: {
+        permitir_venda_estoque_zerado: form.estoque.permitir_venda_estoque_zerado,
+      },
+    }
+  },
+})
 </script>
 
 <template>
@@ -9,6 +77,7 @@ import { ChevronDown } from 'lucide-vue-next'
       <p class="text-sm text-zinc-500 mt-0.5">Defina as regras e limitações para o processo de vendas</p>
     </div>
 
+    <!-- Descontos -->
     <div class="flex flex-col">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Descontos</p>
 
@@ -17,19 +86,29 @@ import { ChevronDown } from 'lucide-vue-next'
           <p class="text-sm font-medium text-zinc-800">Permitir desconto em vendas</p>
           <p class="text-xs text-zinc-500 mt-0.5">Habilita o campo de desconto no carrinho</p>
         </div>
-        <div class="relative w-9 h-4.5 bg-brand-primary rounded-full shrink-0">
-          <span class="absolute right-0.5 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow" />
-        </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.vendas.permitir_desconto ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.vendas.permitir_desconto = !form.vendas.permitir_desconto"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.permitir_desconto ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
       </div>
 
       <div class="py-3 border-b border-zinc-100">
-        <label class="text-xs font-medium text-zinc-600">Desconto máximo permitido (%)</label>
-        <div class="mt-1.5 border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700">
-          30
-        </div>
+        <label class="text-xs font-medium text-zinc-600">Desconto máximo permitido (%) — 0 = bloqueia todo desconto</label>
+        <input
+          v-model.number="form.vendas.desconto_maximo_percent"
+          type="number"
+          min="0"
+          max="100"
+          :disabled="!form.vendas.permitir_desconto"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        />
       </div>
     </div>
 
+    <!-- Estoque e Clientes -->
     <div class="flex flex-col">
       <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Estoque e Clientes</p>
 
@@ -38,9 +117,13 @@ import { ChevronDown } from 'lucide-vue-next'
           <p class="text-sm font-medium text-zinc-800">Permitir venda sem estoque</p>
           <p class="text-xs text-zinc-500 mt-0.5">Vende mesmo quando o produto está zerado</p>
         </div>
-        <div class="relative w-9 h-4.5 bg-zinc-200 rounded-full shrink-0">
-          <span class="absolute left-0.5 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow" />
-        </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.estoque.permitir_venda_estoque_zerado ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.estoque.permitir_venda_estoque_zerado = !form.estoque.permitir_venda_estoque_zerado"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.estoque.permitir_venda_estoque_zerado ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
       </div>
 
       <div class="flex items-center justify-between py-3 border-b border-zinc-100">
@@ -48,21 +131,56 @@ import { ChevronDown } from 'lucide-vue-next'
           <p class="text-sm font-medium text-zinc-800">Exigir cliente identificado</p>
           <p class="text-xs text-zinc-500 mt-0.5">Toda venda deve ter um cliente vinculado</p>
         </div>
-        <div class="relative w-9 h-4.5 bg-zinc-200 rounded-full shrink-0">
-          <span class="absolute left-0.5 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow" />
-        </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.vendas.exigir_cliente_identificado ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.vendas.exigir_cliente_identificado = !form.vendas.exigir_cliente_identificado"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.exigir_cliente_identificado ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Valor mínimo de venda — 0 = sem mínimo</label>
+        <input
+          v-model.number="form.vendas.valor_minimo_venda_reais"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0,00"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+        />
       </div>
     </div>
 
+    <!-- Pagamentos -->
     <div class="flex flex-col">
-      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Comportamento</p>
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Pagamentos</p>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-zinc-600">Ação ao finalizar venda</label>
-        <div class="flex items-center justify-between border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50">
-          <span class="text-sm text-zinc-700">Perguntar o que fazer</span>
-          <ChevronDown :size="14" class="text-zinc-400 shrink-0" />
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+        <div>
+          <p class="text-sm font-medium text-zinc-800">Permitir parcelamento</p>
+          <p class="text-xs text-zinc-500 mt-0.5">Habilita pagamentos parcelados nas vendas</p>
         </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.vendas.permitir_parcelamento ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.vendas.permitir_parcelamento = !form.vendas.permitir_parcelamento"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.permitir_parcelamento ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Máximo de parcelas (1–48)</label>
+        <input
+          v-model.number="form.vendas.parcelas_maximas"
+          type="number"
+          min="1"
+          max="48"
+          :disabled="!form.vendas.permitir_parcelamento"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        />
       </div>
     </div>
   </div>

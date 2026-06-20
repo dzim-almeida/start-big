@@ -11,7 +11,7 @@ interface UseOSReopenStateParams {
 export function useOSReopenState({
   osNumber,
   onReopenRequest,
-  onFullReopen,
+  onFullReopen: _onFullReopen,
 }: UseOSReopenStateParams) {
   const isReopenOptionsOpen = ref(false);
   const reopenMode = ref<OSReopenMode>('NONE');

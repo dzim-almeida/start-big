@@ -60,7 +60,7 @@ export const ProductSaleUpdateSchema = ProductSaleBaseSchema
     },
   );
 
-export type ProductSaleUpdate = z.infer<typeof ProductSaleUpdateSchema>;
+export type ProductSaleUpdate = z.infer<typeof ProductSaleUpdateSchema> & { codigo_gerente?: string };
 
 export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   id: z.number(),
@@ -69,6 +69,8 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   subtotal: z.number().min(0),
   total: z.number().min(0),
   imagem_url: z.string().nullable().optional(),
+  unidade_medida: z.string().nullable().optional(),
+  estoque_disponivel: z.number().nullable().optional(),
   valor_unitario: z.number().transform((val) => (!val ? 0 : val)),
   desconto: z.number().transform((val) => (!val ? 0 : val)),
 }).omit({ descricao_avulsa: true });

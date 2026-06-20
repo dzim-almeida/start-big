@@ -7,37 +7,40 @@
   body {
     visibility: hidden;
     background: white;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    margin: 0;
+    padding: 0;
   }
 
-  .fixed {
+  /* Oculta tudo que não é o template de impressão (remove do layout, não só da visibilidade) */
+  body > *:not(.print-container) {
     display: none !important;
   }
 
   .print-container {
     visibility: visible;
-    position: fixed;
-    left: 0;
-    top: 0;
+    display: block !important;
     width: 100%;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    display: flex !important;
-    flex-direction: column;
     background: white;
     font-size: 12px;
-    z-index: 99999;
   }
 
   .print-footer {
-    margin-top: auto;
+    margin-top: 2rem;
   }
 
+  /* Cabeçalho e blocos de grade não quebram entre páginas */
   .print-container header,
-  .print-container table,
   .print-container > .grid {
+    page-break-inside: avoid;
+  }
+
+  /* Na tabela de itens, quebra é permitida entre linhas, mas não dentro de uma linha */
+  .print-container table tr {
+    page-break-inside: avoid;
+  }
+
+  /* Seções de texto (termo de garantia, declarações) ficam inteiras */
+  .print-container .border {
     page-break-inside: avoid;
   }
 

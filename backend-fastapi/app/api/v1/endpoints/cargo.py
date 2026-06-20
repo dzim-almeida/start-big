@@ -59,8 +59,7 @@ def create_cargo_funcionario(
     description="Retorna todos os cargos do sistema"
 )
 def get_cargo_funcionarios(
-    # Apenas verifica a permissão, o retorno (dict) não é usado na função de serviço
-    user_token: dict = Depends(check_permission(required_permission="cargo")),
+    user_token: dict = Depends(check_permission(required_permission=["cargo", "funcionario"])),
     buscar_cargo: Optional[str] = Query(
         None,
         description="Campo para filtrar os cargos requeridos"

@@ -6,7 +6,7 @@ import { useSalesListQuery } from '../queries/useSalesListQuery';
 export function useSaleTable() {
   const searchTerm = ref<string | null>(null);
   const debouncedSearchTerm = refDebounced(searchTerm, 300);
-  const activeFilter = ref<string | null>(null);
+  const activeFilter = ref<'FINALIZADA' | 'CANCELADA' | 'ATIVA' | null>(null);
   const page = ref<number>(1);
 
   watch([searchTerm, activeFilter], () => {

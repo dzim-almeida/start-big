@@ -210,6 +210,16 @@ def check_permission(required_permission: str | list[str]) -> Callable:
     
     return permission_dependency
 
+_CARGOS_GERENCIAIS = {"gerente", "administrador"}
+
+def is_visao_gerencial(user_token: dict) -> bool:
+    """Retorna True se o usuário pode ver dados de toda a empresa (master ou cargo gerencial)."""
+    if user_token.get("is_master"):
+        return True
+    cargo = (user_token.get("cargo") or "").lower()
+    return any(c in cargo for c in _CARGOS_GERENCIAIS)
+
+
 # =========================
 # Função Utilitária: Gerenciador de Transação (Core)
 # =========================

@@ -136,6 +136,7 @@ def get_usuario_me_by_id(db: Session, usuario_id: int) -> UsuarioRead:
         email=usuario_in_db.email,
         url_perfil=usuario_in_db.url_perfil,
         ativo=usuario_in_db.ativo,
+        is_master=usuario_in_db.is_master,
         empresa=usuario_in_db.empresa,
         cargo=cargo_data
     )

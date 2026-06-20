@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
@@ -29,29 +29,30 @@ const UNIDADE_MEDIDA_OPTIONS = [
   { value: 'PCT', label: 'Pacote (PCT)' },
 ]
 
-const form = reactive({
-  exigir_codigo_barras: exigirCodigoBarras.value,
-  exigir_categoria: exigirCategoria.value,
-  exigir_preco_custo: exigirPrecoCusto.value,
-  margem_lucro_padrao: margemLucroPadrao.value,
-  utilizar_preco_atacado: utilizarPrecoAtacado.value,
-  permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
-  quantidade_minima_padrao: quantidadeMinimaPadrao.value,
-  unidade_medida_padrao: unidadeMedidaPadrao.value,
-})
+function valoresDoStore() {
+  return {
+    exigir_codigo_barras: exigirCodigoBarras.value,
+    exigir_categoria: exigirCategoria.value,
+    exigir_preco_custo: exigirPrecoCusto.value,
+    margem_lucro_padrao: margemLucroPadrao.value,
+    utilizar_preco_atacado: utilizarPrecoAtacado.value,
+    permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
+    quantidade_minima_padrao: quantidadeMinimaPadrao.value,
+    unidade_medida_padrao: unidadeMedidaPadrao.value,
+  }
+}
 
-watch(() => configStore.configProdutos, () => {
-  form.exigir_codigo_barras = exigirCodigoBarras.value
-  form.exigir_categoria = exigirCategoria.value
-  form.exigir_preco_custo = exigirPrecoCusto.value
-  form.margem_lucro_padrao = margemLucroPadrao.value
-  form.utilizar_preco_atacado = utilizarPrecoAtacado.value
-  form.permitir_venda_estoque_zerado = permitirVendaEstoqueZerado.value
-  form.quantidade_minima_padrao = quantidadeMinimaPadrao.value
-  form.unidade_medida_padrao = unidadeMedidaPadrao.value
-})
+const form = reactive(valoresDoStore())
 
-defineExpose({ form })
+function resetar() {
+  Object.assign(form, valoresDoStore())
+}
+
+watch(() => configStore.configProdutos, resetar)
+
+const isDirty = computed(() => JSON.stringify({ ...form }) !== JSON.stringify(valoresDoStore()))
+
+defineExpose({ form, isDirty, resetar })
 </script>
 
 <template>

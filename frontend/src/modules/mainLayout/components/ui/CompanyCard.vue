@@ -4,7 +4,7 @@ import { ShoppingCart } from 'lucide-vue-next';
 import StatusPulse from '../icons/StatusPulse.vue';
 import { getImageUrl } from '@/shared/utils/print.utils';
 
-const props = defineProps<{
+defineProps<{
   companyName: string;
   imageUrl?: string;
   status: boolean;

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { X } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -25,6 +27,7 @@ const emit = defineEmits<{
 }>();
 
 const { formasPagamento } = usePaymentMethodsQuery();
+const { permitirParcelamento, parcelasMaximas } = storeToRefs(useConfiguracoesStore());
 
 const selectedFormaPagamentoId = ref<number | undefined>(undefined);
 const amount = ref<number>(0);
@@ -36,16 +39,19 @@ const paymentOptions = computed(() =>
     .map((fp) => ({ label: getPaymentDisplayName(fp.nome), value: fp.id }))
 );
 
-const parcelasOptions = Array.from({ length: 12 }, (_, i) => ({
-  label: `${i + 1}x`,
-  value: i + 1,
-}));
+const parcelasOptions = computed(() =>
+  Array.from({ length: parcelasMaximas.value }, (_, i) => ({
+    label: `${i + 1}x`,
+    value: i + 1,
+  }))
+);
 
 const selectedMethod = computed(() =>
   formasPagamento.value.find((fp) => fp.id === selectedFormaPagamentoId.value)
 );
 
 const displayParcelas = computed(() => {
+  if (!permitirParcelamento.value) return false;
   if (!selectedMethod.value) return false;
   const tipo = selectedMethod.value.tipo ?? inferPaymentType(selectedMethod.value.nome);
   return inferPermiteParcelamento(tipo);

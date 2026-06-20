@@ -25,7 +25,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Constants

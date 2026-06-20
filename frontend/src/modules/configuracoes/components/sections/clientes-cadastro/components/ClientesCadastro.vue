@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
@@ -22,42 +22,37 @@ const {
   bloquearVendaLimite,
 } = storeToRefs(configStore)
 
-const form = reactive({
-  exigir_cpf_pf: exigirCpfPf.value,
-  exigir_cnpj_pj: exigirCnpjPj.value,
-  exigir_celular: exigirCelular.value,
-  exigir_rg_pf: exigirRgPf.value,
-  exigir_ie_pj: exigirIePj.value,
-  exigir_email: exigirEmail.value,
-  exigir_endereco: exigirEndereco.value,
-  tipo_pessoa_padrao: tipoPessoaPadrao.value as 'PF' | 'PJ',
-  exibir_genero: exibirGenero.value,
-  exibir_data_nascimento: exibirDataNascimento.value,
-  bloquear_faturamento_inativo: bloquearFaturamentoInativo.value,
-  oferecer_reativacao_rapida: oferecerReativacaoRapida.value,
-  ativar_limite_credito: ativarLimiteCredito.value,
-  bloquear_venda_limite: bloquearVendaLimite.value,
-})
+function valoresDoStore() {
+  return {
+    exigir_cpf_pf: exigirCpfPf.value,
+    exigir_cnpj_pj: exigirCnpjPj.value,
+    exigir_celular: exigirCelular.value,
+    exigir_rg_pf: exigirRgPf.value,
+    exigir_ie_pj: exigirIePj.value,
+    exigir_email: exigirEmail.value,
+    exigir_endereco: exigirEndereco.value,
+    tipo_pessoa_padrao: tipoPessoaPadrao.value as 'PF' | 'PJ',
+    exibir_genero: exibirGenero.value,
+    exibir_data_nascimento: exibirDataNascimento.value,
+    bloquear_faturamento_inativo: bloquearFaturamentoInativo.value,
+    oferecer_reativacao_rapida: oferecerReativacaoRapida.value,
+    ativar_limite_credito: ativarLimiteCredito.value,
+    bloquear_venda_limite: bloquearVendaLimite.value,
+  }
+}
+
+const form = reactive(valoresDoStore())
+
+function resetar() {
+  Object.assign(form, valoresDoStore())
+}
 
 // Sincroniza quando o store carrega os dados da API
-watch(() => configStore.configClientes, () => {
-  form.exigir_cpf_pf = exigirCpfPf.value
-  form.exigir_cnpj_pj = exigirCnpjPj.value
-  form.exigir_celular = exigirCelular.value
-  form.exigir_rg_pf = exigirRgPf.value
-  form.exigir_ie_pj = exigirIePj.value
-  form.exigir_email = exigirEmail.value
-  form.exigir_endereco = exigirEndereco.value
-  form.tipo_pessoa_padrao = tipoPessoaPadrao.value as 'PF' | 'PJ'
-  form.exibir_genero = exibirGenero.value
-  form.exibir_data_nascimento = exibirDataNascimento.value
-  form.bloquear_faturamento_inativo = bloquearFaturamentoInativo.value
-  form.oferecer_reativacao_rapida = oferecerReativacaoRapida.value
-  form.ativar_limite_credito = ativarLimiteCredito.value
-  form.bloquear_venda_limite = bloquearVendaLimite.value
-})
+watch(() => configStore.configClientes, resetar)
 
-defineExpose({ form })
+const isDirty = computed(() => JSON.stringify({ ...form }) !== JSON.stringify(valoresDoStore()))
+
+defineExpose({ form, isDirty, resetar })
 </script>
 
 <template>

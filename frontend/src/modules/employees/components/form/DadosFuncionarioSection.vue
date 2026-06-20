@@ -30,7 +30,7 @@ interface Props {
   showUserFields?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields

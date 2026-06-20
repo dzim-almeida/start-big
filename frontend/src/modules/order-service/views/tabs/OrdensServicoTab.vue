@@ -10,6 +10,7 @@ import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/componen
 import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
@@ -19,10 +20,28 @@ import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.sc
 import { useToast } from '@/shared/composables/useToast';
 import { useReopenOrderServiceMutation, useReadyOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
 import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 
 const toast = useToast();
 const reopenMutation = useReopenOrderServiceMutation();
 const finalizarEntregaMutation = useReadyOrderServiceMutation();
+const gerenteReopen = useGerenteAprovacao();
+
+async function executarReopenOS(osNumber: string, codigoGerente?: string): Promise<void> {
+  try {
+    await reopenMutation.mutateAsync({ osNumber, codigoGerente });
+  } catch (error: any) {
+    const detail = error?.response?.data?.detail;
+    if (detail === 'REQUER_APROVACAO_GERENTE') {
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopenOS(osNumber, pin);
+    } else if (detail === 'PIN_GERENTE_INVALIDO') {
+      toast.error('PIN do gerente inválido');
+      const pin = await gerenteReopen.pedirPin();
+      if (pin) await executarReopenOS(osNumber, pin);
+    }
+  }
+}
 
 const {
   searchQuery,
@@ -174,19 +193,19 @@ function handleCloseCancelModal() {
 }
 
 async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
-  if (shouldPrint && osToCancel.value) {
+  const osCancelada = osToCancel.value;
+  handleCloseCancelModal();
+  if (shouldPrint && osCancelada) {
     try {
-      const osAtualizada = await getUniqueOS(osToCancel.value.numero_os);
+      const osAtualizada = await getUniqueOS(osCancelada.numero_os);
       osToPrint.value = osAtualizada;
       printType.value = 'CANCELAMENTO';
-      pendingPrintAfterSelect.value = () => handleCloseCancelModal();
+      pendingPrintAfterSelect.value = null;
       isPrintSelectOpen.value = true;
-      return;
     } catch {
       toast.error('Erro ao preparar impressão do cancelamento');
     }
   }
-  handleCloseCancelModal();
 }
 
 function handleReabrir(os: OrderServiceReadDataType) {
@@ -200,19 +219,17 @@ function handleReopenCancel() {
 }
 
 function handleReopenTextOnly() {
-  if (osToReopen.value?.numero_os) {
-    reopenMutation.mutate(osToReopen.value.numero_os);
-  }
+  const osNumber = osToReopen.value?.numero_os;
   isReopenDirectOpen.value = false;
   osToReopen.value = null;
+  if (osNumber) void executarReopenOS(osNumber);
 }
 
 function handleReopenFull() {
-  if (osToReopen.value?.numero_os) {
-    reopenMutation.mutate(osToReopen.value.numero_os);
-  }
+  const osNumber = osToReopen.value?.numero_os;
   isReopenDirectOpen.value = false;
   osToReopen.value = null;
+  if (osNumber) void executarReopenOS(osNumber);
 }
 
 async function handlePrintOS(os: OrderServiceReadDataType) {
@@ -319,6 +336,13 @@ function handleClosePrintSelect() {
       @cancel="handleReopenCancel"
       @text-only="handleReopenTextOnly"
       @full="handleReopenFull"
+    />
+
+    <GerenteAprovacaoModal
+      :is-open="gerenteReopen.isOpen.value"
+      :is-loading="gerenteReopen.isLoading.value"
+      @confirmar="gerenteReopen.confirmar"
+      @cancelar="gerenteReopen.cancelar"
     />
 
     <PrintFormatSelectModal

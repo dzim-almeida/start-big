@@ -46,7 +46,7 @@ export function useOrcamentoDetailsForm(orcamento: MaybeRef<OrcamentoRead | unde
     const current = unref(orcamento);
     const subtotal = current?.subtotal ?? 0;
 
-    if (Math.round(form.desconto * 100) > subtotal) {
+    if (Math.round((form.desconto ?? 0) * 100) > subtotal) {
       form.desconto = subtotal / 100;
       toast.warning('Desconto ajustado para o valor máximo permitido');
     }

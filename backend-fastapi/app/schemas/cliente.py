@@ -110,6 +110,7 @@ class ClientePFRead(ClientePFCreate):
         default=ClientType.PF,
         description="Discriminador de tipo: PF"
     )
+    cpf: Optional[str] = Field(None, description="CPF do cliente.")
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
     saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")
@@ -188,6 +189,7 @@ class ClientePJRead(ClientePJCreate):
 
     id: int = Field(..., description="Identificador único do cliente.")
     tipo: Literal[ClientType.PJ] = Field(default=ClientType.PJ, description="Discriminador de tipo: PJ")
+    cnpj: Optional[str] = Field(None, description="CNPJ da empresa.")
     endereco: Optional[List[EnderecoRead]] = Field(None)
     ativo: bool = Field(..., description="Status do cadastro.")
     saldo_credito: int = Field(default=0, description="Saldo de crédito disponível em centavos.")

@@ -1,22 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getConfiguracoesClientes, getConfiguracoesProdutos } from '@/modules/configuracoes/services/configuracoes.service'
-import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import { toast } from 'vue-sonner'
+import { getConfiguracoesClientes, getConfiguracoesProdutos, getConfiguracoesOS, getConfiguracoesVendas, getConfiguracoesSeguranca } from '@/modules/configuracoes/services/configuracoes.service'
+import type { ConfiguracaoClientesRead, ConfiguracaoProdutosRead, ConfiguracaoOSRead, ConfiguracaoVendasRead, ConfiguracaoSegurancaRead } from '@/modules/configuracoes/schemas/configuracoes.schema'
 
 export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const configClientes = ref<ConfiguracaoClientesRead | null>(null)
   const configProdutos = ref<ConfiguracaoProdutosRead | null>(null)
+  const configOS = ref<ConfiguracaoOSRead | null>(null)
+  const configVendas = ref<ConfiguracaoVendasRead | null>(null)
+  const configSeguranca = ref<ConfiguracaoSegurancaRead | null>(null)
 
   async function carregarConfiguracoes() {
-    try {
-      const [clientes, produtos] = await Promise.all([
-        getConfiguracoesClientes(),
-        getConfiguracoesProdutos(),
-      ])
-      configClientes.value = clientes
-      configProdutos.value = produtos
-    } catch {
-      // silencioso — usa os defaults dos computed abaixo
+    // allSettled: a falha de uma requisição não descarta as demais —
+    // cada config que carregar com sucesso é aplicada individualmente
+    const [clientes, produtos, os, vendas, seguranca] = await Promise.allSettled([
+      getConfiguracoesClientes(),
+      getConfiguracoesProdutos(),
+      getConfiguracoesOS(),
+      getConfiguracoesVendas(),
+      getConfiguracoesSeguranca(),
+    ])
+
+    if (clientes.status === 'fulfilled') configClientes.value = clientes.value
+    if (produtos.status === 'fulfilled') configProdutos.value = produtos.value
+    if (os.status === 'fulfilled') configOS.value = os.value
+    if (vendas.status === 'fulfilled') configVendas.value = vendas.value
+    if (seguranca.status === 'fulfilled') configSeguranca.value = seguranca.value
+
+    const falhas = [clientes, produtos, os, vendas, seguranca].filter((r) => r.status === 'rejected')
+    if (falhas.length > 0) {
+      console.error('[Configurações] Falha ao carregar:', falhas.map((f) => (f as PromiseRejectedResult).reason))
+      toast.warning('Não foi possível carregar todas as configurações', {
+        description: 'O sistema pode exibir valores padrão. Verifique a conexão e tente novamente.',
+      })
     }
   }
 
@@ -56,9 +73,36 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const quantidadeMinimaPadrao = computed(() => configProdutos.value?.quantidade_minima_padrao ?? 5)
   const unidadeMedidaPadrao = computed(() => configProdutos.value?.unidade_medida_padrao ?? 'UN')
 
+  // ── OS: prazos e padrões ──
+  const prazoEntregaPadrao = computed(() => configOS.value?.prazo_entrega_padrao ?? 7)
+  const garantiaPadrao = computed(() => configOS.value?.garantia_padrao ?? '90 dias')
+  const prazoAbandonoDias = computed(() => configOS.value?.prazo_abandono_dias ?? 90)
+  const taxaDiagnosticoPadrao = computed(() => configOS.value?.taxa_diagnostico_padrao ?? 0)
+
+  // ── Vendas: regras ──
+  const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
+  const descontoMaximoPercent = computed(() => configVendas.value?.desconto_maximo_percent ?? 30)
+  const exigirClienteIdentificado = computed(() => configVendas.value?.exigir_cliente_identificado ?? false)
+  const valorMinimoVenda = computed(() => configVendas.value?.valor_minimo_venda ?? 0)
+  const permitirParcelamento = computed(() => configVendas.value?.permitir_parcelamento ?? true)
+  const parcelasMaximas = computed(() => configVendas.value?.parcelas_maximas ?? 12)
+
+  // ── Segurança: PINs ──
+  const requerPinDescontoVenda = computed(() => configSeguranca.value?.requer_pin_desconto_venda ?? false)
+  const requerPinAlterarPreco = computed(() => configSeguranca.value?.requer_pin_alterar_preco_venda ?? false)
+  const requerPinCancelarVenda = computed(() => configSeguranca.value?.requer_pin_cancelar_venda ?? false)
+  const requerPinReabrirVenda = computed(() => configSeguranca.value?.requer_pin_reabrir_venda ?? false)
+  const requerPinCancelarOS = computed(() => configSeguranca.value?.requer_pin_cancelar_os ?? false)
+  const requerPinReabrirOS = computed(() => configSeguranca.value?.requer_pin_reabrir_os ?? false)
+  const secoesProtegidas = computed<string[]>(() => configSeguranca.value?.secoes_protegidas ?? [])
+  const temPinConfigurado = computed(() => configSeguranca.value?.tem_pin_configurado ?? false)
+
   return {
     configClientes,
     configProdutos,
+    configOS,
+    configVendas,
+    configSeguranca,
     carregarConfiguracoes,
 
     exigirCpfPf,
@@ -89,5 +133,26 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     permitirVendaEstoqueZerado,
     quantidadeMinimaPadrao,
     unidadeMedidaPadrao,
+
+    prazoEntregaPadrao,
+    garantiaPadrao,
+    prazoAbandonoDias,
+    taxaDiagnosticoPadrao,
+
+    permitirDesconto,
+    descontoMaximoPercent,
+    exigirClienteIdentificado,
+    valorMinimoVenda,
+    permitirParcelamento,
+    parcelasMaximas,
+
+    requerPinDescontoVenda,
+    requerPinAlterarPreco,
+    requerPinCancelarVenda,
+    requerPinReabrirVenda,
+    requerPinCancelarOS,
+    requerPinReabrirOS,
+    secoesProtegidas,
+    temPinConfigurado,
   }
 })

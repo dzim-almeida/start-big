@@ -11,7 +11,7 @@ interface Props {
   isLocked?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isLocked: false,
 });
 

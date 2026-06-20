@@ -32,7 +32,7 @@ class OrdemServicoEquipamento(Base):
     marca: Mapped[str] = mapped_column(String(100), nullable=False, doc="Marca do equipamento")
     modelo: Mapped[str] = mapped_column(String(100), nullable=False, doc="Modelo do equipamento")
     numero_serie: Mapped[str] = mapped_column(String(100), nullable=False, doc="Numero de serie")
-    imei: Mapped[str] = mapped_column(String(20), nullable=False, doc="IMEI do aparelho")
+    imei: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="IMEI do aparelho (opcional)")
     cor: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Cor do equipamento")
     
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status ativo (soft delete)")

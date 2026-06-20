@@ -56,3 +56,82 @@ export const ConfiguracaoClientesUpdateSchema = ConfiguracaoClientesSchema
 
 export type ConfiguracaoClientesRead = z.infer<typeof ConfiguracaoClientesSchema>
 export type ConfiguracaoClientesUpdate = z.infer<typeof ConfiguracaoClientesUpdateSchema>
+
+export const ConfiguracaoVendasSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  permitir_desconto: z.boolean(),
+  desconto_maximo_percent: z.number().int().min(0).max(100),
+  exigir_cliente_identificado: z.boolean(),
+  valor_minimo_venda: z.number().int().min(0),
+  permitir_parcelamento: z.boolean(),
+  parcelas_maximas: z.number().int().min(1).max(48),
+
+  data_atualizacao: z.string(),
+})
+
+export const ConfiguracaoVendasUpdateSchema = ConfiguracaoVendasSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true })
+  .partial()
+
+export type ConfiguracaoVendasRead = z.infer<typeof ConfiguracaoVendasSchema>
+export type ConfiguracaoVendasUpdate = z.infer<typeof ConfiguracaoVendasUpdateSchema>
+
+export const GARANTIA_OPTIONS = [
+  'Sem garantia',
+  '30 dias',
+  '60 dias',
+  '90 dias',
+  '6 meses',
+  '1 ano',
+] as const
+
+export const ConfiguracaoOSSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  prazo_entrega_padrao: z.number().int().min(1),
+  garantia_padrao: z.enum(GARANTIA_OPTIONS),
+  prazo_abandono_dias: z.number().int().min(1),
+  taxa_diagnostico_padrao: z.number().int().min(0),
+
+  data_atualizacao: z.string(),
+})
+
+export const ConfiguracaoOSUpdateSchema = ConfiguracaoOSSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true })
+  .partial()
+
+export type ConfiguracaoOSRead = z.infer<typeof ConfiguracaoOSSchema>
+export type ConfiguracaoOSUpdate = z.infer<typeof ConfiguracaoOSUpdateSchema>
+
+export const ConfiguracaoSegurancaSchema = z.object({
+  id: z.number(),
+  empresa_id: z.number(),
+
+  tem_pin_configurado: z.boolean(),
+
+  secoes_protegidas: z.array(z.string()),
+  requer_pin_cancelar_venda: z.boolean(),
+  requer_pin_reabrir_venda: z.boolean(),
+  requer_pin_desconto_venda: z.boolean(),
+  requer_pin_alterar_preco_venda: z.boolean(),
+  requer_pin_cancelar_os: z.boolean(),
+  requer_pin_reabrir_os: z.boolean(),
+  requer_pin_desconto_os: z.boolean(),
+
+  data_atualizacao: z.string(),
+})
+
+export const PinGerenteSchema = z
+  .string()
+  .regex(/^\d{4,6}$/, 'O PIN deve ter de 4 a 6 dígitos numéricos')
+
+export const ConfiguracaoSegurancaUpdateSchema = ConfiguracaoSegurancaSchema
+  .omit({ id: true, empresa_id: true, data_atualizacao: true, tem_pin_configurado: true })
+  .partial()
+  .extend({ pin_gerente: PinGerenteSchema.optional() })
+
+export type ConfiguracaoSegurancaRead = z.infer<typeof ConfiguracaoSegurancaSchema>
+export type ConfiguracaoSegurancaUpdate = z.infer<typeof ConfiguracaoSegurancaUpdateSchema>

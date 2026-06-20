@@ -19,62 +19,44 @@ const emit = defineEmits<{
 <template>
   <BaseModal
     :is-open="isOpen"
-    title="Reabrir Ordem de Serviço"
-    subtitle="Como deseja reabrir esta OS? Escolha o nível de edição necessário."
-    size="md"
+    title="Reabrir OS"
+    subtitle="Escolha o nível de edição necessário."
+    size="sm"
     @close="emit('cancel')"
   >
-    <template #header>
-      <div class="flex flex-col items-center text-center p-6 border-b border-zinc-100">
-        <div class="bg-brand-primary-light w-16 h-16 rounded-full flex items-center justify-center mb-4">
-          <Unlock :size="32" class="text-brand-primary" />
-        </div>
-        <h2 class="text-lg font-bold text-zinc-900">Reabrir Ordem de Serviço</h2>
-        <p class="text-sm text-zinc-500 mt-0.5 max-w-xs mx-auto">
-          Como deseja reabrir esta OS? Escolha o nível de edição necessário.
-        </p>
-      </div>
-    </template>
-
-    <div class="space-y-3">
+    <div class="flex flex-col gap-2">
       <button
         type="button"
-        class="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-brand-primary hover:bg-brand-primary-light hover:shadow-md transition-all group text-left"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-zinc-200 hover:border-brand-primary hover:bg-brand-primary-light transition-all text-left group cursor-pointer"
         @click="emit('textOnly')"
       >
-        <div class="flex items-center gap-3">
-          <div class="bg-white p-2 rounded-lg border border-slate-100 group-hover:border-brand-primary/20 text-slate-400 group-hover:text-brand-primary transition-colors">
-            <FileText :size="20" />
-          </div>
-          <div>
-            <p class="font-bold text-slate-700 group-hover:text-brand-primary">Ajustar Apenas Texto</p>
-            <p class="text-xs text-slate-500">Edite diagnóstico, descrição e observações. Mantém financeiro travado.</p>
-          </div>
+        <div class="p-2 rounded-lg bg-zinc-100 group-hover:bg-brand-primary/10 shrink-0 transition-colors">
+          <FileText :size="16" class="text-zinc-500 group-hover:text-brand-primary transition-colors" />
         </div>
-        <div class="w-4 h-4 rounded-full border border-slate-300 group-hover:border-brand-primary group-hover:bg-brand-primary transition-colors"></div>
+        <div>
+          <p class="text-sm font-semibold text-zinc-700 group-hover:text-brand-primary transition-colors">Ajustar Apenas Texto</p>
+          <p class="text-xs text-zinc-400 leading-tight">Edite diagnóstico e observações. Financeiro travado.</p>
+        </div>
       </button>
 
       <button
         type="button"
-        class="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-brand-primary hover:bg-brand-primary-light hover:shadow-md transition-all group text-left"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 border-zinc-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-left group cursor-pointer"
         @click="emit('full')"
       >
-        <div class="flex items-center gap-3">
-          <div class="bg-white p-2 rounded-lg border border-slate-100 group-hover:border-brand-primary/20 text-slate-400 group-hover:text-brand-primary transition-colors">
-            <Unlock :size="20" />
-          </div>
-          <div>
-            <p class="font-bold text-slate-700 group-hover:text-brand-primary">Reabertura Completa</p>
-            <p class="text-xs text-slate-500">Libera edição de itens, valores e pagamentos. Requer nova finalização.</p>
-          </div>
+        <div class="p-2 rounded-lg bg-zinc-100 group-hover:bg-amber-100 shrink-0 transition-colors">
+          <Unlock :size="16" class="text-zinc-500 group-hover:text-amber-600 transition-colors" />
         </div>
-        <div class="w-4 h-4 rounded-full border border-slate-300 group-hover:border-brand-primary group-hover:bg-brand-primary transition-colors"></div>
+        <div>
+          <p class="text-sm font-semibold text-zinc-700 group-hover:text-amber-700 transition-colors">Reabertura Completa</p>
+          <p class="text-xs text-zinc-400 leading-tight">Libera itens, valores e pagamentos. Requer nova finalização.</p>
+        </div>
       </button>
     </div>
 
     <template #footer>
-      <div class="flex justify-center w-full">
-        <BaseButton variant="ghost" class="text-slate-400 hover:text-slate-600 px-6 py-2" @click="emit('cancel')">
+      <div class="flex justify-end w-full">
+        <BaseButton variant="secondary" class="px-5" @click="emit('cancel')">
           Cancelar
         </BaseButton>
       </div>

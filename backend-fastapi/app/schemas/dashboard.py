@@ -72,3 +72,144 @@ class UltimaVendaItem(BaseModel):
 
 class UltimasVendasResponse(BaseModel):
     items: list[UltimaVendaItem] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Meu Resumo (Dashboard do Funcionario)
+# ===========================================================================
+
+class MeuResumoStats(BaseModel):
+    minhas_vendas_valor: int = Field(0, description="Total em centavos das vendas finalizadas pelo funcionario no periodo")
+    minhas_vendas_count: int = Field(0, description="Quantidade de vendas finalizadas pelo funcionario no periodo")
+    minhas_os_abertas: int = Field(0, description="OS em andamento atribuidas ao funcionario")
+    minhas_os_concluidas: int = Field(0, description="OS finalizadas pelo funcionario no periodo")
+
+
+# ===========================================================================
+# Minha Fila (OS abertas do funcionario)
+# ===========================================================================
+
+class MinhaFilaItem(BaseModel):
+    numero_os: str
+    cliente_nome: str
+    defeito_relatado: str
+    prioridade: str
+    status: str
+    data_previsao: Optional[datetime]
+
+
+class MinhaFilaResponse(BaseModel):
+    items: list[MinhaFilaItem] = Field(default_factory=list)
+
+
+# ===========================================================================
+# OS Atrasadas
+# ===========================================================================
+
+class OSAtrasadaItem(BaseModel):
+    numero_os: str
+    cliente_nome: str
+    defeito_relatado: str
+    data_previsao: datetime
+    dias_atraso: int
+
+
+class OSAtrasadaResponse(BaseModel):
+    items: list[OSAtrasadaItem] = Field(default_factory=list)
+    total: int = Field(0)
+
+
+# ===========================================================================
+# OS Aguardando Retirada
+# ===========================================================================
+
+class OSAguardandoRetiradaItem(BaseModel):
+    numero_os: str
+    cliente_nome: str
+    equipamento: str
+    data_finalizacao: Optional[datetime]
+
+
+class OSAguardandoRetiradaResponse(BaseModel):
+    items: list[OSAguardandoRetiradaItem] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Atividade de Hoje
+# ===========================================================================
+
+class AtividadeItem(BaseModel):
+    tipo: Literal["venda", "os"]
+    referencia: str
+    cliente_nome: Optional[str]
+    valor: int = Field(0)
+    status: str
+    horario: datetime
+
+
+class AtividadeHojeResponse(BaseModel):
+    items: list[AtividadeItem] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Master — Ranking de funcionarios
+# ===========================================================================
+
+class RankingFuncionarioItem(BaseModel):
+    posicao: int
+    id: int
+    nome: str
+    total_vendas_valor: int
+    qtd_vendas: int
+    qtd_os_fechadas: int
+
+
+class RankingFuncionariosResponse(BaseModel):
+    items: list[RankingFuncionarioItem] = Field(default_factory=list)
+
+
+# ===========================================================================
+# Master — OS por status
+# ===========================================================================
+
+class OSPorStatusItem(BaseModel):
+    status: str
+    status_label: str
+    count: int
+
+
+class OSPorStatusResponse(BaseModel):
+    items: list[OSPorStatusItem] = Field(default_factory=list)
+    total_ativas: int = Field(0)
+
+
+# ===========================================================================
+# Master — Formas de pagamento
+# ===========================================================================
+
+class FormaPagamentoItem(BaseModel):
+    nome: str
+    valor_total: int
+
+
+class FormasPagamentoResponse(BaseModel):
+    items: list[FormaPagamentoItem] = Field(default_factory=list)
+    total: int = Field(0)
+
+
+# ===========================================================================
+# Master — OS atrasadas da empresa
+# ===========================================================================
+
+class OSAtrasadaEmpresaItem(BaseModel):
+    numero_os: str
+    cliente_nome: str
+    funcionario_nome: Optional[str]
+    defeito_relatado: str
+    data_previsao: datetime
+    dias_atraso: int
+
+
+class OSAtrasadaEmpresaResponse(BaseModel):
+    items: list[OSAtrasadaEmpresaItem] = Field(default_factory=list)
+    total: int = Field(0)

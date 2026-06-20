@@ -80,6 +80,10 @@ def get_ordens_servico_by_search(
             )
         )
 
+    funcionario_id = filters.get("funcionario_id")
+    if funcionario_id:
+        query = query.where(OSModel.funcionario_id == funcionario_id)
+
     status = filters.get("status")
     if status:
         query = query.where(OSModel.status == status)
@@ -137,7 +141,7 @@ def get_ordens_servico_by_cliente_id(
     return order_services, total
 
 
-def get_ordem_servico_stats(db: Session) -> dict:
+def get_ordem_servico_stats(db: Session, funcionario_id: int | None = None) -> dict:
     """Retorna estatísticas agregadas: total, abertas, finalizadas e ticket médio."""
     subq_values = (
         select(
@@ -154,6 +158,9 @@ def get_ordem_servico_stats(db: Session) -> dict:
         func.count(OSModel.id).filter(OSModel.status == OrdemServicoStatus.FINALIZADA).label("finalizadas"),
         func.avg(subq_values.c.valor_total).label("ticket_medio")
     ).outerjoin(subq_values, OSModel.id == subq_values.c.ordem_servico_id)
+
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
 
     result = db.execute(stmt).first()
 
@@ -276,3 +283,40 @@ def delete_os_foto(db: Session, foto_to_delete: OSFotoModel) -> None:
     """Remove o registro de uma foto de OS do banco."""
     db.delete(foto_to_delete)
     db.flush()
+
+
+# ===========================================================================
+# LEITURA — Alertas de Abandono
+# ===========================================================================
+
+def get_os_abandono(db: Session, empresa_id: int, prazo_abandono_dias: int, funcionario_id: int | None = None) -> list[OSModel]:
+    """Retorna OS em aberto criadas há mais de prazo_abandono_dias sem resolução."""
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=prazo_abandono_dias)
+    stmt = (
+        select(OSModel)
+        .where(
+            OSModel.status.notin_([OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA]),
+            OSModel.data_criacao <= cutoff,
+        )
+        .order_by(OSModel.data_criacao.asc())
+    )
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
+    return list(db.scalars(stmt).all())
+
+
+def get_os_atrasadas(db: Session, empresa_id: int, funcionario_id: int | None = None) -> list[OSModel]:
+    """Retorna OS abertas/em andamento com data_previsao vencida."""
+    stmt = (
+        select(OSModel)
+        .where(
+            OSModel.status.notin_([OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA]),
+            OSModel.data_previsao.isnot(None),
+            OSModel.data_previsao < datetime.utcnow(),
+        )
+        .order_by(OSModel.data_previsao.asc())
+    )
+    if funcionario_id:
+        stmt = stmt.where(OSModel.funcionario_id == funcionario_id)
+    return list(db.scalars(stmt).all())

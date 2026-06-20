@@ -25,6 +25,8 @@ export function useUpdateSaleMutation() {
     },
 
     onError: (error) => {
+      const detail = (error?.response?.data as any)?.detail;
+      if (['REQUER_APROVACAO_GERENTE', 'PIN_GERENTE_INVALIDO'].includes(detail)) return;
       toast.error(getErrorMessage(error, 'Erro ao atualizar venda'));
     },
   });

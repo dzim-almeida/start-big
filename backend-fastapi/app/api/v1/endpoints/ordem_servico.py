@@ -29,7 +29,7 @@
 from fastapi import APIRouter, Depends, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, _handle_db_transaction
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
     OrdemServicoCreate,
@@ -43,6 +43,7 @@ from app.schemas.ordem_servico import (
     OSItemUpdate,
     OrdemServicoFinalizar,
     OrdemServicoCancelar,
+    OrdemServicoReabrir,
     OSFotoRead,
 )
 from app.services import ordem_servico as os_service
@@ -101,6 +102,8 @@ def get_ordens_servico(
     db: Session = Depends(get_db)
 ):
     filters_dict = filters.model_dump(exclude_unset=True)
+    if not is_visao_gerencial(user_token):
+        filters_dict["funcionario_id"] = user_token.get("funcionario_id")
     return os_service.get_ordem_servico_by_search(db, filters=filters_dict, page=page, limit=limit)
 
 
@@ -116,7 +119,45 @@ def get_ordem_servico_stats(
     *,
     db: Session = Depends(get_db)
 ):
-    return os_service.get_ordem_servico_stats(db)
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_ordem_servico_stats(db, funcionario_id=funcionario_id)
+
+
+# ===========================================================================
+# ALERTAS DE ABANDONO (GET /abandono)
+# NOTA: Declarada ANTES de /{os_number} para não ser capturada como param
+# ===========================================================================
+
+@router.get(
+    "/abandono",
+    response_model=list[OrdemServicoRead],
+    status_code=status.HTTP_200_OK,
+    summary="OS em Abandono",
+    description="Retorna OS finalizadas cujo prazo de abandono (configurável) já venceu."
+)
+def get_os_abandono(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    empresa_id = int(user_token.get("empresa_id"))
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_os_abandono(db, empresa_id, funcionario_id=funcionario_id)
+
+
+@router.get(
+    "/atrasadas",
+    response_model=list[OrdemServicoRead],
+    status_code=status.HTTP_200_OK,
+    summary="OS Atrasadas",
+    description="Retorna OS abertas/em andamento com previsão de entrega vencida."
+)
+def get_os_atrasadas(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    empresa_id = int(user_token.get("empresa_id"))
+    funcionario_id = None if is_visao_gerencial(user_token) else user_token.get("funcionario_id")
+    return os_service.get_os_atrasadas(db, empresa_id, funcionario_id=funcionario_id)
 
 
 # ===========================================================================
@@ -338,9 +379,10 @@ def reabrir_ordem_servico(
     user_token: dict = Depends(check_permission(required_permission=module_permission)),
     os_number: str = Path(..., description="Número da OS"),
     *,
+    payload: OrdemServicoReabrir = OrdemServicoReabrir(),
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number)
+    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number, payload.codigo_gerente)
 
 
 # ===========================================================================

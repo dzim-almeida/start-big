@@ -23,7 +23,7 @@ interface Props {
   isCreateMode?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields

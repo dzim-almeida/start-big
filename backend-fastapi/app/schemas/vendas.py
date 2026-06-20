@@ -67,6 +67,7 @@ class ProdutoVendaUpdate(BaseModel):
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descrição do produto avulso")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitário do produto")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto do produto")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar alteração de preço")
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaUpdate':
@@ -82,6 +83,8 @@ class VendaUpdate(BaseModel):
     entrega: Optional[int] = Field(None, ge=0, description="Valor da entrega")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto da venda")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
+    observacao_interna: Optional[str] = Field(None, max_length=500, description="Observação interna (não impressa no comprovante)")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar desconto acima do limite")
 
 # Schemas para leitura de venda, produtos e pagamentos relacionados a uma venda
 
@@ -99,6 +102,8 @@ class ProdutoVendaRead(BaseModel):
     subtotal: int = Field(0, ge=0, description="Subtotal do produto (quantidade * valor_unitario - desconto)")
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto, preenchido automaticamente com base no tipo do produto e suas referências")
+    unidade_medida: Optional[str] = Field(None, description="Unidade de medida do produto (ex: UN, KG, CX)")
+    estoque_disponivel: Optional[int] = Field(None, description="Estoque atual do produto no momento da consulta")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")
@@ -115,6 +120,7 @@ class VendaSimpleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int = Field(..., description="ID da venda")
+    numero_venda: Optional[int] = Field(None, description="Número sequencial oficial (atribuído ao finalizar)")
 
     sessao_caixa_id: Optional[int] = Field(None, description="ID da sessão de caixa associada à venda")
     cliente_id: Optional[int] = Field(None, description="ID do cliente associado à venda")
@@ -135,6 +141,8 @@ class VendaRead(VendaSimpleRead):
     descontos: int = Field(0, ge=0, description="Desconto da venda")
     troco: int = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
+    observacao_interna: Optional[str] = Field(None, max_length=500, description="Observação interna (não impressa no comprovante)")
+    motivo_cancelamento: Optional[str] = Field(None, max_length=500, description="Motivo do cancelamento")
     produtos: Optional[Sequence[ProdutoVendaRead]] = Field(default_factory=list, validation_alias="itens", description="Lista de produtos relacionados à venda")
     pagamentos: Optional[Sequence[PagamentoVendaRead]] = Field(default_factory=list, description="Lista de pagamentos relacionados à venda")
 
@@ -158,6 +166,13 @@ class ProdutosAlterSummary(BaseModel):
 
 class FinalizarVendaPayload(BaseModel):
     pagamentos: list[PagamentoVendaCreate] = Field(..., min_length=1, description="Lista de pagamentos para finalizar a venda")
+
+class CancelarVendaPayload(BaseModel):
+    motivo: str = Field(..., min_length=10, max_length=500, description="Motivo do cancelamento da venda (mínimo 10 caracteres)")
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar cancelamento")
+
+class ReabrirVendaPayload(BaseModel):
+    codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar reabertura")
 
 class VendaSearchFilters(BaseModel):
     search: Optional[str] = Field(None, max_length=255, description="Termo de busca para filtrar vendas por número da venda, nome do cliente ou nome do funcionário")

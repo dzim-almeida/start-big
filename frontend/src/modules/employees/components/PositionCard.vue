@@ -16,10 +16,12 @@ interface Props {
   permissionsEnabled: number;
   permissionsTotal: number;
   themeIndex?: number;
+  canManage?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   themeIndex: 0,
+  canManage: false,
 });
 
 const emit = defineEmits<{
@@ -82,7 +84,7 @@ const permissionPercent = computed(() => {
         </div>
       </div>
 
-      <div class="hidden items-center gap-1 group-hover:flex">
+      <div v-if="canManage" class="hidden items-center gap-1 group-hover:flex">
         <button
           type="button"
           title="Editar"
@@ -93,7 +95,7 @@ const permissionPercent = computed(() => {
         </button>
         <button
           type="button"
-          title="Excluir" 
+          title="Excluir"
           class="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
           @click.stop="emit('remove', id)"
         >

@@ -6,7 +6,7 @@ import { LogOut, User } from 'lucide-vue-next';
 import StatusPulse from '../icons/StatusPulse.vue';
 import { getImageUrl } from '@/shared/utils/print.utils';
 
-const props = defineProps<{
+defineProps<{
   userName?: string;
   userCargo?: string;
   imageUrl?: string;
@@ -48,7 +48,7 @@ const { logoutAndRedirect } = useAppNavigation();
         {{ userName }}
       </p>
       <div class="flex items-center gap-2">
-        <StatusPulse :status="status" />
+        <StatusPulse :status="status ?? false" />
         <p class="text-xs text-zinc-500 font-medium">
           {{ userCargo }}
         </p>

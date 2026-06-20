@@ -11,3 +11,7 @@ class UnauthorizedException(HTTPException):
 class NotFoundException(HTTPException):
     def __init__(self, detail: str = "Não encontrado"):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+class InternalServerException(HTTPException):
+    def __init__(self, detail: str = "Erro interno do servidor"):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
