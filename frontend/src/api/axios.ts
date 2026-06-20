@@ -9,22 +9,20 @@ import router from '@/router';
 import { toast } from 'vue-sonner';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { getApiBaseUrl } from '@/api/backendUrl';
 
 export const TOKEN_KEY = 'access_token';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 /**
  * Instância do Axios configurada com a URL base da API
  */
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-});
+export const api = axios.create({});
 
 /**
- * Interceptor de requisição para anexar o JWT Bearer Token
+ * Interceptor de requisição para definir baseURL dinâmica e anexar o JWT Bearer Token
  */
 api.interceptors.request.use((config) => {
+  config.baseURL ??= getApiBaseUrl();
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -49,15 +47,21 @@ api.interceptors.response.use(
 
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
+        const hadToken = !!localStorage.getItem(TOKEN_KEY);
         const authStore = useAuthStore();
-        localStorage.removeItem(TOKEN_KEY);
-        toast.error(
-          'Sessão Expirada',
-          {
-            description: 'Faça login novamente'
-          }
-        )
+
         authStore.logoutUser();
+
+        // Só mostra toast se havia sessão ativa (token expirou de verdade)
+        if (hadToken) {
+          toast.error(
+            'Sessão Expirada',
+            {
+              description: 'Faça login novamente'
+            }
+          )
+        }
+
         router.replace({ name: 'auth.user' });
         return Promise.reject(error);
       }

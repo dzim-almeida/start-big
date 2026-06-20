@@ -10,8 +10,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { useAtualizarContaMutation } from '../composables/mutates/useAtualizarContaMutation';
 import { useAlterarSenhaMutation } from '../composables/mutates/useAlterarSenhaMutation';
 import { AtualizarContaSchema, AlterarSenhaSchema } from '../schemas/minhaConta.schema';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const authStore = useAuthStore();
 const { userData } = storeToRefs(authStore);
@@ -106,7 +105,7 @@ function salvarSenha() {
           <div class="w-16 h-16 bg-brand-primary rounded-xl flex items-end justify-center p-0.5 shrink-0">
             <img
               v-if="userData?.url_perfil"
-              :src="`${API_BASE_URL}/${userData.url_perfil}`"
+              :src="getImageUrl(userData.url_perfil) ?? ''"
               alt="Foto de perfil"
               class="w-full h-full object-cover rounded-xl"
             />

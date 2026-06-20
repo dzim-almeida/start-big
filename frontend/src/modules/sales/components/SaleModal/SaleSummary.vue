@@ -1,55 +1,157 @@
 <script setup lang="ts">
-import { ListPlus, TicketPercent, BadgeDollarSign, Truck } from 'lucide-vue-next';
-
+import { computed } from 'vue';
+import { ListPlus, BadgeDollarSign, Truck, TicketPercent, AlertTriangle } from 'lucide-vue-next';
 import { formatCurrency } from '@/shared/utils/finance';
+import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import type { SaleUpdate } from '../../schemas/sale.schema';
 
-defineProps<{
+const props = defineProps<{
   subtotal?: number;
   discount?: number;
   delivery?: number;
   total?: number;
-}>()
+  form?: SaleUpdate;
+  isSaving?: boolean;
+  readonly?: boolean;
+  descontoDesabilitado?: boolean;
+  valorMinimoVenda?: number;
+  onSave?: () => void;
+}>();
+
+const belowMinimum = computed(() => {
+  const min = props.valorMinimoVenda ?? 0;
+  return min > 0 && (props.total ?? 0) < min;
+});
+
+const hasDiscount = computed(() => {
+  if (props.form && props.form.desconto !== undefined) {
+    return props.form.desconto > 0;
+  }
+  return (props.discount ?? 0) > 0;
+});
+
+const hasDelivery = computed(() => {
+  if (props.form && props.form.entrega !== undefined) {
+    return props.form.entrega > 0;
+  }
+  return (props.delivery ?? 0) > 0;
+});
 </script>
 
 <template>
-    <section class="mt-auto py-5 w-full flex items-center justify-between bg-brand-primary/10 border border-brand-primary/20 rounded-lg shadow-sm overflow-hidden">
-        <div class="px-10 flex-1 flex justify-between gap-2 min-w-1/2">
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <ListPlus :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Subtotal</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(subtotal ? subtotal : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <TicketPercent :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Desconto</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(discount ? discount : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center">
-                    <Truck :size="20" class="text-brand-action" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-xs sm:text-[10px] text-mid-gray uppercase">Entrega</p>
-                    <span class="font-bold text-xl sm:text-md text-zinc-700">{{ formatCurrency(delivery ? delivery : 0) }}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div class="w-15 h-15 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center">
-                    <BadgeDollarSign :size="25" class="text-brand-primary" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <p class="font-semibold text-sm text-mid-gray uppercase">Total</p>
-                    <span class="font-bold text-2xl sm:text-xl text-brand-primary">{{ formatCurrency(total ? total : 0) }}</span>
-                </div>
-            </div>
+  <section class="w-full flex items-center bg-brand-primary/10 border border-brand-primary/20 rounded-lg px-4 py-3 gap-2">
+    <!-- Subtotal -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <ListPlus :size="15" class="text-brand-action shrink-0" />
+      <div class="min-w-0">
+        <p class="text-[10px] font-semibold text-zinc-500 uppercase">Subtotal</p>
+        <div class="h-9.5 flex items-center">
+          <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
         </div>
-    </section>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Desconto -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <TicketPercent
+        :size="15"
+        :class="[
+          'shrink-0 transition-all duration-300',
+          hasDiscount ? 'text-emerald-500 scale-110' : 'text-brand-action'
+        ]"
+      />
+      <div class="min-w-0 flex-1">
+        <p
+          :class="[
+            'text-[10px] font-semibold uppercase transition-colors duration-300',
+            hasDiscount ? 'text-emerald-600 font-bold' : 'text-zinc-500'
+          ]"
+        >
+          Desconto
+        </p>
+        <MoneyInput
+          v-if="form && !readonly"
+          v-model.number="form.desconto"
+          :disabled="isSaving || descontoDesabilitado"
+          :variant="hasDiscount ? 'success' : 'default'"
+          class="w-full max-w-28 bg-white/80"
+          data-sale-desconto
+          @blur="onSave"
+          @enter="onSave"
+        />
+        <div v-else class="h-9.5 flex items-center">
+          <span
+            :class="[
+              'font-bold text-base transition-colors duration-300',
+              hasDiscount ? 'text-emerald-600' : 'text-zinc-700'
+            ]"
+          >
+            {{ formatCurrency(discount ?? 0) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Entrega -->
+    <div class="flex-1 flex items-center gap-2 min-w-0">
+      <Truck
+        :size="15"
+        :class="[
+          'shrink-0 transition-all duration-300',
+          hasDelivery ? 'text-amber-500 scale-110' : 'text-brand-action'
+        ]"
+      />
+      <div class="min-w-0 flex-1">
+        <p
+          :class="[
+            'text-[10px] font-semibold uppercase transition-colors duration-300',
+            hasDelivery ? 'text-amber-600 font-bold' : 'text-zinc-500'
+          ]"
+        >
+          Entrega
+        </p>
+        <MoneyInput
+          v-if="form && !readonly"
+          v-model.number="form.entrega"
+          :disabled="isSaving"
+          :variant="hasDelivery ? 'warning' : 'default'"
+          class="w-full max-w-28 bg-white/80"
+          data-sale-entrega
+          @blur="onSave"
+          @enter="onSave"
+        />
+        <div v-else class="h-9.5 flex items-center">
+          <span
+            :class="[
+              'font-bold text-base transition-colors duration-300',
+              hasDelivery ? 'text-amber-600' : 'text-zinc-700'
+            ]"
+          >
+            {{ formatCurrency(delivery ?? 0) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-px h-8 bg-brand-primary/20 shrink-0" />
+
+    <!-- Total -->
+    <div class="flex flex-col items-end gap-1 shrink-0">
+      <div class="flex items-center gap-3 bg-brand-primary rounded-lg px-5 py-2.5 text-white shadow-lg shadow-brand-primary/20 transform hover:scale-[1.02] transition-transform">
+        <BadgeDollarSign :size="24" class="text-white opacity-80 shrink-0" />
+        <div>
+          <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Total Final</p>
+          <span class="font-black text-2xl whitespace-nowrap tracking-tight">{{ formatCurrency(total ?? 0) }}</span>
+        </div>
+      </div>
+      <div v-if="belowMinimum" class="flex items-center gap-1 text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-0.5">
+        <AlertTriangle :size="11" class="shrink-0" />
+        <span class="text-[10px] font-semibold whitespace-nowrap">Mínimo: {{ formatCurrency(valorMinimoVenda ?? 0) }}</span>
+      </div>
+    </div>
+  </section>
 </template>

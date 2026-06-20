@@ -90,6 +90,42 @@ export const TIPO_CERTIFICADO_OPTIONS: SelectOption<string>[] = [
 ] as const;
 
 // =============================================
+// Opções de Indicador de IE (para NF-e)
+// =============================================
+
+export const INDICADOR_IE_OPTIONS: SelectOption[] = [
+  { value: '1', label: '1 - Contribuinte ICMS' },
+  { value: '2', label: '2 - Contribuinte Isento de IE' },
+  { value: '9', label: '9 - Não Contribuinte' },
+] as const;
+
+// =============================================
+// Opções de Natureza Jurídica
+// =============================================
+
+export const NATUREZA_JURIDICA_OPTIONS: SelectOption[] = [
+  { value: 'MEI', label: 'MEI - Microempreendedor Individual' },
+  { value: 'ME', label: 'ME - Microempresa' },
+  { value: 'EPP', label: 'EPP - Empresa de Pequeno Porte' },
+  { value: 'EI', label: 'EI - Empresário Individual' },
+  { value: 'LTDA', label: 'LTDA - Sociedade Limitada' },
+  { value: 'SLU', label: 'SLU - Sociedade Limitada Unipessoal' },
+  { value: 'SA', label: 'S.A. - Sociedade Anônima' },
+  { value: 'EIRELI', label: 'EIRELI - Empresa Individual de Responsabilidade Limitada' },
+] as const;
+
+// =============================================
+// Opções de Tipo de Atividade
+// =============================================
+
+export const TIPO_ATIVIDADE_OPTIONS: SelectOption[] = [
+  { value: 'COMERCIO', label: 'Comércio' },
+  { value: 'INDUSTRIA', label: 'Indústria' },
+  { value: 'SERVICO', label: 'Prestação de Serviços' },
+  { value: 'MISTO', label: 'Misto (Comércio + Serviços)' },
+] as const;
+
+// =============================================
 // Estados brasileiros (UF)
 // =============================================
 

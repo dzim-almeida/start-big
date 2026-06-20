@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 
 import { useUserQuery } from '../composables/useUser';
 import { useQueryClient } from '@tanstack/vue-query';
+import { useNotificacoesStore } from './notificacoes.store';
 import { TOKEN_KEY } from '@/api/axios';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -22,6 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logoutUser() {
     localStorage.removeItem(TOKEN_KEY);
     queryClient.removeQueries({ queryKey: ['user-me'] });
+    useNotificacoesStore().resetar();
   }
 
   return {

@@ -1,4 +1,6 @@
-import { ref, computed, watch, provide, inject, type InjectionKey } from 'vue';
+import { ref, computed, watch, nextTick, provide, inject, type InjectionKey } from 'vue';
+import { useToast } from '@/shared/composables/useToast';
+import { buscarDadosCNPJ } from './useConsultaCNPJ';
 import { useForm } from 'vee-validate';
 import { empresaValidationSchema, EmpresaFormSchema } from '../schemas/empresa.schema';
 import {
@@ -51,6 +53,12 @@ const DEFAULT_FORM_VALUES: EmpresaFormData = {
   inscricao_municipal: '',
   regime_tributario: '',
   cnae_principal: '',
+  indicador_ie: '',
+  natureza_juridica: '',
+  tipo_atividade: '',
+  cnaes_secundarios: '',
+  data_abertura: '',
+  website: '',
   url_logo: '',
   fiscal_settings: { ...DEFAULT_FISCAL_SETTINGS },
   endereco_principal: { ...DEFAULT_ENDERECO },
@@ -97,6 +105,12 @@ function normalizeEmpresaToForm(data: EmpresaRead): EmpresaFormData {
     inscricao_municipal: data.inscricao_municipal ?? '',
     regime_tributario: data.regime_tributario?.toString() ?? '',
     cnae_principal: data.cnae_principal ?? '',
+    indicador_ie: data.indicador_ie ?? '',
+    natureza_juridica: data.natureza_juridica ?? '',
+    tipo_atividade: data.tipo_atividade ?? '',
+    cnaes_secundarios: data.cnaes_secundarios ?? '',
+    data_abertura: data.data_abertura ?? '',
+    website: data.website ?? '',
     url_logo: data.url_logo ?? '',
     fiscal_settings: data.fiscal_settings ?? DEFAULT_FISCAL_SETTINGS,
     endereco_principal: enderecoPrincipal
@@ -124,6 +138,7 @@ function normalizeEmpresaToForm(data: EmpresaRead): EmpresaFormData {
 export function useEmpresaFormProvider() {
   // Dependencies
   const authStore = useAuthStore();
+  const toast = useToast();
   const empresaId = computed(() => authStore.userData?.empresa?.id);
 
   // TanStack Query hooks
@@ -158,6 +173,12 @@ export function useEmpresaFormProvider() {
   const [inscricao_municipal] = defineField('inscricao_municipal');
   const [regime_tributario] = defineField('regime_tributario');
   const [cnae_principal] = defineField('cnae_principal');
+  const [indicador_ie] = defineField('indicador_ie');
+  const [natureza_juridica] = defineField('natureza_juridica');
+  const [tipo_atividade] = defineField('tipo_atividade');
+  const [cnaes_secundarios] = defineField('cnaes_secundarios');
+  const [data_abertura] = defineField('data_abertura');
+  const [website] = defineField('website');
   const [url_logo] = defineField('url_logo');
   const [fiscal_settings] = defineField('fiscal_settings');
   const [endereco_principal] = defineField('endereco_principal');
@@ -202,20 +223,63 @@ export function useEmpresaFormProvider() {
   // Watchers - Sync com API
   // =============================================
 
+  // CNPJ salvo no servidor — usado para evitar lookup automático no carregamento
+  const cnpjSalvo = ref('');
+
+  // Snapshot JSON dos valores carregados do servidor.
+  // Comparado com os valores atuais do formulário para detectar alterações reais.
+  // Evita dependência do meta.dirty do VeeValidate, que pode ter falsos positivos
+  // ao comparar objetos com campos null (API) vs campos ausentes (DEFAULT_FORM_VALUES).
+  const snapshotServidor = ref('');
+
+  // Flag: true após resetForm ter se propagado completamente (2 ticks).
+  // Impede que o guard de saída dispare durante o carregamento inicial.
+  const formPronto = ref(false);
+
   watch(
     empresaData,
     (data) => {
       if (!data) return;
-      // Populate form from API data
-      resetForm({
-        values: {
-          ...DEFAULT_FORM_VALUES,
-          ...normalizeEmpresaToForm(data),
-        },
+      formPronto.value = false;
+      cnpjSalvo.value = (data.documento || '').replace(/\D/g, '');
+      const formValues = { ...DEFAULT_FORM_VALUES, ...normalizeEmpresaToForm(data) };
+      resetForm({ values: formValues });
+      // Aguarda dois ciclos para cobrir:
+      // 1. nextTick interno do VeeValidate (validate silent pós-reset)
+      // 2. debounce de 5ms da validação silenciosa (debouncedSilentValidation)
+      // 3. maska e demais diretivas que podem alterar values via input event
+      // O watcher de values (flush:'post') mantém snapshotServidor atualizado durante
+      // esse período; o setTimeout apenas sinaliza que a inicialização terminou.
+      nextTick(() => {
+        setTimeout(() => {
+          snapshotServidor.value = JSON.stringify(values);
+          formPronto.value = true;
+        }, 50);
       });
     },
     { immediate: true },
   );
+
+  // Mantém snapshotServidor sincronizado com values enquanto o formulário ainda
+  // está em fase de inicialização (formPronto = false). Isso garante que qualquer
+  // atualização pós-render (maska, coerção Zod via VeeValidate, etc.) seja
+  // capturada no snapshot antes do guard de saída ser ativado.
+  watch(
+    values,
+    () => {
+      if (!formPronto.value) {
+        snapshotServidor.value = JSON.stringify(values);
+      }
+    },
+    { deep: true, flush: 'post' },
+  );
+
+  // True quando há alterações reais do usuário não salvas.
+  // Usa comparação JSON em vez de meta.dirty para evitar falsos positivos.
+  const temAlteracoesPendentes = computed(() => {
+    if (!formPronto.value || !snapshotServidor.value) return false;
+    return JSON.stringify(values) !== snapshotServidor.value;
+  });
 
   // =============================================
   // Transform Functions
@@ -244,6 +308,12 @@ export function useEmpresaFormProvider() {
       inscricao_municipal: formData.inscricao_municipal || undefined,
       regime_tributario: formData.regime_tributario || undefined,
       cnae_principal: formData.cnae_principal || undefined,
+      indicador_ie: formData.indicador_ie || undefined,
+      natureza_juridica: formData.natureza_juridica || undefined,
+      tipo_atividade: formData.tipo_atividade || undefined,
+      cnaes_secundarios: formData.cnaes_secundarios || undefined,
+      data_abertura: formData.data_abertura || undefined,
+      website: formData.website || undefined,
     };
 
     // Transform endereco_principal -> endereco[]
@@ -312,6 +382,51 @@ export function useEmpresaFormProvider() {
     );
   }
 
+  // =============================================
+  // CNPJ Lookup (BrasilAPI / Receita Federal)
+  // =============================================
+
+  const isConsultingCNPJ = ref(false);
+
+  async function consultarCNPJ(cnpjDigits: string) {
+    if (isConsultingCNPJ.value) return;
+    isConsultingCNPJ.value = true;
+
+    try {
+      const dados = await buscarDadosCNPJ(cnpjDigits);
+
+      razao_social.value = dados.razao_social || razao_social.value;
+      nome_fantasia.value = dados.nome_fantasia || nome_fantasia.value;
+      cnae_principal.value = dados.cnae_principal || cnae_principal.value;
+      cnaes_secundarios.value = dados.cnaes_secundarios || cnaes_secundarios.value;
+      if (dados.natureza_juridica) natureza_juridica.value = dados.natureza_juridica;
+      data_abertura.value = dados.data_abertura || data_abertura.value;
+
+      // Contato: preenche só se vazio
+      if (!email.value && dados.email) email.value = dados.email;
+      if (!telefone.value && dados.telefone) telefone.value = formatTelefone(dados.telefone);
+
+      // Endereço completo
+      endereco_principal.value = {
+        ...endereco_principal.value,
+        logradouro: dados.logradouro || endereco_principal.value.logradouro,
+        numero: dados.numero || endereco_principal.value.numero,
+        complemento: dados.complemento || endereco_principal.value.complemento,
+        bairro: dados.bairro || endereco_principal.value.bairro,
+        cidade: dados.cidade || endereco_principal.value.cidade,
+        estado: dados.estado || endereco_principal.value.estado,
+        cep: dados.cep ? formatCEP(dados.cep) : endereco_principal.value.cep,
+        codigo_ibge: dados.codigo_ibge || endereco_principal.value.codigo_ibge,
+      };
+
+      toast.success('Dados da Receita Federal preenchidos automaticamente!');
+    } catch {
+      toast.error('CNPJ não encontrado na Receita Federal.');
+    } finally {
+      isConsultingCNPJ.value = false;
+    }
+  }
+
   function handleTestSefaz() {
     if (!empresaId.value) return;
     testSefazMutation.mutate(empresaId.value);
@@ -352,6 +467,11 @@ export function useEmpresaFormProvider() {
       updateMutation.mutate(
         { data: payload },
         {
+          onSuccess: () => {
+            // Sincroniza snapshot com os valores atuais para zerar temAlteracoesPendentes
+            snapshotServidor.value = JSON.stringify(values);
+            resetForm({ values: { ...values } });
+          },
           onError: (error: any) => {
             apiError.value = error?.response?.data?.detail || 'Erro ao salvar empresa';
           },
@@ -380,6 +500,12 @@ export function useEmpresaFormProvider() {
     inscricao_municipal,
     regime_tributario,
     cnae_principal,
+    indicador_ie,
+    natureza_juridica,
+    tipo_atividade,
+    cnaes_secundarios,
+    data_abertura,
+    website,
     url_logo,
     fiscal_settings,
     endereco_principal,
@@ -407,6 +533,15 @@ export function useEmpresaFormProvider() {
 
     // Window Certificates
     windowsCertificates: windowsCertificates.value || [],
+
+    // CNPJ Lookup
+    cnpjSalvo,
+    isConsultingCNPJ,
+    consultarCNPJ,
+
+    // Alterações pendentes
+    formPronto,
+    temAlteracoesPendentes,
 
     // Actions
     onSubmit,

@@ -3,28 +3,36 @@ import { useDebounceFn } from '@vueuse/core';
 
 import { useUpdateSaleMutation } from '../mutates/useUpdateSaleMutation';
 import { useToast } from '@/shared/composables/useToast';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
 
 export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   const updateSaleMutation = useUpdateSaleMutation();
   const toast = useToast();
+  const gerenteDesconto = useGerenteAprovacao();
 
   const form: SaleUpdate = reactive({
     desconto: 0,
     entrega: 0,
     observacao: '',
+    observacao_interna: '',
   });
 
   const saleId = computed(() => unref(sale)?.id);
 
   let isHydrating = false;
+  let lastHydratedId: number | null = null;
 
-  function hydrateForm(currentSale: SaleRead) {
+  function hydrateForm(currentSale: SaleRead, forceTextFields = false) {
     isHydrating = true;
 
     form.desconto = currentSale.descontos ? currentSale.descontos / 100 : 0;
     form.entrega = currentSale.entrega ? currentSale.entrega / 100 : 0;
-    form.observacao = currentSale.observacao ?? '';
+
+    if (forceTextFields) {
+      form.observacao = currentSale.observacao ?? '';
+      form.observacao_interna = currentSale.observacao_interna ?? '';
+    }
 
     queueMicrotask(() => {
       isHydrating = false;
@@ -35,35 +43,52 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
     () => unref(sale),
     (currentSale) => {
       if (!currentSale) return;
-      hydrateForm(currentSale);
+      const isNewSale = currentSale.id !== lastHydratedId;
+      hydrateForm(currentSale, isNewSale);
+      lastHydratedId = currentSale.id;
     },
     { immediate: true },
   );
 
-  function saveNow() {
+  async function saveNow(codigoGerente?: string): Promise<void> {
     if (!saleId.value) return;
 
     const currentSale = unref(sale);
     const subtotal = currentSale?.subtotal ?? 0;
 
-    if (Math.round(form.desconto * 100) > subtotal) {
+    const descontoAtual = form.desconto ?? 0;
+    if (Math.round(descontoAtual * 100) > subtotal) {
       form.desconto = subtotal / 100;
       toast.warning('Desconto ajustado para o valor máximo permitido');
     }
 
-    updateSaleMutation.mutate({
-        payload: form,
-        saleId: saleId.value
-    })
+    const payload: SaleUpdate = { ...form, ...(codigoGerente ? { codigo_gerente: codigoGerente } : {}) };
+
+    try {
+      await updateSaleMutation.mutateAsync({ payload, saleId: saleId.value });
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail;
+      if (detail === 'REQUER_APROVACAO_GERENTE') {
+        const pin = await gerenteDesconto.pedirPin();
+        if (pin) await saveNow(pin);
+      } else if (detail === 'PIN_GERENTE_INVALIDO') {
+        toast.error('PIN inválido. Tente novamente.');
+        const pin = await gerenteDesconto.pedirPin();
+        if (pin) await saveNow(pin);
+      } else {
+        const sale_ = unref(sale);
+        if (sale_) hydrateForm(sale_, false);
+      }
+    }
   }
 
   const debouncedSave = useDebounceFn(() => {
     if (isHydrating) return;
-    saveNow();
+    void saveNow();
   }, 700);
 
   watch(
-    () => form.observacao,
+    () => [form.observacao, form.observacao_interna],
     () => {
       if (isHydrating) return;
       debouncedSave();
@@ -73,6 +98,7 @@ export function useSaleDetailsForm(sale: MaybeRef<SaleRead | undefined>) {
   return {
     form,
     isSaving: updateSaleMutation.isPending,
-    saveNow,
+    saveNow: (codigoGerente?: string) => void saveNow(codigoGerente),
+    gerenteDesconto,
   }
 }

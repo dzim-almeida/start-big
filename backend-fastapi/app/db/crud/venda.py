@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, aliased, joinedload
-from sqlalchemy import select, func, or_, cast, String, extract
+from sqlalchemy import select, func, or_, cast, String, extract, nullslast
 from datetime import datetime
 
 from app.db.models.venda import Venda
@@ -83,6 +83,7 @@ def get_sales_by_search(
         like_search = f"%{search}%"
         query = query.where(
             or_(
+                cast(Venda.numero_venda, String).startswith(like_search),
                 cast(Venda.id, String).startswith(like_search),
                 cliente_pf.nome.ilike(like_search),
                 cliente_pj.razao_social.ilike(like_search),
@@ -98,7 +99,10 @@ def get_sales_by_search(
     count_stmt = select(func.count()).select_from(query.subquery())
     total = db.scalar(count_stmt) or 0   
 
-    stmt = query.order_by(Venda.id.desc()).offset(skip).limit(limit)
+    stmt = query.order_by(
+        Venda.atualizado_em.desc(),
+        nullslast(Venda.numero_venda.desc()),
+    ).offset(skip).limit(limit)
     sales = db.scalars(stmt).unique().all()
 
     return sales, total 
@@ -150,6 +154,6 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
         vendas_ativas=result.rascunho or 0,
         vendas_finalizadas=result.finalizada or 0,
         vendas_canceladas=result.cancelada or 0,
-        ticket_medio=int(round(ticket_medio * 100)),
+        ticket_medio=int(round(ticket_medio)),
     )
  

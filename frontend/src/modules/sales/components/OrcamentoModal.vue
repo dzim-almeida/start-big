@@ -16,8 +16,8 @@ import OrcamentoCard from './OrcamentoModal/OrcamentoCard.vue';
 import { useOrcamentoModal } from '../composables/flows/useOrcamentoModal';
 import { useItemModal } from '../composables/flows/useItemModal';
 import { useDeleteOrcamentoMutation } from '../composables/mutates/useDeleteOrcamentoMutation';
-import { useUpdateOrcamentoMutation } from '../composables/mutates/useUpdateOrcamentoMutation';
 import { useConfirmSaleAction } from '../composables/flows/useConfirmSaleAction';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const emit = defineEmits<{
   (e: 'converter', orcamentoId: number): void;
@@ -25,13 +25,8 @@ const emit = defineEmits<{
   (e: 'print', orcamentoId: number): void;
 }>();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
-const logoUrl = computed(() => {
-  const path = authStore.userData?.empresa?.url_logo;
-  if (!path) return null;
-  return `${API_BASE_URL}/${path}`;
-});
+const logoUrl = computed(() => getImageUrl(authStore.userData?.empresa?.url_logo));
 
 const { orcamentoModalIsOpen, closeOrcamentoModal, orcamento, selectedOrcamentoId } = useOrcamentoModal();
 const { itemModalIsOpen } = useItemModal();
@@ -57,7 +52,6 @@ whenever(keys.Ctrl_D, () => {
   }
 });
 const deleteMutation = useDeleteOrcamentoMutation();
-const updateMutation = useUpdateOrcamentoMutation();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 
 const headerDisplay = computed(() => {

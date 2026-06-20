@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { SidebarLabelOptions } from '@/modules/mainLayout/types/layout.types';
 import type { Component } from 'vue';
 
-const props = defineProps<{
+defineProps<{
   id: string;
   icon: Component;
   label: SidebarLabelOptions;

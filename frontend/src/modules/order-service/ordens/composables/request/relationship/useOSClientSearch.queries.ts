@@ -23,9 +23,9 @@ export function useOSClientSearch(isOpen: Ref<boolean>): {
   });
 
   const clientes = computed<CustomerUnionReadSchemaDataType[]>(() => {
-    const all = data.value ?? [];
     const q = debouncedQuery.value.trim().toLowerCase();
-    if (!q) return all;
+    if (!q) return [];
+    const all = data.value ?? [];
     return all.filter((c) => {
       const cf = c as { tipo: string; nome?: string; nome_fantasia?: string; razao_social?: string; cpf?: string; cnpj?: string };
       const name = cf.tipo === 'PF'

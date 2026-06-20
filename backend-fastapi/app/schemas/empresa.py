@@ -174,6 +174,36 @@ class EmpresaBase(BaseModel):
         max_length=50,
         description="Segmento de negócio da empresa",
     )
+    indicador_ie: Optional[str] = Field(
+        None,
+        max_length=1,
+        description="Indicador de IE: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte",
+    )
+    natureza_juridica: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)",
+    )
+    tipo_atividade: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO",
+    )
+    cnaes_secundarios: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="CNAEs secundários separados por vírgula",
+    )
+    data_abertura: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Data de abertura/fundação (YYYY-MM-DD)",
+    )
+    website: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Site da empresa",
+    )
 
     # Contato
     telefone: Optional[str] = Field(
@@ -304,6 +334,36 @@ class EmpresaUpdate(BaseModel):
         None,
         max_length=50,
         description="Segmento de negócio da empresa",
+    )
+    indicador_ie: Optional[str] = Field(
+        None,
+        max_length=1,
+        description="Indicador de IE: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte",
+    )
+    natureza_juridica: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)",
+    )
+    tipo_atividade: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO",
+    )
+    cnaes_secundarios: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="CNAEs secundários separados por vírgula",
+    )
+    data_abertura: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Data de abertura/fundação (YYYY-MM-DD)",
+    )
+    website: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Site da empresa",
     )
 
     # Contato

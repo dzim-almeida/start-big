@@ -8,6 +8,7 @@ import {
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
@@ -96,6 +97,7 @@ const subtotalItens = computed(() => {
 const desconto = computed(() => props.descontoOs);
 const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
 const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
+const creditoAoReabrir = computed(() => props.creditoAoReabrir ?? null);
 const acrescimoTotal = computed(() => pagamentosJuros.value.reduce((sum, v) => sum + v, 0));
 
 const valorTotal = computed(() =>
@@ -105,13 +107,11 @@ const valorTotal = computed(() =>
 // Pagamentos de finalizações anteriores (preservados após reopen)
 const pagamentosAnteriores = computed(() => props.ordemServico?.pagamentos ?? []);
 const totalPagamentosAnteriores = computed(() => {
-  const raw = pagamentosAnteriores.value.reduce((sum, p) => sum + p.valor, 0);
-  if (props.creditoAoReabrir != null) {
-    // Exclui juros (acrescimo) da finalização anterior — juros não viram crédito de serviço
-    const acrescimoAnterior = props.ordemServico?.acrescimo ?? 0;
-    return Math.min(raw, Math.max(0, props.creditoAoReabrir - acrescimoAnterior));
+  if (creditoAoReabrir.value != null) {
+    // credito_anterior = total histórico pago (pagamentos + entrada anterior) — só display
+    return creditoAoReabrir.value;
   }
-  return raw;
+  return pagamentosAnteriores.value.reduce((sum, p) => sum + p.valor, 0);
 });
 
 const totalAReceber = computed(() =>
@@ -539,10 +539,9 @@ watch(() => paymentDetails.value.taxa_juros, (v) => {
       </div>
 
       <div v-if="getMethodTipo(currentPaymentMethod) === 'BOLETO'" class="pt-1">
-        <BaseInput 
-          v-model="paymentDetails.vencimento" 
-          type="date" 
-          label="Data de Vencimento" 
+        <BaseDateInput
+          v-model="paymentDetails.vencimento"
+          label="Data de Vencimento"
         />
       </div>
 

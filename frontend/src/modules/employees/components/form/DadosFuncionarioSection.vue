@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import { User, KeyRound } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
@@ -29,7 +30,7 @@ interface Props {
   showUserFields?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 // =============================================
 // Form Fields
@@ -114,11 +115,9 @@ const selectedCargo = computed({
         />
       </div>
       <div class="col-span-12 md:col-span-2">
-        <BaseInput
+        <BaseDateInput
           v-model="data_nascimento"
           label="Data Nascimento"
-          type="date"
-          placeholder="DD/MM/AAAA"
           :error="submitCount > 0 ? errors.data_nascimento : ''"
           :disabled="disabled"
         />
@@ -228,11 +227,9 @@ const selectedCargo = computed({
         />
       </div>
       <div class="col-span-12 md:col-span-3">
-        <BaseInput
+        <BaseDateInput
           v-model="data_admissao"
           label="Data Admissao"
-          type="date"
-          placeholder="DD/MM/AAAA"
           :error="submitCount > 0 ? errors.data_admissao : ''"
           :disabled="disabled"
         />

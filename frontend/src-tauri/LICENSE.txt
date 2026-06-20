@@ -1,0 +1,27 @@
+CONTRATO DE LICENÇA DE USUÁRIO FINAL (EULA) - STARTBIG ERP
+
+IMPORTANTE – LEIA COM ATENÇÃO: Este Contrato de Licença de Usuário Final ("EULA") é um acordo legal entre você (pessoa física ou jurídica) e a StartBig LTDA ME para o uso do software StartBig ERP. Ao instalar, copiar ou usar o software, você concorda em ficar vinculado aos termos deste EULA.
+
+1. CONCESSÃO DE LICENÇA
+A StartBig LTDA ME concede a você uma licença limitada, não exclusiva e intransferível para instalar e usar uma cópia do software StartBig ERP para fins de gestão empresarial interna.
+
+2. ARMAZENAMENTO E SEGURANÇA DE DADOS (IMPORTANTE)
+O StartBig ERP opera com uma arquitetura de banco de dados local.
+a) Responsabilidade: Todos os dados inseridos, incluindo notas fiscais, cadastros e informações financeiras, são armazenados localmente no seu computador (por padrão, no disco em que o sistema operacional está instalado).
+b) Backups: A StartBig LTDA ME não realiza cópias de segurança (backups) em nuvem automáticos de seus dados nesta versão. A rotina de backup é de inteira responsabilidade do usuário. Recomenda-se exportar os dados periodicamente para uma unidade externa (Pen Drive ou HD Externo).
+c) Antivírus: O sistema utiliza processos em segundo plano (Sidecar) para gerenciar o banco de dados. Recomenda-se adicionar a pasta de instalação do StartBig ERP às exceções do seu software antivírus para evitar bloqueios indevidos que possam corromper a leitura dos dados.
+
+3. RESTRIÇÕES
+É estritamente proibido:
+
+Fazer engenharia reversa, descompilar ou desmontar o software.
+
+Alugar, arrendar, sublicenciar ou revender o software para terceiros.
+
+Remover ou alterar qualquer aviso de direitos autorais ou marca registrada.
+
+4. LIMITAÇÃO DE RESPONSABILIDADE
+O software é fornecido "no estado em que se encontra" (AS IS). A StartBig LTDA ME não garante que o software será livre de erros ou interrupções. Em nenhuma hipótese a StartBig LTDA ME será responsabilizada por perda de lucros, perda de dados, danos diretos ou indiretos decorrentes do uso ou da incapacidade de uso do software, inclusive em casos de formatação de disco ou falhas de hardware do usuário.
+
+5. CONSENTIMENTO
+Ao clicar em "Eu Concordo" ou prosseguir com a instalação, você declara ter lido, compreendido e aceitado todos os termos e condições deste contrato.

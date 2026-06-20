@@ -10,7 +10,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const { descricao, valor, errors } = useServicoForm();
 </script>

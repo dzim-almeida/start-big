@@ -49,6 +49,7 @@ const descontoPercentual = ref(0);
 const descontoTipo = ref<'valor' | 'percentual'>('valor');
 const stepAdiantamento = ref(false)
 const shouldPrint = ref(false);
+const showResumo = ref(false);
 
 const opcoesGarantia = ['Sem garantia', '30 dias', '60 dias', '90 dias', '6 meses', '1 ano'];
 
@@ -68,19 +69,24 @@ const subtotalItens = computed(() => {
   return props.ordemServico.itens.reduce((sum, item) => sum + item.valor_total, 0);
 });
 
-const creditoAnterior = computed(() => {
-  const raw = props.ordemServico?.credito_anterior ?? 0;
-  const acrescimo = props.ordemServico?.acrescimo ?? 0;
-  return Math.max(0, raw - acrescimo);
-});
+// Valor pago em finalizações anteriores — deduzido do cálculo atual como crédito
+const pagoAnteriormente = computed(() => props.ordemServico?.credito_anterior ?? 0);
 
 const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
 
+// Desconto já gravado na OS (de finalizações anteriores) — somente leitura, acumulado no backend
+const existingDesconto = computed(() =>
+  props.ordemServico?.credito_anterior ? (props.ordemServico?.desconto ?? 0) : 0
+);
+
+const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
+
 const aCobrar = computed(() => {
-  // Juros da finalização anterior não entram no cálculo — não viram crédito de serviço
-  const total = Math.max(0, subtotalItens.value + taxaEntrega.value - desconto.value);
-  return Math.max(0, total - creditoAnterior.value);
+  const total = Math.max(0, subtotalItens.value + taxaEntrega.value - existingDesconto.value - desconto.value);
+  return Math.max(0, total - pagoAnteriormente.value - valorEntrada.value);
 });
+
+const jaPago = computed(() => pagoAnteriormente.value + valorEntrada.value);
 
 const desconto = computed(() => {
   if (descontoTipo.value === 'percentual') {
@@ -128,16 +134,14 @@ const adiantamentoParaDecisao = computed(() => excedente.value > 0);
 // ─── Reset ───────────────────────────────────────────────────────────────────
 watch(() => props.isOpen, (open) => {
   if (open) {
-    if (props.ordemServico?.credito_anterior && props.ordemServico?.desconto) {
-      descontoDisplay.value = props.ordemServico.desconto / 100;
-      descontoTipo.value = 'valor';
-    }
+    // Desconto anterior é preservado via existingDesconto — campo começa vazio
   } else {
     situacao_equipamento.value = 'REPARADO';
     garantia.value = undefined;
     hasAttemptedAdvance.value = false;
     stepAdiantamento.value = false;
     shouldPrint.value = false;
+    showResumo.value = false;
     solucao.value = '';
     observacoes.value = '';
     descontoDisplay.value = 0;
@@ -244,7 +248,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
     </div>
 
     <!-- ── Formulário principal ── -->
-    <div v-else class="flex flex-col h-full">
+    <div v-else class="flex flex-col h-full overflow-hidden">
 
       <!-- ── Área scrollável (informações, campos e opções) ── -->
       <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col gap-4 pb-2">
@@ -402,19 +406,33 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
       </div><!-- fim da área scrollável -->
 
       <!-- ── Barra financeira fixa na base ── -->
-      <div class="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 space-y-3 shrink-0 mt-2">
+      <div class="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 shrink-0 mt-2 space-y-2">
 
-        <!-- Linha principal: subtotal + desconto + total + botão -->
-        <div class="flex items-end gap-4">
-          <div class="flex flex-col gap-0.5">
-            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Subtotal</span>
-            <span class="font-semibold text-zinc-700 text-sm">{{ formatCurrency(subtotalItens) }}</span>
-          </div>
+        <!-- Resumo expandido (toggle) -->
+        <div v-if="showResumo" class="flex items-center gap-2 text-xs pb-2 border-b border-zinc-200 flex-wrap">
+          <span class="text-zinc-500">Subtotal: <strong class="text-zinc-700">{{ formatCurrency(subtotalItens) }}</strong></span>
+          <template v-if="existingDesconto > 0">
+            <span class="text-zinc-300 font-light">−</span>
+            <span class="text-zinc-500">Desc. anterior: <strong class="text-emerald-600">{{ formatCurrency(existingDesconto) }}</strong></span>
+          </template>
+          <template v-if="desconto > 0">
+            <span class="text-zinc-300 font-light">−</span>
+            <span class="text-zinc-500">Desc. adicional: <strong class="text-emerald-600">{{ formatCurrency(desconto) }}</strong></span>
+          </template>
+          <span class="text-zinc-300 font-light">=</span>
+          <span class="font-semibold text-brand-primary">Total: {{ formatCurrency(subtotalItens - existingDesconto - desconto + taxaEntrega) }}</span>
+          <template v-if="jaPago > 0">
+            <span class="text-zinc-300 font-light">−</span>
+            <span class="text-zinc-500">Já pago: <strong class="text-emerald-600">{{ formatCurrency(jaPago) }}</strong></span>
+          </template>
+        </div>
 
-          <div class="h-8 w-px bg-zinc-200 mb-0.5" />
+        <!-- Linha principal (sempre visível) -->
+        <div class="flex items-center gap-3">
 
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Desconto</span>
+          <!-- Campo de desconto -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-xs font-medium text-zinc-500">{{ existingDesconto > 0 ? 'Desc. adicional:' : 'Desconto:' }}</span>
             <div class="flex rounded-lg border border-zinc-200 overflow-hidden text-[10px] font-semibold">
               <button type="button" :class="['px-2 py-1 transition-colors', descontoTipo === 'valor' ? 'bg-brand-primary text-white' : 'bg-white text-zinc-400 hover:text-zinc-600']" @click="setDescontoTipo('valor')">R$</button>
               <button type="button" :class="['px-2 py-1 transition-colors', descontoTipo === 'percentual' ? 'bg-brand-primary text-white' : 'bg-white text-zinc-400 hover:text-zinc-600']" @click="setDescontoTipo('percentual')">%</button>
@@ -428,37 +446,38 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             </div>
           </div>
 
-          <template v-if="desconto > 0">
-            <div class="h-8 w-px bg-zinc-200" />
-            <div class="flex flex-col gap-0.5">
-              <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Total</span>
-              <span class="font-bold text-brand-primary text-sm">{{ formatCurrency(subtotalItens - desconto) }}</span>
-            </div>
-          </template>
+          <div class="h-8 w-px bg-zinc-200 shrink-0" />
 
+          <!-- Valor em destaque: A cobrar (OS reaberta) ou Total (com desconto) -->
+          <div v-if="jaPago > 0" class="shrink-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide leading-none mb-0.5">A cobrar</p>
+            <p class="text-xl font-bold" :class="aCobrar === 0 ? 'text-emerald-600' : 'text-zinc-800'">
+              {{ aCobrar === 0 ? 'Nada a cobrar' : formatCurrency(aCobrar) }}
+            </p>
+          </div>
+          <div v-else-if="desconto > 0" class="shrink-0">
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide leading-none mb-0.5">Total</p>
+            <p class="text-xl font-bold text-brand-primary">{{ formatCurrency(subtotalItens - desconto + taxaEntrega) }}</p>
+          </div>
+
+          <!-- Link ver/ocultar resumo -->
+          <button
+            type="button"
+            class="text-xs text-zinc-400 hover:text-brand-primary transition-colors shrink-0"
+            @click="showResumo = !showResumo"
+          >
+            {{ showResumo ? '▲ ocultar' : '▼ ver resumo' }}
+          </button>
+
+          <!-- Botão -->
           <BaseButton
             type="button"
             variant="primary"
-            class="ml-auto px-6 py-2.5 shadow-md shadow-blue-600/20 whitespace-nowrap"
+            class="ml-auto px-6 py-2.5 shadow-md shadow-blue-600/20 whitespace-nowrap shrink-0"
             @click="handleAdvance"
           >
             {{ isEntregaFlow ? 'Finalizar Entrega →' : 'Ir para Pagamento →' }}
           </BaseButton>
-        </div>
-
-        <!-- Linha de crédito anterior (só quando OS reaberta) -->
-        <div v-if="creditoAnterior > 0" class="flex items-center gap-6 pt-2 border-t border-zinc-200">
-          <div class="flex flex-col gap-0.5">
-            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Já pago</span>
-            <span class="font-semibold text-emerald-600 text-sm">- {{ formatCurrency(creditoAnterior) }}</span>
-          </div>
-          <div class="h-6 w-px bg-zinc-200" />
-          <div class="flex flex-col gap-0.5">
-            <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">A cobrar</span>
-            <span class="font-bold text-sm" :class="aCobrar === 0 ? 'text-emerald-600' : 'text-zinc-800'">
-              {{ aCobrar === 0 ? 'Nada a cobrar' : formatCurrency(aCobrar) }}
-            </span>
-          </div>
         </div>
 
       </div>

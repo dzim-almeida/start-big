@@ -177,6 +177,7 @@ export const PERMISSION_KEYS = Array.from(
 );
 
 export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], string>> = {
+  sales: 'venda',
   services: PERMISSIONS.services,
   customers: PERMISSIONS.customers,
   products: PERMISSIONS.products,

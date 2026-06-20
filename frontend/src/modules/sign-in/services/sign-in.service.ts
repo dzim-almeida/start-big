@@ -1,15 +1,14 @@
 import api from '@/api/axios';
 import { TOKEN_KEY } from '@/api/axios';
 import axios from 'axios';
+import { getApiBaseUrl } from '@/api/backendUrl';
 import type { SetupRequest, StatusResponse, ViaCepResponse } from '../types/sign-in.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 /**
  * Verifica se o sistema já foi inicializado (público, sem auth)
  */
 export async function checkSystemStatus(): Promise<StatusResponse> {
-  const { data } = await axios.get<StatusResponse>(`${API_BASE_URL}/auth/status`);
+  const { data } = await axios.get<StatusResponse>(`${getApiBaseUrl()}/auth/status`);
   return data;
 }
 
@@ -19,7 +18,7 @@ export async function checkSystemStatus(): Promise<StatusResponse> {
  */
 export async function setupSistema(setupData: SetupRequest): Promise<{ access_token: string; token_type: string }> {
   const { data } = await axios.post<{ access_token: string; token_type: string }>(
-    `${API_BASE_URL}/auth/setup`,
+    `${getApiBaseUrl()}/auth/setup`,
     setupData,
   );
   localStorage.setItem(TOKEN_KEY, data.access_token);

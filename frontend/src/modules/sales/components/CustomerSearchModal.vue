@@ -6,12 +6,14 @@ import {
   Plus,
   UserRoundX
  } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 import { getInitials } from '@/shared/utils/string.utils';
 
@@ -25,6 +27,8 @@ const {
   openCreateCustomerModal,
   selectCustomer,
 } = useCustomerSearchModal();
+
+const { exigirClienteIdentificado } = storeToRefs(useConfiguracoesStore());
 
 const isChangeMode = computed(() => modalMode.value === 'change');
 const isConverterMode = computed(() => modalMode.value === 'converter');
@@ -55,7 +59,7 @@ const modalSubtitle = computed(() => {
 
     <div class="mt-3 max-h-80 overflow-y-auto divide-y divide-zinc-100 -mx-1 px-1">
       <!-- Skeleton de loading -->
-      <template v-if="isSearchingCustomers">
+      <template v-if="searchTerm && isSearchingCustomers">
         <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-2 py-3 animate-pulse">
           <div class="w-9 h-9 rounded-full bg-zinc-200 shrink-0" />
           <div class="flex-1 space-y-1.5">
@@ -66,7 +70,7 @@ const modalSubtitle = computed(() => {
       </template>
 
       <!-- Lista de clientes -->
-      <template v-else-if="customers?.length! > 0">
+      <template v-else-if="searchTerm && customers?.length! > 0">
         <button
           v-for="customer in customers"
           :key="customer.id"
@@ -102,14 +106,14 @@ const modalSubtitle = computed(() => {
 
       <!-- Estado vazio -->
       <div v-else class="py-10 text-center text-zinc-400">
-        <p class="text-sm font-medium">Nenhum cliente encontrado</p>
-        <p class="text-xs mt-1">
-          {{
-            searchTerm
-              ? 'Tente outro termo ou cadastre um novo cliente.'
-              : 'Cadastre o primeiro cliente abaixo.'
-          }}
-        </p>
+        <template v-if="!searchTerm">
+          <p class="text-sm font-medium">Digite para buscar</p>
+          <p class="text-xs mt-1">Busque por nome ou CPF/CNPJ.</p>
+        </template>
+        <template v-else>
+          <p class="text-sm font-medium">Nenhum cliente encontrado</p>
+          <p class="text-xs mt-1">Tente outro termo ou cadastre um novo cliente.</p>
+        </template>
       </div>
     </div>
 
@@ -119,7 +123,7 @@ const modalSubtitle = computed(() => {
           <Plus :size="16" class="mr-1.5" />
           Cadastrar novo cliente
         </BaseButton>
-        <BaseButton v-if="!isConverterMode" variant="secondary" class="w-full" @click="selectCustomer(null)">
+        <BaseButton v-if="!isConverterMode && !exigirClienteIdentificado" variant="secondary" class="w-full" @click="selectCustomer(null)">
           <UserRoundX :size="16" class="mr-1.5" />
           {{ isChangeMode ? 'Remover cliente' : 'Venda sem cliente' }}
         </BaseButton>

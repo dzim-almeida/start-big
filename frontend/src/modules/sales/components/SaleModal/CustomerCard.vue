@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-
-import { maskPhoneNumber } from '@/shared/utils/mask.utils';
-
-import { User2, Building2, House, Phone, UserX, RefreshCw } from 'lucide-vue-next';
-
-import BaseInfoCard from '@/shared/components/layout/StatsCard/BaseInfoCard.vue';
-
+import { User2, UserX, RefreshCw } from 'lucide-vue-next';
+import { getInitials } from '@/shared/utils/string.utils';
 import type { CustomerSimpleRead } from '../../schemas/customers.schema';
 
 const props = defineProps<{
@@ -18,57 +12,57 @@ const emit = defineEmits<{
   changeCliente: [];
 }>();
 
-const address = computed(() => {
-  if (!props.customer?.endereco?.[0]) return 'Endereço não informado';
+function getNome(c: typeof props.customer) {
+  if (!c) return '';
+  return c.tipo === 'PF' ? c.nome : c.razao_social;
+}
 
-  const address = props.customer.endereco[0];
-  return `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ''} - ${address.bairro}, ${address.cidade}/${address.estado}`;
-});
+function getDoc(c: typeof props.customer) {
+  if (!c) return '';
+  return c.tipo === 'PF' ? c.cpf : c.cnpj;
+}
 </script>
+
 <template>
-  <BaseInfoCard :icon="customer?.tipo === 'PF' ? User2 : Building2" title="DADOS DO CLIENTE">
-    <template #header>
-      <div class="flex items-center justify-end" v-if="!readonly">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
-          @click="emit('changeCliente')"
-        >
-          <RefreshCw :size="12" />
-          Trocar
-        </button>
+  <div class="rounded-xl border border-zinc-200 bg-white p-3">
+    <!-- Com cliente -->
+    <div v-if="customer" class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center shrink-0">
+        <span class="text-[11px] font-bold text-brand-primary">{{ getInitials(getNome(customer)) }}</span>
       </div>
-    </template>
-    <div v-if="customer" class="px-4 py-3 flex flex-col gap-2">
-      <div>
-        <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Cliente</h2>
-        <p class="font-poppins text-sm">
-          {{ customer?.tipo === 'PF' ? customer?.nome : customer?.razao_social }}
-        </p>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-zinc-900 truncate">{{ getNome(customer) }}</p>
+        <p class="text-xs text-zinc-400 truncate">{{ getDoc(customer) || 'Sem documento' }}</p>
       </div>
-      <div>
-        <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Documento</h2>
-        <p class="font-poppins text-sm">
-          {{ customer?.tipo === 'PF' ? customer?.cpf : customer?.cnpj }}
-        </p>
-      </div>
-      <div class="flex flex-col gap-2">
-        <h2 class="font-poppins font-bold text-xs text-zinc-600 uppercase">Contato</h2>
-        <div class="flex gap-2 items-center">
-          <House :size="15" />
-          <p class="font-poppins text-xs">{{ address }}</p>
-        </div>
-        <div class="flex gap-2 items-center">
-          <Phone :size="15" />
-          <p class="font-poppins text-xs">{{ maskPhoneNumber(customer?.telefone) || maskPhoneNumber(customer?.celular) || 'Contato não informado' }}</p>
-        </div>
-      </div>
+      <button
+        v-if="!readonly"
+        type="button"
+        class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer shrink-0"
+        @click="emit('changeCliente')"
+      >
+        <RefreshCw :size="11" />
+        Trocar
+      </button>
     </div>
-    <div v-else class="min-h-40 flex flex-col items-center justify-center gap-2">
-      <UserX :size="30" class="text-zinc-600" />
-      <p class="text-sm text-muted-foreground text-zinc-500">
-        Nenhum cliente selecionado.
-      </p>
+
+    <!-- Sem cliente -->
+    <div v-else class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
+        <UserX :size="16" class="text-zinc-400" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-zinc-400">Nenhum cliente</p>
+        <p class="text-xs text-zinc-300">Venda sem identificação</p>
+      </div>
+      <button
+        v-if="!readonly"
+        type="button"
+        class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer shrink-0"
+        @click="emit('changeCliente')"
+      >
+        <component :is="User2" :size="11" />
+        Selecionar
+      </button>
     </div>
-  </BaseInfoCard>
+  </div>
 </template>

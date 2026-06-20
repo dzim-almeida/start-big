@@ -98,6 +98,8 @@ export const useLayoutStore = defineStore('layout', () => {
   watch(
     () => route.path,
     () => {
+      isSettingsOpen.value = false;
+      isQuickOpen.value = false;
       if (isMobile.value && isMobileOpen.value) {
         closeSidebar();
       }

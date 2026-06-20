@@ -16,7 +16,7 @@ interface Props {
   totalItems?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isLoading: false,
   totalPages: 1,
   currentPage: 1,
@@ -106,8 +106,8 @@ function getOSSequence(numero_os: string): string {
             @click="emit('view', os)"
           >
             <td class="px-4 md:px-6 py-3 md:py-4">
-              <div class="w-10 h-10 bg-brand-primary rounded-xl flex flex-col items-center justify-center text-white">
-                <span class="text-[8px] opacity-70 font-medium leading-none">OS</span>
+              <div class="w-10 h-10 bg-brand-primary/10 rounded-xl flex flex-col items-center justify-center text-brand-primary">
+                <span class="text-[7px] opacity-70 font-medium leading-none">OS</span>
                 <span class="text-sm font-bold leading-none mt-0.5">{{ getOSSequence(os.numero_os) }}</span>
               </div>
             </td>

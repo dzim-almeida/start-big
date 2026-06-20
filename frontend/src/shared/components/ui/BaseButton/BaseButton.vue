@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 
 interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'ghost-danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   disabled?: boolean;
@@ -22,6 +22,7 @@ const variants: Record<string, string> = {
   secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500 hover:cursor-pointer',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 hover:cursor-pointer',
   ghost: 'bg-transparent text-brand-primary border border-brand-primary hover:bg-brand-primary/10 hover:cursor-pointer',
+  'ghost-danger': 'bg-transparent text-red-600 border border-red-200 hover:bg-red-50 hover:cursor-pointer hover:border-red-600',
 };
 
 const sizes: Record<string, string> = {

@@ -33,7 +33,9 @@ const title = computed(() => isVenda.value ? 'COMPROVANTE DE VENDA' : 'ORÇAMENT
 const documentLabel = computed(() => isVenda.value ? 'Nº da Venda' : 'Nº do Orçamento');
 
 const documentNumber = computed(() => {
-  return String(props.sale?.id ?? 0).padStart(6, '0');
+  const sale = props.sale as SaleRead | null;
+  const num = isVenda.value ? (sale?.numero_venda ?? sale?.id ?? 0) : (props.sale?.id ?? 0);
+  return String(num).padStart(6, '0');
 });
 
 const saleData = computed(() => isVenda.value ? props.sale as SaleRead : null);
@@ -45,6 +47,7 @@ const totalPago = computed(() => {
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="sale" class="print-container hidden print:block bg-white text-black font-sans leading-tight">
     <PrintCompanyHeader
       :company="companyInfo"
@@ -189,6 +192,7 @@ const totalPago = computed(() => {
 
     <PrintFooter />
   </div>
+  </Teleport>
 </template>
 
 <style>

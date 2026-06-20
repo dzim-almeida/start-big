@@ -23,6 +23,7 @@ from app.api.v1.endpoints import orcamento
 from app.api.v1.endpoints import dashboard
 from app.api.v1.endpoints import movimentacao_estoque
 from app.api.v1.endpoints import configuracao
+from app.api.v1.endpoints import comunicado
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -84,3 +85,4 @@ router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Mo
 
 # Inclui o roteador de configurações do sistema sob o prefixo /configuracoes
 router.include_router(configuracao.router, prefix="/configuracoes", tags=["Configurações"])
+router.include_router(comunicado.router, prefix="/comunicados", tags=["Comunicados"])

@@ -4,10 +4,9 @@ import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { LogOut, User } from 'lucide-vue-next';
 
 import StatusPulse from '../icons/StatusPulse.vue';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-const props = defineProps<{
+defineProps<{
   userName?: string;
   userCargo?: string;
   imageUrl?: string;
@@ -38,7 +37,7 @@ const { logoutAndRedirect } = useAppNavigation();
     <div class="flex items-end justify-center w-10 h-10 bg-brand-primary p-0.5 rounded-xl">
       <img
         v-if="imageUrl"
-        :src="`${API_BASE_URL}/${imageUrl}`"
+        :src="getImageUrl(imageUrl) ?? ''"
         alt="Foto do usuário"
         class="w-full h-full object-cover rounded-xl"
       />
@@ -49,7 +48,7 @@ const { logoutAndRedirect } = useAppNavigation();
         {{ userName }}
       </p>
       <div class="flex items-center gap-2">
-        <StatusPulse :status="status" />
+        <StatusPulse :status="status ?? false" />
         <p class="text-xs text-zinc-500 font-medium">
           {{ userCargo }}
         </p>

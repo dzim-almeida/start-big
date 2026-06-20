@@ -3,25 +3,25 @@
 # DESCRIÇÃO: Configurações globais da aplicação via variáveis de ambiente.
 # ---------------------------------------------------------------------------
 
-import sys
 import os
 import platform
 import secrets
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
-app_name = "startbig-erp"
+app_name = "StartBigERP"
 
 # .db path
 
 if platform.system() == "Windows":
-    base_dir = os.path.join(os.getenv("APPDATA"), app_name)
+    base_dir = os.path.join(os.getenv("LOCALAPPDATA"), app_name)
 else:
     base_dir = os.path.join(os.path.expanduser("~"), f".{app_name.lower()}")
 
-os.makedirs(base_dir, exist_ok=True)
+data_dir = os.path.join(base_dir, "data")
+os.makedirs(data_dir, exist_ok=True)
 
-database_path = os.path.join(base_dir, "pdv.db")
+database_path = os.path.join(data_dir, "pdv.db")
 sql_url = f"sqlite:///{database_path}"
 
 
@@ -34,7 +34,7 @@ def _load_or_create_secret_key(path: str) -> str:
         f.write(key)
     return key
 
-_secret_key_value = _load_or_create_secret_key(os.path.join(base_dir, "secret.key"))
+_secret_key_value = _load_or_create_secret_key(os.path.join(data_dir, "secret.key"))
 
 class Settings(BaseSettings):
     """

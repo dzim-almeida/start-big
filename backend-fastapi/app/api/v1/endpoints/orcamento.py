@@ -38,7 +38,7 @@ from app.services import orcamento as orcamento_service
 
 router = APIRouter()
 
-module_permission = "venda"
+module_permission = ["venda", "view_sales", "manage_sales", "delete_sales"]
 
 
 # ===========================================================================

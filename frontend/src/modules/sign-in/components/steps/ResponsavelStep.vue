@@ -9,6 +9,7 @@ import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import { ArrowLeft, ArrowRight, Info } from 'lucide-vue-next';
 
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -126,9 +127,8 @@ const regimeTributarioOptions = [
           :options="generoOptions"
           :error="submitCount > 0 ? errors.genero : ''"
         />
-        <BaseInput
+        <BaseDateInput
           v-model="dataNascimento"
-          type="date"
           label="Data de Nascimento (opcional)"
           :error="submitCount > 0 ? errors.dataNascimento : ''"
         />

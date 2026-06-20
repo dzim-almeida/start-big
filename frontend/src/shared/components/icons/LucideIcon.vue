@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-type size = 'sm' | 'md' | 'lg';
+type size = 'uxs' | 'sm' | 'md' | 'lg';
 
 interface Props {
   icon: Component;
   size?: size;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   size: 'sm',
 });
 

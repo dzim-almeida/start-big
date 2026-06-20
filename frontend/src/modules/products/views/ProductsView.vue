@@ -40,7 +40,7 @@ const {
   openViewModal: openViewFornecedorModal,
 } = useFornecedorModal();
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const activeTab = ref('product');
 const searchTerm = ref<string | null>('');
@@ -334,7 +334,7 @@ function handleEmptyAction() {
       <template v-if="isGroupedByCategory && groupedProducts">
         <div v-for="(products, category) in groupedProducts" :key="category" class="space-y-4">
           <h2 class="text-lg font-bold text-zinc-700 border-b border-zinc-200 pb-2">
-            {{ exibirCategoria(category) }}
+            {{ exibirCategoria(String(category)) }}
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <ProductCard
@@ -346,7 +346,7 @@ function handleEmptyAction() {
               :category="product.categoria || 'SEM CATEGORIA'"
               :price="product.estoque.valor_varejo / 100"
               :storage="product.estoque.quantidade || 0"
-              :image_url="getProductImage(product) ? `${API_BASE_URL}/${getProductImage(product)}` : ''"
+              :image_url="getImageUrl(getProductImage(product)) ?? ''"
               :status="product.ativo"
               @view="handleViewProduct"
               @edit="handleEditProduct"
@@ -369,7 +369,7 @@ function handleEmptyAction() {
           :category="product.categoria || 'SEM CATEGORIA'"
           :price="product.estoque.valor_varejo / 100"
           :storage="product.estoque.quantidade || 0"
-          :image_url="getProductImage(product) ? `${API_BASE_URL}/${getProductImage(product)}` : ''"
+          :image_url="getImageUrl(getProductImage(product)) ?? ''"
           :status="product.ativo"
           @view="handleViewProduct"
           @edit="handleEditProduct"

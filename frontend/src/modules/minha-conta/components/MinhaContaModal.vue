@@ -1,31 +1,36 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { User, Camera } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
+import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import CropperFotoModal from './CropperFotoModal.vue';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import { useAtualizarContaMutation } from '../composables/mutates/useAtualizarContaMutation';
 import { useAlterarSenhaMutation } from '../composables/mutates/useAlterarSenhaMutation';
 import { useUploadFotoPerfilMutation } from '../composables/mutates/useUploadFotoPerfilMutation';
 import { AtualizarContaSchema, AlterarSenhaSchema } from '../schemas/minhaConta.schema';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
 const authStore = useAuthStore();
 const { userData } = storeToRefs(authStore);
+const confirmacao = useConfirmacao();
 
 // =============================================
 // Upload de Foto
 // =============================================
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const cropperAberto = ref(false);
+const imagemParaCropar = ref('');
 const { mutate: uploadFoto, isPending: isUploadando } = useUploadFotoPerfilMutation();
 
 function abrirSeletorFoto() {
@@ -35,8 +40,20 @@ function abrirSeletorFoto() {
 function onFotoSelecionada(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  uploadFoto(file);
+  imagemParaCropar.value = URL.createObjectURL(file);
+  cropperAberto.value = true;
   (event.target as HTMLInputElement).value = '';
+}
+
+function onCropConfirmado(arquivo: File) {
+  cropperAberto.value = false;
+  URL.revokeObjectURL(imagemParaCropar.value);
+  uploadFoto(arquivo);
+}
+
+function onCropCancelado() {
+  cropperAberto.value = false;
+  URL.revokeObjectURL(imagemParaCropar.value);
 }
 
 // =============================================
@@ -58,9 +75,13 @@ watch(
   { immediate: true },
 );
 
-const { mutate: atualizarConta, isPending: isAtualizando } = useAtualizarContaMutation();
+const temAlteracoesPendentes = computed(
+  () => nome.value !== (userData.value?.nome ?? '') || email.value !== (userData.value?.email ?? ''),
+);
 
-function salvarDados() {
+const { mutateAsync: atualizarConta, isPending: isAtualizando } = useAtualizarContaMutation();
+
+async function salvarDados() {
   const resultado = AtualizarContaSchema.safeParse({ nome: nome.value, email: email.value });
   if (!resultado.success) {
     const erros: Record<string, string> = {};
@@ -71,7 +92,29 @@ function salvarDados() {
     return;
   }
   contaErrors.value = {};
-  atualizarConta({ nome: nome.value, email: email.value });
+  try {
+    await atualizarConta({ nome: nome.value, email: email.value });
+    emit('close');
+  } catch {
+    // erro já tratado pelo onError da mutation
+  }
+}
+
+async function handleClose() {
+  if (!temAlteracoesPendentes.value) {
+    emit('close');
+    return;
+  }
+
+  const ok = await confirmacao.pedirConfirmacao({
+    titulo: 'Sair sem salvar?',
+    descricao: 'Você tem <strong>alterações não salvas</strong>. Se sair agora, as alterações serão perdidas.',
+    confirmLabel: 'Sair sem salvar',
+    cancelLabel: 'Continuar editando',
+    variant: 'danger',
+  });
+
+  if (ok) emit('close');
 }
 
 // =============================================
@@ -119,7 +162,7 @@ function salvarSenha() {
     title="Minha Conta"
     subtitle="Gerencie seus dados de acesso ao sistema"
     size="md"
-    @close="emit('close')"
+    @close="handleClose"
   >
     <div class="flex flex-col gap-6">
 
@@ -139,7 +182,7 @@ function salvarSenha() {
           >
             <img
               v-if="userData?.url_perfil"
-              :src="`${API_BASE_URL}/${userData.url_perfil}`"
+              :src="getImageUrl(userData.url_perfil) ?? ''"
               alt="Foto de perfil"
               class="w-full h-full object-cover"
             />
@@ -244,4 +287,22 @@ function salvarSenha() {
 
     </div>
   </BaseModal>
+
+  <BaseConfirmModal
+    :is-open="confirmacao.isOpen.value"
+    :title="confirmacao.opcoes.value.titulo"
+    :description="confirmacao.opcoes.value.descricao"
+    :confirm-label="confirmacao.opcoes.value.confirmLabel"
+    :cancel-label="confirmacao.opcoes.value.cancelLabel"
+    :variant="confirmacao.opcoes.value.variant"
+    @confirm="confirmacao.confirmar"
+    @close="confirmacao.cancelar"
+  />
+
+  <CropperFotoModal
+    :is-open="cropperAberto"
+    :image-src="imagemParaCropar"
+    @confirm="onCropConfirmado"
+    @close="onCropCancelado"
+  />
 </template>
