@@ -148,6 +148,8 @@ export interface SetupRequest {
   nome_usuario: string;
   email: string;
   senha: string;
+  // HWID (Licença)
+  hwid: string;
 }
 
 /**

@@ -9,6 +9,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { unmaskCep, unmaskDocument, unmaskPhone } from '@/shared/utils/unmask.utils';
 import { useSignIn } from './useSignIn';
 import { setupSistema, uploadEmpresaLogo } from '../services/sign-in.service';
+import { getHwid } from '@/shared/services/system/hwid.service';
 import type { SetupRequest } from '../types/sign-in.types';
 
 /**
@@ -55,8 +56,18 @@ export function useSetup() {
     },
   });
 
-  function confirmSetup(): void {
+  async function confirmSetup(): Promise<void> {
     apiError.value = null;
+
+    // Obter HWID da máquina antes de qualquer chamada API
+    let hwid: string;
+    try {
+      hwid = await getHwid();
+    } catch {
+      apiError.value =
+        'Falha ao identificar a máquina. Verifique se o aplicativo está rodando corretamente.';
+      return;
+    }
 
     const isPF = signInData.responsavel.tipoPessoa === 'PF';
 
@@ -119,6 +130,9 @@ export function useSetup() {
       nome_usuario: signInData.acesso.nomeUsuario,
       email: signInData.acesso.email,
       senha: signInData.acesso.senha,
+
+      // HWID (Licença)
+      hwid,
     };
 
     setupMutation.mutate(request);

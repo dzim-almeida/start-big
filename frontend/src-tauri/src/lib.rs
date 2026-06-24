@@ -24,6 +24,12 @@ fn get_backend_port(state: tauri::State<AppState>) -> u16 {
     state.port
 }
 
+#[tauri::command]
+fn get_hwid() -> Result<String, String> {
+    machine_uid::get()
+        .map_err(|e| format!("Falha ao obter HWID da máquina: {}", e))
+}
+
 #[derive(serde::Serialize)]
 struct ImpressoraInfo {
     nome: String,
@@ -296,9 +302,20 @@ pub fn run() {
     let port = get_free_port();
 
     let app = tauri::Builder::default()
+        .manage(EstadoServidorImpressao::default())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_backend_port])
+        .invoke_handler(tauri::generate_handler![
+            get_backend_port,
+            get_hwid,
+            listar_impressoras,
+            imprimir_raw,
+            imprimir_rede,
+            iniciar_servidor_impressao,
+            parar_servidor_impressao,
+            descobrir_servidores_impressao,
+            obter_ip_local
+        ])
         .setup(move |app| {
             let sidecar_command = app
                 .shell()
