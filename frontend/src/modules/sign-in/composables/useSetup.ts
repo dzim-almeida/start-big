@@ -44,8 +44,8 @@ export function useSetup() {
       }
 
       toast.success(
-        'Setup concluído com sucesso!',
-        'Sua loja foi cadastrada. Bem-vindo ao Start Big!'
+        'Sua loja foi cadastrada. Bem-vindo ao Start Big!',
+        'Um email com sua chave de acesso foi enviado para você. Verifique sua caixa de entrada e spam.',
       );
 
       resetSignIn();
