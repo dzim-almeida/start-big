@@ -2,15 +2,7 @@ import api from '@/api/axios';
 import { TOKEN_KEY } from '@/api/axios';
 import axios from 'axios';
 import { getApiBaseUrl } from '@/api/backendUrl';
-import type { SetupRequest, StatusResponse, ViaCepResponse } from '../types/sign-in.types';
-
-/**
- * Verifica se o sistema já foi inicializado (público, sem auth)
- */
-export async function checkSystemStatus(): Promise<StatusResponse> {
-  const { data } = await axios.get<StatusResponse>(`${getApiBaseUrl()}/auth/status`);
-  return data;
-}
+import type { SetupRequest, ViaCepResponse } from '../types/sign-in.types';
 
 /**
  * Executa o setup inicial do sistema (público, sem auth)

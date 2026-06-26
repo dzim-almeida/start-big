@@ -9,24 +9,30 @@ import base64
 import hashlib
 import logging
 import os
+from datetime import datetime, timezone
 
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import HTTPException, status
+from jose import jwt, JWTError, JOSEError
 from sqlalchemy.orm import Session
 
 from app.schemas.licenca import (
     AutoCadastroPayload,
     AutoCadastroResponse,
+    ConectarPayload,
     LicencaEnderecoPayload,
 )
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
 from app.db.crud import configuracao_licenca as licenca_crud
+from app.core.hwid import obter_hwid
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://api.startbig.com.br/erp/auto-cadastro"
+API_AUTO_CADASTRO_URL = "https://api.startbig.com.br/erp/auto-cadastro"
+API_CONECTAR_URL = "https://api.startbig.com.br/licenca/conectar"
 TIMEOUT_SECONDS = 30
+CONECTAR_TIMEOUT_SECONDS = 3
 MAX_RETRIES = 3
 
 
@@ -88,7 +94,7 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
         try:
             with httpx.Client(timeout=TIMEOUT_SECONDS) as client:
                 response = client.post(
-                    API_URL,
+                    API_AUTO_CADASTRO_URL,
                     json=payload.model_dump(exclude_none=True),
                 )
 
@@ -149,7 +155,6 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
 
 def registrar_licenca(
     db: Session,
-    hwid: str,
     documento: str,
     nome_ou_razao: str,
     email: str,
@@ -157,14 +162,14 @@ def registrar_licenca(
 ) -> ConfiguracaoLicenca:
     """
     Orquestra o auto-cadastro de licença:
-    1. Verifica se já existe licença para este HWID
-    2. Chama a API externa
-    3. Encripta campos sensíveis
-    4. Persiste no banco (flush, não commit — commit fica com _handle_db_transaction)
+    1. Obtém o HWID da máquina localmente
+    2. Verifica se já existe licença para este HWID
+    3. Chama a API externa
+    4. Encripta campos sensíveis
+    5. Persiste no banco (flush, não commit — commit fica com _handle_db_transaction)
 
     Args:
         db: Sessão do banco de dados.
-        hwid: Hardware ID da máquina.
         documento: CPF ou CNPJ (apenas números).
         nome_ou_razao: Nome ou Razão Social.
         email: Email do responsável.
@@ -178,7 +183,10 @@ def registrar_licenca(
         HTTPException 422: Se a API retornar erro de validação.
         HTTPException 503: Se não conseguir conectar ao servidor.
     """
-    # 1. Verificar duplicidade de HWID
+    # 1. Obter HWID da máquina
+    hwid = obter_hwid()
+
+    # 2. Verificar duplicidade de HWID
     existente = licenca_crud.get_licenca_by_hwid(db, hwid)
     if existente:
         raise HTTPException(
@@ -221,3 +229,220 @@ def registrar_licenca(
     )
 
     return licenca_crud.create_licenca(db, licenca)
+
+
+# ===========================================================================
+# Validação de Sessão (Etapa 2 — Boot Check)
+# ===========================================================================
+
+def _erro_licenca(codigo: str, mensagem: str) -> HTTPException:
+    """
+    Cria uma HTTPException 403 padronizada para erros de licença inválida.
+    E um HTTPException 404 para licença não encontrada.
+    """
+    
+    if codigo == "LICENCA_NAO_ENCONTRADA":
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"codigo": codigo, "mensagem": mensagem},
+        )
+
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={"codigo": codigo, "mensagem": mensagem},
+    )
+
+
+def _tentar_conexao_remota(
+    db: Session,
+    licenca: ConfiguracaoLicenca,
+    chave_ativacao: str,
+    hwid: str,
+) -> dict:
+    """
+    Tenta validar a licença online via POST /licenca/conectar.
+
+    Raises:
+        httpx.ConnectError / httpx.TimeoutException: Se offline (fallback).
+        HTTPException 403: Se o servidor recusar a licença.
+    """
+    payload = ConectarPayload(chave=chave_ativacao, hwid=hwid)
+
+    with httpx.Client(timeout=CONECTAR_TIMEOUT_SECONDS) as client:
+        response = client.post(
+            API_CONECTAR_URL,
+            json=payload.model_dump(),
+        )
+
+    if 200 <= response.status_code < 300:
+        resposta = AutoCadastroResponse(**response.json())
+
+        # Atualizar dados da licença atomicamente
+        licenca.ultima_sinc = resposta.ultimaSincronizacao
+        licenca.proxima_validacao = resposta.proximaValidacaoEm
+        licenca.token = resposta.token
+        licenca.data_vencimento = resposta.dataVencimento
+        licenca.limite = resposta.limite
+        licenca.grace_period = resposta.gracePeriodDias
+
+        # Re-encriptar session_key e chave_ativacao caso tenham mudado
+        licenca.session_key = encriptar_valor(resposta.sessionKey, hwid)
+
+        licenca_crud.update_licenca(db, licenca)
+        db.commit()
+
+        logger.info("[licenca] Validação online bem-sucedida.")
+        return {"status": "online_valid"}
+
+    # Erro 4xx do servidor (licença inválida/suspensa)
+    if 400 <= response.status_code < 500:
+        detail = response.text
+        try:
+            body = response.json()
+            detail = body.get("msg", body.get("message", response.text))
+        except Exception:
+            pass
+        raise _erro_licenca("LICENCA_RECUSADA", f"Servidor recusou a licença: {detail}")
+
+    # Erro 5xx — tratar como offline (fallback)
+    raise httpx.ConnectError(f"Servidor retornou status {response.status_code}")
+
+
+def _validar_offline(
+    licenca: ConfiguracaoLicenca,
+    session_key: str,
+) -> dict:
+    """
+    Validação offline usando JWT RS256 e regras de grace period.
+
+    Args:
+        licenca: Registro da licença no banco.
+        session_key: Session key descriptografada (chave pública RS256).
+
+    Returns:
+        dict com status e dias_restantes.
+
+    Raises:
+        HTTPException 403: Se a validação offline falhar.
+    """
+    agora = datetime.now(timezone.utc)
+
+    # 1. Validar JWT com a session_key (shared secret HS256)
+    try:
+        jwt.decode(
+            licenca.token,
+            session_key,
+            algorithms=["HS256"],
+            options={"verify_exp": True, "verify_aud": False},
+        )
+    except (JWTError, JOSEError) as e:
+        logger.warning("[licenca] Falha na validação JWT offline: %s", e)
+        raise _erro_licenca(
+            "REQUISITA_CONEXAO_INTERNET",
+            "Token de licença inválido ou expirado. Conecte-se à internet para revalidar.",
+        )
+
+    # 2. Verificar data de vencimento do plano
+    data_vencimento = licenca.data_vencimento
+    if data_vencimento.tzinfo is None:
+        data_vencimento = data_vencimento.replace(tzinfo=timezone.utc)
+
+    if agora >= data_vencimento:
+        raise _erro_licenca(
+            "LICENCA_EXPIRADA",
+            "Sua licença expirou. Entre em contato com o suporte para renovação.",
+        )
+
+    # 3. Verificar grace period (dias desde última sincronização)
+    ultima_sinc = licenca.ultima_sinc
+    if ultima_sinc.tzinfo is None:
+        ultima_sinc = ultima_sinc.replace(tzinfo=timezone.utc)
+
+    dias_offline = (agora - ultima_sinc).days
+    if dias_offline > licenca.grace_period:
+        raise _erro_licenca(
+            "REQUISITA_CONEXAO_INTERNET",
+            f"Limite de {licenca.grace_period} dias offline excedido ({dias_offline} dias). "
+            "Conecte-se à internet para revalidar a licença.",
+        )
+
+    # 4. Verificar próxima validação obrigatória
+    proxima_validacao = licenca.proxima_validacao
+    if proxima_validacao.tzinfo is None:
+        proxima_validacao = proxima_validacao.replace(tzinfo=timezone.utc)
+
+    if agora >= proxima_validacao:
+        raise _erro_licenca(
+            "REQUISITA_CONEXAO_INTERNET",
+            "Data de validação obrigatória atingida. Conecte-se à internet para revalidar.",
+        )
+
+    # 5. Calcular dias restantes
+    dias_ate_vencimento = (data_vencimento - agora).days
+    dias_ate_grace = licenca.grace_period - dias_offline
+    dias_ate_validacao = (proxima_validacao - agora).days
+    dias_restantes = min(dias_ate_vencimento, dias_ate_grace, dias_ate_validacao)
+
+    logger.info(
+        "[licenca] Validação offline aceita. Dias restantes: %d", dias_restantes
+    )
+    return {"status": "offline_valid", "dias_restantes": dias_restantes}
+
+
+def verificar_licenca_ativa(db: Session) -> dict:
+    """
+    Verifica se a licença da máquina está ativa.
+
+    Fluxo:
+    1. Obtém HWID local.
+    2. Busca licença no banco.
+    3. Testa descriptografia (anti-clonagem).
+    4. Tenta validação online (prioridade).
+    5. Fallback offline se a nuvem estiver inacessível.
+
+    Returns:
+        dict: {"status": "online_valid"} ou {"status": "offline_valid", "dias_restantes": N}
+
+    Raises:
+        HTTPException 403: Com código estruturado em caso de falha.
+    """
+    # 1. Obter HWID
+    try:
+        hwid = obter_hwid()
+    except RuntimeError as e:
+        logger.error("[licenca] Falha ao obter HWID: %s", e)
+        raise _erro_licenca(
+            "CLONAGEM_DETECTADA",
+            "Não foi possível identificar a máquina. Verifique a instalação.",
+        )
+
+    # 2. Buscar licença no banco
+    licenca = licenca_crud.get_licenca(db)
+    if not licenca:
+        raise _erro_licenca(
+            "LICENCA_NAO_ENCONTRADA",
+            "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
+        )
+
+    # 3. Descriptografar campos sensíveis (teste anti-clonagem)
+    try:
+        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
+        session_key = decriptar_valor(licenca.session_key, hwid)
+    except Exception as e:
+        logger.warning("[licenca] Falha na descriptografia — possível clonagem: %s", e)
+        raise _erro_licenca(
+            "CLONAGEM_DETECTADA",
+            "Falha na verificação de integridade. "
+            "O banco de dados pode ter sido copiado de outra máquina.",
+        )
+
+    # 4. Tentar validação online (prioridade)
+    try:
+        return _tentar_conexao_remota(db, licenca, chave_ativacao, hwid)
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        logger.info("[licenca] Nuvem inacessível (%s), iniciando fallback offline.", e)
+    except HTTPException:
+        raise  # Erros 403 da API são repassados
+
+    # 5. Fallback offline
+    return _validar_offline(licenca, session_key)

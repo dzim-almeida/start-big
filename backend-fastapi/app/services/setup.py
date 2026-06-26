@@ -80,7 +80,6 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
 
     licenca_service.registrar_licenca(
         db=db,
-        hwid=setup_data.hwid,
         documento=documento_licenca,
         nome_ou_razao=nome_licenca,
         email=email_licenca,

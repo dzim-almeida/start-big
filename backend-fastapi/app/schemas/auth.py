@@ -103,9 +103,6 @@ class SetupCreate(BaseModel):
     email: str = Field(..., max_length=255, description="Email de login do usuário")
     senha: str = Field(..., min_length=8, max_length=72, description="Senha do usuário")
 
-    # HWID (Licença)
-    hwid: str = Field(..., min_length=1, max_length=255, description="Hardware ID da máquina para licenciamento")
-
     @field_validator('email', 'email_loja', 'email_responsavel', mode='before')
     @classmethod
     def normalizar_email(cls, v: str | None) -> str | None:

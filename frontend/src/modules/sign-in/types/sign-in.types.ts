@@ -148,15 +148,6 @@ export interface SetupRequest {
   nome_usuario: string;
   email: string;
   senha: string;
-  // HWID (Licença)
-  hwid: string;
-}
-
-/**
- * Response do status do sistema
- */
-export interface StatusResponse {
-  inicializado: boolean;
 }
 
 /**

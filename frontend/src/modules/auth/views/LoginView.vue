@@ -4,23 +4,18 @@
  * @description Página de login do sistema Start Big.
  * Apresenta um layout dividido com background decorativo à esquerda
  * e formulário de autenticação à direita.
- * Redireciona automaticamente para /sign-in se o sistema não estiver inicializado.
  */
 
-import { onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted } from 'vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
 
 import { useLogin } from '../composables/useLogin';
-import { useSystemStatusQuery } from '@/modules/sign-in/composables/useSystemStatus';
 
 import backgroundImage from '@/shared/assets/images/login/background.png';
 import logoImage from '@/shared/assets/images/login/start-logo.png';
-
-const router = useRouter();
 
 const {
   loginData,
@@ -32,15 +27,6 @@ const {
   loginSubmit,
   submitCount: loginSubmitCount,
 } = useLogin();
-
-// Auto-redirect para sign-in se sistema não inicializado
-const { data: statusData } = useSystemStatusQuery();
-
-watch(statusData, (status) => {
-  if (status && !status.inicializado) {
-    router.push({ name: 'sign-in' });
-  }
-});
 
 onMounted(() => {
   if (savedEmail.value) {

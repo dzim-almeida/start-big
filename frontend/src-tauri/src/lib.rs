@@ -24,12 +24,6 @@ fn get_backend_port(state: tauri::State<AppState>) -> u16 {
     state.port
 }
 
-#[tauri::command]
-fn get_hwid() -> Result<String, String> {
-    machine_uid::get()
-        .map_err(|e| format!("Falha ao obter HWID da máquina: {}", e))
-}
-
 #[derive(serde::Serialize)]
 struct ImpressoraInfo {
     nome: String,
@@ -307,7 +301,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_backend_port,
-            get_hwid,
             listar_impressoras,
             imprimir_raw,
             imprimir_rede,
@@ -317,34 +310,42 @@ pub fn run() {
             obter_ip_local
         ])
         .setup(move |app| {
-            let sidecar_command = app
-                .shell()
-                .sidecar("erp-api")
-                .expect("Falha ao criar o comando do sidecar FastAPI")
-                .arg(port.to_string());
+            if cfg!(dev) {
+                // Dev mode: FastAPI roda manualmente na porta 8000
+                app.manage(AppState {
+                    process: Mutex::new(None),
+                    port: 8000,
+                });
+            } else {
+                let sidecar_command = app
+                    .shell()
+                    .sidecar("erp-api")
+                    .expect("Falha ao criar o comando do sidecar FastAPI")
+                    .arg(port.to_string());
 
-            let (mut rx, child) = sidecar_command
-                .spawn()
-                .expect("Falha ao inicializar o processo do FastAPI");
+                let (mut rx, child) = sidecar_command
+                    .spawn()
+                    .expect("Falha ao inicializar o processo do FastAPI");
 
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                            println!("FastAPI [LOG]: {}", String::from_utf8_lossy(&line));
+                tauri::async_runtime::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
+                                println!("FastAPI [LOG]: {}", String::from_utf8_lossy(&line));
+                            }
+                            tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
+                                println!("FastAPI [ERR]: {}", String::from_utf8_lossy(&line));
+                            }
+                            _ => {}
                         }
-                        tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                            println!("FastAPI [ERR]: {}", String::from_utf8_lossy(&line));
-                        }
-                        _ => {}
                     }
-                }
-            });
+                });
 
-            app.manage(AppState {
-                process: Mutex::new(Some(child)),
-                port,
-            });
+                app.manage(AppState {
+                    process: Mutex::new(Some(child)),
+                    port,
+                });
+            }
 
             Ok(())
         })
