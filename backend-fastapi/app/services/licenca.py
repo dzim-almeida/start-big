@@ -17,11 +17,16 @@ from fastapi import HTTPException, status
 from jose import jwt, JWTError, JOSEError
 from sqlalchemy.orm import Session
 
+from datetime import timedelta
+
 from app.schemas.licenca import (
     AutoCadastroPayload,
     AutoCadastroResponse,
     ConectarPayload,
+    HeartbeatPayload,
     LicencaEnderecoPayload,
+    ValidarPayload,
+    ValidarResponse,
 )
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
 from app.db.crud import configuracao_licenca as licenca_crud
@@ -31,8 +36,16 @@ logger = logging.getLogger(__name__)
 
 API_AUTO_CADASTRO_URL = "https://api.startbig.com.br/erp/auto-cadastro"
 API_CONECTAR_URL = "https://api.startbig.com.br/licenca/conectar"
+API_HEARTBEAT_URL = "https://api.startbig.com.br/licenca/heartbeat"
+API_VALIDAR_URL = "https://api.startbig.com.br/licenca/validar"
 TIMEOUT_SECONDS = 30
 CONECTAR_TIMEOUT_SECONDS = 3
+HEARTBEAT_TIMEOUT = httpx.Timeout(
+    connect=10.0,   # DNS + TCP + TLS (operação mais lenta)
+    read=5.0,       # Aguardar resposta do servidor
+    write=5.0,      # Enviar payload (pequeno)
+    pool=5.0,       # Aguardar conexão do pool
+)
 MAX_RETRIES = 3
 
 
@@ -327,13 +340,13 @@ def _validar_offline(
     """
     agora = datetime.now(timezone.utc)
 
-    # 1. Validar JWT com a session_key (shared secret HS256)
+    # 1. Validar JWT com a session_key (shared secret RS256)
     try:
         jwt.decode(
             licenca.token,
             session_key,
-            algorithms=["HS256"],
-            options={"verify_exp": True, "verify_aud": False},
+            algorithms=["RS256"],
+            options={"verify_exp": True, "verify_aud": False}
         )
     except (JWTError, JOSEError) as e:
         logger.warning("[licenca] Falha na validação JWT offline: %s", e)
@@ -446,3 +459,141 @@ def verificar_licenca_ativa(db: Session) -> dict:
 
     # 5. Fallback offline
     return _validar_offline(licenca, session_key)
+
+
+# ===========================================================================
+# Heartbeat (Etapa 3 — Sincronização de Estado)
+# ===========================================================================
+
+async def enviar_heartbeat(db: Session) -> None:
+    """
+    Envia heartbeat à API StartBig para sinalizar que a instância está operacional.
+
+    Reage à resposta da API:
+    - 201: Licença OK. Se estava bloqueada, desbloqueia.
+    - 400: Licença bloqueada pelo servidor. Seta flag no banco.
+    - 5xx / erros de rede: Registra em log e ignora (fire-and-forget).
+    """
+    licenca = licenca_crud.get_licenca(db)
+    if not licenca:
+        return
+
+    hwid = obter_hwid()
+    payload = HeartbeatPayload(licencaId=licenca.licenca_id, hwid=hwid)
+
+    try:
+        async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
+            response = await client.post(
+                API_HEARTBEAT_URL,
+                json=payload.model_dump(),
+            )
+
+        if response.status_code == 201:
+            if licenca.bloqueada:
+                licenca.bloqueada = False
+                licenca_crud.update_licenca(db, licenca)
+                db.commit()
+                print("[licenca] Heartbeat: licenca desbloqueada pelo servidor.")
+            else:
+                print("[licenca] Heartbeat: OK (201)")
+            return
+
+        if response.status_code == 400:
+            licenca.bloqueada = True
+            licenca_crud.update_licenca(db, licenca)
+            db.commit()
+            print("[licenca] Heartbeat: licenca BLOQUEADA pelo servidor.")
+            return
+
+        print(
+            f"[licenca] Heartbeat: servidor retornou status inesperado "
+            f"{response.status_code} — {response.text}"
+        )
+
+    except httpx.RequestError as error:
+        print(f"[licenca] Heartbeat falhou — {type(error).__name__}: {error.request.url} — {error}")
+
+
+# ===========================================================================
+# Renovação Ativa de Token (Etapa 4)
+# ===========================================================================
+
+LIMIAR_RENOVACAO = timedelta(hours=24)
+
+
+async def renovar_licenca_background(db: Session) -> None:
+    """
+    Verifica se o token está próximo de expirar e solicita renovação à API central.
+
+    Executa em segundo plano a cada hora. Só faz requisição HTTP se a data atual
+    estiver a menos de 24 horas de proximaValidacaoEm ou já a tiver ultrapassado.
+
+    Idempotente: seguro para correr múltiplas vezes. Falhas de rede são ignoradas
+    silenciosamente para não interromper o loop.
+    """
+    licenca = licenca_crud.get_licenca(db)
+    if not licenca:
+        return
+
+    # Verificar se é necessário renovar
+    agora = datetime.now(timezone.utc)
+    proxima_validacao = licenca.proxima_validacao
+    if proxima_validacao.tzinfo is None:
+        proxima_validacao = proxima_validacao.replace(tzinfo=timezone.utc)
+
+    tempo_restante = proxima_validacao - agora
+    if tempo_restante > LIMIAR_RENOVACAO:
+        return
+
+    # Preparar payload
+    hwid = obter_hwid()
+    payload = ValidarPayload(
+        licencaId=licenca.licenca_id,
+        hwid=hwid,
+        token_atual=licenca.token,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
+            response = await client.post(
+                API_VALIDAR_URL,
+                json=payload.model_dump(),
+            )
+
+        if response.status_code == 200:
+            dados = response.json()
+
+            if not dados.get("valida", False):
+                motivo = dados.get("motivo", "Desconhecido")
+                status_licenca = dados.get("status", "DESCONHECIDO")
+                logger.warning(
+                    "[licenca] Renovação recusada — status=%s, motivo=%s",
+                    status_licenca, motivo,
+                )
+                return
+
+            resposta = ValidarResponse(**dados)
+
+            # Atualizar campos atomicamente
+            licenca.token = resposta.token
+            licenca.proxima_validacao = resposta.proximaValidacaoEm
+            licenca.ultima_sinc = resposta.ultimaSincronizacao
+            licenca.data_vencimento = resposta.dataVencimento
+            licenca.grace_period = resposta.gracePeriodDias
+
+            licenca_crud.update_licenca(db, licenca)
+            db.commit()
+
+            logger.info("[licenca] Token renovado com sucesso. Próxima validação: %s", resposta.proximaValidacaoEm)
+            return
+
+        logger.warning(
+            "[licenca] Renovação: servidor retornou status %d — %s",
+            response.status_code, response.text,
+        )
+
+    except httpx.RequestError as error:
+        logger.warning(
+            "[licenca] Renovação falhou — %s: %s",
+            type(error).__name__, error,
+        )

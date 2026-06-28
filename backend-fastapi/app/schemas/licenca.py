@@ -78,6 +78,12 @@ class LicencaStatusResponse(BaseModel):
     )
 
 
+class HeartbeatPayload(BaseModel):
+    """Payload enviado à API StartBig para heartbeat de licença."""
+    licencaId: str = Field(..., description="ID da licença")
+    hwid: str = Field(..., description="Hardware ID da máquina")
+
+
 class LicencaErroResponse(BaseModel):
     """Corpo do erro HTTP 403 para problemas de licença."""
     codigo: str = Field(
@@ -88,3 +94,33 @@ class LicencaErroResponse(BaseModel):
         ),
     )
     mensagem: str = Field(..., description="Mensagem descritiva do erro")
+
+
+# ===========================================================================
+# Renovação Ativa de Token (Etapa 4)
+# ===========================================================================
+
+class ValidarPayload(BaseModel):
+    """Payload enviado à API StartBig para renovação ativa do token."""
+    licencaId: str = Field(..., description="UUID da licença")
+    hwid: str = Field(..., description="Hardware ID da máquina")
+    token_atual: str = Field(..., description="JWT atual (texto plano)")
+
+
+class ValidarResponse(BaseModel):
+    """Resposta de sucesso da API StartBig ao validar/renovar o token."""
+    valida: bool = Field(..., description="True se a licença é válida")
+    licencaId: str = Field(..., description="UUID da licença")
+    status: str = Field(..., description="Status da licença (ex: ATIVA)")
+    dataVencimento: datetime = Field(..., description="Data de vencimento da licença")
+    token: str = Field(..., description="Novo token JWT renovado")
+    ultimaSincronizacao: datetime = Field(..., description="Timestamp da sincronização")
+    gracePeriodDias: int = Field(..., description="Dias de período de carência offline")
+    proximaValidacaoEm: datetime = Field(..., description="Data da próxima validação obrigatória")
+
+
+class ValidarErroResponse(BaseModel):
+    """Resposta de erro da API StartBig ao validar/renovar o token."""
+    valida: bool = Field(False, description="Sempre False para erros")
+    motivo: str = Field(..., description="Motivo da recusa (ex: Licença vencida)")
+    status: str = Field(..., description="Status da licença (VENCIDA, BLOQUEADA, SUSPENSA, REVOGADA)")

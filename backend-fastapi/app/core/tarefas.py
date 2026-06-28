@@ -8,10 +8,13 @@ from sqlalchemy import text
 from app.db.session import SessionLocal, engine
 from app.db.base import Base
 from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados
+from app.services.licenca import enviar_heartbeat, renovar_licenca_background
 
 logger = logging.getLogger(__name__)
 
 INTERVALO_LIMPEZA_HORAS = 6
+INTERVALO_HEARTBEAT_SEGUNDOS = 100  # 5 minutos
+INTERVALO_RENOVACAO_SEGUNDOS = 3600  # 1 hora
 
 
 async def _loop_limpeza_temporal():
@@ -30,6 +33,37 @@ async def _loop_limpeza_temporal():
         await asyncio.sleep(INTERVALO_LIMPEZA_HORAS * 3600)
 
 
+async def _loop_heartbeat_licenca():
+    """Loop em segundo plano que envia heartbeat à API StartBig periodicamente."""
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                await enviar_heartbeat(db)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[licenca] Erro no heartbeat de licenca: {type(e).__name__}: {e}")
+
+        print(f"[licenca] Proximo heartbeat em {INTERVALO_HEARTBEAT_SEGUNDOS}s...")
+        await asyncio.sleep(INTERVALO_HEARTBEAT_SEGUNDOS)
+
+
+async def _loop_renovacao_licenca():
+    """Loop em segundo plano que renova o token de licença proativamente."""
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                await renovar_licenca_background(db)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[licenca] Erro na renovação de licença: {type(e).__name__}: {e}")
+
+        await asyncio.sleep(INTERVALO_RENOVACAO_SEGUNDOS)
+
+
 def _aplicar_migracoes():
     """Aplica colunas novas que ainda não existem no banco (safe migrations)."""
     migracoes = [
@@ -37,6 +71,7 @@ def _aplicar_migracoes():
         ("vendas", "observacao_interna", "ALTER TABLE vendas ADD COLUMN observacao_interna VARCHAR(500)"),
         ("vendas", "numero_venda", "ALTER TABLE vendas ADD COLUMN numero_venda INTEGER"),
         ("vendas", "motivo_cancelamento", "ALTER TABLE vendas ADD COLUMN motivo_cancelamento VARCHAR(500)"),
+        ("configuracoes_licenca", "bloqueada", "ALTER TABLE configuracoes_licenca ADD COLUMN bloqueada BOOLEAN NOT NULL DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for tabela, coluna, sql in migracoes:
@@ -148,13 +183,22 @@ async def lifespan(app: FastAPI):
     
     _aplicar_migracoes()
     logger.info("Iniciando tarefa de limpeza automatica temporal...")
-    tarefa = asyncio.create_task(_loop_limpeza_temporal())
+    tarefa_limpeza = asyncio.create_task(_loop_limpeza_temporal())
+
+    logger.info("Iniciando tarefa de heartbeat de licenca...")
+    tarefa_heartbeat = asyncio.create_task(_loop_heartbeat_licenca())
+
+    logger.info("Iniciando tarefa de renovação de licença...")
+    tarefa_renovacao = asyncio.create_task(_loop_renovacao_licenca())
 
     yield
 
-    logger.info("Encerrando tarefa de limpeza automatica temporal...")
-    tarefa.cancel()
-    try:
-        await tarefa
-    except asyncio.CancelledError:
-        pass
+    logger.info("Encerrando tarefas em segundo plano...")
+    tarefa_limpeza.cancel()
+    tarefa_heartbeat.cancel()
+    tarefa_renovacao.cancel()
+    for tarefa in (tarefa_limpeza, tarefa_heartbeat, tarefa_renovacao):
+        try:
+            await tarefa
+        except asyncio.CancelledError:
+            pass

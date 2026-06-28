@@ -45,6 +45,18 @@ api.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const { status } = error.response;
 
+      // Licença bloqueada remotamente — redireciona para tela de erro
+      if (status === 403) {
+        const detail = error.response?.data?.detail;
+        if (detail?.codigo === 'LICENCA_BLOQUEADA') {
+          router.replace({
+            name: 'licenca.erro',
+            query: { codigo: detail.codigo, mensagem: detail.mensagem },
+          });
+          return Promise.reject(error);
+        }
+      }
+
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
         const hadToken = !!localStorage.getItem(TOKEN_KEY);

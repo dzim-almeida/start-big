@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime, timezone
-from sqlalchemy import Integer, String, DateTime, Text, func
+from sqlalchemy import Boolean, Integer, String, DateTime, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -71,6 +71,12 @@ class ConfiguracaoLicenca(Base):
     proxima_validacao: Mapped[datetime] = mapped_column(
         DateTime, nullable=False,
         doc="Data da próxima validação obrigatória"
+    )
+
+    # --- Controle de bloqueio remoto ---
+    bloqueada: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False,
+        doc="Flag de bloqueio remoto via heartbeat"
     )
 
     # --- Metadados ---

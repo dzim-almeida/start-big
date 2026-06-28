@@ -34,6 +34,8 @@ const titulo = computed(() => {
       return 'Licença Não Encontrada';
     case 'LICENCA_RECUSADA':
       return 'Licença Recusada';
+    case 'LICENCA_BLOQUEADA':
+      return 'Licença Bloqueada';
     default:
       return 'Erro de Licença';
   }
@@ -49,6 +51,8 @@ const icone = computed(() => {
       return '⏰';
     case 'LICENCA_NAO_ENCONTRADA':
       return '🔍';
+    case 'LICENCA_BLOQUEADA':
+      return '🚫';
     default:
       return '⚠️';
   }
