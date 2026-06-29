@@ -39,13 +39,18 @@ class AutoCadastroResponse(BaseModel):
     clienteId: Optional[str] = Field(None, description="ID do cliente (se sucesso)")
     licencaId: str = Field(..., description="ID da licença gerada")
     chaveAtivacao: Optional[str] = Field(None, description="Chave de ativação (se sucesso)")
-    sessionKey: str = Field(..., description="Chave de sessão para validação futura")
+    sessionKey: Optional[str] = Field(None, description="Chave de sessão (deprecada, mantida por retrocompatibilidade)")
     limite: int = Field(..., description="Limite de uso da licença")
     dataVencimento: datetime = Field(..., description="Data de vencimento da licença")
     token: str = Field(..., description="Token de autenticação para futuras requisições")
     ultimaSincronizacao: datetime = Field(..., description="Data da última sincronização com a API")
     gracePeriodDias: int = Field(..., description="Dias de período de carência após vencimento")
     proximaValidacaoEm: datetime = Field(..., description="Data da próxima validação obrigatória da licença")
+
+
+class ChavePublicaResponse(BaseModel):
+    """Resposta do GET /licenca/chave-publica da API StartBig."""
+    publicKey: str = Field(..., description="Chave pública RSA em formato PEM")
 
 
 class LicencaRead(BaseModel):
@@ -90,7 +95,7 @@ class LicencaErroResponse(BaseModel):
         ...,
         description=(
             "CLONAGEM_DETECTADA | REQUISITA_CONEXAO_INTERNET | "
-            "LICENCA_EXPIRADA | LICENCA_NAO_ENCONTRADA"
+            "LICENCA_EXPIRADA | LICENCA_NAO_ENCONTRADA | CHAVE_CORROMPIDA"
         ),
     )
     mensagem: str = Field(..., description="Mensagem descritiva do erro")
@@ -102,9 +107,8 @@ class LicencaErroResponse(BaseModel):
 
 class ValidarPayload(BaseModel):
     """Payload enviado à API StartBig para renovação ativa do token."""
-    licencaId: str = Field(..., description="UUID da licença")
+    chave: str = Field(..., description="UUID da licença")
     hwid: str = Field(..., description="Hardware ID da máquina")
-    token_atual: str = Field(..., description="JWT atual (texto plano)")
 
 
 class ValidarResponse(BaseModel):
@@ -124,3 +128,13 @@ class ValidarErroResponse(BaseModel):
     valida: bool = Field(False, description="Sempre False para erros")
     motivo: str = Field(..., description="Motivo da recusa (ex: Licença vencida)")
     status: str = Field(..., description="Status da licença (VENCIDA, BLOQUEADA, SUSPENSA, REVOGADA)")
+
+
+# ===========================================================================
+# Desconexão de Sessão (Etapa 5)
+# ===========================================================================
+
+class DesconectarPayload(BaseModel):
+    """Payload enviado à API StartBig para desconectar a sessão da licença."""
+    chave: str = Field(..., description="Chave de ativação (descriptografada)")
+    hwid: str = Field(..., description="Hardware ID da máquina")

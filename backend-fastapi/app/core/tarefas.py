@@ -72,6 +72,7 @@ def _aplicar_migracoes():
         ("vendas", "numero_venda", "ALTER TABLE vendas ADD COLUMN numero_venda INTEGER"),
         ("vendas", "motivo_cancelamento", "ALTER TABLE vendas ADD COLUMN motivo_cancelamento VARCHAR(500)"),
         ("configuracoes_licenca", "bloqueada", "ALTER TABLE configuracoes_licenca ADD COLUMN bloqueada BOOLEAN NOT NULL DEFAULT 0"),
+        ("configuracoes_licenca", "public_key", "ALTER TABLE configuracoes_licenca ADD COLUMN public_key TEXT"),
     ]
     with engine.connect() as conn:
         for tabela, coluna, sql in migracoes:

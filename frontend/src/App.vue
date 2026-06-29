@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { TOKEN_KEY } from '@/api/axios';
+import { getDesconectarUrl } from '@/shared/services/licenca.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
 
 const router = useRouter();
@@ -12,6 +13,9 @@ const authStore = useAuthStore();
 const { isLoading } = storeToRefs(authStore);
 
 function handleBeforeUnload() {
+  // Dispara desconexão da licença via sendBeacon (fire-and-forget).
+  // sendBeacon sobrevive ao unload — garante envio mesmo durante fecho da janela.
+  navigator.sendBeacon(getDesconectarUrl());
   localStorage.removeItem(TOKEN_KEY);
 }
 

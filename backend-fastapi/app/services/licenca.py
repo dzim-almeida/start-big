@@ -12,6 +12,7 @@ import os
 from datetime import datetime, timezone
 
 import httpx
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import HTTPException, status
 from jose import jwt, JWTError, JOSEError
@@ -22,7 +23,9 @@ from datetime import timedelta
 from app.schemas.licenca import (
     AutoCadastroPayload,
     AutoCadastroResponse,
+    ChavePublicaResponse,
     ConectarPayload,
+    DesconectarPayload,
     HeartbeatPayload,
     LicencaEnderecoPayload,
     ValidarPayload,
@@ -38,6 +41,8 @@ API_AUTO_CADASTRO_URL = "https://api.startbig.com.br/erp/auto-cadastro"
 API_CONECTAR_URL = "https://api.startbig.com.br/licenca/conectar"
 API_HEARTBEAT_URL = "https://api.startbig.com.br/licenca/heartbeat"
 API_VALIDAR_URL = "https://api.startbig.com.br/licenca/validar"
+API_DESCONECTAR_URL = "https://api.startbig.com.br/licenca/desconectar"
+API_CHAVE_PUBLICA_URL = "https://api.startbig.com.br/licenca/chave-publica"
 TIMEOUT_SECONDS = 30
 CONECTAR_TIMEOUT_SECONDS = 3
 HEARTBEAT_TIMEOUT = httpx.Timeout(
@@ -46,6 +51,7 @@ HEARTBEAT_TIMEOUT = httpx.Timeout(
     write=5.0,      # Enviar payload (pequeno)
     pool=5.0,       # Aguardar conexão do pool
 )
+DESCONECTAR_TIMEOUT = httpx.Timeout(connect=1.0, read=0.5, write=0.5, pool=0.5)
 MAX_RETRIES = 3
 
 
@@ -163,6 +169,68 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
 
 
 # ===========================================================================
+# Resgate de Chave Pública (Endpoint 7)
+# ===========================================================================
+
+def _buscar_chave_publica_online() -> str:
+    """
+    Faz GET ao endpoint público da StartBig para obter a chave pública RSA PEM.
+
+    Returns:
+        str: Chave pública RSA em formato PEM.
+
+    Raises:
+        httpx.ConnectError / httpx.TimeoutException: Se offline.
+        HTTPException 503: Se o servidor retornar erro.
+    """
+    with httpx.Client(timeout=CONECTAR_TIMEOUT_SECONDS) as client:
+        response = client.get(API_CHAVE_PUBLICA_URL)
+
+    if 200 <= response.status_code < 300:
+        dados = ChavePublicaResponse(**response.json())
+        return dados.publicKey
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"Falha ao obter chave pública: servidor retornou status {response.status_code}",
+    )
+
+
+def resgatar_chave_publica_online(
+    db: Session,
+    hwid: str,
+    licenca_id: str,
+) -> str:
+    """
+    Resgata a chave pública RSA da nuvem, encripta-a com o HWID
+    e persiste na coluna public_key com commit independente.
+
+    Args:
+        db: Sessão do banco de dados.
+        hwid: Hardware ID da máquina.
+        licenca_id: UUID da licença.
+
+    Returns:
+        str: Chave pública PEM em texto limpo (para uso imediato em memória).
+
+    Raises:
+        httpx.ConnectError / httpx.TimeoutException: Se offline.
+        HTTPException: Se o servidor retornar erro.
+    """
+    public_key_pem = _buscar_chave_publica_online()
+
+    # Encriptar e persistir com commit independente
+    licenca = licenca_crud.get_licenca(db)
+    if licenca:
+        licenca.public_key = encriptar_valor(public_key_pem, hwid)
+        licenca_crud.update_licenca(db, licenca)
+        db.commit()
+        logger.info("[licenca] Chave pública resgatada e persistida com sucesso.")
+
+    return public_key_pem
+
+
+# ===========================================================================
 # Orquestração Principal
 # ===========================================================================
 
@@ -222,17 +290,20 @@ def registrar_licenca(
 
     resposta = _chamar_api_auto_cadastro(payload)
 
-    # 3. Encriptar campos sensíveis
-    chave_ativacao_enc = encriptar_valor(resposta.chaveAtivacao, hwid)
-    session_key_enc = encriptar_valor(resposta.sessionKey, hwid)
+    # 3. Buscar chave pública RSA da plataforma StartBig
+    public_key_pem = _buscar_chave_publica_online()
 
-    # 4. Criar registro no banco
+    # 4. Encriptar campos sensíveis
+    chave_ativacao_enc = encriptar_valor(resposta.chaveAtivacao, hwid)
+    public_key_enc = encriptar_valor(public_key_pem, hwid)
+
+    # 5. Criar registro no banco
     licenca = ConfiguracaoLicenca(
         cliente_id=resposta.clienteId,
         hwid=hwid,
         licenca_id=resposta.licencaId,
         chave_ativacao=chave_ativacao_enc,
-        session_key=session_key_enc,
+        public_key=public_key_enc,
         limite=resposta.limite,
         data_vencimento=resposta.dataVencimento,
         token=resposta.token,
@@ -298,9 +369,6 @@ def _tentar_conexao_remota(
         licenca.limite = resposta.limite
         licenca.grace_period = resposta.gracePeriodDias
 
-        # Re-encriptar session_key e chave_ativacao caso tenham mudado
-        licenca.session_key = encriptar_valor(resposta.sessionKey, hwid)
-
         licenca_crud.update_licenca(db, licenca)
         db.commit()
 
@@ -323,14 +391,14 @@ def _tentar_conexao_remota(
 
 def _validar_offline(
     licenca: ConfiguracaoLicenca,
-    session_key: str,
+    public_key: str,
 ) -> dict:
     """
     Validação offline usando JWT RS256 e regras de grace period.
 
     Args:
         licenca: Registro da licença no banco.
-        session_key: Session key descriptografada (chave pública RS256).
+        public_key: Chave pública RSA PEM descriptografada.
 
     Returns:
         dict com status e dias_restantes.
@@ -340,11 +408,11 @@ def _validar_offline(
     """
     agora = datetime.now(timezone.utc)
 
-    # 1. Validar JWT com a session_key (shared secret RS256)
+    # 1. Validar JWT com a chave pública RSA
     try:
         jwt.decode(
             licenca.token,
-            session_key,
+            public_key,
             algorithms=["RS256"],
             options={"verify_exp": True, "verify_aud": False}
         )
@@ -437,10 +505,9 @@ def verificar_licenca_ativa(db: Session) -> dict:
             "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
         )
 
-    # 3. Descriptografar campos sensíveis (teste anti-clonagem)
+    # 3. Descriptografar chave de ativação (teste anti-clonagem)
     try:
         chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
-        session_key = decriptar_valor(licenca.session_key, hwid)
     except Exception as e:
         logger.warning("[licenca] Falha na descriptografia — possível clonagem: %s", e)
         raise _erro_licenca(
@@ -457,8 +524,25 @@ def verificar_licenca_ativa(db: Session) -> dict:
     except HTTPException:
         raise  # Erros 403 da API são repassados
 
-    # 5. Fallback offline
-    return _validar_offline(licenca, session_key)
+    # 5. Desencriptar chave pública com resiliência
+    public_key = None
+    try:
+        if licenca.public_key:
+            public_key = decriptar_valor(licenca.public_key, hwid)
+    except (InvalidTag, Exception) as e:
+        logger.warning("[licenca] public_key corrompida, tentando resgate online: %s", e)
+
+    if not public_key:
+        try:
+            public_key = resgatar_chave_publica_online(db, hwid, licenca.licenca_id)
+        except Exception:
+            raise _erro_licenca(
+                "CHAVE_CORROMPIDA",
+                "Chave de segurança corrompida. Necessária ligação à internet para recuperação.",
+            )
+
+    # 6. Fallback offline
+    return _validar_offline(licenca, public_key)
 
 
 # ===========================================================================
@@ -547,10 +631,10 @@ async def renovar_licenca_background(db: Session) -> None:
 
     # Preparar payload
     hwid = obter_hwid()
+    chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
     payload = ValidarPayload(
-        licencaId=licenca.licenca_id,
+        chave=chave_ativacao,
         hwid=hwid,
-        token_atual=licenca.token,
     )
 
     try:
@@ -560,7 +644,7 @@ async def renovar_licenca_background(db: Session) -> None:
                 json=payload.model_dump(),
             )
 
-        if response.status_code == 200:
+        if response.status_code == 201:
             dados = response.json()
 
             if not dados.get("valida", False):
@@ -597,3 +681,44 @@ async def renovar_licenca_background(db: Session) -> None:
             "[licenca] Renovação falhou — %s: %s",
             type(error).__name__, error,
         )
+
+
+# ===========================================================================
+# Desconexão de Sessão (Etapa 5)
+# ===========================================================================
+
+async def desconectar_licenca(db: Session) -> dict:
+    """
+    Liberta a sessão da licença na API StartBig.
+
+    Chamado no encerramento da aplicação ou logout do utilizador.
+    Nunca levanta exceção — falhas são apenas registadas em log
+    para não bloquear o fluxo de fecho.
+
+    Returns:
+        dict: {"ok": True} sempre.
+    """
+    try:
+        licenca = licenca_crud.get_licenca(db)
+        if not licenca:
+            return {"ok": True}
+
+        hwid = obter_hwid()
+        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
+        payload = DesconectarPayload(chave=chave_ativacao, hwid=hwid)
+
+        async with httpx.AsyncClient(timeout=DESCONECTAR_TIMEOUT) as client:
+            response = await client.post(
+                API_DESCONECTAR_URL,
+                json=payload.model_dump(),
+            )
+
+        logger.info(
+            "[licenca] Desconexão: servidor retornou status %d",
+            response.status_code,
+        )
+
+    except Exception as e:
+        logger.warning("[licenca] Desconexão falhou — %s: %s", type(e).__name__, e)
+
+    return {"ok": True}

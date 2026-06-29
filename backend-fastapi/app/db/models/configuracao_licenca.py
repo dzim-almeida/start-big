@@ -40,9 +40,9 @@ class ConfiguracaoLicenca(Base):
         Text, nullable=False,
         doc="Chave de ativação (AES-256-GCM encrypted)"
     )
-    session_key: Mapped[str] = mapped_column(
-        Text, nullable=False,
-        doc="Session key (AES-256-GCM encrypted)"
+    public_key: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        doc="Chave pública RSA PEM (AES-256-GCM encrypted com HWID)"
     )
 
     # --- Limites e validade ---

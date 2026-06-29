@@ -44,3 +44,18 @@ def verificar_status_licenca(db: Session = Depends(get_db)):
     - **403**: Licença inválida com código de erro estruturado.
     """
     return licenca_service.verificar_licenca_ativa(db)
+
+
+@router.post(
+    "/desconectar",
+    status_code=status.HTTP_200_OK,
+    summary="Desconecta a sessão da licença na API StartBig",
+)
+async def desconectar_licenca(db: Session = Depends(get_db)):
+    """
+    Endpoint público chamado no encerramento da aplicação ou logout.
+    Liberta a sessão da licença na plataforma StartBig.
+
+    Sempre retorna 200 — falhas de rede são tratadas internamente.
+    """
+    return await licenca_service.desconectar_licenca(db)
