@@ -17,6 +17,7 @@ from app.core.security import create_access_token
 
 from app.services import usuario as usuario_service
 from app.services import endereco as endereco_service
+from app.services import licenca as licenca_service
 from app.db.crud import usuario as usuario_crud
 from app.db.crud import cargo as cargo_crud
 from app.db.crud import empresa as empresa_crud
@@ -58,6 +59,33 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
             detail="O sistema já foi inicializado. Setup bloqueado."
         )
 
+    # 1.5 Registrar Licença (ANTES de criar entidades locais — garante atomicidade)
+    is_pj = setup_data.tipo_pessoa == "PJ"
+
+    endereco_licenca = {}
+    if setup_data.endereco and len(setup_data.endereco) > 0:
+        end = setup_data.endereco[0]
+        endereco_licenca = {
+            "cep": end.cep,
+            "logradouro": end.logradouro,
+            "numero": end.numero,
+            "bairro": end.bairro,
+            "cidade": end.cidade,
+            "estado": end.estado.value if hasattr(end.estado, "value") else str(end.estado),
+        }
+
+    documento_licenca = setup_data.cnpj if is_pj else (setup_data.cpf or "")
+    nome_licenca = setup_data.razao_social if is_pj else setup_data.nome_responsavel
+    email_licenca = setup_data.email_responsavel or setup_data.email
+
+    licenca_service.registrar_licenca(
+        db=db,
+        documento=documento_licenca,
+        nome_ou_razao=nome_licenca,
+        email=email_licenca,
+        endereco_data=endereco_licenca,
+    )
+
     # 2. Criar Usuario Master
     usuario_create = UsuarioCreate(
         nome=setup_data.nome_usuario,
@@ -81,8 +109,7 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
             detail="O sistema já foi inicializado. Setup bloqueado."
         )
 
-    # 3. Criar Empresa
-    is_pj = setup_data.tipo_pessoa == "PJ"
+    # 3. Criar Empresa (is_pj já definido no passo 1.5)
     empresa_to_db = EmpresaModel(
         razao_social=setup_data.razao_social if is_pj else None,
         nome_fantasia=setup_data.nome_loja,

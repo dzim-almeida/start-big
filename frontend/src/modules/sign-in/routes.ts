@@ -4,7 +4,7 @@
  */
 
 import type { RouteRecordRaw } from 'vue-router';
-import { checkSystemStatus } from './services/sign-in.service';
+import { verificarLicenca } from '@/shared/services/licenca.service';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -13,15 +13,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./views/SignInView.vue'),
     meta: {
       requiresAuth: false,
+      skipLicenseCheck: true,
     },
     beforeEnter: async () => {
       try {
-        const status = await checkSystemStatus();
-        if (status.inicializado) {
-          return { name: 'auth.user' };
-        }
+        await verificarLicenca();
+        // Licença válida = sistema já inicializado → redirecionar para login
+        return { name: 'auth.user' };
       } catch {
-        // Se a API falhar, permite acesso (melhor errar permitindo setup)
+        // 404/403/erro de rede → sistema não inicializado → permitir setup
       }
     },
   },

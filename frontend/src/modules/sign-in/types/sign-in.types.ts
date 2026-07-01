@@ -151,13 +151,6 @@ export interface SetupRequest {
 }
 
 /**
- * Response do status do sistema
- */
-export interface StatusResponse {
-  inicializado: boolean;
-}
-
-/**
  * Response da API ViaCEP
  */
 export interface ViaCepResponse {

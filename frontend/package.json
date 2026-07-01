@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "backend-dev": "cd ../backend-fastapi && .\\.venv\\Scripts\\activate && fastapi dev app/main.py",
+    "dev": "concurrently \"vite\" \"cd ../backend-fastapi && python -m fastapi dev run.py\"",
     "build": "vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",

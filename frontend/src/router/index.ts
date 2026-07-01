@@ -1,9 +1,10 @@
-// import { useAuthStore } from '@/shared/store/auth.store';
 import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { verificarLicenca } from '@/shared/services/licenca.service';
 import { storeToRefs } from 'pinia';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { watch } from 'vue';
+import axios from 'axios';
 
 const modules = import.meta.glob('@/modules/**/routes.ts', { eager: true });
 
@@ -18,35 +19,75 @@ const router = createRouter({
   routes,
 });
 
+// ---------------------------------------------------------------------------
+// Controle de verificação de licença (throttle de 5 minutos)
+// ---------------------------------------------------------------------------
+let ultimaVerificacaoLicenca = 0;
+const INTERVALO_VERIFICACAO_MS = 5 * 60 * 1000; // 5 minutos
+
 router.beforeEach(async (to) => {
+  // -----------------------------------------------------------------------
+  // ETAPA 1: Verificação de Licença (antes de qualquer auth check)
+  // -----------------------------------------------------------------------
+  if (!to.meta.skipLicenseCheck) {
+    const agora = Date.now();
+
+    if (agora - ultimaVerificacaoLicenca >= INTERVALO_VERIFICACAO_MS) {
+      try {
+        await verificarLicenca();
+        ultimaVerificacaoLicenca = agora;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+          const status = error.response.status;
+
+          if (status === 403) {
+            const detail = error.response.data?.detail || error.response.data || {};
+            const codigo = detail.codigo || 'ERRO_DESCONHECIDO';
+            const mensagem = detail.mensagem || 'Erro na verificação da licença.';
+
+            return {
+              name: 'licenca.erro',
+              query: { codigo, mensagem },
+            };
+          }
+
+          // 404 = sem licença = sistema não inicializado → sign-in
+          if (status === 404) {
+            return { name: 'sign-in' };
+          }
+        }
+        // Erro de rede (backend não pronto) — permitir navegação
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // ETAPA 2: Verificação de Autenticação
+  // -----------------------------------------------------------------------
   const authStore = useAuthStore();
   const { isAuthenticated, isLoading } = storeToRefs(authStore);
 
-  // 1. Se a rota precisa de autenticação
   if (to.meta.requiresAuth) {
-    
-    // 2. Se a store ainda está carregando, PAUSA o router
+    // Se a store ainda está carregando, PAUSA o router
     if (isLoading.value) {
       await new Promise<void>((resolve) => {
-        // Observa a variável isLoading. Quando virar false, resolve a promessa.
         const unwatch = watch(isLoading, (loading) => {
           if (!loading) {
-            unwatch(); // Para de observar para evitar memory leaks
+            unwatch();
             resolve();
           }
         });
       });
     }
 
-    // 3. Agora que o carregamento terminou (ou nem começou), verifica se logou
+    // Verifica se está autenticado
     if (!isAuthenticated.value) {
-      return ({
+      return {
         name: 'auth.user',
         query: { redirect: to.fullPath },
-      });
+      };
     }
   }
-
 });
 
 router.afterEach((to) => {

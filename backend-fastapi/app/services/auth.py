@@ -12,6 +12,7 @@ from app.schemas.auth import UsuarioLogin
 from app.core.security import verify_password, create_access_token
 from app.services import usuario as usuario_service
 from app.db.crud import token as token_crud
+from app.db.crud import usuario as usuario_crud
 from app.db.models.token import TokenBlocklist
 
 # ---------------------------------------------------------------------------
@@ -84,3 +85,17 @@ def logout_service(db: Session, token: Dict[str, Any]) -> None:
         
         # Persiste a revogação (o CRUD deve fazer o flush/commit)
         token_crud.create_revoke_token(db, revoke_token)
+
+
+def verificar_sistema_inicializado(db: Session) -> bool:
+    """
+    Verifica se o sistema foi inicializado checando a existência de um usuário Master.
+
+    Args:
+        db (Session): Sessão do banco de dados.
+
+    Returns:
+        bool: True se o sistema foi inicializado, False caso contrário.
+    """
+    master = usuario_crud.get_usuario_master(db)
+    return master is not None
