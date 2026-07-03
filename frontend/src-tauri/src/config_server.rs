@@ -1,0 +1,114 @@
+use std::net::TcpListener;
+use std::fs;
+use serde::{Deserialize, Serialize};
+use tauri::Manager;
+use tauri::AppHandle;
+
+pub fn get_free_port() -> u16 {
+    TcpListener::bind("0.0.0.0:0")
+        .expect("Falha ao busca uma porta livre no sistema")
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+fn is_port_available(port: u16) -> bool {
+    TcpListener::bind(("0.0.0.0", port)).is_ok()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppConfig {
+    pub is_server: bool,
+    pub server_ip: String,
+    pub server_port: u16,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        AppConfig {
+            is_server: false,
+            server_ip: "0.0.0.0".to_string(),
+            server_port: 8080,
+        }
+    }
+}
+
+fn get_config_path(app: &AppHandle) -> std::path::PathBuf {
+    let mut path = app.path().app_data_dir().expect("Não foi possível encontrar AppData");
+    path.push("StartBigERP");
+    fs::create_dir_all(&path).unwrap();
+    path.push("system-config.json");
+    path
+}
+
+pub fn load_config(app: &AppHandle) -> AppConfig {
+    let path = get_config_path(app);
+    println!("Server Config File: {}", path.display());
+    
+    if path.exists() {
+        let content = fs::read_to_string(&path).unwrap();
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        let default = AppConfig::default();
+        let json = serde_json::to_string_pretty(&default).unwrap();
+        fs::write(&path, json).unwrap();
+        default
+    }
+} 
+
+#[tauri::command]
+pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppConfig, String> {
+    let mut config = load_config(&app);
+    config.is_server = true;
+    config.server_ip = "0.0.0.0".to_string();
+
+    let setted_port = match custom_port {
+        Some(port) => {
+            if is_port_available(port) { port }
+            else { return Err(format!("Porta {} já está em uso. Por favor, escolha outra porta.", port)); }
+        },
+        None => {
+            let fallbacks: [u16; 4] = [8080, 8081, 8082, 8083];
+            match fallbacks.iter().find(|&&port| is_port_available(port)) {
+                Some(oppend_port) => *oppend_port,
+                None => get_free_port(),
+            }
+        } 
+    };
+
+    config.server_port = setted_port;
+    
+    let path = get_config_path(&app);
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    crate::backend::setup_sidecar(&app, &config.server_ip, config.server_port)
+        .map_err(|e| e.to_string())?;
+    
+    Ok(config)
+}
+
+#[tauri::command]
+pub fn set_role_client(app: AppHandle, server_ip: String, server_port: u16) -> Result<AppConfig, String> {
+    let mut config = AppConfig::default();
+    config.is_server = false;
+    config.server_ip = server_ip;
+    config.server_port = server_port;
+
+    let path = get_config_path(&app);
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| e.to_string())?;
+    
+    Ok(config)
+}
+
+#[tauri::command]
+pub fn get_api_url(app: AppHandle) -> String {
+    let config = load_config(&app);
+
+    if config.is_server {
+        return format!("http://127.0.0.1:{}/api", config.server_port);
+    }
+
+    format!("http://{}:{}/api", config.server_ip, config.server_port)
+}
