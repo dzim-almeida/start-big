@@ -8,6 +8,9 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "fs:allow-app-read",
+    "fs:allow-app-write",
+    "fs:allow-exists",
     "shell:default",
     {
       "identifier": "shell:allow-execute",

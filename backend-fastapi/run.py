@@ -15,11 +15,13 @@ else:
     print("[INFO] Rodando o Backend em modo Desenvolvimento (Código Aberto)...")
     
 if __name__ == "__main__":
+    ip_address = "0.0.0.0"
     port = 8000
     
-    if len(sys.argv) > 1 and sys.argv[1].isdigit():
-        port = int(sys.argv[1])
+    if len(sys.argv) > 2:
+       ip_address = sys.argv[1]
+       port = int(sys.argv[2])
         
-    print(f"[INFO] Iniciando o servidor FastAPI na porta {port}...")
+    print(f"[INFO] Iniciando o servidor FastAPI no ip {ip_address} na porta {port}...")
     
-    uvicorn.run(app, host="127.0.0.1", port=port, reload=False)
+    uvicorn.run(app, host=ip_address, port=port, reload=False)

@@ -1,54 +1,74 @@
 /**
  * @fileoverview Gerenciamento centralizado da URL do backend.
- * A porta é obtida dinamicamente do Tauri em modo desktop,
- * com fallback para porta 8000 em modo desenvolvimento (browser).
+ * A URL é obtida dinamicamente do Tauri via get_api_url(),
+ * com fallback para localhost:8000 em modo desenvolvimento (browser).
  */
 
-let _backendBaseUrl = '';
-let _apiBaseUrl = '';
-let _initialized = false;
+import { getApiUrl, tauriDisponivel } from '@/shared/services/system/tauriConfig.service'
 
-function isTauri(): boolean {
-  return !!(window as any).__TAURI_INTERNALS__;
-}
+let _backendBaseUrl = ''
+let _backendApiUrl = ''
+let _apiBaseUrl = ''
+let _initialized = false
 
 /**
  * Inicializa as URLs do backend. Deve ser chamado UMA VEZ
  * antes de montar o app Vue.
  */
 export async function initBackendUrl(): Promise<void> {
-  if (_initialized) return;
+  if (_initialized) return
 
-  let port = 8000;
-
-  if (isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    port = await invoke<number>('get_backend_port');
+  if (tauriDisponivel()) {
+    _backendApiUrl = await getApiUrl() // ex: http://127.0.0.1:8080/api
+  } else {
+    _backendApiUrl = 'http://127.0.0.1:8000/api'
   }
 
-  _backendBaseUrl = `http://127.0.0.1:${port}`;
-  _apiBaseUrl = `${_backendBaseUrl}/api/v1`;
-  _initialized = true;
+  _backendBaseUrl = _backendApiUrl.replace(/\/api$/, '') // ex: http://127.0.0.1:8080
+  _apiBaseUrl = `${_backendApiUrl}/v1` // ex: http://127.0.0.1:8080/api/v1
+  _initialized = true
 }
 
 /**
- * Retorna a URL base do backend (ex: http://127.0.0.1:54321)
+ * Re-inicializa as URLs após troca de configuração (server/client).
+ */
+export async function reinitBackendUrl(): Promise<void> {
+  _initialized = false
+  await initBackendUrl()
+}
+
+/**
+ * Retorna a URL base do backend (ex: http://127.0.0.1:8080)
+ * Usada para acessar arquivos estáticos e imagens.
  */
 export function getBackendBaseUrl(): string {
   if (!_initialized) {
-    console.warn('[backendUrl] acessado antes da inicialização, usando fallback');
-    return 'http://127.0.0.1:8000';
+    console.warn('[backendUrl] acessado antes da inicialização, usando fallback')
+    return 'http://127.0.0.1:8000'
   }
-  return _backendBaseUrl;
+  return _backendBaseUrl
 }
 
 /**
- * Retorna a URL base da API (ex: http://127.0.0.1:54321/api/v1)
+ * Retorna a URL base da API sem versionamento (ex: http://127.0.0.1:8080/api)
+ * Usada para endpoints de infraestrutura como /health.
+ */
+export function getBackendApiUrl(): string {
+  if (!_initialized) {
+    console.warn('[backendUrl] acessado antes da inicialização, usando fallback')
+    return 'http://127.0.0.1:8000/api'
+  }
+  return _backendApiUrl
+}
+
+/**
+ * Retorna a URL base da API versionada (ex: http://127.0.0.1:8080/api/v1)
+ * Usada pelo Axios para chamadas de negócio.
  */
 export function getApiBaseUrl(): string {
   if (!_initialized) {
-    console.warn('[backendUrl] acessado antes da inicialização, usando fallback');
-    return 'http://127.0.0.1:8000/api/v1';
+    console.warn('[backendUrl] acessado antes da inicialização, usando fallback')
+    return 'http://127.0.0.1:8000/api/v1'
   }
-  return _apiBaseUrl;
+  return _apiBaseUrl
 }

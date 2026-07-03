@@ -1,6 +1,6 @@
-// import { useAuthStore } from '@/shared/store/auth.store';
 import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { storeToRefs } from 'pinia';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { watch } from 'vue';
@@ -19,6 +19,12 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  // Guard de rede: bloqueia navegação se config de rede é necessária
+  const networkStore = useNetworkConfigStore();
+  if (networkStore.necessitaConfiguracao && to.name !== 'network-config') {
+    return { name: 'network-config' };
+  }
+
   const authStore = useAuthStore();
   const { isAuthenticated, isLoading } = storeToRefs(authStore);
 

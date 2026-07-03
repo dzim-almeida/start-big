@@ -65,16 +65,9 @@ app = FastAPI(
 
 setup_exception_handlers(app)
 
-origins = [
-    "http://localhost:1420",  # URL Tauri/Vite
-    "http://127.0.0.1:1420",
-    "http://tauri.localhost",  # Tauri production webview
-    "https://softball-nil-cordless-terrace.trycloudflare.com",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,3 +76,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.include_router(api.router, prefix="/api/v1")
+
+@app.get("/api/health", tags=["Health"])
+def health_check():
+    return {"status": "ok"}
