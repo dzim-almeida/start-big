@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { TOKEN_KEY } from '@/api/axios';
+import { getDesconectarUrl } from '@/shared/services/licenca.service';
 import { verificarSaude } from '@/shared/services/system/health.service';
 import { tauriDisponivel } from '@/shared/services/system/tauriConfig.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
@@ -18,6 +19,9 @@ const { isLoading } = storeToRefs(authStore);
 const appReady = ref(false);
 
 function handleBeforeUnload() {
+  // Dispara desconexão da licença via sendBeacon (fire-and-forget).
+  // sendBeacon sobrevive ao unload — garante envio mesmo durante fecho da janela.
+  navigator.sendBeacon(getDesconectarUrl());
   localStorage.removeItem(TOKEN_KEY);
 }
 

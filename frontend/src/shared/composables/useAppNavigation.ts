@@ -1,6 +1,7 @@
 import router from '@/router';
 import { useAuthStore } from '../stores/auth.store';
 import { logout } from '@/modules/auth/services/auth.service';
+import { desconectarLicenca } from '@/shared/services/licenca.service';
 
 export function useAppNavigation() {
   const authStore = useAuthStore();
@@ -14,6 +15,7 @@ export function useAppNavigation() {
   const goToMinhaConta = () => router.push({ name: 'minha-conta' });
 
   const logoutAndRedirect = async () => {
+    await desconectarLicenca();
     try {
       await logout();
     } catch {

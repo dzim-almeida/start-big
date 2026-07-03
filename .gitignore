@@ -32,7 +32,7 @@ backend-fastapi/nota.txt
 /node_modules
 
 # 6. Ignorar arquivos e pastas relacionados a migrações e estáticos
-/backend-fastapi/dist
+/backend-fastapi/dist/
 /backend-fastapi/build
 /backend-fastapi/static
 /backend-fastapi/alembic

@@ -45,6 +45,7 @@ from app.db.models.log_produto import LogProduto
 from app.db.models.orcamento import Orcamento
 from app.db.models.orcamento_produto import OrcamentoProduto
 from app.db.models.contador_venda import ContadorVenda
+from app.db.models.configuracao_licenca import ConfiguracaoLicenca
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.security import verify_token_data
 from app.services import usuario as usuario
 from app.db.crud import token as token_crud
+from app.db.crud import configuracao_licenca as licenca_crud
 from app.db.session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -109,9 +110,34 @@ def get_token(
     return data_token_validation(db, usuario_token=token_data)
 
 # =========================
+# 1.5. Validação de Licença (Bloqueio Remoto)
+# =========================
+def verificar_licenca_bloqueada(db: Session = Depends(get_db)) -> None:
+    """
+    Verifica se a licença foi bloqueada remotamente via heartbeat.
+    Executada em toda requisição autenticada.
+
+    Raises:
+        HTTPException 403: Se a licença estiver bloqueada.
+    """
+    licenca = licenca_crud.get_licenca(db)
+    if licenca and licenca.bloqueada:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "codigo": "LICENCA_BLOQUEADA",
+                "mensagem": "Licença bloqueada. Conexão encerrada pelo servidor.",
+            },
+        )
+
+
+# =========================
 # 2. Validação de Negócio (Ativo?)
 # =========================
-def get_current_user(usuario_token: Dict[str, Any] = Depends(get_token)) -> Dict[str, Any]:
+def get_current_user(
+    usuario_token: Dict[str, Any] = Depends(get_token),
+    _licenca: None = Depends(verificar_licenca_bloqueada),
+) -> Dict[str, Any]:
     """
     Garante que o usuário está ativo no sistema.
 

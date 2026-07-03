@@ -13,7 +13,6 @@ from app.db.session import get_db
 from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse
 from app.services import auth as auth_service
 from app.services import setup as setup_service
-from app.db.crud import usuario as usuario_crud
 
 router = APIRouter()
 
@@ -84,8 +83,8 @@ def get_system_status(db: Session = Depends(get_db)):
     Endpoint público que verifica se existe um usuário Master no sistema.
     Usado pelo frontend para decidir se deve redirecionar para o setup inicial.
     """
-    master = usuario_crud.get_usuario_master(db)
-    return StatusResponse(inicializado=master is not None)
+    inicializado = auth_service.verificar_sistema_inicializado(db)
+    return StatusResponse(inicializado=inicializado)
 
 
 # ===========================================================================

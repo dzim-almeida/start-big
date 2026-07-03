@@ -43,8 +43,8 @@ export function useSetup() {
       }
 
       toast.success(
-        'Setup concluído com sucesso!',
-        'Sua loja foi cadastrada. Bem-vindo ao Start Big!'
+        'Sua loja foi cadastrada. Bem-vindo ao Start Big!',
+        'Um email com sua chave de acesso foi enviado para você. Verifique sua caixa de entrada e spam.',
       );
 
       resetSignIn();
@@ -55,7 +55,7 @@ export function useSetup() {
     },
   });
 
-  function confirmSetup(): void {
+  async function confirmSetup(): Promise<void> {
     apiError.value = null;
 
     const isPF = signInData.responsavel.tipoPessoa === 'PF';
