@@ -9,7 +9,7 @@ use impressao::{
     descobrir_servidores_impressao, imprimir_raw, imprimir_rede, iniciar_servidor_impressao,
     listar_impressoras, obter_ip_local, parar_servidor_impressao, EstadoServidorImpressao,
 };
-use config_server::{load_config, set_role_client, set_role_server, get_api_url};
+use config_server::{load_config, set_role_client, set_role_server, get_api_url, get_config};
 
 use crate::backend::setup_sidecar;
 
@@ -29,7 +29,8 @@ pub fn run() {
             imprimir_rede,
             set_role_server,
             set_role_client,
-            get_api_url
+            get_api_url,
+            get_config
         ])
         .setup(move |app| {
             let server_config = load_config(app.app_handle());

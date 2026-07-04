@@ -10,10 +10,15 @@ export interface AppConfig {
   is_server: boolean
   server_ip: string
   server_port: number
+  configured: boolean
 }
 
 export function tauriDisponivel(): boolean {
   return isTauri()
+}
+
+export async function getConfig(): Promise<AppConfig> {
+  return invoke<AppConfig>('get_config')
 }
 
 export async function getApiUrl(): Promise<string> {

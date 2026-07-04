@@ -21,6 +21,8 @@ pub struct AppConfig {
     pub is_server: bool,
     pub server_ip: String,
     pub server_port: u16,
+    #[serde(default)]
+    pub configured: bool,
 }
 
 impl Default for AppConfig {
@@ -29,6 +31,7 @@ impl Default for AppConfig {
             is_server: false,
             server_ip: "0.0.0.0".to_string(),
             server_port: 8080,
+            configured: false,
         }
     }
 }
@@ -61,6 +64,7 @@ pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppCo
     let mut config = load_config(&app);
     config.is_server = true;
     config.server_ip = "0.0.0.0".to_string();
+    config.configured = true;
 
     let setted_port = match custom_port {
         Some(port) => {
@@ -94,12 +98,18 @@ pub fn set_role_client(app: AppHandle, server_ip: String, server_port: u16) -> R
     config.is_server = false;
     config.server_ip = server_ip;
     config.server_port = server_port;
+    config.configured = true;
 
     let path = get_config_path(&app);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     
     Ok(config)
+}
+
+#[tauri::command]
+pub fn get_config(app: AppHandle) -> AppConfig {
+    load_config(&app)
 }
 
 #[tauri::command]
