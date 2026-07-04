@@ -12,6 +12,7 @@ from app.db.base import Base  # Importando as classes base
 from app.db.session import engine  # Importando a engine do banco de dados
 from app.core.exceptions import setup_exception_handlers
 from app.core.tarefas import lifespan
+from app.core.config import BASE_DIR
 
 from app.db.models.usuario import Usuario
 from app.db.models.funcionario import Funcionario
@@ -46,11 +47,6 @@ from app.db.models.orcamento import Orcamento
 from app.db.models.orcamento_produto import OrcamentoProduto
 from app.db.models.contador_venda import ContadorVenda
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
-
-if getattr(sys, 'frozen', False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 

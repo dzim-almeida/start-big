@@ -45,8 +45,12 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser",
-        "displayLanguageSelector": true
+        "installerHooks": "nsis/extend/hooks.nsh",
+        "installMode": "perMachine",
+        "displayLanguageSelector": false,
+        "languages": ["PortugueseBR"],
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "nsis/branding/banner-stbig.bmp"
       }
     }
   }
