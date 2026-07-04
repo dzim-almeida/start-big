@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query';
 
 import { saleService } from '../../api.service';
 import { saleKeys } from '../../query.keys';
+import { REFETCH_REALTIME } from '@/core/config/queryIntervals';
 
 import { SaleRead } from '../../schemas/sale.schema';
 
@@ -17,6 +18,7 @@ export function useSaleDraftQuery(saleId: MaybeRef<number | null | undefined>) {
 
     queryFn: () => saleService.getSale(unref(saleId)!),
     enabled: computed(() => !!unref(saleId)),
-    staleTime: 1000 * 15, // 15 seconds
+    staleTime: 1000 * 15,
+    refetchInterval: REFETCH_REALTIME,
   });
 }

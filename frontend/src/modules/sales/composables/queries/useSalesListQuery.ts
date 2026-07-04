@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/vue-query';
 import { SaleList, SaleSearch } from '../../schemas/sale.schema';
 import { saleKeys } from '../../query.keys';
 import { saleService } from '../../api.service';
+import { REFETCH_REALTIME } from '@/core/config/queryIntervals';
 
 export function useSalesListQuery(
   filters?: MaybeRef<SaleSearch | null | undefined>,
@@ -15,6 +16,7 @@ export function useSalesListQuery(
         : saleKeys.list(undefined, unref(page) ?? 1)
     ),
     queryFn: () => saleService.listSales(unref(filters)!, unref(page)!),
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 30,
+    refetchInterval: REFETCH_REALTIME,
   });
 }

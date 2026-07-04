@@ -7,6 +7,7 @@ import { getAllCustomers } from '../../services/customerGet.service';
 import {
   CUSTOMER_QUERY_KEY,
   CUSTOMER_QUERY_STALE_TIME,
+  REFETCH_CADASTROS,
 } from '../../constants/customer.constant';
 
 export function useCustomerQueryAll() {
@@ -28,6 +29,7 @@ export function useCustomerQueryAll() {
         page: currentPage.value,
       }),
     staleTime: CUSTOMER_QUERY_STALE_TIME,
+    refetchInterval: REFETCH_CADASTROS,
   });
 
   const customers = computed(() => query.data.value?.items ?? []);

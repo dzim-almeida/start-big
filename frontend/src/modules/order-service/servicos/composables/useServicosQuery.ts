@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query';
 
 import { getServicos, getServicosStats } from '../services/servicos.service';
 import { SERVICOS_QUERY_KEY, SERVICOS_STATS_QUERY_KEY, SERVICOS_STALE_TIME } from '../constants/servicos.constants';
+import { REFETCH_CADASTROS } from '@/core/config/queryIntervals';
 import type { QueryParams, StatusFilter } from '../types/servicos.types';
 
 export function useServicosQuery(params?: QueryParams) {
@@ -31,6 +32,7 @@ export function useServicosQuery(params?: QueryParams) {
       ...params,
     }),
     staleTime: SERVICOS_STALE_TIME,
+    refetchInterval: REFETCH_CADASTROS,
   });
 
   const services = computed(() => query.data.value?.items ?? []);
@@ -61,6 +63,7 @@ export function useServicosStatsQuery() {
     queryKey: [SERVICOS_STATS_QUERY_KEY],
     queryFn: getServicosStats,
     staleTime: SERVICOS_STALE_TIME,
+    refetchInterval: REFETCH_CADASTROS,
   });
 
   const stats = computed(() => ({

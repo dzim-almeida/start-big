@@ -13,6 +13,8 @@ import type { ApiError } from '@/shared/types/axios.types';
 import { useToast } from '@/shared/composables/useToast';
 import { getErrorMessage, getConflictErrors, isConflictError } from '@/shared/utils/error.utils';
 
+import { REFETCH_CADASTROS } from '@/core/config/queryIntervals';
+
 const QUERY_KEY = 'cargos';
 const STALE_TIME = 1000 * 60 * 5; // 5 minutes
 
@@ -27,6 +29,7 @@ export function usePositionsQuery(searchTerm?: Ref<string>) {
     queryKey: [QUERY_KEY, cleanSearch],
     queryFn: () => getCargos(cleanSearch.value),
     staleTime: STALE_TIME,
+    refetchInterval: REFETCH_CADASTROS,
   });
 }
 

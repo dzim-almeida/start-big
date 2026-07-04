@@ -11,6 +11,14 @@ import { aguardarBackend } from '@/shared/services/system/health.service';
 import { tauriDisponivel, getConfig } from '@/shared/services/system/tauriConfig.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
 
+// sessionStorage persiste em reloads mas é limpo ao fechar a janela.
+// DEVE rodar ANTES de useAuthStore() para que useUserQuery() veja o token já removido.
+const SESSION_KEY = 'session_active';
+if (!sessionStorage.getItem(SESSION_KEY)) {
+  localStorage.removeItem(TOKEN_KEY);
+}
+sessionStorage.setItem(SESSION_KEY, 'true');
+
 const router = useRouter();
 const authStore = useAuthStore();
 const networkStore = useNetworkConfigStore();
@@ -19,10 +27,7 @@ const { isLoading } = storeToRefs(authStore);
 const appReady = ref(false);
 
 function handleBeforeUnload() {
-  // Dispara desconexão da licença via sendBeacon (fire-and-forget).
-  // sendBeacon sobrevive ao unload — garante envio mesmo durante fecho da janela.
   navigator.sendBeacon(getDesconectarUrl());
-  localStorage.removeItem(TOKEN_KEY);
 }
 
 onMounted(async () => {

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/vue-query';
 
 import { orcamentoService } from '../../orcamento.service';
 import { orcamentoKeys } from '../../query.keys';
+import { REFETCH_REALTIME } from '@/core/config/queryIntervals';
 
 import { OrcamentoRead } from '../../schemas/orcamento.schema';
 
@@ -17,5 +18,6 @@ export function useOrcamentoDraftQuery(orcamentoId: MaybeRef<number | null | und
     queryFn: () => orcamentoService.getOrcamento(unref(orcamentoId)!),
     enabled: computed(() => !!unref(orcamentoId)),
     staleTime: 1000 * 15,
+    refetchInterval: REFETCH_REALTIME,
   });
 }
