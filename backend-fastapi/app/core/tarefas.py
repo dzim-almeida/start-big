@@ -73,6 +73,13 @@ def _aplicar_migracoes():
         ("vendas", "motivo_cancelamento", "ALTER TABLE vendas ADD COLUMN motivo_cancelamento VARCHAR(500)"),
         ("configuracoes_licenca", "bloqueada", "ALTER TABLE configuracoes_licenca ADD COLUMN bloqueada BOOLEAN NOT NULL DEFAULT 0"),
         ("configuracoes_licenca", "public_key", "ALTER TABLE configuracoes_licenca ADD COLUMN public_key TEXT"),
+        ("empresas", "indicador_ie", "ALTER TABLE empresas ADD COLUMN indicador_ie VARCHAR(1)"),
+        ("empresas", "natureza_juridica", "ALTER TABLE empresas ADD COLUMN natureza_juridica VARCHAR(50)"),
+        ("empresas", "tipo_atividade", "ALTER TABLE empresas ADD COLUMN tipo_atividade VARCHAR(20)"),
+        ("empresas", "cnaes_secundarios", "ALTER TABLE empresas ADD COLUMN cnaes_secundarios VARCHAR(500)"),
+        ("empresas", "data_abertura", "ALTER TABLE empresas ADD COLUMN data_abertura VARCHAR(10)"),
+        ("empresas", "website", "ALTER TABLE empresas ADD COLUMN website VARCHAR(255)"),
+        ("ordens_servico", "situacao_equipamento", "ALTER TABLE ordens_servico ADD COLUMN situacao_equipamento VARCHAR(20)"),
     ]
     with engine.connect() as conn:
         for tabela, coluna, sql in migracoes:
