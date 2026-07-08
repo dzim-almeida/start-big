@@ -46,11 +46,13 @@
     "windows": {
       "nsis": {
         "installerHooks": "nsis/extend/hooks.nsh",
+        "template": "nsis/installer.nsi",
         "installMode": "perMachine",
         "displayLanguageSelector": false,
         "languages": ["PortugueseBR"],
         "installerIcon": "icons/icon.ico",
-        "headerImage": "nsis/branding/banner-stbig.bmp"
+        "headerImage": "nsis/branding/banner-stbig.bmp",
+        "sidebarImage": "nsis/branding/sidebar-stbig.bmp"
       }
     }
   }
