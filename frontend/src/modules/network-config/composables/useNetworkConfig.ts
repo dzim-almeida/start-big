@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
-import { setRoleServer, setRoleClient, obterIpLocal } from '@/shared/services/system/tauriConfig.service'
+import { setRoleServer, setRoleClient, obterIpLocal, getConfig } from '@/shared/services/system/tauriConfig.service'
 import { verificarSaude } from '@/shared/services/system/health.service'
 import { reinitBackendUrl } from '@/api/backendUrl'
 
@@ -12,6 +12,7 @@ const currentStep = ref<NetworkConfigStep>(0)
 const tipoMaquina = ref<TipoMaquina | null>(null)
 const ipLocal = ref<string>('')
 const portaConfigurada = ref<number | null>(null)
+const modoTerminalOnly = ref(false)
 
 export function useNetworkConfig() {
   const router = useRouter()
@@ -30,8 +31,13 @@ export function useNetworkConfig() {
     if (currentStep.value === 2) {
       currentStep.value = 1
     } else if (currentStep.value === 1) {
-      currentStep.value = 0
-      tipoMaquina.value = null
+      if (modoTerminalOnly.value) {
+        // Volta para a tela de erro de conexão
+        router.replace({ name: 'erro-conexao' })
+      } else {
+        currentStep.value = 0
+        tipoMaquina.value = null
+      }
     }
   }
 
@@ -115,11 +121,22 @@ export function useNetworkConfig() {
     currentStep.value = 1
   }
 
+  /**
+   * Inicia o wizard diretamente no modo terminal (pula step 0).
+   * Usado quando o terminal já está configurado e precisa apenas reconfigurar IP/porta.
+   */
+  async function iniciarModoTerminalOnly() {
+    modoTerminalOnly.value = true
+    tipoMaquina.value = 'terminal'
+    currentStep.value = 1
+  }
+
   function resetConfig() {
     currentStep.value = 0
     tipoMaquina.value = null
     ipLocal.value = ''
     portaConfigurada.value = null
+    modoTerminalOnly.value = false
     networkStore.setErroConexao(null)
     networkStore.setTentandoConexao(false)
   }
@@ -129,6 +146,7 @@ export function useNetworkConfig() {
     tipoMaquina,
     ipLocal,
     portaConfigurada,
+    modoTerminalOnly,
 
     isStepTipo,
     isStepConfig,
@@ -140,6 +158,7 @@ export function useNetworkConfig() {
     configurarServidor,
     configurarTerminal,
     tentarNovamente,
+    iniciarModoTerminalOnly,
     resetConfig,
 
     tentandoConexao: computed(() => networkStore.tentandoConexao),

@@ -332,6 +332,7 @@ function closeEquipamentoModal() {
 
 const formErrors = computed<Record<string, string | undefined>>(() => {
   if (isCreateMode.value) {
+    if (form.criar.submitCount.value === 0) return {};
     return { ...form.criar.errors.value };
   }
   return {

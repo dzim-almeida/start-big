@@ -43,8 +43,11 @@ pub fn run() {
                 EstadoServidorImpressao::default()
             );
 
-            if server_config.is_server {
-                setup_sidecar(app.app_handle(), &server_config.server_ip, server_config.server_port)?;
+            #[cfg(not(debug_assertions))]
+            {
+                if server_config.is_server {
+                    setup_sidecar(app.app_handle(), &server_config.server_ip, server_config.server_port)?;
+                }
             }
         
             Ok(())

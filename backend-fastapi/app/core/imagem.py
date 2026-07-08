@@ -13,13 +13,7 @@ from io import BytesIO
 
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image, ImageOps, UnidentifiedImageError
-
-def get_base_dir() -> str:
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-
-BASE_DIR = get_base_dir()
+from app.core.config import BASE_DIR
 
 # ---------------------------------------------------------------------------
 # CONSTANTES
@@ -187,6 +181,7 @@ def salvar_imagem(arquivo: UploadFile, entidade_id: int, contexto: str) -> str:
 
         # 5. Escrever no disco
         caminho_arquivo = os.path.join(diretorio, nome_arquivo)
+        print(f"Salvando imagem em: {caminho_arquivo}")  # Log para debug
         with open(caminho_arquivo, "wb") as f:
             f.write(conteudo_processado)
 

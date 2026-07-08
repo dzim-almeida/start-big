@@ -71,6 +71,11 @@ router.beforeEach(async (to) => {
     return { name: 'network-config' };
   }
 
+  // Guard de conexão: bloqueia terminal sem conexão ao servidor
+  if (networkStore.erroConexaoTerminal && to.name !== 'erro-conexao' && to.name !== 'network-config') {
+    return { name: 'erro-conexao' };
+  }
+
   const authStore = useAuthStore();
   const { isAuthenticated, isLoading } = storeToRefs(authStore);
 

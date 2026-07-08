@@ -7,6 +7,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('./views/NetworkConfigView.vue'),
     meta: { requiresAuth: false },
   },
+  {
+    path: '/erro-conexao',
+    name: 'erro-conexao',
+    component: () => import('./views/ConnectionErrorView.vue'),
+    meta: { requiresAuth: false, skipLicenseCheck: true },
+  },
 ]
 
 export default routes

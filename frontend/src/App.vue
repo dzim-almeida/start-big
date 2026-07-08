@@ -10,6 +10,7 @@ import { getDesconectarUrl } from '@/shared/services/licenca.service';
 import { aguardarBackend } from '@/shared/services/system/health.service';
 import { tauriDisponivel, getConfig } from '@/shared/services/system/tauriConfig.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
+import { useHealthMonitor } from '@/shared/composables/useHealthMonitor';
 
 // sessionStorage persiste em reloads mas é limpo ao fechar a janela.
 // DEVE rodar ANTES de useAuthStore() para que useUserQuery() veja o token já removido.
@@ -25,6 +26,8 @@ const networkStore = useNetworkConfigStore();
 const { isLoading } = storeToRefs(authStore);
 
 const appReady = ref(false);
+
+useHealthMonitor(appReady);
 
 function handleBeforeUnload() {
   navigator.sendBeacon(getDesconectarUrl());
@@ -42,8 +45,16 @@ onMounted(async () => {
     } else {
       const healthy = await aguardarBackend(config.is_server);
       if (!healthy) {
-        networkStore.setNecessitaConfiguracao(true);
-        router.replace({ name: 'network-config' });
+        if (!config.is_server) {
+          // Terminal: tela de bloqueio dedicada (sem opção de virar servidor)
+          networkStore.setErroConexaoTerminal(true);
+          networkStore.setConfigAtual(config.server_ip, config.server_port);
+          router.replace({ name: 'erro-conexao' });
+        } else {
+          // Servidor: wizard completo (sidecar local falhou)
+          networkStore.setNecessitaConfiguracao(true);
+          router.replace({ name: 'network-config' });
+        }
       }
     }
   }
