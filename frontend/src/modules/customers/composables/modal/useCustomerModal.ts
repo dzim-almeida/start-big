@@ -28,6 +28,8 @@ const mode = ref<ModalMode>('create');
 const selectedCustomer = ref<CustomerUnionReadSchemaDataType | null>(null);
 const onCreatedCallback = ref<CustomerCallback>(null);
 const onUpdatedCallback = ref<CustomerCallback>(null);
+// true quando aberto a partir de outro modal (ex: dentro da OS), para subir o z-index
+const isNested = ref(false);
 
 // =============================================
 // Composable
@@ -38,18 +40,28 @@ export function useCustomerModal() {
   function openCreateModal() {
     selectedCustomer.value = null;
     mode.value = 'create';
+    isNested.value = false;
     isOpen.value = true;
   }
 
   function openEditModal(customer: CustomerUnionReadSchemaDataType) {
     selectedCustomer.value = customer;
     mode.value = 'edit';
+    isNested.value = false;
+    isOpen.value = true;
+  }
+
+  function openViewModal(customer: CustomerUnionReadSchemaDataType) {
+    selectedCustomer.value = customer;
+    mode.value = 'view';
+    isNested.value = false;
     isOpen.value = true;
   }
 
   function openCreateModalWithCallback(callback: (customer: CustomerUnionReadSchemaDataType) => void) {
     onCreatedCallback.value = callback;
     openCreateModal();
+    isNested.value = true;
   }
 
   function openEditModalWithCallback(
@@ -58,12 +70,7 @@ export function useCustomerModal() {
   ) {
     onUpdatedCallback.value = callback;
     openEditModal(customer);
-  }
-
-  function openViewModal(customer: CustomerUnionReadSchemaDataType) {
-    selectedCustomer.value = customer;
-    mode.value = 'view';
-    isOpen.value = true;
+    isNested.value = true;
   }
 
   function closeModal() {
@@ -73,6 +80,7 @@ export function useCustomerModal() {
       mode.value = 'create';
       onCreatedCallback.value = null;
       onUpdatedCallback.value = null;
+      isNested.value = false;
     }, 300);
   }
 
@@ -107,6 +115,7 @@ export function useCustomerModal() {
     selectedCustomer,
     onCreatedCallback,
     onUpdatedCallback,
+    isNested,
     isCreateMode,
     isEditMode,
     isViewMode,

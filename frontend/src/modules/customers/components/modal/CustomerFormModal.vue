@@ -28,6 +28,7 @@ import { CUSTOMER_TYPE_TABS } from '@/modules/customers/composables/modal/consta
 
 const {
   isOpen,
+  isNested,
   isCreateMode,
   isEditMode,
   isViewMode,
@@ -63,6 +64,7 @@ watch(isOpen, (aberto) => {
 <template>
   <BaseModal
     :is-open="isOpen"
+    :overlay="isNested"
     :title="modalTitle"
     :subtitle="modalSubtitle"
     size="xl"
