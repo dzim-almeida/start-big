@@ -167,6 +167,9 @@ function getSelectedLabel(options: SelectOption[], value: string) {
         <span v-else class="font-semibold text-slate-700 mt-0.5 truncate">
           {{ getSelectedLabel(funcionariosOptions, localFuncionarioId) || authStore.userData?.nome || '--' }}
         </span>
+        <span v-if="errors?.funcionario_id" class="text-[10px] text-red-500 mt-0.5">
+          {{ errors.funcionario_id }}
+        </span>
       </div>
 
       <!-- Prioridade -->

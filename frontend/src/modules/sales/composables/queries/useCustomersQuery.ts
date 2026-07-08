@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/vue-query";
 
 import { customerService } from "../../api.service";
 import { customerKeys } from "../../query.keys";
+import { REFETCH_REALTIME } from "@/core/config/queryIntervals";
 
 import { CustomerSimpleRead } from "../../schemas/customers.schema";
 
@@ -16,5 +17,6 @@ export function useCustomersQuery(term: MaybeRef<string | null | undefined>) {
         ),
         queryFn: () => customerService.searchCustomers(unref(term)!),
         staleTime: 1000 * 30,
+        refetchInterval: REFETCH_REALTIME,
     })
 }

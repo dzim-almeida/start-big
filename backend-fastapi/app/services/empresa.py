@@ -27,6 +27,7 @@ from app.db.crud import empresa as empresa_crud
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
 from app.core.imagem import salvar_imagem
+from app.core.config import BASE_DIR
 
 # ---------------------------------------------------------------------------
 # CONSTANTES E EXCEÇÕES
@@ -45,7 +46,9 @@ NOT_FOUND_EXCE = HTTPException(
 
 # Diretório seguro para certificados (fora de static para não expor publicamente)
 CERT_UPLOAD_DIR = "secure_storage/certificates"
-os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
+
+secure_path = os.path.join(BASE_DIR, CERT_UPLOAD_DIR)
+os.makedirs(secure_path, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO

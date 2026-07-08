@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useToast } from '@/shared/composables/useToast';
 import { getMovimentacoes, createMovimentacao } from '../services/movimentacao.service';
 import type { MovimentacaoCreate } from '../types/products.types';
-import { PRODUTOS_QUERY_KEY } from '../../shared/constants/queryKeys';
+import { PRODUTOS_QUERY_KEY, PRODUTOS_REFETCH_INTERVAL } from '../../shared/constants/queryKeys';
 import { dashboardKeys } from '@/modules/home/constants/dashboard.constants';
 
 export const MOVIMENTACOES_QUERY_KEY = 'movimentacoes-estoque';
@@ -16,6 +16,7 @@ export function useMovimentacoesQuery(produto_id?: number) {
     queryKey: [MOVIMENTACOES_QUERY_KEY, produto_id ?? null],
     queryFn: () => getMovimentacoes(produto_id),
     staleTime: 1000 * 30, // 30s — histórico muda com frequência
+    refetchInterval: PRODUTOS_REFETCH_INTERVAL,
   });
 }
 

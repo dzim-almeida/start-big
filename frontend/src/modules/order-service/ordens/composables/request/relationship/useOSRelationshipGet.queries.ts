@@ -10,6 +10,7 @@ import {
   OS_CUSTOMER_QUERY_STALE_TIME,
   OS_EMPLOYEE_QUERY_KEY,
   OS_EMPLOYEE_QUERY_STALE_TIME,
+  ORDER_SERVICE_REFETCH_INTERVAL,
 } from '../../../constants/core.constant';
 
 export function useOsCustomersGet() {
@@ -17,6 +18,7 @@ export function useOsCustomersGet() {
     queryKey: [OS_CUSTOMER_QUERY_KEY],
     queryFn: getCustomersAll,
     staleTime: OS_CUSTOMER_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 }
 
@@ -25,5 +27,6 @@ export function useOsEmployeesGet() {
     queryKey: [OS_EMPLOYEE_QUERY_KEY],
     queryFn: getEmployeesAll,
     staleTime: OS_EMPLOYEE_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 }
