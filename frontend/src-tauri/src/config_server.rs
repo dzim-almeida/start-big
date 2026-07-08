@@ -1,8 +1,8 @@
-use std::net::TcpListener;
-use std::fs;
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use std::fs;
+use std::net::TcpListener;
 use tauri::AppHandle;
+use tauri::Manager;
 
 pub fn get_free_port() -> u16 {
     TcpListener::bind("0.0.0.0:0")
@@ -36,8 +36,37 @@ impl Default for AppConfig {
     }
 }
 
+pub fn gen_network_config_txt(app: &AppHandle, ip: String, port: u16) {
+    if let Ok(mut path) = app.path().desktop_dir() {
+        path.push("StartBigERP-server-config.txt");
+
+        let data_hora = chrono::Local::now().format("%d/%m/%Y %H:%M:%S");
+
+        let content = format!(
+            "=== INFORMAÇÕES DO SERVIDOR STARTBIG ERP ===\n\
+            Gerado em: {}\n\n\
+            O servidor central está rodando nesta máquina de forma ativa.\n\n\
+            -> IP DA REDE: {}\n\
+            -> PORTA DE CONEXÃO: {}\n\n\
+            Para configurar os terminais clientes, insira exatamente o endereço abaixo:\n\
+            Endereço completo: {}:{}\n\
+            ============================================",
+            data_hora, ip, port, ip, port
+        );
+
+        if let Err(e) = fs::write(&path, content) {
+            eprintln!("Erro ao gerar o arquivo de configuração: {}", e);
+        } else {
+            println!("Arquivo de configuração gerado em: {}", path.display());
+        }
+    }
+}
+
 fn get_config_path(app: &AppHandle) -> std::path::PathBuf {
-    let mut path = app.path().app_data_dir().expect("Não foi possível encontrar AppData");
+    let mut path = app
+        .path()
+        .app_data_dir()
+        .expect("Não foi possível encontrar AppData");
     path.push("StartBigERP");
     fs::create_dir_all(&path).unwrap();
     path.push("system-config.json");
@@ -47,7 +76,7 @@ fn get_config_path(app: &AppHandle) -> std::path::PathBuf {
 pub fn load_config(app: &AppHandle) -> AppConfig {
     let path = get_config_path(app);
     println!("Server Config File: {}", path.display());
-    
+
     if path.exists() {
         let content = fs::read_to_string(&path).unwrap();
         serde_json::from_str(&content).unwrap_or_default()
@@ -57,7 +86,7 @@ pub fn load_config(app: &AppHandle) -> AppConfig {
         fs::write(&path, json).unwrap();
         default
     }
-} 
+}
 
 #[tauri::command]
 pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppConfig, String> {
@@ -68,32 +97,44 @@ pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppCo
 
     let setted_port = match custom_port {
         Some(port) => {
-            if is_port_available(port) { port }
-            else { return Err(format!("Porta {} já está em uso. Por favor, escolha outra porta.", port)); }
-        },
+            if is_port_available(port) {
+                port
+            } else {
+                return Err(format!(
+                    "Porta {} já está em uso. Por favor, escolha outra porta.",
+                    port
+                ));
+            }
+        }
         None => {
             let fallbacks: [u16; 4] = [8080, 8081, 8082, 8083];
             match fallbacks.iter().find(|&&port| is_port_available(port)) {
                 Some(oppend_port) => *oppend_port,
                 None => get_free_port(),
             }
-        } 
+        }
     };
 
     config.server_port = setted_port;
-    
+
     let path = get_config_path(&app);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
 
     crate::backend::setup_sidecar(&app, &config.server_ip, config.server_port)
         .map_err(|e| e.to_string())?;
-    
+
+    gen_network_config_txt(&app, crate::impressao::obter_ip_local().unwrap_or_default(), config.server_port);
+
     Ok(config)
 }
 
 #[tauri::command]
-pub fn set_role_client(app: AppHandle, server_ip: String, server_port: u16) -> Result<AppConfig, String> {
+pub fn set_role_client(
+    app: AppHandle,
+    server_ip: String,
+    server_port: u16,
+) -> Result<AppConfig, String> {
     let mut config = AppConfig::default();
     config.is_server = false;
     config.server_ip = server_ip;
@@ -103,7 +144,7 @@ pub fn set_role_client(app: AppHandle, server_ip: String, server_port: u16) -> R
     let path = get_config_path(&app);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
-    
+
     Ok(config)
 }
 
