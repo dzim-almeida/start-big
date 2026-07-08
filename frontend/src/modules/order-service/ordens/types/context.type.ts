@@ -44,6 +44,7 @@ export interface OSCreateFormContext {
 
   // Estado do formulário
   errors: Ref<Record<string, string | undefined>>;
+  submitCount: Ref<number>;
   isPending: ComputedRef<boolean>;
 
   // Ações

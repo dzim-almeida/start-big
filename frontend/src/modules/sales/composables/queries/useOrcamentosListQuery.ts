@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/vue-query';
 import { OrcamentoList, OrcamentoSearch } from '../../schemas/orcamento.schema';
 import { orcamentoKeys } from '../../query.keys';
 import { orcamentoService } from '../../orcamento.service';
+import { REFETCH_REALTIME } from '@/core/config/queryIntervals';
 
 export function useOrcamentosListQuery(
   filters?: MaybeRef<OrcamentoSearch | null | undefined>,
@@ -16,5 +17,6 @@ export function useOrcamentosListQuery(
     ),
     queryFn: () => orcamentoService.listOrcamentos(unref(filters)!, unref(page)!),
     staleTime: 1000 * 30,
+    refetchInterval: REFETCH_REALTIME,
   });
 }

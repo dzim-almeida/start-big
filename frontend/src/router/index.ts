@@ -1,6 +1,7 @@
 import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { verificarLicenca } from '@/shared/services/licenca.service';
+import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { storeToRefs } from 'pinia';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { watch } from 'vue';
@@ -64,6 +65,17 @@ router.beforeEach(async (to) => {
   // -----------------------------------------------------------------------
   // ETAPA 2: Verificação de Autenticação
   // -----------------------------------------------------------------------
+  // Guard de rede: bloqueia navegação se config de rede é necessária
+  const networkStore = useNetworkConfigStore();
+  if (networkStore.necessitaConfiguracao && to.name !== 'network-config') {
+    return { name: 'network-config' };
+  }
+
+  // Guard de conexão: bloqueia terminal sem conexão ao servidor
+  if (networkStore.erroConexaoTerminal && to.name !== 'erro-conexao' && to.name !== 'network-config') {
+    return { name: 'erro-conexao' };
+  }
+
   const authStore = useAuthStore();
   const { isAuthenticated, isLoading } = storeToRefs(authStore);
 

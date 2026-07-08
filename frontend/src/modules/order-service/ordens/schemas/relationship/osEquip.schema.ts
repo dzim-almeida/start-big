@@ -6,12 +6,18 @@ export const OsEquipCreateSchema = z.object({
   tipo_equipamento: OsEquipTypeEnum,
   marca: z
     .string({ required_error: 'A marca é obrigatória' })
+    .trim()
+    .min(1, 'A marca é obrigatória')
     .max(100, 'A marca deve ter no máximo 100 caracteres'),
   modelo: z
     .string({ required_error: 'O modelo é obrigatório' })
+    .trim()
+    .min(1, 'O modelo é obrigatório')
     .max(100, 'O modelo deve ter no máximo 100 caracteres'),
   numero_serie: z
     .string({ required_error: 'O número de série é obrigatório' })
+    .trim()
+    .min(1, 'O número de série é obrigatório')
     .max(100, 'O número de série deve ter no máximo 100 caracteres'),
   imei: z
     .string()

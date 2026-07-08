@@ -10,6 +10,7 @@ import { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 import {
   ORDER_SERVICE_QUERY_KEY,
   ORDER_SERVICE_QUERY_STALE_TIME,
+  ORDER_SERVICE_REFETCH_INTERVAL,
 } from '../../constants/core.constant';
 
 export function useOrderServiceQueryAll() {
@@ -39,6 +40,7 @@ export function useOrderServiceQueryAll() {
         page: currentPage.value,
       }),
     staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 
   const orderServices = computed(() => query.data.value?.items ?? []);
@@ -70,6 +72,7 @@ export function useOrderServiceQueryUnique(numero_os: string) {
     queryKey: [ORDER_SERVICE_QUERY_KEY, numero_os],
     queryFn: () => getUniqueOS(numero_os),
     staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 
   const uniqueOs = query.data.value;
@@ -87,6 +90,7 @@ export function useOrderServiceQueryStats() {
     queryKey: [ORDER_SERVICE_QUERY_KEY],
     queryFn: () => getStatsOS(),
     staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 
   const stats = computed(() => ({
@@ -110,6 +114,7 @@ export function useOrderServiceQueryByCliente(clienteId: Ref<number | null>) {
     queryFn: () => getOsByClienteId(clienteId.value!, currentPage.value),
     enabled: computed(() => !!clienteId.value && clienteId.value > 0),
     staleTime: ORDER_SERVICE_QUERY_STALE_TIME,
+    refetchInterval: ORDER_SERVICE_REFETCH_INTERVAL,
   });
 
   return {

@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://viacep.com.br https://servicodados.ibge.gov.br; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; img-src 'self' asset: data: blob: http://localhost:* http://127.0.0.1:*;" 
+      "csp": "default-src 'self'; connect-src *; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; img-src 'self' asset: data: blob: http://*:*;" 
     }
   },
   "bundle": {
@@ -45,8 +45,12 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser",
-        "displayLanguageSelector": true
+        "installerHooks": "nsis/extend/hooks.nsh",
+        "installMode": "perMachine",
+        "displayLanguageSelector": false,
+        "languages": ["PortugueseBR"],
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "nsis/branding/banner-stbig.bmp"
       }
     }
   }

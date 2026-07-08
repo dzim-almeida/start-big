@@ -9,6 +9,8 @@ export const OrderServiceBaseSchema = z.object({
   // Descrição técnica
   defeito_relatado: z
     .string({ required_error: 'A descrição de defeito é obrigatória' })
+    .trim()
+    .min(1, 'A descrição de defeito é obrigatória')
     .max(500, 'A descrição de defeito deve ter máximo 500 caracteres'),
   diagnostico: z.string().max(500, 'O diagnóstico deve ter máximo 500 caracteres').optional().nullable(),
   solucao: z.string().max(500, 'A solução deve ter máximo 500 caracteres').optional().nullable(),

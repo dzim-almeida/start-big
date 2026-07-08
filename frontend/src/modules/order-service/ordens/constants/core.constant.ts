@@ -1,3 +1,5 @@
+import { REFETCH_REALTIME } from '@/core/config/queryIntervals'
+
 export const BASE_ORDER_SERVICE_URL = "/ordens-servico"
 export const BASE_EMPLOYEE_OS_URL = "/funcionarios"
 export const BASE_CUSTOMER_OS_URL = "/clientes"
@@ -12,6 +14,7 @@ export const OS_EMPLOYEE_QUERY_STALE_TIME = 1000 * 60
 export const OS_CUSTOMER_QUERY_KEY = "os-customer-query"
 export const OS_CUSTOMER_QUERY_STALE_TIME = 1000 * 60
 
+export const ORDER_SERVICE_REFETCH_INTERVAL = REFETCH_REALTIME
 
 export const DEFAULT_OS_CREATE_VALUES = {
   prioridade: 'NORMAL' as const,

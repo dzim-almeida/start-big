@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
+  <div class="fixed inset-0 z-9999 flex items-center justify-center bg-white">
     <div class="loading-spinner" />
   </div>
 </template>
