@@ -7,6 +7,7 @@ import { usePaymentMethodsQuery } from '../queries/usePaymentMethodsQuery';
 import { saleToEscPos } from '../../components/print/saleToEscPos';
 import { saleService } from '../../api.service';
 import type { SaleRead } from '../../schemas/sale.schema';
+import type { PrintFormat } from '@/shared/components/print/print.types';
 
 export type SalePrintType = 'VENDA';
 
@@ -17,7 +18,7 @@ export function useSalePrintFlow() {
     isPrintSelectModalOpen,
     openPrintSelect,
     printDirect,
-    handlePrintFormatSelected,
+    handlePrintFormatSelected: handlePrintFormatSelectedBase,
     closePrintSelectModal,
   } = usePrintFlow<SalePrintType>();
 
@@ -54,6 +55,32 @@ export function useSalePrintFlow() {
     return (sale.pagamentos ?? []).some((pg) =>
       resolvePaymentMethodName(pg.forma_pagamento_id).toLowerCase().includes('dinheiro'),
     );
+  }
+
+  /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
+  async function imprimirEscPosDireto(sale: SaleRead): Promise<boolean> {
+    if (!impressao.podeImprimirDireto.value) return false;
+    const dados = saleToEscPos(sale, {
+      bobina: impressaoStore.config.bobina,
+      empresa: companyInfo.value,
+      resolverPagamento: resolvePaymentMethodName,
+      // Reimpressão manual não deve reabrir a gaveta (só a impressão pós-venda faz isso)
+    });
+    return impressao.imprimirCupom(dados);
+  }
+
+  /**
+   * Formato escolhido no modal de reimpressão manual: Cupom Térmico sai direto
+   * pela impressora (sem diálogo); A4 continua abrindo o diálogo de impressão
+   * do sistema, onde o usuário escolhe a impressora/PDF.
+   */
+  async function handlePrintFormatSelected(format: PrintFormat) {
+    if (format === 'CUPOM' && saleForPrint.value && (await imprimirEscPosDireto(saleForPrint.value))) {
+      closePrintSelectModal();
+      printFormat.value = '' as PrintFormat;
+      return;
+    }
+    handlePrintFormatSelectedBase(format);
   }
 
   /**

@@ -11,6 +11,10 @@ import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
+import { useImpressao } from '@/shared/composables/useImpressao';
+import { useImpressaoStore } from '@/shared/stores/impressao.store';
+import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
+import { osToEscPos } from '../../ordens/components/osToEscPos';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
@@ -84,6 +88,22 @@ const printType = ref<'ENTRADA' | 'SAIDA' | 'CANCELAMENTO' | null>(null);
 const printFormat = ref<PrintFormat>('A4');
 const isPrintSelectOpen = ref(false);
 const pendingPrintAfterSelect = ref<(() => void) | null>(null);
+
+const impressao = useImpressao();
+const impressaoStore = useImpressaoStore();
+const { companyInfo } = useCompanyPrintInfo();
+
+/** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
+async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
+  if (!impressao.podeImprimirDireto.value) return false;
+  const os = osToPrint.value;
+  if (!os) return false;
+  const dados = osToEscPos(os, tipo, {
+    bobina: impressaoStore.config.bobina,
+    empresa: companyInfo.value,
+  });
+  return impressao.imprimirCupom(dados);
+}
 
 // ─── Filtro de status ─────────────────────────────────────────────────────────
 const osActiveFilter = computed<string | null>({
@@ -250,7 +270,23 @@ async function handlePrintOS(os: OrderServiceReadDataType) {
   }
 }
 
-function handlePrintFormatSelected(format: PrintFormat) {
+/**
+ * Cupom Térmico sai direto pela impressora configurada (sem diálogo);
+ * A4 (ou cupom sem impressora configurada) continua abrindo o diálogo de
+ * impressão do sistema, onde o usuário escolhe a impressora/PDF.
+ */
+async function handlePrintFormatSelected(format: PrintFormat) {
+  if (format === 'CUPOM' && (printType.value === 'ENTRADA' || printType.value === 'SAIDA')) {
+    if (await imprimirEscPosDireto(printType.value)) {
+      isPrintSelectOpen.value = false;
+      pendingPrintAfterSelect.value?.();
+      pendingPrintAfterSelect.value = null;
+      osToPrint.value = null;
+      printType.value = null;
+      return;
+    }
+  }
+
   printFormat.value = format;
   isPrintSelectOpen.value = false;
 

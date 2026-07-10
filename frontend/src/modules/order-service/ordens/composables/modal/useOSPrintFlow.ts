@@ -5,6 +5,7 @@ import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
 import { osToEscPos } from '../../components/osToEscPos';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
+import type { PrintFormat } from '@/shared/components/print/print.types';
 
 export type { PrintFormat } from '@/shared/components/print/print.types';
 
@@ -21,7 +22,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     isPrintSelectModalOpen,
     openPrintSelect,
     printDirect,
-    handlePrintFormatSelected,
+    handlePrintFormatSelected: handlePrintFormatSelectedBase,
     closePrintSelectModal,
   } = usePrintFlow<'ENTRADA' | 'SAIDA'>();
 
@@ -31,9 +32,8 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
   const impressaoStore = useImpressaoStore();
   const { companyInfo } = useCompanyPrintInfo();
 
-  /** Tenta o cupom térmico direto conforme a config local; false = usar o modal */
-  async function tentarImpressaoDireta(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
-    if (impressaoStore.config.auto_imprimir_os !== 'automatico') return false;
+  /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
+  async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
     if (!impressao.podeImprimirDireto.value) return false;
     const os = getOS?.();
     if (!os) return false;
@@ -42,6 +42,26 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
       empresa: companyInfo.value,
     });
     return impressao.imprimirCupom(dados);
+  }
+
+  /** Tenta o cupom térmico direto conforme a config local; false = usar o modal */
+  async function tentarImpressaoDireta(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
+    if (impressaoStore.config.auto_imprimir_os !== 'automatico') return false;
+    return imprimirEscPosDireto(tipo);
+  }
+
+  /**
+   * Formato escolhido no modal de reimpressão manual: Cupom Térmico sai direto
+   * pela impressora (sem diálogo); A4 continua abrindo o diálogo de impressão
+   * do sistema, onde o usuário escolhe a impressora/PDF.
+   */
+  async function handlePrintFormatSelected(format: PrintFormat) {
+    if (format === 'CUPOM' && (await imprimirEscPosDireto(printType.value))) {
+      closePrintSelectModal();
+      printFormat.value = '' as PrintFormat;
+      return;
+    }
+    handlePrintFormatSelectedBase(format);
   }
 
   function printEntrada() {
