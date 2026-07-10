@@ -1,14 +1,16 @@
 mod backend;
-mod config_server;
 mod impressao;
+mod network;
 
 use tauri::{Manager, RunEvent};
 
 use backend::{cleanup_on_exit, AppState};
-use config_server::{get_api_url, get_config, set_role_client, set_role_server};
 use impressao::{
     descobrir_servidores_impressao, imprimir_raw, imprimir_rede, iniciar_servidor_impressao,
     listar_impressoras, obter_ip_local, parar_servidor_impressao, EstadoServidorImpressao,
+};
+use network::{
+    get_api_url, get_config, iniciar_descoberta_servidores, set_role_client, set_role_server,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -28,7 +30,8 @@ pub fn run() {
             set_role_server,
             set_role_client,
             get_api_url,
-            get_config
+            get_config,
+            iniciar_descoberta_servidores
         ])
         .setup(move |app| {
             app.manage(AppState {
@@ -40,23 +43,30 @@ pub fn run() {
             #[cfg(not(debug_assertions))]
             {
                 use crate::backend::setup_sidecar;
-                use crate::config_server::gen_network_config_txt;
-                use crate::config_server::load_config;
+                use crate::network::{gen_network_config_txt, load_config, start_discovery, discover_servers};
 
                 let handle = app.app_handle();
 
                 let server_config = load_config(&handle);
-                if server_config.is_server {
-                    setup_sidecar(
-                        &handle,
-                        &server_config.server_ip,
-                        server_config.server_port,
-                    )?;
-                    gen_network_config_txt(
-                        &handle,
-                        obter_ip_local().unwrap_or_default(),
-                        server_config.server_port,
-                    );
+                if server_config.configured {
+                    if server_config.is_server {
+                        setup_sidecar(
+                            &handle,
+                            &server_config.server_ip,
+                            server_config.server_port,
+                        )?;
+                        gen_network_config_txt(
+                            &handle,
+                            obter_ip_local().unwrap_or_default(),
+                            server_config.server_port,
+                        );
+                        start_discovery(
+                            obter_ip_local().unwrap_or_default(),
+                            server_config.server_port,
+                        );
+                    } else {
+                        discover_servers(handle.clone());
+                    }
                 }
             }
 
