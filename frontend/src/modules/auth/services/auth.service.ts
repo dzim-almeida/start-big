@@ -5,6 +5,7 @@
  */
 
 import api, { TOKEN_KEY } from '@/api/axios';
+import { obterHwid } from '@/shared/services/system/hwid.service';
 
 import type {
   LoginRequest,
@@ -22,8 +23,12 @@ const REMEMBER_ME = 'rememberMe';
  * @param credentials - Credenciais de login (email e senha)
  * @returns Promise com os dados de resposta do login
  */
-export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await api.post<LoginResponse>('auth/login', credentials);
+export async function login(credentials: Omit<LoginRequest, 'hwid'>): Promise<LoginResponse> {
+    const hwid = await obterHwid();
+    const response = await api.post<LoginResponse>('auth/login', {
+      ...credentials,
+      hwid,
+    });
     localStorage.setItem(TOKEN_KEY, response.data.access_token);
     return response.data;
 }
@@ -33,7 +38,8 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  */
 export async function logout(): Promise<void> {
     try {
-        await api.post('auth/logout');
+        const hwid = await obterHwid();
+        await api.post('auth/logout', { hwid });
     } finally {
         localStorage.removeItem(TOKEN_KEY);
     }

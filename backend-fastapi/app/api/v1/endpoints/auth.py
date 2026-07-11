@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_token, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse
+from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse, LogoutRequest
 from app.services import auth as auth_service
 from app.services import setup as setup_service
+from app.services.licenca import desconectar_terminal
 
 router = APIRouter()
 
@@ -30,7 +31,11 @@ def login(
     db: Session = Depends(get_db)
 ):
 
-    token_value = auth_service.login(db, login_usuario=usuario_credentials)
+    token_value = _handle_db_transaction(
+        db,
+        auth_service.login,
+        login_usuario=usuario_credentials,
+    )
 
     return {"access_token": token_value, "token_type": "bearer"}
 
@@ -44,18 +49,20 @@ def login(
     status_code=status.HTTP_200_OK,
     summary="Realizar logout e revogar o token"
 )
-def logout(
+async def logout(
+    body: LogoutRequest,
     token: dict = Depends(get_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
-    Invalida o token de acesso atual do usuário.
+    Invalida o token de acesso atual do usuário e desconecta o terminal.
 
-    O identificador do token (JTI) é adicionado a uma blocklist no banco de dados,
-    impedindo que ele seja utilizado novamente para autenticação, mesmo que
-    ainda esteja dentro do tempo de expiração.
+    1. Revoga o JWT (JTI adicionado à blocklist).
+    2. Remove o terminal de terminais_conectados.
+    3. Notifica a API StartBig da desconexão.
 
     Args:
+        body (LogoutRequest): Contém o HWID do terminal.
         token (dict): Payload do token atual (extraído via dependência get_token).
         db (Session): Sessão do banco de dados.
     """
@@ -64,6 +71,8 @@ def logout(
         auth_service.logout_service,
         token
     )
+
+    await desconectar_terminal(db, body.hwid)
 
     return {"message": "Logout bem-sucedido"}
 

@@ -1,4 +1,5 @@
 mod backend;
+mod hwid;
 mod impressao;
 mod network;
 
@@ -13,6 +14,7 @@ use network::{
     get_api_url, get_config, iniciar_descoberta_servidores, parar_descoberta_servidores,
     set_role_client, set_role_server,
 };
+use hwid::obter_hwid;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -31,6 +33,7 @@ pub fn run() {
             set_role_server,
             set_role_client,
             get_api_url,
+            obter_hwid
             get_config,
             iniciar_descoberta_servidores,
             parar_descoberta_servidores
