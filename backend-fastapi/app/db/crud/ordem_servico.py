@@ -38,6 +38,16 @@ def get_ordem_servico_by_numero_os(db: Session, numero_os: str) -> OSModel | Non
     return db.scalar(select(OSModel).where(OSModel.numero_os == numero_os))
 
 
+def get_ordens_by_objeto_id(db: Session, objeto_id: int) -> Sequence[OSModel]:
+    """Retorna todas as OS de um objeto/veículo, da mais antiga para a mais recente."""
+    stmt = (
+        select(OSModel)
+        .where(OSModel.objeto_id == objeto_id)
+        .order_by(OSModel.data_criacao.asc())
+    )
+    return db.scalars(stmt).all()
+
+
 def get_ordens_servico_by_search(
     db: Session,
     filters: dict,

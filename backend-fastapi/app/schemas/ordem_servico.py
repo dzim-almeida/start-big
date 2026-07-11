@@ -25,6 +25,7 @@ from typing import Optional, Sequence, List
 
 from app.core.enum import (
     OrdemServicoItemTipo,
+    OrdemServicoItemAprovacao,
     UnidadeMedida,
     OrdemServicoStatus,
     TipoEquipamento,
@@ -52,6 +53,15 @@ class OSItemBase(BaseModel):
     quantidade: int = Field(..., gt=0, description="Quantidade")
     valor_unitario: int = Field(..., gt=0, description="Valor unitário em centavos")
 
+    # Aprovação e garantia por item (fluxo de orçamento / oficina).
+    # Default APROVADO preserva o comportamento atual (item conta no total).
+    status_aprovacao: OrdemServicoItemAprovacao = Field(
+        OrdemServicoItemAprovacao.APROVADO,
+        description="Status de aprovação do item. REPROVADO não entra no total da OS."
+    )
+    garantia_dias: Optional[int] = Field(None, ge=0, description="Garantia do item em dias (opcional)")
+    garantia_km: Optional[int] = Field(None, ge=0, description="Garantia do item em KM, ex: oficina (opcional)")
+
     model_config = ConfigDict(from_attributes=True)
 
 class OSItemCreate(OSItemBase):
@@ -72,6 +82,9 @@ class OSItemUpdate(BaseModel):
     unidade_medida: Optional[UnidadeMedida] = Field(None, description="Nova unidade de medida")
     quantidade: Optional[int] = Field(None, gt=0, description="Nova quantidade")
     valor_unitario: Optional[int] = Field(None, gt=0, description="Novo valor unitário em centavos")
+    status_aprovacao: Optional[OrdemServicoItemAprovacao] = Field(None, description="Novo status de aprovação do item")
+    garantia_dias: Optional[int] = Field(None, ge=0, description="Nova garantia do item em dias")
+    garantia_km: Optional[int] = Field(None, ge=0, description="Nova garantia do item em KM")
 
     model_config = ConfigDict(from_attributes=True)
 

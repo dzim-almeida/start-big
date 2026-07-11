@@ -90,7 +90,16 @@ class SituacaoEquipamento(str, enum.Enum):
 
 class OrdemServicoItemTipo(str, enum.Enum):
     PRODUTO = "PRODUTO"
-    SERVICO = "SERVICO"  
+    SERVICO = "SERVICO"
+
+class OrdemServicoItemAprovacao(str, enum.Enum):
+    """Status de aprovação de um item da OS (usado no fluxo de orçamento).
+
+    Default APROVADO preserva o comportamento existente (todos os itens contam
+    no total). REPROVADO exclui o item do total; PENDENTE aguarda decisão."""
+    PENDENTE = "PENDENTE"
+    APROVADO = "APROVADO"
+    REPROVADO = "REPROVADO"
 
 class TipoEquipamento(str, enum.Enum):
     COMPUTADOR = "COMPUTADOR"

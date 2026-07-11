@@ -76,6 +76,22 @@ def get_definicao_campos_segmento(
     return segmentos_service.get_definicao_campos(db)
 
 
+@router.get(
+    "/objeto/{objeto_id}/historico-km",
+    summary="Histórico de KM do objeto/veículo",
+    description=(
+        "Retorna a evolução da quilometragem (km_entrada) de um objeto/veículo "
+        "ao longo das suas OS, da mais antiga para a mais recente. Útil para oficina."
+    ),
+)
+def get_historico_km_objeto(
+    objeto_id: int = Path(..., description="ID do objeto/veículo"),
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.get_historico_km(db, objeto_id)
+
+
 # ===========================================================================
 # CRIAÇÃO (POST /)
 # ===========================================================================

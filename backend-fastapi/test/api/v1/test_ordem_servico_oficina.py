@@ -66,19 +66,35 @@ def _criar_cliente(client, header: dict) -> int:
     return r.json()["id"]
 
 
-def _os_payload(cliente_id: int, numero_serie: str, dados_adicionais: dict | None = None) -> dict:
+def _os_payload(cliente_id: int, numero_serie: str, dados_adicionais: dict | None = None,
+                itens: list | None = None, os_dados_adicionais: dict | None = None) -> dict:
     return {
         "cliente_id": cliente_id,
         "prioridade": "NORMAL",
         "defeito_relatado": "Barulho ao frear",
+        # dados_adicionais no nível da OS (check-in: km_entrada, combustível, vistoria)
+        "dados_adicionais": os_dados_adicionais or {},
         "objeto": {
             "marca": "Fiat",
             "modelo": "Uno",
             "numero_serie": numero_serie,
+            # dados_adicionais do objeto/veículo (placa, chassi, ano)
             "dados_adicionais": dados_adicionais or {},
         },
-        "itens": [],
+        "itens": itens if itens is not None else [],
     }
+
+
+def _item(nome: str, valor_unitario: int, **extra) -> dict:
+    base = {
+        "tipo": "SERVICO",
+        "nome": nome,
+        "unidade_medida": "UN",
+        "quantidade": 1,
+        "valor_unitario": valor_unitario,
+    }
+    base.update(extra)
+    return base
 
 
 # =========================
@@ -154,3 +170,67 @@ def test_definicao_campos_segmento_generico_sem_definicao(client, db_session):
     r = client.get("/api/v1/ordens-servico/definicao-campos", headers=header)
     assert r.status_code == 200, r.text
     assert r.json()["tem_definicao"] is False
+
+
+# =========================
+# ONDA 2 — aprovacao / garantia por item / historico de KM
+# =========================
+
+def test_item_reprovado_nao_entra_no_total(client, db_session):
+    """Item REPROVADO nao entra no valor_total; APROVADO conta."""
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    itens = [
+        _item("Troca de pastilha", 10000, status_aprovacao="APROVADO"),
+        _item("Troca de disco", 5000, status_aprovacao="REPROVADO"),
+    ]
+    r = client.post("/api/v1/ordens-servico/", json=_os_payload(cliente_id, "ABC1D23", itens=itens), headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    body = r.json()
+    assert body["valor_bruto"] == 10000, "só o item APROVADO deve contar"
+    assert body["valor_total"] == 10000
+
+
+def test_garantia_por_item_persistida(client, db_session):
+    """Garantia (dias e KM) por item é persistida e retornada."""
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    itens = [_item("Troca de correia", 20000, garantia_dias=90, garantia_km=10000)]
+    r = client.post("/api/v1/ordens-servico/", json=_os_payload(cliente_id, "ABC1D23", itens=itens), headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    item = r.json()["itens"][0]
+    assert item["garantia_dias"] == 90
+    assert item["garantia_km"] == 10000
+    assert item["status_aprovacao"] == "APROVADO"
+
+
+def test_historico_km_do_veiculo(client, db_session):
+    """Histórico de KM lê km_entrada das OS do veículo, da mais antiga p/ recente."""
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+
+    # 1a OS com KM 80000 (check-in é nível da OS)
+    r1 = client.post("/api/v1/ordens-servico/",
+                     json=_os_payload(cliente_id, "ABC1D23", os_dados_adicionais={"km_entrada": 80000}),
+                     headers=header)
+    assert r1.status_code == 201, r1.text
+    objeto_id = r1.json()["objeto"]["id"]
+
+    r = client.get(f"/api/v1/ordens-servico/objeto/{objeto_id}/historico-km", headers=header)
+    assert r.status_code == 200, r.text
+    hist = r.json()
+    assert len(hist) == 1
+    assert hist[0]["km_entrada"] == 80000
+
+
+def test_guardiao_informatica_itens_contam_normalmente(client, db_session):
+    """GUARDIAO: sem status enviado, itens default APROVADO contam no total
+    (comportamento da informática permanece igual)."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    itens = [_item("Formatação", 8000), _item("Limpeza", 2000)]  # sem status_aprovacao
+    r = client.post("/api/v1/ordens-servico/", json=_os_payload(cliente_id, "SERIAL-1", itens=itens), headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    body = r.json()
+    assert body["valor_bruto"] == 10000, "todos os itens contam (default APROVADO)"
+    assert body["itens"][0]["status_aprovacao"] == "APROVADO"

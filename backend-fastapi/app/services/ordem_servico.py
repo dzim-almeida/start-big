@@ -43,7 +43,7 @@ from app.db.crud import configuracao_seguranca as config_seg_crud
 
 from app.services.segmentos import validar_objeto_por_segmento
 
-from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento
+from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento, OrdemServicoItemAprovacao
 from app.core.security import verify_password
 from app.helpers.set_pagination import _set_pagination
 
@@ -116,12 +116,21 @@ def _assert_os_editavel(os_in_db: OSModel) -> None:
         raise os_fechada_exce
 
 
+def _item_conta_no_total(status: OrdemServicoItemAprovacao) -> bool:
+    """Um item entra no total da OS a menos que esteja REPROVADO."""
+    return status != OrdemServicoItemAprovacao.REPROVADO
+
+
 def _recalcular_valor_total_os(os_in_db: OSModel) -> None:
     """
     Recalcula valor_bruto e valor_total com base nos itens atuais da OS.
+    Itens REPROVADO são excluídos do total (fluxo de orçamento/oficina).
     Deve ser chamado sempre que itens ou desconto forem alterados.
     """
-    valor_bruto = sum(item.valor_total for item in os_in_db.itens)
+    valor_bruto = sum(
+        item.valor_total for item in os_in_db.itens
+        if _item_conta_no_total(item.status_aprovacao)
+    )
     os_in_db.valor_bruto = valor_bruto
     os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0) + (os_in_db.taxa_entrega or 0) + (os_in_db.acrescimo or 0))
 
@@ -153,7 +162,9 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
 
     for item in os_to_create.itens:
         valor_item = item.quantidade * item.valor_unitario
-        valor_bruto_os += valor_item
+        # Itens REPROVADO não entram no total (default APROVADO conta, como hoje).
+        if _item_conta_no_total(item.status_aprovacao):
+            valor_bruto_os += valor_item
         item_data = item.model_dump(exclude={"item_id"}, exclude_unset=True)
         itens_model.append(OSItemModel(
             **item_data,
@@ -413,6 +424,31 @@ def update_equipamento_os(db: Session, numero_os: str, data: OSEquipamentoUpdate
     )
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
+
+
+# ===========================================================================
+# HISTÓRICO DE KM (oficina)
+# ===========================================================================
+
+def get_historico_km(db: Session, objeto_id: int) -> list[dict]:
+    """
+    Histórico de quilometragem de um objeto/veículo ao longo das suas OS.
+
+    Lê o KM de entrada gravado em dados_adicionais["km_entrada"] de cada OS,
+    da mais antiga para a mais recente. Retorna apenas as OS que registraram KM.
+    """
+    ordens = os_crud.get_ordens_by_objeto_id(db, objeto_id)
+    historico = []
+    for o in ordens:
+        km = (o.dados_adicionais or {}).get("km_entrada")
+        if km is None:
+            continue
+        historico.append({
+            "numero_os": o.numero_os,
+            "data": o.data_criacao,
+            "km_entrada": km,
+        })
+    return historico
 
 
 # ===========================================================================
