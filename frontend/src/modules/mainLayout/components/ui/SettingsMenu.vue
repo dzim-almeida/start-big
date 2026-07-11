@@ -24,7 +24,6 @@ const LINKS = {
   youtube: 'https://www.youtube.com/@StartBigOficial',
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 import { getImageUrl } from '@/shared/utils/print.utils';
 
 const authStore = useAuthStore();
