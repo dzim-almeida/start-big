@@ -2,8 +2,16 @@ import z from 'zod';
 
 import { OsEquipTypeEnum } from '../enums/osEnums.schema';
 
+/**
+ * Regex de placa (Mercosul ABC1D23 ou antiga ABC1234), já normalizada
+ * (maiúsculas, sem hífen). Espelha app/core/segmentos.PLACA_REGEX do backend.
+ * Usada como validação leve de UX no segmento de oficina; o backend é a fonte da verdade.
+ */
+export const PLACA_REGEX = /^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z]\d{2})$/;
+
 export const OsEquipCreateSchema = z.object({
-  tipo_equipamento: OsEquipTypeEnum,
+  // Opcional: oficina não usa o enum de TI (moto seria outro segmento).
+  tipo_equipamento: OsEquipTypeEnum.optional(),
   marca: z
     .string({ required_error: 'A marca é obrigatória' })
     .trim()
@@ -25,10 +33,17 @@ export const OsEquipCreateSchema = z.object({
     .optional()
     .default(''),
   cor: z.string().max(50, 'A cor deve ter no máximo 50 caracteres').optional(),
+  // Lembrete de revisão (oficina) — colunas do objeto no backend.
+  proxima_revisao_data: z.string().optional().nullable(),
+  proxima_revisao_km: z.number().int().min(0).optional().nullable(),
+  // Campos dinâmicos do objeto por segmento (ex: oficina → chassi, ano).
+  dados_adicionais: z.record(z.any()).optional().default({}),
 });
 
 export const OsEquipReadSchema = z.object({
   ...OsEquipCreateSchema.shape,
+  // Na resposta, tipo_equipamento é livre por segmento (ex: 'Veículo', 'COMPUTADOR').
+  tipo_equipamento: z.string().optional().nullable(),
   id: z.number().int().positive(),
   cliente_id: z.number().int().positive(),
   ativo: z.boolean(),
@@ -47,6 +62,9 @@ export const OsEquipUpdateSchema = z.object({
   imei: z.string({ required_error: 'O IMEI é obrigatório' }).max(255, 'O IMEI deve ter no máximo 255 caracteres').optional(),
   cor: z.string().max(255, 'A cor deve ter no máximo 255 caracteres').optional(),
   cliente_id: z.number().int().positive().optional(),
+  proxima_revisao_data: z.string().optional().nullable(),
+  proxima_revisao_km: z.number().int().min(0).optional().nullable(),
+  dados_adicionais: z.record(z.any()).optional(),
 });
 
 export type OsEquipCreateSchemaDataType = z.infer<typeof OsEquipCreateSchema>

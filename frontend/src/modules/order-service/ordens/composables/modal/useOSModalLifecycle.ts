@@ -3,6 +3,7 @@ import { watch, type ComputedRef, type Ref } from 'vue';
 import type { OSFormContext } from '../../types/context.type';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../../schemas/relationship/customer/customer.schema';
+import type { OsEquipTypeEnumDataType } from '../../schemas/enums/osEnums.schema';
 import type { OSReopenMode } from './useOSStatusLocks';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
@@ -42,7 +43,8 @@ export function useOSModalLifecycle({
     }
 
     form.atualizarEquipamento.populateForm({
-      tipo_equipamento: os.equipamento.tipo_equipamento,
+      // Read é string livre por segmento; para informática é sempre um valor do enum.
+      tipo_equipamento: (os.equipamento.tipo_equipamento ?? undefined) as OsEquipTypeEnumDataType | undefined,
       marca: os.equipamento.marca,
       modelo: os.equipamento.modelo,
       numero_serie: os.equipamento.numero_serie,

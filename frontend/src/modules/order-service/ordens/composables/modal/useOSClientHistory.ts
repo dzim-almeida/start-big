@@ -21,7 +21,7 @@ export function useOSClientHistory({ setEquipamentoFormData }: UseOSClientHistor
   function reutilizarEquipamento(os: OrderServiceReadDataType) {
     const equip = os.equipamento;
     setEquipamentoFormData({
-      equipamento: equip.tipo_equipamento,
+      equipamento: equip.tipo_equipamento ?? '',
       marca: equip.marca ?? '',
       modelo: equip.modelo ?? '',
       numero_serie: equip.numero_serie ?? '',

@@ -22,6 +22,9 @@ export const OrderServiceCreateSchema = z.object({
   equipamento: OsEquipCreateSchema,
   itens: z.array(OsItemCreateSchema).default([]),
 
+  // Check-in do segmento (nível OS): ex. oficina → km_entrada, combustível, vistoria.
+  dados_adicionais: z.record(z.any()).optional().default({}),
+
   // Crédito
   usar_credito_cliente: z.boolean().default(false),
 });
@@ -65,6 +68,9 @@ export const OrderServiceUpdateSchema = z.object({
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
   data_previsao: z.string().optional(),
+
+  // Check-in do segmento (nível OS): ex. oficina → km_entrada, combustível, vistoria.
+  dados_adicionais: z.record(z.any()).optional(),
 });
 
 export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpdateSchema)
