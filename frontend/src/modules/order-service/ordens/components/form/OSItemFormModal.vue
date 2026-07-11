@@ -13,7 +13,8 @@ import { useProductsQuery } from '@/modules/products/inventory/composables/usePr
 import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
 import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
-import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType } from '../../schemas/enums/osEnums.schema';
+import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType, OsItemAprovacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
+import { useSegmento } from '@/shared/composables/useSegmento';
 
 interface Props {
   isOpen: boolean;
@@ -37,6 +38,18 @@ const unidade_medida = ref<OsItemMeasureEnumDataType>('UN');
 const quantidade = ref(1);
 const valorUnitarioNum = ref(0);
 const selectedCatalogId = ref<number | null>(null);
+
+// Aprovação/garantia por item (fluxo de orçamento) — exclusivo de oficina.
+const { isOficinaMecanica } = useSegmento();
+const statusAprovacao = ref<OsItemAprovacaoEnumDataType>('APROVADO');
+const garantiaDias = ref<number | null>(null);
+const garantiaKm = ref<number | null>(null);
+
+const STATUS_APROVACAO: { value: OsItemAprovacaoEnumDataType; label: string; selected: string }[] = [
+  { value: 'PENDENTE', label: 'Pendente', selected: 'bg-amber-500 text-white shadow-sm' },
+  { value: 'APROVADO', label: 'Aprovado', selected: 'bg-emerald-500 text-white shadow-sm' },
+  { value: 'REPROVADO', label: 'Reprovado', selected: 'bg-red-500 text-white shadow-sm' },
+];
 
 // --- Catálogo ---
 const catalogSearch = ref('');
@@ -138,6 +151,9 @@ function reset(): void {
   valorUnitarioNum.value = 0;
   catalogSearch.value = '';
   selectedCatalogId.value = null;
+  statusAprovacao.value = 'APROVADO';
+  garantiaDias.value = null;
+  garantiaKm.value = null;
 }
 
 function populate(item: OsItemCreateSchemaDataType): void {
@@ -147,6 +163,9 @@ function populate(item: OsItemCreateSchemaDataType): void {
   quantidade.value = item.quantidade;
   valorUnitarioNum.value = item.valor_unitario / 100;
   selectedCatalogId.value = item.item_id ?? null;
+  statusAprovacao.value = item.status_aprovacao ?? 'APROVADO';
+  garantiaDias.value = item.garantia_dias ?? null;
+  garantiaKm.value = item.garantia_km ?? null;
 }
 
 function handleSave(): void {
@@ -157,6 +176,9 @@ function handleSave(): void {
     unidade_medida: unidade_medida.value,
     quantidade: quantidade.value,
     valor_unitario: Math.round(valorUnitarioNum.value * 100),
+    status_aprovacao: statusAprovacao.value,
+    garantia_dias: garantiaDias.value ?? undefined,
+    garantia_km: garantiaKm.value ?? undefined,
     ...(selectedCatalogId.value != null && { item_id: selectedCatalogId.value }),
   });
   emit('close');
@@ -288,6 +310,42 @@ function handleClose(): void {
           v-model="valorUnitarioNum"
           :label="tipo === 'SERVICO' ? 'Valor / Hora' : 'Valor Unitário'"
         />
+
+        <!-- Aprovação e garantia por item (oficina): item REPROVADO não entra no total -->
+        <div v-if="isOficinaMecanica" class="space-y-3 border-t border-slate-100 pt-4">
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Aprovação do Item
+          </label>
+          <div class="flex p-1 bg-slate-100 rounded-lg gap-1">
+            <button
+              v-for="s in STATUS_APROVACAO"
+              :key="s.value"
+              type="button"
+              class="flex-1 py-2 text-sm font-bold rounded-md transition-all"
+              :class="statusAprovacao === s.value ? s.selected : 'text-slate-500 hover:text-slate-700'"
+              @click="statusAprovacao = s.value"
+            >
+              {{ s.label }}
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <BaseInput
+              v-model.number="garantiaDias"
+              label="Garantia (dias)"
+              type="number"
+              :min="0"
+              placeholder="Ex: 90"
+            />
+            <BaseInput
+              v-model.number="garantiaKm"
+              label="Garantia (KM)"
+              type="number"
+              :min="0"
+              placeholder="Ex: 10000"
+            />
+          </div>
+        </div>
 
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">
           <span class="text-sm font-bold text-slate-500 uppercase">Total do Item</span>
