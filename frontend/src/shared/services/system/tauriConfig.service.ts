@@ -36,3 +36,7 @@ export async function setRoleClient(serverIp: string, serverPort: number): Promi
 export async function obterIpLocal(): Promise<string> {
   return invoke<string>('obter_ip_local')
 }
+
+export async function iniciarDescobertaServidores(): Promise<void> {
+  return invoke<void>('iniciar_descoberta_servidores')
+}

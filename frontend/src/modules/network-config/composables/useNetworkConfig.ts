@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
-import { setRoleServer, setRoleClient, obterIpLocal, getConfig } from '@/shared/services/system/tauriConfig.service'
+import { setRoleServer, setRoleClient, obterIpLocal } from '@/shared/services/system/tauriConfig.service'
 import { verificarSaude } from '@/shared/services/system/health.service'
 import { reinitBackendUrl } from '@/api/backendUrl'
 

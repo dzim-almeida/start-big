@@ -7,8 +7,10 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { TOKEN_KEY } from '@/api/axios';
 import { getDesconectarUrl } from '@/shared/services/licenca.service';
-import { aguardarBackend } from '@/shared/services/system/health.service';
-import { tauriDisponivel, getConfig } from '@/shared/services/system/tauriConfig.service';
+import { aguardarBackend, verificarSaude } from '@/shared/services/system/health.service';
+import { tauriDisponivel, getConfig, setRoleClient } from '@/shared/services/system/tauriConfig.service';
+import { reinitBackendUrl } from '@/api/backendUrl';
+import { tentarAutoDiscovery } from '@/modules/network-config/composables/useAutoDiscovery';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
 import { useHealthMonitor } from '@/shared/composables/useHealthMonitor';
 
@@ -46,9 +48,21 @@ onMounted(async () => {
       const healthy = await aguardarBackend(config.is_server);
       if (!healthy) {
         if (!config.is_server) {
-          // Terminal: tela de bloqueio dedicada (sem opção de virar servidor)
+          // Terminal: tenta auto-discovery antes de mostrar tela de erro
+          const servidor = await tentarAutoDiscovery();
+          if (servidor) {
+            await setRoleClient(servidor.ip, servidor.port);
+            await reinitBackendUrl();
+            const retryOk = await verificarSaude(5000);
+            if (retryOk) {
+              appReady.value = true;
+              return;
+            }
+            networkStore.setConfigAtual(servidor.ip, servidor.port);
+          } else {
+            networkStore.setConfigAtual(config.server_ip, config.server_port);
+          }
           networkStore.setErroConexaoTerminal(true);
-          networkStore.setConfigAtual(config.server_ip, config.server_port);
           router.replace({ name: 'erro-conexao' });
         } else {
           // Servidor: wizard completo (sidecar local falhou)
