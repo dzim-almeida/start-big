@@ -51,6 +51,9 @@ export function useOSModalLifecycle({
       imei: os.objeto.imei,
       cor: os.objeto.cor,
       cliente_id: os.objeto.cliente_id,
+      proxima_revisao_data: os.objeto.proxima_revisao_data,
+      proxima_revisao_km: os.objeto.proxima_revisao_km,
+      dados_adicionais: os.objeto.dados_adicionais,
     });
   }
 

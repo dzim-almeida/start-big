@@ -42,7 +42,12 @@ export const DEFAULT_OS_CREATE_VALUES = {
     numero_serie: '',
     imei: '',
     cor: undefined,
+    proxima_revisao_data: undefined,
+    proxima_revisao_km: undefined,
+    dados_adicionais: {} as Record<string, unknown>,
   },
+  // Check-in dinâmico no nível da OS (km_entrada, combustível, vistoria)
+  dados_adicionais: {} as Record<string, unknown>,
   itens: [] as never[],
 }
 

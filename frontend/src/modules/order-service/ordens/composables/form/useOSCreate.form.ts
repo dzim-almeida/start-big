@@ -44,6 +44,12 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
   const [objeto_numero_serie] = defineField('objeto.numero_serie');
   const [objeto_imei] = defineField('objeto.imei');
   const [objeto_cor] = defineField('objeto.cor');
+  const [objeto_proxima_revisao_data] = defineField('objeto.proxima_revisao_data');
+  const [objeto_proxima_revisao_km] = defineField('objeto.proxima_revisao_km');
+  const [objeto_dados_adicionais] = defineField('objeto.dados_adicionais');
+
+  // Check-in dinâmico no nível da OS (km_entrada, combustível, vistoria)
+  const [dados_adicionais] = defineField('dados_adicionais');
 
   // FieldArray de itens com generic explícito para inferência correta de tipos
   const { fields: itens, push: pushItem, remove: removeItem, update: updateItemField } =
@@ -98,6 +104,10 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     objeto_numero_serie,
     objeto_imei,
     objeto_cor,
+    objeto_proxima_revisao_data,
+    objeto_proxima_revisao_km,
+    objeto_dados_adicionais,
+    dados_adicionais,
     itens,
     handleAddItem,
     handleRemoveItem,

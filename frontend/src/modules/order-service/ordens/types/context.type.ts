@@ -32,6 +32,13 @@ export interface OSCreateFormContext {
   objeto_numero_serie: Ref<string | null | undefined>;
   objeto_imei: Ref<string | null | undefined>;
   objeto_cor: Ref<string | null | undefined>;
+  // Objeto: lembrete de revisão + campos dinâmicos do segmento (ex: chassi, ano)
+  objeto_proxima_revisao_data: Ref<string | null | undefined>;
+  objeto_proxima_revisao_km: Ref<number | null | undefined>;
+  objeto_dados_adicionais: Ref<Record<string, unknown> | undefined>;
+
+  // OS: check-in dinâmico do segmento (km_entrada, combustível, vistoria)
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   // FieldArray de itens iniciais
   itens: Ref<FieldEntry<OsItemCreateSchemaDataType>[]>;
@@ -69,6 +76,8 @@ export interface OSUpdateGeralFormContext {
   acessorios: Ref<string | null | undefined>;
   condicoes_aparelho: Ref<string | null | undefined>;
   funcionario_id: Ref<number | null | undefined>;
+  // OS: check-in dinâmico do segmento (km_entrada, combustível, vistoria)
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
@@ -88,6 +97,10 @@ export interface OSUpdateObjetoFormContext {
   imei: Ref<string | null | undefined>;
   cor: Ref<string | null | undefined>;
   cliente_id: Ref<number | null | undefined>;
+  // Lembrete de revisão + campos dinâmicos do segmento (ex: chassi, ano)
+  proxima_revisao_data: Ref<string | null | undefined>;
+  proxima_revisao_km: Ref<number | null | undefined>;
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;

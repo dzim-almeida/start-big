@@ -28,6 +28,9 @@ export function useOSUpdateObjetoForm(opts: {
   const [imei] = defineField('imei');
   const [cor] = defineField('cor');
   const [cliente_id] = defineField('cliente_id');
+  const [proxima_revisao_data] = defineField('proxima_revisao_data');
+  const [proxima_revisao_km] = defineField('proxima_revisao_km');
+  const [dados_adicionais] = defineField('dados_adicionais');
 
   const populateForm = (objeto: OsObjetoUpdateSchemaDataType) => {
     setValues({
@@ -38,6 +41,9 @@ export function useOSUpdateObjetoForm(opts: {
       imei: objeto.imei,
       cor: objeto.cor,
       cliente_id: objeto.cliente_id,
+      proxima_revisao_data: objeto.proxima_revisao_data,
+      proxima_revisao_km: objeto.proxima_revisao_km,
+      dados_adicionais: objeto.dados_adicionais,
     });
   };
 
@@ -63,6 +69,9 @@ export function useOSUpdateObjetoForm(opts: {
     imei,
     cor,
     cliente_id,
+    proxima_revisao_data,
+    proxima_revisao_km,
+    dados_adicionais,
     errors,
     isPending,
     onSubmit,
