@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { getApiBaseUrl } from '@/api/backendUrl';
+import { obterHwid } from '@/shared/services/system/hwid.service';
 
 export interface LicencaStatusResponse {
   status: 'online_valid' | 'offline_valid';
@@ -34,8 +35,9 @@ export async function verificarLicenca(): Promise<LicencaStatusResponse> {
  */
 export async function desconectarLicenca(): Promise<void> {
   try {
+    const hwid = await obterHwid();
     await axios.post(
-      `${getApiBaseUrl()}/licenca/desconectar`,
+      `${getApiBaseUrl()}/licenca/desconectar?hwid=${encodeURIComponent(hwid)}`,
       null,
       { signal: AbortSignal.timeout(2000) },
     );
@@ -45,9 +47,12 @@ export async function desconectarLicenca(): Promise<void> {
 }
 
 /**
- * Retorna a URL completa do endpoint de desconexão.
+ * Retorna a URL completa do endpoint de desconexão com HWID.
  * Usada pelo sendBeacon no beforeunload (fecho de janela).
+ *
+ * @param hwid - Hardware ID do terminal (deve ser pré-cacheado, pois
+ *               beforeunload é síncrono e não pode aguardar async).
  */
-export function getDesconectarUrl(): string {
-  return `${getApiBaseUrl()}/licenca/desconectar`;
+export function getDesconectarUrl(hwid: string): string {
+  return `${getApiBaseUrl()}/licenca/desconectar?hwid=${encodeURIComponent(hwid)}`;
 }

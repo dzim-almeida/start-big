@@ -8,7 +8,8 @@ from sqlalchemy import text
 from app.db.session import SessionLocal, engine
 from app.db.base import Base
 from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados
-from app.services.licenca import enviar_heartbeat, renovar_licenca_background
+from app.services.licenca import enviar_heartbeat, renovar_licenca_background, desconectar_terminal
+from app.db.crud import terminal_conectado as terminal_crud
 
 logger = logging.getLogger(__name__)
 
@@ -181,8 +182,18 @@ async def lifespan(app: FastAPI):
     Inicia tarefas em segundo plano ao iniciar e cancela ao encerrar.
     """
     Base.metadata.create_all(bind=engine)
-    
+
     _aplicar_migracoes()
+
+    # Limpar terminais conectados da sessão anterior (stale após restart)
+    db = SessionLocal()
+    try:
+        terminal_crud.limpar_todos_terminais(db)
+        db.commit()
+        logger.info("Terminais conectados da sessão anterior limpos.")
+    finally:
+        db.close()
+
     logger.info("Iniciando tarefa de limpeza automatica temporal...")
     tarefa_limpeza = asyncio.create_task(_loop_limpeza_temporal())
 
@@ -203,3 +214,18 @@ async def lifespan(app: FastAPI):
             await tarefa
         except asyncio.CancelledError:
             pass
+
+    # Desconectar todos os terminais na API externa antes de encerrar
+    logger.info("Desconectando terminais na API externa...")
+    db = SessionLocal()
+    try:
+        terminais = terminal_crud.get_todos_terminais(db)
+        for terminal in terminais:
+            await desconectar_terminal(db, terminal.hwid)
+        terminal_crud.limpar_todos_terminais(db)
+        db.commit()
+        logger.info("Todos os %d terminais desconectados.", len(terminais))
+    except Exception:
+        logger.exception("Erro ao desconectar terminais no shutdown.")
+    finally:
+        db.close()

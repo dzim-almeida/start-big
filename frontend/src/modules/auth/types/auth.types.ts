@@ -10,6 +10,7 @@
 export interface LoginRequest {
   email: string;
   senha: string;
+  hwid: string;
 }
 
 /**

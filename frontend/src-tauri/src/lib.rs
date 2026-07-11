@@ -1,4 +1,5 @@
 mod backend;
+mod hwid;
 mod impressao;
 mod config_server;
 
@@ -10,6 +11,7 @@ use impressao::{
     listar_impressoras, obter_ip_local, parar_servidor_impressao, EstadoServidorImpressao,
 };
 use config_server::{load_config, set_role_client, set_role_server, get_api_url};
+use hwid::obter_hwid;
 
 use crate::backend::setup_sidecar;
 
@@ -29,7 +31,8 @@ pub fn run() {
             imprimir_rede,
             set_role_server,
             set_role_client,
-            get_api_url
+            get_api_url,
+            obter_hwid
         ])
         .setup(move |app| {
             let server_config = load_config(app.app_handle());
@@ -42,9 +45,10 @@ pub fn run() {
                 EstadoServidorImpressao::default()
             );
 
-            if server_config.is_server {
+            #[cfg(not(debug_assertions))]
+            {if server_config.is_server {
                 setup_sidecar(app.app_handle(), &server_config.server_ip, server_config.server_port)?;
-            }
+            }}
         
             Ok(())
         })

@@ -35,6 +35,11 @@ class UsuarioLogin(BaseModel):
         max_length=72,
         description="Senha do usuário"
     )
+    hwid: str = Field(
+        ...,
+        max_length=255,
+        description="Hardware ID do terminal que está fazendo login"
+    )
 
     @field_validator('email', mode='before')
     @classmethod
@@ -53,6 +58,15 @@ class UsuarioLogin(BaseModel):
 # =========================
 # Setup Inicial (Sign-In)
 # =========================
+
+class LogoutRequest(BaseModel):
+    """Schema de entrada para a requisição de logout com HWID do terminal."""
+    hwid: str = Field(
+        ...,
+        max_length=255,
+        description="Hardware ID do terminal que está fazendo logout"
+    )
+
 
 class StatusResponse(BaseModel):
     """Resposta do endpoint de verificação de inicialização do sistema."""

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from app.schemas.auth import UsuarioLogin
 from app.core.security import verify_password, create_access_token
 from app.services import usuario as usuario_service
+from app.services import licenca as licenca_service
 from app.db.crud import token as token_crud
 from app.db.crud import usuario as usuario_crud
 from app.db.models.token import TokenBlocklist
@@ -46,11 +47,12 @@ def login(db: Session, login_usuario: UsuarioLogin) -> Dict[str, Any]:
     # 1. Busca Usuário
     usuario_in_db = usuario_service.get_usuario_by_email(db, login_usuario.email)
 
-    # 2. Validação de Credenciais (REGRA 4: Segurança/Robustez)
-    # A verificação de `usuario_in_db` deve ocorrer antes de tentar acessar `usuario_in_db.senha_hash`
+    # 2. Validação de Credenciais
     if not usuario_in_db or not verify_password(login_usuario.senha, usuario_in_db.senha_hash):
         raise UNAUTHORIZED_EXCE
-    
+
+    # 3. Conectar terminal à licença (valida limite na API StartBig)
+    licenca_service.conectar_terminal(db, login_usuario.hwid)
 
     # 4. Criação do Payload (Claims)
     token_data = {

@@ -4,7 +4,7 @@
 #            Não requer autenticação (executa antes do login).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -49,13 +49,17 @@ def verificar_status_licenca(db: Session = Depends(get_db)):
 @router.post(
     "/desconectar",
     status_code=status.HTTP_200_OK,
-    summary="Desconecta a sessão da licença na API StartBig",
+    summary="Desconecta um terminal da licença na API StartBig",
 )
-async def desconectar_licenca(db: Session = Depends(get_db)):
+async def desconectar_licenca(
+    hwid: str = Query(..., max_length=255, description="Hardware ID do terminal"),
+    db: Session = Depends(get_db),
+):
     """
     Endpoint público chamado no encerramento da aplicação ou logout.
-    Liberta a sessão da licença na plataforma StartBig.
+    Remove o terminal de terminais_conectados e notifica a API StartBig.
 
+    Aceita HWID via query parameter para compatibilidade com sendBeacon.
     Sempre retorna 200 — falhas de rede são tratadas internamente.
     """
-    return await licenca_service.desconectar_licenca(db)
+    return await licenca_service.desconectar_terminal(db, hwid)

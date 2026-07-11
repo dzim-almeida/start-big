@@ -7,6 +7,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { TOKEN_KEY } from '@/api/axios';
 import { getDesconectarUrl } from '@/shared/services/licenca.service';
+import { obterHwid } from '@/shared/services/system/hwid.service';
 import { verificarSaude } from '@/shared/services/system/health.service';
 import { tauriDisponivel } from '@/shared/services/system/tauriConfig.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
@@ -17,15 +18,21 @@ const networkStore = useNetworkConfigStore();
 const { isLoading } = storeToRefs(authStore);
 
 const appReady = ref(false);
+const terminalHwid = ref('');
 
 function handleBeforeUnload() {
   // Dispara desconexão da licença via sendBeacon (fire-and-forget).
   // sendBeacon sobrevive ao unload — garante envio mesmo durante fecho da janela.
-  navigator.sendBeacon(getDesconectarUrl());
+  if (terminalHwid.value) {
+    navigator.sendBeacon(getDesconectarUrl(terminalHwid.value));
+  }
   localStorage.removeItem(TOKEN_KEY);
 }
 
 onMounted(async () => {
+  // Cachear HWID imediatamente para uso síncrono no beforeunload
+  terminalHwid.value = await obterHwid();
+
   window.addEventListener('beforeunload', handleBeforeUnload);
 
   if (tauriDisponivel()) {

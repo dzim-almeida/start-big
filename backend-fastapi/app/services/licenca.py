@@ -5,6 +5,7 @@
 #            criptografia AES-256-GCM e persistência local.
 # ---------------------------------------------------------------------------
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -32,7 +33,9 @@ from app.schemas.licenca import (
     ValidarResponse,
 )
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
+from app.db.models.terminal_conectado import TerminalConectado
 from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud import terminal_conectado as terminal_crud
 from app.core.hwid import obter_hwid
 
 logger = logging.getLogger(__name__)
@@ -546,56 +549,212 @@ def verificar_licenca_ativa(db: Session) -> dict:
 
 
 # ===========================================================================
+# Conexão de Terminal (Login)
+# ===========================================================================
+
+def conectar_terminal(db: Session, terminal_hwid: str) -> None:
+    """
+    Conecta um terminal à licença via API StartBig.
+
+    Chamado durante o login de cada terminal. Idempotente: se o HWID
+    já estiver registrado em terminais_conectados, atualiza ultima_sinc
+    e retorna sem chamar a API externa.
+
+    Fluxo:
+    1. Verifica se terminal já está registrado (idempotente).
+    2. Busca licença e decripta chave_ativacao com HWID do servidor.
+    3. POST /licenca/conectar com {chave, hwid: terminal_hwid}.
+    4. Sucesso → insere em terminais_conectados.
+    5. Erro 4xx → HTTPException 403.
+    6. Erro de rede → HTTPException 503.
+
+    Args:
+        db: Sessão do banco de dados.
+        terminal_hwid: Hardware ID do terminal que está fazendo login.
+
+    Raises:
+        HTTPException 403: Limite de terminais atingido ou licença recusada.
+        HTTPException 503: Não foi possível conectar ao servidor de licenças.
+    """
+    print(f"[terminal] conectar_terminal chamado — hwid={terminal_hwid[:8]}...")
+
+    # 1. Idempotência: terminal já conectado
+    existente = terminal_crud.get_terminal_by_hwid(db, terminal_hwid)
+    if existente:
+        terminal_crud.update_ultima_sinc(db, existente)
+        print(f"[terminal] Terminal {terminal_hwid[:8]}... já conectado — update ultima_sinc")
+        return
+
+    # 2. Buscar licença e decriptar com HWID do servidor
+    licenca = licenca_crud.get_licenca(db)
+    if not licenca:
+        raise _erro_licenca(
+            "LICENCA_NAO_ENCONTRADA",
+            "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
+        )
+
+    # 3. Pré-validação local: verificar limite de terminais antes da chamada API
+    terminais = terminal_crud.get_todos_terminais(db)
+    if len(terminais) >= licenca.limite:
+        raise _erro_licenca(
+            "LIMITE_TERMINAIS",
+            f"Limite máximo de {licenca.limite} máquina(s) conectada(s) atingido. "
+            "Desconecte um terminal para conectar um novo.",
+        )
+
+    # 4. Decriptar chave de ativação com HWID do servidor
+    hwid_servidor = obter_hwid()
+    try:
+        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid_servidor)
+    except Exception as e:
+        logger.warning("[licenca] Falha na descriptografia — possível clonagem: %s", e)
+        raise _erro_licenca(
+            "CLONAGEM_DETECTADA",
+            "Falha na verificação de integridade. "
+            "O banco de dados pode ter sido copiado de outra máquina.",
+        )
+
+    # 5. Chamar API externa
+    payload = ConectarPayload(chave=chave_ativacao, hwid=terminal_hwid)
+
+    try:
+        with httpx.Client(timeout=CONECTAR_TIMEOUT_SECONDS) as client:
+            response = client.post(
+                API_CONECTAR_URL,
+                json=payload.model_dump(),
+            )
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        # 6. Fallback offline: API indisponível, mas validação local passou — registrar localmente
+        terminal = TerminalConectado(hwid=terminal_hwid)
+        terminal_crud.create_terminal(db, terminal)
+        print(f"[terminal] Terminal {terminal_hwid[:8]}... CRIADO (fallback offline — {type(e).__name__})")
+        return
+
+    # 7. Processar resposta da API
+    if 200 <= response.status_code < 300:
+        terminal = TerminalConectado(hwid=terminal_hwid)
+        terminal_crud.create_terminal(db, terminal)
+        print(f"[terminal] Terminal {terminal_hwid[:8]}... CRIADO (API retornou {response.status_code})")
+        return
+
+    # 8. Erro 4xx (limite atingido na API, licença inválida)
+    if 400 <= response.status_code < 500:
+        detail = response.text
+        try:
+            body = response.json()
+            detail = body.get("msg", body.get("message", response.text))
+        except Exception:
+            pass
+        raise _erro_licenca(
+            "LIMITE_TERMINAIS",
+            f"Não foi possível conectar o terminal: {detail}",
+        )
+
+    # 9. Erro 5xx — tratar como indisponível (fallback offline)
+    terminal = TerminalConectado(hwid=terminal_hwid)
+    terminal_crud.create_terminal(db, terminal)
+    print(f"[terminal] Terminal {terminal_hwid[:8]}... CRIADO (fallback 5xx — status {response.status_code})")
+
+
+# ===========================================================================
 # Heartbeat (Etapa 3 — Sincronização de Estado)
 # ===========================================================================
 
+async def _enviar_heartbeat_terminal(
+    client: httpx.AsyncClient,
+    licenca_id: str,
+    terminal: "TerminalConectado",
+) -> tuple["TerminalConectado", int | None]:
+    """
+    Envia heartbeat para um terminal específico.
+
+    Returns:
+        Tupla (terminal, status_code). status_code é None em caso de erro de rede.
+    """
+    payload = HeartbeatPayload(licencaId=licenca_id, hwid=terminal.hwid)
+    try:
+        response = await client.post(
+            API_HEARTBEAT_URL,
+            json=payload.model_dump(),
+        )
+        return terminal, response.status_code, response.text
+    except httpx.RequestError as error:
+        print(f"[licenca] Heartbeat falhou para {terminal.hwid[:8]}... — {type(error).__name__}: {error}")
+        return terminal, None, None
+
+
 async def enviar_heartbeat(db: Session) -> None:
     """
-    Envia heartbeat à API StartBig para sinalizar que a instância está operacional.
+    Envia heartbeat para CADA terminal conectado em paralelo.
 
-    Reage à resposta da API:
-    - 201: Licença OK. Se estava bloqueada, desbloqueia.
-    - 400: Licença bloqueada pelo servidor. Seta flag no banco.
-    - 5xx / erros de rede: Registra em log e ignora (fire-and-forget).
+    Se não há terminais registrados, não envia nada (sem heartbeat).
+    Reage à resposta da API por terminal:
+    - 201: OK, atualiza ultima_sinc do terminal.
+    - 400: Terminal bloqueado, remove da tabela.
+    - Erro de rede: Registra em log e ignora.
+
+    Ao final, se todos os terminais foram bloqueados, marca a licença
+    como bloqueada. Se pelo menos um está OK, desbloqueia.
     """
     licenca = licenca_crud.get_licenca(db)
     if not licenca:
         return
 
-    hwid = obter_hwid()
-    payload = HeartbeatPayload(licencaId=licenca.licenca_id, hwid=hwid)
+    terminais = terminal_crud.get_todos_terminais(db)
+    if not terminais:
+        print("[licenca] Nenhum terminal conectado — heartbeat ignorado.")
+        return
 
-    try:
-        async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
-            response = await client.post(
-                API_HEARTBEAT_URL,
-                json=payload.model_dump(),
-            )
-
-        if response.status_code == 201:
-            if licenca.bloqueada:
-                licenca.bloqueada = False
-                licenca_crud.update_licenca(db, licenca)
-                db.commit()
-                print("[licenca] Heartbeat: licenca desbloqueada pelo servidor.")
-            else:
-                print("[licenca] Heartbeat: OK (201)")
-            return
-
-        if response.status_code == 400:
-            licenca.bloqueada = True
-            licenca_crud.update_licenca(db, licenca)
-            db.commit()
-            print("[licenca] Heartbeat: licenca BLOQUEADA pelo servidor.")
-            return
-
-        print(
-            f"[licenca] Heartbeat: servidor retornou status inesperado "
-            f"{response.status_code} — {response.text}"
+    # Enviar heartbeats em paralelo
+    async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
+        resultados = await asyncio.gather(
+            *[
+                _enviar_heartbeat_terminal(client, licenca.licenca_id, terminal)
+                for terminal in terminais
+            ],
+            return_exceptions=True,
         )
 
-    except httpx.RequestError as error:
-        print(f"[licenca] Heartbeat falhou — {type(error).__name__}: {error.request.url} — {error}")
+    tem_ok = False
+    todos_bloqueados = True
+
+    for resultado in resultados:
+        if isinstance(resultado, Exception):
+            logger.warning("[licenca] Heartbeat erro inesperado: %s", resultado)
+            todos_bloqueados = False
+            continue
+
+        terminal, status_code, response_text = resultado
+
+        if status_code == 201:
+            terminal_crud.update_ultima_sinc(db, terminal)
+            print(f"[licenca] Heartbeat OK para terminal {terminal.hwid[:8]}...")
+            tem_ok = True
+            todos_bloqueados = False
+
+        elif status_code == 400:
+            terminal_crud.delete_terminal_by_hwid(db, terminal.hwid)
+            print(f"[terminal] Terminal {terminal.hwid[:8]}... bloqueado (400), REMOVIDO pelo heartbeat. Body: {response_text}")
+
+        elif status_code is not None:
+            print(f"[licenca] Heartbeat {terminal.hwid[:8]}...: status inesperado {status_code}")
+            todos_bloqueados = False
+
+        else:
+            # Erro de rede — não conta como bloqueio
+            todos_bloqueados = False
+
+    # Atualizar flag de bloqueio da licença
+    if tem_ok and licenca.bloqueada:
+        licenca.bloqueada = False
+        licenca_crud.update_licenca(db, licenca)
+        print("[licenca] Licença desbloqueada (terminal ativo detectado).")
+    elif todos_bloqueados and terminais and not licenca.bloqueada:
+        licenca.bloqueada = True
+        licenca_crud.update_licenca(db, licenca)
+        print("[licenca] Licença BLOQUEADA (todos terminais rejeitados).")
+
+    db.commit()
 
 
 # ===========================================================================
@@ -687,25 +846,36 @@ async def renovar_licenca_background(db: Session) -> None:
 # Desconexão de Sessão (Etapa 5)
 # ===========================================================================
 
-async def desconectar_licenca(db: Session) -> dict:
+async def desconectar_terminal(db: Session, terminal_hwid: str) -> dict:
     """
-    Liberta a sessão da licença na API StartBig.
+    Desconecta um terminal específico da licença.
 
-    Chamado no encerramento da aplicação ou logout do utilizador.
-    Nunca levanta exceção — falhas são apenas registadas em log
-    para não bloquear o fluxo de fecho.
+    1. Remove o registro de terminais_conectados (local).
+    2. Notifica a API StartBig via POST /licenca/desconectar.
+
+    Fire-and-forget: nunca levanta exceção — falhas são registadas em log.
+
+    Args:
+        db: Sessão do banco de dados.
+        terminal_hwid: Hardware ID do terminal a desconectar.
 
     Returns:
         dict: {"ok": True} sempre.
     """
     try:
+        # 1. Remover da tabela local
+        print(f"[terminal] desconectar_terminal chamado — hwid={terminal_hwid[:8]}...")
+        terminal_crud.delete_terminal_by_hwid(db, terminal_hwid)
+        db.commit()
+
+        # 2. Notificar API externa
         licenca = licenca_crud.get_licenca(db)
         if not licenca:
             return {"ok": True}
 
-        hwid = obter_hwid()
-        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
-        payload = DesconectarPayload(chave=chave_ativacao, hwid=hwid)
+        hwid_servidor = obter_hwid()
+        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid_servidor)
+        payload = DesconectarPayload(chave=chave_ativacao, hwid=terminal_hwid)
 
         async with httpx.AsyncClient(timeout=DESCONECTAR_TIMEOUT) as client:
             response = await client.post(
@@ -714,8 +884,8 @@ async def desconectar_licenca(db: Session) -> dict:
             )
 
         logger.info(
-            "[licenca] Desconexão: servidor retornou status %d",
-            response.status_code,
+            "[licenca] Desconexão terminal %s: status %d",
+            terminal_hwid[:8], response.status_code,
         )
 
     except Exception as e:

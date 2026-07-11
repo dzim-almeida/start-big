@@ -85,7 +85,17 @@ export function useLogin() {
       }
     },
     onError: (error) => {
-      apiError.value = getErrorMessage(error, 'Erro ao realizar login');
+      const detail = error.response?.data?.detail;
+      if (typeof detail === 'object' && detail !== null && 'codigo' in detail) {
+        const errorDetail = detail as unknown as { codigo: string; mensagem: string };
+        apiError.value = errorDetail.mensagem;
+
+        if (errorDetail.codigo === 'LIMITE_TERMINAIS') {
+          toast.error(errorDetail.mensagem);
+        }
+      } else {
+        apiError.value = getErrorMessage(error, 'Erro ao realizar login');
+      }
     },
   });
 
