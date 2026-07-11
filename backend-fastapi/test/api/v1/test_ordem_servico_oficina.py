@@ -223,6 +223,31 @@ def test_historico_km_do_veiculo(client, db_session):
     assert hist[0]["km_entrada"] == 80000
 
 
+def test_atualizar_dados_adicionais_persiste(client, db_session):
+    """REGRESSÃO: atualizar dados_adicionais de uma OS que já tem conteúdo deve
+    persistir. Bug: mutação in-place + reatribuição da mesma referência não era
+    detectada pelo SQLAlchemy (JSON não rastreado in-place)."""
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    r = client.post("/api/v1/ordens-servico/",
+                    json=_os_payload(cliente_id, "ABC1D23", os_dados_adicionais={"km_entrada": 80000}),
+                    headers=header)
+    assert r.status_code == 201, r.text
+    numero_os = r.json()["numero_os"]
+
+    up = client.put(f"/api/v1/ordens-servico/{numero_os}",
+                    json={"dados_adicionais": {"combustivel_nivel": "CHEIO"}},
+                    headers=header)
+    assert up.status_code == 200, up.text
+
+    # GET em requisição separada (sessão nova) reflete o que foi de fato persistido
+    g = client.get(f"/api/v1/ordens-servico/{numero_os}", headers=header)
+    assert g.status_code == 200, g.text
+    dados = g.json()["dados_adicionais"]
+    assert dados.get("km_entrada") == 80000, "chave original deve ser preservada"
+    assert dados.get("combustivel_nivel") == "CHEIO", "chave nova deve persistir"
+
+
 def test_guardiao_informatica_itens_contam_normalmente(client, db_session):
     """GUARDIAO: sem status enviado, itens default APROVADO contam no total
     (comportamento da informática permanece igual)."""

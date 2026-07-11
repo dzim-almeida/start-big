@@ -174,7 +174,14 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
         ))
 
     desconto = os_to_create.desconto or 0
-    valor_total_os = max(0, valor_bruto_os - desconto)
+    # Mesma fórmula de _recalcular_valor_total_os (inclui taxa de entrega e acréscimo),
+    # para o total na criação bater com o total após qualquer recálculo posterior.
+    valor_total_os = max(
+        0,
+        valor_bruto_os - desconto
+        + (os_to_create.taxa_entrega or 0)
+        + (os_to_create.acrescimo or 0),
+    )
 
     # Suporta tanto 'objeto' quanto 'equipamento' (para retrocompatibilidade)
     objeto_schema = os_to_create.objeto or os_to_create.equipamento
@@ -336,8 +343,10 @@ def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) 
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # Extrai campos legados e move para dados_adicionais
-    dados_adicionais = getattr(os_in_db, "dados_adicionais", None) or {}
+    # Extrai campos legados e move para dados_adicionais.
+    # dict(...) cria um novo objeto para que o SQLAlchemy detecte a mudança
+    # (JSON não é rastreado in-place; reatribuir a mesma referência não persiste).
+    dados_adicionais = dict(getattr(os_in_db, "dados_adicionais", None) or {})
     if "dados_adicionais" in update_data:
         sent_data = update_data.pop("dados_adicionais") or {}
         dados_adicionais.update(sent_data)
@@ -399,8 +408,9 @@ def update_equipamento_os(db: Session, numero_os: str, data: OSEquipamentoUpdate
             raise cliente_not_found_exce
         equipamento.cliente = cliente_in_db
 
-    # Extrai dados_adicionais e campos de retrocompatibilidade do objeto
-    obj_dados_adicionais = getattr(equipamento, "dados_adicionais", None) or {}
+    # Extrai dados_adicionais e campos de retrocompatibilidade do objeto.
+    # dict(...) garante um novo objeto para o SQLAlchemy detectar a mudança.
+    obj_dados_adicionais = dict(getattr(equipamento, "dados_adicionais", None) or {})
     if "dados_adicionais" in update_data:
         sent_data = update_data.pop("dados_adicionais") or {}
         obj_dados_adicionais.update(sent_data)
