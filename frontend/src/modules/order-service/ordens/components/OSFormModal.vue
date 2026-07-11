@@ -273,6 +273,8 @@ const {
 resetObjetoSelectStateProxy = resetObjetoSelectState;
 const {
   objetoFormData,
+  objetoDados,
+  osDados,
   controlsStatus,
   controlsFuncionarioId,
   controlsPrioridade,
@@ -313,6 +315,14 @@ function handleChangeCliente() {
 
 function setObjetoFormData(value: typeof objetoFormData.value) {
   objetoFormData.value = value;
+}
+
+function setObjetoDados(value: Record<string, unknown>) {
+  objetoDados.value = value;
+}
+
+function setOsDados(value: Record<string, unknown>) {
+  osDados.value = value;
 }
 
 const {
@@ -372,6 +382,8 @@ useOSFormViewProvider({
   displayValorAcrescimo,
   formErrors,
   objetoFormData,
+  objetoDados,
+  osDados,
   objetosHistorico,
   selectedHistorico,
   currentDiagnostico,
@@ -401,6 +413,8 @@ useOSFormViewProvider({
   handleUsarCredito,
   saldoCreditoCliente,
   setObjetoFormData,
+  setObjetoDados,
+  setOsDados,
   setSelectedHistorico,
   applyObjetoHistorico,
   handleDiagnosticoUpdate,

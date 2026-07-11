@@ -51,6 +51,8 @@ export interface OSFormViewContext {
   displayValorAcrescimo: ComputedRef<number>;
   formErrors: ComputedRef<Record<string, string | undefined>>;
   objetoFormData: ComputedRef<ObjetoFormData>;
+  objetoDados: ComputedRef<Record<string, unknown>>;
+  osDados: ComputedRef<Record<string, unknown>>;
   objetosHistorico: Ref<ObjetoHistorico[]>;
   selectedHistorico: Ref<string>;
   currentDiagnostico: ComputedRef<string>;
@@ -80,6 +82,8 @@ export interface OSFormViewContext {
   handleUsarCredito: () => void;
   saldoCreditoCliente: ComputedRef<number>;
   setObjetoFormData: (value: ObjetoFormData) => void;
+  setObjetoDados: (value: Record<string, unknown>) => void;
+  setOsDados: (value: Record<string, unknown>) => void;
   setSelectedHistorico: (value: string) => void;
   applyObjetoHistorico: () => void;
   handleDiagnosticoUpdate: (value: string) => void;

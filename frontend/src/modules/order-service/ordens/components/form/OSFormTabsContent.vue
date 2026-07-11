@@ -67,11 +67,15 @@ const objetoModel = computed<ObjetoFormData>({
         <OSObjetoTab
           v-if="activeTab === 'objeto'"
           v-model="objetoModel"
+          :objeto-dados="view.objetoDados.value"
+          :os-dados="view.osDados.value"
           :objetos-historico="view.objetosHistorico.value"
           :selected-historico="view.selectedHistorico.value"
           :is-locked="view.isStructureLocked.value"
           :is-create-mode="view.isCreateMode.value"
           :errors="view.formErrors.value"
+          @update:objeto-dados="view.setObjetoDados"
+          @update:os-dados="view.setOsDados"
           @update:selected-historico="view.setSelectedHistorico"
           @apply-historico="view.applyObjetoHistorico"
         />

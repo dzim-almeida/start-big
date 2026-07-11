@@ -80,6 +80,34 @@ export function useOSFormAdapter({ form, isCreateMode }: UseOSFormAdapterParams)
     },
   });
 
+  // dados_adicionais do OBJETO (ex: oficina → chassi, ano).
+  const objetoDados = computed<Record<string, unknown>>({
+    get: () => (isCreateMode.value
+      ? form.criar.objeto_dados_adicionais.value
+      : form.atualizarObjeto.dados_adicionais.value) ?? {},
+    set: (value) => {
+      if (isCreateMode.value) {
+        form.criar.objeto_dados_adicionais.value = value;
+        return;
+      }
+      form.atualizarObjeto.dados_adicionais.value = value;
+    },
+  });
+
+  // dados_adicionais da OS / check-in (ex: oficina → km_entrada, combustível, vistoria).
+  const osDados = computed<Record<string, unknown>>({
+    get: () => (isCreateMode.value
+      ? form.criar.dados_adicionais.value
+      : form.atualizarGeral.dados_adicionais.value) ?? {},
+    set: (value) => {
+      if (isCreateMode.value) {
+        form.criar.dados_adicionais.value = value;
+        return;
+      }
+      form.atualizarGeral.dados_adicionais.value = value;
+    },
+  });
+
   const controlsStatus = computed<OsStatusEnumDataType>(() => {
     if (isCreateMode.value) return 'ABERTA';
     return (form.atualizarGeral.status.value as OsStatusEnumDataType | undefined) ?? 'ABERTA';
@@ -148,6 +176,8 @@ export function useOSFormAdapter({ form, isCreateMode }: UseOSFormAdapterParams)
 
   return {
     objetoFormData,
+    objetoDados,
+    osDados,
     controlsStatus,
     controlsFuncionarioId,
     controlsPrioridade,
