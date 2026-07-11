@@ -5,9 +5,6 @@ use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
-/// Flag global que indica se o listener de descoberta ja esta ativo.
-/// Evita bind duplo na porta 8888 caso `discover_servers` seja chamado
-/// mais de uma vez (ex: production setup + comando do frontend).
 static LISTENER_ATIVO: AtomicBool = AtomicBool::new(false);
 
 const DISCOVERY_PORT: u16 = 8888;
@@ -23,9 +20,6 @@ pub struct DiscoveryPayload {
     pub port: u16,
 }
 
-/// Inicia o broadcast UDP do servidor.
-/// Envia um pacote JSON a cada 5 segundos para `255.255.255.255:8888`
-/// permitindo que terminais na rede local descubram este servidor.
 pub fn start_discovery(server_ip: String, server_port: u16) {
     thread::spawn(move || {
         let socket = UdpSocket::bind("0.0.0.0:0").expect("Falha ao abrir socket UDP para broadcast");
@@ -62,11 +56,6 @@ pub fn start_discovery(server_ip: String, server_port: u16) {
     });
 }
 
-/// Inicia o listener UDP para descoberta de servidores.
-/// Escuta pacotes na porta 8888 e emite o evento `server_discovered`
-/// para o frontend quando um servidor valido e encontrado.
-///
-/// Protegido contra chamadas duplicadas via `LISTENER_ATIVO`.
 pub fn discover_servers(handle: AppHandle) {
     if LISTENER_ATIVO
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -101,6 +90,11 @@ pub fn discover_servers(handle: AppHandle) {
         let mut buf = [0; 1024];
 
         loop {
+            if !LISTENER_ATIVO.load(Ordering::SeqCst) {
+                println!("[discovery] Listener desativado, encerrando thread");
+                break;
+            }
+
             match socket.recv_from(&mut buf) {
                 Ok((size, _src_addr)) => {
                     if let Ok(json_str) = std::str::from_utf8(&buf[..size]) {
@@ -132,10 +126,13 @@ pub fn discover_servers(handle: AppHandle) {
     });
 }
 
-/// Comando Tauri para iniciar a descoberta de servidores sob demanda.
-/// Chamado pelo frontend quando o usuario seleciona modo "Terminal"
-/// ou quando o App.vue precisa tentar auto-discovery apos falha de conexao.
 #[tauri::command]
 pub fn iniciar_descoberta_servidores(app: AppHandle) {
     discover_servers(app.clone());
+}
+
+#[tauri::command]
+pub fn parar_descoberta_servidores() {
+    LISTENER_ATIVO.store(false, Ordering::SeqCst);
+    println!("[discovery] Comando recebido para parar a descoberta.");
 }
