@@ -10,7 +10,8 @@ use impressao::{
     listar_impressoras, obter_ip_local, parar_servidor_impressao, EstadoServidorImpressao,
 };
 use network::{
-    get_api_url, get_config, iniciar_descoberta_servidores, set_role_client, set_role_server,
+    get_api_url, get_config, iniciar_descoberta_servidores, parar_descoberta_servidores,
+    set_role_client, set_role_server,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -31,7 +32,8 @@ pub fn run() {
             set_role_client,
             get_api_url,
             get_config,
-            iniciar_descoberta_servidores
+            iniciar_descoberta_servidores,
+            parar_descoberta_servidores
         ])
         .setup(move |app| {
             app.manage(AppState {
@@ -43,7 +45,9 @@ pub fn run() {
             #[cfg(not(debug_assertions))]
             {
                 use crate::backend::setup_sidecar;
-                use crate::network::{gen_network_config_txt, load_config, start_discovery, discover_servers};
+                use crate::network::{
+                    discover_servers, gen_network_config_txt, load_config, start_discovery,
+                };
 
                 let handle = app.app_handle();
 

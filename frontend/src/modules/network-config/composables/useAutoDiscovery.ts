@@ -72,6 +72,12 @@ export function useAutoDiscovery() {
     }
     estado.value = 'inativo'
     servidorEncontrado.value = null
+
+    if (isTauri()) {
+      invoke('parar_descoberta_servidores').catch((e) => {
+        console.warn('[auto-discovery] Erro ao invocar parar_descoberta_servidores:', e)
+      })
+    }
   }
 
   function reiniciarBusca() {
