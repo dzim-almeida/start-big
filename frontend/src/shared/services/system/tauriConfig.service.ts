@@ -10,10 +10,15 @@ export interface AppConfig {
   is_server: boolean
   server_ip: string
   server_port: number
+  configured: boolean
 }
 
 export function tauriDisponivel(): boolean {
   return isTauri()
+}
+
+export async function getConfig(): Promise<AppConfig> {
+  return invoke<AppConfig>('get_config')
 }
 
 export async function getApiUrl(): Promise<string> {
@@ -30,4 +35,8 @@ export async function setRoleClient(serverIp: string, serverPort: number): Promi
 
 export async function obterIpLocal(): Promise<string> {
   return invoke<string>('obter_ip_local')
+}
+
+export async function iniciarDescobertaServidores(): Promise<void> {
+  return invoke<void>('iniciar_descoberta_servidores')
 }

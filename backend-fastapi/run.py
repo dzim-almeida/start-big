@@ -6,9 +6,14 @@ from app.main import app
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 
-print(f"[INFO] Verificando se o diretório 'dist' existe para determinar o modo de execução... {DIST_DIR}")
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+print(f"[INFO] Ambiente de execução: {APP_ENV}")
 
-if os.path.exists(DIST_DIR):
+if APP_ENV == "production":
+    if not os.path.exists(DIST_DIR):
+        print("[ERROR] O diretório 'dist' não foi encontrado. Certifique-se de que o código foi empacotado corretamente.")
+        sys.exit(1)
+    
     sys.path.insert(0, DIST_DIR)
     print("[INFO] Rodando o Backend em modo Protegido (PyArmor)...")
 else:

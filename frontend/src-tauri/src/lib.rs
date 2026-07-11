@@ -1,7 +1,7 @@
 mod backend;
 mod hwid;
 mod impressao;
-mod config_server;
+mod network;
 
 use tauri::{Manager, RunEvent};
 
@@ -10,10 +10,11 @@ use impressao::{
     descobrir_servidores_impressao, imprimir_raw, imprimir_rede, iniciar_servidor_impressao,
     listar_impressoras, obter_ip_local, parar_servidor_impressao, EstadoServidorImpressao,
 };
-use config_server::{load_config, set_role_client, set_role_server, get_api_url};
+use network::{
+    get_api_url, get_config, iniciar_descoberta_servidores, parar_descoberta_servidores,
+    set_role_client, set_role_server,
+};
 use hwid::obter_hwid;
-
-use crate::backend::setup_sidecar;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -33,23 +34,49 @@ pub fn run() {
             set_role_client,
             get_api_url,
             obter_hwid
+            get_config,
+            iniciar_descoberta_servidores,
+            parar_descoberta_servidores
         ])
         .setup(move |app| {
-            let server_config = load_config(app.app_handle());
-
             app.manage(AppState {
                 process: std::sync::Mutex::new(None),
             });
 
-            app.manage(
-                EstadoServidorImpressao::default()
-            );
+            app.manage(EstadoServidorImpressao::default());
 
             #[cfg(not(debug_assertions))]
-            {if server_config.is_server {
-                setup_sidecar(app.app_handle(), &server_config.server_ip, server_config.server_port)?;
-            }}
-        
+            {
+                use crate::backend::setup_sidecar;
+                use crate::network::{
+                    discover_servers, gen_network_config_txt, load_config, start_discovery,
+                };
+
+                let handle = app.app_handle();
+
+                let server_config = load_config(&handle);
+                if server_config.configured {
+                    if server_config.is_server {
+                        setup_sidecar(
+                            &handle,
+                            &server_config.server_ip,
+                            server_config.server_port,
+                        )?;
+                        gen_network_config_txt(
+                            &handle,
+                            obter_ip_local().unwrap_or_default(),
+                            server_config.server_port,
+                        );
+                        start_discovery(
+                            obter_ip_local().unwrap_or_default(),
+                            server_config.server_port,
+                        );
+                    } else {
+                        discover_servers(handle.clone());
+                    }
+                }
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())

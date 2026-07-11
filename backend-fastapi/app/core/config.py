@@ -14,11 +14,11 @@ app_name = "StartBigERP"
 # .db path
 
 if platform.system() == "Windows":
-    base_dir = os.path.join(os.getenv("LOCALAPPDATA"), app_name)
+    BASE_DIR = os.path.join(os.getenv("LOCALAPPDATA"), app_name)
 else:
-    base_dir = os.path.join(os.path.expanduser("~"), f".{app_name.lower()}")
+    BASE_DIR = os.path.join(os.path.expanduser("~"), f".{app_name.lower()}")
 
-data_dir = os.path.join(base_dir, "data")
+data_dir = os.path.join(BASE_DIR, "data")
 os.makedirs(data_dir, exist_ok=True)
 
 database_path = os.path.join(data_dir, "pdv.db")

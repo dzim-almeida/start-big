@@ -10,7 +10,7 @@ import { refDebounced } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 
 import { getFornecedores } from '../services/fornecedor.service';
-import { FORNECEDORES_QUERY_KEY, FORNECEDORES_STALE_TIME } from '../../shared/constants/queryKeys';
+import { FORNECEDORES_QUERY_KEY, FORNECEDORES_STALE_TIME, FORNECEDORES_REFETCH_INTERVAL } from '../../shared/constants/queryKeys';
 import type { StatusFilter } from '../types/fornecedor.types';
 import type { FornecedorReadType } from '../schemas/fornecedor.schema';
 
@@ -23,6 +23,7 @@ export function useFornecedoresQuery() {
     queryKey: computed(() => [FORNECEDORES_QUERY_KEY, debouncedSearchQuery.value]),
     queryFn: () => getFornecedores(debouncedSearchQuery.value || undefined),
     staleTime: FORNECEDORES_STALE_TIME,
+    refetchInterval: FORNECEDORES_REFETCH_INTERVAL,
   });
 
   const allFornecedores = computed<FornecedorReadType[]>(() => query.data.value ?? []);

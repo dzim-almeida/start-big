@@ -35,6 +35,7 @@ pub fn setup_sidecar(app_handle: &AppHandle, ip_address: &str, port: u16) -> Res
         .shell()
         .sidecar("erp-api")
         .expect("Falha ao criar o comando do sidecar FastAPI")
+        .env("APP_ENV", "production")
         .args([ip_address, &port.to_string()]);
 
     let (mut rx, child) = sidecar_command

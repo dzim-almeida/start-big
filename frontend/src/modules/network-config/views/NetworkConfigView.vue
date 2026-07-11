@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useNetworkConfig } from '../composables/useNetworkConfig'
+import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
 import TipoMaquinaStep from '../components/TipoMaquinaStep.vue'
 import ServidorConfigStep from '../components/ServidorConfigStep.vue'
 import TerminalConfigStep from '../components/TerminalConfigStep.vue'
@@ -10,7 +11,14 @@ import backgroundImage from '@/shared/assets/images/login/background.png'
 import logoImage from '@/shared/assets/images/login/start-logo.png'
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue'
 
-const { currentStep, tipoMaquina, resetConfig } = useNetworkConfig()
+const { currentStep, tipoMaquina, resetConfig, iniciarModoTerminalOnly } = useNetworkConfig()
+const networkStore = useNetworkConfigStore()
+
+onMounted(() => {
+  if (networkStore.erroConexaoTerminal) {
+    iniciarModoTerminalOnly()
+  }
+})
 
 const currentStepComponent = computed(() => {
   if (currentStep.value === 0) return TipoMaquinaStep

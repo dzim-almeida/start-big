@@ -23,7 +23,7 @@ import type {
 } from '../types/products.types';
 import { getErrorMessage, getConflictErrors, isConflictError } from '@/shared/utils/error.utils';
 
-import { PRODUTOS_QUERY_KEY as QUERY_KEY, PRODUTOS_STALE_TIME as STALE_TIME } from '../../shared/constants/queryKeys';
+import { PRODUTOS_QUERY_KEY as QUERY_KEY, PRODUTOS_STALE_TIME as STALE_TIME, PRODUTOS_REFETCH_INTERVAL } from '../../shared/constants/queryKeys';
 import { MOVIMENTACOES_QUERY_KEY } from './useMovimentacoesQuery';
 
 
@@ -38,6 +38,7 @@ export function useProductsQuery(searchTerm?: Ref<string | null>) {
     queryKey: [QUERY_KEY, cleanSearch],
     queryFn: () => getProdutos(cleanSearch.value),
     staleTime: STALE_TIME,
+    refetchInterval: PRODUTOS_REFETCH_INTERVAL,
   });
 }
 

@@ -95,6 +95,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
 </script>
 
 <template>
+  <Teleport to="body">
   <div v-if="orderService" class="print-cupom-container hidden print:block">
     <PrintCupomHeader :company="companyInfo" />
 
@@ -324,6 +325,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
 
     <PrintCupomFooter />
   </div>
+  </Teleport>
 </template>
 
 <style>
