@@ -3,22 +3,22 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import type { Ref } from 'vue';
 
-import { OsEquipUpdateSchema } from '../../schemas/relationship/osEquip.schema';
-import type { OsEquipUpdateSchemaDataType } from '../../schemas/relationship/osEquip.schema';
+import { OsObjetoUpdateSchema } from '../../schemas/relationship/osObjeto.schema';
+import type { OsObjetoUpdateSchemaDataType } from '../../schemas/relationship/osObjeto.schema';
 
-import type { OSUpdateEquipFormContext } from '../../types/context.type';
+import type { OSUpdateObjetoFormContext } from '../../types/context.type';
 
-import { useUpdateEquipOSMutation } from '../request/useOrderServiceUpdate.mutate';
+import { useUpdateObjetoOSMutation } from '../request/useOrderServiceUpdate.mutate';
 
 
-export function useOSUpdateEquipForm(opts: {
+export function useOSUpdateObjetoForm(opts: {
   osNumber: Ref<string | null>;
   onSuccess?: () => void;
-}): OSUpdateEquipFormContext {
-  const equipMutation = useUpdateEquipOSMutation();
+}): OSUpdateObjetoFormContext {
+  const objetoMutation = useUpdateObjetoOSMutation();
 
   const { handleSubmit, errors, defineField, setValues, resetForm: veeReset } = useForm({
-    validationSchema: toTypedSchema(OsEquipUpdateSchema),
+    validationSchema: toTypedSchema(OsObjetoUpdateSchema),
   });
 
   const [tipo_equipamento] = defineField('tipo_equipamento');
@@ -29,22 +29,22 @@ export function useOSUpdateEquipForm(opts: {
   const [cor] = defineField('cor');
   const [cliente_id] = defineField('cliente_id');
 
-  const populateForm = (equip: OsEquipUpdateSchemaDataType) => {
+  const populateForm = (objeto: OsObjetoUpdateSchemaDataType) => {
     setValues({
-      tipo_equipamento: equip.tipo_equipamento,
-      marca: equip.marca,
-      modelo: equip.modelo,
-      numero_serie: equip.numero_serie,
-      imei: equip.imei,
-      cor: equip.cor,
-      cliente_id: equip.cliente_id,
+      tipo_equipamento: objeto.tipo_equipamento,
+      marca: objeto.marca,
+      modelo: objeto.modelo,
+      numero_serie: objeto.numero_serie,
+      imei: objeto.imei,
+      cor: objeto.cor,
+      cliente_id: objeto.cliente_id,
     });
   };
 
   const onSubmit = handleSubmit((formData) => {
     if (!opts.osNumber.value) return;
-    equipMutation.mutate(
-      { osNumber: opts.osNumber.value, updatedEquip: formData },
+    objetoMutation.mutate(
+      { osNumber: opts.osNumber.value, updatedObjeto: formData },
       { onSuccess: () => opts.onSuccess?.() },
     );
   });
@@ -53,7 +53,7 @@ export function useOSUpdateEquipForm(opts: {
     veeReset();
   };
 
-  const isPending = computed(() => equipMutation.isPending.value);
+  const isPending = computed(() => objetoMutation.isPending.value);
 
   return {
     tipo_equipamento,

@@ -35,7 +35,7 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const STORAGE_KEY_OS_FILTER = 'os_filter_status';
 
-export const EQUIPMENT_HISTORY_LIMIT = 20;
+export const OBJETO_HISTORY_LIMIT = 20;
 
 export const REOPEN_MODES = {
   NONE: 'NONE',

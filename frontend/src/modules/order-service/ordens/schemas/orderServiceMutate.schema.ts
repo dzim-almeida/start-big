@@ -5,7 +5,7 @@ import { OrderServiceBaseSchema } from "./orderService.schema";
 
 import { OsPriorityEnum, OsStatusEnum, OsEquipSituacaoEnum } from "./enums/osEnums.schema";
 
-import { OsEquipCreateSchema } from "./relationship/osEquip.schema";
+import { OsObjetoCreateSchema } from "./relationship/osObjeto.schema";
 import { OsItemCreateSchema } from "./relationship/osItem.schema";
 import { OsPaymentCreateSchema } from "./relationship/osPayment.schema";
 
@@ -19,7 +19,7 @@ export const OrderServiceCreateSchema = z.object({
   funcionario_id: z.number({ required_error: 'O técnico é obrigatório' }).int().positive(),
 
   // Aninhamento
-  equipamento: OsEquipCreateSchema,
+  objeto: OsObjetoCreateSchema,
   itens: z.array(OsItemCreateSchema).default([]),
 
   // Check-in do segmento (nível OS): ex. oficina → km_entrada, combustível, vistoria.

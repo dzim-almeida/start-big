@@ -2,26 +2,26 @@
 import { ref, computed, watch, type Component } from 'vue';
 import { Smartphone, ClipboardList, Package } from 'lucide-vue-next';
 
-import OSEquipmentTab from './OSEquipmentTab.vue';
+import OSObjetoTab from './OSObjetoTab.vue';
 import OSDiagnosticoTab from './OSDiagnosticoTab.vue';
 import OSServicesTab from './OSServicesTab.vue';
-import type { EquipamentoFormData } from '../../composables/modal/useOSFormAdapter';
+import type { ObjetoFormData } from '../../composables/modal/useOSFormAdapter';
 import { useOSFormView } from '../../context/useOSFormView.context';
 
-type TabType = 'equipamento' | 'diagnostico' | 'servicos';
+type TabType = 'objeto' | 'diagnostico' | 'servicos';
 
 const view = useOSFormView();
 
-const activeTab = ref<TabType>('equipamento');
+const activeTab = ref<TabType>('objeto');
 
 watch(() => view.isOpen.value, (open) => {
   if (open) {
-    activeTab.value = 'equipamento';
+    activeTab.value = 'objeto';
   }
 });
 
 const allTabs: { id: TabType; label: string; icon: Component }[] = [
-  { id: 'equipamento', label: 'Equipamento', icon: Smartphone },
+  { id: 'objeto', label: 'Objeto', icon: Smartphone },
   { id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList },
   { id: 'servicos', label: 'Serviços e Peças', icon: Package },
 ];
@@ -30,9 +30,9 @@ const visibleTabs = computed(() =>
   view.isCreateMode.value ? allTabs.filter((tab) => tab.id !== 'diagnostico') : allTabs,
 );
 
-const equipamentoModel = computed<EquipamentoFormData>({
-  get: () => view.equipamentoFormData.value,
-  set: (value) => view.setEquipamentoFormData(value),
+const objetoModel = computed<ObjetoFormData>({
+  get: () => view.objetoFormData.value,
+  set: (value) => view.setObjetoFormData(value),
 });
 </script>
 
@@ -58,16 +58,16 @@ const equipamentoModel = computed<EquipamentoFormData>({
 
     <div class="min-h-125">
       <fieldset v-if="activeTab !== 'diagnostico'" :disabled="view.isStructureLocked.value" class="contents">
-        <OSEquipmentTab
-          v-if="activeTab === 'equipamento'"
-          v-model="equipamentoModel"
-          :equipamentos-historico="view.equipamentosHistorico.value"
+        <OSObjetoTab
+          v-if="activeTab === 'objeto'"
+          v-model="objetoModel"
+          :objetos-historico="view.objetosHistorico.value"
           :selected-historico="view.selectedHistorico.value"
           :is-locked="view.isStructureLocked.value"
           :is-create-mode="view.isCreateMode.value"
           :errors="view.formErrors.value"
           @update:selected-historico="view.setSelectedHistorico"
-          @apply-historico="view.applyEquipamentoHistorico"
+          @apply-historico="view.applyObjetoHistorico"
         />
 
         <OSServicesTab

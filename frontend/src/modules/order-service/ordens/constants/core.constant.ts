@@ -35,7 +35,7 @@ export const DEFAULT_OS_CREATE_VALUES = {
   data_previsao: undefined,
   cliente_id: undefined,
   funcionario_id: undefined,
-  equipamento: {
+  objeto: {
     tipo_equipamento: undefined,
     marca: '',
     modelo: '',

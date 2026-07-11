@@ -2,7 +2,7 @@ import type { ComputedRef, Ref } from 'vue';
 import type { FieldEntry } from 'vee-validate';
 
 import type { OsItemCreateSchemaDataType, OsItemUpdateSchemaDataType } from '../schemas/relationship/osItem.schema';
-import type { OsEquipUpdateSchemaDataType } from '../schemas/relationship/osEquip.schema';
+import type { OsObjetoUpdateSchemaDataType } from '../schemas/relationship/osObjeto.schema';
 import type { OsPaymentCreateSchemaDataType } from '../schemas/relationship/osPayment.schema';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 
@@ -25,13 +25,13 @@ export interface OSCreateFormContext {
   cliente_id: Ref<number | null | undefined>;
   funcionario_id: Ref<number | null | undefined>;
 
-  // Campos do equipamento (nested via dot-notation)
-  equipamento_tipo_equipamento: Ref<string | null | undefined>;
-  equipamento_marca: Ref<string | null | undefined>;
-  equipamento_modelo: Ref<string | null | undefined>;
-  equipamento_numero_serie: Ref<string | null | undefined>;
-  equipamento_imei: Ref<string | null | undefined>;
-  equipamento_cor: Ref<string | null | undefined>;
+  // Campos do objeto (nested via dot-notation)
+  objeto_tipo_equipamento: Ref<string | null | undefined>;
+  objeto_marca: Ref<string | null | undefined>;
+  objeto_modelo: Ref<string | null | undefined>;
+  objeto_numero_serie: Ref<string | null | undefined>;
+  objeto_imei: Ref<string | null | undefined>;
+  objeto_cor: Ref<string | null | undefined>;
 
   // FieldArray de itens iniciais
   itens: Ref<FieldEntry<OsItemCreateSchemaDataType>[]>;
@@ -80,7 +80,7 @@ export interface OSUpdateGeralFormContext {
 }
 
 
-export interface OSUpdateEquipFormContext {
+export interface OSUpdateObjetoFormContext {
   tipo_equipamento: Ref<string | null | undefined>;
   marca: Ref<string | null | undefined>;
   modelo: Ref<string | null | undefined>;
@@ -94,7 +94,7 @@ export interface OSUpdateEquipFormContext {
 
   onSubmit: (e?: Event) => void;
   resetForm: () => void;
-  populateForm: (equip: OsEquipUpdateSchemaDataType) => void;
+  populateForm: (objeto: OsObjetoUpdateSchemaDataType) => void;
 }
 
 
@@ -165,7 +165,7 @@ export interface OSFormContext {
 
   criar: OSCreateFormContext;
   atualizarGeral: OSUpdateGeralFormContext;
-  atualizarEquipamento: OSUpdateEquipFormContext;
+  atualizarObjeto: OSUpdateObjetoFormContext;
   item: OSItemFormContext;
   finalizar: OSFinalizarFormContext;
   cancelar: OSCancelarFormContext;

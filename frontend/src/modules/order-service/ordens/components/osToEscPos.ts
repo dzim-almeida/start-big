@@ -40,7 +40,7 @@ export function osToEscPos(
       : situacao === 'SEM_REPARO'
         ? 'ENTREGA SEM REPARO'
         : situacao === 'CONDENADO'
-          ? 'EQUIPAMENTO CONDENADO'
+          ? 'OBJETO CONDENADO'
           : 'RECIBO E GARANTIA'
 
   const dataStr = tipo === 'SAIDA' ? ((os.data_finalizacao as string) || os.data_criacao) : os.data_criacao
@@ -74,17 +74,17 @@ export function osToEscPos(
   if (tel) b.linha(`Tel: ${tel}`)
   b.separador()
 
-  // Equipamento
-  b.negrito(true).linha('EQUIPAMENTO').negrito(false)
+  // Objeto
+  b.negrito(true).linha('OBJETO').negrito(false)
   const sufixoSituacao =
     tipo === 'SAIDA' && situacao
       ? ` (${situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado'})`
       : ''
-  b.linha(`${os.equipamento.tipo_equipamento}${sufixoSituacao}`)
-  if (os.equipamento.marca) b.linha(`Marca: ${os.equipamento.marca}`)
-  if (os.equipamento.modelo) b.linha(`Modelo: ${os.equipamento.modelo}`)
-  if (os.equipamento.numero_serie) b.linha(`N/S: ${os.equipamento.numero_serie}`)
-  if (os.equipamento.cor) b.linha(`Cor: ${os.equipamento.cor}`)
+  b.linha(`${os.objeto.tipo_equipamento}${sufixoSituacao}`)
+  if (os.objeto.marca) b.linha(`Marca: ${os.objeto.marca}`)
+  if (os.objeto.modelo) b.linha(`Modelo: ${os.objeto.modelo}`)
+  if (os.objeto.numero_serie) b.linha(`N/S: ${os.objeto.numero_serie}`)
+  if (os.objeto.cor) b.linha(`Cor: ${os.objeto.cor}`)
   b.separador()
 
   // Defeito relatado
@@ -148,14 +148,14 @@ export function osToEscPos(
       b.separador().negrito(true).linha(`GARANTIA: ${os.garantia}`).negrito(false)
       b.linha('Cobre servicos prestados e pecas substituidas neste documento. Nao cobre mau uso, liquidos, quedas ou intervencao de terceiros.')
     } else if (isSemReparo) {
-      b.separador().linha('Equipamento devolvido sem reparo. Sem garantia aplicavel a esta OS.')
+      b.separador().linha('Objeto devolvido sem reparo. Sem garantia aplicavel a esta OS.')
     }
   } else {
     // ENTRADA: termos
     b.separador()
-    b.linha('O cliente declara estar ciente que a empresa nao se responsabiliza por perda de dados nem por chips/cartoes deixados no aparelho. Autorizo a analise tecnica do equipamento.')
+    b.linha('O cliente declara estar ciente que a empresa nao se responsabiliza por perda de dados nem por chips/cartoes deixados no aparelho. Autorizo a analise tecnica do objeto.')
     b.separador()
-    b.linha('PRAZO DE RETIRADA: Equipamentos nao retirados em 90 dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.')
+    b.linha('PRAZO DE RETIRADA: Objetos nao retirados em 90 dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.')
   }
 
   // Assinaturas

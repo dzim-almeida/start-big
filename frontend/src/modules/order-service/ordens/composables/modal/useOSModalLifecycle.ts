@@ -42,15 +42,15 @@ export function useOSModalLifecycle({
       form.atualizarGeral.data_previsao.value = os.data_previsao.split('T')[0];
     }
 
-    form.atualizarEquipamento.populateForm({
+    form.atualizarObjeto.populateForm({
       // Read é string livre por segmento; para informática é sempre um valor do enum.
-      tipo_equipamento: (os.equipamento.tipo_equipamento ?? undefined) as OsEquipTypeEnumDataType | undefined,
-      marca: os.equipamento.marca,
-      modelo: os.equipamento.modelo,
-      numero_serie: os.equipamento.numero_serie,
-      imei: os.equipamento.imei,
-      cor: os.equipamento.cor,
-      cliente_id: os.equipamento.cliente_id,
+      tipo_equipamento: (os.objeto.tipo_equipamento ?? undefined) as OsEquipTypeEnumDataType | undefined,
+      marca: os.objeto.marca,
+      modelo: os.objeto.modelo,
+      numero_serie: os.objeto.numero_serie,
+      imei: os.objeto.imei,
+      cor: os.objeto.cor,
+      cliente_id: os.objeto.cliente_id,
     });
   }
 

@@ -253,7 +253,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
       <!-- ── Área scrollável (informações, campos e opções) ── -->
       <div class="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col gap-4 pb-2">
 
-      <!-- ── Linha 1: Cliente + Equipamento + Previsão ── -->
+      <!-- ── Linha 1: Cliente + Objeto + Previsão ── -->
       <div class="grid grid-cols-3 gap-3">
         <div class="bg-zinc-50 border border-zinc-200 rounded-xl p-3 flex items-center gap-3">
           <div class="p-2 bg-brand-primary/10 rounded-lg shrink-0">
@@ -271,11 +271,11 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
             <Cpu :size="16" class="text-brand-primary" />
           </div>
           <div class="min-w-0">
-            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Equipamento</p>
+            <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Objeto</p>
             <p class="font-semibold text-zinc-800 text-sm truncate leading-tight">
-              {{ ordemServico?.equipamento?.marca }} {{ ordemServico?.equipamento?.modelo }}
+              {{ ordemServico?.objeto?.marca }} {{ ordemServico?.objeto?.modelo }}
             </p>
-            <p class="mt-0.5 text-xs text-zinc-400">Série: {{ ordemServico?.equipamento?.numero_serie }}</p>
+            <p class="mt-0.5 text-xs text-zinc-400">Série: {{ ordemServico?.objeto?.numero_serie }}</p>
           </div>
         </div>
 
@@ -349,11 +349,11 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
         </div>
       </div>
 
-      <!-- ── Linha 3: Situação do Equipamento ── -->
+      <!-- ── Linha 3: Situação do Objeto ── -->
       <div>
         <div class="flex items-center gap-1.5 mb-2">
           <ShieldCheck :size="14" class="text-brand-primary" />
-          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Situação do Equipamento</span>
+          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Situação do Objeto</span>
           <span class="text-[10px] text-zinc-400">(opcional)</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
@@ -503,7 +503,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
           Não é possível finalizar como <span class="font-bold text-emerald-600">Reparado</span> sem nenhum serviço ou peça cadastrado.
         </p>
         <p class="text-xs text-zinc-500">
-          Volte ao cadastro da OS e declare o que foi realizado, ou altere a situação do equipamento.
+          Volte ao cadastro da OS e declare o que foi realizado, ou altere a situação do objeto.
         </p>
       </div>
 
@@ -520,7 +520,7 @@ function handleEmitEntrega(zerarAdiantamento: boolean) {
           class="w-full"
           @click="showOsVaziaModal = false"
         >
-          Alterar situação do equipamento
+          Alterar situação do objeto
         </BaseButton>
       </div>
     </div>

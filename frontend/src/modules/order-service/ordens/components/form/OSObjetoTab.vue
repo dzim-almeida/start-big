@@ -5,11 +5,11 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
-import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
+import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
 import { OS_EQUIP_TYPE_OPTIONS } from '../../constants/ordemServico.constants';
 
-interface EquipamentoForm {
-  equipamento: string;
+interface ObjetoForm {
+  objeto: string;
   marca: string;
   modelo: string;
   numero_serie: string;
@@ -22,8 +22,8 @@ interface EquipamentoForm {
 }
 
 interface Props {
-  modelValue: EquipamentoForm;
-  equipamentosHistorico?: EquipamentoHistorico[];
+  modelValue: ObjetoForm;
+  objetosHistorico?: ObjetoHistorico[];
   selectedHistorico?: string;
   isLocked?: boolean;
   isCreateMode?: boolean;
@@ -31,27 +31,27 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  equipamentosHistorico: () => [],
+  objetosHistorico: () => [],
   selectedHistorico: '',
   isLocked: false,
   errors: () => ({}),
 });
 
 function fieldError(field: string): string | undefined {
-  return props.errors?.[`equipamento.${field}`] ?? props.errors?.[field];
+  return props.errors?.[`objeto.${field}`] ?? props.errors?.[field];
 }
 
 const emit = defineEmits<{
-  'update:modelValue': [value: EquipamentoForm];
+  'update:modelValue': [value: ObjetoForm];
   'update:selectedHistorico': [value: string];
   applyHistorico: [];
 }>();
 
 const historicoOptions = computed<SelectOption[]>(() => [
   { value: '', label: 'Usar anterior...' },
-  ...props.equipamentosHistorico.map((equip, idx) => ({
+  ...props.objetosHistorico.map((objeto, idx) => ({
     value: String(idx),
-    label: `${equip.equipamento}${equip.numero_serie ? ` (S/N: ${equip.numero_serie})` : ''}`,
+    label: `${objeto.objeto}${objeto.numero_serie ? ` (S/N: ${objeto.numero_serie})` : ''}`,
   })),
 ]);
 
@@ -60,7 +60,7 @@ const tipoEquipamentoOptions: SelectOption[] = [
   ...OS_EQUIP_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label })),
 ];
 
-function updateField<K extends keyof EquipamentoForm>(field: K, value: EquipamentoForm[K]) {
+function updateField<K extends keyof ObjetoForm>(field: K, value: ObjetoForm[K]) {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
 }
 
@@ -79,9 +79,9 @@ function handleHistoricoSelectChange(value: string) {
         <h5 class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
           <div class="flex items-center gap-2">
             <Smartphone :size="14" />
-            Dados do Equipamento
+            Dados do Objeto
           </div>
-          <div v-if="equipamentosHistorico.length > 0 && !isLocked && isCreateMode" class="flex items-center gap-2">
+          <div v-if="objetosHistorico.length > 0 && !isLocked && isCreateMode" class="flex items-center gap-2">
             <BaseSelect
               :model-value="selectedHistorico"
               :options="historicoOptions"
@@ -92,12 +92,12 @@ function handleHistoricoSelectChange(value: string) {
         </h5>
 
         <BaseSelect
-          :model-value="modelValue.equipamento || ''"
-          label="Tipo de Equipamento"
+          :model-value="modelValue.objeto || ''"
+          label="Tipo de Objeto"
           :options="tipoEquipamentoOptions"
           required
           :error="fieldError('tipo_equipamento')"
-          @update:model-value="updateField('equipamento', $event as string)"
+          @update:model-value="updateField('objeto', $event as string)"
         />
 
         <div class="grid grid-cols-2 gap-3">

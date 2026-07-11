@@ -39,7 +39,7 @@ const title = computed(() => {
     case 'CANCELAMENTO': return 'CANCELAMENTO DE OS';
     case 'SAIDA':
       if (situacao.value === 'SEM_REPARO') return 'ENTREGA SEM REPARO';
-      if (situacao.value === 'CONDENADO') return 'EQUIPAMENTO CONDENADO';
+      if (situacao.value === 'CONDENADO') return 'OBJETO CONDENADO';
       return 'RECIBO E GARANTIA';
     default: return 'Cupom';
   }
@@ -121,24 +121,24 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
     <div class="separator">{{ SEPARATOR }}</div>
 
     <div class="section">
-      <div class="font-bold mb-0.5">EQUIPAMENTO</div>
+      <div class="font-bold mb-0.5">OBJETO</div>
       <div class="flex items-center gap-1">
-        <span>{{ orderService.equipamento.tipo_equipamento }}</span>
+        <span>{{ orderService.objeto.tipo_equipamento }}</span>
         <span v-if="situacao && type === 'SAIDA'" class="text-[9px] font-bold uppercase">
           ({{ situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado' }})
         </span>
       </div>
-      <div v-if="orderService.equipamento.marca">
-        Marca: {{ orderService.equipamento.marca }}
+      <div v-if="orderService.objeto.marca">
+        Marca: {{ orderService.objeto.marca }}
       </div>
-      <div v-if="orderService.equipamento.modelo">
-        Modelo: {{ orderService.equipamento.modelo }}
+      <div v-if="orderService.objeto.modelo">
+        Modelo: {{ orderService.objeto.modelo }}
       </div>
-      <div v-if="orderService.equipamento.numero_serie">
-        N/S: {{ orderService.equipamento.numero_serie }}
+      <div v-if="orderService.objeto.numero_serie">
+        N/S: {{ orderService.objeto.numero_serie }}
       </div>
-      <div v-if="orderService.equipamento.cor">
-        Cor: {{ orderService.equipamento.cor }}
+      <div v-if="orderService.objeto.cor">
+        Cor: {{ orderService.objeto.cor }}
       </div>
     </div>
 
@@ -274,7 +274,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <template v-else-if="isSemReparo">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section text-justify">
-          Equipamento devolvido sem reparo.
+          Objeto devolvido sem reparo.
           Sem garantia aplicavel a esta OS.
         </div>
       </template>
@@ -290,7 +290,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
         A OS acima foi cancelada nesta data.
-        Equipamento devolvido ao cliente sem
+        Objeto devolvido ao cliente sem
         reparos ou com reparos parciais,
         isentando a assistencia de garantias
         sobre servicos nao concluidos.
@@ -305,11 +305,11 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
         empresa nao se responsabiliza por
         perda de dados nem por chips/cartoes
         deixados no aparelho. Autorizo a
-        analise tecnica do equipamento.
+        analise tecnica do objeto.
       </div>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
-        PRAZO DE RETIRADA: Equipamentos nao
+        PRAZO DE RETIRADA: Objetos nao
         retirados em 90 dias apos aviso de
         conclusao serao considerados
         abandonados, conforme Art. 1.275

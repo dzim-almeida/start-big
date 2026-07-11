@@ -37,13 +37,13 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
   const [cliente_id] = defineField('cliente_id');
   const [funcionario_id] = defineField('funcionario_id');
 
-  // Equipamento (campos nested via dot-notation)
-  const [equipamento_tipo_equipamento] = defineField('equipamento.tipo_equipamento');
-  const [equipamento_marca] = defineField('equipamento.marca');
-  const [equipamento_modelo] = defineField('equipamento.modelo');
-  const [equipamento_numero_serie] = defineField('equipamento.numero_serie');
-  const [equipamento_imei] = defineField('equipamento.imei');
-  const [equipamento_cor] = defineField('equipamento.cor');
+  // Objeto (campos nested via dot-notation)
+  const [objeto_tipo_equipamento] = defineField('objeto.tipo_equipamento');
+  const [objeto_marca] = defineField('objeto.marca');
+  const [objeto_modelo] = defineField('objeto.modelo');
+  const [objeto_numero_serie] = defineField('objeto.numero_serie');
+  const [objeto_imei] = defineField('objeto.imei');
+  const [objeto_cor] = defineField('objeto.cor');
 
   // FieldArray de itens com generic explícito para inferência correta de tipos
   const { fields: itens, push: pushItem, remove: removeItem, update: updateItemField } =
@@ -92,12 +92,12 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     condicoes_aparelho,
     cliente_id,
     funcionario_id,
-    equipamento_tipo_equipamento,
-    equipamento_marca,
-    equipamento_modelo,
-    equipamento_numero_serie,
-    equipamento_imei,
-    equipamento_cor,
+    objeto_tipo_equipamento,
+    objeto_marca,
+    objeto_modelo,
+    objeto_numero_serie,
+    objeto_imei,
+    objeto_cor,
     itens,
     handleAddItem,
     handleRemoveItem,

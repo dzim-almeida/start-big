@@ -4,7 +4,7 @@ import OSFormModalShell from './form/OSFormModalShell.vue';
 import OSFormAuxModals from './form/OSFormAuxModals.vue';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
-import type { EquipamentoHistorico } from '@/modules/customers/types/clientes.types';
+import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
 import { getUniqueOS } from '../services/orderServiceGet.service';
 import { uploadFotoOS } from '../services/relationship/osPhotoMutate.service';
 import { useOSFormProvider, useOSFormPendingState } from '../context/useForm.context';
@@ -18,7 +18,7 @@ import { useOSStatusLocks } from '../composables/modal/useOSStatusLocks';
 import { useOSFinancialSummary } from '../composables/modal/useOSFinancialSummary';
 import { useOSFormAdapter } from '../composables/modal/useOSFormAdapter';
 import { useOSPendingPhotos } from '../composables/modal/useOSPendingPhotos';
-import { useOSEquipmentHistory } from '../composables/modal/useOSEquipmentHistory';
+import { useOSObjetoHistory } from '../composables/modal/useOSObjetoHistory';
 import { useOSReopenState } from '../composables/modal/useOSReopenState';
 import { useOSItemsManager } from '../composables/modal/useOSItemsManager';
 import { useOSModalLifecycle } from '../composables/modal/useOSModalLifecycle';
@@ -30,7 +30,7 @@ interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
   selectedCliente?: CustomerUnionReadSchemaDataType | null;
-  initialEquipamento?: EquipamentoHistorico | null;
+  initialObjeto?: ObjetoHistorico | null;
   autoUsarCredito?: boolean;
 }
 const props = defineProps<Props>();
@@ -42,7 +42,7 @@ let closeItemModalProxy: (() => void) | null = null;
 function closeItemModal() {
   closeItemModalProxy?.();
 }
-let resetEquipSelectStateProxy: (() => void) | null = null;
+let resetObjetoSelectStateProxy: (() => void) | null = null;
 const localOSData = ref<OrderServiceReadDataType | null>(null);
 const currentOSData = computed(() => localOSData.value ?? props.ordemServico ?? null);
 const osNumber = computed(() => currentOSData.value?.numero_os ?? null);
@@ -212,7 +212,7 @@ function handleLocalSubmit() {
 function handleClose() {
   form.criar.resetForm();
   form.atualizarGeral.resetForm();
-  form.atualizarEquipamento.resetForm();
+  form.atualizarObjeto.resetForm();
   form.item.resetForm();
   clearPendingPhotos();
   resetReopenState();
@@ -233,19 +233,19 @@ useOSModalLifecycle({
   form,
   resetReopenState,
   onOpen: () => {
-    resetEquipSelectStateProxy?.();
+    resetObjetoSelectStateProxy?.();
     // Captura crédito se a OS já foi reaberta anteriormente (vem da tabela)
     const os = currentOSData.value;
     if (os && os.pagamentos?.length > 0 && os.status !== 'FINALIZADA' && os.status !== 'CANCELADA') {
       capturarCreditoAnterior();
     }
-    if (props.initialEquipamento && isCreateMode.value) {
-      const equip = props.initialEquipamento;
+    if (props.initialObjeto && isCreateMode.value) {
+      const objeto = props.initialObjeto;
       nextTick(() => {
-        form.criar.equipamento_tipo_equipamento.value = equip.equipamento;
-        form.criar.equipamento_marca.value = equip.marca ?? '';
-        form.criar.equipamento_modelo.value = equip.modelo ?? '';
-        form.criar.equipamento_numero_serie.value = equip.numero_serie ?? '';
+        form.criar.objeto_tipo_equipamento.value = objeto.objeto;
+        form.criar.objeto_marca.value = objeto.marca ?? '';
+        form.criar.objeto_modelo.value = objeto.modelo ?? '';
+        form.criar.objeto_numero_serie.value = objeto.numero_serie ?? '';
       });
     }
     if (props.autoUsarCredito && isCreateMode.value) {
@@ -254,25 +254,25 @@ useOSModalLifecycle({
   },
 });
 const {
-  equipamentosHistorico,
+  objetosHistorico,
   selectedHistorico,
-  isEquipSelectModalOpen,
-  handleEquipamentoSelected,
-  applyEquipamentoHistorico,
-  resetEquipSelectState,
-} = useOSEquipmentHistory({
+  isObjetoSelectModalOpen,
+  handleObjetoSelected,
+  applyObjetoHistorico,
+  resetObjetoSelectState,
+} = useOSObjetoHistory({
   selectedCliente: computed(() => props.selectedCliente as { id?: number } | null),
   ordemServicoCliente: computed(() => currentOSData.value?.cliente as { id?: number } | null),
   isCreateMode,
   isFormOpen: computed(() => props.isOpen),
-  createEquipamentoTipo: form.criar.equipamento_tipo_equipamento,
-  createEquipamentoMarca: form.criar.equipamento_marca,
-  createEquipamentoModelo: form.criar.equipamento_modelo,
-  createEquipamentoNumeroSerie: form.criar.equipamento_numero_serie,
+  createObjetoTipo: form.criar.objeto_tipo_equipamento,
+  createObjetoMarca: form.criar.objeto_marca,
+  createObjetoModelo: form.criar.objeto_modelo,
+  createObjetoNumeroSerie: form.criar.objeto_numero_serie,
 });
-resetEquipSelectStateProxy = resetEquipSelectState;
+resetObjetoSelectStateProxy = resetObjetoSelectState;
 const {
-  equipamentoFormData,
+  objetoFormData,
   controlsStatus,
   controlsFuncionarioId,
   controlsPrioridade,
@@ -311,23 +311,23 @@ function handleChangeCliente() {
   emit('changeCliente');
 }
 
-function setEquipamentoFormData(value: typeof equipamentoFormData.value) {
-  equipamentoFormData.value = value;
+function setObjetoFormData(value: typeof objetoFormData.value) {
+  objetoFormData.value = value;
 }
 
 const {
   isHistoricoModalOpen,
   openHistoricoModal,
   closeHistoricoModal,
-  reutilizarEquipamento,
-} = useOSClientHistory({ setEquipamentoFormData });
+  reutilizarObjeto,
+} = useOSClientHistory({ setObjetoFormData });
 
 function setSelectedHistorico(value: string) {
   selectedHistorico.value = value;
 }
 
-function closeEquipamentoModal() {
-  isEquipSelectModalOpen.value = false;
+function closeObjetoModal() {
+  isObjetoSelectModalOpen.value = false;
 }
 
 const formErrors = computed<Record<string, string | undefined>>(() => {
@@ -337,7 +337,7 @@ const formErrors = computed<Record<string, string | undefined>>(() => {
   }
   return {
     ...form.atualizarGeral.errors.value,
-    ...form.atualizarEquipamento.errors.value,
+    ...form.atualizarObjeto.errors.value,
   };
 });
 
@@ -371,8 +371,8 @@ useOSFormViewProvider({
   displayValorEntrada,
   displayValorAcrescimo,
   formErrors,
-  equipamentoFormData,
-  equipamentosHistorico,
+  objetoFormData,
+  objetosHistorico,
   selectedHistorico,
   currentDiagnostico,
   pendingPhotos,
@@ -383,7 +383,7 @@ useOSFormViewProvider({
   isFinalizarModalOpen,
   isItemModalOpen,
   editingItem,
-  isEquipSelectModalOpen,
+  isObjetoSelectModalOpen,
   handleClose,
   handleLocalSubmit,
   handleFinalizarOS,
@@ -400,9 +400,9 @@ useOSFormViewProvider({
   handleValorEntregaUpdate,
   handleUsarCredito,
   saldoCreditoCliente,
-  setEquipamentoFormData,
+  setObjetoFormData,
   setSelectedHistorico,
-  applyEquipamentoHistorico,
+  applyObjetoHistorico,
   handleDiagnosticoUpdate,
   handleAddPhoto,
   handleRemovePending,
@@ -419,12 +419,12 @@ useOSFormViewProvider({
   closePrintSelectModal,
   closeItemModal,
   handleSaveItem,
-  closeEquipamentoModal,
-  handleEquipamentoSelected,
+  closeObjetoModal,
+  handleObjetoSelected,
   isHistoricoModalOpen,
   openHistoricoModal,
   closeHistoricoModal,
-  reutilizarEquipamento,
+  reutilizarObjeto,
 });
 </script>
 

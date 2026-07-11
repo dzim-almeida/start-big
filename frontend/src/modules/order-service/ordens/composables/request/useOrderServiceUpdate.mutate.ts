@@ -7,7 +7,7 @@ import { useToast } from '@/shared/composables/useToast';
 
 import {
   updateOrderService,
-  updateEquipOS,
+  updateObjetoOS,
   updateItemOS,
   updateReadyOS,
   updateCancelOS,
@@ -18,7 +18,7 @@ import { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema
 
 import {
   OrderServiceUpdateRequest,
-  OsEquipUpdateRequest,
+  OsObjetoUpdateRequest,
   OsItemUpdateRequest,
   OsReadyUpdateRequest,
   OsCancelUpdateRequest,
@@ -42,18 +42,18 @@ export function useUpdateOrderServiceMutation() {
   });
 }
 
-export function useUpdateEquipOSMutation() {
+export function useUpdateObjetoOSMutation() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, OsEquipUpdateRequest>({
-    mutationFn: updateEquipOS,
+  return useMutation<OrderServiceReadDataType, AxiosError<ApiError>, OsObjetoUpdateRequest>({
+    mutationFn: updateObjetoOS,
     onSuccess: (data) => {
-      toast.success(`${data.numero_os} equipamento atualizado com sucesso`);
+      toast.success(`${data.numero_os} objeto atualizado com sucesso`);
       queryClient.invalidateQueries({ queryKey: [ORDER_SERVICE_QUERY_KEY] });
     },
     onError: (error) => {
-      toast.error(getErrorMessage(error, 'Erro ao atualizar o equipamento') as string);
+      toast.error(getErrorMessage(error, 'Erro ao atualizar o objeto') as string);
     },
   });
 }

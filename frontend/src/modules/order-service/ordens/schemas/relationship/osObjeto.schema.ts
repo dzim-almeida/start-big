@@ -9,7 +9,7 @@ import { OsEquipTypeEnum } from '../enums/osEnums.schema';
  */
 export const PLACA_REGEX = /^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z]\d{2})$/;
 
-export const OsEquipCreateSchema = z.object({
+export const OsObjetoCreateSchema = z.object({
   // Opcional: oficina não usa o enum de TI (moto seria outro segmento).
   tipo_equipamento: OsEquipTypeEnum.optional(),
   marca: z
@@ -40,8 +40,8 @@ export const OsEquipCreateSchema = z.object({
   dados_adicionais: z.record(z.any()).optional().default({}),
 });
 
-export const OsEquipReadSchema = z.object({
-  ...OsEquipCreateSchema.shape,
+export const OsObjetoReadSchema = z.object({
+  ...OsObjetoCreateSchema.shape,
   // Na resposta, tipo_equipamento é livre por segmento (ex: 'Veículo', 'COMPUTADOR').
   tipo_equipamento: z.string().optional().nullable(),
   id: z.number().int().positive(),
@@ -51,7 +51,7 @@ export const OsEquipReadSchema = z.object({
   data_atualizacao: z.string(),
 });
 
-export const OsEquipUpdateSchema = z.object({
+export const OsObjetoUpdateSchema = z.object({
   tipo_equipamento: OsEquipTypeEnum.optional(),
   marca: z.string().max(255, 'A marca deve ter no máximo 255 caracteres').optional(),
   modelo: z.string().max(255, 'O modelo deve ter no máximo 255 caracteres').optional(),
@@ -67,6 +67,6 @@ export const OsEquipUpdateSchema = z.object({
   dados_adicionais: z.record(z.any()).optional(),
 });
 
-export type OsEquipCreateSchemaDataType = z.infer<typeof OsEquipCreateSchema>
-export type OsEquipReadSchemaDataType = z.infer<typeof OsEquipReadSchema>
-export type OsEquipUpdateSchemaDataType = z.infer<typeof OsEquipUpdateSchema>
+export type OsObjetoCreateSchemaDataType = z.infer<typeof OsObjetoCreateSchema>
+export type OsObjetoReadSchemaDataType = z.infer<typeof OsObjetoReadSchema>
+export type OsObjetoUpdateSchemaDataType = z.infer<typeof OsObjetoUpdateSchema>

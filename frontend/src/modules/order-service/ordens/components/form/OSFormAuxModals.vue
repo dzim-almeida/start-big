@@ -3,7 +3,7 @@ import { ref } from 'vue';
 
 import OSReopenOptionsModal from './OSReopenOptionsModal.vue';
 import OSItemFormModal from './OSItemFormModal.vue';
-import OSEquipamentoSelectModal from './OSEquipamentoSelectModal.vue';
+import OSObjetoSelectModal from './OSObjetoSelectModal.vue';
 import OSClientHistoryModal from './OSClientHistoryModal.vue';
 import OSPrintTemplate from '../OSPrintTemplate.vue';
 import OSPrintCupom from '../OSPrintCupom.vue';
@@ -79,7 +79,7 @@ function handleFinalized(payload: { shouldPrint: boolean }) {
     :is-open="view.isHistoricoModalOpen.value"
     :cliente-id="view.currentCliente.value?.id ?? null"
     @close="view.closeHistoricoModal"
-    @reutilizar-equipamento="view.reutilizarEquipamento"
+    @reutilizar-objeto="view.reutilizarObjeto"
   />
 
   <OSReopenOptionsModal
@@ -137,10 +137,10 @@ function handleFinalized(payload: { shouldPrint: boolean }) {
     @save="view.handleSaveItem"
   />
 
-  <OSEquipamentoSelectModal
-    :is-open="view.isEquipSelectModalOpen.value"
-    :equipamentos="view.equipamentosHistorico.value"
-    @close="view.closeEquipamentoModal"
-    @select="view.handleEquipamentoSelected"
+  <OSObjetoSelectModal
+    :is-open="view.isObjetoSelectModalOpen.value"
+    :objetos="view.objetosHistorico.value"
+    @close="view.closeObjetoModal"
+    @select="view.handleObjetoSelected"
   />
 </template>
