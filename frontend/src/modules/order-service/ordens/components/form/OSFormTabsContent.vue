@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, type Component } from 'vue';
-import { Smartphone, Car, ClipboardList, Package } from 'lucide-vue-next';
+import { Smartphone, Car, ClipboardCheck, ClipboardList, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
+import OSVistoriaTab from './OSVistoriaTab.vue';
 import OSDiagnosticoTab from './OSDiagnosticoTab.vue';
 import OSServicesTab from './OSServicesTab.vue';
 import type { ObjetoFormData } from '../../composables/modal/useOSFormAdapter';
@@ -10,7 +11,7 @@ import { useOSFormView } from '../../context/useOSFormView.context';
 import { useSegmento } from '@/shared/composables/useSegmento';
 import { useObjetoLabels } from '../../composables/useObjetoLabels';
 
-type TabType = 'objeto' | 'diagnostico' | 'servicos';
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos';
 
 const view = useOSFormView();
 
@@ -26,11 +27,20 @@ watch(() => view.isOpen.value, (open) => {
   }
 });
 
-const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => [
-  { id: 'objeto', label: labelSingular.value, icon: isOficinaMecanica.value ? Car : Smartphone },
-  { id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList },
-  { id: 'servicos', label: 'Serviços e Peças', icon: Package },
-]);
+const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => {
+  const tabs: { id: TabType; label: string; icon: Component }[] = [
+    { id: 'objeto', label: labelSingular.value, icon: isOficinaMecanica.value ? Car : Smartphone },
+  ];
+  // Vistoria: exclusiva de oficina (checklist da ficha de entrada).
+  if (isOficinaMecanica.value) {
+    tabs.push({ id: 'vistoria', label: 'Vistoria', icon: ClipboardCheck });
+  }
+  tabs.push(
+    { id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList },
+    { id: 'servicos', label: 'Serviços e Peças', icon: Package },
+  );
+  return tabs;
+});
 
 const visibleTabs = computed(() =>
   view.isCreateMode.value ? allTabs.value.filter((tab) => tab.id !== 'diagnostico') : allTabs.value,
@@ -78,6 +88,13 @@ const objetoModel = computed<ObjetoFormData>({
           @update:os-dados="view.setOsDados"
           @update:selected-historico="view.setSelectedHistorico"
           @apply-historico="view.applyObjetoHistorico"
+        />
+
+        <OSVistoriaTab
+          v-if="activeTab === 'vistoria'"
+          :os-dados="view.osDados.value"
+          :is-locked="view.isStructureLocked.value"
+          @update:os-dados="view.setOsDados"
         />
 
         <OSServicesTab
