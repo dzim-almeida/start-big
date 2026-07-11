@@ -77,6 +77,22 @@ def get_definicao_campos_segmento(
 
 
 @router.get(
+    "/revisoes-pendentes",
+    summary="Veículos com revisão vencida (por data e/ou KM)",
+    description=(
+        "Lista os veículos cuja próxima revisão está vencida — por data "
+        "(proxima_revisao_data <= hoje) e/ou por KM (km atual >= proxima_revisao_km). "
+        "Objetos sem revisão agendada (ex: informática) não aparecem."
+    ),
+)
+def get_revisoes_pendentes(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.get_revisoes_pendentes(db)
+
+
+@router.get(
     "/objeto/{objeto_id}/historico-km",
     summary="Histórico de KM do objeto/veículo",
     description=(

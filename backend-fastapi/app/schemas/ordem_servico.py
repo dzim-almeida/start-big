@@ -101,6 +101,8 @@ class OSObjetoCreate(BaseModel):
     numero_serie: str = Field(..., max_length=100, description="Número de série ou identificador principal (ex: Placa, Serial)")
     imei: Optional[str] = Field(None, max_length=20, description="IMEI (opcional - compatibilidade)")
     cor: Optional[str] = Field(None, max_length=50, description="Cor do objeto")
+    proxima_revisao_data: Optional[date] = Field(None, description="Data agendada da próxima revisão (oficina)")
+    proxima_revisao_km: Optional[int] = Field(None, ge=0, description="KM alvo da próxima revisão (oficina)")
     dados_adicionais: Optional[dict] = Field(default_factory=dict, description="Campos dinâmicos adicionais (JSON)")
 
     model_config = ConfigDict(from_attributes=True)
@@ -139,6 +141,8 @@ class OSObjetoUpdate(BaseModel):
     imei: Optional[str] = Field(None, max_length=20, description="Novo IMEI")
     cor: Optional[str] = Field(None, max_length=50, description="Nova cor")
     cliente_id: Optional[int] = Field(None, description="Novo ID do cliente proprietário")
+    proxima_revisao_data: Optional[date] = Field(None, description="Nova data da próxima revisão")
+    proxima_revisao_km: Optional[int] = Field(None, ge=0, description="Novo KM alvo da próxima revisão")
     dados_adicionais: Optional[dict] = Field(None, description="Novos dados adicionais (JSON)")
 
     model_config = ConfigDict(from_attributes=True)

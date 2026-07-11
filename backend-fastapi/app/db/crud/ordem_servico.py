@@ -48,6 +48,18 @@ def get_ordens_by_objeto_id(db: Session, objeto_id: int) -> Sequence[OSModel]:
     return db.scalars(stmt).all()
 
 
+def get_objetos_com_revisao_agendada(db: Session) -> Sequence[OSEquipamentoModel]:
+    """Objetos ativos que têm alguma revisão agendada (por data e/ou KM)."""
+    stmt = select(OSEquipamentoModel).where(
+        OSEquipamentoModel.ativo == True,  # noqa: E712
+        or_(
+            OSEquipamentoModel.proxima_revisao_data.isnot(None),
+            OSEquipamentoModel.proxima_revisao_km.isnot(None),
+        ),
+    )
+    return db.scalars(stmt).all()
+
+
 def get_ordens_servico_by_search(
     db: Session,
     filters: dict,

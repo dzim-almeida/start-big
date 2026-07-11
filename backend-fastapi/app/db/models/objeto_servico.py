@@ -3,10 +3,10 @@
 # DESCRICAO: Modelo SQLAlchemy para a tabela 'objetos_servico'.
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, JSON, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -50,6 +50,16 @@ class ObjetoServico(Base):
         doc="Metadados específicos do segmento (ex: ano, chassi, etc.)"
     )
     
+    # --- Lembrete de revisão (pós-venda / oficina) ---
+    # Nulos para segmentos que não usam (ex: informática). A próxima revisão pode
+    # ser agendada por data e/ou por quilometragem — o que vier primeiro.
+    proxima_revisao_data: Mapped[Optional[date]] = mapped_column(
+        Date, nullable=True, doc="Data agendada da próxima revisão (opcional)"
+    )
+    proxima_revisao_km: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="KM alvo para a próxima revisão (opcional)"
+    )
+
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status ativo (soft delete)")
     data_criacao: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao")
     data_atualizacao: Mapped[datetime] = mapped_column(

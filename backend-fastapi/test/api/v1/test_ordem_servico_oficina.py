@@ -67,20 +67,24 @@ def _criar_cliente(client, header: dict) -> int:
 
 
 def _os_payload(cliente_id: int, numero_serie: str, dados_adicionais: dict | None = None,
-                itens: list | None = None, os_dados_adicionais: dict | None = None) -> dict:
+                itens: list | None = None, os_dados_adicionais: dict | None = None,
+                objeto_extra: dict | None = None) -> dict:
+    objeto = {
+        "marca": "Fiat",
+        "modelo": "Uno",
+        "numero_serie": numero_serie,
+        # dados_adicionais do objeto/veículo (placa, chassi, ano)
+        "dados_adicionais": dados_adicionais or {},
+    }
+    if objeto_extra:
+        objeto.update(objeto_extra)
     return {
         "cliente_id": cliente_id,
         "prioridade": "NORMAL",
         "defeito_relatado": "Barulho ao frear",
         # dados_adicionais no nível da OS (check-in: km_entrada, combustível, vistoria)
         "dados_adicionais": os_dados_adicionais or {},
-        "objeto": {
-            "marca": "Fiat",
-            "modelo": "Uno",
-            "numero_serie": numero_serie,
-            # dados_adicionais do objeto/veículo (placa, chassi, ano)
-            "dados_adicionais": dados_adicionais or {},
-        },
+        "objeto": objeto,
         "itens": itens if itens is not None else [],
     }
 
@@ -246,6 +250,69 @@ def test_atualizar_dados_adicionais_persiste(client, db_session):
     dados = g.json()["dados_adicionais"]
     assert dados.get("km_entrada") == 80000, "chave original deve ser preservada"
     assert dados.get("combustivel_nivel") == "CHEIO", "chave nova deve persistir"
+
+
+# =========================
+# ONDA 3A — lembrete de revisão
+# =========================
+
+def test_revisao_pendente_por_data(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    r = client.post("/api/v1/ordens-servico/",
+                    json=_os_payload(cliente_id, "ABC1D23", objeto_extra={"proxima_revisao_data": "2020-01-01"}),
+                    headers=header)
+    assert r.status_code == 201, r.text
+    g = client.get("/api/v1/ordens-servico/revisoes-pendentes", headers=header)
+    assert g.status_code == 200, g.text
+    lst = g.json()
+    assert len(lst) == 1
+    assert lst[0]["numero_serie"] == "ABC1D23"
+    assert lst[0]["motivo"] == "data"
+
+
+def test_revisao_futura_nao_aparece(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    r = client.post("/api/v1/ordens-servico/",
+                    json=_os_payload(cliente_id, "ABC1D23", objeto_extra={"proxima_revisao_data": "2099-01-01"}),
+                    headers=header)
+    assert r.status_code == 201, r.text
+    g = client.get("/api/v1/ordens-servico/revisoes-pendentes", headers=header)
+    assert g.status_code == 200, g.text
+    assert g.json() == []
+
+
+def test_revisao_pendente_por_km(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    r = client.post(
+        "/api/v1/ordens-servico/",
+        json=_os_payload(cliente_id, "ABC1D23",
+                         objeto_extra={"proxima_revisao_km": 10000},
+                         os_dados_adicionais={"km_entrada": 12000}),
+        headers=header,
+    )
+    assert r.status_code == 201, r.text
+    g = client.get("/api/v1/ordens-servico/revisoes-pendentes", headers=header)
+    assert g.status_code == 200, g.text
+    lst = g.json()
+    assert len(lst) == 1
+    assert lst[0]["motivo"] == "km"
+    assert lst[0]["km_atual"] == 12000
+
+
+def test_informatica_nao_aparece_em_revisoes(client, db_session):
+    """GUARDIAO: equipamento de informática (sem revisão agendada) não aparece."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    r = client.post("/api/v1/ordens-servico/",
+                    json=_os_payload(cliente_id, "SERIAL-1"),
+                    headers=header)
+    assert r.status_code == 201, r.text
+    g = client.get("/api/v1/ordens-servico/revisoes-pendentes", headers=header)
+    assert g.status_code == 200, g.text
+    assert g.json() == []
 
 
 def test_guardiao_informatica_itens_contam_normalmente(client, db_session):

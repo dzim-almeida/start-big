@@ -14,7 +14,7 @@
 #   Finalização só é permitida se sum(pagamentos) + valor_entrada == valor_total
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
+from datetime import datetime, date
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -459,6 +459,48 @@ def get_historico_km(db: Session, objeto_id: int) -> list[dict]:
             "km_entrada": km,
         })
     return historico
+
+
+def _ultimo_km_conhecido(db: Session, objeto_id: int) -> int | None:
+    """Maior km_entrada registrado nas OS de um objeto (KM atual estimado)."""
+    kms = [
+        (o.dados_adicionais or {}).get("km_entrada")
+        for o in os_crud.get_ordens_by_objeto_id(db, objeto_id)
+    ]
+    kms = [k for k in kms if isinstance(k, int)]
+    return max(kms) if kms else None
+
+
+def get_revisoes_pendentes(db: Session) -> list[dict]:
+    """
+    Veículos com revisão vencida — por data (proxima_revisao_data <= hoje) e/ou
+    por KM (km atual >= proxima_revisao_km). Objetos sem revisão agendada (ex:
+    informática) não aparecem, pois têm ambos os campos nulos.
+    """
+    hoje = date.today()
+    pendentes = []
+    for obj in os_crud.get_objetos_com_revisao_agendada(db):
+        km_atual = _ultimo_km_conhecido(db, obj.id)
+        venc_data = obj.proxima_revisao_data is not None and obj.proxima_revisao_data <= hoje
+        venc_km = (
+            obj.proxima_revisao_km is not None
+            and km_atual is not None
+            and km_atual >= obj.proxima_revisao_km
+        )
+        if not (venc_data or venc_km):
+            continue
+        pendentes.append({
+            "objeto_id": obj.id,
+            "cliente_id": obj.cliente_id,
+            "numero_serie": obj.numero_serie,
+            "marca": obj.marca,
+            "modelo": obj.modelo,
+            "proxima_revisao_data": obj.proxima_revisao_data,
+            "proxima_revisao_km": obj.proxima_revisao_km,
+            "km_atual": km_atual,
+            "motivo": "data" if venc_data else "km",
+        })
+    return pendentes
 
 
 # ===========================================================================
