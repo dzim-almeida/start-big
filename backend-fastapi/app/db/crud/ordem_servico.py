@@ -17,7 +17,7 @@ from app.db.models.ordem_servico import OrdemServico as OSModel
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento as OSPagamentoModel
 from app.db.models.ordem_servico_foto import OrdemServicoFoto as OSFotoModel
-from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento as OSEquipamentoModel
+from app.db.models.objeto_servico import ObjetoServico as OSEquipamentoModel
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
 
@@ -62,7 +62,7 @@ def get_ordens_servico_by_search(
 
         query = (
             query
-            .join(OSModel.equipamento)
+            .join(OSModel.objeto)
             .join(OSEquipamentoModel.cliente)
             .outerjoin(client_pj, ClienteModel.id == client_pj.id)
             .outerjoin(client_pf, ClienteModel.id == client_pf.id)
@@ -127,7 +127,7 @@ def get_ordens_servico_by_cliente_id(
     """
     query = (
         select(OSModel)
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .where(OSEquipamentoModel.cliente_id == cliente_id)
         .order_by(OSModel.data_criacao.desc())
     )

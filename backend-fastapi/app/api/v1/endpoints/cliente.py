@@ -143,11 +143,18 @@ def get_cliente_simple_by_search(
     
 
 @router.get(
+    "/{cliente_id}/objetos",
+    response_model=list[EquipamentoHistoricoRead],
+    status_code=status.HTTP_200_OK,
+    summary="Histórico de Objetos de Serviço do Cliente",
+    description="Retorna objetos únicos (ativos) do cliente, ordenados do mais recente ao mais antigo."
+)
+@router.get(
     "/{cliente_id}/equipamentos",
     response_model=list[EquipamentoHistoricoRead],
     status_code=status.HTTP_200_OK,
-    summary="Histórico de Equipamentos do Cliente",
-    description="Retorna equipamentos únicos (ativos) do cliente, ordenados do mais recente ao mais antigo."
+    summary="Histórico de Equipamentos do Cliente (Legado)",
+    description="Retorna equipamentos únicos (ativos) do cliente, ordenados do mais recente ao mais antigo (compatibilidade)."
 )
 def get_equipamentos_by_cliente(
     user_token: dict = Depends(check_permission(required_permission="cliente")),

@@ -177,8 +177,8 @@ def test_toggle_status_e_conflito_codigo(client: TestClient, header_with_token, 
 # =========================
 
 # Mock para não salvar arquivos reais no disco durante os testes
-@patch("app.services.produto.save_image_locally")
-@patch("app.services.produto.delete_image_locally")
+@patch("app.services.produto.salvar_imagem")
+@patch("app.services.produto.deletar_imagem")
 def test_upload_e_delete_imagem(mock_delete, mock_save, client: TestClient, header_with_token, valid_product_payload):
     """
     Testa o fluxo completo de imagens:

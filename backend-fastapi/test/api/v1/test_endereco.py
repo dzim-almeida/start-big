@@ -6,7 +6,6 @@ from starlette import status # Boa prática para usar status codes nominais
 
 from app.db.models.usuario import Usuario as UsuarioModel
 from app.core.security import hash_password
-from app.core.enum import UserType
 
 # Importação adicionada para a busca de clientes (GET)
 from app.core.enum import EntityType 

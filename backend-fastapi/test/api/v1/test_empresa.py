@@ -134,7 +134,7 @@ def test_adiconar_imagem_a_uma_empresa_existente(client: TestClient, db_session:
     
     file_mock = io.BytesIO(FILE_CONTENT_MOCK)
     file_payload = {
-        "file": ("foto_test_principal.gif", file_mock, "image/gif")
+        "file": ("foto_test_principal.png", file_mock, "image/png")
     }
 
     request_url = f"/api/v1/empresas/imagem/"

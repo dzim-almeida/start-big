@@ -143,7 +143,7 @@ def test_buscar_cliente_por_cpf(client: TestClient, header_with_token, valid_pf_
     
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    results = response.json()
+    results = response.json()["items"]
     assert len(results) == 1
     assert results[0]["cpf"] == target_cpf
 
@@ -158,7 +158,7 @@ def test_buscar_todos_clientes(client: TestClient, header_with_token, valid_pf_p
     
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    results = response.json()
+    results = response.json()["items"]
     # Verifica se pelo menos os 2 criados retornaram (pode haver outros do setup do banco)
     assert len(results) >= 2 
 
@@ -253,10 +253,9 @@ def test_toggle_status_cliente(client: TestClient, header_with_token, valid_pf_p
     assert res_disable.status_code == status.HTTP_200_OK
     assert res_disable.json()["ativo"] is False
     
-    # Verificação extra: Cliente desativado não deve aparecer na busca padrão (se o CRUD filtrar ativos)
-    # ou deve aparecer com flag false. No seu CRUD atual, o get_by_search filtra "ativo == True".
-    res_search = client.get(f"/api/v1/clientes/?buscar={valid_pf_payload['cpf']}", headers=header_with_token)
-    assert len(res_search.json()) == 0 # Não deve achar pois está inativo
+    # Verificação extra: Cliente desativado não deve aparecer na busca padrão com only_active=true
+    res_search = client.get(f"/api/v1/clientes/?buscar={valid_pf_payload['cpf']}&only_active=true", headers=header_with_token)
+    assert len(res_search.json()["items"]) == 0 # Não deve achar pois está inativo
 
     # Act 2: Reativar
     res_enable = client.put(f"/api/v1/clientes/toggle_ativo/{cliente_id}", headers=header_with_token)

@@ -10,7 +10,7 @@ from sqlalchemy import and_, select, func, or_
 from typing import Sequence, Callable, Optional
 
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF, ClientePJ
-from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento
+from app.db.models.objeto_servico import ObjetoServico
 
 # ===========================================================================
 # VERIFICAÇÕES (AUXILIARES)
@@ -100,7 +100,7 @@ def get_cliente_by_search(
                 poly.ClientePJ.razao_social.ilike(like_search),
                 poly.ClientePJ.nome_fantasia.ilike(like_search),
                 poly.ClientePJ.cnpj.ilike(like_search),
-                poly.ClienteModel.email.ilike(like_search),
+                poly.email.ilike(like_search),
             )
         )
 
@@ -154,19 +154,19 @@ def deactivate_cliente(db: Session, cliente: ClienteModel) -> None:
 
 
 # ===========================================================================
-# EQUIPAMENTOS DO CLIENTE
+# OBJETOS DO CLIENTE
 # ===========================================================================
 
-def get_equipamentos_by_cliente_id(
+def get_objetos_by_cliente_id(
     db: Session, cliente_id: int
-) -> Sequence[OrdemServicoEquipamento]:
-    """Retorna todos os equipamentos ativos de um cliente, ordenados do mais recente ao mais antigo."""
+) -> Sequence[ObjetoServico]:
+    """Retorna todos os objetos ativos de um cliente, ordenados do mais recente ao mais antigo."""
     stmt = (
-        select(OrdemServicoEquipamento)
+        select(ObjetoServico)
         .where(
-            OrdemServicoEquipamento.cliente_id == cliente_id,
-            OrdemServicoEquipamento.ativo == True,
+            ObjetoServico.cliente_id == cliente_id,
+            ObjetoServico.ativo == True,
         )
-        .order_by(OrdemServicoEquipamento.data_criacao.desc())
+        .order_by(ObjetoServico.data_criacao.desc())
     )
     return db.scalars(stmt).all()

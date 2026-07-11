@@ -36,7 +36,7 @@ class UsuarioLogin(BaseModel):
         description="Senha do usuário"
     )
     hwid: str = Field(
-        ...,
+        "",
         max_length=255,
         description="Hardware ID do terminal que está fazendo login"
     )

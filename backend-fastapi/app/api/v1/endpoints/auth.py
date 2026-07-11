@@ -5,7 +5,8 @@
 #            Gerencia o ciclo de vida do Token (emissão e revogação).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Form
+from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.depends import get_token, _handle_db_transaction
@@ -27,9 +28,21 @@ router = APIRouter()
     summary="Login com retorno de JWT Bearer Token"
 )
 def login(
-    usuario_credentials: UsuarioLogin,
+    usuario_credentials: Optional[UsuarioLogin] = None,
+    username: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    hwid: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
+    if usuario_credentials is None:
+        if username and password:
+            usuario_credentials = UsuarioLogin(email=username, senha=password, hwid=hwid or "")
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Credenciais de login inválidas"
+            )
 
     token_value = _handle_db_transaction(
         db,

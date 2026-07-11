@@ -70,11 +70,11 @@ def test_buscar_servico_por_termo(client: TestClient, header_with_token: dict):
 
     # Act
     search = "Manutenção"
-    response = client.get(f"/api/v1/servicos/?buscar={search}", headers=header_with_token)
+    response = client.get(f"/api/v1/servicos/?search={search}", headers=header_with_token)
     
     # Assert
     assert response.status_code == 200
-    results = response.json()
+    results = response.json()["items"]
     assert len(results) >= 1
     assert any(s["descricao"] == "Manutenção GPU" for s in results)
 
@@ -84,7 +84,7 @@ def test_listar_todos_ativos(client: TestClient, header_with_token: dict):
     
     response = client.get("/api/v1/servicos/", headers=header_with_token)
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert isinstance(response.json()["items"], list)
 
 # =========================
 # TESTES: EDIÇÃO (UPDATE)
@@ -151,10 +151,10 @@ def test_desativar_servico(client: TestClient, header_with_token: dict):
     if delete_response.status_code == 200:
         assert delete_response.json()["ativo"] is False
 
-    # Act 2: Tentar buscar na lista padrão (que filtra apenas ativos)
+    # Act 2: Tentar buscar na lista padrão (que filtra apenas ativos) com active=true
     # O serviço NÃO deve aparecer aqui
-    search_response = client.get("/api/v1/servicos/?buscar=Serviço Temporário", headers=header_with_token)
-    results = search_response.json()
+    search_response = client.get("/api/v1/servicos/?search=Serviço Temporário&active=true", headers=header_with_token)
+    results = search_response.json()["items"]
     
     # Assert: A lista deve estar vazia pois o item está inativo
     assert len(results) == 0

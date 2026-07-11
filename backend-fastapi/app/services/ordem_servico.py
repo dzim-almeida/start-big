@@ -31,7 +31,7 @@ from app.schemas.ordem_servico import (
 )
 
 from app.db.models.ordem_servico import OrdemServico as OSModel
-from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento as OSEquipamentoModel
+from app.db.models.objeto_servico import ObjetoServico as OSEquipamentoModel
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento as OSPagamentoModel
 
@@ -40,6 +40,8 @@ from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.db.crud import forma_pagamento as fp_crud
 from app.db.crud import configuracao_seguranca as config_seg_crud
+
+from app.services.segmentos import validar_objeto_por_segmento
 
 from app.core.enum import OrdemServicoItemTipo, OrdemServicoStatus, SituacaoEquipamento
 from app.core.security import verify_password
@@ -163,8 +165,35 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
     desconto = os_to_create.desconto or 0
     valor_total_os = max(0, valor_bruto_os - desconto)
 
-    equipamento_data = os_to_create.equipamento.model_dump(exclude_unset=True)
-    equipamento_to_db = OSEquipamentoModel(**equipamento_data, cliente=cliente_in_db)
+    # Suporta tanto 'objeto' quanto 'equipamento' (para retrocompatibilidade)
+    objeto_schema = os_to_create.objeto or os_to_create.equipamento
+    if not objeto_schema:
+        raise HTTPException(
+            status_code=400,
+            detail="É necessário fornecer os dados do objeto/equipamento de serviço."
+        )
+
+    objeto_data = objeto_schema.model_dump(exclude_unset=True)
+
+    # Extrai campos legados do objeto/equipamento e move para dados_adicionais
+    obj_dados_adicionais = objeto_data.get("dados_adicionais") or {}
+    for legacy_field in ["tipo_equipamento", "imei"]:
+        if legacy_field in objeto_data:
+            val = objeto_data.pop(legacy_field)
+            if val:
+                obj_dados_adicionais[legacy_field] = val.value if hasattr(val, 'value') else val
+
+    objeto_data["dados_adicionais"] = obj_dados_adicionais
+
+    # Validacao especifica de segmento (ex: placa para oficina). Gated: e no-op
+    # para segmentos sem regra dedicada, entao o fluxo de informatica permanece intacto.
+    validar_objeto_por_segmento(
+        db,
+        numero_serie=objeto_data.get("numero_serie"),
+        dados_adicionais=obj_dados_adicionais,
+    )
+
+    equipamento_to_db = OSEquipamentoModel(**objeto_data, cliente=cliente_in_db)
 
     valor_entrada = os_to_create.valor_entrada or 0
     if os_to_create.usar_credito_cliente and valor_entrada > 0:
@@ -176,16 +205,27 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
         cliente_in_db.saldo_credito = (cliente_in_db.saldo_credito or 0) - valor_entrada
 
     os_data = os_to_create.model_dump(
-        exclude={"cliente_id", "itens", "equipamento", "valor_bruto", "usar_credito_cliente"},
+        exclude={"cliente_id", "itens", "objeto", "equipamento", "valor_bruto", "usar_credito_cliente"},
         exclude_unset=True
     )
+
+    # Extrai campos legados da OS e move para dados_adicionais
+    dados_adicionais = os_data.get("dados_adicionais") or {}
+    for legacy_field in ["senha_aparelho", "acessorios", "condicoes_aparelho"]:
+        if legacy_field in os_data:
+            val = os_data.pop(legacy_field)
+            if val:
+                dados_adicionais[legacy_field] = val
+
+    os_data["dados_adicionais"] = dados_adicionais
+
     os_to_db = OSModel(
         **os_data,
         status=OrdemServicoStatus.ABERTA,
         valor_total=valor_total_os,
         valor_bruto=valor_bruto_os,
         numero_os=next_number,
-        equipamento=equipamento_to_db,
+        objeto=equipamento_to_db,
         itens=itens_model,
         funcionario=funcionario_in_db,
     )
@@ -267,7 +307,8 @@ def get_ordem_servico_stats(db: Session, funcionario_id: int | None = None) -> O
 
 _CAMPOS_TEXTO = frozenset({
     'defeito_relatado', 'diagnostico', 'solucao',
-    'observacoes', 'senha_aparelho', 'acessorios', 'condicoes_aparelho'
+    'observacoes', 'senha_aparelho', 'acessorios', 'condicoes_aparelho',
+    'dados_adicionais'
 })
 
 def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) -> OSModel:
@@ -283,6 +324,20 @@ def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) 
     os_in_db = _get_os_or_raise(db, numero_os)
 
     update_data = data.model_dump(exclude_unset=True)
+
+    # Extrai campos legados e move para dados_adicionais
+    dados_adicionais = getattr(os_in_db, "dados_adicionais", None) or {}
+    if "dados_adicionais" in update_data:
+        sent_data = update_data.pop("dados_adicionais") or {}
+        dados_adicionais.update(sent_data)
+
+    for legacy_field in ["senha_aparelho", "acessorios", "condicoes_aparelho"]:
+        if legacy_field in update_data:
+            val = update_data.pop(legacy_field)
+            if val is not None:
+                dados_adicionais[legacy_field] = val
+
+    os_in_db.dados_adicionais = dados_adicionais
 
     is_texto_only = update_data.keys() <= _CAMPOS_TEXTO
     if not is_texto_only:
@@ -333,8 +388,29 @@ def update_equipamento_os(db: Session, numero_os: str, data: OSEquipamentoUpdate
             raise cliente_not_found_exce
         equipamento.cliente = cliente_in_db
 
+    # Extrai dados_adicionais e campos de retrocompatibilidade do objeto
+    obj_dados_adicionais = getattr(equipamento, "dados_adicionais", None) or {}
+    if "dados_adicionais" in update_data:
+        sent_data = update_data.pop("dados_adicionais") or {}
+        obj_dados_adicionais.update(sent_data)
+
+    for legacy_field in ["tipo_equipamento", "imei"]:
+        if legacy_field in update_data:
+            val = update_data.pop(legacy_field)
+            if val is not None:
+                obj_dados_adicionais[legacy_field] = val.value if hasattr(val, 'value') else val
+
+    equipamento.dados_adicionais = obj_dados_adicionais
+
     for key, value in update_data.items():
         setattr(equipamento, key, value)
+
+    # Validacao especifica de segmento sobre o estado final do objeto (gated).
+    validar_objeto_por_segmento(
+        db,
+        numero_serie=equipamento.numero_serie,
+        dados_adicionais=equipamento.dados_adicionais,
+    )
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 

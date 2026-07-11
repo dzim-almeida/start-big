@@ -12,7 +12,7 @@ from sqlalchemy import select, func, or_, and_, case, literal
 
 from app.db.models.venda import Venda
 from app.db.models.ordem_servico import OrdemServico as OSModel
-from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento as OSEquipamentoModel
+from app.db.models.objeto_servico import ObjetoServico as OSEquipamentoModel
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.produto import Produto
 from app.db.models.estoque import Estoque
@@ -126,7 +126,7 @@ def get_os_vencendo(db: Session, empresa_id: int, limit: int = 10) -> Sequence:
             OSModel.defeito_relatado,
             OSModel.data_previsao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -251,7 +251,7 @@ def get_minhas_os_vencendo(db: Session, funcionario_id: int, limit: int = 10):
             OSModel.defeito_relatado,
             OSModel.data_previsao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -290,7 +290,7 @@ def get_minha_fila(db: Session, funcionario_id: int, limit: int = 20):
             OSModel.status,
             OSModel.data_previsao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -324,7 +324,7 @@ def get_minhas_os_atrasadas(db: Session, funcionario_id: int, limit: int = 10):
             OSModel.defeito_relatado,
             OSModel.data_previsao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -349,14 +349,10 @@ def get_os_aguardando_retirada(db: Session, funcionario_id: int, limit: int = 10
 
     stmt = (
         select(
-            OSModel.numero_os,
+            OSModel,
             func.coalesce(client_pf.nome, client_pj.razao_social, literal("Sem cliente")).label("cliente_nome"),
-            OSEquipamentoModel.tipo_equipamento,
-            OSEquipamentoModel.marca,
-            OSEquipamentoModel.modelo,
-            OSModel.data_finalizacao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -416,7 +412,7 @@ def get_minhas_os_hoje(db: Session, funcionario_id: int):
             OSModel.status,
             OSModel.data_criacao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
@@ -619,7 +615,7 @@ def get_os_atrasadas_empresa(db: Session, empresa_id: int, limit: int = 15) -> S
             OSModel.defeito_relatado,
             OSModel.data_previsao,
         )
-        .join(OSModel.equipamento)
+        .join(OSModel.objeto)
         .join(OSEquipamentoModel.cliente)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)

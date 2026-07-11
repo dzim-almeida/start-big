@@ -265,15 +265,21 @@ def get_minhas_os_atrasadas(db: Session, funcionario_id: int) -> OSAtrasadaRespo
 def get_os_aguardando_retirada(db: Session, funcionario_id: int) -> OSAguardandoRetiradaResponse:
     """OS prontas aguardando retirada do cliente."""
     rows = dashboard_crud.get_os_aguardando_retirada(db, funcionario_id)
-    items = [
-        OSAguardandoRetiradaItem(
-            numero_os=row.numero_os,
-            cliente_nome=row.cliente_nome,
-            equipamento=f"{row.tipo_equipamento.value} {row.marca} {row.modelo}",
-            data_finalizacao=row.data_finalizacao,
-        )
-        for row in rows
-    ]
+    items = []
+    for os_obj, cliente_nome in rows:
+        obj = os_obj.objeto
+        tipo_str = obj.tipo_equipamento.value if hasattr(obj.tipo_equipamento, 'value') else str(obj.tipo_equipamento)
+
+        # Se for um veículo com placa cadastrada nos dados_adicionais, exibe na listagem
+        if obj.dados_adicionais and "placa" in obj.dados_adicionais:
+            tipo_str = f"Veículo ({obj.dados_adicionais['placa']})"
+
+        items.append(OSAguardandoRetiradaItem(
+            numero_os=os_obj.numero_os,
+            cliente_nome=cliente_nome,
+            equipamento=f"{tipo_str} {obj.marca} {obj.modelo}",
+            data_finalizacao=os_obj.data_finalizacao,
+        ))
     return OSAguardandoRetiradaResponse(items=items)
 
 

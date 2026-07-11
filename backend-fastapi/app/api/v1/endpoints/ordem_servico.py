@@ -48,10 +48,32 @@ from app.schemas.ordem_servico import (
 )
 from app.services import ordem_servico as os_service
 from app.services import ordem_servico_foto as os_foto_service
+from app.services import segmentos as segmentos_service
 
 router = APIRouter()
 
 module_permission = "servico"
+
+
+# ===========================================================================
+# DEFINIÇÃO DE CAMPOS DO SEGMENTO (GET /definicao-campos)
+# Rota estática — declarada antes das rotas com /{os_number}.
+# ===========================================================================
+
+@router.get(
+    "/definicao-campos",
+    summary="Definição de campos dinâmicos do segmento da empresa",
+    description=(
+        "Retorna o contrato de campos dinâmicos (veículo, check-in, acessórios e "
+        "vistoria) do segmento da empresa, para o frontend renderizar o formulário "
+        "de OS adequado. Segmentos sem definição dedicada retornam tem_definicao=false."
+    ),
+)
+def get_definicao_campos_segmento(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return segmentos_service.get_definicao_campos(db)
 
 
 # ===========================================================================
@@ -235,12 +257,19 @@ def update_ordem_servico(
 # ===========================================================================
 
 @router.put(
+    "/{os_number}/objeto",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar Objeto da OS",
+    description="Atualiza as informações do objeto associado à OS."
+)
+@router.put(
     "/{os_number}/equipamento",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
-    summary="Atualizar Equipamento da OS",
+    summary="Atualizar Equipamento da OS (Legado)",
     description=(
-        "Atualiza as informações do equipamento associado à OS. "
+        "Atualiza as informações do equipamento associado à OS (compatibilidade). "
         "Permite também trocar o cliente proprietário do equipamento via cliente_id. "
         "Não é permitido em OS com status FINALIZADA ou CANCELADA."
     )

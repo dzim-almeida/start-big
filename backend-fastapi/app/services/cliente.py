@@ -189,17 +189,13 @@ def update_cliente_by_id(db: Session, cliente_id: int, data: ClienteUpdate) -> C
     _validar_unicidade_cliente(db, update_data, cliente_id=cliente_id)
 
     if "endereco" in update_data:
-        endereco_existente = list(cliente_in_db.endereco)
         enderecos_atualizados = address_service.update_address_in_db(
-            address_in_db=endereco_existente,
+            address_in_db=cliente_in_db.endereco,
             address_to_update=data.endereco,
             id_entity=cliente_id,
             type_entity=EntityType.CLIENTE,
         )
-        for end in enderecos_atualizados:
-            if end not in endereco_existente:
-                db.add(end)
-        db.flush()
+        cliente_in_db.endereco = enderecos_atualizados
         del update_data["endereco"]
 
     for key, value in update_data.items():
@@ -237,7 +233,7 @@ def get_equipamentos_historico_by_cliente_id(
     """
     _get_cliente_or_raise(db, cliente_id)
 
-    equipamentos = cliente_crud.get_equipamentos_by_cliente_id(db, cliente_id)
+    equipamentos = cliente_crud.get_objetos_by_cliente_id(db, cliente_id)
 
     seen: set[tuple] = set()
     resultado: list = []
