@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Smartphone } from 'lucide-vue-next';
+import { Smartphone, Car } from 'lucide-vue-next';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
 import { OS_EQUIP_TYPE_OPTIONS } from '../../constants/ordemServico.constants';
+import { useSegmento } from '@/shared/composables/useSegmento';
+import { useObjetoLabels } from '../../composables/useObjetoLabels';
 
 interface ObjetoForm {
   objeto: string;
@@ -36,6 +38,11 @@ const props = withDefaults(defineProps<Props>(), {
   isLocked: false,
   errors: () => ({}),
 });
+
+// Segmento define rótulos e quais campos aparecem. O usuário nunca vê "objeto":
+// oficina → "Veículo/Placa" (sem IMEI/senha); informática → "Equipamento/Nº Série".
+const { isOficinaMecanica } = useSegmento();
+const { labelSingular, labelIdentificador } = useObjetoLabels();
 
 function fieldError(field: string): string | undefined {
   return props.errors?.[`objeto.${field}`] ?? props.errors?.[field];
@@ -78,8 +85,8 @@ function handleHistoricoSelectChange(value: string) {
       <div class="space-y-4">
         <h5 class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
           <div class="flex items-center gap-2">
-            <Smartphone :size="14" />
-            Dados do Objeto
+            <component :is="isOficinaMecanica ? Car : Smartphone" :size="14" />
+            Dados do {{ labelSingular }}
           </div>
           <div v-if="objetosHistorico.length > 0 && !isLocked && isCreateMode" class="flex items-center gap-2">
             <BaseSelect
@@ -91,9 +98,11 @@ function handleHistoricoSelectChange(value: string) {
           </div>
         </h5>
 
+        <!-- Tipo de equipamento: apenas segmentos de TI (oficina não usa) -->
         <BaseSelect
+          v-if="!isOficinaMecanica"
           :model-value="modelValue.objeto || ''"
-          label="Tipo de Objeto"
+          label="Tipo de Equipamento"
           :options="tipoEquipamentoOptions"
           required
           :error="fieldError('tipo_equipamento')"
@@ -105,21 +114,32 @@ function handleHistoricoSelectChange(value: string) {
           <BaseInput :model-value="modelValue.modelo" label="Modelo" placeholder="Modelo" required :error="fieldError('modelo')" @update:model-value="updateField('modelo', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.numero_serie" label="N° Série" placeholder="Número de série" required :error="fieldError('numero_serie')" @update:model-value="updateField('numero_serie', $event)" />
+        <BaseInput
+          :model-value="modelValue.numero_serie"
+          :label="labelIdentificador"
+          :placeholder="isOficinaMecanica ? 'ABC1D23' : 'Número de série'"
+          required
+          :error="fieldError('numero_serie')"
+          @update:model-value="updateField('numero_serie', $event)"
+        />
       </div>
 
       <div class="space-y-4">
         <h5 class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
-          Detalhes & Segurança
+          {{ isOficinaMecanica ? 'Detalhes' : 'Detalhes & Segurança' }}
         </h5>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput :model-value="modelValue.imei" label="IMEI" placeholder="IMEI (opcional)" :error="fieldError('imei')" @update:model-value="updateField('imei', $event)" />
+          <!-- IMEI: apenas segmentos de TI -->
+          <BaseInput v-if="!isOficinaMecanica" :model-value="modelValue.imei" label="IMEI" placeholder="IMEI (opcional)" :error="fieldError('imei')" @update:model-value="updateField('imei', $event)" />
           <BaseInput :model-value="modelValue.cor" label="Cor" placeholder="Ex: Preto" @update:model-value="updateField('cor', $event)" />
         </div>
 
-        <BaseInput :model-value="modelValue.senha_aparelho" label="Senha / Padrão" placeholder="Senha de desbloqueio" @update:model-value="updateField('senha_aparelho', $event)" />
-        <BaseInput :model-value="modelValue.acessorios" label="Acessórios (Deixados)" placeholder="Ex: Carregador, Capa..." @update:model-value="updateField('acessorios', $event)" />
+        <!-- Senha e acessórios: apenas segmentos de TI -->
+        <template v-if="!isOficinaMecanica">
+          <BaseInput :model-value="modelValue.senha_aparelho" label="Senha / Padrão" placeholder="Senha de desbloqueio" @update:model-value="updateField('senha_aparelho', $event)" />
+          <BaseInput :model-value="modelValue.acessorios" label="Acessórios (Deixados)" placeholder="Ex: Carregador, Capa..." @update:model-value="updateField('acessorios', $event)" />
+        </template>
       </div>
     </div>
 
@@ -136,7 +156,8 @@ function handleHistoricoSelectChange(value: string) {
         />
       </div>
 
-      <div>
+      <!-- Condições físicas de entrada: apenas segmentos de TI (oficina usa a vistoria) -->
+      <div v-if="!isOficinaMecanica">
         <label class="block text-xs font-bold text-slate-600 mb-1 uppercase">
           Condições Físicas (Entrada)
         </label>

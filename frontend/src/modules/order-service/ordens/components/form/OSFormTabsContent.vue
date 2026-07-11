@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch, type Component } from 'vue';
-import { Smartphone, ClipboardList, Package } from 'lucide-vue-next';
+import { Smartphone, Car, ClipboardList, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSDiagnosticoTab from './OSDiagnosticoTab.vue';
 import OSServicesTab from './OSServicesTab.vue';
 import type { ObjetoFormData } from '../../composables/modal/useOSFormAdapter';
 import { useOSFormView } from '../../context/useOSFormView.context';
+import { useSegmento } from '@/shared/composables/useSegmento';
+import { useObjetoLabels } from '../../composables/useObjetoLabels';
 
 type TabType = 'objeto' | 'diagnostico' | 'servicos';
 
 const view = useOSFormView();
+
+// Rótulo/ícone da aba do objeto seguem o segmento (Veículo/Equipamento).
+const { isOficinaMecanica } = useSegmento();
+const { labelSingular } = useObjetoLabels();
 
 const activeTab = ref<TabType>('objeto');
 
@@ -20,14 +26,14 @@ watch(() => view.isOpen.value, (open) => {
   }
 });
 
-const allTabs: { id: TabType; label: string; icon: Component }[] = [
-  { id: 'objeto', label: 'Objeto', icon: Smartphone },
+const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => [
+  { id: 'objeto', label: labelSingular.value, icon: isOficinaMecanica.value ? Car : Smartphone },
   { id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList },
   { id: 'servicos', label: 'Serviços e Peças', icon: Package },
-];
+]);
 
 const visibleTabs = computed(() =>
-  view.isCreateMode.value ? allTabs.filter((tab) => tab.id !== 'diagnostico') : allTabs,
+  view.isCreateMode.value ? allTabs.value.filter((tab) => tab.id !== 'diagnostico') : allTabs.value,
 );
 
 const objetoModel = computed<ObjetoFormData>({
