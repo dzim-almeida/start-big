@@ -5,8 +5,7 @@
 #            Gerencia o ciclo de vida do Token (emissão e revogação).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Form
-from typing import Optional
+from fastapi import APIRouter, Depends, status, Request, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.depends import get_token, _handle_db_transaction
@@ -27,22 +26,31 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Login com retorno de JWT Bearer Token"
 )
-def login(
-    usuario_credentials: Optional[UsuarioLogin] = None,
-    username: Optional[str] = Form(None),
-    password: Optional[str] = Form(None),
-    hwid: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
-):
-    if usuario_credentials is None:
-        if username and password:
-            usuario_credentials = UsuarioLogin(email=username, senha=password, hwid=hwid or "")
-        else:
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Credenciais de login inválidas"
-            )
+async def login(request: Request, db: Session = Depends(get_db)):
+    """
+    Aceita as credenciais tanto em JSON (usado pelo frontend) quanto em
+    form-data (útil no Swagger). Monta o UsuarioLogin e emite o token JWT.
+    """
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        dados = await request.json()
+        email = dados.get("email")
+        senha = dados.get("senha")
+        hwid = dados.get("hwid")
+    else:
+        form = await request.form()
+        email = form.get("username") or form.get("email")
+        senha = form.get("password") or form.get("senha")
+        hwid = form.get("hwid")
+
+    if not email or not senha:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Credenciais de login inválidas",
+        )
+
+    usuario_credentials = UsuarioLogin(email=email, senha=senha, hwid=hwid or "")
 
     token_value = _handle_db_transaction(
         db,
