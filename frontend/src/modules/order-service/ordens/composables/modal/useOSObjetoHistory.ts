@@ -8,6 +8,8 @@ interface UseOSObjetoHistoryParams {
   ordemServicoCliente: ComputedRef<{ id?: number } | null | undefined>;
   isCreateMode: ComputedRef<boolean>;
   isFormOpen: ComputedRef<boolean>;
+  /** Já existe OS carregada/criada no form — evita reabrir a seleção pós-criação. */
+  temOSCarregada: ComputedRef<boolean>;
   createObjetoTipo: Ref<string | null | undefined>;
   createObjetoMarca: Ref<string | null | undefined>;
   createObjetoModelo: Ref<string | null | undefined>;
@@ -21,6 +23,7 @@ export function useOSObjetoHistory({
   ordemServicoCliente,
   isCreateMode,
   isFormOpen,
+  temOSCarregada,
   createObjetoTipo,
   createObjetoMarca,
   createObjetoModelo,
@@ -49,6 +52,7 @@ export function useOSObjetoHistory({
         history.length > 0 &&
         isCreateMode.value &&
         isFormOpen.value &&
+        !temOSCarregada.value &&
         !createObjetoTipo.value &&
         !wasObjetoSelectShown.value
       ) {

@@ -267,6 +267,7 @@ const {
   ordemServicoCliente: computed(() => currentOSData.value?.cliente as { id?: number } | null),
   isCreateMode,
   isFormOpen: computed(() => props.isOpen),
+  temOSCarregada: computed(() => currentOSData.value != null),
   createObjetoTipo: form.criar.objeto_tipo_equipamento,
   createObjetoMarca: form.criar.objeto_marca,
   createObjetoModelo: form.criar.objeto_modelo,
