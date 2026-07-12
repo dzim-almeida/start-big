@@ -173,6 +173,22 @@ def get_equipamentos_by_cliente(
 # ===========================================================================
 
 
+@router.get(
+    "/{cliente_id}",
+    response_model=ClienteRead,
+    status_code=status.HTTP_200_OK,
+    summary="Buscar cliente por ID",
+    description="Retorna o cadastro completo (PF ou PJ) do cliente pelo ID."
+)
+def get_cliente_by_id(
+    user_token: dict = Depends(check_permission(required_permission="cliente")),
+    cliente_id: int = Path(..., description="ID do cliente", ge=1),
+    *,
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(db, cliente_service.get_cliente_by_id, cliente_id)
+
+
 @router.put(
     "/toggle_ativo/{cliente_id}",
     response_model=ClienteRead,

@@ -91,6 +91,11 @@ def _get_cliente_or_raise(db: Session, cliente_id: int) -> ClienteModel:
         raise not_found_exce
     return cliente_in_db
 
+
+def get_cliente_by_id(db: Session, cliente_id: int) -> ClienteModel:
+    """Retorna o cadastro completo (PF/PJ) do cliente pelo ID; 404 se não existir."""
+    return _get_cliente_or_raise(db, cliente_id)
+
 # ===========================================================================
 # LÓGICA DE CRIAÇÃO (CREATE)
 # ===========================================================================
