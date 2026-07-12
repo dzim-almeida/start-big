@@ -12,6 +12,8 @@ interface UseOSObjetoHistoryParams {
   createObjetoMarca: Ref<string | null | undefined>;
   createObjetoModelo: Ref<string | null | undefined>;
   createObjetoNumeroSerie: Ref<string | null | undefined>;
+  createObjetoCor: Ref<string | null | undefined>;
+  createObjetoDadosAdicionais: Ref<Record<string, unknown> | null | undefined>;
 }
 
 export function useOSObjetoHistory({
@@ -23,6 +25,8 @@ export function useOSObjetoHistory({
   createObjetoMarca,
   createObjetoModelo,
   createObjetoNumeroSerie,
+  createObjetoCor,
+  createObjetoDadosAdicionais,
 }: UseOSObjetoHistoryParams) {
   const objetosHistorico = ref<ObjetoHistorico[]>([]);
   const selectedHistorico = ref<string>('');
@@ -63,6 +67,9 @@ export function useOSObjetoHistory({
       createObjetoMarca.value = objeto.marca || '';
       createObjetoModelo.value = objeto.modelo || '';
       createObjetoNumeroSerie.value = objeto.numero_serie || '';
+      // Reaproveita cor e campos dinâmicos do segmento (ex.: chassi, ano).
+      createObjetoCor.value = objeto.cor || '';
+      createObjetoDadosAdicionais.value = { ...(objeto.dados_adicionais ?? {}) };
     }
 
     const selectedIndex = objetosHistorico.value.findIndex(

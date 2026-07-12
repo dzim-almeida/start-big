@@ -246,6 +246,8 @@ useOSModalLifecycle({
         form.criar.objeto_marca.value = objeto.marca ?? '';
         form.criar.objeto_modelo.value = objeto.modelo ?? '';
         form.criar.objeto_numero_serie.value = objeto.numero_serie ?? '';
+        form.criar.objeto_cor.value = objeto.cor ?? '';
+        form.criar.objeto_dados_adicionais.value = { ...(objeto.dados_adicionais ?? {}) };
       });
     }
     if (props.autoUsarCredito && isCreateMode.value) {
@@ -269,6 +271,8 @@ const {
   createObjetoMarca: form.criar.objeto_marca,
   createObjetoModelo: form.criar.objeto_modelo,
   createObjetoNumeroSerie: form.criar.objeto_numero_serie,
+  createObjetoCor: form.criar.objeto_cor,
+  createObjetoDadosAdicionais: form.criar.objeto_dados_adicionais,
 });
 resetObjetoSelectStateProxy = resetObjetoSelectState;
 const {

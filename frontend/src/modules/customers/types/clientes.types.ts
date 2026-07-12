@@ -94,6 +94,8 @@ export interface ObjetoHistorico {
   marca: string | null;
   modelo: string | null;
   numero_serie: string | null;
+  cor?: string | null;
+  dados_adicionais?: Record<string, unknown> | null;
 }
 
 // ── Constantes ─────────────────────────────────────────────────────────────
