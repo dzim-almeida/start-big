@@ -148,7 +148,11 @@ class OrdemServico(Base):
 
     @property
     def acessorios(self) -> Optional[str]:
-        return (self.dados_adicionais or {}).get("acessorios")
+        # Compat multi-segmento: em TI é string ("carregador, capa..."); na oficina a
+        # chave "acessorios" guarda o checklist da vistoria (dict). Só expõe como string
+        # quando for string — evita quebrar a leitura da OS quando for o dict da vistoria.
+        val = (self.dados_adicionais or {}).get("acessorios")
+        return val if isinstance(val, str) else None
 
     @acessorios.setter
     def acessorios(self, value: Optional[str]) -> None:
