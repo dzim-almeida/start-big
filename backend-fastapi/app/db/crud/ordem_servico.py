@@ -60,6 +60,22 @@ def get_objetos_com_revisao_agendada(db: Session) -> Sequence[OSEquipamentoModel
     return db.scalars(stmt).all()
 
 
+def get_objeto_ativo_by_cliente_e_serie(
+    db: Session, cliente_id: int, numero_serie: str
+) -> OSEquipamentoModel | None:
+    """
+    Objeto ativo do cliente com o mesmo identificador (placa/serial), se existir.
+    Base do reuso: o mesmo bem físico é UM registro que acumula histórico entre OSs
+    (KM, revisão), em vez de ser duplicado a cada nova OS. Match case-insensitive.
+    """
+    stmt = select(OSEquipamentoModel).where(
+        OSEquipamentoModel.cliente_id == cliente_id,
+        OSEquipamentoModel.ativo == True,  # noqa: E712
+        func.lower(OSEquipamentoModel.numero_serie) == numero_serie.strip().lower(),
+    )
+    return db.scalars(stmt).first()
+
+
 def get_ordens_servico_by_search(
     db: Session,
     filters: dict,

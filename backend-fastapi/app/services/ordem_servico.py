@@ -211,7 +211,29 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
         dados_adicionais=obj_dados_adicionais,
     )
 
-    equipamento_to_db = OSEquipamentoModel(**objeto_data, cliente=cliente_in_db)
+    # Reutiliza o objeto existente do cliente (mesma placa/serial) em vez de duplicar:
+    # um bem físico é UM registro que acumula histórico (KM, revisão) entre as OSs.
+    # Se não existir, cria um novo. Agnóstico de segmento.
+    numero_serie = objeto_data.get("numero_serie")
+    equipamento_existente = (
+        os_crud.get_objeto_ativo_by_cliente_e_serie(db, cliente_in_db.id, numero_serie)
+        if numero_serie else None
+    )
+    if equipamento_existente:
+        # Atualiza os detalhes informados, mas PRESERVA a próxima revisão já agendada.
+        for campo in ("marca", "modelo", "cor"):
+            valor = objeto_data.get(campo)
+            if valor:
+                setattr(equipamento_existente, campo, valor)
+        novos_dados = objeto_data.get("dados_adicionais") or {}
+        if novos_dados:
+            equipamento_existente.dados_adicionais = {
+                **(equipamento_existente.dados_adicionais or {}),
+                **novos_dados,
+            }
+        equipamento_to_db = equipamento_existente
+    else:
+        equipamento_to_db = OSEquipamentoModel(**objeto_data, cliente=cliente_in_db)
 
     valor_entrada = os_to_create.valor_entrada or 0
     if os_to_create.usar_credito_cliente and valor_entrada > 0:
