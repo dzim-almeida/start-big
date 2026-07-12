@@ -76,13 +76,31 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     usar_credito_cliente.value = false;
   };
 
-  const onSubmit = handleSubmit((formData) => {
-    createMutation.mutate({ ...formData, usar_credito_cliente: usar_credito_cliente.value }, {
-      onSuccess: (data) => {
-        opts?.onSuccess?.(data);
-      },
-    });
-  });
+  const onSubmit = handleSubmit(
+    (formData) => {
+      createMutation.mutate({ ...formData, usar_credito_cliente: usar_credito_cliente.value }, {
+        onSuccess: (data) => {
+          opts?.onSuccess?.(data);
+        },
+        onError: (error) => {
+          // Falha vinda do backend (ex.: validação de segmento). Sem isto,
+          // o clique em "Criar O.S." falhava em silêncio.
+          const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+          toast.error(
+            typeof detail === 'string'
+              ? detail
+              : 'Não foi possível criar a O.S. Verifique os dados e tente novamente.',
+          );
+        },
+      });
+    },
+    // Validação (Zod) reprovou: mostra o primeiro campo obrigatório pendente.
+    // Agnóstico de segmento — serve oficina hoje e os próximos segmentos.
+    ({ errors }) => {
+      const primeiroErro = Object.values(errors).find(Boolean);
+      toast.error(String(primeiroErro ?? 'Preencha os campos obrigatórios destacados.'));
+    },
+  );
 
   const isPending = computed(() => createMutation.isPending.value);
 

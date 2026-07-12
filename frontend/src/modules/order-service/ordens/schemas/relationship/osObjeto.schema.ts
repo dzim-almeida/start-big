@@ -11,7 +11,13 @@ export const PLACA_REGEX = /^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z]\d{2})$/;
 
 export const OsObjetoCreateSchema = z.object({
   // Opcional: oficina não usa o enum de TI (moto seria outro segmento).
-  tipo_equipamento: OsEquipTypeEnum.optional(),
+  // Só aceita valores válidos do enum de TI; qualquer outra coisa ('' do select
+  // oculto, ou "Veículo" ao reutilizar um veículo do histórico) vira undefined.
+  // Agnóstico de segmento — evita que valores de outros segmentos quebrem o enum.
+  tipo_equipamento: z.preprocess(
+    (v) => ((OsEquipTypeEnum.options as readonly string[]).includes(v as string) ? v : undefined),
+    OsEquipTypeEnum.optional(),
+  ),
   marca: z
     .string({ required_error: 'A marca é obrigatória' })
     .trim()
@@ -52,7 +58,12 @@ export const OsObjetoReadSchema = z.object({
 });
 
 export const OsObjetoUpdateSchema = z.object({
-  tipo_equipamento: OsEquipTypeEnum.optional(),
+  // Mesmo tratamento do create: só valores do enum de TI passam; o resto
+  // ('' ou "Veículo" de outro segmento) vira undefined.
+  tipo_equipamento: z.preprocess(
+    (v) => ((OsEquipTypeEnum.options as readonly string[]).includes(v as string) ? v : undefined),
+    OsEquipTypeEnum.optional(),
+  ),
   marca: z.string().max(255, 'A marca deve ter no máximo 255 caracteres').optional(),
   modelo: z.string().max(255, 'O modelo deve ter no máximo 255 caracteres').optional(),
   numero_serie: z
