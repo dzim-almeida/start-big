@@ -6,6 +6,8 @@ import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
 export interface RevisaoPendente {
   objeto_id: number;
   cliente_id: number;
+  cliente_nome: string | null;
+  cliente_telefone: string | null;
   numero_serie: string;
   marca: string;
   modelo: string;

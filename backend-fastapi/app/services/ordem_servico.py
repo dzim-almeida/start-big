@@ -489,9 +489,12 @@ def get_revisoes_pendentes(db: Session) -> list[dict]:
         )
         if not (venc_data or venc_km):
             continue
+        cliente_nome, cliente_telefone = _cliente_contato(obj.cliente)
         pendentes.append({
             "objeto_id": obj.id,
             "cliente_id": obj.cliente_id,
+            "cliente_nome": cliente_nome,
+            "cliente_telefone": cliente_telefone,
             "numero_serie": obj.numero_serie,
             "marca": obj.marca,
             "modelo": obj.modelo,
@@ -501,6 +504,19 @@ def get_revisoes_pendentes(db: Session) -> list[dict]:
             "motivo": "data" if venc_data else "km",
         })
     return pendentes
+
+
+def _cliente_contato(cliente) -> tuple[str | None, str | None]:
+    """Nome de exibição e telefone do cliente (PF usa nome, PJ usa razão social)."""
+    if cliente is None:
+        return None, None
+    nome = (
+        getattr(cliente, "nome", None)
+        or getattr(cliente, "razao_social", None)
+        or getattr(cliente, "nome_fantasia", None)
+    )
+    telefone = getattr(cliente, "celular", None) or getattr(cliente, "telefone", None)
+    return (nome.strip() if isinstance(nome, str) else nome), telefone
 
 
 # ===========================================================================
