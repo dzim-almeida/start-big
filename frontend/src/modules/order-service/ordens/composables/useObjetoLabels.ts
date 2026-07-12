@@ -1,7 +1,24 @@
-import { computed } from 'vue';
+import { computed, type Component } from 'vue';
+import { Car, Smartphone, ShoppingCart, Hammer, Zap, Bike, AirVent, Wrench, Package } from 'lucide-vue-next';
 
 import { useSegmento } from '@/shared/composables/useSegmento';
 import { useOSFieldDefinition } from './request/useOSFieldDefinition.queries';
+
+/**
+ * Ícone do objeto por segmento. Chaveado pela string do segmento (não só pelos
+ * atuais) para novos segmentos "só funcionarem" ao serem adicionados no backend.
+ * Fallback genérico: Package. Futuramente pode vir do contrato (definicao.icone).
+ */
+const ICONES_SEGMENTO: Record<string, Component> = {
+  oficina_mecanica: Car,
+  assistencia_tecnica: Smartphone,
+  mercado: ShoppingCart,
+  marcenaria: Hammer,
+  eletricista: Zap,
+  moto: Bike,
+  ar_condicionado: AirVent,
+  serralheria: Wrench,
+};
 
 /**
  * Rótulos dinâmicos do "objeto de serviço" por segmento, dirigidos pelo contrato
@@ -16,9 +33,14 @@ import { useOSFieldDefinition } from './request/useOSFieldDefinition.queries';
  */
 export function useObjetoLabels() {
   const { data } = useOSFieldDefinition();
-  const { isOficinaMecanica } = useSegmento();
+  const { isOficinaMecanica, segmento } = useSegmento();
 
   const definicao = computed(() => data.value?.definicao ?? null);
+
+  /** Ícone do objeto conforme o segmento (fallback genérico). */
+  const objetoIcon = computed<Component>(
+    () => ICONES_SEGMENTO[segmento.value ?? ''] ?? Package,
+  );
 
   const labelSingular = computed(
     () => definicao.value?.rotulo_objeto_singular
@@ -40,6 +62,7 @@ export function useObjetoLabels() {
 
   return {
     definicao,
+    objetoIcon,
     labelSingular,
     labelPlural,
     labelIdentificador,

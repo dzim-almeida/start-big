@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
-import { Smartphone, ChevronRight, X } from 'lucide-vue-next';
+import { ChevronRight, X } from 'lucide-vue-next';
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
+import { useObjetoLabels } from '../../composables/useObjetoLabels';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +18,21 @@ const emit = defineEmits<{
   select: [objeto: ObjetoHistorico];
 }>();
 
+// Ícone e rótulos vêm do segmento (oficina → Veículo/Placa/Car; informática →
+// Equipamento/Nº de Série/Smartphone; novos segmentos herdam sem mexer aqui).
+const { objetoIcon, labelSingular, labelPlural, labelIdentificador } = useObjetoLabels();
+
+const titulo = computed(() => `${labelSingular.value} já cadastrado?`);
+const subtitulo = computed(
+  () => `Este cliente já trouxe ${labelPlural.value.toLowerCase()} antes. `
+    + `Selecione um para agilizar o cadastro ou continue com um novo.`,
+);
+const rotuloNovo = computed(() => `Não, é um novo ${labelSingular.value.toLowerCase()}`);
+
+function nomeObjeto(objeto: ObjetoHistorico): string {
+  return [objeto.marca, objeto.modelo].filter(Boolean).join(' ') || objeto.objeto || labelSingular.value;
+}
+
 function handleSelect(objeto: ObjetoHistorico) {
   emit('select', objeto);
 }
@@ -28,8 +45,8 @@ function handleSkip() {
 <template>
   <BaseModal
     :is-open="isOpen"
-    title="Objeto Já Cadastrado?"
-    subtitle="Este cliente já trouxe objetos anteriormente. Selecione um para agilizar o cadastro ou continue com um novo."
+    :title="titulo"
+    :subtitle="subtitulo"
     size="lg"
     @close="handleSkip"
   >
@@ -43,14 +60,16 @@ function handleSkip() {
       >
         <div class="flex items-center gap-4">
           <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-brand-primary-light group-hover:text-brand-primary transition-colors">
-            <Smartphone :size="20" />
+            <component :is="objetoIcon" :size="20" />
           </div>
           <div>
-            <h4 class="font-bold text-slate-800 text-sm group-hover:text-brand-primary">{{ objeto.objeto }}</h4>
+            <h4 class="font-bold text-slate-800 text-sm group-hover:text-brand-primary">{{ nomeObjeto(objeto) }}</h4>
             <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-              <span v-if="objeto.marca || objeto.modelo">{{ objeto.marca }} {{ objeto.modelo }}</span>
-              <span v-if="objeto.numero_serie" class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 group-hover:bg-brand-primary/20 group-hover:text-brand-primary/80">
-                S/N: {{ objeto.numero_serie }}
+              <span
+                v-if="objeto.numero_serie"
+                class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 group-hover:bg-brand-primary/20 group-hover:text-brand-primary/80"
+              >
+                {{ labelIdentificador }}: {{ objeto.numero_serie }}
               </span>
             </div>
           </div>
@@ -65,7 +84,7 @@ function handleSkip() {
       <div class="flex justify-between w-full">
         <BaseButton variant="secondary" @click="handleSkip">
           <X :size="16" class="mr-2" />
-          Não, é um novo objeto
+          {{ rotuloNovo }}
         </BaseButton>
       </div>
     </template>

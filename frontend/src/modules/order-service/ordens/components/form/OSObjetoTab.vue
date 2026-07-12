@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Smartphone, Car, Fuel } from 'lucide-vue-next';
+import { Fuel } from 'lucide-vue-next';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -48,7 +48,7 @@ const props = withDefaults(defineProps<Props>(), {
 // Segmento define rótulos e quais campos aparecem. O usuário nunca vê "objeto":
 // oficina → "Veículo/Placa" (sem IMEI/senha); informática → "Equipamento/Nº Série".
 const { isOficinaMecanica } = useSegmento();
-const { labelSingular, labelIdentificador } = useObjetoLabels();
+const { objetoIcon, labelSingular, labelIdentificador } = useObjetoLabels();
 
 function fieldError(field: string): string | undefined {
   return props.errors?.[`objeto.${field}`] ?? props.errors?.[field];
@@ -128,7 +128,7 @@ function handleHistoricoSelectChange(value: string) {
       <div class="space-y-4">
         <h5 class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-2">
           <div class="flex items-center gap-2">
-            <component :is="isOficinaMecanica ? Car : Smartphone" :size="14" />
+            <component :is="objetoIcon" :size="14" />
             Dados do {{ labelSingular }}
           </div>
           <div v-if="objetosHistorico.length > 0 && !isLocked && isCreateMode" class="flex items-center gap-2">
