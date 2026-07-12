@@ -95,6 +95,7 @@ const objetoModel = computed<ObjetoFormData>({
           :os-dados="view.osDados.value"
           :is-locked="view.isStructureLocked.value"
           @update:os-dados="view.setOsDados"
+          @imprimir-ficha-saida="view.imprimirFicha('SAIDA')"
         />
 
         <OSServicesTab

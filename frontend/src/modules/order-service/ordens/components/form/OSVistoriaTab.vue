@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ClipboardCheck, Check } from 'lucide-vue-next';
+import { ClipboardCheck, Check, Printer } from 'lucide-vue-next';
 
 import { useOSFieldDefinition } from '../../composables/request/useOSFieldDefinition.queries';
 
@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:osDados': [value: Record<string, unknown>];
+  imprimirFichaSaida: [];
 }>();
 
 // A vistoria é dirigida pelo contrato do backend (/definicao-campos): acessórios
@@ -76,6 +77,15 @@ function setVistoria(grupoIdx: number, item: string, estado: string) {
         <h5 class="text-sm font-bold text-slate-700">Vistoria de Entrada</h5>
         <p class="text-xs text-slate-500">Acessórios e checklist de inspeção do veículo</p>
       </div>
+      <button
+        type="button"
+        title="Imprimir ficha de saída em branco (preencher no carro)"
+        class="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-primary hover:text-brand-primary transition-colors"
+        @click="emit('imprimirFichaSaida')"
+      >
+        <Printer :size="14" />
+        Ficha de Saída
+      </button>
     </div>
 
     <div

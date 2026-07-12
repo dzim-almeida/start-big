@@ -2,6 +2,7 @@
 import { ref, computed, nextTick } from 'vue';
 import OSFormModalShell from './form/OSFormModalShell.vue';
 import OSFormAuxModals from './form/OSFormAuxModals.vue';
+import OSVistoriaFichaPrint from './OSVistoriaFichaPrint.vue';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
@@ -299,6 +300,43 @@ const currentCliente = computed(
   () => updatedClienteRef.value ?? props.selectedCliente ?? currentOSData.value?.cliente ?? null,
 );
 
+// ─── Ficha de vistoria imprimível (em branco, pra preencher no carro) ──────────
+// Funciona ANTES de criar a OS (usa os dados atuais do form) e também depois.
+const fichaTipo = ref<'ENTRADA' | 'SAIDA' | null>(null);
+const fichaData = ref<{
+  cliente: Record<string, unknown> | null;
+  objeto: Record<string, unknown> | null;
+  numeroOs: string | null;
+  dataOs: string | null;
+} | null>(null);
+
+async function imprimirFicha(tipo: 'ENTRADA' | 'SAIDA') {
+  const os = currentOSData.value;
+  const objeto = os?.objeto ?? {
+    marca: form.criar.objeto_marca.value,
+    modelo: form.criar.objeto_modelo.value,
+    numero_serie: form.criar.objeto_numero_serie.value,
+    cor: form.criar.objeto_cor.value,
+    dados_adicionais: form.criar.objeto_dados_adicionais.value,
+  };
+  fichaData.value = {
+    cliente: (currentCliente.value as Record<string, unknown> | null) ?? null,
+    objeto: objeto as Record<string, unknown>,
+    numeroOs: os?.numero_os ?? null,
+    dataOs: os?.data_criacao ?? null,
+  };
+  fichaTipo.value = tipo;
+  // Evita que o comprovante (OSPrintTemplate, condicionado a printFormat==='A4')
+  // saia junto ao imprimir a ficha.
+  printFormat.value = '' as typeof printFormat.value;
+  await nextTick();
+  window.print();
+  setTimeout(() => {
+    fichaTipo.value = null;
+    fichaData.value = null;
+  }, 600);
+}
+
 const saldoCreditoCliente = computed(() => {
   const c = currentCliente.value as { saldo_credito?: number } | null;
   return c?.saldo_credito ?? 0;
@@ -406,6 +444,7 @@ useOSFormViewProvider({
   handleFinalizarOS,
   printEntrada,
   printSaida,
+  imprimirFicha,
   handleReopenClick,
   handleChangeCliente,
   handleUpdateCliente,
@@ -450,6 +489,14 @@ useOSFormViewProvider({
 <template>
   <OSFormModalShell />
   <OSFormAuxModals />
+  <OSVistoriaFichaPrint
+    v-if="fichaTipo && fichaData"
+    :cliente="fichaData.cliente"
+    :objeto="fichaData.objeto"
+    :numero-os="fichaData.numeroOs"
+    :data-os="fichaData.dataOs"
+    :tipo="fichaTipo"
+  />
   <GerenteAprovacaoModal
     :is-open="gerenteReopen.isOpen.value"
     :is-loading="gerenteReopen.isLoading.value"

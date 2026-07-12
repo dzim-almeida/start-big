@@ -8,10 +8,12 @@ import OSControlsCard from './OSControlsCard.vue';
 import OSFormTabsContent from './OSFormTabsContent.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { useSegmento } from '@/shared/composables/useSegmento';
 import { computed, watch } from 'vue';
 
 const view = useOSFormView();
 const authStore = useAuthStore();
+const { isOficinaMecanica } = useSegmento();
 
 const canSelectTecnico = computed(() => {
   const user = authStore.userData;
@@ -80,10 +82,12 @@ watch(
         :is-pending="view.isPending.value"
         :reopen-mode="view.reopenMode.value"
         :os-id="view.currentOSData.value?.id"
+        :show-ficha="isOficinaMecanica"
         @finalizar="view.handleFinalizarOS"
         @print="view.printEntrada"
         @reprint-exit="view.printSaida"
         @reopen="view.handleReopenClick"
+        @print-ficha="view.imprimirFicha"
         @save="view.handleLocalSubmit"
       />
     </template>

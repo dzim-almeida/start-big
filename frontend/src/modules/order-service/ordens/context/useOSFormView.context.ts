@@ -70,6 +70,7 @@ export interface OSFormViewContext {
   handleFinalizarOS: () => void;
   printEntrada: () => void;
   printSaida: () => void;
+  imprimirFicha: (tipo: 'ENTRADA' | 'SAIDA') => void;
   handleReopenClick: () => void;
   handleChangeCliente: () => void;
   handleUpdateCliente: (cliente: CustomerUnionReadSchemaDataType) => void;
