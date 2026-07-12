@@ -10,10 +10,12 @@ import type { OSCreateFormContext } from '../../types/context.type';
 import { useCreateOrderServiceMutation } from '../request/useOrderServiceCreate.mutate';
 
 import { DEFAULT_OS_CREATE_VALUES, DEFAULT_OS_ITEM_VALUES } from '../../constants/core.constant';
+import { useToast } from '@/shared/composables/useToast';
 
 
 export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataType) => void }): OSCreateFormContext {
   const createMutation = useCreateOrderServiceMutation();
+  const toast = useToast();
 
   const { handleSubmit, errors, defineField, resetForm: veeReset, submitCount } = useForm({
     validationSchema: orderServiceCreateValidationSchema,
