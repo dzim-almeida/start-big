@@ -122,6 +122,11 @@ function abrirHistorico(r: RevisaoPendente) {
 const criandoOSId = ref<number | null>(null);
 
 async function abrirNovaOS(r: RevisaoPendente) {
+  // Um veículo não pode ter duas OS em aberto ao mesmo tempo.
+  if (r.tem_os_aberta) {
+    toast.error('Este veículo já tem uma OS em aberto. Finalize-a antes de abrir outra.');
+    return;
+  }
   criandoOSId.value = r.objeto_id;
   try {
     const cliente = await getCustomerById(r.cliente_id);
@@ -244,18 +249,22 @@ async function abrirNovaOS(r: RevisaoPendente) {
           </div>
         </div>
 
-        <!-- Ações -->
+        <!-- Ações — contato é o principal (callback); Nova OS é atalho secundário -->
         <div class="flex items-center gap-2 shrink-0 lg:ml-auto">
+          <!-- WhatsApp: ação em destaque -->
           <a
             v-if="whatsappHref(r.cliente_telefone)"
             :href="whatsappHref(r.cliente_telefone) || undefined"
             target="_blank"
             rel="noopener"
-            title="Chamar no WhatsApp"
-            class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
+            class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm shadow-emerald-500/20 transition-colors"
           >
-            <MessageCircle :size="17" />
+            <MessageCircle :size="16" />
+            WhatsApp
           </a>
+          <span v-else class="text-[11px] text-slate-400 px-1">sem telefone</span>
+
+          <!-- Histórico de KM -->
           <button
             type="button"
             title="Histórico de KM"
@@ -264,10 +273,16 @@ async function abrirNovaOS(r: RevisaoPendente) {
           >
             <History :size="17" />
           </button>
+
+          <!-- Nova OS: atalho secundário; bloqueado se já há OS em aberto -->
           <button
             type="button"
             :disabled="criandoOSId === r.objeto_id"
-            class="inline-flex items-center gap-1 h-9 px-3 rounded-lg bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 disabled:opacity-60 transition-colors"
+            :title="r.tem_os_aberta ? 'Este veículo já tem uma OS em aberto' : 'Abrir nova OS (cliente e veículo já preenchidos)'"
+            class="inline-flex items-center gap-1 h-9 px-3 rounded-lg border text-xs font-bold transition-colors disabled:opacity-60"
+            :class="r.tem_os_aberta
+              ? 'border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100'
+              : 'border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary'"
             @click="abrirNovaOS(r)"
           >
             <Loader2 v-if="criandoOSId === r.objeto_id" :size="15" class="animate-spin" />

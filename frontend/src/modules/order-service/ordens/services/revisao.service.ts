@@ -8,6 +8,7 @@ export interface RevisaoPendente {
   cliente_id: number;
   cliente_nome: string | null;
   cliente_telefone: string | null;
+  tem_os_aberta: boolean;
   numero_serie: string;
   marca: string;
   modelo: string;

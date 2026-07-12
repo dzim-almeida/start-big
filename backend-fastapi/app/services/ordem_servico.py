@@ -512,11 +512,18 @@ def get_revisoes_pendentes(db: Session) -> list[dict]:
         if not (venc_data or venc_km):
             continue
         cliente_nome, cliente_telefone = _cliente_contato(obj.cliente)
+        # Já existe uma OS em aberto (não finalizada/cancelada) para este veículo?
+        # Usado pela UI para bloquear "Nova OS" e avisar o usuário.
+        tem_os_aberta = any(
+            o.status not in (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA)
+            for o in os_crud.get_ordens_by_objeto_id(db, obj.id)
+        )
         pendentes.append({
             "objeto_id": obj.id,
             "cliente_id": obj.cliente_id,
             "cliente_nome": cliente_nome,
             "cliente_telefone": cliente_telefone,
+            "tem_os_aberta": tem_os_aberta,
             "numero_serie": obj.numero_serie,
             "marca": obj.marca,
             "modelo": obj.modelo,
