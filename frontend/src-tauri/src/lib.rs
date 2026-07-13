@@ -33,7 +33,7 @@ pub fn run() {
             set_role_server,
             set_role_client,
             get_api_url,
-            obter_hwid
+            obter_hwid,
             get_config,
             iniciar_descoberta_servidores,
             parar_descoberta_servidores
