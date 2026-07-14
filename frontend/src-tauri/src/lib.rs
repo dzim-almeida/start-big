@@ -16,6 +16,11 @@ use network::{
 };
 use hwid::obter_hwid;
 
+#[tauri::command]
+fn is_dev_mode() -> bool {
+    cfg!(debug_assertions)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -35,6 +40,7 @@ pub fn run() {
             get_api_url,
             obter_hwid,
             get_config,
+            is_dev_mode,
             iniciar_descoberta_servidores,
             parar_descoberta_servidores
         ])
@@ -45,16 +51,18 @@ pub fn run() {
 
             app.manage(EstadoServidorImpressao::default());
 
+            app.manage(network::EstadoDescoberta::default());
+
+            use crate::backend::setup_sidecar;
+            use network::{
+                discover_servers, gen_network_config_txt, load_config, start_discovery,
+            };
+
+            let handle = app.app_handle();
+
+            let server_config = load_config(&handle);
             #[cfg(not(debug_assertions))]
             {
-                use crate::backend::setup_sidecar;
-                use crate::network::{
-                    discover_servers, gen_network_config_txt, load_config, start_discovery,
-                };
-
-                let handle = app.app_handle();
-
-                let server_config = load_config(&handle);
                 if server_config.configured {
                     if server_config.is_server {
                         setup_sidecar(
@@ -68,11 +76,12 @@ pub fn run() {
                             server_config.server_port,
                         );
                         start_discovery(
+                            &handle.state::<network::EstadoDescoberta>(),
                             obter_ip_local().unwrap_or_default(),
                             server_config.server_port,
                         );
                     } else {
-                        discover_servers(handle.clone());
+                        discover_servers(&handle.state::<network::EstadoDescoberta>(), handle.clone());
                     }
                 }
             }

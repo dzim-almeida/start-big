@@ -5,7 +5,7 @@ const routes: RouteRecordRaw[] = [
     path: '/configuracao-rede',
     name: 'network-config',
     component: () => import('./views/NetworkConfigView.vue'),
-    meta: { requiresAuth: false },
+    meta: { requiresAuth: false, skipLicenseCheck: true },
   },
   {
     path: '/erro-conexao',

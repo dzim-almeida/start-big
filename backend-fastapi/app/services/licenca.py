@@ -125,10 +125,10 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
 
             # Erros 4xx da API (ex: documento duplicado) — não faz retry
             if 400 <= response.status_code < 500:
-                detail = response.text
+                detail = response.json().get("message", response.text)
                 try:
                     body = response.json()
-                    detail = body.get("msg", body.get("detail", response.text))
+                    detail = body.get("message", body.get("detail", response.text))
                 except Exception:
                     pass
                 raise HTTPException(
@@ -242,6 +242,7 @@ def registrar_licenca(
     documento: str,
     nome_ou_razao: str,
     email: str,
+    senha: str,
     endereco_data: dict,
 ) -> ConfiguracaoLicenca:
     """
@@ -287,6 +288,7 @@ def registrar_licenca(
         documento=documento,
         nomeOuRazao=nome_ou_razao,
         email=email,
+        senha=senha,
         hwid=hwid,
         endereco=endereco_payload,
     )

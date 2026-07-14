@@ -4,6 +4,8 @@ use std::net::TcpListener;
 use tauri::AppHandle;
 use tauri::Manager;
 
+use super::discovery::EstadoDescoberta;
+
 pub fn get_free_port() -> u16 {
     TcpListener::bind("0.0.0.0:0")
         .expect("Falha ao busca uma porta livre no sistema")
@@ -89,7 +91,11 @@ pub fn load_config(app: &AppHandle) -> AppConfig {
 }
 
 #[tauri::command]
-pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppConfig, String> {
+pub fn set_role_server(
+    app: AppHandle,
+    estado: tauri::State<'_, EstadoDescoberta>,
+    custom_port: Option<u16>,
+) -> Result<AppConfig, String> {
     let mut config = load_config(&app);
     config.is_server = true;
     config.server_ip = "0.0.0.0".to_string();
@@ -124,7 +130,9 @@ pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppCo
     crate::backend::setup_sidecar(&app, &config.server_ip, config.server_port)
         .map_err(|e| e.to_string())?;
 
-    gen_network_config_txt(&app, crate::impressao::obter_ip_local().unwrap_or_default(), config.server_port);
+    let ip_local = crate::impressao::obter_ip_local().unwrap_or_default();
+    gen_network_config_txt(&app, ip_local.clone(), config.server_port);
+    super::discovery::start_discovery(&estado, ip_local, config.server_port);
 
     Ok(config)
 }
@@ -132,6 +140,7 @@ pub fn set_role_server(app: AppHandle, custom_port: Option<u16>) -> Result<AppCo
 #[tauri::command]
 pub fn set_role_client(
     app: AppHandle,
+    estado: tauri::State<'_, EstadoDescoberta>,
     server_ip: String,
     server_port: u16,
 ) -> Result<AppConfig, String> {
@@ -144,6 +153,8 @@ pub fn set_role_client(
     let path = get_config_path(&app);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    super::discovery::discover_servers(&estado, app);
 
     Ok(config)
 }

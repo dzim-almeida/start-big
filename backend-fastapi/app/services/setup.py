@@ -83,6 +83,7 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
         documento=documento_licenca,
         nome_ou_razao=nome_licenca,
         email=email_licenca,
+        senha=setup_data.senha,
         endereco_data=endereco_licenca,
     )
 

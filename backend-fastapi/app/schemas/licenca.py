@@ -27,6 +27,7 @@ class AutoCadastroPayload(BaseModel):
     documento: str = Field(..., description="CPF ou CNPJ")
     nomeOuRazao: str = Field(..., description="Nome ou Razão Social")
     email: str = Field(..., description="Email do responsável")
+    senha: str = Field(..., description="Senha para autenticação futura")
     hwid: str = Field(..., description="Hardware ID da máquina (obtido internamente)")
     endereco: Optional[LicencaEnderecoPayload] = Field(
         None, description="Endereço (opcional)"

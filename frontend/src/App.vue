@@ -8,7 +8,7 @@ import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { TOKEN_KEY } from '@/api/axios';
 import { getDesconectarUrl } from '@/shared/services/licenca.service';
 import { aguardarBackend, verificarSaude } from '@/shared/services/system/health.service';
-import { tauriDisponivel, getConfig, setRoleClient } from '@/shared/services/system/tauriConfig.service';
+import { tauriDisponivel, getConfig, setRoleClient, isDevMode } from '@/shared/services/system/tauriConfig.service';
 import { obterHwid } from '@/shared/services/system/hwid.service';
 import { reinitBackendUrl } from '@/api/backendUrl';
 import { tentarAutoDiscovery } from '@/modules/network-config/composables/useAutoDiscovery';
@@ -55,6 +55,14 @@ onMounted(async () => {
       networkStore.setNecessitaConfiguracao(true);
       router.replace({ name: 'network-config' });
     } else {
+      const devMode = await isDevMode();
+
+      // Em dev mode com role servidor, o backend é iniciado manualmente
+      if (devMode && config.is_server) {
+        appReady.value = true;
+        return;
+      }
+
       const healthy = await aguardarBackend(config.is_server);
       if (!healthy) {
         if (!config.is_server) {

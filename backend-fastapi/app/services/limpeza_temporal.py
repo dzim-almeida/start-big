@@ -1,3 +1,8 @@
+import os
+import sys
+import glob
+import shutil
+import tempfile
 import logging
 from datetime import datetime, timedelta
 
@@ -72,3 +77,19 @@ def limpar_orcamentos_expirados(db: Session) -> int:
         logger.debug("Limpeza automatica: nenhum orcamento expirado encontrado.")
 
     return quantidade
+
+def limpar_temp_data(): 
+    temp_dir = tempfile.gettempdir()
+    
+    q_pattern = os.path.join(temp_dir, "_MEI*")
+    pastas_encontradas = glob.glob(q_pattern)
+    
+    acc_temp_dir = getattr(sys, "_MEIPASS", None)
+    
+    for pasta in pastas_encontradas:
+        if os.path.isdir(pasta) and pasta != acc_temp_dir:
+            try:
+                shutil.rmtree(pasta)
+                logger.info("Limpeza automática: diretório temporário removido: %s", pasta)
+            except Exception as e:
+                logger.error("Erro ao remover diretório temporário %s: %s", pasta, str(e))
