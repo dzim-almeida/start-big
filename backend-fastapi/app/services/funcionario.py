@@ -11,6 +11,7 @@ from typing import Sequence
 from app.schemas.funcionario import FuncionarioCreate, FuncionarioUpdate
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
+from app.db.crud import cargo as cargo_crud
 from app.services import usuario as usuario_service
 from app.services import endereco as endereco_service
 from app.core.enum import EntityType
@@ -79,12 +80,20 @@ def create_funcionario(db: Session, empresa_id: int, funcionario_to_add: Funcion
         validation_exce.detail = validation_errors
         raise validation_exce
     
+    # Valida se o cargo associado é Master
+    is_master = False
+    if funcionario_to_add.cargo_id:
+        cargo_in_db = cargo_crud.get_cargo_funcionario_by_id(db, funcionario_to_add.cargo_id)
+        if cargo_in_db and cargo_in_db.nome.lower() == "master":
+            is_master = True
+
     # 2. Criação do Usuário (Delegate)
     usuario_to_add = funcionario_to_add.usuario
     usuario_in_db = usuario_service.create_usuario(
         db,
         usuario_to_add=usuario_to_add,
-        empresa_id=empresa_id
+        empresa_id=empresa_id,
+        is_master=is_master
     )
 
     # 3. Criação do Funcionário
@@ -172,6 +181,15 @@ def update_funcionario_by_id(db: Session, funcionario_id: int, funcionario_to_up
     # Atualização de Campos Simples
     for key, value in funcionario_data_to_update.items():
         setattr(funcionario_in_db, key, value)
+        
+        # Atualiza a flag is_master do usuário caso o cargo seja alterado
+        if key == "cargo_id":
+            if value is not None:
+                cargo_in_db = cargo_crud.get_cargo_funcionario_by_id(db, value)
+                if cargo_in_db and funcionario_in_db.usuario:
+                    funcionario_in_db.usuario.is_master = (cargo_in_db.nome.lower() == "master")
+            elif funcionario_in_db.usuario:
+                funcionario_in_db.usuario.is_master = False
     
     return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)
 
@@ -182,6 +200,11 @@ def update_cargo_funcionario(db: Session, funcionario_id: int, cargo_id: int) ->
         raise not_found_exce
     
     funcionario_in_db.cargo_id = cargo_id
+    
+    cargo_in_db = cargo_crud.get_cargo_funcionario_by_id(db, cargo_id)
+    if cargo_in_db and funcionario_in_db.usuario:
+        funcionario_in_db.usuario.is_master = (cargo_in_db.nome.lower() == "master")
+        
     return funcionario_crud.update_funcionario_in_db(db, funcionario_to_update=funcionario_in_db)
 
 # ===========================================================================

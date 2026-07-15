@@ -12,7 +12,7 @@ use impressao::{
 };
 use network::{
     get_api_url, get_config, iniciar_descoberta_servidores, parar_descoberta_servidores,
-    set_role_client, set_role_server,
+    set_role_client, set_role_server
 };
 use hwid::obter_hwid;
 
@@ -42,7 +42,7 @@ pub fn run() {
             get_config,
             is_dev_mode,
             iniciar_descoberta_servidores,
-            parar_descoberta_servidores
+            parar_descoberta_servidores,
         ])
         .setup(move |app| {
             app.manage(AppState {

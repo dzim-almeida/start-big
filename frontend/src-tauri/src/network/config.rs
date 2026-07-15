@@ -77,7 +77,6 @@ fn get_config_path(app: &AppHandle) -> std::path::PathBuf {
 
 pub fn load_config(app: &AppHandle) -> AppConfig {
     let path = get_config_path(app);
-    println!("Server Config File: {}", path.display());
 
     if path.exists() {
         let content = fs::read_to_string(&path).unwrap();
@@ -166,6 +165,10 @@ pub fn get_config(app: AppHandle) -> AppConfig {
 
 #[tauri::command]
 pub fn get_api_url(app: AppHandle) -> String {
+    #[cfg(debug_assertions)] {
+        return format!("http://127.0.0.1:8080/api")
+    }
+
     let config = load_config(&app);
 
     if config.is_server {

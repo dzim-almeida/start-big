@@ -216,6 +216,10 @@ export function applyEndpointPermissions(permissoes: Record<string, boolean>) {
 export function getPermissionStats(
   permissoes: Record<string, boolean> | undefined,
 ) {
+  if (permissoes?.all === true) {
+    const total = PERMISSION_KEYS.length;
+    return { enabled: total, total, ratio: 1 };
+  }
   const enabled = PERMISSION_KEYS.reduce(
     (count, key) => count + (permissoes?.[key] ? 1 : 0),
     0,
