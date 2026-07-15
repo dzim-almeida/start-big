@@ -7,6 +7,7 @@ import type { SignInStep, SignInData, LojaData, ResponsavelData, AcessoData } fr
 const currentStep = ref<SignInStep>(0);
 const logoFile = ref<File | null>(null);
 const logoPreview = ref<string | null>(null);
+const signInMode = ref<'choice' | 'autocadastro' | 'reconnect'>('choice');
 
 const signInData = reactive<SignInData>({
   loja: {
@@ -73,13 +74,22 @@ export function useSignIn() {
   });
 
   function nextStep(): void {
-    if (!isLastStep.value) {
+    if (currentStep.value === 3 && signInMode.value === 'reconnect') {
+      // Pula a etapa de Acesso (4) preenchendo automaticamente o nome de usuário
+      const nome = signInData.responsavel.tipoPessoa === 'PF' 
+        ? signInData.responsavel.nomeResponsavel 
+        : (signInData.responsavel.nomeFantasiaPJ || signInData.responsavel.razaoSocial);
+      signInData.acesso.nomeUsuario = nome;
+      currentStep.value = 5 as SignInStep;
+    } else if (!isLastStep.value) {
       currentStep.value = (currentStep.value + 1) as SignInStep;
     }
   }
 
   function previousStep(): void {
-    if (canGoBack.value) {
+    if (currentStep.value === 5 && signInMode.value === 'reconnect') {
+      currentStep.value = 3 as SignInStep;
+    } else if (canGoBack.value) {
       currentStep.value = (currentStep.value - 1) as SignInStep;
     }
   }
@@ -108,6 +118,7 @@ export function useSignIn() {
 
   function resetSignIn(): void {
     currentStep.value = 0;
+    signInMode.value = 'choice';
 
     if (logoPreview.value) URL.revokeObjectURL(logoPreview.value);
     logoFile.value = null;
@@ -154,6 +165,7 @@ export function useSignIn() {
   }
 
   return {
+    signInMode,
     currentStep,
     signInData,
     logoFile,

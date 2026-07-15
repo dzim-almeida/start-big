@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_token, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse, LogoutRequest
+from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse, LogoutRequest, ReconnectRequest
 from app.services import auth as auth_service
 from app.services import setup as setup_service
 from app.services.licenca import desconectar_terminal
@@ -97,8 +97,36 @@ def get_system_status(db: Session = Depends(get_db)):
 
 
 # ===========================================================================
-# SETUP INICIAL (PÚBLICO)
+# SETUP INICIAL E RECONEXÃO (PÚBLICO)
 # ===========================================================================
+
+@router.post(
+    "/reconnect",
+    status_code=status.HTTP_200_OK,
+    summary="Reconecta uma licença existente via API StartBig"
+)
+def reconnect_licenca_endpoint(
+    reconnect_data: ReconnectRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint público para reconectar uma licença já existente na StartBig.
+    Salva a licença localmente e retorna se o sistema já está inicializado.
+    """
+    from app.services import licenca as licenca_srv
+    
+    # Executa a reconexão
+    _handle_db_transaction(
+        db,
+        licenca_srv.reconnect_licenca,
+        reconnect_data.email,
+        reconnect_data.senha,
+    )
+    
+    # Verifica se o sistema (Empresa, Master) já foi inicializado
+    inicializado = auth_service.verificar_sistema_inicializado(db)
+    
+    return {"success": True, "inicializado": inicializado}
 
 @router.post(
     "/setup",

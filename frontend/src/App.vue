@@ -39,7 +39,6 @@ function handleBeforeUnload() {
   if (terminalHwid.value) {
     navigator.sendBeacon(getDesconectarUrl(terminalHwid.value));
   }
-  localStorage.removeItem(TOKEN_KEY);
 }
 
 onMounted(async () => {
