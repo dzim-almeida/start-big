@@ -76,9 +76,12 @@ export function osToEscPos(
 
   // Objeto
   b.negrito(true).linha('OBJETO').negrito(false)
+  // Em MAIÚSCULA para bater com a via em papel: lá o mesmo texto sai com a
+  // classe `uppercase`, então imprimia "(REPARADO)" enquanto a térmica saía
+  // "(Reparado)" — mesmo documento, duas grafias.
   const sufixoSituacao =
     tipo === 'SAIDA' && situacao
-      ? ` (${situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado'})`
+      ? ` (${(situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado').toUpperCase()})`
       : ''
   b.linha(`${os.objeto.tipo_equipamento}${sufixoSituacao}`)
   if (os.objeto.marca) b.linha(`Marca: ${os.objeto.marca}`)
@@ -143,6 +146,15 @@ export function osToEscPos(
     if (adiantamento > 0) b.parLados('Adiantamento:', `-${formatCurrency(adiantamentoUtilizado)}`)
     b.negrito(true).parLados('TOTAL PAGO:', formatCurrency(totalRecebido)).negrito(false)
 
+    // Devolução (quando há juros): faltava aqui e existia só na via em papel,
+    // então a mesma OS saía com a quebra do estorno num comprovante e sem ela
+    // no outro. Espelha o bloco do OSPrintCupom.vue.
+    if ((os.acrescimo ?? 0) > 0) {
+      b.separador().negrito(true).linha('DEVOLUCAO').negrito(false)
+      b.parLados('Servico (dinheiro):', formatCurrency(paymentTotal - (os.acrescimo ?? 0)))
+      b.parLados('Estorno cartao:', formatCurrency(paymentTotal))
+    }
+
     // Garantia / sem reparo
     if (!isSemReparo && os.garantia) {
       b.separador().negrito(true).linha(`GARANTIA: ${os.garantia}`).negrito(false)
@@ -158,11 +170,22 @@ export function osToEscPos(
     b.linha('PRAZO DE RETIRADA: Objetos nao retirados em 90 dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.')
   }
 
-  // Assinaturas
-  b.pular(3)
+  // Assinaturas — as duas, como na via em papel (lá elas são blocos empilhados,
+  // não colunas, então cabem na bobina). Antes só existia a do cliente, e sem
+  // o nome embaixo da linha.
+  const linhaAssinatura = '_'.repeat(Math.min(28, b.colunas - 4))
+  b.pular(2)
     .alinhar('centro')
-    .linha('_'.repeat(Math.min(28, b.colunas - 4)))
+    .linha(linhaAssinatura)
+    .negrito(true)
+    .linha('Tecnico Responsavel')
+    .negrito(false)
+    .pular(2)
+    .linha(linhaAssinatura)
+    .negrito(true)
     .linha('Assinatura do Cliente')
+    .negrito(false)
+  if (os.cliente) b.linha(getClienteNome(os.cliente))
 
   // Rodapé
   b.separador()

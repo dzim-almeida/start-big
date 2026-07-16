@@ -98,11 +98,22 @@ export function saleToEscPos(sale: SaleRead, opts: SaleEscPosOptions): Uint8Arra
     b.separador().negrito(true).linha('OBSERVACOES').negrito(false).linha(sale.observacao)
   }
 
-  // Assinaturas
-  b.pular(3)
+  // Assinaturas — as duas, como na via em papel (lá são blocos empilhados, não
+  // colunas, então cabem na bobina). Antes só existia a do cliente, e sem o
+  // nome embaixo da linha: mesma venda, dois comprovantes diferentes.
+  const linhaAssinatura = '_'.repeat(Math.min(28, b.colunas - 4))
+  b.pular(2)
     .alinhar('centro')
-    .linha('_'.repeat(Math.min(28, b.colunas - 4)))
+    .linha(linhaAssinatura)
+    .negrito(true)
+    .linha('Vendedor')
+    .negrito(false)
+    .pular(2)
+    .linha(linhaAssinatura)
+    .negrito(true)
     .linha('Assinatura do Cliente')
+    .negrito(false)
+  if (sale.cliente) b.linha(getClienteNome(sale.cliente))
 
   // Rodapé
   b.separador()
