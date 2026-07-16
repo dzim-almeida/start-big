@@ -25,8 +25,14 @@
     padding: 0;
   }
 
-  /* Oculta tudo que não é o template de impressão (remove do layout, não só da visibilidade) */
-  body > *:not(.print-container) {
+  /* Oculta tudo que não é template de impressão (remove do layout, não só da
+     visibilidade).
+     Precisa excluir o cupom TAMBÉM: este arquivo é global (o <style> que o
+     importa não é scoped) e fica ativo mesmo quando quem imprime é o cupom,
+     porque os dois templates são importados juntos. Sem a exceção, esta regra
+     escondia o .print-cupom-container e o cupom saía em branco — o
+     `visibility: visible` do print-cupom.css não vence `display: none`. */
+  body > *:not(.print-container):not(.print-cupom-container) {
     display: none !important;
   }
 

@@ -19,6 +19,14 @@
     background: white;
   }
 
+  /* Mesma exceção do print-a4.css, e pelo mesmo motivo: os dois arquivos são
+     globais e convivem. `visibility: hidden` sozinho não bastava — os elementos
+     do app continuavam ocupando layout e empurravam o cupom para fora do papel.
+     Remover do fluxo resolve; a exceção mantém os dois templates vivos. */
+  body > *:not(.print-cupom-container):not(.print-container) {
+    display: none !important;
+  }
+
   .print-cupom-container {
     visibility: visible;
     position: absolute;
