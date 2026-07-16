@@ -26,6 +26,7 @@ import type {
 } from '../types/employees.types';
 import { useCreateEmployeeMutation, useUpdateEmployeeMutation } from './useEmployeesQuery';
 import { useEmployeeModal } from './useEmployeeModal';
+import { useToast } from '@/shared/composables/useToast';
 import { unmaskDocument, unmaskPhone, unmaskCep } from '@/shared/utils/unmask.utils';
 
 // =============================================
@@ -41,6 +42,58 @@ export const DEFAULT_ENDERECO: EnderecoFormData = {
   cidade: '',
   estado: '',
 };
+
+/**
+ * Rótulo de cada campo como ele aparece na TELA. Usado para dizer ao usuário
+ * qual campo reprovou — a chave técnica ("cargo_id", "mae") não ajuda ninguém.
+ */
+const ROTULOS: Record<string, string> = {
+  nome: 'Nome Completo',
+  cpf: 'CPF',
+  data_nascimento: 'Data Nascimento',
+  jornada_trabalho: 'Jornada',
+  genero: 'Gênero',
+  rg: 'RG',
+  telefone: 'Telefone',
+  celular: 'Celular',
+  email: 'E-mail',
+  cnh: 'CNH',
+  carteira_trabalho: 'Carteira de Trabalho',
+  salario_bruto: 'Salário Bruto',
+  tipo_contrato: 'Tipo de Contrato',
+  data_admissao: 'Data Admissão',
+  cargo_id: 'Cargo',
+  mae: 'Nome da Mãe',
+  pai: 'Nome do Pai',
+  titular_conta: 'Titular da Conta',
+  tipo_conta: 'Tipo da Conta',
+  banco: 'Banco',
+  agencia: 'Agência',
+  conta: 'Conta',
+  observacao: 'Observações',
+  usuario_nome: 'Nome de Usuário',
+  usuario_email: 'E-mail do Usuário',
+  usuario_senha: 'Senha',
+  // Endereço (array) — a seção não exibe erro por campo, então o toast é a
+  // ÚNICA forma de o usuário saber que o problema está aqui.
+  cep: 'CEP',
+  logradouro: 'Logradouro',
+  numero: 'Número',
+  complemento: 'Complemento',
+  bairro: 'Bairro',
+  cidade: 'Cidade',
+  estado: 'Estado',
+};
+
+/** "enderecos[0].cep" -> "Endereço 1: CEP"; "nome" -> "Nome Completo". */
+function rotuloDoCampo(chave: string): string {
+  const endereco = chave.match(/^enderecos\[(\d+)\]\.(.+)$/);
+  if (endereco) {
+    const [, indice, campo] = endereco;
+    return `Endereço ${Number(indice) + 1}: ${ROTULOS[campo] ?? campo}`;
+  }
+  return ROTULOS[chave] ?? chave;
+}
 
 const DEFAULT_FORM_VALUES: EmployeeFormData = {
   // Dados Funcionario
@@ -147,6 +200,7 @@ export const EMPLOYEE_FORM_KEY: InjectionKey<EmployeeFormContext> = Symbol('empl
 
 export function useEmployeeFormProvider() {
   const { selectedEmployee, isCreateMode, closeModal } = useEmployeeModal();
+  const toast = useToast();
 
   // Initialize form
   const { handleSubmit, errors, defineField, setValues, resetForm, submitCount, values, setErrors } =
@@ -396,8 +450,20 @@ export function useEmployeeFormProvider() {
         );
       }
     },
-    (validationErrors) => {
-      console.log('[DEBUG] Validation errors:', validationErrors);
+    ({ errors: camposInvalidos }) => {
+      // O handleSubmit do vee-validate falha CALADO: se a validação reprova, ele
+      // não chama a mutation e não avisa ninguém. Antes aqui só havia um
+      // console.log('[DEBUG]'), então o usuário clicava em Salvar, nada
+      // acontecia, e não dava para saber o motivo — ainda mais porque a seção de
+      // Endereço não exibe erro por campo.
+      const nomes = Object.keys(camposInvalidos).map(rotuloDoCampo);
+      const unicos = [...new Set(nomes)];
+      toast.error(
+        unicos.length === 1
+          ? `Verifique o campo: ${unicos[0]}`
+          : `Verifique ${unicos.length} campos`,
+        unicos.join(' • '),
+      );
     },
   );
 
