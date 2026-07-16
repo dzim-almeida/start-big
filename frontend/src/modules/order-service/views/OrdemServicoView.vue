@@ -14,17 +14,17 @@ import RevisoesPendentesTab from './tabs/RevisoesPendentesTab.vue';
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
-import { useSegmento } from '@/shared/composables/useSegmento';
+import { useCapacidades } from '../shared/segmento/useCapacidades';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS } = useOSCreateFlow();
-const { isOficinaMecanica } = useSegmento();
+const { temRevisoes } = useCapacidades();
 
 const activeTab = ref('ordens');
 
-// Aba "Revisões" (pós-venda) é exclusiva de oficina.
+// Aba "Revisões" (pós-venda): só para segmentos que declaram a capacidade.
 const tabOptions = computed(() =>
-  isOficinaMecanica.value
+  temRevisoes.value
     ? [...TAB_OPTIONS, { id: 'revisoes', label: 'Revisões' }]
     : TAB_OPTIONS,
 );

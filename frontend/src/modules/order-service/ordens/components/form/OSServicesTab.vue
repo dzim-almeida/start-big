@@ -3,11 +3,11 @@ import { Plus, Trash2, Package, Wrench, ShoppingBag, Pencil } from 'lucide-vue-n
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
-import { useSegmento } from '@/shared/composables/useSegmento';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 type OsItem = OsItemCreateSchemaDataType | OsItemReadSchemaDataType;
 
-const { isOficinaMecanica } = useSegmento();
+const { temAprovacaoItens, temGarantiaItens } = useCapacidades();
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   APROVADO: { label: 'Aprovado', cls: 'bg-emerald-50 text-emerald-600' },
@@ -102,7 +102,7 @@ function getItemTotal(item: OsItem): number {
               <div class="flex items-center gap-2 min-w-0">
                 <p class="text-sm font-bold text-slate-700 truncate">{{ item.nome }}</p>
                 <span
-                  v-if="isOficinaMecanica"
+                  v-if="temAprovacaoItens"
                   class="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
                   :class="statusBadge(item).cls"
                 >
@@ -111,7 +111,7 @@ function getItemTotal(item: OsItem): number {
               </div>
               <p class="text-xs text-slate-500 truncate">
                 {{ item.unidade_medida }}
-                <span v-if="isOficinaMecanica && garantiaLabel(item)"> · Garantia {{ garantiaLabel(item) }}</span>
+                <span v-if="temGarantiaItens && garantiaLabel(item)"> · Garantia {{ garantiaLabel(item) }}</span>
               </p>
             </div>
           </div>

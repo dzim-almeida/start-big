@@ -13,7 +13,7 @@ import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vu
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { OsEquipSituacaoEnumDataType } from '../schemas/enums/osEnums.schema';
 import { formatCurrency } from '@/shared/utils/finance';
-import { useSegmento } from '@/shared/composables/useSegmento';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useToast } from '@/shared/composables/useToast';
 import { updateObjetoOS } from '../services/orderServiceUpdate.service';
 
@@ -41,7 +41,7 @@ const emit = defineEmits<{
   advance: [data: DadosFinalizacaoOS];
 }>();
 
-const { isOficinaMecanica } = useSegmento();
+const { temRevisoes } = useCapacidades();
 const toast = useToast();
 
 // ─── Próxima revisão (oficina) — agendamento por intervalo ("o que vencer primeiro") ──
@@ -71,9 +71,9 @@ const revisaoResumo = computed(() => {
   return partes.join(' · ');
 });
 
-// Só faz sentido agendar retorno quando o veículo foi reparado (não em condenado/sem reparo).
+// Só faz sentido agendar retorno quando o objeto foi reparado (não em condenado/sem reparo).
 const mostrarRevisao = computed(
-  () => isOficinaMecanica.value && situacao_equipamento.value === 'REPARADO',
+  () => temRevisoes.value && situacao_equipamento.value === 'REPARADO',
 );
 
 // KM base para os presets = KM de entrada registrado nesta OS (último conhecido do veículo).

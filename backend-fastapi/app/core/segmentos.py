@@ -21,6 +21,35 @@ from typing import Any, Dict, List, Optional
 SEGMENTO_OFICINA = "oficina_mecanica"
 SEGMENTO_ASSISTENCIA = "assistencia_tecnica"  # "informatica" no dia a dia
 
+
+# ===========================================================================
+# CAPACIDADES
+# ===========================================================================
+# O que um segmento FAZ, em oposicao a quais campos ele tem. Existe porque o
+# frontend precisava perguntar "quem e o cliente?" (if segmento == oficina) para
+# decidir se mostrava a aprovacao de itens, a vistoria, etc. Isso obrigava a
+# editar o frontend a cada segmento novo.
+#
+# Com capacidades, o frontend pergunta "o que este segmento faz?" e liga a UI
+# pelo contrato. Ligar uma capacidade para um segmento novo passa a ser uma
+# linha AQUI, sem tocar em Vue.
+#
+# NAO sao exclusivas de nenhum segmento: aprovacao de orcamento e garantia
+# servem qualquer negocio de servico. Hoje so a oficina as usa porque foi para
+# ela que foram construidas -- nao porque sejam "de oficina".
+
+CAP_VISTORIA = "vistoria"                # checklist de inspecao (DVI) na entrada
+CAP_REVISOES = "revisoes"                # lembrete de manutencao por data/KM
+CAP_APROVACAO_ITENS = "aprovacao_itens"  # cliente aprova/reprova item do orcamento
+CAP_GARANTIA_ITENS = "garantia_itens"    # garantia (dias/KM) por item
+
+CAPACIDADES_CONHECIDAS = [
+    CAP_VISTORIA,
+    CAP_REVISOES,
+    CAP_APROVACAO_ITENS,
+    CAP_GARANTIA_ITENS,
+]
+
 # Regex de placa: aceita padrao antigo (ABC-1234 / ABC1234) e Mercosul (ABC1D23).
 # A validacao real normaliza (uppercase, sem hifen) antes de aplicar.
 PLACA_REGEX = r"^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z]\d{2})$"
@@ -75,6 +104,14 @@ _OFICINA = {
     "rotulo_objeto_plural": "Veículos",
     # Campo do objeto que serve de identificador principal (mapeia numero_serie).
     "identificador": {"nome": "placa", "label": "Placa", "regex": PLACA_REGEX},
+
+    # O que o segmento faz (ver bloco CAPACIDADES no topo).
+    "capacidades": [
+        CAP_VISTORIA,
+        CAP_REVISOES,
+        CAP_APROVACAO_ITENS,
+        CAP_GARANTIA_ITENS,
+    ],
 
     # --- Dados do veiculo (escopo=objeto) ---
     "veiculo": [
@@ -143,6 +180,11 @@ _ASSISTENCIA = {
     "rotulo_objeto_singular": "Equipamento",
     "rotulo_objeto_plural": "Equipamentos",
     "identificador": {"nome": "numero_serie", "label": "Nº de série / IMEI", "regex": None},
+
+    # Vazio preserva exatamente a tela de informatica que esta em producao hoje.
+    # Nao e uma afirmacao de que informatica "nao pode" ter aprovacao de itens:
+    # o dia que o produto quiser, e acrescentar CAP_APROVACAO_ITENS nesta lista.
+    "capacidades": [],
     "veiculo": [],  # nao se aplica
     "checkin": [
         _campo("imei", "IMEI", "texto", escopo="objeto"),

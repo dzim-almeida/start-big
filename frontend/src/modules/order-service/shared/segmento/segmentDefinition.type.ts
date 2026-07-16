@@ -38,12 +38,27 @@ export interface SegmentInspectionGroup {
   itens: string[];
 }
 
+/**
+ * O que o segmento FAZ (em oposição a quais campos ele tem).
+ * Fonte: CAPACIDADES_CONHECIDAS em app/core/segmentos.py.
+ *
+ * A UI pergunta pela capacidade, não pelo segmento — assim um segmento novo
+ * liga a funcionalidade no registry do backend, sem alterar o frontend.
+ */
+export type SegmentCapability =
+  | 'vistoria'
+  | 'revisoes'
+  | 'aprovacao_itens'
+  | 'garantia_itens';
+
 /** Definição completa dos campos de um segmento com regras dedicadas. */
 export interface SegmentDefinition {
   segmento: string;
   rotulo_objeto_singular: string;
   rotulo_objeto_plural: string;
   identificador: SegmentIdentifier;
+  /** O que o segmento faz. Vazio = só o fluxo genérico de OS. */
+  capacidades: SegmentCapability[];
   veiculo: SegmentField[];
   checkin: SegmentField[];
   acessorios: string[];
@@ -54,6 +69,10 @@ export interface SegmentDefinition {
 export interface SegmentDefinitionResponse {
   segmento: string | null;
   tem_definicao: boolean;
-  /** `null` para segmentos sem definição dedicada (ex: mercado, informática). */
+  /**
+   * `null` só para segmentos sem definição dedicada (ex: mercado, marcenaria).
+   * Oficina e assistência técnica TÊM definição — ambas estão em DEFINICOES
+   * (app/core/segmentos.py).
+   */
   definicao: SegmentDefinition | null;
 }

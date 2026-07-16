@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, type Component } from 'vue';
-import { Smartphone, Car, ClipboardCheck, ClipboardList, Package } from 'lucide-vue-next';
+import { ClipboardCheck, ClipboardList, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSVistoriaTab from './OSVistoriaTab.vue';
@@ -8,16 +8,16 @@ import OSDiagnosticoTab from './OSDiagnosticoTab.vue';
 import OSServicesTab from './OSServicesTab.vue';
 import type { ObjetoFormData } from '../../composables/modal/useOSFormAdapter';
 import { useOSFormView } from '../../context/useOSFormView.context';
-import { useSegmento } from '@/shared/composables/useSegmento';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos';
 
 const view = useOSFormView();
 
-// Rótulo/ícone da aba do objeto seguem o segmento (Veículo/Equipamento).
-const { isOficinaMecanica } = useSegmento();
-const { labelSingular } = useObjetoLabels();
+// Rótulo e ícone da aba do objeto vêm do contrato (Veículo/Equipamento).
+const { labelSingular, objetoIcon } = useObjetoLabels();
+const { temVistoria } = useCapacidades();
 
 const activeTab = ref<TabType>('objeto');
 
@@ -29,10 +29,10 @@ watch(() => view.isOpen.value, (open) => {
 
 const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => {
   const tabs: { id: TabType; label: string; icon: Component }[] = [
-    { id: 'objeto', label: labelSingular.value, icon: isOficinaMecanica.value ? Car : Smartphone },
+    { id: 'objeto', label: labelSingular.value, icon: objetoIcon.value },
   ];
-  // Vistoria: exclusiva de oficina (checklist da ficha de entrada).
-  if (isOficinaMecanica.value) {
+  // Vistoria: só para segmentos que declaram a capacidade no registry.
+  if (temVistoria.value) {
     tabs.push({ id: 'vistoria', label: 'Vistoria', icon: ClipboardCheck });
   }
   tabs.push(

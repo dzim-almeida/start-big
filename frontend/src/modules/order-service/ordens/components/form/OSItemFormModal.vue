@@ -14,7 +14,7 @@ import { getServicos } from '@/modules/order-service/servicos/services/servicos.
 import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
 import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType, OsItemAprovacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
-import { useSegmento } from '@/shared/composables/useSegmento';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 interface Props {
   isOpen: boolean;
@@ -39,8 +39,9 @@ const quantidade = ref(1);
 const valorUnitarioNum = ref(0);
 const selectedCatalogId = ref<number | null>(null);
 
-// Aprovação/garantia por item (fluxo de orçamento) — exclusivo de oficina.
-const { isOficinaMecanica } = useSegmento();
+// Aprovação/garantia por item (fluxo de orçamento): dirigidas por capacidade,
+// não por segmento — qualquer negócio de serviço pode querer orçar e garantir.
+const { temAprovacaoItens, temGarantiaItens } = useCapacidades();
 const statusAprovacao = ref<OsItemAprovacaoEnumDataType>('APROVADO');
 const garantiaDias = ref<number | null>(null);
 const garantiaKm = ref<number | null>(null);
@@ -311,25 +312,31 @@ function handleClose(): void {
           :label="tipo === 'SERVICO' ? 'Valor / Hora' : 'Valor Unitário'"
         />
 
-        <!-- Aprovação e garantia por item (oficina): item REPROVADO não entra no total -->
-        <div v-if="isOficinaMecanica" class="space-y-3 border-t border-slate-100 pt-4">
-          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Aprovação do Item
-          </label>
-          <div class="flex p-1 bg-slate-100 rounded-lg gap-1">
-            <button
-              v-for="s in STATUS_APROVACAO"
-              :key="s.value"
-              type="button"
-              class="flex-1 py-2 text-sm font-bold rounded-md transition-all"
-              :class="statusAprovacao === s.value ? s.selected : 'text-slate-500 hover:text-slate-700'"
-              @click="statusAprovacao = s.value"
-            >
-              {{ s.label }}
-            </button>
-          </div>
+        <!-- Aprovação e garantia por item: cada uma é uma capacidade independente
+             do segmento. Item REPROVADO não entra no total. -->
+        <div
+          v-if="temAprovacaoItens || temGarantiaItens"
+          class="space-y-3 border-t border-slate-100 pt-4"
+        >
+          <template v-if="temAprovacaoItens">
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Aprovação do Item
+            </label>
+            <div class="flex p-1 bg-slate-100 rounded-lg gap-1">
+              <button
+                v-for="s in STATUS_APROVACAO"
+                :key="s.value"
+                type="button"
+                class="flex-1 py-2 text-sm font-bold rounded-md transition-all"
+                :class="statusAprovacao === s.value ? s.selected : 'text-slate-500 hover:text-slate-700'"
+                @click="statusAprovacao = s.value"
+              >
+                {{ s.label }}
+              </button>
+            </div>
+          </template>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div v-if="temGarantiaItens" class="grid grid-cols-2 gap-4">
             <BaseInput
               v-model.number="garantiaDias"
               label="Garantia (dias)"
