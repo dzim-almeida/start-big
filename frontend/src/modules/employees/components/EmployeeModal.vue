@@ -4,7 +4,7 @@
  * @description Modal for creating/editing employees with multi-section form
  */
 
-import { watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import { useEmployeeModal } from '../composables/useEmployeeModal';
@@ -51,12 +51,29 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 /**
- * Handle backdrop click to close modal
+ * Fecha ao clicar no fundo — mas só quando o clique COMEÇOU no fundo.
+ *
+ * Decidir pelo `click` fechava o modal no meio da edição: ao arrastar o mouse
+ * para selecionar o texto de um campo e soltar fora dele, o navegador dispara o
+ * `click` no ancestral comum entre onde apertou e onde soltou — o próprio
+ * backdrop. O `event.target` era o backdrop, a checagem passava, e a edição ia
+ * embora. Só acontecia com o mouse; com teclado (Ctrl+A) nunca.
+ *
+ * `mousedown` registra onde o gesto NASCEU; o clique só fecha se nasceu e
+ * terminou no fundo.
  */
+const gestoComecouNoFundo = ref(false);
+
+function handleBackdropMousedown(event: MouseEvent) {
+  gestoComecouNoFundo.value = (event.target as HTMLElement).classList.contains('modal-backdrop');
+}
+
 function handleBackdropClick(event: MouseEvent) {
-  if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
+  const terminouNoFundo = (event.target as HTMLElement).classList.contains('modal-backdrop');
+  if (gestoComecouNoFundo.value && terminouNoFundo) {
     closeModal();
   }
+  gestoComecouNoFundo.value = false;
 }
 
 // =============================================
@@ -90,6 +107,7 @@ watch(isOpen, (open) => {
       <div
         v-if="isOpen"
         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @mousedown="handleBackdropMousedown"
         @click="handleBackdropClick"
       >
         <Transition

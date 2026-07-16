@@ -4,7 +4,7 @@
  * @description Modal for creating/editing cargos with permission matrix
  */
 
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { Check, X, XCircle } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -83,10 +83,26 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+const gestoComecouNoFundo = ref(false);
+
+function handleBackdropMousedown(event: MouseEvent) {
+  gestoComecouNoFundo.value = (event.target as HTMLElement).classList.contains('modal-backdrop');
+}
+
+/**
+ * Fecha ao clicar no fundo — mas só quando o clique COMEÇOU no fundo.
+ *
+ * Decidir pelo `click` fechava o modal no meio da edição: ao arrastar o mouse
+ * para selecionar o texto de um campo e soltar fora dele, o navegador dispara o
+ * `click` no ancestral comum entre onde apertou e onde soltou — o próprio
+ * backdrop. Só acontecia com o mouse; com teclado nunca.
+ */
 function handleBackdropClick(event: MouseEvent) {
-  if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
+  const terminouNoFundo = (event.target as HTMLElement).classList.contains('modal-backdrop');
+  if (gestoComecouNoFundo.value && terminouNoFundo) {
     closeModal();
   }
+  gestoComecouNoFundo.value = false;
 }
 
 onMounted(() => {
@@ -115,6 +131,7 @@ watch(isOpen, (open) => {
       <div
         v-if="isOpen"
         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @mousedown="handleBackdropMousedown"
         @click="handleBackdropClick"
       >
         <Transition
