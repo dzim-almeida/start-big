@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Gauge, Loader2 } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 
-import { useHistoricoKm } from '../composables/request/useRevisao.queries';
+import { useHistoricoKm } from '../composables/useRevisao.queries';
 
 interface Props {
   isOpen: boolean;

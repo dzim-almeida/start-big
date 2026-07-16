@@ -4,7 +4,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { ChevronRight, X } from 'lucide-vue-next';
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
-import { useObjetoLabels } from '../../composables/useObjetoLabels';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 interface Props {
   isOpen: boolean;

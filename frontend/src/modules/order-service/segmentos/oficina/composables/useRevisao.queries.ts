@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 
-import { getRevisoesPendentes, getHistoricoKm } from '../../services/revisao.service';
+import { getRevisoesPendentes, getHistoricoKm } from '../services/revisao.service';
 
 /** Query dos veículos com revisão vencida (pós-venda de oficina). */
 export function useRevisoesPendentes(enabled: Ref<boolean>) {

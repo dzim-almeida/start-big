@@ -8,7 +8,7 @@ import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
 import { OS_EQUIP_TYPE_OPTIONS } from '../../constants/ordemServico.constants';
 import { useSegmento } from '@/shared/composables/useSegmento';
-import { useObjetoLabels } from '../../composables/useObjetoLabels';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 interface ObjetoForm {
   objeto: string;

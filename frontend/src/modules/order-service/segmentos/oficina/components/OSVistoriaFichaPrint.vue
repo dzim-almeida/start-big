@@ -24,8 +24,8 @@ import {
 
 import PrintFooter from '@/shared/components/print/a4/PrintFooter.vue';
 
-import { useOSFieldDefinition } from '../composables/request/useOSFieldDefinition.queries';
-import { useObjetoLabels } from '../composables/useObjetoLabels';
+import { useOSFieldDefinition } from '@/modules/order-service/shared/segmento/useOSFieldDefinition.queries';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 interface FichaObjeto {
   marca?: string | null;

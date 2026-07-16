@@ -1,6 +1,6 @@
 import api from '@/api/axios';
 
-import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
+import { BASE_ORDER_SERVICE_URL } from '@/modules/order-service/ordens/constants/core.constant';
 
 /** Veículo com revisão vencida (por data e/ou KM). */
 export interface RevisaoPendente {

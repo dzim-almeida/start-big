@@ -1,7 +1,7 @@
 import api from '@/api/axios';
 
-import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
-import type { SegmentDefinitionResponse } from '../types/segmentDefinition.type';
+import { BASE_ORDER_SERVICE_URL } from '@/modules/order-service/ordens/constants/core.constant';
+import type { SegmentDefinitionResponse } from './segmentDefinition.type';
 
 /**
  * Busca a definição de campos dinâmicos do segmento da empresa logada.

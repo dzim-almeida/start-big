@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 import { ClipboardCheck, Check, Printer } from 'lucide-vue-next';
 
-import { useOSFieldDefinition } from '../../composables/request/useOSFieldDefinition.queries';
-import type { SegmentField } from '../../types/segmentDefinition.type';
+import { useOSFieldDefinition } from '@/modules/order-service/shared/segmento/useOSFieldDefinition.queries';
+import type { SegmentField } from '@/modules/order-service/shared/segmento/segmentDefinition.type';
 
 interface Props {
   /** dados_adicionais da OS (guarda acessorios + vistoria). */

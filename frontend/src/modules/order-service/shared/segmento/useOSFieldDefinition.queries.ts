@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/vue-query';
 
-import { getSegmentDefinition } from '../../services/segmentDefinition.service';
+import { getSegmentDefinition } from './segmentDefinition.service';
 
 import {
   OS_FIELD_DEFINITION_QUERY_KEY,
   OS_FIELD_DEFINITION_STALE_TIME,
-} from '../../constants/core.constant';
+} from '@/modules/order-service/ordens/constants/core.constant';
 
 /**
  * Query da definição de campos do segmento da empresa logada.

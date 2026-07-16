@@ -2,7 +2,7 @@ import { computed, type Component } from 'vue';
 import { Car, Smartphone, ShoppingCart, Hammer, Zap, Bike, AirVent, Wrench, Package } from 'lucide-vue-next';
 
 import { useSegmento } from '@/shared/composables/useSegmento';
-import { useOSFieldDefinition } from './request/useOSFieldDefinition.queries';
+import { useOSFieldDefinition } from './useOSFieldDefinition.queries';
 
 /**
  * Ícone do objeto por segmento. Chaveado pela string do segmento (não só pelos
