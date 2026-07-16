@@ -88,6 +88,7 @@ const {
   selectedOS,
   objetosHistoricoFlow,
   selectedObjeto,
+  autoOpenReopen,
   autoUsarCredito,
   openNovaOS,
   handleClienteSelected,
@@ -219,6 +220,7 @@ whenever(Ctrl_K, () => {
       :selected-cliente="selectedCliente"
       :initial-objeto="selectedObjeto"
       :auto-usar-credito="autoUsarCredito"
+      :auto-open-reopen="autoOpenReopen"
       @close="closeFormModal"
       @change-cliente="handleChangeCliente"
     />

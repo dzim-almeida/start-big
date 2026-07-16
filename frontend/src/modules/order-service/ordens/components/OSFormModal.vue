@@ -33,6 +33,8 @@ interface Props {
   selectedCliente?: CustomerUnionReadSchemaDataType | null;
   initialObjeto?: ObjetoHistorico | null;
   autoUsarCredito?: boolean;
+  /** Abre o modal de opções de reabertura assim que o form carrega (vem da tabela). */
+  autoOpenReopen?: boolean;
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{
@@ -254,6 +256,10 @@ useOSModalLifecycle({
     if (props.autoUsarCredito && isCreateMode.value) {
       nextTick(() => handleUsarCredito());
     }
+    // Reabertura vinda da tabela: abre o modal de opções (fluxo correto do form).
+    if (props.autoOpenReopen && (isFinalizada.value || isCancelada.value)) {
+      nextTick(() => handleReopenClick());
+    }
   },
 });
 const {
@@ -310,6 +316,24 @@ const fichaData = ref<{
   dataOs: string | null;
 } | null>(null);
 
+/**
+ * Pré-carrega uma imagem e resolve quando ela estiver pronta (ou no timeout,
+ * pra nunca travar a impressão). Necessário porque window.print() dispara logo
+ * após o nextTick, que NÃO espera imagens — sem isso, a ilustração do veículo
+ * (PNG grande) pode sair em branco na primeira impressão.
+ */
+function aguardarImagem(src: string, timeoutMs = 2000): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const done = () => resolve();
+    img.onload = done;
+    img.onerror = done;
+    img.src = src;
+    if (img.complete) done();
+    setTimeout(done, timeoutMs);
+  });
+}
+
 async function imprimirFicha(tipo: 'ENTRADA' | 'SAIDA') {
   const os = currentOSData.value;
   const objeto = os?.objeto ?? {
@@ -330,6 +354,8 @@ async function imprimirFicha(tipo: 'ENTRADA' | 'SAIDA') {
   // saia junto ao imprimir a ficha.
   printFormat.value = '' as typeof printFormat.value;
   await nextTick();
+  // Espera a ilustração do veículo carregar antes de abrir o diálogo de impressão.
+  await aguardarImagem('/vistoria-carro.png');
   window.print();
   setTimeout(() => {
     fichaTipo.value = null;

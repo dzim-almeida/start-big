@@ -12,6 +12,9 @@ const isClienteSearchOpen = ref(false);
 const isFormModalOpen = ref(false);
 const isObjetoSelectOpen = ref(false);
 const isCreditAlertOpen = ref(false);
+// Quando a OS é aberta a partir do botão "Reabrir" da tabela, o formulário já
+// abre com o modal de opções de reabertura (fluxo correto fica dentro do form).
+const autoOpenReopen = ref(false);
 const selectedCliente = ref<CustomerUnionReadSchemaDataType | null>(null);
 const selectedOS = ref<OrderServiceReadDataType | null>(null);
 const objetosHistoricoFlow = ref<ObjetoHistorico[]>([]);
@@ -53,10 +56,11 @@ export function useOSCreateFlow() {
     isClienteSearchOpen.value = true;
   }
 
-  function openExistingOS(os: OrderServiceReadDataType) {
+  function openExistingOS(os: OrderServiceReadDataType, comReopen = false) {
     selectedOS.value = os;
     selectedCliente.value = null;
     selectedObjeto.value = null;
+    autoOpenReopen.value = comReopen;
     isFormModalOpen.value = true;
   }
 
@@ -114,6 +118,7 @@ export function useOSCreateFlow() {
     selectedObjeto.value = null;
     objetosHistoricoFlow.value = [];
     autoUsarCredito.value = false;
+    autoOpenReopen.value = false;
   }
 
   return {
@@ -126,6 +131,7 @@ export function useOSCreateFlow() {
     objetosHistoricoFlow,
     selectedObjeto,
     autoUsarCredito,
+    autoOpenReopen,
     openNovaOS,
     openExistingOS,
     handleClienteSelected,

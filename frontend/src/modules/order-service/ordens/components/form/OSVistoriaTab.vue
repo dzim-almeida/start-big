@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { ClipboardCheck, Check, Printer } from 'lucide-vue-next';
 
 import { useOSFieldDefinition } from '../../composables/request/useOSFieldDefinition.queries';
+import type { SegmentField } from '../../types/segmentDefinition.type';
 
 interface Props {
   /** dados_adicionais da OS (guarda acessorios + vistoria). */
@@ -17,6 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:osDados': [value: Record<string, unknown>];
+  imprimirFichaEntrada: [];
   imprimirFichaSaida: [];
 }>();
 
@@ -26,6 +28,15 @@ const { data } = useOSFieldDefinition();
 const definicao = computed(() => data.value?.definicao ?? null);
 const acessorios = computed<string[]>(() => definicao.value?.acessorios ?? []);
 const grupos = computed(() => definicao.value?.vistoria ?? []);
+
+// Campos de check-in do tipo "opção" para marcar na tela (ex: pneus, estepe).
+// Vêm do backend, então novos segmentos ganham seus campos sem mexer aqui.
+// Combustível fica de fora aqui de propósito: só na ficha impressa (preenchido no papel).
+const checkinOpcoes = computed<SegmentField[]>(
+  () => (definicao.value?.checkin ?? []).filter(
+    (c) => c.tipo === 'opcao' && !!c.opcoes?.length && !c.nome.startsWith('combustivel'),
+  ),
+);
 
 const ESTADOS: { value: string; label: string; selected: string }[] = [
   { value: 'OK', label: 'OK', selected: 'bg-emerald-500 text-white border-emerald-500' },
@@ -53,8 +64,20 @@ function chaveItem(grupoIdx: number, item: string): string {
 
 function toggleAcessorio(key: string) {
   if (props.isLocked) return;
-  const acessoriosNovos = { ...acessoriosSel.value, [key]: !acessoriosSel.value[key] };
-  emit('update:osDados', { ...props.osDados, acessorios: acessoriosNovos });
+  const novoValor = !acessoriosSel.value[key];
+  const acessoriosNovos = { ...acessoriosSel.value, [key]: novoValor };
+  const patch: Record<string, unknown> = { ...props.osDados, acessorios: acessoriosNovos };
+  // Ao desmarcar "Outros", limpa a descrição pra não ficar dado fantasma.
+  if (key === 'outros' && !novoValor) patch.acessorios_outros = '';
+  emit('update:osDados', patch);
+}
+
+/** Descrição livre do acessório "Outros" (só usada quando "outros" está marcado). */
+const acessoriosOutros = computed<string>(() => (props.osDados.acessorios_outros as string) ?? '');
+
+function setAcessoriosOutros(valor: string) {
+  if (props.isLocked) return;
+  emit('update:osDados', { ...props.osDados, acessorios_outros: valor });
 }
 
 function setVistoria(grupoIdx: number, item: string, estado: string) {
@@ -64,6 +87,23 @@ function setVistoria(grupoIdx: number, item: string, estado: string) {
   // Clicar no estado já selecionado limpa (toggle).
   const vistoriaNova = { ...vistoriaSel.value, [key]: atual === estado ? '' : estado };
   emit('update:osDados', { ...props.osDados, vistoria: vistoriaNova });
+}
+
+/** Valor atual de um campo de check-in (ex: pneus_estado) salvo direto em osDados. */
+function valorCheckin(nome: string): string {
+  return (props.osDados[nome] as string) ?? '';
+}
+
+function setCheckin(nome: string, valor: string) {
+  if (props.isLocked) return;
+  // Clicar na opção já marcada limpa (toggle).
+  const atual = valorCheckin(nome);
+  emit('update:osDados', { ...props.osDados, [nome]: atual === valor ? '' : valor });
+}
+
+/** "BOM" -> "Bom"; mantém "1/4" como está. */
+function rotuloOpcao(op: string): string {
+  return op.charAt(0) + op.slice(1).toLowerCase();
 }
 </script>
 
@@ -77,15 +117,26 @@ function setVistoria(grupoIdx: number, item: string, estado: string) {
         <h5 class="text-sm font-bold text-slate-700">Vistoria de Entrada</h5>
         <p class="text-xs text-slate-500">Acessórios e checklist de inspeção do veículo</p>
       </div>
-      <button
-        type="button"
-        title="Imprimir ficha de saída em branco (preencher no carro)"
-        class="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-primary hover:text-brand-primary transition-colors"
-        @click="emit('imprimirFichaSaida')"
-      >
-        <Printer :size="14" />
-        Ficha de Saída
-      </button>
+      <div class="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          title="Imprimir ficha de entrada em branco (preencher no carro)"
+          class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-primary hover:text-brand-primary transition-colors"
+          @click="emit('imprimirFichaEntrada')"
+        >
+          <Printer :size="14" />
+          Ficha de Entrada
+        </button>
+        <button
+          type="button"
+          title="Imprimir ficha de saída em branco (preencher no carro)"
+          class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-primary hover:text-brand-primary transition-colors"
+          @click="emit('imprimirFichaSaida')"
+        >
+          <Printer :size="14" />
+          Ficha de Saída
+        </button>
+      </div>
     </div>
 
     <div
@@ -100,6 +151,34 @@ function setVistoria(grupoIdx: number, item: string, estado: string) {
     </div>
 
     <fieldset v-else :disabled="isLocked" class="contents">
+      <!-- Estado do veículo: combustível, pneus, estepe (check-in tipo "opção") -->
+      <div v-if="checkinOpcoes.length" class="space-y-3">
+        <h6 class="text-xs font-bold text-slate-500 uppercase">Estado do veículo</h6>
+        <div class="grid sm:grid-cols-2 gap-2">
+          <div
+            v-for="campo in checkinOpcoes"
+            :key="campo.nome"
+            class="flex items-center justify-between gap-2 p-3 bg-white border border-slate-200 rounded-lg"
+          >
+            <p class="text-sm text-slate-700 truncate">{{ campo.label }}</p>
+            <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+              <button
+                v-for="op in campo.opcoes"
+                :key="op"
+                type="button"
+                class="px-2 py-1 text-xs font-bold rounded-md border transition-colors"
+                :class="valorCheckin(campo.nome) === op
+                  ? 'bg-brand-primary text-white border-brand-primary'
+                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600'"
+                @click="setCheckin(campo.nome, op)"
+              >
+                {{ rotuloOpcao(op) }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Acessórios presentes -->
       <div v-if="acessorios.length" class="space-y-3">
         <h6 class="text-xs font-bold text-slate-500 uppercase">Acessórios presentes</h6>
@@ -123,6 +202,18 @@ function setVistoria(grupoIdx: number, item: string, estado: string) {
             {{ rotulo(ac) }}
           </button>
         </div>
+
+        <!-- Descrição livre quando "Outros" está marcado -->
+        <input
+          v-if="acessoriosSel['outros']"
+          type="text"
+          :value="acessoriosOutros"
+          :disabled="isLocked"
+          placeholder="Descreva os outros acessórios..."
+          maxlength="120"
+          class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-primary focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+          @input="setAcessoriosOutros(($event.target as HTMLInputElement).value)"
+        />
       </div>
 
       <!-- Grupos de inspeção (OK / N-OK / Reparar) -->

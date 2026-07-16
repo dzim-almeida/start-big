@@ -11,8 +11,6 @@ interface Props {
   isPending: boolean;
   reopenMode: 'NONE' | 'TEXT_ONLY' | 'FULL';
   osId?: number;
-  /** Só segmentos com vistoria (ex.: oficina) exibem o botão de ficha. */
-  showFicha?: boolean;
 }
 
 const isLocked = computed(() => props.isFinalizada || props.isCancelada);
@@ -25,7 +23,6 @@ const emit = defineEmits<{
   reprintExit: [];
   reopen: [];
   save: [];
-  printFicha: [tipo: 'ENTRADA' | 'SAIDA'];
 }>();
 
 const saveIcon = computed(() => {
@@ -85,19 +82,6 @@ const saveLabel = computed(() => {
       >
         <CheckCircle2 :size="16" class="mr-1" />
         FINALIZAR
-      </BaseButton>
-
-      <!-- Ficha de vistoria de ENTRADA (em branco) — só segmentos com vistoria.
-           Disponível já na criação, para imprimir antes de salvar a OS. -->
-      <BaseButton
-        v-if="showFicha && (!isLocked || reopenMode !== 'NONE')"
-        variant="secondary"
-        size="sm"
-        type="button"
-        @click="emit('printFicha', 'ENTRADA')"
-      >
-        <Printer :size="16" class="mr-1" />
-        FICHA
       </BaseButton>
 
       <!-- Salvar (criar ou editar, não locked sem reopen) -->

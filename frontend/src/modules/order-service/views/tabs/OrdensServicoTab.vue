@@ -8,9 +8,7 @@ import OSPrintCupom from '../../ordens/components/OSPrintCupom.vue';
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/components/OSFinalizarModal.vue';
 import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
-import OSReopenOptionsModal from '../../ordens/components/form/OSReopenOptionsModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
-import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 import { useImpressao } from '@/shared/composables/useImpressao';
 import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
@@ -22,30 +20,11 @@ import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
 import type { OrderServiceReadDataType } from '../../ordens/schemas/orderServiceQuery.schema';
 import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
-import { useReopenOrderServiceMutation, useReadyOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
+import { useReadyOrderServiceMutation } from '../../ordens/composables/request/useOrderServiceUpdate.mutate';
 import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
-import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 
 const toast = useToast();
-const reopenMutation = useReopenOrderServiceMutation();
 const finalizarEntregaMutation = useReadyOrderServiceMutation();
-const gerenteReopen = useGerenteAprovacao();
-
-async function executarReopenOS(osNumber: string, codigoGerente?: string): Promise<void> {
-  try {
-    await reopenMutation.mutateAsync({ osNumber, codigoGerente });
-  } catch (error: any) {
-    const detail = error?.response?.data?.detail;
-    if (detail === 'REQUER_APROVACAO_GERENTE') {
-      const pin = await gerenteReopen.pedirPin();
-      if (pin) await executarReopenOS(osNumber, pin);
-    } else if (detail === 'PIN_GERENTE_INVALIDO') {
-      toast.error('PIN do gerente inválido');
-      const pin = await gerenteReopen.pedirPin();
-      if (pin) await executarReopenOS(osNumber, pin);
-    }
-  }
-}
 
 const {
   searchQuery,
@@ -71,8 +50,6 @@ const osToFinalizar = ref<OrderServiceReadDataType | null>(null);
 const isFinalizarDirectOpen = ref(false);
 const isPagamentoDirectOpen = ref(false);
 const dadosFinalizacaoDirect = ref<DadosFinalizacaoOS | null>(null);
-const osToReopen = ref<OrderServiceReadDataType | null>(null);
-const isReopenDirectOpen = ref(false);
 
 const creditoAoReabrirDirect = computed(() => {
   const os = osToFinalizar.value;
@@ -228,28 +205,15 @@ async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
   }
 }
 
-function handleReabrir(os: OrderServiceReadDataType) {
-  osToReopen.value = os;
-  isReopenDirectOpen.value = true;
-}
-
-function handleReopenCancel() {
-  isReopenDirectOpen.value = false;
-  osToReopen.value = null;
-}
-
-function handleReopenTextOnly() {
-  const osNumber = osToReopen.value?.numero_os;
-  isReopenDirectOpen.value = false;
-  osToReopen.value = null;
-  if (osNumber) void executarReopenOS(osNumber);
-}
-
-function handleReopenFull() {
-  const osNumber = osToReopen.value?.numero_os;
-  isReopenDirectOpen.value = false;
-  osToReopen.value = null;
-  if (osNumber) void executarReopenOS(osNumber);
+async function handleReabrir(os: OrderServiceReadDataType) {
+  // Abre a OS no formulário já com o modal de opções de reabertura (o fluxo
+  // correto — TEXT_ONLY destrava só texto, FULL reabre de fato — vive no form).
+  try {
+    const osCompleta = await getUniqueOS(os.numero_os);
+    openExistingOS(osCompleta, true);
+  } catch {
+    toast.error('Erro ao carregar OS para reabertura');
+  }
 }
 
 async function handlePrintOS(os: OrderServiceReadDataType) {
@@ -365,20 +329,6 @@ function handleClosePrintSelect() {
       @close="handleCloseFinalizarDirect"
       @voltar="handlePagamentoVoltarDirect"
       @finalized="handleFinalizadoDirect"
-    />
-
-    <OSReopenOptionsModal
-      :is-open="isReopenDirectOpen"
-      @cancel="handleReopenCancel"
-      @text-only="handleReopenTextOnly"
-      @full="handleReopenFull"
-    />
-
-    <GerenteAprovacaoModal
-      :is-open="gerenteReopen.isOpen.value"
-      :is-loading="gerenteReopen.isLoading.value"
-      @confirmar="gerenteReopen.confirmar"
-      @cancelar="gerenteReopen.cancelar"
     />
 
     <PrintFormatSelectModal
