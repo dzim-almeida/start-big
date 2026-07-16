@@ -128,7 +128,12 @@ const totalPago = computed(() => {
           <div v-else class="text-xs text-slate-400 italic py-2">Nenhum pagamento registrado.</div>
         </div>
 
+        <!-- Resumo financeiro -->
         <div class="space-y-1 text-right">
+          <!-- O cabeçalho não é enfeite: sem ele esta coluna começava no topo da
+               linha do grid e o "Subtotal" alinhava com o TÍTULO da coluna de
+               pagamentos, não com o conteúdo dela. -->
+          <p class="text-[10px] font-bold text-slate-500 uppercase mb-2 border-b border-slate-200 pb-1 text-left">Resumo Financeiro</p>
           <div class="flex justify-between text-xs text-slate-500">
             <span>Subtotal:</span>
             <span>{{ formatCurrency(sale.subtotal) }}</span>
