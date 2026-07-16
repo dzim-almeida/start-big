@@ -35,6 +35,19 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   assistencia_tecnica: [],
 };
 
+/**
+ * Fallback dos CAMPOS enquanto o contrato não chegou — mesma razão do fallback
+ * de capacidades. Lista só os campos que a tela pergunta por nome; o contrato
+ * é quem manda assim que responde.
+ */
+const CAMPOS_FALLBACK_POR_SEGMENTO: Record<string, string[]> = {
+  oficina_mecanica: [
+    'placa', 'marca', 'modelo', 'cor', 'ano', 'chassi',
+    'km_entrada', 'combustivel_nivel', 'combustivel_tipo', 'pneus_estado', 'estepe_estado',
+  ],
+  assistencia_tecnica: ['imei', 'senha_aparelho', 'acessorios', 'condicoes_aparelho'],
+};
+
 export function useCapacidades() {
   const { data, isPending } = useOSFieldDefinition();
   const { segmento } = useSegmento();
@@ -52,9 +65,29 @@ export function useCapacidades() {
     return capacidades.value.includes(capacidade);
   }
 
+  /**
+   * Nomes de todos os campos que o segmento declara (veículo + check-in).
+   * É o que permite a tela perguntar "este segmento usa IMEI?" em vez de
+   * "este segmento NÃO é oficina?" — a negação fazia qualquer segmento novo
+   * herdar a tela de informática (IMEI, senha, condições) sem ninguém pedir.
+   */
+  const campos = computed<string[]>(() => {
+    if (isPending.value) return CAMPOS_FALLBACK_POR_SEGMENTO[segmento.value ?? ''] ?? [];
+    const d = data.value?.definicao;
+    if (!d) return [];
+    return [...(d.veiculo ?? []), ...(d.checkin ?? [])].map((c) => c.nome);
+  });
+
+  /** True se o segmento declara o campo (pelo nome do registry). */
+  function temCampo(nome: string): boolean {
+    return campos.value.includes(nome);
+  }
+
   return {
     capacidades,
     tem,
+    campos,
+    temCampo,
     temVistoria: computed(() => tem('vistoria')),
     temRevisoes: computed(() => tem('revisoes')),
     temAprovacaoItens: computed(() => tem('aprovacao_itens')),
