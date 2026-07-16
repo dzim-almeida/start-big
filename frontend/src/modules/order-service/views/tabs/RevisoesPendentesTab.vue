@@ -6,10 +6,10 @@ import {
 } from 'lucide-vue-next';
 
 import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
-import { useRevisoesPendentes } from '../composables/useRevisao.queries';
-import type { RevisaoPendente } from '../services/revisao.service';
-import OSKmHistoryModal from '../components/OSKmHistoryModal.vue';
-import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useRevisoesPendentes } from '../../revisoes/composables/useRevisao.queries';
+import type { RevisaoPendente } from '../../revisoes/services/revisao.service';
+import OSKmHistoryModal from '../../revisoes/components/OSKmHistoryModal.vue';
+import { useOSCreateFlow } from '../../ordens/composables/useOSCreateFlow';
 import { getCustomerById } from '@/modules/customers/services/customerGet.service';
 import { useToast } from '@/shared/composables/useToast';
 

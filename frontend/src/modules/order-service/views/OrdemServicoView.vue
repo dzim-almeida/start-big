@@ -10,7 +10,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import OrdensServicoTab from './tabs/OrdensServicoTab.vue';
 import ServicosTab from './tabs/ServicosTab.vue';
-import RevisoesPendentesTab from '../segmentos/oficina/views/RevisoesPendentesTab.vue';
+import RevisoesPendentesTab from './tabs/RevisoesPendentesTab.vue';
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';

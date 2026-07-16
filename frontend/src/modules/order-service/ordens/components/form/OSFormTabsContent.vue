@@ -3,7 +3,7 @@ import { ref, computed, watch, type Component } from 'vue';
 import { Smartphone, Car, ClipboardCheck, ClipboardList, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
-import OSVistoriaTab from '@/modules/order-service/segmentos/oficina/components/OSVistoriaTab.vue';
+import OSVistoriaTab from './OSVistoriaTab.vue';
 import OSDiagnosticoTab from './OSDiagnosticoTab.vue';
 import OSServicesTab from './OSServicesTab.vue';
 import type { ObjetoFormData } from '../../composables/modal/useOSFormAdapter';

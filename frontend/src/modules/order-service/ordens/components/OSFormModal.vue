@@ -2,7 +2,7 @@
 import { ref, computed, nextTick } from 'vue';
 import OSFormModalShell from './form/OSFormModalShell.vue';
 import OSFormAuxModals from './form/OSFormAuxModals.vue';
-import OSVistoriaFichaPrint from '@/modules/order-service/segmentos/oficina/components/OSVistoriaFichaPrint.vue';
+import OSVistoriaFichaPrint from './OSVistoriaFichaPrint.vue';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import type { CustomerUnionReadSchemaDataType } from '../schemas/relationship/customer/customer.schema';
 import type { ObjetoHistorico } from '@/modules/customers/types/clientes.types';
