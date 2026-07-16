@@ -23,9 +23,19 @@ export interface OsEscPosOptions {
   empresa: CompanyPrintInfo
 }
 
+/**
+ * Motivo do cancelamento — não é coluna: fica embutido em `observacoes` com o
+ * prefixo [CANCELAMENTO]. Mesma extração do OSPrintCupom.vue, para as duas vias
+ * dizerem a mesma coisa.
+ */
+function extrairMotivoCancelamento(observacoes: string | null | undefined): string {
+  const match = (observacoes ?? '').match(/\[CANCELAMENTO\]\s*([\s\S]+)/)
+  return match ? match[1].trim() : 'Motivo nao informado.'
+}
+
 export function osToEscPos(
   os: OrderServiceReadDataType,
-  tipo: 'ENTRADA' | 'SAIDA',
+  tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO',
   opts: OsEscPosOptions,
 ): Uint8Array {
   const b = new EscPosBuilder(opts.bobina)
@@ -37,11 +47,13 @@ export function osToEscPos(
   const titulo =
     tipo === 'ENTRADA'
       ? 'COMPROVANTE DE ENTRADA'
-      : situacao === 'SEM_REPARO'
-        ? 'ENTREGA SEM REPARO'
-        : situacao === 'CONDENADO'
-          ? 'OBJETO CONDENADO'
-          : 'RECIBO E GARANTIA'
+      : tipo === 'CANCELAMENTO'
+        ? 'CANCELAMENTO DE OS'
+        : situacao === 'SEM_REPARO'
+          ? 'ENTREGA SEM REPARO'
+          : situacao === 'CONDENADO'
+            ? 'OBJETO CONDENADO'
+            : 'RECIBO E GARANTIA'
 
   const dataStr = tipo === 'SAIDA' ? ((os.data_finalizacao as string) || os.data_criacao) : os.data_criacao
 
@@ -162,6 +174,15 @@ export function osToEscPos(
     } else if (isSemReparo) {
       b.separador().linha('Objeto devolvido sem reparo. Sem garantia aplicavel a esta OS.')
     }
+  } else if (tipo === 'CANCELAMENTO') {
+    // CANCELAMENTO: motivo + termo (espelha o OSPrintCupom.vue)
+    b.separador()
+      .negrito(true)
+      .linha('MOTIVO DO CANCELAMENTO')
+      .negrito(false)
+      .linha(extrairMotivoCancelamento(os.observacoes))
+    b.separador()
+    b.linha('A OS acima foi cancelada nesta data. Objeto devolvido ao cliente sem reparos ou com reparos parciais, isentando a assistencia de garantias sobre servicos nao concluidos.')
   } else {
     // ENTRADA: termos
     b.separador()

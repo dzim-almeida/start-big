@@ -71,7 +71,7 @@ const impressaoStore = useImpressaoStore();
 const { companyInfo } = useCompanyPrintInfo();
 
 /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
-async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
+async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO'): Promise<boolean> {
   if (!impressao.podeImprimirDireto.value) return false;
   const os = osToPrint.value;
   if (!os) return false;
@@ -240,7 +240,7 @@ async function handlePrintOS(os: OrderServiceReadDataType) {
  * impressão do sistema, onde o usuário escolhe a impressora/PDF.
  */
 async function handlePrintFormatSelected(format: PrintFormat) {
-  if (format === 'CUPOM' && (printType.value === 'ENTRADA' || printType.value === 'SAIDA')) {
+  if (format === 'CUPOM' && printType.value) {
     if (await imprimirEscPosDireto(printType.value)) {
       isPrintSelectOpen.value = false;
       pendingPrintAfterSelect.value?.();
