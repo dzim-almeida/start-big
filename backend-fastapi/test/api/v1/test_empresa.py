@@ -10,6 +10,7 @@ FILE_CONTENT_MOCK = b"GIF89a\x01\x00\x01\x00\x00\xff\x00,\x00\x00\x00\x00\x01\x0
 
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
+TEST_HWID = "test-terminal-hwid"
 
 # ===================================================================
 # FIXTURES E DADOS AUXILIARES
@@ -18,7 +19,7 @@ TEST_USER_PASSWORD = "senhaSegura456"
 @pytest.fixture(scope="function")
 def header_with_token(client: TestClient, db_session, create_test_empresa) -> dict:
     """Autentica o usuário e retorna o header Authorization."""
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     
     # Fail fast se o login não funcionar
@@ -72,7 +73,7 @@ def create_test_empresa(client: TestClient):
         json=usuario_payload
     )
 
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     
     token = response.json()["access_token"]
@@ -104,7 +105,7 @@ def test_criar_empresa_com_usuario_master_sucesso(client: TestClient, db_session
         json=usuario_payload
     )
 
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     
     token = response.json()["access_token"]

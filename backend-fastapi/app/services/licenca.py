@@ -576,6 +576,16 @@ def conectar_terminal(db: Session, terminal_hwid: str) -> None:
         HTTPException 403: Limite de terminais atingido ou licença recusada.
         HTTPException 503: Não foi possível conectar ao servidor de licenças.
     """
+    # 0. HWID vazio nao identifica terminal nenhum. Barrar aqui (e nao so no
+    #    endpoint) porque esta funcao E a fronteira do limite de licenca: a API
+    #    externa ACEITA hwid vazio, entao um hwid em branco entrava sem ocupar
+    #    vaga e furava o limite -- bastava omitir o campo no login.
+    if not (terminal_hwid or "").strip():
+        raise _erro_licenca(
+            "HWID_AUSENTE",
+            "Terminal não identificado. Não foi possível validar a licença.",
+        )
+
     print(f"[terminal] conectar_terminal chamado — hwid={terminal_hwid[:8]}...")
 
     # 1. Idempotência: terminal já conectado

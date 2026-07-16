@@ -11,6 +11,7 @@ from starlette import status
 # --- Constantes de Teste ---
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
+TEST_HWID = "test-terminal-hwid"
 
 # =========================
 # Fixtures (Preparação de Dados)
@@ -20,7 +21,7 @@ TEST_USER_PASSWORD = "senhaSegura456"
 def header_with_token(client: TestClient, db_session, create_test_empresa) -> dict:
     """Autentica o usuário e retorna o header Authorization."""
     # Assume que a rota de login existe e funciona conforme contexto anterior
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     
     # Fallback caso a autenticação falhe no ambiente de teste isolado

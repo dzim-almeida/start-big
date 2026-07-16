@@ -13,6 +13,7 @@ from app.core.enum import EntityType
 # --- Constantes de Teste ---
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
+TEST_HWID = "test-terminal-hwid"
 
 # =========================
 # Fixture de Autenticação
@@ -20,7 +21,7 @@ TEST_USER_PASSWORD = "senhaSegura456"
 @pytest.fixture(scope="function")
 def header_with_token(client: TestClient, db_session: Session, create_test_empresa) -> dict:
 
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     assert response.status_code == 200 
     

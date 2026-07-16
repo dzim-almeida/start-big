@@ -11,6 +11,7 @@ from starlette import status
 # --- Constantes de Teste ---
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
+TEST_HWID = "test-terminal-hwid"
 
 # =========================
 # Fixtures (Preparação de Dados)
@@ -19,7 +20,7 @@ TEST_USER_PASSWORD = "senhaSegura456"
 @pytest.fixture(scope="function")
 def header_with_token(client: TestClient, db_session, create_test_empresa) -> dict:
     """Autentica o usuário e retorna o header Authorization."""
-    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD}
+    login_data = {"username": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD, "hwid": TEST_HWID}
     response = client.post("/api/v1/auth/login", data=login_data)
     
     # Fail fast se o login não funcionar

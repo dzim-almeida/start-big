@@ -50,7 +50,17 @@ async def login(request: Request, db: Session = Depends(get_db)):
             detail="Credenciais de login inválidas",
         )
 
-    usuario_credentials = UsuarioLogin(email=email, senha=senha, hwid=hwid or "")
+    # O HWID identifica o terminal e e o que faz o limite da licenca valer.
+    # Sem ele, o login nao acontece: aceitar hwid vazio permitia burlar o
+    # limite de terminais (a API de licenca aceita string vazia), entao um
+    # cliente que simplesmente omitisse o campo logava sem ocupar vaga.
+    if not (hwid or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Terminal não identificado. Atualize o aplicativo e tente novamente.",
+        )
+
+    usuario_credentials = UsuarioLogin(email=email, senha=senha, hwid=hwid.strip())
 
     token_value = _handle_db_transaction(
         db,

@@ -28,6 +28,7 @@ def _autenticar_e_criar_empresa(client, segmento: str) -> dict:
     login = client.post("/api/v1/auth/login", data={
         "username": TEST_USER_EMAIL,
         "password": TEST_USER_PASSWORD,
+        "hwid": "test-terminal-hwid",
     })
     assert login.status_code == 200, login.text
     header = {"Authorization": f"Bearer {login.json()['access_token']}"}
