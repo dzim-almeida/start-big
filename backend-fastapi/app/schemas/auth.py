@@ -60,6 +60,16 @@ class UsuarioLogin(BaseModel):
 # Setup Inicial (Sign-In)
 # =========================
 
+class ReconnectRequest(BaseModel):
+    """Schema de entrada para a requisição de reconexão de licença."""
+    email: str = Field(..., max_length=255, description="Email do usuário cadastrado na StartBig")
+    senha: str = Field(..., min_length=8, max_length=72, description="Senha do usuário cadastrado na StartBig")
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def normalizar_email_reconnect(cls, v: str) -> str:
+        return v.strip().lower()
+
 class LogoutRequest(BaseModel):
     """Schema de entrada para a requisição de logout com HWID do terminal."""
     hwid: str = Field(

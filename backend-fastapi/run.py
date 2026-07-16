@@ -21,7 +21,7 @@ else:
     
 if __name__ == "__main__":
     ip_address = "0.0.0.0"
-    port = 8000
+    port = 8080
     
     if len(sys.argv) > 2:
        ip_address = sys.argv[1]

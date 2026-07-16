@@ -14,7 +14,6 @@ export type SidebarLabelOptions =
     | 'Clientes'
     | 'Produtos'
     | 'Estoque'
-    | 'Catálogo'
     | 'Dados da Empresa'
     | 'Gestão de Equipe'
     | 'Minha Conta'

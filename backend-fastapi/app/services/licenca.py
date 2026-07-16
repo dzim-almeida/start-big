@@ -125,10 +125,10 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
 
             # Erros 4xx da API (ex: documento duplicado) — não faz retry
             if 400 <= response.status_code < 500:
-                detail = response.text
+                detail = response.json().get("message", response.text)
                 try:
                     body = response.json()
-                    detail = body.get("msg", body.get("detail", response.text))
+                    detail = body.get("message", body.get("detail", response.text))
                 except Exception:
                     pass
                 raise HTTPException(
@@ -242,6 +242,7 @@ def registrar_licenca(
     documento: str,
     nome_ou_razao: str,
     email: str,
+    senha: str,
     endereco_data: dict,
 ) -> ConfiguracaoLicenca:
     """
@@ -287,6 +288,7 @@ def registrar_licenca(
         documento=documento,
         nomeOuRazao=nome_ou_razao,
         email=email,
+        senha=senha,
         hwid=hwid,
         endereco=endereco_payload,
     )
@@ -317,6 +319,84 @@ def registrar_licenca(
 
     return licenca_crud.create_licenca(db, licenca)
 
+
+# ===========================================================================
+# Reconexão de Licença
+# ===========================================================================
+
+def reconnect_licenca(
+    db: Session,
+    email: str,
+    senha: str,
+) -> ConfiguracaoLicenca:
+    """
+    Reconecta uma licença existente na StartBig usando email e senha.
+    """
+    hwid = obter_hwid()
+
+    # Verifica se já existe
+    existente = licenca_crud.get_licenca_by_hwid(db, hwid)
+    if existente:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esta máquina já possui uma licença registrada.",
+        )
+
+    payload = {
+        "email": email,
+        "senha": senha,
+        "hwid": hwid
+    }
+
+    try:
+        with httpx.Client(timeout=TIMEOUT_SECONDS) as client:
+            response = client.post(
+                "https://api.startbig.com.br/erp/auth/login",
+                json=payload,
+            )
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Falha de conexão com a StartBig: {e}"
+        )
+
+    if 200 <= response.status_code < 300:
+        resposta = AutoCadastroResponse(**response.json())
+    else:
+        detail = response.text
+        try:
+            body = response.json()
+            detail = body.get("message", body.get("msg", detail))
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Credenciais inválidas: {detail}"
+        )
+
+    # 3. Buscar chave pública RSA da plataforma StartBig
+    public_key_pem = _buscar_chave_publica_online()
+
+    # 4. Encriptar campos sensíveis
+    chave_ativacao_enc = encriptar_valor(resposta.chaveAtivacao, hwid)
+    public_key_enc = encriptar_valor(public_key_pem, hwid)
+
+    # 5. Criar registro no banco
+    licenca = ConfiguracaoLicenca(
+        cliente_id=resposta.clienteId or "000000000-0000000000-0000000000",
+        hwid=hwid,
+        licenca_id=resposta.licencaId,
+        chave_ativacao=chave_ativacao_enc,
+        public_key=public_key_enc,
+        limite=resposta.limite,
+        data_vencimento=resposta.dataVencimento,
+        token=resposta.token,
+        ultima_sinc=resposta.ultimaSincronizacao,
+        grace_period=resposta.gracePeriodDias,
+        proxima_validacao=resposta.proximaValidacaoEm,
+    )
+
+    return licenca_crud.create_licenca(db, licenca)
 
 # ===========================================================================
 # Validação de Sessão (Etapa 2 — Boot Check)

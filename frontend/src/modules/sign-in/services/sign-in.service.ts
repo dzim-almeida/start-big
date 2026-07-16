@@ -17,6 +17,14 @@ export async function setupSistema(setupData: SetupRequest): Promise<{ access_to
   return data;
 }
 
+export async function reconnectLicenca(email: string, senha: string): Promise<{ success: boolean; inicializado: boolean }> {
+  const { data } = await axios.post<{ success: boolean; inicializado: boolean }>(
+    `${getApiBaseUrl()}/auth/reconnect`,
+    { email, senha }
+  );
+  return data;
+}
+
 /**
  * Consulta endereço pelo CEP usando a API ViaCEP
  */

@@ -16,7 +16,7 @@ export function useCustomersQuery(term: MaybeRef<string | null | undefined>) {
               : [...customerKeys.all, 'search', 'empty']
         ),
         queryFn: () => customerService.searchCustomers(unref(term)!),
-        staleTime: 1000 * 30,
+        staleTime: 1000 * 60 * 5, // 5 minutes
         refetchInterval: REFETCH_REALTIME,
     })
 }

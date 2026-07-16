@@ -49,7 +49,7 @@ const formattedPrice = computed(() => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(props.price);
+  }).format(props.price).replace(/\s/g, ' ');
 });
 
 const stockDisplay = computed(() => {

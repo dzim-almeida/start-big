@@ -63,13 +63,9 @@ def create_usuario(
         UsuarioModel: O objeto UsuarioModel persistido no banco.
     """
     # 1. Validação de Conflitos
-    if is_master:
-        # Verifica a Regra Singleton do Master (o CRUD já faz a busca exata)
-        if usuario_crud.get_usuario_master(db):
-            raise _get_conflict_exception(
-                detail="O sistema já possui um Usuário Master cadastrado. Operação bloqueada."
-            )
+    # Removida validação que impedia criação de múltiplos Masters
     
+    # Validação padrão por e-mail para todos os usuários
     # Validação padrão por e-mail para todos os usuários
     usuario_in_db = usuario_crud.get_usuario_by_email(db, usuario_email=usuario_to_add.email)
     if usuario_in_db:

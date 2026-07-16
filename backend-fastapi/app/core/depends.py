@@ -225,6 +225,9 @@ def check_permission(required_permission: str | list[str]) -> Callable:
         # A re-hidratação já garante que 'permissoes' é um dict, mas esta é uma checagem de segurança
         permissoes = usuario_token.get("permissoes", {})
         
+        if permissoes.get("all", False):
+            return usuario_token
+        
         perms = required_permission if isinstance(required_permission, list) else [required_permission]
         if any(permissoes.get(p) is True for p in perms):
             return usuario_token

@@ -11,8 +11,7 @@ import { storeToRefs } from 'pinia'
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue'
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue'
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
-import { verificarSaude } from '@/shared/services/system/health.service'
-
+import { verificarSaude } from '@/shared/services/system/health.service' 
 import logoImage from '@/shared/assets/images/login/start-logo.png'
 
 const router = useRouter()
@@ -41,7 +40,7 @@ async function tentarNovamente() {
   }
 }
 
-function reconfigurarConexao() {
+async function reconfigurarConexao() {
   router.push({ name: 'network-config' })
 }
 </script>

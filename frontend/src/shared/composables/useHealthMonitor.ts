@@ -25,7 +25,13 @@ export function useHealthMonitor(appReady: Readonly<import('vue').Ref<boolean>>)
   async function verificarConexao() {
     if (networkStore.erroConexaoTerminal) return
 
-    const ok = await verificarSaude(5000)
+    // Tenta até 2 vezes antes de contar como falha (tolera microcortes de rede)
+    let ok = await verificarSaude(5000)
+    if (!ok) {
+      await new Promise((r) => setTimeout(r, 2000))
+      ok = await verificarSaude(5000)
+    }
+
     if (ok) {
       falhasConsecutivas.value = 0
     } else {

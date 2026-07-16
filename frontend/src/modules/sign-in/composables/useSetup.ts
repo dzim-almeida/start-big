@@ -51,7 +51,9 @@ export function useSetup() {
       goToHome();
     },
     onError: (error) => {
-      apiError.value = getErrorMessage(error, 'Erro ao configurar o sistema') as string;
+      const msg = getErrorMessage(error, 'Erro ao configurar o sistema');
+      toast.error(msg, 'Falha no cadastro da loja');
+      apiError.value = msg;
     },
   });
 

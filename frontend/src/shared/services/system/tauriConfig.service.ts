@@ -37,6 +37,10 @@ export async function obterIpLocal(): Promise<string> {
   return invoke<string>('obter_ip_local')
 }
 
+export async function isDevMode(): Promise<boolean> {
+  return invoke<boolean>('is_dev_mode')
+}
+
 export async function iniciarDescobertaServidores(): Promise<void> {
   return invoke<void>('iniciar_descoberta_servidores')
 }

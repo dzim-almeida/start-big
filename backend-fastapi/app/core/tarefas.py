@@ -9,7 +9,7 @@ from app.db.migrations import aplicar_migracoes
 from app.db.session import SessionLocal, engine
 from app.db.models.contador_venda import ContadorVenda
 from app.db.models.forma_pagamento import FormaPagamento
-from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados
+from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados, limpar_temp_data
 from app.services.licenca import enviar_heartbeat, renovar_licenca_background, desconectar_terminal
 from app.db.crud import terminal_conectado as terminal_crud
 
@@ -116,6 +116,8 @@ async def lifespan(app: FastAPI):
     Gerenciador de ciclo de vida do FastAPI.
     Inicia tarefas em segundo plano ao iniciar e cancela ao encerrar.
     """
+    await asyncio.to_thread(limpar_temp_data)
+
     Base.metadata.create_all(bind=engine)
 
     # Limpar terminais conectados da sessão anterior (stale após restart)

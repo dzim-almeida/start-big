@@ -7,7 +7,7 @@ export function formatCurrency(valueInCents: number): string {
   return reais.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  });
+  }).replace(/\s/g, ' ');
 }
 
 /**

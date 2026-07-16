@@ -60,31 +60,41 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
         )
 
     # 1.5 Registrar Licença (ANTES de criar entidades locais — garante atomicidade)
+    # Pula o registro na API se a licença já existir localmente (caso de reconexão)
+    from app.core.hwid import obter_hwid
+    from app.db.crud import configuracao_licenca as licenca_crud
+    
+    hwid = obter_hwid()
+    licenca_existente = licenca_crud.get_licenca_by_hwid(db, hwid)
+    
     is_pj = setup_data.tipo_pessoa == "PJ"
+    
+    if not licenca_existente:
 
-    endereco_licenca = {}
-    if setup_data.endereco and len(setup_data.endereco) > 0:
-        end = setup_data.endereco[0]
-        endereco_licenca = {
-            "cep": end.cep,
-            "logradouro": end.logradouro,
-            "numero": end.numero,
-            "bairro": end.bairro,
-            "cidade": end.cidade,
-            "estado": end.estado.value if hasattr(end.estado, "value") else str(end.estado),
-        }
+        endereco_licenca = {}
+        if setup_data.endereco and len(setup_data.endereco) > 0:
+            end = setup_data.endereco[0]
+            endereco_licenca = {
+                "cep": end.cep,
+                "logradouro": end.logradouro,
+                "numero": end.numero,
+                "bairro": end.bairro,
+                "cidade": end.cidade,
+                "estado": end.estado.value if hasattr(end.estado, "value") else str(end.estado),
+            }
 
-    documento_licenca = setup_data.cnpj if is_pj else (setup_data.cpf or "")
-    nome_licenca = setup_data.razao_social if is_pj else setup_data.nome_responsavel
-    email_licenca = setup_data.email_responsavel or setup_data.email
+        documento_licenca = setup_data.cnpj if is_pj else (setup_data.cpf or "")
+        nome_licenca = setup_data.razao_social if is_pj else setup_data.nome_responsavel
+        email_licenca = setup_data.email_responsavel or setup_data.email
 
-    licenca_service.registrar_licenca(
-        db=db,
-        documento=documento_licenca,
-        nome_ou_razao=nome_licenca,
-        email=email_licenca,
-        endereco_data=endereco_licenca,
-    )
+        licenca_service.registrar_licenca(
+            db=db,
+            documento=documento_licenca,
+            nome_ou_razao=nome_licenca,
+            email=email_licenca,
+            senha=setup_data.senha,
+            endereco_data=endereco_licenca,
+        )
 
     # 2. Criar Usuario Master
     usuario_create = UsuarioCreate(

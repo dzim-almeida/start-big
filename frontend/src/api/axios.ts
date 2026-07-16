@@ -16,7 +16,7 @@ export const TOKEN_KEY = 'access_token';
 /**
  * Instância do Axios configurada com a URL base da API
  */
-export const api = axios.create({});
+export const api = axios.create({ timeout: 10_000 });
 
 /**
  * Interceptor de requisição para definir baseURL dinâmica e anexar o JWT Bearer Token
