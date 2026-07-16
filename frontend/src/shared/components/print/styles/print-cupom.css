@@ -4,6 +4,16 @@
     size: 80mm auto;
   }
 
+  /* Mesmo motivo do print-a4.css: o BaseModal deixa `overflow: hidden` inline
+     no body enquanto o modal está aberto, e a impressão sai de dentro dele.
+     Vale aqui também porque o cupom cai no window.print() quando não há
+     impressora térmica configurada. */
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
   body {
     visibility: hidden;
     background: white;

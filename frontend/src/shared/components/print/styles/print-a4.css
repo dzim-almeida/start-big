@@ -4,6 +4,20 @@
     margin: 1.5cm;
   }
 
+  /* Destrava a rolagem do body na impressão.
+     BaseModal põe `document.body.style.overflow = 'hidden'` (INLINE) enquanto
+     há modal aberto, e só devolve quando o último fecha. Como as impressões de
+     OS e de venda são disparadas de dentro do modal, o body chega ao
+     window.print() travado — o que corta ou zera o conteúdo. Precisa de
+     !important: estilo inline vence folha de estilo.
+     `height: auto` pelo mesmo motivo: a altura fixa do shell (h-screen) não
+     pode limitar um documento que corre por várias páginas. */
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
   body {
     visibility: hidden;
     background: white;
