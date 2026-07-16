@@ -24,7 +24,14 @@ const notifPanelRef = ref<HTMLElement | null>(null);
 const isNotifOpen = ref(false);
 const queryClient = useQueryClient();
 
-onClickOutside([notifButtonRef, notifPanelRef] as any, () => { isNotifOpen.value = false; });
+// O alvo é o painel; o botão entra em `ignore` para o clique nele apenas alternar
+// (senão fecharia aqui e reabriria no @click do próprio botão).
+// Passar um array como alvo quebra: o `unrefElement` não devolve um Element, o
+// VueUse cai no `hasMultipleRoots`, lê `vm.$.subTree` de um array e lança —
+// antes do handler, então o painel nunca fechava ao clicar fora.
+onClickOutside(notifPanelRef, () => { isNotifOpen.value = false; }, {
+  ignore: [notifButtonRef],
+});
 
 watch(isNotifOpen, (open) => {
   if (open) {
