@@ -27,9 +27,14 @@ interface Props {
   disabled?: boolean;
   onAdd: () => void;
   onRemove: (index: number) => void;
+  errors?: Record<string, string | undefined>;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+function fieldError(index: number, field: string): string | undefined {
+  return props.errors?.[`enderecos.${index}.${field}`];
+}
 
 // =============================================
 // Form Fields
@@ -135,6 +140,7 @@ function handleCepFocus(index: number) {
                 placeholder="00000-000"
                 mask="#####-###"
                 :disabled="disabled || (cepIsLoading && activeCepIndex === index)"
+                :error="submitCount > 0 ? fieldError(index, 'cep') : ''"
               />
               <div
                 v-if="cepIsLoading && activeCepIndex === index"
@@ -176,6 +182,7 @@ function handleCepFocus(index: number) {
               label="Logradouro/Rua"
               placeholder="Digite o logradouro"
               :disabled="disabled"
+              :error="submitCount > 0 ? fieldError(index, 'logradouro') : ''"
             />
           </div>
 
@@ -186,6 +193,7 @@ function handleCepFocus(index: number) {
               label="Numero"
               placeholder="No"
               :disabled="disabled"
+              :error="submitCount > 0 ? fieldError(index, 'numero') : ''"
             />
           </div>
 
@@ -206,6 +214,7 @@ function handleCepFocus(index: number) {
               label="Bairro"
               placeholder="Digite o bairro"
               :disabled="disabled"
+              :error="submitCount > 0 ? fieldError(index, 'bairro') : ''"
             />
           </div>
 
@@ -216,6 +225,7 @@ function handleCepFocus(index: number) {
               label="Cidade"
               placeholder="Digite a cidade"
               :disabled="disabled"
+              :error="submitCount > 0 ? fieldError(index, 'cidade') : ''"
             />
           </div>
 
@@ -227,6 +237,7 @@ function handleCepFocus(index: number) {
               placeholder="Selecione"
               :options="ESTADOS_BRASILEIROS"
               :disabled="disabled"
+              :error="submitCount > 0 ? fieldError(index, 'estado') : ''"
             />
           </div>
         </div>

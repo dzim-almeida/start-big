@@ -49,6 +49,7 @@ const {
   handleAddAddress,
   handleRemoveAddress,
   submitCount,
+  errors,
   apiError,
   isPending,
   onSubmit,
@@ -107,6 +108,7 @@ watch(isOpen, (aberto) => {
         :onAdd="handleAddAddress"
         :onRemove="handleRemoveAddress"
         :submit-count="submitCount"
+        :errors="errors"
         :disabled="isViewMode"
       />
 

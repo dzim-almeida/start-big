@@ -10,6 +10,7 @@ import { obterHwid } from '@/shared/services/system/hwid.service';
 export interface LicencaStatusResponse {
   status: 'online_valid' | 'offline_valid';
   dias_restantes?: number;
+  trial?: boolean;
 }
 
 export interface LicencaErroResponse {

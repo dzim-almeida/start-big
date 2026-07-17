@@ -15,7 +15,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { enderecos, handleAddEndereco, handleRemoveEndereco } = useEmployeeForm()
+const { enderecos, handleAddEndereco, handleRemoveEndereco, errors } = useEmployeeForm()
 </script>
 
 <template>
@@ -24,6 +24,7 @@ const { enderecos, handleAddEndereco, handleRemoveEndereco } = useEmployeeForm()
     :onAdd="handleAddEndereco"
     :onRemove="handleRemoveEndereco"
     :submit-count="props.submitCount"
+    :errors="errors"
     :disabled="props.disabled"
   />
 </template>
