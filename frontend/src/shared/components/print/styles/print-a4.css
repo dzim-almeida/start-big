@@ -1,7 +1,11 @@
 @media print {
   @page {
     size: A4;
-    margin: 1.5cm;
+    /* Vertical no @page; horizontal = 0 aqui e controlado pelo padding do
+       .print-container. Assim a margem lateral é determinística mesmo quando o
+       motor de impressão ignora a margem horizontal do @page (era o caso: o
+       conteúdo encostava nas bordas). */
+    margin: 1.5cm 0;
   }
 
   /* Destrava a rolagem do body na impressão.
@@ -40,6 +44,10 @@
     visibility: visible;
     display: block !important;
     width: 100%;
+    /* Margem lateral do documento (única fonte da verdade — ver @page acima).
+       box-sizing evita que o padding estoure a largura útil da página. */
+    box-sizing: border-box;
+    padding: 0 1.5cm;
     background: white;
     font-size: 12px;
   }
