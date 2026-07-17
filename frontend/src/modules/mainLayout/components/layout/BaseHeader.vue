@@ -5,6 +5,7 @@ import { useLayoutStore } from '../../store/layout.store';
 import { storeToRefs } from 'pinia';
 import SettingsMenu from '../ui/SettingsMenu.vue';
 import NotificacoesPanel from '../ui/NotificacoesPanel.vue';
+import LicencaStatusBadge from '../ui/LicencaStatusBadge.vue';
 import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { onClickOutside } from '@vueuse/core';
@@ -89,6 +90,9 @@ const notifStyle = computed((): Record<string, string> => {
 
     <!-- Right Section: Actions -->
     <div class="flex flex-1 items-center justify-end xl:max-w-2xl lg:max-w-md gap-2 md:gap-4">
+      <!-- Badge de Status da Licença -->
+      <LicencaStatusBadge />
+
       <!-- Notifications -->
       <button
         ref="notifButtonRef"

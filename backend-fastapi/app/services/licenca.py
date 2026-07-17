@@ -456,7 +456,15 @@ def _tentar_conexao_remota(
         db.commit()
 
         logger.info("[licenca] Validação online bem-sucedida.")
-        return {"status": "online_valid"}
+
+        # dias_restantes a partir do vencimento recém-sincronizado do servidor,
+        # para o frontend (badge de licença) alertar sobre renovação também no
+        # caminho online — antes só o fallback offline devolvia esse número.
+        vencimento = licenca.data_vencimento
+        if vencimento.tzinfo is None:
+            vencimento = vencimento.replace(tzinfo=timezone.utc)
+        dias_restantes = (vencimento - datetime.now(timezone.utc)).days
+        return {"status": "online_valid", "dias_restantes": dias_restantes}
 
     # Erro 4xx do servidor (licença inválida/suspensa)
     if 400 <= response.status_code < 500:
