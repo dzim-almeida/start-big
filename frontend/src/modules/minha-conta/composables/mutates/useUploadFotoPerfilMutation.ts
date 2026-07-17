@@ -15,11 +15,20 @@ export function useUploadFotoPerfilMutation() {
     mutationFn: uploadFotoPerfil,
     onSuccess: (usuarioAtualizado) => {
       toast.success('Foto atualizada com sucesso!');
-      // A própria resposta do upload traz o url_perfil novo (UsuarioRead).
-      // Escrevemos direto no cache em vez de invalidar: o refetch do GET /me
-      // volta do cache do webview com a foto antiga, e só um reload manual
-      // (que fura o cache) atualizava. setQueryData evita a rede por completo.
-      queryClient.setQueryData(['user-me'], usuarioAtualizado);
+      // Só o url_perfil desta resposta é confiável: cargo/permissões vêm
+      // incompletos aqui (são montados apenas no GET /me). Por isso mesclamos
+      // apenas o campo alterado no cache — sobrescrever o objeto inteiro
+      // zerava cargo.permissoes e esvaziava a sidebar. Atualizar direto no
+      // cache (sem refetch) evita o cache do webview que exigia reload manual.
+      const anterior = queryClient.getQueryData<UserResponse>(['user-me']);
+      if (anterior) {
+        queryClient.setQueryData<UserResponse>(['user-me'], {
+          ...anterior,
+          url_perfil: usuarioAtualizado.url_perfil,
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['user-me'] });
+      }
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao atualizar foto') as string);
