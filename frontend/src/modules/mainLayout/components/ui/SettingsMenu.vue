@@ -24,10 +24,7 @@ const LINKS = {
   youtube: 'https://www.youtube.com/@StartBigOficial',
 }
 
-// Mesma montagem de URL do BaseHeader (comprovadamente funciona no app
-// instalado). O getImageUrl() resolve o backend em runtime e, neste ambiente,
-// aponta para uma origem que não serve a imagem no menu.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const authStore = useAuthStore();
 const layoutStore = useLayoutStore();
@@ -64,7 +61,7 @@ function abrirConfiguracoes() {
           >
             <img
               v-if="userData?.url_perfil"
-              :src="`${API_BASE_URL}/${userData.url_perfil}`"
+              :src="getImageUrl(userData.url_perfil) ?? ''"
               alt="Foto do usuário"
               class="w-full h-full object-cover rounded-lg"
             />

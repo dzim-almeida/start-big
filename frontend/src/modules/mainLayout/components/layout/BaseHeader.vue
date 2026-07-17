@@ -10,8 +10,7 @@ import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { onClickOutside } from '@vueuse/core';
 import { useQueryClient } from '@tanstack/vue-query';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getImageUrl } from '@/shared/utils/print.utils';
 
 const layoutStore = useLayoutStore();
 const { pageTitle, pageSubtitle, isMobile, isSettingsOpen } = storeToRefs(layoutStore);
@@ -121,7 +120,7 @@ const notifStyle = computed((): Record<string, string> => {
         <div class="w-8 h-8 rounded-lg bg-brand-primary flex items-end justify-center overflow-hidden shrink-0">
           <img
             v-if="userData?.url_perfil"
-            :src="`${API_BASE_URL}/${userData.url_perfil}`"
+            :src="getImageUrl(userData.url_perfil) ?? ''"
             alt="Foto do usuário"
             class="w-full h-full object-cover"
           />
