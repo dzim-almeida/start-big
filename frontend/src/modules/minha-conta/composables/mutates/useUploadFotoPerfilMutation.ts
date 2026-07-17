@@ -13,9 +13,13 @@ export function useUploadFotoPerfilMutation() {
 
   return useMutation<UserResponse, AxiosError<ApiError>, File>({
     mutationFn: uploadFotoPerfil,
-    onSuccess: () => {
+    onSuccess: (usuarioAtualizado) => {
       toast.success('Foto atualizada com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['user-me'] });
+      // A própria resposta do upload traz o url_perfil novo (UsuarioRead).
+      // Escrevemos direto no cache em vez de invalidar: o refetch do GET /me
+      // volta do cache do webview com a foto antiga, e só um reload manual
+      // (que fura o cache) atualizava. setQueryData evita a rede por completo.
+      queryClient.setQueryData(['user-me'], usuarioAtualizado);
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao atualizar foto') as string);

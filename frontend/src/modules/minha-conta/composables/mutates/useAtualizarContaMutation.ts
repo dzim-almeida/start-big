@@ -14,9 +14,12 @@ export function useAtualizarContaMutation() {
 
   return useMutation<UserResponse, AxiosError<ApiError>, AtualizarContaPayload>({
     mutationFn: atualizarConta,
-    onSuccess: () => {
+    onSuccess: (usuarioAtualizado) => {
       toast.success('Informações atualizadas!', 'Seus dados de usuário foram salvos com sucesso.');
-      queryClient.invalidateQueries({ queryKey: ['user-me'] });
+      // Resposta do PATCH já traz o usuário atualizado; escrevemos direto no
+      // cache para refletir na hora (o refetch por invalidação volta do cache
+      // do webview com dado antigo, exigindo reload manual).
+      queryClient.setQueryData(['user-me'], usuarioAtualizado);
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, 'Erro ao atualizar dados') as string);

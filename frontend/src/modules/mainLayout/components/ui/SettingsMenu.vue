@@ -57,7 +57,7 @@ function abrirConfiguracoes() {
 
         <div class="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg bg-zinc-50">
           <div
-            class="w-8 h-8 bg-brand-primary p-0.5 rounded-lg flex items-end justify-center shrink-0"
+            class="w-8 h-8 bg-brand-primary p-0.5 rounded-lg flex items-end justify-center shrink-0 overflow-hidden"
           >
             <img
               v-if="userData?.url_perfil"
