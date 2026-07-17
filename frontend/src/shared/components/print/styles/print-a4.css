@@ -47,7 +47,7 @@
     /* Margem do documento nas quatro bordas (única fonte da verdade — ver @page
        acima). box-sizing evita que o padding estoure a largura útil da página. */
     box-sizing: border-box;
-    padding: 1.5cm;
+    padding: 1cm;
     background: white;
     font-size: 12px;
   }
