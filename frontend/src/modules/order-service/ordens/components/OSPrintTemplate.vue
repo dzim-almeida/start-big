@@ -20,11 +20,13 @@ import {
   formatPrintDate,
   formatPrintPhone,
   formatPrintDoc,
+  tipoObjetoRelevante,
 } from '@/shared/utils/print.utils';
 
 import PrintCompanyHeader from '@/shared/components/print/a4/PrintCompanyHeader.vue';
 import PrintSignatures from '@/shared/components/print/a4/PrintSignatures.vue';
 import PrintFooter from '@/shared/components/print/a4/PrintFooter.vue';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 const props = defineProps<{
   ordemServico: OrderServiceReadDataType | null;
@@ -32,6 +34,13 @@ const props = defineProps<{
 }>();
 
 const { companyInfo } = useCompanyPrintInfo();
+const { labelSingular } = useObjetoLabels();
+
+// O "tipo" só aparece quando acrescenta info além do rótulo do segmento (em
+// oficina ele é o próprio "Veículo" → redundante sob "Dados do Veículo").
+const mostrarTipoObjeto = computed(() =>
+  tipoObjetoRelevante(props.ordemServico?.objeto?.tipo_equipamento, labelSingular.value),
+);
 
 const situacao = computed(() => props.ordemServico?.situacao_equipamento ?? null);
 
@@ -119,11 +128,11 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + totalPago.val
       <div class="border border-slate-300 rounded-lg overflow-hidden">
         <div class="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex items-center gap-2">
           <Smartphone :size="14" class="text-slate-500" />
-          <h3 class="text-xs font-bold uppercase text-slate-700">Dados do Objeto</h3>
+          <h3 class="text-xs font-bold uppercase text-slate-700">Dados do {{ labelSingular }}</h3>
         </div>
         <div class="p-3 text-xs space-y-1.5">
-          <div class="flex items-center gap-2">
-            <p class="text-sm font-bold text-slate-900">{{ ordemServico.objeto.tipo_equipamento }}</p>
+          <div v-if="mostrarTipoObjeto || situacaoConfig" class="flex items-center gap-2">
+            <p v-if="mostrarTipoObjeto" class="text-sm font-bold text-slate-900">{{ ordemServico.objeto.tipo_equipamento }}</p>
             <span v-if="situacaoConfig" :class="['px-2 py-0.5 rounded-full text-[10px] font-bold', situacaoConfig.cls]">
               {{ situacaoConfig.label }}
             </span>

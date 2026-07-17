@@ -14,6 +14,7 @@ import {
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintDoc,
+  tipoObjetoRelevante,
 } from '@/shared/utils/print.utils'
 import type { Bobina, RasterImage } from '@/shared/services/escpos'
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types'
@@ -24,6 +25,8 @@ export interface OsEscPosOptions {
   empresa: CompanyPrintInfo
   /** Logo já convertido em bitmap 1-bit; omitido = cupom sem logo. */
   logoRaster?: RasterImage | null
+  /** Rótulo do objeto por segmento (ex.: "Veículo", "Equipamento"). Padrão: "Objeto". */
+  rotuloObjeto?: string
 }
 
 /**
@@ -92,8 +95,8 @@ export function osToEscPos(
   if (endCli) b.linha(endCli)
   b.separador()
 
-  // Objeto
-  b.negrito(true).linha('OBJETO').negrito(false)
+  // Objeto — título por segmento (Veículo/Equipamento/...), cai em "OBJETO"
+  b.negrito(true).linha((opts.rotuloObjeto || 'Objeto').toUpperCase()).negrito(false)
   // Em MAIÚSCULA para bater com a via em papel: lá o mesmo texto sai com a
   // classe `uppercase`, então imprimia "(REPARADO)" enquanto a térmica saía
   // "(Reparado)" — mesmo documento, duas grafias.
@@ -101,7 +104,13 @@ export function osToEscPos(
     tipo === 'SAIDA' && situacao
       ? ` (${(situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado').toUpperCase()})`
       : ''
-  b.linha(`${os.objeto.tipo_equipamento}${sufixoSituacao}`)
+  // O "tipo" só sai quando acrescenta info (informática: "COMPUTADOR"). Em oficina
+  // ele é o próprio rótulo ("Veículo") e repetir sob o cabeçalho "VEÍCULO" é redundante.
+  if (tipoObjetoRelevante(os.objeto.tipo_equipamento, opts.rotuloObjeto)) {
+    b.linha(`${os.objeto.tipo_equipamento}${sufixoSituacao}`)
+  } else if (sufixoSituacao) {
+    b.linha(sufixoSituacao.trim())
+  }
   if (os.objeto.marca) b.linha(`Marca: ${os.objeto.marca}`)
   if (os.objeto.modelo) b.linha(`Modelo: ${os.objeto.modelo}`)
   if (os.objeto.numero_serie) b.linha(`N/S: ${os.objeto.numero_serie}`)

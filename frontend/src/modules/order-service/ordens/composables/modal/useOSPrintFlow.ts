@@ -6,6 +6,7 @@ import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
 import { osToEscPos } from '../../components/osToEscPos';
 import { DOTS } from '@/shared/services/escpos';
 import { carregarLogoRaster } from '@/shared/services/escposImagem';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { PrintFormat } from '@/shared/components/print/print.types';
 
@@ -33,6 +34,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
   const impressao = useImpressao();
   const impressaoStore = useImpressaoStore();
   const { companyInfo } = useCompanyPrintInfo();
+  const { labelSingular } = useObjetoLabels();
 
   /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
   async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
@@ -45,6 +47,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
       bobina,
       empresa: companyInfo.value,
       logoRaster,
+      rotuloObjeto: labelSingular.value,
     });
     return impressao.imprimirCupom(dados);
   }

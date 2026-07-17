@@ -11,11 +11,13 @@ import {
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintDoc,
+  tipoObjetoRelevante,
 } from '@/shared/utils/print.utils';
 
 import PrintCupomHeader from '@/shared/components/print/cupom/PrintCupomHeader.vue';
 import PrintCupomSignatures from '@/shared/components/print/cupom/PrintCupomSignatures.vue';
 import PrintCupomFooter from '@/shared/components/print/cupom/PrintCupomFooter.vue';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 interface PrintCupomProps {
   orderService: OrderServiceReadDataType | null;
@@ -25,6 +27,7 @@ interface PrintCupomProps {
 const props = defineProps<PrintCupomProps>();
 
 const { companyInfo } = useCompanyPrintInfo();
+const { labelSingular } = useObjetoLabels();
 
 const SEPARATOR = '────────────────────────────';
 
@@ -71,6 +74,12 @@ const clientePhone = computed(() => {
 const clienteEndereco = computed(() => {
   return getClienteEndereco(props.orderService?.cliente);
 });
+
+// O "tipo" só aparece quando acrescenta info além do rótulo do segmento (em
+// oficina ele é o próprio "Veículo" → redundante sob o cabeçalho VEÍCULO).
+const mostrarTipoObjeto = computed(() =>
+  tipoObjetoRelevante(props.orderService?.objeto?.tipo_equipamento, labelSingular.value),
+);
 
 const motivoCancelamento = computed(() => {
   const obs = props.orderService?.observacoes ?? '';
@@ -127,9 +136,9 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
     <div class="separator">{{ SEPARATOR }}</div>
 
     <div class="section">
-      <div class="font-bold mb-0.5">OBJETO</div>
-      <div class="flex items-center gap-1">
-        <span>{{ orderService.objeto.tipo_equipamento }}</span>
+      <div class="font-bold mb-0.5">{{ labelSingular.toUpperCase() }}</div>
+      <div v-if="mostrarTipoObjeto || (situacao && type === 'SAIDA')" class="flex items-center gap-1">
+        <span v-if="mostrarTipoObjeto">{{ orderService.objeto.tipo_equipamento }}</span>
         <span v-if="situacao && type === 'SAIDA'" class="text-[9px] font-bold uppercase">
           ({{ situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado' }})
         </span>

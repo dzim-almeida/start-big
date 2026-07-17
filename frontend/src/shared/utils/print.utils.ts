@@ -56,6 +56,18 @@ export function getClienteEndereco(cliente?: { endereco?: EnderecoCliente | null
   return [rua + compl, local].filter(Boolean).join(' - ') + cep;
 }
 
+/**
+ * True quando o "tipo" do objeto acrescenta informação além do rótulo do
+ * segmento. Em oficina o tipo é deduzido como o próprio rótulo ("Veículo"),
+ * então repeti-lo no recibo é redundante → false. Em informática o tipo é
+ * específico ("COMPUTADOR" vs rótulo "Equipamento") → true, vale mostrar.
+ */
+export function tipoObjetoRelevante(tipo?: string | null, rotuloSegmento?: string | null): boolean {
+  const t = (tipo ?? '').trim();
+  if (!t) return false;
+  return t.toLowerCase() !== (rotuloSegmento ?? '').trim().toLowerCase();
+}
+
 // --- Payment helpers ---
 
 export function getPaymentDisplayName(nome: string): string {
