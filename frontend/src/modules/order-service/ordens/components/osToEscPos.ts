@@ -10,17 +10,20 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintDoc,
 } from '@/shared/utils/print.utils'
-import type { Bobina } from '@/shared/services/escpos'
+import type { Bobina, RasterImage } from '@/shared/services/escpos'
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types'
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema'
 
 export interface OsEscPosOptions {
   bobina: Bobina
   empresa: CompanyPrintInfo
+  /** Logo já convertido em bitmap 1-bit; omitido = cupom sem logo. */
+  logoRaster?: RasterImage | null
 }
 
 /**
@@ -59,7 +62,8 @@ export function osToEscPos(
 
   // Cabeçalho da empresa
   b.alinhar('centro')
-    .tamanhoDuplo(true)
+  if (opts.logoRaster) b.raster(opts.logoRaster).pular()
+  b.tamanhoDuplo(true)
     .linha(empresa.nome.toUpperCase())
     .tamanhoDuplo(false)
   if (empresa.cnpj) b.linha(empresa.cnpj)
@@ -84,6 +88,8 @@ export function osToEscPos(
   if (doc) b.linha(`Doc: ${formatPrintDoc(doc)}`)
   const tel = getClientePhone(os.cliente)
   if (tel) b.linha(`Tel: ${tel}`)
+  const endCli = getClienteEndereco(os.cliente)
+  if (endCli) b.linha(endCli)
   b.separador()
 
   // Objeto

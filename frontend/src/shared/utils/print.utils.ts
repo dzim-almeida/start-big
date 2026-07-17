@@ -22,6 +22,40 @@ export function getClientePhone(cliente?: { celular?: string | null; telefone?: 
   return (cliente as { celular?: string | null }).celular || (cliente as { telefone?: string | null }).telefone || '';
 }
 
+interface EnderecoCliente {
+  logradouro?: string | null;
+  numero?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  cep?: string | null;
+  complemento?: string | null;
+}
+
+/** "00000000" -> "00000-000"; deixa como está se não tiver 8 dígitos. */
+function formatCep(cep?: string | null): string {
+  const so = (cep ?? '').replace(/\D/g, '');
+  return so.length === 8 ? `${so.slice(0, 5)}-${so.slice(5)}` : (cep ?? '');
+}
+
+/**
+ * Endereço do cliente em uma linha, para os recibos:
+ * "Rua X, 123 (Fundos) - Bairro, Cidade - UF, CEP 00000-000".
+ * Retorna '' se o cliente não tiver endereço cadastrado.
+ */
+export function getClienteEndereco(cliente?: { endereco?: EnderecoCliente | null } | null): string {
+  const e = cliente?.endereco;
+  if (!e || !e.logradouro) return '';
+
+  const rua = [e.logradouro, e.numero].filter(Boolean).join(', ');
+  const compl = e.complemento ? ` (${e.complemento})` : '';
+  const cidadeUf = e.cidade && e.estado ? `${e.cidade} - ${e.estado}` : e.cidade || e.estado || '';
+  const local = [e.bairro, cidadeUf].filter(Boolean).join(', ');
+  const cep = e.cep ? `, CEP ${formatCep(e.cep)}` : '';
+
+  return [rua + compl, local].filter(Boolean).join(' - ') + cep;
+}
+
 // --- Payment helpers ---
 
 export function getPaymentDisplayName(nome: string): string {

@@ -4,6 +4,8 @@ import { useImpressao } from '@/shared/composables/useImpressao';
 import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
 import { osToEscPos } from '../../components/osToEscPos';
+import { DOTS } from '@/shared/services/escpos';
+import { carregarLogoRaster } from '@/shared/services/escposImagem';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { PrintFormat } from '@/shared/components/print/print.types';
 
@@ -37,9 +39,12 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     if (!impressao.podeImprimirDireto.value) return false;
     const os = getOS?.();
     if (!os) return false;
+    const bobina = impressaoStore.config.bobina;
+    const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[bobina]);
     const dados = osToEscPos(os, tipo, {
-      bobina: impressaoStore.config.bobina,
+      bobina,
       empresa: companyInfo.value,
+      logoRaster,
     });
     return impressao.imprimirCupom(dados);
   }

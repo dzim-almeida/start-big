@@ -15,6 +15,7 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintPhone,
@@ -110,6 +111,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + totalPago.val
             <p><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatPrintDoc(getClienteDoc(ordemServico.cliente)) }}</p>
             <p><span class="font-bold text-slate-600">Telefone:</span> {{ formatPrintPhone(getClientePhone(ordemServico.cliente as any)) }}</p>
           </div>
+          <p v-if="getClienteEndereco(ordemServico.cliente)"><span class="font-bold text-slate-600">Endereço:</span> {{ getClienteEndereco(ordemServico.cliente) }}</p>
           <p v-if="ordemServico.cliente?.id"><span class="font-bold text-slate-600">Cód. Cliente:</span> #{{ ordemServico.cliente.id }}</p>
         </div>
       </div>

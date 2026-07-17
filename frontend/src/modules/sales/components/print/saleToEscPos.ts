@@ -10,10 +10,11 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   formatPrintDate,
   formatPrintDoc,
 } from '@/shared/utils/print.utils'
-import type { Bobina } from '@/shared/services/escpos'
+import type { Bobina, RasterImage } from '@/shared/services/escpos'
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types'
 import type { SaleRead } from '../../schemas/sale.schema'
 import type { OrcamentoRead } from '../../schemas/orcamento.schema'
@@ -25,6 +26,8 @@ export interface SaleEscPosOptions {
   abrirGaveta?: boolean
   /** 'ORCAMENTO' omite cliente, pagamentos e troco — igual ao SalePrintCupom.vue. */
   tipo?: SalePrintKind
+  /** Logo já convertido em bitmap 1-bit; omitido = cupom sem logo. */
+  logoRaster?: RasterImage | null
 }
 
 export type SalePrintKind = 'VENDA' | 'ORCAMENTO'
@@ -43,7 +46,8 @@ export function saleToEscPos(
 
   // Cabeçalho da empresa
   b.alinhar('centro')
-    .tamanhoDuplo(true)
+  if (opts.logoRaster) b.raster(opts.logoRaster).pular()
+  b.tamanhoDuplo(true)
     .linha(empresa.nome.toUpperCase())
     .tamanhoDuplo(false)
   if (empresa.cnpj) b.linha(empresa.cnpj)
@@ -75,6 +79,8 @@ export function saleToEscPos(
     if (doc) b.linha(`Doc: ${formatPrintDoc(doc)}`)
     const tel = getClientePhone(venda.cliente as any)
     if (tel) b.linha(`Tel: ${tel}`)
+    const endCli = getClienteEndereco(venda.cliente as any)
+    if (endCli) b.linha(endCli)
     b.separador()
   }
 

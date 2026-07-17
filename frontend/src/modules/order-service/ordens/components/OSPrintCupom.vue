@@ -7,6 +7,7 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintDoc,
@@ -67,6 +68,10 @@ const clientePhone = computed(() => {
   return getClientePhone(props.orderService?.cliente);
 });
 
+const clienteEndereco = computed(() => {
+  return getClienteEndereco(props.orderService?.cliente);
+});
+
 const motivoCancelamento = computed(() => {
   const obs = props.orderService?.observacoes ?? '';
   const match = obs.match(/\[CANCELAMENTO\]\s*([\s\S]+)/);
@@ -116,6 +121,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <div>{{ getClienteNome(orderService.cliente) }}</div>
       <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
       <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
+      <div v-if="clienteEndereco">{{ clienteEndereco }}</div>
     </div>
 
     <div class="separator">{{ SEPARATOR }}</div>

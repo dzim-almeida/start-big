@@ -9,6 +9,7 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   formatPrintDate,
   formatPrintPhone,
   formatPrintDoc,
@@ -74,6 +75,7 @@ const totalPago = computed(() => {
             <p v-if="getClienteDoc(saleData?.cliente as any)"><span class="font-bold text-slate-600">CPF/CNPJ:</span> {{ formatPrintDoc(getClienteDoc(saleData?.cliente as any)) }}</p>
             <p v-if="getClientePhone(saleData?.cliente as any)"><span class="font-bold text-slate-600">Telefone:</span> {{ formatPrintPhone(getClientePhone(saleData?.cliente as any)) }}</p>
           </div>
+          <p v-if="getClienteEndereco(saleData?.cliente as any)"><span class="font-bold text-slate-600">Endereço:</span> {{ getClienteEndereco(saleData?.cliente as any) }}</p>
           <p v-if="saleData?.cliente?.id"><span class="font-bold text-slate-600">Cód. Cliente:</span> #{{ saleData.cliente.id }}</p>
         </div>
       </div>

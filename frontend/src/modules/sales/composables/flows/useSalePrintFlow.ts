@@ -5,6 +5,8 @@ import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import { useCompanyPrintInfo, getPaymentDisplayName } from '@/shared/utils/print.utils';
 import { usePaymentMethodsQuery } from '../queries/usePaymentMethodsQuery';
 import { saleToEscPos } from '../../components/print/saleToEscPos';
+import { DOTS } from '@/shared/services/escpos';
+import { carregarLogoRaster } from '@/shared/services/escposImagem';
 import { saleService } from '../../api.service';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { PrintFormat } from '@/shared/components/print/print.types';
@@ -60,10 +62,13 @@ export function useSalePrintFlow() {
   /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
   async function imprimirEscPosDireto(sale: SaleRead): Promise<boolean> {
     if (!impressao.podeImprimirDireto.value) return false;
+    const bobina = impressaoStore.config.bobina;
+    const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[bobina]);
     const dados = saleToEscPos(sale, {
-      bobina: impressaoStore.config.bobina,
+      bobina,
       empresa: companyInfo.value,
       resolverPagamento: resolvePaymentMethodName,
+      logoRaster,
       // Reimpressão manual não deve reabrir a gaveta (só a impressão pós-venda faz isso)
     });
     return impressao.imprimirCupom(dados);
@@ -109,11 +114,13 @@ export function useSalePrintFlow() {
       }
 
       if (impressao.podeImprimirDireto.value) {
+        const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[config.bobina]);
         const dados = saleToEscPos(sale, {
           bobina: config.bobina,
           empresa: companyInfo.value,
           resolverPagamento: resolvePaymentMethodName,
           abrirGaveta: config.gaveta_ativa && config.abrir_gaveta_na_venda && vendaTemPagamentoDinheiro(sale),
+          logoRaster,
         });
         if (await impressao.imprimirCupom(dados)) {
           afterPrint?.();

@@ -8,6 +8,7 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   formatPrintDate,
   formatPrintDoc,
 } from '@/shared/utils/print.utils';
@@ -48,6 +49,10 @@ const clientePhone = computed(() => {
   return getClientePhone(saleData.value?.cliente as any);
 });
 
+const clienteEndereco = computed(() => {
+  return getClienteEndereco(saleData.value?.cliente as any);
+});
+
 const totalPago = computed(() => {
   if (!saleData.value?.pagamentos) return 0;
   return saleData.value.pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
@@ -78,6 +83,7 @@ const totalPago = computed(() => {
         <div>{{ getClienteNome(saleData?.cliente as any) }}</div>
         <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
         <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
+        <div v-if="clienteEndereco">{{ clienteEndereco }}</div>
       </div>
 
       <div class="separator">{{ SEPARATOR }}</div>
