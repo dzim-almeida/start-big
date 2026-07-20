@@ -1,10 +1,18 @@
 import z from 'zod';
 
+// Bandeiras de cartão aceitas (espelha o enum usado na OS).
+export const CardFlagSchema = z.enum(['VISA', 'MASTERCARD', 'ELO', 'OUTROS']);
+export type CardFlag = z.infer<typeof CardFlagSchema>;
+
 export const PaymentSaleBaseSchema = z.object({
   forma_pagamento_id: z.number({required_error: 'Forma de pagamento é obrigatória'}),
   parcelado: z.boolean(),
   qtd_parcelas: z.number().nullable(),
   valor: z.number({required_error: 'Valor é obrigatório'}).min(0),
+  // Detalhes por forma de pagamento (todos opcionais; valor já vem com juros embutido)
+  bandeira_cartao: CardFlagSchema.nullable().optional(),
+  vencimento: z.string().nullable().optional(),
+  detalhes: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const PaymentSaleCreateSchema = PaymentSaleBaseSchema.superRefine((data, ctx) => {

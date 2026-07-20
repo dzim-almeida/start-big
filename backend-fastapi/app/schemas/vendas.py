@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from app.core.enum import VendaStatus
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Sequence
 
 from app.schemas.cliente import ClienteRead, ClienteSimpleRead
@@ -45,7 +45,10 @@ class PagamentoVendaCreate(BaseModel):
     forma_pagamento_id: int = Field(..., description="ID da forma de pagamento, obrigatório")
     parcelado: bool = Field(False, description="Indica se o pagamento é parcelado")
     qtd_parcelas: Optional[int] = Field(1, gt=0, description="Quantidade de parcelas")
-    valor: int = Field(..., ge=0, description="Valor do pagamento, obrigatório")
+    valor: int = Field(..., ge=0, description="Valor do pagamento (já com juros embutidos), obrigatório")
+    bandeira_cartao: Optional[str] = Field(None, max_length=50, description="Bandeira do cartão (VISA, MASTERCARD, etc.)")
+    vencimento: Optional[date] = Field(None, description="Data de vencimento do pagamento (ex: boletos)")
+    detalhes: Optional[dict] = Field(None, description="Dados adicionais do pagamento em formato JSON (ex: banco/NSU)")
 
     @model_validator(mode='after')
     def check_pagamento_fields(self) -> 'PagamentoVendaCreate':
@@ -139,6 +142,7 @@ class VendaRead(VendaSimpleRead):
     entrega: int = Field(0, ge=0, description="Valor da entrega")
     subtotal: int = Field(0, ge=0, description="Subtotal da venda")
     descontos: int = Field(0, ge=0, description="Desconto da venda")
+    acrescimo: int = Field(0, ge=0, description="Acréscimo de juros/cartão aplicado no checkout")
     troco: int = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
     observacao_interna: Optional[str] = Field(None, max_length=500, description="Observação interna (não impressa no comprovante)")
@@ -166,6 +170,7 @@ class ProdutosAlterSummary(BaseModel):
 
 class FinalizarVendaPayload(BaseModel):
     pagamentos: list[PagamentoVendaCreate] = Field(..., min_length=1, description="Lista de pagamentos para finalizar a venda")
+    acrescimo: Optional[int] = Field(0, ge=0, description="Acréscimo total de juros/cartão a ser somado ao total da venda (centavos)")
 
 class CancelarVendaPayload(BaseModel):
     motivo: str = Field(..., min_length=10, max_length=500, description="Motivo do cancelamento da venda (mínimo 10 caracteres)")

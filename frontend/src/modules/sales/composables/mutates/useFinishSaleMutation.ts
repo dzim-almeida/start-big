@@ -15,8 +15,8 @@ export function useFinishSaleMutation() {
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number; payments: PaymentSaleCreate[] }>({
-        mutationFn: (variables) => saleService.finishSale(variables.saleId, variables.payments),
+    return useMutation<SaleRead, AxiosError<ApiError>, { saleId: number; payments: PaymentSaleCreate[]; acrescimo?: number }>({
+        mutationFn: (variables) => saleService.finishSale(variables.saleId, variables.payments, variables.acrescimo ?? 0),
         onSuccess: (finishedSale) => {
           toast.success('Venda finalizada com sucesso');
           queryClient.invalidateQueries({

@@ -33,16 +33,17 @@ fastapi dev app/main.py                  # porta 8000 — para usar no navegador
 pytest test/                             # Run tests
 ```
 
-### ⚠️ Portas: as três formas de rodar discordam
+### ⚠️ Portas: dev na 8000, loja na 8080-8083 (separados de propósito)
 | Como você roda | Backend procurado em | Origem |
 |---|---|---|
 | Navegador em `localhost:1420` | **8000** | fallback de `api/backendUrl.ts` |
-| `npm run tauri dev` (janela) | **8080** | **chumbado** em `src-tauri/src/network/config.rs` (`#[cfg(debug_assertions)]`) — ignora o `system-config.json` |
-| App instalado (release) | `config.server_port` (8080 por padrão) | `load_config()`; é a porta do sidecar |
+| `npm run tauri dev` (janela) | **8000** | **chumbado** em `src-tauri/src/network/config.rs` (`#[cfg(debug_assertions)]`) — ignora o `system-config.json` |
+| App instalado (release) | `config.server_port` (fallbacks **8080→8083**, senão aleatória) | `load_config()`; é a porta do sidecar |
 
-Rodar o backend na 8000 e abrir com `tauri dev` **não conecta**: o app cai no
-`/login` (o guard toma erro de rede e libera a navegação sem sessão). Se o login
-parecer quebrado, **cheque a porta antes do banco**.
+Dev e app instalado usam faixas **separadas** (8000 vs 8080-8083) para não colidir
+numa máquina que é loja **e** ambiente de dev ao mesmo tempo. Suba o backend de dev
+com `fastapi dev app/main.py` (padrão 8000) — tanto navegador quanto `tauri dev` batem
+na mesma porta. Se o login parecer quebrado, **cheque a porta antes do banco**.
 
 ### Sidecar (backend empacotado)
 O instalador leva o backend como um `.exe`: `frontend/src-tauri/bin/erp-api-<target-triple>.exe`
