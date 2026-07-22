@@ -1,19 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { ClipboardCheck, Check, Printer } from 'lucide-vue-next';
+import { computed, ref, watch, onUnmounted } from 'vue';
+import { ClipboardCheck, Check, Printer, Smartphone, RefreshCw } from 'lucide-vue-next';
 
 import { useOSFieldDefinition } from '@/modules/order-service/shared/segmento/useOSFieldDefinition.queries';
 import type { SegmentField } from '@/modules/order-service/shared/segmento/segmentDefinition.type';
+import type { MarcaDano } from '../../types/mapeamentoDanos.types';
+import OSQrCodeModal from '../OSQrCodeModal.vue';
+import OSMapeamentoDanos from './danos/OSMapeamentoDanos.vue';
+import api from '@/api/axios';
 
 interface Props {
   /** dados_adicionais da OS (guarda acessorios + vistoria). */
   osDados?: Record<string, unknown>;
   isLocked?: boolean;
+  /** Numero da OS (ex: OS-2026-000001). Necessario para QR code e polling. */
+  osNumber?: string;
+  /** True quando a OS esta sendo criada (ainda nao existe no backend). */
+  isCreateMode?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   osDados: () => ({}),
   isLocked: false,
+  osNumber: '',
+  isCreateMode: false,
 });
 
 const emit = defineEmits<{
@@ -21,6 +31,76 @@ const emit = defineEmits<{
   imprimirFichaEntrada: [];
   imprimirFichaSaida: [];
 }>();
+
+// --- QR Code Modal ---
+const showQrModal = ref(false);
+
+// --- Polling automatico (10s) ---
+const isPolling = ref(false);
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+/** IDs de marcadores deletados localmente — polling deve ignorá-los. */
+const deletedMarkerIds = new Set<string>();
+
+function startPolling() {
+  if (pollTimer || props.isCreateMode || !props.osNumber) return;
+  isPolling.value = true;
+  pollTimer = setInterval(async () => {
+    if (!props.osNumber) return;
+    try {
+      const { data } = await api.get(`/ordens-servico/${props.osNumber}`);
+      const remoteDados = data?.dados_adicionais ?? {};
+      // Merge mapeamento_danos por ID para não perder marcadores locais
+      const localDanos = props.osDados.mapeamento_danos;
+      const remotoDanos = remoteDados.mapeamento_danos;
+      const merged = { ...remoteDados };
+      // Filtrar marcadores deletados localmente de qualquer fonte
+      const filterDeleted = (arr: any[]) => arr.filter((m: any) => !deletedMarkerIds.has(m.id));
+
+      if (Array.isArray(localDanos) && localDanos.length > 0) {
+        if (!Array.isArray(remotoDanos) || remotoDanos.length === 0) {
+          merged.mapeamento_danos = localDanos;
+        } else {
+          // Local como base (preserva edições não salvas) + novos do remoto (celular)
+          const localIds = new Set(localDanos.map((m: any) => m.id));
+          const novosDoRemoto = filterDeleted(remotoDanos).filter((m: any) => !localIds.has(m.id));
+          merged.mapeamento_danos = [...localDanos, ...novosDoRemoto];
+        }
+      } else if (Array.isArray(remotoDanos) && remotoDanos.length > 0) {
+        merged.mapeamento_danos = filterDeleted(remotoDanos);
+      }
+      const localJson = JSON.stringify(props.osDados);
+      const mergedJson = JSON.stringify(merged);
+      if (localJson !== mergedJson) {
+        emit('update:osDados', merged);
+      }
+    } catch {
+      // Silencioso: polling nao deve interromper o usuario
+    }
+  }, 10000);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  isPolling.value = false;
+}
+
+// Inicia polling se OS existente e nao trancada
+watch(
+  () => [props.osNumber, props.isCreateMode, props.isLocked] as const,
+  ([num, create, locked]) => {
+    if (num && !create && !locked) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(stopPolling);
 
 // A vistoria é dirigida pelo contrato do backend (/definicao-campos): acessórios
 // e grupos de inspeção vêm de lá, então novos segmentos/checklists não mexem aqui.
@@ -105,6 +185,22 @@ function setCheckin(nome: string, valor: string) {
 function rotuloOpcao(op: string): string {
   return op.charAt(0) + op.slice(1).toLowerCase();
 }
+
+// --- Mapeamento de danos ---
+const mapeamentoDanos = computed<MarcaDano[]>(
+  () => (props.osDados.mapeamento_danos as MarcaDano[]) ?? [],
+);
+
+function setMapeamentoDanos(marcas: MarcaDano[]) {
+  if (props.isLocked) return;
+  // Rastrear IDs removidos para que o polling não os ressuscite
+  const currentDanos = (props.osDados.mapeamento_danos as MarcaDano[]) ?? [];
+  const novosIds = new Set(marcas.map((m) => m.id));
+  for (const m of currentDanos) {
+    if (!novosIds.has(m.id)) deletedMarkerIds.add(m.id);
+  }
+  emit('update:osDados', { ...props.osDados, mapeamento_danos: marcas });
+}
 </script>
 
 <template>
@@ -118,6 +214,25 @@ function rotuloOpcao(op: string): string {
         <p class="text-xs text-slate-500">Acessórios e checklist de inspeção do veículo</p>
       </div>
       <div class="ml-auto flex items-center gap-2">
+        <!-- QR Code para preencher pelo celular -->
+        <button
+          v-if="osNumber && !isCreateMode"
+          type="button"
+          title="Preencher checklist pelo celular (QR code)"
+          class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-brand-primary/30 bg-brand-primary/5 text-xs font-semibold text-brand-primary hover:bg-brand-primary/10 transition-colors"
+          @click="showQrModal = true"
+        >
+          <Smartphone :size="14" />
+          Preencher pelo celular
+        </button>
+        <!-- Indicador de polling -->
+        <div
+          v-if="isPolling"
+          title="Sincronizando com celular a cada 10s..."
+          class="flex items-center gap-1 text-xs text-slate-400"
+        >
+          <RefreshCw :size="12" class="animate-spin" style="animation-duration: 3s" />
+        </div>
         <button
           type="button"
           title="Imprimir ficha de entrada em branco (preencher no carro)"
@@ -139,6 +254,15 @@ function rotuloOpcao(op: string): string {
       </div>
     </div>
 
+    <!-- Tip: QR disponível após salvar -->
+    <div v-if="isCreateMode" class="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <Smartphone :size="16" class="text-brand-primary shrink-0" />
+      <p class="text-xs text-slate-600">
+        <strong>Dica:</strong> Após salvar a OS, você poderá preencher a vistoria pelo celular
+        usando um QR code.
+      </p>
+    </div>
+
     <div
       v-if="!definicao"
       class="flex flex-col items-center justify-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50"
@@ -150,9 +274,9 @@ function rotuloOpcao(op: string): string {
       <p class="text-xs text-slate-400 mt-1">Este segmento não possui checklist de vistoria.</p>
     </div>
 
-    <fieldset v-else :disabled="isLocked" class="contents">
+    <fieldset v-else :disabled="isLocked" class="contents space-y-3">
       <!-- Estado do veículo: combustível, pneus, estepe (check-in tipo "opção") -->
-      <div v-if="checkinOpcoes.length" class="space-y-3">
+      <div v-if="checkinOpcoes.length" class="space-y-4">
         <h6 class="text-xs font-bold text-slate-500 uppercase">Estado do veículo</h6>
         <div class="grid sm:grid-cols-2 gap-2">
           <div
@@ -243,7 +367,25 @@ function rotuloOpcao(op: string): string {
           </div>
         </div>
       </div>
+
+      <!-- Mapeamento visual de danos -->
+      <div class="space-y-3">
+        <h6 class="text-xs font-bold text-slate-500 uppercase">Mapeamento de Danos</h6>
+        <OSMapeamentoDanos
+          :marcas="mapeamentoDanos"
+          :is-locked="isLocked"
+          @update:marcas="setMapeamentoDanos"
+        />
+      </div>
     </fieldset>
+
+    <!-- Modal do QR Code -->
+    <OSQrCodeModal
+      v-if="osNumber"
+      :is-open="showQrModal"
+      :os-number="osNumber"
+      @close="showQrModal = false"
+    />
   </div>
 </template>
 

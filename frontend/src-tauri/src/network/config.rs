@@ -166,7 +166,7 @@ pub fn get_config(app: AppHandle) -> AppConfig {
 #[tauri::command]
 pub fn get_api_url(app: AppHandle) -> String {
     #[cfg(debug_assertions)] {
-        return format!("http://127.0.0.1:8080/api")
+        return format!("http://127.0.0.1:8000/api")
     }
 
     let config = load_config(&app);

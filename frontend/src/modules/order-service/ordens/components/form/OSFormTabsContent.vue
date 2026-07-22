@@ -94,6 +94,8 @@ const objetoModel = computed<ObjetoFormData>({
           v-if="activeTab === 'vistoria'"
           :os-dados="view.osDados.value"
           :is-locked="view.isStructureLocked.value"
+          :os-number="view.currentOSData.value?.numero_os ?? ''"
+          :is-create-mode="view.isCreateMode.value"
           @update:os-dados="view.setOsDados"
           @imprimir-ficha-entrada="view.imprimirFicha('ENTRADA')"
           @imprimir-ficha-saida="view.imprimirFicha('SAIDA')"
