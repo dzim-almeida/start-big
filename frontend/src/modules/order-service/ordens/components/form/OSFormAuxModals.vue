@@ -66,10 +66,14 @@ function handlePagamentoClose() {
   view.closeFinalizarModal();
 }
 
-function handleFinalized(payload: { shouldPrint: boolean }) {
+async function handleFinalized(payload: { shouldPrint: boolean }) {
   isPagamentoOpen.value = false;
   dadosFinalizacao.value = null;
   view.closeFinalizarModal();
+  // Recarrega a OS com os dados do fechamento (situação, solução, pagamentos)
+  // antes de imprimir; senão o cupom automático sai defasado (a via manual da
+  // lista já busca a OS fresca). Só recarrega quando de fato vai imprimir.
+  if (payload.shouldPrint) await view.refreshCurrentOSData();
   view.onFinalized(payload);
 }
 </script>

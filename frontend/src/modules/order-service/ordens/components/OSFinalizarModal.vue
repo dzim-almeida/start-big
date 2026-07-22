@@ -15,6 +15,7 @@ import type { OsEquipSituacaoEnumDataType } from '../schemas/enums/osEnums.schem
 import { formatCurrency } from '@/shared/utils/finance';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useToast } from '@/shared/composables/useToast';
+import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import { updateObjetoOS } from '../services/orderServiceUpdate.service';
 
 
@@ -43,6 +44,7 @@ const emit = defineEmits<{
 
 const { temRevisoes } = useCapacidades();
 const toast = useToast();
+const impressaoStore = useImpressaoStore();
 
 // ─── Próxima revisão (oficina) — agendamento por intervalo ("o que vencer primeiro") ──
 const proximaRevisaoData = ref<string>('');
@@ -221,6 +223,10 @@ watch(() => props.isOpen, (open) => {
     proximaRevisaoKm.value = obj?.proxima_revisao_km ?? null;
     // Abre o bloco só se já houver um alvo agendado; senão fica colapsado.
     revisaoAberta.value = !!(obj?.proxima_revisao_data || obj?.proxima_revisao_km != null);
+    // "Imprimir Comprovante" segue a config de impressão da OS: 'automatico'
+    // (ou 'perguntar') já vem marcado; 'nao' começa desmarcado. Antes começava
+    // sempre desmarcado e a impressão automática pós-finalização não saía.
+    shouldPrint.value = impressaoStore.config.auto_imprimir_os !== 'nao';
   } else {
     situacao_equipamento.value = 'REPARADO';
     garantia.value = undefined;
@@ -270,6 +276,10 @@ async function handleAdvance() {
     solucao: solucao.value || undefined,
     observacoes: observacoes.value || undefined,
     desconto: buildDesconto(),
+    // Sem isto o checkbox "Imprimir Comprovante" se perdia no caminho do
+    // pagamento (dadosOs.shouldPrint vinha undefined → false), e a finalização
+    // COM pagamento nunca imprimia automaticamente. A via de entrega já mandava.
+    shouldPrint: shouldPrint.value,
   });
 }
 

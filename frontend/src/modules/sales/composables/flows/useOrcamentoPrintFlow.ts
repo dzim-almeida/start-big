@@ -17,7 +17,7 @@ export function useOrcamentoPrintFlow() {
     printType,
     printFormat,
     isPrintSelectModalOpen,
-    openPrintSelect,
+    printDirect,
     handlePrintFormatSelected: handlePrintFormatSelectedBase,
     closePrintSelectModal,
   } = usePrintFlow<OrcamentoPrintType>();
@@ -61,13 +61,22 @@ export function useOrcamentoPrintFlow() {
     handlePrintFormatSelectedBase(format);
   }
 
+  /**
+   * Regra única (sem perguntar formato): térmica configurada → orçamento ESC/POS
+   * direto; sem térmica (ou falha) → recibo A4 abrindo o diálogo do sistema.
+   */
   async function printOrcamento(orcamentoId: number, afterPrint?: () => void) {
     const orc = await orcamentoService.getOrcamento(orcamentoId);
     orcamentoForPrint.value = orc;
-    openPrintSelect('ORCAMENTO', () => {
+    const finalizar = () => {
       orcamentoForPrint.value = null;
       afterPrint?.();
-    });
+    };
+    if (await imprimirEscPosDireto(orc)) {
+      finalizar();
+      return;
+    }
+    printDirect('ORCAMENTO', 'A4', finalizar);
   }
 
   return {

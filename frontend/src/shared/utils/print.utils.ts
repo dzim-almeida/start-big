@@ -2,7 +2,7 @@ import { computed } from 'vue';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { formatCNPJ } from '@/shared/utils/document.utils';
 import { getBackendBaseUrl } from '@/api/backendUrl';
-import type { CompanyPrintInfo } from '@/shared/components/print/print.types';
+import type { CompanyPrintInfo, PrintFormat } from '@/shared/components/print/print.types';
 
 // --- Cliente helpers (union type PF/PJ) ---
 
@@ -151,6 +151,35 @@ export function getImageUrl(path: string | null | undefined): string | null {
   if (path.startsWith('http')) return path;
   const cleanPath = path.replace(/^static\//, '');
   return `${getBackendBaseUrl()}/static/${cleanPath}`;
+}
+
+// --- Impressão: tamanho de página ---
+
+/**
+ * Dispara window.print() forçando o tamanho de página do formato atual.
+ *
+ * print-a4.css e print-cupom.css são globais e ambos declaram `@page { size }`
+ * (A4 vs 80mm). Como os dois convivem na cascata, o `size: A4` vencia e o cupom
+ * saía impresso numa folha A4. Aqui injetamos a regra do formato atual por
+ * último no <head> — última fonte da mesma origem vence a cascata — e a
+ * removemos assim que a impressão termina.
+ */
+export function imprimirComPagina(format: PrintFormat): void {
+  const size = format === 'CUPOM' ? '80mm auto' : 'A4';
+  const style = document.createElement('style');
+  style.setAttribute('data-print-page', '');
+  style.textContent = `@media print{@page{size:${size};margin:0}}`;
+  document.head.appendChild(style);
+
+  const limpar = () => {
+    style.remove();
+    window.removeEventListener('afterprint', limpar);
+  };
+  window.addEventListener('afterprint', limpar);
+  window.print();
+  // Fallback: em alguns motores o evento afterprint não dispara de forma
+  // confiável — garante que a regra injetada não fique presa no <head>.
+  setTimeout(limpar, 1500);
 }
 
 // --- Company info composable ---

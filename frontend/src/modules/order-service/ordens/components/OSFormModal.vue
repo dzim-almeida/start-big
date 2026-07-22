@@ -13,6 +13,7 @@ import { useCreateItemOSMutation } from '../composables/request/useOrderServiceC
 import { useReopenOrderServiceMutation } from '../composables/request/useOrderServiceUpdate.mutate';
 import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 import { useToast } from '@/shared/composables/useToast';
+import { imprimirComPagina } from '@/shared/utils/print.utils';
 import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 import { useOrderServiceDeleteItem } from '../composables/request/useOrderServiceDelete.mutate';
 import { useOSStatusLocks } from '../composables/modal/useOSStatusLocks';
@@ -356,7 +357,8 @@ async function imprimirFicha(tipo: 'ENTRADA' | 'SAIDA') {
   await nextTick();
   // Espera a ilustração do veículo carregar antes de abrir o diálogo de impressão.
   await aguardarImagem('/vistoria-carro.png');
-  window.print();
+  // Ficha de vistoria é sempre A4 (força o @page correto — ver imprimirComPagina).
+  imprimirComPagina('A4');
   setTimeout(() => {
     fichaTipo.value = null;
     fichaData.value = null;
@@ -499,6 +501,7 @@ useOSFormViewProvider({
   handleReopenFull,
   closeFinalizarModal,
   onFinalized,
+  refreshCurrentOSData,
   handlePrintFormatSelected,
   closePrintSelectModal,
   closeItemModal,

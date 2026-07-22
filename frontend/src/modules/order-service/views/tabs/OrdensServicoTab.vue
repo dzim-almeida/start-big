@@ -11,8 +11,11 @@ import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 import { useImpressao } from '@/shared/composables/useImpressao';
 import { useImpressaoStore } from '@/shared/stores/impressao.store';
-import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
+import { useCompanyPrintInfo, imprimirComPagina } from '@/shared/utils/print.utils';
 import { osToEscPos } from '../../ordens/components/osToEscPos';
+import { DOTS } from '@/shared/services/escpos';
+import { carregarLogoRaster } from '@/shared/services/escposImagem';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
@@ -69,15 +72,22 @@ const pendingPrintAfterSelect = ref<(() => void) | null>(null);
 const impressao = useImpressao();
 const impressaoStore = useImpressaoStore();
 const { companyInfo } = useCompanyPrintInfo();
+const { labelSingular } = useObjetoLabels();
 
 /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
 async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO'): Promise<boolean> {
   if (!impressao.podeImprimirDireto.value) return false;
   const os = osToPrint.value;
   if (!os) return false;
+  const bobina = impressaoStore.config.bobina;
+  // Carrega a logo da empresa em bitmap 1-bit (igual ao useOSPrintFlow); sem isso
+  // o cupom da tabela saía sem a logo enquanto o do formulário saía com.
+  const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[bobina]);
   const dados = osToEscPos(os, tipo, {
-    bobina: impressaoStore.config.bobina,
+    bobina,
     empresa: companyInfo.value,
+    logoRaster,
+    rotuloObjeto: labelSingular.value,
   });
   return impressao.imprimirCupom(dados);
 }
@@ -170,7 +180,7 @@ async function handleFinalizadoDirect({ shouldPrint }: { shouldPrint: boolean })
       osToPrint.value = osAtualizada;
       printType.value = 'SAIDA';
       pendingPrintAfterSelect.value = () => handleCloseFinalizarDirect();
-      isPrintSelectOpen.value = true;
+      await imprimirComRegra();
       return;
     } catch {
       toast.error('Erro ao preparar impressão');
@@ -198,7 +208,7 @@ async function handleCancelled({ shouldPrint }: { shouldPrint: boolean }) {
       osToPrint.value = osAtualizada;
       printType.value = 'CANCELAMENTO';
       pendingPrintAfterSelect.value = null;
-      isPrintSelectOpen.value = true;
+      await imprimirComRegra();
     } catch {
       toast.error('Erro ao preparar impressão do cancelamento');
     }
@@ -228,10 +238,36 @@ async function handlePrintOS(os: OrderServiceReadDataType) {
       printType.value = 'ENTRADA';
     }
     pendingPrintAfterSelect.value = null;
-    isPrintSelectOpen.value = true;
+    await imprimirComRegra();
   } catch {
     toast.error('Erro ao preparar impressão');
   }
+}
+
+/**
+ * Regra única (sem perguntar formato): térmica configurada → cupom ESC/POS
+ * direto; sem térmica (ou falha) → recibo A4 abrindo o diálogo do sistema.
+ */
+async function imprimirComRegra() {
+  const tipo = printType.value;
+  if (tipo && (await imprimirEscPosDireto(tipo))) {
+    pendingPrintAfterSelect.value?.();
+    pendingPrintAfterSelect.value = null;
+    osToPrint.value = null;
+    printType.value = null;
+    return;
+  }
+
+  printFormat.value = 'A4';
+  setTimeout(() => {
+    imprimirComPagina('A4');
+    setTimeout(() => {
+      pendingPrintAfterSelect.value?.();
+      pendingPrintAfterSelect.value = null;
+      osToPrint.value = null;
+      printType.value = null;
+    }, 500);
+  }, 100);
 }
 
 /**
@@ -255,7 +291,7 @@ async function handlePrintFormatSelected(format: PrintFormat) {
   isPrintSelectOpen.value = false;
 
   setTimeout(() => {
-    window.print();
+    imprimirComPagina(format);
     setTimeout(() => {
       pendingPrintAfterSelect.value?.();
       pendingPrintAfterSelect.value = null;

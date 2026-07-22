@@ -86,7 +86,11 @@ export const OsObjetoUpdateSchema = z.object({
     .string({ required_error: 'O número de série é obrigatório' })
     .max(255, 'O número de série deve ter no máximo 255 caracteres')
     .optional(),
-  imei: z.string({ required_error: 'O IMEI é obrigatório' }).max(255, 'O IMEI deve ter no máximo 255 caracteres').optional(),
+  // `imei` não é coluna do objeto — o backend devolve null quando não há. Sem
+  // `.nullable()` o Zod reprovava na carga da OS com "Expected string, received
+  // null" (campo em vermelho). É opcional; não uso transform aqui porque este
+  // schema também valida updates parciais (OSFinalizarModal só manda revisão).
+  imei: z.string().max(255, 'O IMEI deve ter no máximo 255 caracteres').nullable().optional(),
   cor: z.string().max(255, 'A cor deve ter no máximo 255 caracteres').optional(),
   cliente_id: z.number().int().positive().optional(),
   proxima_revisao_data: z.string().optional().nullable(),

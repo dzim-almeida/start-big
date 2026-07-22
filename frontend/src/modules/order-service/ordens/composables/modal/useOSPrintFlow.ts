@@ -23,7 +23,6 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     printType,
     printFormat,
     isPrintSelectModalOpen,
-    openPrintSelect,
     printDirect,
     handlePrintFormatSelected: handlePrintFormatSelectedBase,
     closePrintSelectModal,
@@ -52,12 +51,6 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     return impressao.imprimirCupom(dados);
   }
 
-  /** Tenta o cupom térmico direto conforme a config local; false = usar o modal */
-  async function tentarImpressaoDireta(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
-    if (impressaoStore.config.auto_imprimir_os !== 'automatico') return false;
-    return imprimirEscPosDireto(tipo);
-  }
-
   /**
    * Formato escolhido no modal de reimpressão manual: Cupom Térmico sai direto
    * pela impressora (sem diálogo); A4 continua abrindo o diálogo de impressão
@@ -72,25 +65,31 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     handlePrintFormatSelectedBase(format);
   }
 
+  /**
+   * Regra única de impressão (sem perguntar formato):
+   * - Impressora térmica configurada → cupom ESC/POS direto (silencioso).
+   * - Sem térmica (ou falha) → recibo A4 abrindo o diálogo do sistema.
+   * `imprimirEscPosDireto` já devolve false quando não há térmica configurada.
+   */
+  async function imprimir(tipo: 'ENTRADA' | 'SAIDA', afterPrint?: () => void) {
+    if (await imprimirEscPosDireto(tipo)) {
+      afterPrint?.();
+      return;
+    }
+    printDirect(tipo, 'A4', afterPrint);
+  }
+
   function printEntrada() {
-    openPrintSelect('ENTRADA');
+    imprimir('ENTRADA');
   }
 
   function printSaida() {
-    openPrintSelect('SAIDA');
+    imprimir('SAIDA');
   }
 
-  /** Imprime conforme a config (A4 direto, cupom silencioso ou modal) e fecha */
+  /** Impressão automática pós-criação/finalização: segue a regra única e fecha. */
   async function imprimirAutomaticoEFechar(tipo: 'ENTRADA' | 'SAIDA') {
-    if (impressaoStore.config.auto_imprimir_os === 'automatico' && impressaoStore.config.formato_os === 'a4') {
-      printDirect(tipo, 'A4', () => onClose());
-      return;
-    }
-    if (await tentarImpressaoDireta(tipo)) {
-      onClose();
-      return;
-    }
-    openPrintSelect(tipo, () => onClose());
+    await imprimir(tipo, () => onClose());
   }
 
   async function printEntradaAndClose() {
