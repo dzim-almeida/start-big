@@ -99,6 +99,7 @@ export interface OSFormViewContext {
   handleReopenFull: () => void;
   closeFinalizarModal: () => void;
   onFinalized: (payload: { shouldPrint: boolean }) => void;
+  refreshCurrentOSData: () => Promise<void>;
   handlePrintFormatSelected: (format: PrintFormat) => void;
   closePrintSelectModal: () => void;
   closeItemModal: () => void;

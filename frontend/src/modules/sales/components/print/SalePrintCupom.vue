@@ -143,6 +143,10 @@ const totalPago = computed(() => {
         <span>Entrega:</span>
         <span>+{{ formatCurrency(sale.entrega) }}</span>
       </div>
+      <div v-if="isVenda && (saleData?.acrescimo ?? 0) > 0" class="flex justify-between">
+        <span>Juros:</span>
+        <span>+{{ formatCurrency(saleData?.acrescimo ?? 0) }}</span>
+      </div>
       <div class="flex justify-between font-bold text-sm mt-1">
         <span>TOTAL:</span>
         <span>{{ formatCurrency(sale.total) }}</span>

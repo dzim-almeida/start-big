@@ -28,7 +28,7 @@ def _recalc_total_sale(db: Session, sale_in_db: Venda) -> Venda:
     if sale_in_db.total_bruto < sale_in_db.descontos:
         raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
 
-    total_sale = sale_in_db.total_bruto - sale_in_db.descontos
+    total_sale = sale_in_db.total_bruto - sale_in_db.descontos + (sale_in_db.acrescimo or 0)
 
     sale_in_db.subtotal = sale_in_db.total_bruto
     sale_in_db.total = total_sale
@@ -245,7 +245,7 @@ def delete_draft_sale(db: Session, sale_id: int) -> None:
     db.commit()
 
 
-def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate]):
+def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCreate], acrescimo: int = 0):
     sale_in_db = get_sale_by_id(db, sale_id=sale_id)
 
     if sale_in_db.status != VendaStatus.ATIVA:
@@ -265,6 +265,12 @@ def finish_sale(db: Session, sale_id: int, payments: Sequence[PagamentoVendaCrea
                 raise BadRequestException(detail="Parcelamento não é permitido nas configurações de vendas")
             if p.parcelado and p.qtd_parcelas and p.qtd_parcelas > config_vendas.parcelas_maximas:
                 raise BadRequestException(detail=f"Máximo de {config_vendas.parcelas_maximas} parcelas permitido")
+
+    # Aplica o acréscimo (juros de cartão informado no checkout) e recalcula o total.
+    # O valor de cada pagamento já vem com o juros embutido; o acréscimo entra no
+    # total para que o excedente não seja tratado como troco.
+    sale_in_db.acrescimo = acrescimo or 0
+    sale_in_db = _recalc_total_sale(db, sale_in_db)
 
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
     total_sale = sale_in_db.total or 0
