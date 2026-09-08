@@ -27,6 +27,13 @@ class Endereco(BaseModel):
     
     # Campo opcional (definido com None)
     complemento: Optional[str] = Field(None, max_length=100, description="Complemento do endereço")
+    codigo_ibge: Optional[str] = Field(
+        None, max_length=7,
+        description=(
+            "Código IBGE do município (cMun da NF-e). A consulta de CNPJ já o "
+            "devolve; quando ausente, o payload cai na tabela embarcada do CE."
+        ),
+    )
 
     model_config = ConfigDict(
         from_attributes=True
@@ -95,4 +102,7 @@ class EnderecoUpdate(BaseModel):
     )
     complemento: Optional[str] = Field(
         None, max_length=100, description="Complemento do endereço"
+    )
+    codigo_ibge: Optional[str] = Field(
+        None, max_length=7, description="Código IBGE do município (cMun da NF-e)"
     )

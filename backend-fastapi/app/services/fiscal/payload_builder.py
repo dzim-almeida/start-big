@@ -136,7 +136,8 @@ def _montar_emitente(empresa: Empresa, endereco: Endereco, fiscal_settings: Empr
             "complemento": endereco.complemento or "",
             "bairro": endereco.bairro,
             "cidade": endereco.cidade,
-            "uf": endereco.estado.value if hasattr(endereco.estado, "value") else str(endereco.estado),
+            "codigo_municipio": _codigo_municipio(endereco, _uf_do_endereco(endereco)),
+            "uf": _uf_do_endereco(endereco),
             "cep": endereco.cep,
         },
     }
@@ -232,6 +233,35 @@ def _montar_destinatario_nfce(
 _CAMPOS_ENDERECO_OBRIGATORIOS = ("logradouro", "numero", "bairro", "cidade", "cep")
 
 
+def _uf_do_endereco(end: Endereco) -> str:
+    """UF como texto — o campo e Enum no modelo e str em cadastros antigos."""
+    estado = getattr(end, "estado", None)
+    return estado.value if hasattr(estado, "value") else str(estado or "")
+
+
+def _codigo_municipio(end: Endereco, uf: str) -> Optional[str]:
+    """
+    `cMun` do endereco — o codigo IBGE do municipio.
+
+    Precedencia: o que esta gravado vence. Ele veio da consulta de CNPJ
+    (BrasilAPI), que e a fonte mais confiavel que temos, e pode inclusive
+    apontar um municipio fora do Ceara.
+
+    Sem valor gravado, cai na base embarcada — que responde SO pelo Ceara, de
+    proposito: uma tabela estadual respondendo sobre outro estado devolveria o
+    codigo do municipio homonimo errado, que e justamente o problema que ela
+    existe para evitar. Fora do CE devolve None e o comportamento fica como era
+    (a integradora resolve pelo nome).
+    """
+    gravado = getattr(end, "codigo_ibge", None)
+    if gravado:
+        return str(gravado).strip() or None
+
+    from .derivacao.bases.municipios_ce import codigo_ibge
+
+    return codigo_ibge(end.cidade or "", uf)
+
+
 def _montar_endereco_destinatario(end: Endereco) -> Optional[dict]:
     """Monta o endereço do destinatário, ou None se estiver incompleto."""
     if any(not getattr(end, campo, None) for campo in _CAMPOS_ENDERECO_OBRIGATORIOS):
@@ -247,6 +277,7 @@ def _montar_endereco_destinatario(end: Endereco) -> Optional[dict]:
         "complemento": end.complemento or "",
         "bairro": end.bairro,
         "cidade": end.cidade,
+        "codigo_municipio": _codigo_municipio(end, uf),
         "uf": uf,
         "cep": end.cep,
     }

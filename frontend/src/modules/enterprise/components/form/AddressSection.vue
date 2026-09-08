@@ -83,13 +83,13 @@ const { codigoIbge, isLoading: isLoadingIbge } = useIbgeCityLookup(cidadeRef, uf
  * cache: da segunda vez o valor já está calculado na montagem e o `watch` nem
  * disparava. Daí o sintoma "só depois de instalar".
  *
- * E salvar não resolvia: `codigo_ibge` NÃO EXISTE no backend — nem coluna nem
- * schema (a palavra "ibge" não aparece no Python). O campo ia no payload e o
- * Pydantic descartava. Escrever no formulário era, portanto, sujar o estado para
- * alimentar algo que ninguém lê.
+ * ATUALIZADO em 08/09/2026: o `codigo_ibge` PASSOU A EXISTIR no backend —
+ * coluna `enderecos.codigo_ibge` e campo no schema. O payload que o formulário
+ * já mandava agora é persistido, e o `cMun` da NF-e sai dele.
  *
- * Se um dia entrar NF-e, que precisa do código do município, o caminho é criar a
- * coluna no backend — não ressuscitar esta cópia.
+ * O que este comentário descrevia continua valendo como história: por muito
+ * tempo o campo era escrito no formulário, ia no payload e o Pydantic o
+ * descartava em silêncio. O que mudou foi o outro lado, não este.
  */
 const codigoIbgeDisplay = computed(() => {
   return codigoIbge.value || endereco_principal.value?.codigo_ibge || '';

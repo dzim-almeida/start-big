@@ -42,6 +42,16 @@ class Endereco(Base):
     cidade: Mapped[str] = mapped_column(String(100), nullable=False, doc="Cidade")
     estado: Mapped[State] = mapped_column(SQLAlchemyEnum(State), nullable=False, doc="Estado (UF)")
     cep: Mapped[str] = mapped_column(String(10), nullable=False, doc="CEP")
+    codigo_ibge: Mapped[str | None] = mapped_column(
+        String(7),
+        nullable=True,
+        doc=(
+            "Código IBGE do município (cMun da NF-e). Obrigatório no XML e, até "
+            "05/09/2026, nunca enviado — quem adivinhava era a integradora, pelo "
+            "NOME do município, que é onde ela erra com homônimos. A consulta de "
+            "CNPJ já recebia este código da BrasilAPI e o descartava."
+        ),
+    )
     
     # --- Índice Otimizado ---
     # (Permite múltiplos endereços por entidade, otimizando a busca)
