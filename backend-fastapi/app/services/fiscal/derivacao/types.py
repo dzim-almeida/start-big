@@ -93,3 +93,10 @@ class ContextoDerivacao(BaseModel):
     modelo_documento: Literal[55, 65] = 55
     finalidade_emissao: int = 1
     destinatario_pj_com_ie: bool = False
+    aliquota_icms_interna_centesimos: Optional[int] = Field(
+        None,
+        description=(
+            "Alíquota interna da UF em centésimos (2000 = 20,00% no CE). Vem de "
+            "`aliquota_uf`, a mesma tabela que o motor usa na emissão."
+        ),
+    )

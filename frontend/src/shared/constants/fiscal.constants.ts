@@ -1,30 +1,47 @@
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 
+/**
+ * O motor de cálculo NÃO suporta todos os CSTs/CSOSNs do layout.
+ *
+ * `tax_engine/constants.py` calcula 5 CSTs (00, 20, 40, 41, 60) e 3 CSOSNs
+ * (101, 102, 500). Escolher qualquer outro passa no cadastro e só falha na
+ * hora de emitir — com o cliente esperando, no caso da NFC-e.
+ *
+ * As listas continuam completas de propósito: esconder um CST que a empresa
+ * legitimamente usa não a ajuda, e o dado precisa poder ser cadastrado mesmo
+ * antes de o motor calculá-lo. O que muda é o rótulo dizer a verdade ANTES
+ * da escolha.
+ */
+const NAO_CALCULADO = ' — não calculado pelo sistema';
+
+export const CST_ICMS_SUPORTADOS = ['00', '20', '40', '41', '60'] as const;
+export const CSOSN_SUPORTADOS = ['101', '102', '500'] as const;
+
 export const CST_ICMS_OPTIONS: SelectOption[] = [
   { value: '00', label: '00 - Tributada integralmente' },
-  { value: '10', label: '10 - Tributada com cobrança de ICMS por ST' },
+  { value: '10', label: '10 - Tributada com cobrança de ICMS por ST' + NAO_CALCULADO },
   { value: '20', label: '20 - Com redução de base de cálculo' },
-  { value: '30', label: '30 - Isenta/não tributada com cobrança de ICMS por ST' },
+  { value: '30', label: '30 - Isenta/não tributada com cobrança de ICMS por ST' + NAO_CALCULADO },
   { value: '40', label: '40 - Isenta' },
   { value: '41', label: '41 - Não tributada' },
-  { value: '50', label: '50 - Suspensão' },
-  { value: '51', label: '51 - Diferimento' },
+  { value: '50', label: '50 - Suspensão' + NAO_CALCULADO },
+  { value: '51', label: '51 - Diferimento' + NAO_CALCULADO },
   { value: '60', label: '60 - ICMS cobrado anteriormente por ST' },
-  { value: '70', label: '70 - Com redução da BC e cobrança do ICMS por ST' },
-  { value: '90', label: '90 - Outros' },
+  { value: '70', label: '70 - Com redução da BC e cobrança do ICMS por ST' + NAO_CALCULADO },
+  { value: '90', label: '90 - Outros' + NAO_CALCULADO },
 ];
 
 export const CSOSN_OPTIONS: SelectOption[] = [
   { value: '101', label: '101 - Tributada com permissão de crédito' },
   { value: '102', label: '102 - Tributada sem permissão de crédito' },
-  { value: '103', label: '103 - Isenção do ICMS para faixa de receita bruta' },
-  { value: '201', label: '201 - Tributada com permissão de crédito e cobrança do ICMS por ST' },
-  { value: '202', label: '202 - Tributada sem permissão de crédito e cobrança do ICMS por ST' },
-  { value: '203', label: '203 - Isenção do ICMS para faixa de receita bruta e cobrança do ICMS por ST' },
-  { value: '300', label: '300 - Imune' },
-  { value: '400', label: '400 - Não tributada pelo Simples Nacional' },
+  { value: '103', label: '103 - Isenção do ICMS para faixa de receita bruta' + NAO_CALCULADO },
+  { value: '201', label: '201 - Tributada com permissão de crédito e cobrança do ICMS por ST' + NAO_CALCULADO },
+  { value: '202', label: '202 - Tributada sem permissão de crédito e cobrança do ICMS por ST' + NAO_CALCULADO },
+  { value: '203', label: '203 - Isenção do ICMS para faixa de receita bruta e cobrança do ICMS por ST' + NAO_CALCULADO },
+  { value: '300', label: '300 - Imune' + NAO_CALCULADO },
+  { value: '400', label: '400 - Não tributada pelo Simples Nacional' + NAO_CALCULADO },
   { value: '500', label: '500 - ICMS cobrado anteriormente por ST ou por antecipação' },
-  { value: '900', label: '900 - Outros' },
+  { value: '900', label: '900 - Outros' + NAO_CALCULADO },
 ];
 
 // Baseado na legislação em tramitação — atualizar quando SEFAZ publicar tabela definitiva

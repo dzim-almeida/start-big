@@ -29,6 +29,7 @@ from .cfop import (
 )
 from .operacao import derivar_consumidor_final, derivar_local_destino
 from .situacao import (
+    derivar_aliquota_icms,
     derivar_cst_pis_cofins,
     derivar_origem_mercadoria,
     derivar_situacao_icms,
@@ -48,6 +49,7 @@ __all__ = [
     "DerivacaoAmbiguaError",
     "Fonte",
     "TipoAtividade",
+    "derivar_aliquota_icms",
     "derivar_cfop",
     "derivar_consumidor_final",
     "derivar_cst_pis_cofins",
@@ -78,6 +80,10 @@ def derivar_produto(ctx: ContextoDerivacao) -> list[CampoSugerido]:
         derivar_origem_mercadoria(),
         *derivar_cst_pis_cofins(ctx),
     ]
+
+    aliquota = derivar_aliquota_icms(ctx)
+    if aliquota is not None:
+        sugestoes.append(aliquota)
 
     try:
         cfop = derivar_cfop(ctx, situacao_tributaria=situacao.valor)

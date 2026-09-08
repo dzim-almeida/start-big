@@ -52,8 +52,15 @@ def contexto_do_cadastro(db: Session, empresa_id: int) -> ContextoDerivacao:
         estado = endereco.estado
         uf = estado.value if hasattr(estado, "value") else str(estado)
 
+    # Mesma tabela que o motor consulta na emissao — sugerir um numero
+    # diferente do que a nota vai usar seria pior que nao sugerir.
+    aliq_uf = crud.get_aliquota_uf(db, uf) if uf else None
+
     return ContextoDerivacao(
         uf_emitente=uf,
         crt=obter_crt(empresa),
         tipo_atividade=_tipo_atividade(empresa) if empresa else None,
+        aliquota_icms_interna_centesimos=(
+            aliq_uf.aliquota_icms_interna if aliq_uf else None
+        ),
     )

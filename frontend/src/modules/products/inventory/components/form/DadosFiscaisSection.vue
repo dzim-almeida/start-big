@@ -89,7 +89,12 @@ const REFS_POR_CAMPO: Record<string, { value: unknown }> = {
   origem_mercadoria: fiscal_origem_mercadoria,
   cst_pis: fiscal_cst_pis,
   cst_cofins: fiscal_cst_cofins,
+  // O display trabalha em percentual ("20.00"); a sugestao vem em centesimos.
+  aliquota_icms: fiscal_aliquota_icms_display,
 };
+
+/** Campos cuja sugestao vem em centesimos e a tela mostra em percentual. */
+const CAMPOS_EM_CENTESIMOS = new Set(['aliquota_icms']);
 
 onMounted(async () => {
   // Só faz sentido no cadastro novo: num produto existente, campo vazio é
@@ -101,7 +106,10 @@ onMounted(async () => {
     (campo) => REFS_POR_CAMPO[campo]?.value,
     (campo, valor) => {
       const ref = REFS_POR_CAMPO[campo];
-      if (ref) ref.value = valor;
+      if (!ref) return;
+      ref.value = CAMPOS_EM_CENTESIMOS.has(campo)
+        ? (Number(valor) / 100).toFixed(2)
+        : valor;
     },
   );
 });

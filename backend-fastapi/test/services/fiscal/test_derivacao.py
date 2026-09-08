@@ -13,6 +13,7 @@ from app.services.fiscal.derivacao import (
     ContextoDerivacao,
     DerivacaoAmbiguaError,
     TipoAtividade,
+    derivar_aliquota_icms,
     derivar_cfop,
     derivar_consumidor_final,
     derivar_cst_pis_cofins,
@@ -316,3 +317,64 @@ def test_tipo_atividade_e_lido_do_cadastro_sem_quebrar(bruto, esperado):
     from app.services.fiscal.derivacao.resolver_db import _tipo_atividade
 
     assert _tipo_atividade(Empresa(id=1, tipo_atividade=bruto)) == esperado
+
+
+# =========================
+# 7. Alíquota de ICMS da UF
+# =========================
+
+def test_aliquota_da_uf_e_sugerida_fora_do_simples():
+    """
+    O numero ja esta no banco (`aliquota_uf`) e e o mesmo que o motor aplica
+    na emissao. Pedi-lo em branco era mandar o lojista procurar o que o
+    sistema ja sabe.
+    """
+    sugestao = derivar_aliquota_icms(
+        _ctx(crt=CRT_NORMAL, aliquota_icms_interna_centesimos=2000)
+    )
+
+    assert sugestao is not None
+    assert sugestao.valor == "2000"          # 20,00% — a interna do CE
+    assert "20.00%" in sugestao.fundamentacao
+    assert "CE" in sugestao.fundamentacao
+
+
+def test_aliquota_e_provavel_e_nomeia_as_excecoes():
+    """
+    Cesta basica, medicamentos, energia e comunicacao fogem da interna
+    generica. O contador precisa reconhecer isso no proprio campo.
+    """
+    sugestao = derivar_aliquota_icms(
+        _ctx(crt=CRT_NORMAL, aliquota_icms_interna_centesimos=2000)
+    )
+
+    assert sugestao.confianca == Confianca.PROVAVEL
+    assert "cesta basica" in sugestao.fundamentacao
+
+
+@pytest.mark.parametrize("crt", [CRT_SIMPLES, CRT_MEI])
+def test_no_simples_nao_ha_aliquota_a_sugerir(crt):
+    """No Simples o ICMS vai na guia unica — o campo nao se aplica."""
+    assert derivar_aliquota_icms(_ctx(crt=crt, aliquota_icms_interna_centesimos=2000)) is None
+
+
+def test_sem_aliquota_cadastrada_nao_inventa():
+    assert derivar_aliquota_icms(_ctx(crt=CRT_NORMAL)) is None
+
+
+def test_produto_no_regime_normal_recebe_a_aliquota():
+    sugestoes = {
+        s.campo: s.valor
+        for s in derivar_produto(_ctx(crt=CRT_NORMAL, aliquota_icms_interna_centesimos=2000))
+    }
+
+    assert sugestoes["aliquota_icms"] == "2000"
+
+
+def test_produto_no_simples_nao_recebe_aliquota():
+    sugestoes = {
+        s.campo
+        for s in derivar_produto(_ctx(crt=CRT_SIMPLES, aliquota_icms_interna_centesimos=2000))
+    }
+
+    assert "aliquota_icms" not in sugestoes

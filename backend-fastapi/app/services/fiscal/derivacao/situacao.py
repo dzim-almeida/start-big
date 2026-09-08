@@ -20,6 +20,8 @@ O QUE ESTE MÓDULO SE RECUSA A FAZER
   simplesmente não foi recolhido, e isso aparece na fiscalização, com multa.
   Sujeição a ST depende do RICMS do estado e é assunto de contador.
 """
+from typing import Optional
+
 from .types import CampoSugerido, Confianca, ContextoDerivacao, Fonte
 
 # CRT 1 (Simples) e 4 (MEI) usam CSOSN; 2 e 3 usam CST.
@@ -146,4 +148,39 @@ def derivar_origem_mercadoria() -> CampoSugerido:
             ("1", "Estrangeira — importacao direta"),
             ("2", "Estrangeira — adquirida no mercado interno"),
         ],
+    )
+
+
+def derivar_aliquota_icms(ctx: ContextoDerivacao) -> Optional[CampoSugerido]:
+    """
+    Alíquota interna da UF como sugestão — não como imposição.
+
+    O dado já está no banco (`aliquota_uf`) e é o mesmo que o motor aplica na
+    emissão quando o produto não tem override. Pedi-lo em branco no cadastro
+    era fazer o lojista procurar um número que o sistema já conhece.
+
+    PROVAVEL e não CERTA porque a alíquota interna genérica tem exceções que
+    são comuns no varejo: cesta básica, medicamentos, energia e comunicação
+    fogem dela. Sugerir sim; aplicar em silêncio, não — por isso a
+    fundamentação nomeia a UF, para o contador reconhecer o número.
+
+    Só faz sentido fora do Simples: no Simples o ICMS vai na guia única.
+    """
+    if _usa_csosn(ctx.crt):
+        return None
+    if ctx.aliquota_icms_interna_centesimos is None:
+        return None
+
+    percentual = ctx.aliquota_icms_interna_centesimos / 100
+
+    return CampoSugerido(
+        campo="aliquota_icms",
+        valor=str(ctx.aliquota_icms_interna_centesimos),
+        fonte=Fonte.DEFAULT_UF,
+        confianca=Confianca.PROVAVEL,
+        fundamentacao=(
+            f"Aliquota interna de {ctx.uf_emitente}: {percentual:.2f}%. "
+            f"Produtos de cesta basica, medicamentos, energia e comunicacao "
+            f"costumam ter aliquota propria."
+        ),
     )
