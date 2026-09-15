@@ -73,6 +73,32 @@ _ROTULO_PARA_CRT = {
 
 
 # ---------------------------------------------------------------------------
+# Ambiente — o que a SEFAZ FEZ, não o que a tela dizia
+# ---------------------------------------------------------------------------
+# O ERP não manda `tpAmb`: quem escolhe homologação × produção é a plataforma,
+# por loja. O campo `ambiente_emissao` daqui era só um palpite local, e em
+# 15/09/2026 a nota nº 9 saiu rotulada "Homologação" por coincidência — a
+# etiqueta teria dito o mesmo se a plataforma estivesse em produção.
+#
+# O protocolo de autorização é a prova: pelo MOC ele é `tpAmb(1) + cUF(2) +
+# AA(2) + sequencial(10)`. Primeiro dígito 1 = produção, 2 = homologação.
+AMBIENTE_PRODUCAO = 1
+AMBIENTE_HOMOLOGACAO = 2
+
+
+def ambiente_do_protocolo(protocolo: Optional[str]) -> Optional[int]:
+    """Ambiente em que a SEFAZ autorizou, lido do protocolo. None se não der para saber."""
+    digitos = "".join(ch for ch in str(protocolo or "") if ch.isdigit())
+    if len(digitos) != 15:
+        return None
+    if digitos[0] == "1":
+        return AMBIENTE_PRODUCAO
+    if digitos[0] == "2":
+        return AMBIENTE_HOMOLOGACAO
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Regime de apuração do PIS/COFINS
 # ---------------------------------------------------------------------------
 # É ortogonal ao CRT: quem está no Simples (CRT 1/4) nem chega aqui, porque sai

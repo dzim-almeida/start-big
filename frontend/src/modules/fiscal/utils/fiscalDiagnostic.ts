@@ -35,6 +35,23 @@ export interface FiscalDiagnostic {
   };
 }
 
+/**
+ * Ambiente de uma nota como FATO, não como rótulo.
+ *
+ * `ambiente_emissao` nasce com um palpite local (o ERP não manda `tpAmb`; quem
+ * decide é a plataforma) e só é corrigido pelo backend quando a SEFAZ devolve
+ * o protocolo. Sem protocolo, dizer "Homologação" seria repetir o palpite —
+ * foi assim que uma nota real poderia passar por teste.
+ */
+export function nomeAmbienteDocumento(
+  documento: Pick<DocumentoFiscalRead, 'ambiente_emissao' | 'protocolo_autorizacao'> | null | undefined,
+): string {
+  if (!documento?.protocolo_autorizacao) return 'Não confirmado pela SEFAZ';
+  if (documento.ambiente_emissao === 1) return 'Produção';
+  if (documento.ambiente_emissao === 2) return 'Homologação';
+  return 'Não confirmado pela SEFAZ';
+}
+
 export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null | undefined): FiscalDiagnostic {
   if (!documento) {
     return {
@@ -239,7 +256,7 @@ export function formatarDiagnosticoParaSuporte(documento: DocumentoFiscalRead | 
     '========================================',
     `Documento ID: ${documento.id}`,
     `Número / Série: Nº ${documento.numero_documento ?? '-'} · Série ${documento.serie ?? '-'}`,
-    `Ambiente: ${documento.ambiente_emissao === 1 ? 'Produção' : 'Homologação'}`,
+    `Ambiente: ${nomeAmbienteDocumento(documento)}`,
     `Status: ${documento.status}`,
     `Código SEFAZ (cStat): ${documento.codigo_status_sefaz ?? 'N/A'}`,
     `Origem: ${documento.origem_tipo} #${documento.origem_id ?? documento.venda_id ?? '-'}`,

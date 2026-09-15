@@ -42,6 +42,7 @@ from app.schemas.emissao_fiscal import (
     EmissaoNFCeRequest,
     EmissaoNFeRequest,
     EmissaoResponse,
+    EnvioPlataforma,
     FiscalConfiguracao,
 )
 from app.schemas.produto_fiscal import ProdutoFiscalUpdate
@@ -53,7 +54,9 @@ from app.schemas.tributacao import (
 )
 from app.services import documento_fiscal as documento_fiscal_service
 from app.services import pendencias_globais as pendencias_globais_service
-from app.services.fiscal.helpers import dias_para_vencer_certificado, mascarar_csc, obter_csc_token
+from app.services.fiscal.helpers import (
+    dias_para_vencer_certificado, e_csc_mascarado, mascarar_csc, obter_csc_token,
+)
 from app.services.fiscal.payload_builder import _so_digitos
 from app.core.modulos import requer_modulo
 
@@ -1129,7 +1132,27 @@ def atualizar_configuracao(
     # limite nunca chegaram ao disco. Quem comita nesta base e o
     # `_handle_db_transaction`, como nos outros oito endpoints deste arquivo.
     fs = _handle_db_transaction(db, update_fiscal_settings, empresa_id, payload)
-    
+
+    # O CSC digitado aqui não vale nada até estar na ficha da empresa na
+    # emissora — é ela quem monta o QR Code, e a nota não o carrega. Até
+    # 15/09/2026 ele parava no SQLite: o cartão dizia "Configurado" e a
+    # plataforma respondia `cscConfigurado=false`. Vai DEPOIS do commit, de
+    # propósito: a plataforma fora do ar não pode desfazer a série e a
+    # numeração que o lojista acabou de salvar. O que ela respondeu volta na
+    # resposta para a tela contar a verdade.
+    csc_plataforma = None
+    if payload.csc_token and not e_csc_mascarado(payload.csc_token):
+        from app.services.fiscal.http import get_fiscal_client
+
+        resultado = get_fiscal_client(
+            fs.ambiente_emissao or 2, fiscal_crud.get_licenca_token(db),
+        ).enviar_csc(fs.csc_id or "", payload.csc_token)
+        csc_plataforma = EnvioPlataforma(
+            aceito=resultado["aceito"],
+            indisponivel=resultado.get("indisponivel", False),
+            mensagem=resultado.get("mensagem"),
+        )
+
     ambiente = fs.ambiente_emissao if fs else 2
     cert_configurado = bool(
         fs and (
@@ -1159,6 +1182,7 @@ def atualizar_configuracao(
         csc_token=mascarar_csc(obter_csc_token(fs)) if fs else None,
         csc_configurado=bool(fs and obter_csc_token(fs)),
         csc_id=fs.csc_id if fs else None,
+        csc_plataforma=csc_plataforma,
         limite_consumidor_anonimo=(
             fs.limite_consumidor_anonimo if fs else 1000000
         ),

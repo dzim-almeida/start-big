@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
-import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useFiscalConfiguracaoMutation } from '../../composables/useFiscalConfiguracaoMutation';
-import type { FiscalConfiguracao } from '../../types/fiscal.types';
+import { useFiscalPlataformaQuery } from '../../composables/useFiscalPlataformaQuery';
+import type { EnvioPlataforma, FiscalConfiguracao } from '../../types/fiscal.types';
 import { Building, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 
@@ -19,7 +19,6 @@ const emit = defineEmits<{
   'saved': [];
 }>();
 
-const ambiente = ref(2);
 const serieNfe = ref<number | string>(1);
 const ultimoNumeroNfe = ref<number | string>(0);
 const serieNfce = ref<number | string>(1);
@@ -29,19 +28,37 @@ const cscToken = ref('');
 
 const error = ref('');
 const success = ref(false);
+/** O que a plataforma respondeu ao CSC neste salvamento (null = não mexeu no CSC). */
+const cscPlataforma = ref<EnvioPlataforma | null>(null);
 
 const { mutateAsync: salvarConfig, isPending } = useFiscalConfiguracaoMutation();
 
-const ambienteOptions = [
-  { value: 2, label: 'Homologação (Ambiente de Testes)' },
-  { value: 1, label: 'Produção (Ambiente Oficial SEFAZ)' },
-];
+/**
+ * O ambiente NÃO se escolhe aqui. Quem decide é a plataforma, por loja — o
+ * ERP nem manda `tpAmb`. Este modal tinha um select "Ambiente SEFAZ" que só
+ * gravava um rótulo local, e em 15/09/2026 o lojista trocou-o para Produção
+ * enquanto a nota seguia saindo em homologação. O select saiu; o que fica é o
+ * que a plataforma responde, somente leitura.
+ */
+const { data: plataforma, isLoading: consultandoPlataforma } = useFiscalPlataformaQuery(
+  () => props.isOpen,
+);
+
+const ambientePlataforma = computed(() =>
+  plataforma.value?.consultou ? plataforma.value.ambiente ?? null : null,
+);
+
+const nomeAmbiente = computed(() => {
+  if (consultandoPlataforma.value) return 'Consultando a plataforma…';
+  if (ambientePlataforma.value === 1) return 'Produção';
+  if (ambientePlataforma.value === 2) return 'Homologação (testes)';
+  return 'Não confirmado';
+});
 
 watch(
   () => [props.isOpen, props.configuracao],
   () => {
     if (props.isOpen && props.configuracao) {
-      ambiente.value = props.configuracao.ambiente ?? 2;
       serieNfe.value = props.configuracao.serie_nfe ?? 1;
       ultimoNumeroNfe.value = props.configuracao.ultimo_numero_nfe ?? 0;
       serieNfce.value = props.configuracao.serie_nfce ?? 1;
@@ -50,6 +67,7 @@ watch(
       cscToken.value = props.configuracao.csc_token ?? '';
       error.value = '';
       success.value = false;
+      cscPlataforma.value = null;
     }
   },
   { immediate: true }
@@ -62,10 +80,10 @@ function close() {
 async function handleSave() {
   error.value = '';
   success.value = false;
+  cscPlataforma.value = null;
 
   try {
-    await salvarConfig({
-      ambiente_emissao: Number(ambiente.value),
+    const salvo = await salvarConfig({
       serie_nfe: Number(serieNfe.value) || 1,
       ultimo_numero_nfe: Number(ultimoNumeroNfe.value) || 0,
       serie_nfce: Number(serieNfce.value) || 1,
@@ -75,10 +93,15 @@ async function handleSave() {
     } as any);
 
     success.value = true;
+    cscPlataforma.value = salvo?.csc_plataforma ?? null;
     emit('saved');
-    setTimeout(() => {
-      close();
-    }, 1200);
+    // O CSC que NÃO chegou na emissora é o aviso mais importante desta tela:
+    // fechar sozinho o esconderia. Só fecha sozinho quando não há o que ler.
+    if (!cscPlataforma.value || cscPlataforma.value.aceito) {
+      setTimeout(() => {
+        close();
+      }, 1200);
+    }
   } catch (err: any) {
     error.value = err.response?.data?.detail || 'Erro ao salvar as configurações fiscais.';
   }
@@ -101,36 +124,75 @@ async function handleSave() {
 
       <div v-if="success" class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
         <LucideIcon :icon="CheckCircle2" class="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-        <p class="text-sm text-emerald-700 font-medium">Configurações salvas com sucesso!</p>
+        <p class="text-sm text-emerald-700 font-medium">
+          {{ cscPlataforma?.aceito ? 'Configurações salvas e CSC cadastrado na emissora.' : 'Configurações salvas com sucesso!' }}
+        </p>
       </div>
 
-      <!-- Ambiente de Emissão -->
-      <div class="bg-zinc-50/80 p-5 rounded-xl border border-zinc-200/80 space-y-3">
-        <div class="flex items-center gap-2">
-          <LucideIcon :icon="Building" class="w-4 h-4 text-brand-primary" />
-          <h4 class="text-sm font-bold text-zinc-800">Ambiente de Operação</h4>
-        </div>
-        <BaseSelect
-          v-model="ambiente"
-          label="Ambiente SEFAZ (trava deste computador)"
-          :options="ambienteOptions"
-          :disabled="isPending || success"
+      <!-- O CSC foi salvo aqui mas NÃO chegou na emissora: sem isto o cartão
+           dizia "Configurado" e o cupom saía sem QR Code. -->
+      <div
+        v-if="cscPlataforma && !cscPlataforma.aceito"
+        :class="[
+          'p-4 rounded-xl border flex items-start gap-3',
+          cscPlataforma.indisponivel ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200',
+        ]"
+      >
+        <LucideIcon
+          :icon="cscPlataforma.indisponivel ? AlertTriangle : ShieldAlert"
+          :class="['w-5 h-5 shrink-0 mt-0.5', cscPlataforma.indisponivel ? 'text-amber-500' : 'text-red-500']"
         />
-        <!-- O texto anterior dizia "Altere para Produção apenas quando tudo
-             estiver homologado", como se este campo decidisse. Ele não decide:
-             quem escolhe o ambiente é a plataforma, por loja. Um lojista podia
-             ler "Homologação" aqui com a plataforma em produção e emitir nota
-             REAL achando que testava. -->
+        <div class="text-sm leading-relaxed" :class="cscPlataforma.indisponivel ? 'text-amber-800' : 'text-red-700'">
+          <p class="font-semibold">
+            {{ cscPlataforma.indisponivel ? 'O CSC ficou só neste computador.' : 'A emissora recusou o CSC.' }}
+          </p>
+          <p class="text-xs mt-1">
+            {{ cscPlataforma.mensagem || 'A plataforma de emissão não confirmou o cadastro.' }}
+            Quem monta o QR Code da NFC-e é a emissora — até o CSC estar cadastrado lá,
+            o cupom sai sem QR Code. Confira no cartão <strong>Plataforma de Emissão</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Ambiente: definido pela plataforma, somente leitura -->
+      <div class="bg-zinc-50/80 p-5 rounded-xl border border-zinc-200/80 space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <LucideIcon :icon="Building" class="w-4 h-4 text-brand-primary" />
+            <h4 class="text-sm font-bold text-zinc-800">Ambiente SEFAZ</h4>
+          </div>
+          <span
+            :class="[
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border',
+              ambientePlataforma === 1
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : ambientePlataforma === 2
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-zinc-100 text-zinc-600 border-zinc-200',
+            ]"
+          >
+            <span
+              :class="[
+                'inline-flex h-2 w-2 rounded-full',
+                ambientePlataforma === 1 ? 'bg-emerald-500' : ambientePlataforma === 2 ? 'bg-blue-500' : 'bg-zinc-400',
+              ]"
+            />
+            {{ nomeAmbiente }}
+          </span>
+        </div>
         <p class="text-xs text-zinc-500 leading-relaxed">
-          Em homologação, as notas não têm valor fiscal.
+          Quem define o ambiente é a plataforma de emissão, por loja — não há como
+          trocá-lo por aqui. Em homologação as notas não têm valor fiscal; em produção,
+          toda nota autorizada é um documento real.
         </p>
-        <p class="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+        <p
+          v-if="ambientePlataforma == null && !consultandoPlataforma"
+          class="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed"
+        >
           <LucideIcon :icon="AlertTriangle" class="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
           <span>
-            <strong>Mudar aqui não muda na emissora.</strong> Quem define o ambiente de
-            verdade é a plataforma de emissão, por loja — este campo só arma as travas
-            deste computador. Confira o ambiente real no cartão
-            <strong>Plataforma de Emissão</strong>, no Centro Fiscal.
+            Não deu para consultar a plataforma agora. O ambiente real de cada nota
+            aparece no detalhe dela depois que a SEFAZ responde.
           </span>
         </p>
       </div>
@@ -201,7 +263,9 @@ async function handleSave() {
           </div>
         </div>
         <p class="text-xs text-zinc-500">
-          O CSC é obrigatório para a geração do QR Code da NFC-e e deve ser obtido no portal da SEFAZ do seu estado.
+          O CSC é obrigatório para o QR Code da NFC-e e é gerado no portal de NFC-e da SEFAZ
+          do seu estado, <strong>para o ambiente em uso</strong> (o de homologação não vale em
+          produção). Ao salvar, ele é enviado à plataforma de emissão, que o cadastra na emissora.
         </p>
       </div>
     </div>

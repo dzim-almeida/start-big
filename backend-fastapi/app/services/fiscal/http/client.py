@@ -108,6 +108,17 @@ class FiscalClientProtocol(Protocol):
         """
         ...
 
+    def enviar_csc(self, csc_id: str, csc_token: str) -> "EnvioCertificadoResultado":
+        """
+        Entrega o CSC (segredo do QR Code da NFC-e) à plataforma, que o cadastra
+        na ficha da empresa dentro da emissora — o CSC nunca viaja na nota.
+
+        Mesmo contrato do certificado: NUNCA levanta por indisponibilidade, e
+        `indisponivel=True` quer dizer "a plataforma ainda não recebe CSC", que
+        é diferente de "recusou o CSC".
+        """
+        ...
+
     def emitir_nfe(
         self, ref: str, payload: dict, idempotency_key: Optional[str] = None
     ) -> EmissaoResultado:

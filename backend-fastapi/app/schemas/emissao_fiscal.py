@@ -78,6 +78,19 @@ class EmissaoResponse(BaseModel):
         )
 
 
+class EnvioPlataforma(BaseModel):
+    """O que a plataforma respondeu a um cadastro (CSC, certificado).
+
+    `indisponivel=True` é "a plataforma ainda não recebe isto" — o dado ficou
+    só neste computador. É diferente de `aceito=False` sem `indisponivel`, que
+    é recusa e vem com a frase da plataforma.
+    """
+
+    aceito: bool
+    indisponivel: bool = False
+    mensagem: Optional[str] = None
+
+
 class FiscalConfiguracao(BaseModel):
     """Configuração atual do ambiente fiscal."""
 
@@ -99,8 +112,15 @@ class FiscalConfiguracao(BaseModel):
     # os 4 últimos caracteres, o bastante para o lojista reconhecer qual token
     # cadastrou. Reenviar a máscara no PUT não sobrescreve nada.
     csc_token: Optional[str] = None
+    # `csc_configurado` diz que o CSC está DIGITADO AQUI. Quem monta o QR Code
+    # é a emissora, e o CSC só vale quando está na ficha dela — isso quem
+    # responde é `cscConfigurado` no diagnóstico da plataforma. A tela mostra
+    # esse, não este.
     csc_configurado: bool = False
     csc_id: Optional[str] = None
+    # Só no PUT que trouxe um CSC novo: o que a plataforma respondeu ao
+    # recebê-lo. None quando o PUT não mexeu no CSC.
+    csc_plataforma: Optional[EnvioPlataforma] = None
     limite_consumidor_anonimo: Optional[int] = 1000000
 
 

@@ -432,3 +432,94 @@ def test_senha_do_certificado_nunca_e_guardada(
     db_session.refresh(fs)
     assert fs.certificado_senha is None
     assert fs.certificado_digital_path is None
+
+
+# ---------------------------------------------------------------------------
+# CSC: o que se digita aqui tem que chegar na emissora
+# ---------------------------------------------------------------------------
+# Ate 15/09/2026 o CSC parava no SQLite (cifrado) e a nota nao o carrega — o
+# cartao dizia "Configurado" e a plataforma respondia cscConfigurado=false.
+
+
+class _ClienteCsc:
+    def __init__(self, resultado):
+        self.resultado = resultado
+        self.enviados = []
+
+    def enviar_csc(self, csc_id, csc_token):
+        self.enviados.append((csc_id, csc_token))
+        return dict(self.resultado)
+
+    def consultar_config(self):
+        return {}
+
+
+def _fingir_csc(monkeypatch, resultado):
+    from app.services.fiscal import http as http_mod
+
+    fake = _ClienteCsc(resultado)
+    monkeypatch.setattr(http_mod, "get_fiscal_client", lambda ambiente, token="": fake)
+    return fake
+
+
+def test_csc_novo_vai_para_a_plataforma_e_a_resposta_volta(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    fake = _fingir_csc(monkeypatch, {"aceito": True, "indisponivel": False, "mensagem": None})
+
+    r = client.put(
+        "/api/v1/fiscal/configuracao",
+        json={"csc_id": "000001", "csc_token": "SEGREDO-DO-QR-CODE-1234"},
+        headers=header_with_token,
+    )
+    assert r.status_code == 200, r.text
+    assert fake.enviados == [("000001", "SEGREDO-DO-QR-CODE-1234")], "o CSC em claro tem que chegar na plataforma"
+    assert r.json()["csc_plataforma"] == {"aceito": True, "indisponivel": False, "mensagem": None}
+
+
+def test_csc_sem_rota_na_plataforma_fica_local_e_a_tela_sabe(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    """Plataforma sem a rota nao e recusa: o PUT continua 200, a serie salva,
+    e a resposta diz que o CSC ficou so aqui."""
+    _fingir_csc(monkeypatch, {"aceito": False, "indisponivel": True, "mensagem": "ainda nao recebe"})
+
+    r = client.put(
+        "/api/v1/fiscal/configuracao",
+        json={"serie_nfce": 3, "csc_id": "000002", "csc_token": "OUTRO-SEGREDO-5678"},
+        headers=header_with_token,
+    )
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["serie_nfce"] == 3
+    assert corpo["csc_plataforma"]["aceito"] is False
+    assert corpo["csc_plataforma"]["indisponivel"] is True
+
+    dados = client.get("/api/v1/fiscal/configuracao", headers=header_with_token).json()
+    assert dados["serie_nfce"] == 3, "a plataforma fora do ar nao pode desfazer o que foi salvo"
+    assert dados["csc_configurado"] is True
+
+
+def test_mascara_do_csc_nao_e_reenviada_a_plataforma(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    """Salvar so a serie devolve o token MASCARADO no payload; mandar a mascara
+    para a emissora destruiria o CSC de la."""
+    fake = _fingir_csc(monkeypatch, {"aceito": True, "indisponivel": False, "mensagem": None})
+    client.put(
+        "/api/v1/fiscal/configuracao",
+        json={"csc_id": "000001", "csc_token": "SEGREDO-DO-QR-CODE-1234"},
+        headers=header_with_token,
+    )
+    mascarado = client.get("/api/v1/fiscal/configuracao", headers=header_with_token).json()["csc_token"]
+    assert mascarado and mascarado != "SEGREDO-DO-QR-CODE-1234"
+    fake.enviados.clear()
+
+    r = client.put(
+        "/api/v1/fiscal/configuracao",
+        json={"serie_nfe": 9, "csc_token": mascarado},
+        headers=header_with_token,
+    )
+    assert r.status_code == 200, r.text
+    assert fake.enviados == []
+    assert r.json()["csc_plataforma"] is None

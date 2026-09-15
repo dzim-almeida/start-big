@@ -121,7 +121,11 @@ class DocumentoFiscal(Base):
     )
     ambiente_emissao: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True,
-        doc="Ambiente em que foi emitido: 1=Produção, 2=Homologação"
+        doc=(
+            "Ambiente: 1=Produção, 2=Homologação. Nasce com o palpite local e é "
+            "CORRIGIDO pelo protocolo quando a SEFAZ responde (helpers."
+            "ambiente_do_protocolo) — só vale como fato quando há protocolo."
+        ),
     )
     idempotency_key: Mapped[Optional[str]] = mapped_column(
         String(36), unique=True, index=True, nullable=True,

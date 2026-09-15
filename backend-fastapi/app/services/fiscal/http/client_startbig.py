@@ -432,6 +432,73 @@ class FiscalClientStartBig:
             "valido_ate": dados.get("valido_ate") or dados.get("certificado_valido_ate"),
         }
 
+    def enviar_csc(self, csc_id: str, csc_token: str) -> EnvioCertificadoResultado:
+        """
+        Entrega o CSC à plataforma, que o cadastra na ficha da empresa na Focus.
+
+        Existe porque o CSC digitado no ERP não saía do ERP: ficava cifrado no
+        SQLite, o cartão dizia "Configurado", e a plataforma respondia
+        `cscConfigurado=false` — cupom sem QR Code (15/09/2026). O CSC não vai
+        na nota de propósito (ver `payload_builder`); o único caminho até a
+        emissora é este.
+
+        Mesmas regras do certificado: 404/405/501 é "ainda não dá" e volta como
+        `indisponivel`, nunca como recusa. O token não entra em log — não há
+        corpo passando pelo logger aqui, e `_CHAVES_SENSIVEIS` censura "csc".
+        """
+        url = f"{self.base_url}/erp/fiscal/csc"
+        corpo = {"csc_id": csc_id, "csc_token": csc_token}
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                resposta = client.post(url, json=corpo, headers=self.headers)
+        except Exception as exc:
+            logger.warning("[FISCAL] Sem resposta ao enviar CSC: %s", exc)
+            return {
+                "aceito": False,
+                "indisponivel": True,
+                "mensagem": "Não foi possível falar com a plataforma de emissão.",
+            }
+
+        if resposta.status_code in (404, 405, 501):
+            logger.info(
+                "[FISCAL] A plataforma ainda nao recebe CSC (HTTP %s).",
+                resposta.status_code,
+            )
+            return {
+                "aceito": False,
+                "indisponivel": True,
+                "mensagem": (
+                    "A plataforma de emissão ainda não recebe o CSC por aqui. "
+                    "Ele ficou guardado neste computador."
+                ),
+            }
+
+        if resposta.status_code >= 400:
+            logger.error(
+                "[FISCAL] CSC recusado: %s - %s",
+                resposta.status_code, _resposta_para_log(resposta),
+            )
+            detalhe = None
+            try:
+                corpo_erro = resposta.json()
+                detalhe = corpo_erro.get("mensagem") or corpo_erro.get("message")
+            except Exception:
+                pass
+            return {
+                "aceito": False,
+                "indisponivel": False,
+                "mensagem": detalhe or (
+                    f"A plataforma recusou o CSC (HTTP {resposta.status_code})."
+                ),
+            }
+
+        try:
+            dados = resposta.json() or {}
+        except Exception:
+            dados = {}
+        return {"aceito": True, "indisponivel": False, "mensagem": dados.get("mensagem")}
+
     def consultar_config(self) -> dict:
         """
         Configuração fiscal desta licença, como a PLATAFORMA a enxerga.

@@ -40,6 +40,8 @@ CNPJ_VALIDO = "11222333000181"
 class PlataformaFalsa:
     """Responde o que o teste mandar e guarda o que recebeu."""
 
+    ambiente = 2
+
     def __init__(self, respostas):
         self.respostas = list(respostas)
         self.chamadas = []
@@ -53,7 +55,9 @@ class PlataformaFalsa:
         raise AssertionError("NFC-e não deveria ser chamada neste teste")
 
     def consultar_config(self):
-        return {"configurado": True, "cscConfigurado": True}
+        # `ambiente` e o que a plataforma real devolve (plano 4.2b): e ele, nao o
+        # campo local, que libera a emissao de teste.
+        return {"configurado": True, "cscConfigurado": True, "ambiente": self.ambiente}
 
     def baixar_xml(self, caminho):
         self.chamadas.append({"baixar_xml": caminho})
@@ -537,6 +541,30 @@ def test_detalhe_mostra_o_destinatario_enviado_e_nao_o_cadastro_atual(
     assert r.status_code == 200, r.text
     assert r.json()["destinatario_documento"] == "52998224725"
     assert r.json()["destinatario_nome"] == "Destinatária Completa"
+
+
+def test_nota_de_teste_recusada_quando_a_plataforma_esta_em_producao(
+    client, db_session, header_with_token, venda_pronta, plataforma,
+):
+    """O campo local dizia homologacao (fixture) — e nao decide nada. Com a
+    plataforma em producao a nota de teste seria um documento REAL."""
+    falsa = plataforma(AUTORIZADA(11))
+    falsa.ambiente = 1
+    r = client.post("/api/v1/fiscal/emitir/teste/nfe", headers=header_with_token)
+    assert r.status_code == 422, r.text
+    assert "produção" in r.json()["detail"]
+    assert falsa.chamadas == [], "nada pode ter sido transmitido"
+
+
+def test_nota_de_teste_recusada_sem_confirmacao_da_plataforma(
+    client, db_session, header_with_token, venda_pronta, plataforma,
+):
+    """Plataforma fora do ar = nao sei = nao. Errar para 'pode' custa uma nota real."""
+    falsa = plataforma(AUTORIZADA(11))
+    falsa.ambiente = None
+    r = client.post("/api/v1/fiscal/emitir/teste/nfe", headers=header_with_token)
+    assert r.status_code == 422, r.text
+    assert falsa.chamadas == []
 
 
 def test_nota_de_teste_mostra_o_cnpj_ficticio_enviado(client, db_session, header_with_token, venda_pronta, plataforma):

@@ -164,6 +164,32 @@ def test_resposta_de_autorizacao_preenche_protocolo_e_data():
     assert doc.protocolo_autorizacao == "135240001234567"
 
 
+def test_ambiente_da_nota_vem_do_protocolo_e_nao_do_palpite_local():
+    """
+    O ERP nao manda `tpAmb`; o `ambiente_emissao` gravado na criacao e so o que
+    a tela local dizia. Em 15/09/2026 a nota nº 9 saiu rotulada "Homologacao"
+    por coincidencia. O 1º digito do protocolo (MOC: tpAmb+cUF+AA+seq) e o fato.
+    """
+    doc = DocumentoFiscal(
+        tipo_documento="NFE", origem_tipo="VENDA", status="PROCESSANDO", ambiente_emissao=2,
+    )
+    _aplicar_resultado(doc, {"status": "autorizado", "protocolo": "123260098885860"})
+    assert doc.ambiente_emissao == 1, "protocolo 1... = producao, mesmo com a tela em homologacao"
+
+    doc = DocumentoFiscal(
+        tipo_documento="NFE", origem_tipo="VENDA", status="PROCESSANDO", ambiente_emissao=1,
+    )
+    _aplicar_resultado(doc, {"status": "autorizado", "protocolo": "223260098885860"})
+    assert doc.ambiente_emissao == 2
+
+    # Rejeitada nao tem protocolo: o palpite fica, e a tela o mostra como "nao confirmado".
+    doc = DocumentoFiscal(
+        tipo_documento="NFE", origem_tipo="VENDA", status="PROCESSANDO", ambiente_emissao=2,
+    )
+    _aplicar_resultado(doc, {"status": "erro", "codigo_sefaz": "203", "protocolo": None})
+    assert doc.ambiente_emissao == 2
+
+
 def test_indeterminada_bloqueia_nova_emissao_da_mesma_venda(db, empresa_com_contador):
     """
     O ponto do achado C2: enquanto não soubermos se a nota foi autorizada,

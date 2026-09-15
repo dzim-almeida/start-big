@@ -22,7 +22,9 @@ from app.schemas.documento_fiscal import DocumentoFiscalRead
 
 from app.db.crud import fiscal as crud
 from .core import verificar_completude_venda
-from .helpers import obter_crt, obter_csc_token, regime_apuracao, usa_csosn
+from .helpers import (
+    ambiente_do_protocolo, obter_crt, obter_csc_token, regime_apuracao, usa_csosn,
+)
 from .http import get_fiscal_client, EmissaoResultado
 from .http.client import (
     CODIGO_NOTA_INEXISTENTE,
@@ -215,6 +217,13 @@ def _aplicar_resultado(doc: DocumentoFiscal, resultado: EmissaoResultado, client
 
     doc.chave_acesso = resultado.get("chave_acesso")
     doc.protocolo_autorizacao = resultado.get("protocolo")
+    # O ambiente gravado na criação era o palpite local. O protocolo diz o que
+    # a SEFAZ fez de verdade — e é ele que o cupom, o drawer e o diagnóstico
+    # passam a ler. Sem protocolo (rejeitada, processando) o palpite fica, e a
+    # tela o trata como "não confirmado".
+    ambiente_real = ambiente_do_protocolo(doc.protocolo_autorizacao)
+    if ambiente_real is not None:
+        doc.ambiente_emissao = ambiente_real
     doc.url_pdf = resultado.get("url_pdf")
     doc.url_xml = resultado.get("url_xml")
     # O número é o que não engana. O texto da SEFAZ já chegou dizendo
@@ -1000,10 +1009,25 @@ def emitir_teste_nfe(db: Session, empresa_id: int) -> DocumentoFiscal:
     """
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
 
-    if fiscal_settings.ambiente_emissao != 2:
+    # Quem responde é a PLATAFORMA. O campo local `ambiente_emissao` não
+    # decide para onde a nota vai, então perguntar a ele deixava passar uma
+    # nota de teste — destinatário fictício, R$ 1,00 — como documento REAL
+    # quando a plataforma estava em produção. Sem confirmação de homologação
+    # (plataforma fora do ar inclusive) a resposta é não: o preço de errar
+    # para "pode" é uma nota fiscal verdadeira que só sai por cancelamento.
+    token = crud.get_licenca_token(db)
+    client = get_fiscal_client(2, token)
+    ambiente_plataforma = (client.consultar_config() or {}).get("ambiente")
+    if ambiente_plataforma != 2:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Emissão de teste só é permitida em ambiente de homologação.",
+            detail=(
+                "A plataforma de emissão está em produção para esta loja — "
+                "uma nota de teste sairia como documento fiscal real."
+                if ambiente_plataforma == 1 else
+                "Não foi possível confirmar com a plataforma que a loja está "
+                "em homologação. Emissão de teste só com essa confirmação."
+            ),
         )
 
     empresa = crud.get_empresa(db, empresa_id)
@@ -1064,9 +1088,6 @@ def emitir_teste_nfe(db: Session, empresa_id: int) -> DocumentoFiscal:
     # dizer o que foi enviado -- foi a falta dele que escondeu qual CNPJ saiu.
     gravar_snapshot(doc, payload)
     crud.salvar_documento(db, doc)
-
-    token = crud.get_licenca_token(db)
-    client = get_fiscal_client(2, token)
 
     try:
         resultado = client.emitir_nfe(ref, payload)

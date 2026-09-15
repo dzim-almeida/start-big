@@ -25,8 +25,12 @@ def _gerar_chave_acesso() -> str:
 
 
 def _gerar_protocolo() -> str:
-    """Gera protocolo fictício com 15 dígitos."""
-    return "".join(random.choices(string.digits, k=15))
+    """Protocolo fictício de HOMOLOGAÇÃO: `tpAmb(2) + cUF + AA + sequencial`.
+
+    O 1º dígito é lido de volta por `ambiente_do_protocolo`; um aleatório
+    fazia o mock "autorizar em produção" metade das vezes.
+    """
+    return "235" + datetime.now().strftime("%y") + "".join(random.choices(string.digits, k=10))
 
 
 def _gerar_numero_nota() -> int:
@@ -149,6 +153,11 @@ class FiscalClientMock:
             return None
 
         return b"%PDF-1.4\n% DANFE de teste\n%%EOF\n"
+
+    def enviar_csc(self, csc_id: str, csc_token: str) -> dict:
+        """No mock o CSC é sempre aceito. O token não entra no log."""
+        logger.info("[FISCAL MOCK] enviar_csc (id=%s)", csc_id)
+        return {"aceito": True, "indisponivel": False, "mensagem": "CSC aceito (mock)."}
 
     def enviar_certificado(self, arquivo_base64: str, senha: str) -> dict:
         """No mock o envio sempre dá certo -- senão o modo de teste barraria a si mesmo."""

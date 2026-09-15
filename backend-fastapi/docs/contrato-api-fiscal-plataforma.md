@@ -156,6 +156,33 @@ junto do `focusEmpresaToken`, e parar de recebê-lo do ERP. Menos segredo em
 trânsito, um lugar só para configurar. Se seguirem por aí, avisem que a gente
 tira do payload.
 
+**Como ficou (15/09/2026):** o ERP **não manda** o CSC na nota (foi tirado do
+payload — é a Focus quem monta o QR Code com o CSC da ficha da empresa). Mas
+o CSC que o lojista digitava no ERP não tinha caminho até a ficha: ficava
+cifrado no SQLite, o cartão dizia "Configurado" e o `GET /erp/fiscal/config`
+respondia `cscConfigurado: false`. Cupom sem QR Code.
+
+O ERP passou a chamar, ao salvar um CSC novo:
+
+```
+POST /erp/fiscal/csc
+Authorization: Bearer <token da licença>
+
+{ "csc_id": "000001", "csc_token": "..." }
+```
+
+A plataforma deve gravar os dois na ficha da empresa na Focus
+(`POST/PUT /v2/empresas`, campos `id_token_nfce_producao` +
+`csc_nfce_producao` ou os `_homologacao`, conforme o ambiente vigente da
+licença — conferir os nomes na doc da Focus) e responder `2xx` — ou `4xx` com `{ "mensagem" }`
+se recusar. O `csc_token` **não pode entrar em log** (mesma regra da senha do
+certificado).
+
+**Enquanto a rota não existir**, o ERP trata 404/405/501 como "ainda não
+recebe": salva localmente, mostra ao lojista que o CSC *não* chegou na
+emissora, e o cartão Plataforma de Emissão continua dizendo `Não`. O
+cadastro fica sendo feito pelo painel da plataforma, à mão, como hoje.
+
 ---
 
 ## 5. Payload da inutilização
@@ -232,6 +259,21 @@ Duas saídas, e qualquer uma serve:
 2. Nós escondermos essa chave e passarmos a exibir "definido pela plataforma".
 
 Digam qual preferem que eu ajusto do nosso lado.
+
+**Resolvido em 15/09/2026, pelas duas saídas ao mesmo tempo.** O incidente
+aconteceu como previsto (a nota nº 9 saiu em homologação com o lojista
+achando que tinha trocado para produção). O que mudou do nosso lado:
+
+- A chave "Ambiente SEFAZ" **saiu da tela**; o modal de emissão estadual mostra
+  o `ambiente` que o `GET /erp/fiscal/config` devolve, somente leitura.
+- A **emissão de teste** só é liberada quando a plataforma responde
+  `ambiente == 2`. Sem resposta é não — o preço de errar é uma nota real.
+- Em cada nota, o ambiente gravado passa a ser lido do **1º dígito do
+  protocolo** (`tpAmb + cUF + AA + seq`) quando a SEFAZ responde. Sem protocolo
+  a tela diz "não confirmado", nunca o palpite local.
+
+O campo `ambiente_emissao` continua existindo no banco e no PUT por
+compatibilidade, mas nenhuma tela o grava mais.
 
 ---
 

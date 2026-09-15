@@ -197,11 +197,28 @@ export interface FiscalConfiguracao {
    * no salvamento não sobrescreve o CSC guardado.
    */
   csc_token?: string | null;
-  /** True quando há CSC cadastrado. É o que a tela deve exibir, não o token. */
+  /**
+   * True quando há CSC DIGITADO AQUI. Não é o que a tela deve afirmar: quem
+   * monta o QR Code é a emissora, e o CSC só vale na ficha dela — isso é
+   * `csc_configurado` do DiagnosticoPlataforma.
+   */
   csc_configurado?: boolean;
   csc_id?: string | null;
+  /** Só no PUT que trouxe CSC novo: o que a plataforma respondeu ao recebê-lo. */
+  csc_plataforma?: EnvioPlataforma | null;
   /** Teto em CENTAVOS para emitir NFC-e sem CPF/CNPJ do comprador. */
   limite_consumidor_anonimo?: number;
+}
+
+/**
+ * Resposta da plataforma a um cadastro (CSC, certificado). `indisponivel`
+ * = "ainda não recebe isto", o dado ficou só neste computador — diferente de
+ * recusa (`aceito=false` sem `indisponivel`), que vem com a frase de lá.
+ */
+export interface EnvioPlataforma {
+  aceito: boolean;
+  indisponivel: boolean;
+  mensagem?: string | null;
 }
 export interface EmissaoPreviewItem {
   numero_item: number;

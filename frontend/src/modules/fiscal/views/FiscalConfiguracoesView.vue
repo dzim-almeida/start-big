@@ -47,11 +47,40 @@ const router = useRouter();
  */
 const { data: plataforma } = useFiscalPlataformaQuery();
 
+// Sem resposta da plataforma o chip diz "não confirmado" — nunca cai no
+// valor local, que era um palpite e deixou de ser editável em 15/09/2026.
 const ambienteVigente = computed(() =>
   plataforma.value?.consultou && plataforma.value.ambiente != null
     ? plataforma.value.ambiente
-    : config.value?.ambiente,
+    : null,
 );
+
+/**
+ * CSC: a emissora é a fonte. O campo local só diz "foi digitado aqui".
+ * Sem resposta da plataforma o cartão não afirma nada — "não confirmado".
+ */
+const cscResumo = computed(() => {
+  const id = config.value?.csc_id || '000001';
+  const digitadoAqui = !!config.value?.csc_token;
+  const naEmissora = plataforma.value?.consultou ? plataforma.value.csc_configurado : null;
+  if (naEmissora === true) {
+    return { texto: `ID: ${id} · Cadastrado na emissora`, cor: 'bg-emerald-500' };
+  }
+  if (naEmissora === false) {
+    return {
+      texto: digitadoAqui
+        ? `ID: ${id} · Digitado aqui, mas NÃO cadastrado na emissora`
+        : 'Não cadastrado na emissora (necessário p/ NFC-e)',
+      cor: 'bg-red-500',
+    };
+  }
+  return {
+    texto: digitadoAqui
+      ? `ID: ${id} · Digitado aqui · emissora não confirmou`
+      : 'Não informado (necessário p/ NFC-e)',
+    cor: 'bg-zinc-400',
+  };
+});
 
 /** A plataforma respondeu E discorda do que está gravado aqui. */
 const ambienteDivergente = computed(() =>
@@ -233,14 +262,16 @@ function aoEnviarCertificado() {
                   ? 'bg-red-50 text-red-700 border-red-200'
                   : ambienteVigente === 1
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                    : ambienteVigente === 2
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-zinc-100 text-zinc-600 border-zinc-200'
               ]"
               :title="ambienteDivergente
                 ? 'A plataforma está em outro ambiente. Veja o cartão Plataforma de Emissão.'
                 : undefined"
             >
               <LucideIcon v-if="ambienteDivergente" :icon="AlertCircle" class="w-3 h-3" />
-              {{ ambienteVigente === 1 ? 'Produção' : 'Homologação' }}
+              {{ ambienteVigente === 1 ? 'Produção' : ambienteVigente === 2 ? 'Homologação' : 'Ambiente não confirmado' }}
             </span>
           </div>
 
@@ -258,19 +289,15 @@ function aoEnviarCertificado() {
                 Série {{ config?.serie_nfce ?? 1 }} · Nº {{ config?.ultimo_numero_nfce ?? 0 }}
               </span>
             </div>
+            <!-- O que vale é o CSC na EMISSORA (quem monta o QR Code), não o
+                 digitado aqui. Este cartão dizia "Configurado" lendo o campo
+                 local enquanto a plataforma respondia "Não" — cupom sem QR Code. -->
             <div class="col-span-2 p-3 bg-zinc-50 rounded-xl border border-zinc-100 flex items-center justify-between">
               <div>
                 <span class="text-[11px] font-medium text-zinc-400 block">Token CSC (NFC-e)</span>
-                <span class="text-xs font-semibold text-zinc-700">
-                  {{ config?.csc_token ? `ID: ${config.csc_id || '000001'} · Configurado` : 'Não informado (Necessário p/ NFC-e)' }}
-                </span>
+                <span class="text-xs font-semibold text-zinc-700">{{ cscResumo.texto }}</span>
               </div>
-              <span
-                :class="[
-                  'w-2 h-2 rounded-full',
-                  config?.csc_token ? 'bg-emerald-500' : 'bg-amber-400'
-                ]"
-              />
+              <span :class="['w-2 h-2 rounded-full', cscResumo.cor]" />
             </div>
           </div>
         </div>

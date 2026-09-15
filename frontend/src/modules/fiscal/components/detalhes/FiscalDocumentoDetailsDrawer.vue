@@ -41,6 +41,7 @@ import { formatDataHora } from '@/shared/utils/date.utils';
 import {
   analisarDiagnosticoFiscal,
   formatarDiagnosticoParaSuporte,
+  nomeAmbienteDocumento,
 } from '../../utils/fiscalDiagnostic';
 import FiscalEditarVendaModal from './FiscalEditarVendaModal.vue';
 
@@ -640,14 +641,18 @@ function formatarData(iso?: string | null): string {
                           Ambiente de Emissão
                         </span>
                         <div class="mt-1 flex items-center gap-2">
+                          <!-- Só com protocolo o ambiente é o que a SEFAZ fez (o backend
+                               o lê do 1º dígito). Sem protocolo era um rótulo local. -->
                           <span
                             :class="[
                               'inline-flex h-2.5 w-2.5 rounded-full',
-                              documento.ambiente_emissao === 1 ? 'bg-emerald-500' : 'bg-amber-500',
+                              !documento.protocolo_autorizacao
+                                ? 'bg-zinc-300'
+                                : documento.ambiente_emissao === 1 ? 'bg-emerald-500' : 'bg-amber-500',
                             ]"
                           />
                           <p class="text-base font-bold text-zinc-800">
-                            {{ documento.ambiente_emissao === 1 ? 'Produção' : 'Homologação' }}
+                            {{ nomeAmbienteDocumento(documento) }}
                           </p>
                         </div>
                       </div>
