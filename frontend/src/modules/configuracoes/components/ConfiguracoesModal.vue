@@ -187,6 +187,16 @@ async function abrirSecaoInicial(secaoId: SecaoId): Promise<void> {
 const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao', 'formatos-exibicao', 'integracoes-apis', 'backup-dados']
 const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
 
+/**
+ * Seções que salvam SOZINHAS, campo a campo (ver o cabeçalho de
+ * `GestaoFinanceira.vue`). Elas não entram em `secoesFuncionais`, e o rodapé
+ * mostrava um "Salvar Alterações" apagado ao lado de um campo que acabou de
+ * mudar — o lojista lia "não salvou" (15/09/2026). Aqui o botão some e o
+ * rodapé diz o que de fato acontece.
+ */
+const secoesAutoSave: SecaoId[] = ['gestao-financeira']
+const secaoAutoSave = computed(() => secoesAutoSave.includes(secaoAtiva.value))
+
 async function salvar(): Promise<void> {
   const comp = activeComponentRef.value
   if (!comp?.form || !isDirtyAtivo.value) return
@@ -411,13 +421,28 @@ const labelSecaoAtiva = computed(() => secoes.find((s) => s.id === secaoAtiva.va
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="fecharModal">
-          Cancelar
-        </BaseButton>
-        <BaseButton variant="primary" size="sm" :isLoading="isPending" :disabled="!secaoFuncional || isPending || !isDirtyAtivo" @click="salvar">
-          Salvar Alterações
-        </BaseButton>
+      <div class="flex items-center justify-between gap-3">
+        <p v-if="secaoAutoSave" class="text-xs text-gray-500">
+          Cada campo desta seção é salvo sozinho ao sair dele — não há o que aplicar.
+        </p>
+        <span v-else />
+        <div class="flex justify-end gap-2">
+          <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="fecharModal">
+            {{ secaoFuncional ? 'Cancelar' : 'Fechar' }}
+          </BaseButton>
+          <!-- Seção sem formulário (auto-save, terminais, rede, suporte) não
+               ganha um "Salvar" apagado: botão desabilitado ali é mentira. -->
+          <BaseButton
+            v-if="secaoFuncional"
+            variant="primary"
+            size="sm"
+            :isLoading="isPending"
+            :disabled="isPending || !isDirtyAtivo"
+            @click="salvar"
+          >
+            Salvar Alterações
+          </BaseButton>
+        </div>
       </div>
     </template>
   </BaseModal>
