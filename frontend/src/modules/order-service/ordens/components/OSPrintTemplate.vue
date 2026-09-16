@@ -31,6 +31,7 @@ import PrintCompanyHeader from '@/shared/components/print/a4/PrintCompanyHeader.
 import PrintSignatures from '@/shared/components/print/a4/PrintSignatures.vue';
 import PrintFooter from '@/shared/components/print/a4/PrintFooter.vue';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { calcularRecebidoOS } from '@/modules/order-service/shared/utils/recebidoOS';
 import { useTextosImpressaoOS, prazoPorExtenso } from '@/modules/order-service/shared/segmento/textosImpressaoOS';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
@@ -255,18 +256,12 @@ const formaEntradaNome = computed(
   () => props.ordemServico?.forma_pagamento_entrada?.nome ?? null,
 );
 
-const adiantamentoUtilizado = computed(() => {
-  const entrada = adiantamento.value;
-  const total = props.ordemServico?.valor_total ?? 0;
-  return Math.min(entrada, total);
-});
-
-const totalPago = computed(() => {
-  if (!props.ordemServico?.pagamentos) return 0;
-  return props.ordemServico.pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
-});
-
-const totalRecebido = computed(() => adiantamentoUtilizado.value + totalPago.value);
+// Uma conta só para as três vias, inclusive a OS reaberta (ver recebidoOS.ts).
+const recebido = computed(() => calcularRecebidoOS(props.ordemServico ?? {}));
+const adiantamentoUtilizado = computed(() => recebido.value.adiantamentoUtilizado);
+const totalRecebido = computed(() => recebido.value.totalRecebido);
+// Soma das linhas, como sempre: o bloco de devolução (juros) fala do que passou no cartão.
+const totalPago = computed(() => recebido.value.somaPagamentos);
 
 /** QR do PIX no papel — só quando há pagamento em PIX e a loja tem chave ativa. */
 const pix = computed(() =>
@@ -466,8 +461,27 @@ const pix = computed(() =>
             </div>
             <span class="font-bold text-neutral-900">{{ formatCurrency(adiantamento) }}</span>
           </div>
+          <!-- OS reaberta: o que já tinha entrado virou crédito e as linhas
+               antigas continuam em `pagamentos` — listá-las ao lado do crédito
+               faria o leitor somar duas vezes. -->
+          <div v-if="!recebido.listarLinhas" class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs bg-neutral-50 p-1.5 rounded border border-neutral-200">
+              <div class="flex items-center gap-2">
+                <Banknote :size="12" class="text-neutral-800" />
+                <span class="font-semibold text-neutral-900">Pago antes da reabertura</span>
+              </div>
+              <span class="font-bold text-neutral-900">{{ formatCurrency(recebido.creditoAnterior) }}</span>
+            </div>
+            <div v-if="recebido.pagamentosAposReabertura > 0" class="flex justify-between items-center text-xs bg-neutral-50 p-1.5 rounded border border-neutral-100">
+              <div class="flex items-center gap-2">
+                <CreditCard :size="12" class="text-neutral-600" />
+                <span class="font-semibold text-neutral-800">Pagamentos após a reabertura</span>
+              </div>
+              <span class="font-bold text-neutral-900">{{ formatCurrency(recebido.pagamentosAposReabertura) }}</span>
+            </div>
+          </div>
           <!-- Pagamentos no fechamento -->
-          <div v-if="ordemServico.pagamentos?.length" class="space-y-1.5">
+          <div v-else-if="ordemServico.pagamentos?.length" class="space-y-1.5">
             <div v-for="pgto in ordemServico.pagamentos" :key="pgto.id" class="flex justify-between items-center text-xs bg-neutral-50 p-1.5 rounded border border-neutral-100">
               <div class="flex items-center gap-2">
                 <CreditCard :size="12" class="text-neutral-600" />
@@ -507,6 +521,10 @@ const pix = computed(() =>
           <div v-if="adiantamento > 0" class="flex justify-between text-xs text-neutral-600">
             <span>Adiantamento:</span>
             <span>- {{ formatCurrency(adiantamentoUtilizado) }}</span>
+          </div>
+          <div v-if="recebido.creditoAnterior > 0" class="flex justify-between text-xs text-neutral-600">
+            <span>Pago antes da reabertura:</span>
+            <span>- {{ formatCurrency(recebido.creditoAnterior) }}</span>
           </div>
           <div class="border-t border-neutral-800 my-1 pt-1 flex justify-between items-end">
             <span class="text-sm font-bold text-neutral-900 uppercase">Total Pago:</span>

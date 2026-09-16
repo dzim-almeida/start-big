@@ -20,6 +20,7 @@ import PrintCupomHeader from '@/shared/components/print/cupom/PrintCupomHeader.v
 import PrintCupomSignatures from '@/shared/components/print/cupom/PrintCupomSignatures.vue';
 import PrintCupomFooter from '@/shared/components/print/cupom/PrintCupomFooter.vue';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { calcularRecebidoOS } from '@/modules/order-service/shared/utils/recebidoOS';
 import { useTextosImpressaoOS } from '@/modules/order-service/shared/segmento/textosImpressaoOS';
 import { useAtributosImpressaoOS } from '@/modules/order-service/shared/segmento/useAtributosImpressaoOS';
 import { formatGarantiaItem } from '@/modules/order-service/shared/utils/formatters';
@@ -138,18 +139,12 @@ const formaEntradaNome = computed(
   () => props.orderService?.forma_pagamento_entrada?.nome ?? null,
 );
 
-const adiantamentoUtilizado = computed(() => {
-  const entrada = adiantamento.value;
-  const total = props.orderService?.valor_total ?? 0;
-  return Math.min(entrada, total);
-});
-
-const paymentTotal = computed(() => {
-  if (!props.orderService?.pagamentos) return 0;
-  return props.orderService.pagamentos.reduce((acc, pay) => acc + pay.valor, 0);
-});
-
-const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.value);
+// Uma conta só para as três vias, inclusive a OS reaberta (ver recebidoOS.ts).
+const recebido = computed(() => calcularRecebidoOS(props.orderService ?? {}));
+const adiantamentoUtilizado = computed(() => recebido.value.adiantamentoUtilizado);
+const totalRecebido = computed(() => recebido.value.totalRecebido);
+// Soma das linhas, como sempre: o bloco de devolução (juros) fala do que passou no cartão.
+const paymentTotal = computed(() => recebido.value.somaPagamentos);
 
 /** QR do PIX no papel — só quando há pagamento em PIX e a loja tem chave ativa. */
 const pix = computed(() =>
@@ -285,8 +280,23 @@ const pix = computed(() =>
         </div>
       </template>
 
+      <!-- OS reaberta: crédito no lugar das linhas antigas (ver recebidoOS.ts) -->
+      <template v-if="!recebido.listarLinhas">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <div class="section">
+          <div class="font-bold mb-0.5">PAGAMENTOS</div>
+          <div class="flex justify-between">
+            <span>Pago antes da reabertura</span>
+            <span>{{ formatCurrency(recebido.creditoAnterior) }}</span>
+          </div>
+          <div v-if="recebido.pagamentosAposReabertura > 0" class="flex justify-between">
+            <span>Apos a reabertura</span>
+            <span>{{ formatCurrency(recebido.pagamentosAposReabertura) }}</span>
+          </div>
+        </div>
+      </template>
       <!-- Pagamentos no fechamento -->
-      <template v-if="orderService.pagamentos?.length">
+      <template v-else-if="orderService.pagamentos?.length">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section">
           <div class="font-bold mb-0.5">PAGAMENTOS</div>
@@ -325,6 +335,10 @@ const pix = computed(() =>
         <div v-if="adiantamento > 0" class="flex justify-between">
           <span>Adiantamento:</span>
           <span>-{{ formatCurrency(adiantamentoUtilizado) }}</span>
+        </div>
+        <div v-if="recebido.creditoAnterior > 0" class="flex justify-between">
+          <span>Pago antes da reabertura:</span>
+          <span>-{{ formatCurrency(recebido.creditoAnterior) }}</span>
         </div>
         <div class="flex justify-between font-bold text-sm mt-1">
           <span>TOTAL PAGO:</span>

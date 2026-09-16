@@ -20,6 +20,7 @@ import {
 import type { Bobina, RasterImage } from '@/shared/services/escpos'
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types'
 import type { TextosCupomOS } from '@/modules/order-service/shared/segmento/textosImpressaoOS'
+import { calcularRecebidoOS } from '@/modules/order-service/shared/utils/recebidoOS'
 import type { AtributoImpresso } from '@/modules/order-service/shared/segmento/useAtributosImpressaoOS'
 import { formatGarantiaItem } from '@/modules/order-service/shared/utils/formatters'
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema'
@@ -203,10 +204,11 @@ export function osToEscPos(
     }
 
     const subTotal = itensVisiveis.reduce((acc, item) => acc + item.valor_total, 0)
-    const adiantamento = os.valor_entrada ?? 0
-    const adiantamentoUtilizado = Math.min(adiantamento, os.valor_total ?? 0)
-    const paymentTotal = os.pagamentos?.reduce((acc, pay) => acc + pay.valor, 0) ?? 0
-    const totalRecebido = adiantamentoUtilizado + paymentTotal
+    // Uma conta so para as tres vias, inclusive a OS reaberta (ver recebidoOS.ts).
+    const recebido = calcularRecebidoOS(os)
+    const { adiantamento, adiantamentoUtilizado, totalRecebido } = recebido
+    // Soma das linhas, como sempre: o bloco de devolucao (juros) fala do que passou no cartao.
+    const paymentTotal = recebido.somaPagamentos
 
     // Adiantamento
     if (adiantamento > 0) {
@@ -217,8 +219,15 @@ export function osToEscPos(
       if (formaEntrada) b.parLados('Forma:', formaEntrada)
     }
 
-    // Pagamentos no fechamento
-    if (os.pagamentos?.length) {
+    // OS reaberta: credito no lugar das linhas antigas (ver recebidoOS.ts)
+    if (!recebido.listarLinhas) {
+      b.separador().negrito(true).linha('PAGAMENTOS').negrito(false)
+      b.parLados('Pago antes da reabertura', formatCurrency(recebido.creditoAnterior))
+      if (recebido.pagamentosAposReabertura > 0) {
+        b.parLados('Apos a reabertura', formatCurrency(recebido.pagamentosAposReabertura))
+      }
+    } else if (os.pagamentos?.length) {
+      // Pagamentos no fechamento
       b.separador().negrito(true).linha('PAGAMENTOS').negrito(false)
       for (const pgto of os.pagamentos) {
         const nome = getPaymentDisplayName(pgto.forma_pagamento?.nome || 'Pagamento')
@@ -234,6 +243,7 @@ export function osToEscPos(
     if ((os.taxa_entrega ?? 0) > 0) b.parLados('Deslocamento:', `+${formatCurrency(os.taxa_entrega ?? 0)}`)
     if ((os.acrescimo ?? 0) > 0) b.parLados('Juros:', `+${formatCurrency(os.acrescimo ?? 0)}`)
     if (adiantamento > 0) b.parLados('Adiantamento:', `-${formatCurrency(adiantamentoUtilizado)}`)
+    if (recebido.creditoAnterior > 0) b.parLados('Pago antes da reabertura:', `-${formatCurrency(recebido.creditoAnterior)}`)
     b.negrito(true).parLados('TOTAL PAGO:', formatCurrency(totalRecebido)).negrito(false)
 
     // Devolução (quando há juros): faltava aqui e existia só na via em papel,
