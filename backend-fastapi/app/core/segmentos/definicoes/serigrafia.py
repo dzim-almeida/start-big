@@ -117,7 +117,8 @@ _SACOLA_PLASTICA = tipo_de_trabalho("sacola_plastica", "Sacola plástica", [
     # tamanhos. Texto (e nao numero) porque a numeracao dele tem "20.1",
     # "24 reduzida", "Bolo" e "P/M/G" convivendo.
     campo("referencias", "Referências", "lista",
-          escopo="os", grupo=GRUPO_SACOLA, largura="inteira"),
+          escopo="os", grupo=GRUPO_SACOLA, largura="inteira",
+          placeholder="Digite e tecle Enter (ex: 20.1)"),
     campo("cor_sacola", "Cor da sacola", "texto", escopo="os", grupo=GRUPO_SACOLA),
     campo("cor_impressao", "Cor da impressão", "texto", escopo="os", grupo=GRUPO_SACOLA),
 ])
@@ -132,7 +133,8 @@ _SACOLA_PAPEL = tipo_de_trabalho("sacola_papel", "Sacola de papel", [
           opcoes=["Kraft", "Duplex", "Offset"],
           escopo="os", grupo=GRUPO_SACOLA),
     campo("referencias", "Referências", "lista",
-          escopo="os", grupo=GRUPO_SACOLA, largura="inteira"),
+          escopo="os", grupo=GRUPO_SACOLA, largura="inteira",
+          placeholder="Digite e tecle Enter (ex: 20.1)"),
     campo("tipo_pintura", "Tipo da pintura", "opcao",
           opcoes=["Pintura frente", "Pintura total", "Pintura comum"],
           escopo="os", grupo=GRUPO_SACOLA),

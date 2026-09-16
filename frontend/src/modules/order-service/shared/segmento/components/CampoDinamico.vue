@@ -182,7 +182,7 @@ function removerItem(indice: number) {
       <input
         v-model="novaEntrada"
         type="text"
-        :placeholder="`Digite e tecle Enter (ex: 20.1)`"
+        :placeholder="campo.placeholder ?? 'Digite e tecle Enter'"
         :disabled="disabled"
         class="flex-1 px-3 py-2 border rounded-md transition-colors duration-200 outline-none text-sm placeholder:text-gray-400 text-gray-700 border-gray-300 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
         @keydown.enter.prevent="adicionarItem"

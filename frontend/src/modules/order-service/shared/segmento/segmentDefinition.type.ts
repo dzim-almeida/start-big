@@ -52,6 +52,8 @@ export interface SegmentField {
   origem?: SegmentFieldOrigin;
   /** Nome da coluna real, quando difere de `nome` (ex: placa → numero_serie). */
   coluna?: string;
+  /** Exemplo do input vazio, declarado pelo campo (ver campos.py). */
+  placeholder?: string;
 }
 
 /** Campo identificador principal do objeto (ex: placa mapeada em numero_serie). */

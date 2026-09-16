@@ -48,6 +48,7 @@ def campo(
     largura: str = "meia",
     origem: str = "dados_adicionais",
     coluna: Optional[str] = None,
+    placeholder: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Descreve um campo dinamico.
 
@@ -57,6 +58,9 @@ def campo(
     largura: 'meia' | 'inteira' na grade de 2 colunas
     origem:  'dados_adicionais' (padrao) | 'coluna'
     coluna:  nome da coluna real, quando difere de `nome` e origem='coluna'
+    placeholder: exemplo mostrado no input vazio. E do CAMPO, nao da tela:
+             o "ex: 20.1" das referencias de sacola chegou a ser chumbado no
+             componente e apareceu no campo de modulos da marcenaria.
 
     `origem` tem padrao 'dados_adicionais' de proposito: e o padrao SEGURO.
     Errar para o JSON nao corrompe nada nem exige migracao; errar para uma
@@ -77,6 +81,8 @@ def campo(
         resultado["opcoes"] = opcoes
     if coluna is not None:
         resultado["coluna"] = coluna
+    if placeholder is not None:
+        resultado["placeholder"] = placeholder
     return resultado
 
 

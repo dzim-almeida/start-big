@@ -134,7 +134,8 @@ _PLANEJADOS = tipo_de_trabalho("planejados", "Móveis planejados", [
     # estruturada (LxAxP por modulo) e Fase 5.3, se a fabrica quiser orcar por
     # m2 dentro do sistema.
     campo("modulos", "Módulos (um por linha, com medida)", "lista",
-          escopo="os", grupo=GRUPO_ESPECIFICACAO, largura="inteira"),
+          escopo="os", grupo=GRUPO_ESPECIFICACAO, largura="inteira",
+          placeholder="Digite e tecle Enter (ex: Aéreo 180x70x35)"),
     # Texto livre de proposito, como a cor na serigrafia: "MDF 15mm branco TX",
     # "MDF 18mm carvalho + fundo 6mm". Enum aqui viraria campo que o atendente
     # contorna escrevendo no lugar errado.
