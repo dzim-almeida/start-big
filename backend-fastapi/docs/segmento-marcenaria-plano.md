@@ -256,20 +256,25 @@ oficina/informática/serigrafia não mudaram:
 | 5 | "PRAZO DE RETIRADA" sobre texto de entrega e montagem | `89f1374` |
 | 6 | Via de saída com "Reparado" onde a tela diz "Entregue" (serigrafia: "Produzido") | `6765884` |
 
-**Pendências achadas e NÃO corrigidas (fora da marcenaria, código
-compartilhado, merecem sessão própria com teste):**
+**Pendências compartilhadas achadas no caminho — corrigidas em 16/09 (noite),
+para todos os segmentos:**
 
-- **Recibo de OS reaberta ignora `credito_anterior`.** A reabertura zera
-  `valor_entrada` e guarda tudo em `credito_anterior`; nenhuma das três vias
-  o conhece. O recibo da OS 01 dizia "Total pago R$ 3.280" para um cliente
-  que pagou R$ 6.560. Cuidado ao corrigir: o pagamento antigo continua em
-  `ordem_servico_pagamentos` **e** dentro do crédito — somar os dois dobra.
-  Vale para todo segmento.
-- **Cupom impresso pela tabela** (`OrdensServicoTab.vue`) não passa `textos`,
-  `rotuloIdentificador`, `prazoAbandonoDias` nem `atributos` ao `osToEscPos`:
-  sai com os termos da assistência técnica em qualquer segmento. O cupom do
-  formulário (`useOSPrintFlow`) passa tudo. Corrigir muda o cupom da tabela da
-  oficina (para o certo) — prova medida obrigatória.
+- **Recibo de OS reaberta ignorava `credito_anterior`** → `b37fe50`.
+  `calcularRecebidoOS()` (uma conta para as três vias, a mesma do backend);
+  OS normal idêntica, OS reaberta mostra "Pago antes da reabertura".
+- **Cupom impresso pela tabela saía com os termos da assistência** → `d875a15`.
+  `useCupomOS().montarCupom()` é o montador único do formulário e da tabela;
+  informática idêntica, os outros passam a sair como o cupom do formulário.
+
+**Pendência NOVA, de backend, achada ao medir a correção acima (não corrigida):**
+
+- A fórmula de `finalizar` (`total_anteriores = max(0, soma(pagamentos) −
+  credito_anterior)`) e a de `reabrir` (`credito = min(soma(pagamentos) +
+  entrada, total)`, sem somar o `credito_anterior` já existente) **perdem
+  pagamento feito depois de uma reabertura** quando o crédito antigo continha
+  adiantamento, e perdem o crédito inteiro numa **segunda** reabertura. Caso
+  raro (reabrir + cobrar de novo + reabrir), mas é dinheiro. Precisa de teste
+  de API com dupla reabertura antes de mexer.
 - Rótulo "Módulos (um por linha, com medida)" sai inteiro no papel; se
   incomodar, é um `label_impressao` no metadado do campo.
 
