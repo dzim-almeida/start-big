@@ -3,6 +3,8 @@ import { Ellipsis, Pencil, CheckCircle, XCircle, RotateCcw, Printer } from 'luci
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { OS_STATUS_FILTER_CONFIG } from '../constants/ordemServico.constants';
 import { getEstadoOS, getClienteNome } from '../../shared/utils/formatters';
+import { useTiposDeTrabalho } from '../../shared/segmento/useTiposDeTrabalho';
+import { subtituloObjetoLista } from '../../shared/segmento/subtituloObjetoLista';
 import { formatCurrency } from '@/shared/utils/finance';
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -36,6 +38,9 @@ const emit = defineEmits<{
 
 const search = defineModel<string>('search', { default: '' });
 const activeFilter = defineModel<string | null>('activeFilter', { default: null });
+
+// Rótulo do tipo de trabalho na coluna "Cliente / Objeto" — ver subtituloObjetoLista.
+const { tipos } = useTiposDeTrabalho();
 
 // `data_criacao` é timestamp de evento (UTC no backend).
 function formatDate(dateValue: string | Date): string {
@@ -106,7 +111,7 @@ function getOSSequence(numero_os: string): string {
                 <span class="text-sm font-semibold text-zinc-900 group-hover:text-brand-primary transition-colors">
                   {{ getClienteNome(os.cliente) }}
                 </span>
-                <span class="text-[10px] text-zinc-400 mt-0.5">{{ os.objeto.tipo_equipamento }}</span>
+                <span class="text-[10px] text-zinc-400 mt-0.5">{{ subtituloObjetoLista(os, tipos) }}</span>
               </div>
             </td>
 
