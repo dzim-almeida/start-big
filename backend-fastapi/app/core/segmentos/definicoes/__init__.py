@@ -97,6 +97,33 @@ def gerar_identificador(segmento: Optional[str], numero_os: str) -> Optional[str
     return f"{prefixo}-{numero}"
 
 
+def segmento_declara_coluna(segmento: Optional[str], coluna: str) -> bool:
+    """True se algum campo declarado do segmento grava na coluna real `coluna`
+    de objetos_servico (origem='coluna'), em qualquer forma de declarar
+    (veiculo/checkin ou tipos de trabalho).
+
+    Nasceu para a coluna `marca`: ela e NOT NULL herdada do desenho de
+    veiculo/equipamento, e o servico a preenche com o nome do cliente quando o
+    segmento gera o proprio identificador. Na serigrafia isso e certo -- a
+    "Empresa / Marca da estampa" no caso comum E o cliente, e o campo existe
+    no formulario. Na marcenaria nenhum campo grava em `marca`, e o
+    preenchimento fazia a via impressa dizer "Marca: Dona Marta" num closet.
+    Quem nao declara a coluna nao tem o que mostrar nela.
+    """
+    definicao = get_definicao_segmento(segmento)
+    if not definicao:
+        return False
+    campos = []
+    for chave in ("veiculo", "checkin"):
+        campos += [c for c in definicao.get(chave, []) if isinstance(c, dict)]
+    for tipo in definicao.get("tipos", []):
+        campos += tipo.get("campos", [])
+    return any(
+        c.get("origem") == "coluna" and (c.get("coluna") or c.get("nome")) == coluna
+        for c in campos
+    )
+
+
 __all__ = [
     "DEFINICOES",
     "OFICINA",
@@ -114,4 +141,5 @@ __all__ = [
     "get_identificador_segmento",
     "identificador_e_gerado",
     "gerar_identificador",
+    "segmento_declara_coluna",
 ]

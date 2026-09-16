@@ -51,6 +51,7 @@ from .definicoes import (
     get_definicao_segmento,
     get_identificador_segmento,
     identificador_e_gerado,
+    segmento_declara_coluna,
     segmento_tem_definicao,
     segmento_usa_ordem_servico,
 )
@@ -90,6 +91,7 @@ __all__ = [
     "get_identificador_segmento",
     "identificador_e_gerado",
     "gerar_identificador",
+    "segmento_declara_coluna",
     # identificador
     "IDENTIFICADORES_GENERICOS",
     "IDENTIFICADOR_MIN_CARACTERES",

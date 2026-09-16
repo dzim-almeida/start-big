@@ -14,7 +14,7 @@
 
 import pytest
 
-from app.core.segmentos import CAPACIDADES_CONHECIDAS, DEFINICOES
+from app.core.segmentos import CAPACIDADES_CONHECIDAS, DEFINICOES, segmento_declara_coluna
 from app.core.segmentos.capacidades import CAP_GARANTIA_PRAZO, CAP_IMAGEM_NA_ENTRADA
 from app.core.segmentos.campos import (
     ESCOPOS_SUPORTADOS,
@@ -392,3 +392,20 @@ def test_objeto_feminino_declara_o_titulo_da_situacao_inteiro():
     """
     serigrafia = DEFINICOES["serigrafia"]
     assert serigrafia.get("rotulo_situacao") == "Situação da Arte"
+
+
+def test_quem_declara_a_coluna_marca():
+    """
+    `segmento_declara_coluna` decide se o servico preenche `marca` com o nome
+    do cliente (e se a exige). Oficina declara (campo Marca do veiculo);
+    serigrafia declara (Empresa / Marca da estampa, origem coluna);
+    marcenaria NAO declara -- e por isso a via dela nao imprime "Marca".
+    Informatica nao declara no registry porque o formulario dela e estatico;
+    ela nem passa pelo preenchimento (nao gera identificador), entao continua
+    exigindo `marca` pela guarda de sempre.
+    """
+    assert segmento_declara_coluna("oficina_mecanica", "marca") is True
+    assert segmento_declara_coluna("serigrafia", "marca") is True
+    assert segmento_declara_coluna("marcenaria", "marca") is False
+    assert segmento_declara_coluna("marcenaria", "modelo") is True
+    assert segmento_declara_coluna(None, "marca") is False

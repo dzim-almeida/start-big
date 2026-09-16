@@ -139,6 +139,27 @@ def test_marcenaria_abre_os_de_planejados_sem_o_usuario_informar_codigo(client, 
     assert "PRJ-OS-" not in codigo
 
 
+def test_marcenaria_nao_poe_o_nome_do_cliente_na_marca(client, db_session):
+    """
+    A marcenaria nao declara campo nenhum na coluna `marca`. O preenchimento
+    automatico com o nome do cliente (certo na serigrafia, que declara "Empresa
+    / Marca da estampa") fazia a via impressa dizer "Marca: Dona Marta" num
+    closet, e o card de finalizacao mostrar "Dona Marta Closet casal...".
+    """
+    header = _autenticar_e_criar_empresa(client, "marcenaria")
+    cliente_id = _criar_cliente(client, header)
+
+    r = _post_os(client, header, cliente_id, {
+        "modelo": "Closet casal apto 302",
+        "dados_adicionais": {},
+    })
+
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    objeto = r.json().get("objeto") or r.json().get("equipamento")
+    assert objeto["marca"] == ""
+    assert objeto["modelo"] == "Closet casal apto 302"
+
+
 # =========================
 # Serigrafia: o sistema preenche o que o usuario nao sabe
 # =========================

@@ -233,6 +233,12 @@ def _preencher_identificador_gerado(
     herdadas do desenho de veículo/equipamento, e numa serigrafia a "marca" da
     arte, no caso comum, é o próprio cliente que está pedindo. Exigir que ele
     redigite o nome do cliente ali seria atrito sem informação nova.
+
+    Isso só vale para segmento que DECLARA um campo na coluna `marca` (a
+    serigrafia declara "Empresa / Marca da estampa"). Quem não declara — a
+    marcenaria — não tem o que mostrar ali: `marca` fica vazia, e a via
+    impressa (que só imprime a linha quando há valor) não diz "Marca: Dona
+    Marta" num closet. A coluna é NOT NULL, e string vazia satisfaz.
     """
     segmento = get_segmento_atual(db)
     if not reg.identificador_e_gerado(segmento):
@@ -242,7 +248,10 @@ def _preencher_identificador_gerado(
         objeto_data["numero_serie"] = reg.gerar_identificador(segmento, numero_os)
 
     if not (objeto_data.get("marca") or "").strip():
-        objeto_data["marca"] = (getattr(cliente, "nome", None) or "").strip() or "—"
+        if reg.segmento_declara_coluna(segmento, "marca"):
+            objeto_data["marca"] = (getattr(cliente, "nome", None) or "").strip() or "—"
+        else:
+            objeto_data["marca"] = ""
 
     if not (objeto_data.get("modelo") or "").strip():
         objeto_data["modelo"] = objeto_data["numero_serie"]
@@ -261,7 +270,17 @@ def _exigir_campos_do_objeto(db: Session, objeto_data: dict) -> None:
     Esta função é o que protege os dois segmentos que já estão em produção.
     Coberta por test/api/v1/test_os_identificador_gerado.py.
     """
-    identificador = reg.get_identificador_segmento(get_segmento_atual(db)) or {}
+    segmento = get_segmento_atual(db)
+    identificador = reg.get_identificador_segmento(segmento) or {}
+
+    # `marca` só é exigida de quem a usa. Oficina e informática continuam
+    # exigindo (não geram identificador, então nem passam pelo preenchimento);
+    # segmento com identificador gerado e sem campo na coluna (marcenaria)
+    # a recebe vazia de propósito — ver _preencher_o_que_o_usuario_nao_sabe.
+    dispensa_marca = (
+        reg.identificador_e_gerado(segmento)
+        and not reg.segmento_declara_coluna(segmento, "marca")
+    )
 
     faltando = [
         rotulo
@@ -270,7 +289,8 @@ def _exigir_campos_do_objeto(db: Session, objeto_data: dict) -> None:
             ("modelo", "Modelo"),
             ("numero_serie", identificador.get("label") or "Número de série"),
         )
-        if not (objeto_data.get(campo) or "").strip()
+        if not (campo == "marca" and dispensa_marca)
+        and not (objeto_data.get(campo) or "").strip()
     ]
     if not faltando:
         return
