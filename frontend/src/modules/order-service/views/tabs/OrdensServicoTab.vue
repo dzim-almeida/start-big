@@ -10,17 +10,12 @@ import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/componen
 import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 import { useImpressao } from '@/shared/composables/useImpressao';
-import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import {
-  useCompanyPrintInfo,
   imprimirComPagina,
   aguardarImagensDaImpressao,
 } from '@/shared/utils/print.utils';
 import { usePerfilComprovante } from '@/shared/composables/usePerfilComprovante';
-import { osToEscPos } from '../../ordens/components/osToEscPos';
-import { DOTS } from '@/shared/services/escpos';
-import { carregarLogoRaster } from '@/shared/services/escposImagem';
-import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { useCupomOS } from '../../ordens/composables/modal/useCupomOS';
 
 import { useOrderServiceQueryAll, useOrderServiceQueryStats } from '../../ordens/composables/request/useOrderServiceGet.queries';
 import { getUniqueOS } from '../../ordens/services/orderServiceGet.service';
@@ -75,29 +70,19 @@ const isPrintSelectOpen = ref(false);
 const pendingPrintAfterSelect = ref<(() => void) | null>(null);
 
 const impressao = useImpressao();
-const impressaoStore = useImpressaoStore();
-const { companyInfo } = useCompanyPrintInfo();
 // Papel escolhido pela empresa (folha inteira / meia folha), por documento.
 const { opcoesPaginaDe } = usePerfilComprovante();
-const { labelSingular, definicao } = useObjetoLabels();
+const { montarCupom } = useCupomOS();
 
 /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
 async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO'): Promise<boolean> {
   if (!impressao.podeImprimirDireto.value) return false;
   const os = osToPrint.value;
   if (!os) return false;
-  const bobina = impressaoStore.config.bobina;
-  // Carrega a logo da empresa em bitmap 1-bit (igual ao useOSPrintFlow); sem isso
-  // o cupom da tabela saía sem a logo enquanto o do formulário saía com.
-  const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[bobina]);
-  const dados = osToEscPos(os, tipo, {
-    bobina,
-    empresa: companyInfo.value,
-    logoRaster,
-    rotuloObjeto: labelSingular.value,
-    rotulosSituacao: definicao.value?.rotulos_situacao,
-  });
-  return impressao.imprimirCupom(dados);
+  // O mesmo montador do formulário: antes a tabela passava só bobina, empresa,
+  // logo e rótulo do objeto, e o cupom saía com os termos da assistência
+  // técnica em qualquer segmento.
+  return impressao.imprimirCupom(await montarCupom(os, tipo));
 }
 
 // ─── Filtro de estado (status do fluxo + desfecho do objeto) ──────────────────

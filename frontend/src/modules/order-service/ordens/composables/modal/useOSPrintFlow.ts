@@ -2,14 +2,7 @@ import { ref } from 'vue';
 import { usePrintFlow } from '@/shared/composables/usePrintFlow';
 import { useImpressao } from '@/shared/composables/useImpressao';
 import { useImpressaoStore } from '@/shared/stores/impressao.store';
-import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
-import { osToEscPos } from '../../components/osToEscPos';
-import { DOTS } from '@/shared/services/escpos';
-import { carregarLogoRaster } from '@/shared/services/escposImagem';
-import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
-import { useTextosImpressaoOS } from '@/modules/order-service/shared/segmento/textosImpressaoOS';
-import { useAtributosImpressaoOS } from '@/modules/order-service/shared/segmento/useAtributosImpressaoOS';
-import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useCupomOS } from './useCupomOS';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { PrintFormat } from '@/shared/components/print/print.types';
 
@@ -38,36 +31,15 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
 
   const impressao = useImpressao();
   const impressaoStore = useImpressaoStore();
-  const { companyInfo } = useCompanyPrintInfo();
-  const { labelSingular, definicao } = useObjetoLabels();
-  // Termos variam com o tipo de trabalho (camisa x sacola). `getOS` já é a
-  // fonte da OS corrente neste fluxo — o getter mantém a resolução reativa.
-  const { textos, identificadorCupom } = useTextosImpressaoOS(
-    () => (getOS?.()?.dados_adicionais as Record<string, unknown> | undefined)
-      ?.tipo_trabalho as string | undefined,
-  );
-  const { atributos } = useAtributosImpressaoOS();
-  const configuracoesStore = useConfiguracoesStore();
+  // Um montador só para o cupom do formulário e o da tabela (ver useCupomOS).
+  const { montarCupom } = useCupomOS();
 
   /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
   async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
     if (!impressao.podeImprimirDireto.value) return false;
     const os = getOS?.();
     if (!os) return false;
-    const bobina = impressaoStore.config.bobina;
-    const logoRaster = await carregarLogoRaster(companyInfo.value.logo, DOTS[bobina]);
-    const dados = osToEscPos(os, tipo, {
-      bobina,
-      empresa: companyInfo.value,
-      logoRaster,
-      rotuloObjeto: labelSingular.value,
-      rotuloIdentificador: identificadorCupom.value,
-      textos: textos.value.cupom,
-      prazoAbandonoDias: configuracoesStore.prazoAbandonoDias,
-      atributos: atributos(os.objeto?.dados_adicionais, os.dados_adicionais),
-      rotulosSituacao: definicao.value?.rotulos_situacao,
-    });
-    return impressao.imprimirCupom(dados);
+    return impressao.imprimirCupom(await montarCupom(os, tipo));
   }
 
   /**
