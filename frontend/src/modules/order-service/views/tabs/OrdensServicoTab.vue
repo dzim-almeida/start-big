@@ -54,6 +54,18 @@ const isFinalizarDirectOpen = ref(false);
 const isPagamentoDirectOpen = ref(false);
 const dadosFinalizacaoDirect = ref<DadosFinalizacaoOS | null>(null);
 
+/**
+ * Aprovar/reprovar item dentro do Finalizar aberto pela TABELA: o modal grava e
+ * emite `itensAtualizados`, mas só o Finalizar aberto pelo formulário recarregava
+ * a OS (`view.refreshCurrentOSData`). Aqui a OS ficava a mesma de antes do clique
+ * e o bloco "aguardando aprovação" continuava na tela com o item já aprovado.
+ */
+async function recarregarOsToFinalizar() {
+  const numero = osToFinalizar.value?.numero_os;
+  if (!numero) return;
+  osToFinalizar.value = await getUniqueOS(numero);
+}
+
 const creditoAoReabrirDirect = computed(() => {
   const os = osToFinalizar.value;
   if (!os) return null;
@@ -364,6 +376,7 @@ function handleClosePrintSelect() {
       :ordem-servico="osToFinalizar"
       @close="handleCloseFinalizarDirect"
       @advance="handleAdvanceDirect"
+      @itens-atualizados="recarregarOsToFinalizar"
     />
 
     <OSPagamentoModal
