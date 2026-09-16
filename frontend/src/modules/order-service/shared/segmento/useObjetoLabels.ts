@@ -53,6 +53,11 @@ export function useObjetoLabels() {
       ?? (isOficinaMecanica.value ? 'Veículos' : 'Equipamentos'),
   );
 
+  /** "Arte já cadastrada" / "Projeto já cadastrado" — declarado ou montado. */
+  const labelObjetoAnterior = computed(
+    () => definicao.value?.rotulo_objeto_anterior ?? `${labelSingular.value} já cadastrada`,
+  );
+
   const labelIdentificador = computed(
     () => definicao.value?.identificador?.label
       ?? (isOficinaMecanica.value ? 'Placa' : 'Nº de Série'),
@@ -136,6 +141,7 @@ export function useObjetoLabels() {
     labelSituacao,
     rotuloSituacao,
     labelSingular,
+    labelObjetoAnterior,
     labelPlural,
     labelIdentificador,
     identificadorRegex,

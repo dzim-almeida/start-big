@@ -583,7 +583,7 @@ const pix = computed(() =>
         {{ textos.condicoesEntrada }}
       </p>
       <p class="border-t border-neutral-200 pt-2">
-        <strong class="text-neutral-800 uppercase">⚠ Prazo de Retirada:</strong>
+        <strong class="text-neutral-800 uppercase">⚠ {{ textos.tituloPrazoRetirada ?? 'Prazo de Retirada' }}:</strong>
         {{ prazoRetiradaPartes.antes }}<strong class="text-neutral-800">{{ prazoAbandonoTexto }}</strong>{{ prazoRetiradaPartes.depois }}
       </p>
     </div>

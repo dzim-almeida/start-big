@@ -196,6 +196,10 @@ MARCENARIA = {
     # "Projeto" e masculino, entao 'Situacao do ' + rotulo daria certo; o
     # titulo inteiro e declarado mesmo assim para nao depender da concatenacao.
     "rotulo_situacao": "Situação do Projeto",
+    # A aba dinamica montava '<objeto> ja cadastrada' (escrito para "Arte"):
+    # com "Projeto" saia "Projeto ja cadastrada". Declarado inteiro, como o
+    # titulo da situacao.
+    "rotulo_objeto_anterior": "Projeto já cadastrado",
     "rotulos_situacao": {
         "REPARADO": "Entregue",
         "SEM_REPARO": "Não produzido",

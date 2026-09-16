@@ -163,6 +163,12 @@ export interface SegmentDefinition {
    */
   rotulo_situacao?: string;
   /**
+   * Rótulo do seletor "usar objeto anterior" na aba dinâmica, inteiro.
+   * Ausente = `${rotulo_objeto_singular} já cadastrada`, que foi escrito para
+   * "Arte" e sai errado em objeto masculino ("Projeto já cadastrada").
+   */
+  rotulo_objeto_anterior?: string;
+  /**
    * Rótulo de cada valor do desfecho, por chave do enum
    * (`REPARADO` | `SEM_REPARO` | `CONDENADO`). Ausente = o rótulo de conserto.
    *

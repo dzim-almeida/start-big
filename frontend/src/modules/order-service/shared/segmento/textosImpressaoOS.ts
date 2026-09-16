@@ -105,6 +105,14 @@ export interface TextosImpressaoOS {
    * @param prazo Prazo já formatado (ex: "90 dias").
    */
   prazoRetiradaGarantiaA4: (prazo: string) => string;
+  /**
+   * Título do bloco de retirada na via de entrada A4. Ausente = "Prazo de
+   * Retirada", que é o que o template sempre imprimiu. Existe porque em
+   * Planejados (marcenaria) ninguém retira o móvel — ele é entregue e montado
+   * na obra — e o texto já dizia isso embaixo de um título que dizia o
+   * contrário.
+   */
+  tituloPrazoRetirada?: string;
   cupom: TextosCupomOS;
   /**
    * Ajuste dos termos por tipo de trabalho, dentro do mesmo segmento.
@@ -153,6 +161,7 @@ export interface TextosPorTipoTrabalho {
   condicoesEntrada?: string;
   prazoRetiradaEntradaA4?: (prazo: string) => string;
   prazoRetiradaGarantiaA4?: (prazo: string) => string;
+  tituloPrazoRetirada?: string;
   cupom?: Partial<
     Pick<
       TextosCupomOS,
@@ -475,7 +484,9 @@ const MARCENARIA: TextosImpressaoOS = {
         + 'agendado; paredes, pisos e pontos de água, luz e gás são de responsabilidade do cliente.',
       // Não há "retirada": o móvel é entregue e montado na obra. A cláusula
       // passa a tratar do agendamento — sem ela a via prometeria vender uma
-      // cozinha "não retirada".
+      // cozinha "não retirada". O título acompanha, senão o papel dizia
+      // "PRAZO DE RETIRADA" em cima de um texto sobre montagem.
+      tituloPrazoRetirada: 'Entrega e Montagem',
       prazoRetiradaEntradaA4: (prazo) =>
         `Móveis concluídos aguardam o agendamento da entrega e montagem pelo cliente. Após ${prazo} `
         + 'da notificação de conclusão sem agendamento, os móveis permanecem armazenados por conta e '

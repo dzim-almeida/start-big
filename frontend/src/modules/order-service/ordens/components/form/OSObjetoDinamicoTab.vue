@@ -61,7 +61,7 @@ const emit = defineEmits<{
 }>();
 
 const { opcoes, tipoPadrao, gruposDoTipo } = useTiposDeTrabalho();
-const { labelSingular, labelDefeito, placeholderDefeito } = useObjetoLabels();
+const { labelSingular, labelObjetoAnterior, labelDefeito, placeholderDefeito } = useObjetoLabels();
 
 /**
  * O texto livre do que o cliente pediu.
@@ -209,7 +209,7 @@ function gravarCampo(campos: SegmentField[], nome: string, valor: unknown) {
       <BaseSelect
         v-if="mostrarHistorico"
         :model-value="selectedHistorico"
-        :label="`${labelSingular} já cadastrada`"
+        :label="labelObjetoAnterior"
         :options="historicoOptions"
         @update:model-value="escolherDoHistorico(String($event))"
       />
