@@ -237,6 +237,44 @@ uma loja pedir**, e cada um é código compartilhado (prova medida obrigatória)
 
 ---
 
+### Estado em 16/09/2026, fim do dia
+
+Fases 0–3 feitas e commitadas (`f8cf128` … `6765884`); Fase 4 em curso
+(sidecar gerado 16:40, instalador em compilação). A Fase 3 dirigida pela API
+viva passou 29/29; o olho na tela (lista, formulário, finalização, A4 de
+entrada e de saída, nova OS) achou **seis** lugares onde a serigrafia tinha
+deixado texto fixo ou regra geral que só apareceu no quarto segmento — todos
+corrigidos por metadado, com o texto de hoje como fallback e prova de que
+oficina/informática/serigrafia não mudaram:
+
+| # | Achado | Commit |
+|---|---|---|
+| 1 | Lista dizia "Equipamento" (serigrafia também) | `2307461` |
+| 2 | Placeholder "ex: 20.1" chumbado no campo lista | `0a42edd` |
+| 3 | Nome do cliente colado na `marca` do projeto (e "Marca: Dona Marta" no papel) | `078d723` |
+| 4 | "Projeto já cadastrad**a**" | `89f1374` |
+| 5 | "PRAZO DE RETIRADA" sobre texto de entrega e montagem | `89f1374` |
+| 6 | Via de saída com "Reparado" onde a tela diz "Entregue" (serigrafia: "Produzido") | `6765884` |
+
+**Pendências achadas e NÃO corrigidas (fora da marcenaria, código
+compartilhado, merecem sessão própria com teste):**
+
+- **Recibo de OS reaberta ignora `credito_anterior`.** A reabertura zera
+  `valor_entrada` e guarda tudo em `credito_anterior`; nenhuma das três vias
+  o conhece. O recibo da OS 01 dizia "Total pago R$ 3.280" para um cliente
+  que pagou R$ 6.560. Cuidado ao corrigir: o pagamento antigo continua em
+  `ordem_servico_pagamentos` **e** dentro do crédito — somar os dois dobra.
+  Vale para todo segmento.
+- **Cupom impresso pela tabela** (`OrdensServicoTab.vue`) não passa `textos`,
+  `rotuloIdentificador`, `prazoAbandonoDias` nem `atributos` ao `osToEscPos`:
+  sai com os termos da assistência técnica em qualquer segmento. O cupom do
+  formulário (`useOSPrintFlow`) passa tudo. Corrigir muda o cupom da tabela da
+  oficina (para o certo) — prova medida obrigatória.
+- Rótulo "Módulos (um por linha, com medida)" sai inteiro no papel; se
+  incomodar, é um `label_impressao` no metadado do campo.
+
+---
+
 ## 5. Ordem e custo
 
 | Ordem | Fase | Custo | Depende de |
