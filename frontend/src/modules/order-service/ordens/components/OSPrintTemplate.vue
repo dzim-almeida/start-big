@@ -50,7 +50,7 @@ const { companyInfo } = useCompanyPrintInfo();
 const { classeDensidade } = usePerfilComprovante(
   props.type === 'ENTRADA' ? 'os_entrada' : 'os_entrega',
 );
-const { labelSingular, objetoIcon, labelDaColuna } = useObjetoLabels();
+const { labelSingular, objetoIcon, labelDaColuna, rotuloSituacao } = useObjetoLabels();
 const { tipoPorId } = useTiposDeTrabalho();
 // Gate das imagens na via: capacidade do registry, não nome de segmento.
 const { temImagemNaEntrada, temGarantiaPrazo } = useCapacidades();
@@ -192,12 +192,17 @@ const title = computed(() => {
 // Impressão é preto e branco por contrato (ver nota no topo do template): as três
 // situações compartilham o mesmo estilo porque quem distingue é o `label`, escrito
 // por extenso. A cor era redundante com ele.
+//
+// O rótulo vem do contrato quando o segmento o declara (`rotulos_situacao`:
+// "Produzido" na serigrafia, "Entregue" na marcenaria) — o papel dizia
+// "Reparado" enquanto a tela dizia "Entregue". Quem não declara continua com
+// o texto de sempre.
 const situacaoConfig = computed(() => {
   const CLS_SITUACAO = 'bg-neutral-100 text-neutral-900 border border-neutral-400';
   const map: Record<string, { label: string; cls: string }> = {
-    REPARADO:   { label: 'Reparado',   cls: CLS_SITUACAO },
-    SEM_REPARO: { label: 'Sem Reparo', cls: CLS_SITUACAO },
-    CONDENADO:  { label: 'Condenado',  cls: CLS_SITUACAO },
+    REPARADO:   { label: rotuloSituacao('REPARADO', 'Reparado'),     cls: CLS_SITUACAO },
+    SEM_REPARO: { label: rotuloSituacao('SEM_REPARO', 'Sem Reparo'), cls: CLS_SITUACAO },
+    CONDENADO:  { label: rotuloSituacao('CONDENADO', 'Condenado'),   cls: CLS_SITUACAO },
   };
   return situacao.value ? map[situacao.value] ?? null : null;
 });

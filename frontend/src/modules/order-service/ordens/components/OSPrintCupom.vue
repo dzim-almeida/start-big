@@ -33,7 +33,7 @@ interface PrintCupomProps {
 const props = defineProps<PrintCupomProps>();
 
 const { companyInfo } = useCompanyPrintInfo();
-const { labelSingular } = useObjetoLabels();
+const { labelSingular, rotuloSituacao } = useObjetoLabels();
 // Termos variam com o tipo de trabalho: sacola não tem peça entregue pelo
 // cliente nem cláusula de lavagem.
 const { textos, identificadorCupom } = useTextosImpressaoOS(
@@ -196,7 +196,7 @@ const pix = computed(() =>
       <div v-if="mostrarTipoObjeto || (situacao && type === 'SAIDA')" class="flex items-center gap-1">
         <span v-if="mostrarTipoObjeto">{{ orderService.objeto.tipo_equipamento }}</span>
         <span v-if="situacao && type === 'SAIDA'" class="text-[9px] font-bold uppercase">
-          ({{ situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado' }})
+          ({{ situacao === 'REPARADO' ? rotuloSituacao('REPARADO', 'Reparado') : situacao === 'SEM_REPARO' ? rotuloSituacao('SEM_REPARO', 'Sem Reparo') : rotuloSituacao('CONDENADO', 'Condenado') }})
         </span>
       </div>
       <div v-if="orderService.objeto.marca">

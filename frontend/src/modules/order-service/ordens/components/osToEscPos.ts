@@ -65,6 +65,12 @@ export interface OsEscPosOptions {
   prazoAbandonoDias?: number
   /** Atributos extras do objeto (oficina: Ano, Chassi, KM). Padrão: nenhum. */
   atributos?: AtributoImpresso[]
+  /**
+   * Rótulos da situação final por segmento (`rotulos_situacao` do contrato:
+   * "Produzido" na serigrafia, "Entregue" na marcenaria). Omitido ou sem a
+   * chave = Reparado / Sem Reparo / Condenado, como sempre imprimiu.
+   */
+  rotulosSituacao?: Record<string, string>
 }
 
 /**
@@ -141,7 +147,7 @@ export function osToEscPos(
   // "(Reparado)" — mesmo documento, duas grafias.
   const sufixoSituacao =
     tipo === 'SAIDA' && situacao
-      ? ` (${(situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado').toUpperCase()})`
+      ? ` (${(opts.rotulosSituacao?.[situacao] ?? (situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado')).toUpperCase()})`
       : ''
   // O "tipo" só sai quando acrescenta info (informática: "COMPUTADOR"). Em oficina
   // ele é o próprio rótulo ("Veículo") e repetir sob o cabeçalho "VEÍCULO" é redundante.

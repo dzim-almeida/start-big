@@ -39,7 +39,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
   const impressao = useImpressao();
   const impressaoStore = useImpressaoStore();
   const { companyInfo } = useCompanyPrintInfo();
-  const { labelSingular } = useObjetoLabels();
+  const { labelSingular, definicao } = useObjetoLabels();
   // Termos variam com o tipo de trabalho (camisa x sacola). `getOS` já é a
   // fonte da OS corrente neste fluxo — o getter mantém a resolução reativa.
   const { textos, identificadorCupom } = useTextosImpressaoOS(
@@ -65,6 +65,7 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
       textos: textos.value.cupom,
       prazoAbandonoDias: configuracoesStore.prazoAbandonoDias,
       atributos: atributos(os.objeto?.dados_adicionais, os.dados_adicionais),
+      rotulosSituacao: definicao.value?.rotulos_situacao,
     });
     return impressao.imprimirCupom(dados);
   }

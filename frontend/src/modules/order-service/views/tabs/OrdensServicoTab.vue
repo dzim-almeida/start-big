@@ -79,7 +79,7 @@ const impressaoStore = useImpressaoStore();
 const { companyInfo } = useCompanyPrintInfo();
 // Papel escolhido pela empresa (folha inteira / meia folha), por documento.
 const { opcoesPaginaDe } = usePerfilComprovante();
-const { labelSingular } = useObjetoLabels();
+const { labelSingular, definicao } = useObjetoLabels();
 
 /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
 async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO'): Promise<boolean> {
@@ -95,6 +95,7 @@ async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA' | 'CANCELAMENTO'):
     empresa: companyInfo.value,
     logoRaster,
     rotuloObjeto: labelSingular.value,
+    rotulosSituacao: definicao.value?.rotulos_situacao,
   });
   return impressao.imprimirCupom(dados);
 }
