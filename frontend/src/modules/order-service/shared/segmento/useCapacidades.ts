@@ -39,6 +39,10 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // e a excecao: ela E a arte a ser estampada, entra no cadastro inicial e sai
   // impressa na via de entrada.
   serigrafia: ['imagem_na_entrada'],
+  // Marcenaria aprova o orcamento item a item, tira foto do ambiente (ou do
+  // movel a reformar) ja na abertura e da garantia em dias. Nem vistoria nem
+  // revisao: a medicao do ambiente e Fase 5 do plano, se a fabrica pedir.
+  marcenaria: ['aprovacao_itens', 'imagem_na_entrada', 'garantia_prazo'],
 };
 
 /**

@@ -404,10 +404,113 @@ const SERIGRAFIA: TextosImpressaoOS = {
   },
 };
 
+// ─── Marcenaria ───────────────────────────────────────────────────────────────
+// Dois tipos de trabalho com a mesma via e uma diferença que muda o papel:
+// em REFORMA o móvel é do cliente e volta para ele, então "prazo de retirada"
+// vale como em qualquer conserto; em PLANEJADOS a loja fabrica e MONTA na obra,
+// e ninguém "retira" uma cozinha — a cláusula vira agendamento de entrega e
+// montagem. O pacote-base é o de reforma (o caso de conserto, mais parecido com
+// o resto do arquivo) e `planejados` sobrescreve o que muda.
+//
+// Os textos abaixo são a proposta da Fase 2 (docs/segmento-marcenaria-plano.md);
+// `condicoesEntrada` é o que o cliente assina, então as palavras finais são dos
+// donos das duas lojas.
+const MARCENARIA: TextosImpressaoOS = {
+  objeto: 'móvel',
+  objetoPlural: 'Móveis',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados do Projeto',
+  // O contrato chama de "Código do projeto", que não cabe na coluna da via.
+  identificador: 'Projeto',
+  defeito: 'Descrição do Pedido',
+  garantiaExclusoes:
+    'umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga ou '
+    + 'mau uso, alteração, desmontagem ou montagem por terceiros, e desgaste natural do acabamento.',
+  condicoesEntrada:
+    'O cliente declara ter conferido o estado do móvel entregue, registrado nas fotos e na '
+    + 'descrição desta OS. Peças, ferragens ou materiais fornecidos pelo cliente são de sua '
+    + 'responsabilidade. Alterações no serviço após a aprovação do orçamento geram novo orçamento, '
+    + 'e o prazo é contado a partir da aprovação e do pagamento do adiantamento.',
+  assinaturaLoja: 'Responsável',
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Móveis com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Móveis não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Movel',
+    identificador: 'Projeto',
+    defeito: 'DESCRICAO DO PEDIDO',
+    assinaturaLoja: 'Responsavel',
+    garantiaExclusoes:
+      'umidade, cupim, sobrecarga, mau uso, alteracao por terceiros ou desgaste natural.',
+    semReparo: 'Movel devolvido sem o servico. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Movel devolvido ao cliente sem o servico ou com '
+      + 'servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'Cliente declara ter conferido o estado do movel (fotos/descricao). Alteracoes apos a '
+      + 'aprovacao geram novo orcamento; o prazo conta da aprovacao e do adiantamento.',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Moveis nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+
+  porTipoTrabalho: {
+    planejados: {
+      objeto: 'móvel',
+      objetoPlural: 'Móveis',
+      garantiaExclusoes:
+        'umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga '
+        + 'ou mau uso, alteração, desmontagem ou remontagem por terceiros, movimentação do móvel '
+        + 'após a instalação, e desgaste natural do acabamento.',
+      condicoesEntrada:
+        'As medidas foram conferidas no local pelo responsável e o cliente declara ter aprovado o '
+        + 'projeto, os materiais, as cores e as ferragens descritos nesta OS. Alterações após a '
+        + 'aprovação geram novo orçamento, e o prazo é contado a partir da aprovação e do pagamento '
+        + 'do adiantamento. A montagem externa exige o ambiente pronto, limpo e livre no dia '
+        + 'agendado; paredes, pisos e pontos de água, luz e gás são de responsabilidade do cliente.',
+      // Não há "retirada": o móvel é entregue e montado na obra. A cláusula
+      // passa a tratar do agendamento — sem ela a via prometeria vender uma
+      // cozinha "não retirada".
+      prazoRetiradaEntradaA4: (prazo) =>
+        `Móveis concluídos aguardam o agendamento da entrega e montagem pelo cliente. Após ${prazo} `
+        + 'da notificação de conclusão sem agendamento, os móveis permanecem armazenados por conta e '
+        + 'risco do cliente, podendo ser cobrada taxa de armazenagem.',
+      prazoRetiradaGarantiaA4: (prazo) =>
+        `A garantia é contada a partir da data da montagem. Móveis não agendados para entrega no `
+        + `prazo de ${prazo} após a notificação de conclusão permanecem armazenados por conta e risco `
+        + 'do cliente.',
+      cupom: {
+        objeto: 'Movel',
+        garantiaExclusoes:
+          'umidade, cupim, sobrecarga, mau uso, remontagem por terceiros ou desgaste natural.',
+        condicoesEntrada:
+          'Medidas conferidas no local. Cliente declara ter aprovado projeto, materiais, cores e '
+          + 'ferragens. Alteracoes apos a aprovacao geram novo orcamento. Montagem exige ambiente '
+          + 'pronto e livre.',
+        semReparo: 'Producao nao realizada. Sem garantia aplicavel a esta OS.',
+        cancelamento:
+          'A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a '
+          + 'empresa de garantias sobre servicos nao concluidos.',
+        // Sem esta linha a bobina herdaria a de reforma e diria "Moveis nao
+        // retirados" numa cozinha que vai ser montada na casa do cliente.
+        prazoRetirada: (dias) =>
+          `ENTREGA E MONTAGEM: Moveis concluidos aguardam agendamento pelo cliente. Apos ${dias} `
+          + 'dias da notificacao sem agendamento, ficam armazenados por conta e risco do cliente.',
+      },
+    },
+  },
+};
+
 const PACOTES: Record<string, TextosImpressaoOS> = {
   oficina_mecanica: OFICINA_MECANICA,
   assistencia_tecnica: ASSISTENCIA_TECNICA,
   serigrafia: SERIGRAFIA,
+  marcenaria: MARCENARIA,
 };
 
 const PADRAO = ASSISTENCIA_TECNICA;

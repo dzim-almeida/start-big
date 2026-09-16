@@ -82,7 +82,7 @@ export const SEGMENT_TIPS: Record<Segmento, string> = {
   pdv:
     'Sua loja abre direto no PDV, sem Ordem de Serviço. Ative o controle de caixa em Configurações › Regras de Vendas para abrir turno, sangrar e fechar conferindo.',
   marcenaria:
-    'Para marcenarias, as ordens de serviço com orçamento detalhado serão seu principal recurso.',
+    'Para marcenarias, a OS é de Móveis planejados ou de Reforma de móveis. Cadastre o que você cobra (metro linear, restauração, montagem) em Serviços e as chapas e ferragens em Produtos — a OS monta o orçamento e recebe o adiantamento.',
   eletricista:
     'Para eletricistas, as ordens de serviço com checklist de materiais facilitarão seu dia a dia.',
   outros:
