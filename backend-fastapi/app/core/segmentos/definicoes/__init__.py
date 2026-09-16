@@ -10,6 +10,7 @@
 from typing import Any, Dict, Optional
 
 from .assistencia import ASSISTENCIA, SEGMENTO_ASSISTENCIA
+from .marcenaria import MARCENARIA, SEGMENTO_MARCENARIA
 from .oficina import OFICINA, PLACA_REGEX, SEGMENTO_OFICINA
 from .pdv import PDV, SEGMENTO_PDV
 from .serigrafia import SEGMENTO_SERIGRAFIA, SERIGRAFIA
@@ -19,7 +20,7 @@ from .serigrafia import SEGMENTO_SERIGRAFIA, SERIGRAFIA
 # atualizar.
 DEFINICOES: Dict[str, Dict[str, Any]] = {
     d["segmento"]: d
-    for d in (OFICINA, ASSISTENCIA, SERIGRAFIA, PDV)
+    for d in (OFICINA, ASSISTENCIA, SERIGRAFIA, PDV, MARCENARIA)
 }
 
 

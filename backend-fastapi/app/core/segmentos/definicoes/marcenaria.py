@@ -2,10 +2,9 @@
 # ARQUIVO: app/core/segmentos/definicoes/marcenaria.py
 # DESCRICAO: Definicao do segmento MARCENARIA (dado, nao motor).
 #
-# ESTADO: RASCUNHO DA FASE 0 (docs/segmento-marcenaria-plano.md). Este arquivo
-# NAO esta somado ao __init__.py de proposito: primeiro os dois donos leem os
-# campos com as palavras deles, depois liga. Ate la, uma loja cadastrada como
-# marcenaria continua caindo na OS generica, exatamente como hoje.
+# Plano e decisoes: docs/segmento-marcenaria-plano.md. Ligado em 16/09/2026
+# (Fase 1); a folha de campos gerada deste arquivo foi para os dois donos, e o
+# que eles corrigirem volta para ca -- e o unico lugar que muda.
 #
 # O NEGOCIO, em duas metades que compartilham o mesmo fluxo:
 #

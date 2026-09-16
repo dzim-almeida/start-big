@@ -292,21 +292,56 @@ def test_ids_dos_tipos_da_serigrafia_sao_contrato_com_o_frontend():
     )
 
 
-def test_imagem_na_entrada_e_exclusiva_da_serigrafia_por_enquanto():
+def test_ids_dos_tipos_da_marcenaria_sao_contrato_com_o_frontend():
+    """
+    Mesmo aviso da serigrafia. O pacote MARCENARIA em textosImpressaoOS.ts
+    sobrescreve por tipo: Planejados nao tem "prazo de retirada" (o movel e
+    montado na obra) e Reforma tem (o movel volta para o cliente). Renomear um
+    id aqui faria a via de Planejados sair com a clausula de retirada, em
+    silencio.
+    """
+    ids = {tipo["id"] for tipo in DEFINICOES["marcenaria"].get("tipos", [])}
+
+    assert {"planejados", "reforma_moveis"} <= ids, (
+        f"ids esperados pelo pacote de textos das vias nao encontrados: {ids}"
+    )
+
+
+def test_marcenaria_reforma_nao_tem_montagem_externa():
+    """
+    A etapa "Montagem externa" e a montagem na casa do cliente -- so existe em
+    Planejados. Em Reforma o movel volta pronto para o cliente; oferecer a
+    opcao faria o atendente marcar uma etapa que nao acontece.
+    """
+    tipos = {t["id"]: t for t in DEFINICOES["marcenaria"]["tipos"]}
+    etapas = {
+        tid: next(c for c in t["campos"] if c["nome"] == "etapa")["opcoes"]
+        for tid, t in tipos.items()
+    }
+    assert "Montagem externa" in etapas["planejados"]
+    assert "Montagem externa" not in etapas["reforma_moveis"]
+    # Fora essa, as etapas sao as mesmas e na mesma ordem: e o mesmo fluxo.
+    assert [e for e in etapas["planejados"] if e != "Montagem externa"] == etapas["reforma_moveis"]
+
+
+def test_imagem_na_entrada_e_de_quem_recebe_o_pedido_em_imagem():
     """
     A capacidade libera a aba de imagens durante a CRIACAO da OS e imprime as
     imagens na via de entrada.
 
     Em serigrafia a imagem e a arte a estampar: sem ela nao ha o que produzir, e
-    quem pinta trabalha a partir do papel. Em oficina e informatica a foto e
-    prova do estado do bem -- nasce depois, com o aparelho na bancada, e nao vai
-    para a via do cliente.
+    quem pinta trabalha a partir do papel. Em marcenaria (ligada em 16/09/2026)
+    e o ambiente ou o projeto em Planejados, e o estado do movel em Reforma --
+    nos dois casos o cliente assina a via vendo a foto. Em oficina e informatica
+    a foto e prova do estado do bem: nasce depois, com o aparelho na bancada, e
+    nao vai para a via do cliente.
 
     Ligar isto em oficina ou informatica passaria a imprimir foto de aparelho na
     via de entrada dos dois clientes em producao. Se um dia for intencional,
     este teste e o lugar de dizer isso em voz alta.
     """
     assert CAP_IMAGEM_NA_ENTRADA in DEFINICOES["serigrafia"]["capacidades"]
+    assert CAP_IMAGEM_NA_ENTRADA in DEFINICOES["marcenaria"]["capacidades"]
     assert CAP_IMAGEM_NA_ENTRADA not in DEFINICOES["oficina_mecanica"]["capacidades"]
     assert CAP_IMAGEM_NA_ENTRADA not in DEFINICOES["assistencia_tecnica"]["capacidades"]
 
@@ -319,9 +354,13 @@ def test_garantia_por_prazo_segue_ligada_em_quem_conserta():
 
     Serigrafia nao declara: estampa nao tem prazo (se dura, mede-se em lavagens)
     e o fallback da via prometeria "90 (noventa) dias" que a loja nunca deu.
+
+    Marcenaria declara: movel tem garantia em dias (90 e comum, planejados as
+    vezes 1 ano), e sem a capacidade a via de saida sairia sem o Termo.
     """
     assert CAP_GARANTIA_PRAZO in DEFINICOES["oficina_mecanica"]["capacidades"]
     assert CAP_GARANTIA_PRAZO in DEFINICOES["assistencia_tecnica"]["capacidades"]
+    assert CAP_GARANTIA_PRAZO in DEFINICOES["marcenaria"]["capacidades"]
     assert CAP_GARANTIA_PRAZO not in DEFINICOES["serigrafia"]["capacidades"]
 
 

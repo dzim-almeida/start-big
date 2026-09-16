@@ -86,9 +86,11 @@ def _post_os(client, header: dict, cliente_id: int, objeto: dict):
 # Registry (sem banco)
 # =========================
 
-def test_so_serigrafia_gera_identificador():
-    """Placa e numero de serie existem no mundo -- nao se geram."""
+def test_so_quem_nao_tem_codigo_no_mundo_gera_identificador():
+    """Placa e numero de serie existem no mundo -- nao se geram. Codigo de arte
+    e codigo de projeto nao existem ate alguem inventar -- o sistema inventa."""
     assert identificador_e_gerado("serigrafia") is True
+    assert identificador_e_gerado("marcenaria") is True
     assert identificador_e_gerado("oficina_mecanica") is False
     assert identificador_e_gerado("assistencia_tecnica") is False
 
@@ -96,6 +98,9 @@ def test_so_serigrafia_gera_identificador():
 def test_codigo_nasce_do_numero_da_os():
     """Herda a unicidade do numero da OS: sem contador novo, sem corrida."""
     assert gerar_identificador("serigrafia", "0042") == "ART-0042"
+    # Marcenaria: o PRJ vai na etiqueta das pecas cortadas, para a montagem
+    # saber de que pedido e cada peca.
+    assert gerar_identificador("marcenaria", "0042") == "PRJ-0042"
     assert gerar_identificador("oficina_mecanica", "0042") is None
 
 
@@ -104,6 +109,34 @@ def test_codigo_nao_empilha_dois_prefixos():
     "ART-OS-2026-000001" -- dois prefixos, feio de ler e pior de escrever no
     quadro da tela, que e para o que este codigo existe."""
     assert gerar_identificador("serigrafia", "OS-2026-000001") == "ART-2026-000001"
+
+
+# =========================
+# Marcenaria: o mesmo mecanismo, com o codigo do projeto
+# =========================
+
+def test_marcenaria_abre_os_de_planejados_sem_o_usuario_informar_codigo(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "marcenaria")
+    cliente_id = _criar_cliente(client, header)
+
+    # O formulario manda so o que o atendente sabe: o nome do projeto e o tipo.
+    r = _post_os(client, header, cliente_id, {
+        "modelo": "Cozinha apto 302",
+        "dados_adicionais": {
+            "tipo_trabalho": "planejados",
+            "ambiente": "Cozinha",
+            "etapa": "Aguardando aprovação",
+        },
+    })
+
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    corpo = r.json()
+    objeto = corpo.get("objeto") or corpo.get("equipamento")
+
+    codigo = objeto["numero_serie"]
+    numero_os = corpo["numero_os"]
+    assert codigo == f"PRJ-{numero_os.removeprefix('OS-')}"
+    assert "PRJ-OS-" not in codigo
 
 
 # =========================
