@@ -33,14 +33,20 @@ describe('resolverDesfechoCarta', () => {
 
   it('rejeitada pela SEFAZ é aviso com a mensagem dela, não erro do sistema', () => {
     const d = resolverDesfechoCarta(
-      carta({ status: 'REJEITADA', sequencia: null, mensagem_sefaz: 'Rejeição: Duplicidade de Evento' }),
+      carta({
+        status: 'REJEITADA',
+        sequencia: null,
+        mensagem_sefaz: 'Rejeição: Duplicidade de Evento',
+      }),
     );
     expect(d.tipo).toBe('rejeitada');
     expect(d.descricao).toBe('Rejeição: Duplicidade de Evento');
   });
 
   it('erro da plataforma vira erro', () => {
-    const d = resolverDesfechoCarta(carta({ status: 'ERRO', sequencia: null, mensagem_sefaz: null }));
+    const d = resolverDesfechoCarta(
+      carta({ status: 'ERRO', sequencia: null, mensagem_sefaz: null }),
+    );
     expect(d.tipo).toBe('erro');
     expect(d.descricao).toBeTruthy();
   });

@@ -10,6 +10,7 @@ import type { EmissaoPreviewResponse,
   EmissaoResponse,
   CartaCorrecaoRead,
   EmissaoBatchResponse,
+  EmissaoDevolucaoPayload,
   FiscalConfiguracao,
   FiscalConfiguracaoUpdate,
   PendenciasGlobais,
@@ -202,6 +203,19 @@ export const fiscalService = {
     const { data } = await api.post<DocumentoFiscalRead>(
       `${FISCAL_ENDPOINT}/documentos/${id}/cancelar`,
       { justificativa },
+      { timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
+  /**
+   * NF-e de devolução (finalidade 4) a partir da nota `id`. Devolve o
+   * documento NOVO; a origem ganha saldo devolvido quando a SEFAZ autoriza.
+   */
+  async emitirDevolucao(id: number, payload: EmissaoDevolucaoPayload): Promise<DocumentoFiscalRead> {
+    const { data } = await api.post<DocumentoFiscalRead>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/devolucao`,
+      payload,
       { timeout: TIMEOUT_EMISSAO },
     );
     return data;

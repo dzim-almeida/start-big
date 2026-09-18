@@ -25,6 +25,8 @@ import {
   ExternalLink,
   Printer,
   FilePenLine,
+  Undo2,
+  PackageCheck,
 } from 'lucide-vue-next';
 
 import { useToast } from '@/shared/composables/useToast';
@@ -55,6 +57,8 @@ import {
   formatarDiagnosticoParaSuporte,
 } from '../../utils/fiscalDiagnostic';
 import FiscalEditarVendaModal from './FiscalEditarVendaModal.vue';
+import FiscalEmitirDevolucaoModal from './FiscalEmitirDevolucaoModal.vue';
+import { prazoCancelamentoExpirado, totalmenteDevolvida } from '../../composables/useDevolucaoItens';
 
 // Integração com Edição de Produtos do Sistema
 import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
@@ -331,6 +335,36 @@ const salvarArquivoCarta = async (carta: CartaCorrecaoRead, extensao: 'pdf' | 'x
   } finally {
     isBaixandoCarta.value = null;
   }
+};
+
+// --- Devolução (NF-e de entrada, finalidade 4) ---
+const modalDevolucaoOpen = ref(false);
+
+/**
+ * Passado o prazo legal (24 h NF-e / 30 min NFC-e), cancelar é impossível e
+ * o backend recusa com PRAZO_CANCELAMENTO_EXPIRADO -- então a tela nem
+ * oferece; oferece a devolução, que é a via que resta.
+ */
+const prazoCancelamentoExpiradoRef = computed(
+  () => !!documento.value && prazoCancelamentoExpirado(documento.value),
+);
+const isTotalmenteDevolvida = computed(
+  () => !!documento.value && (documento.value.totalmente_devolvida || totalmenteDevolvida(documento.value.itens_resumo ?? [])),
+);
+// A própria devolução (finalidade 4) não se devolve de novo.
+const isDocumentoDeDevolucao = computed(() => documento.value?.finalidade_emissao === 4);
+const podeDevolver = computed(
+  () =>
+    !!documento.value &&
+    documento.value.status === 'AUTORIZADA' &&
+    !isDocumentoDeDevolucao.value &&
+    !isTotalmenteDevolvida.value &&
+    (documento.value.itens_resumo?.length ?? 0) > 0,
+);
+
+const handleDevolucaoSucesso = (novoDocumentoId: number) => {
+  // O documento novo é onde está o desfecho: abre nele, como a reemissão faz.
+  emit('reemitir', novoDocumentoId);
 };
 
 // --- Copy helpers ---
@@ -891,13 +925,57 @@ function formatarData(iso?: string | null): string {
                           <span v-if="totalCartas > 0" class="font-normal text-amber-700/80">({{ totalCartas }}/{{ LIMITE_CARTAS_POR_NOTA }})</span>
                         </button>
 
+                        <!-- Nota 100% devolvida: nada mais a fazer aqui. -->
+                        <p
+                          v-if="isTotalmenteDevolvida"
+                          data-testid="badge-totalmente-devolvida"
+                          class="col-span-2 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700"
+                        >
+                          <PackageCheck class="h-4 w-4" />
+                          Todos os itens desta nota já foram devolvidos por NF-e de devolução.
+                        </p>
+
+                        <!-- Prazo legal expirado: cancelar não existe mais; a via é a devolução. -->
+                        <p
+                          v-else-if="prazoCancelamentoExpiradoRef && !isDocumentoDeDevolucao"
+                          data-testid="banner-prazo-expirado"
+                          class="col-span-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900 leading-relaxed"
+                        >
+                          <AlertTriangle class="h-4 w-4 shrink-0 text-amber-500" />
+                          <span>
+                            O prazo legal de cancelamento ({{ documento.tipo_documento === 'NFCE' ? '30 minutos' : '24 horas' }})
+                            expirou. Para reverter esta operação, emita uma <strong>NF-e de Devolução</strong>.
+                          </span>
+                        </p>
+
                         <button
+                          v-if="podeDevolver"
                           type="button"
+                          data-testid="btn-devolver"
+                          @click="modalDevolucaoOpen = true"
+                          :class="[
+                            'flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-semibold transition-colors cursor-pointer',
+                            prazoCancelamentoExpiradoRef
+                              ? 'col-span-2 bg-brand-primary text-white hover:bg-brand-primary-hover'
+                              : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50',
+                          ]"
+                        >
+                          <Undo2 class="h-4 w-4" />
+                          {{ prazoCancelamentoExpiradoRef ? 'Emitir NF-e de Devolução' : 'Devolver Itens' }}
+                        </button>
+
+                        <button
+                          v-if="!prazoCancelamentoExpiradoRef"
+                          type="button"
+                          data-testid="btn-cancelar"
                           @click="modalCancelarOpen = !modalCancelarOpen"
-                          class="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                          :class="[
+                            'flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer',
+                            podeDevolver ? '' : 'col-span-2',
+                          ]"
                         >
                           <Ban class="h-4 w-4" />
-                          Cancelar NF-e na SEFAZ
+                          Cancelar {{ rotuloDocumento }} na SEFAZ
                         </button>
                       </div>
                     </div>
@@ -1222,6 +1300,15 @@ function formatarData(iso?: string | null): string {
         </div>
       </div>
     </Transition>
+
+    <!-- Devolução (NF-e de entrada, finalidade 4) -->
+    <FiscalEmitirDevolucaoModal
+      v-if="documento"
+      :is-open="modalDevolucaoOpen"
+      :documento="documento"
+      @close="modalDevolucaoOpen = false"
+      @sucesso="handleDevolucaoSucesso"
+    />
 
     <!-- Modal Integrado de Edição de Venda -->
     <FiscalEditarVendaModal

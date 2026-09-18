@@ -25,6 +25,13 @@ export interface DocumentoItemResumo {
   desconto?: number;
   ncm?: string | null;
   cfop?: string | null;
+  /**
+   * Devolução: saldo por item em MILÉSIMOS (1000 = 1 UN). `quantidade` acima
+   * é inteira e perde a fração; a devolução parcial precisa destes dois.
+   * Só o snapshot preenche — itens reconstruídos do cadastro vêm sem.
+   */
+  quantidade_milesimos?: number | null;
+  quantidade_devolvida_acumulada?: number | null;
 }
 
 export interface DocumentoFiscalRead {
@@ -58,6 +65,12 @@ export interface DocumentoFiscalRead {
    */
   total_cartas_correcao?: number;
   ultima_carta_correcao?: string | null;
+  /** 1 = normal; 4 = esta nota É uma devolução e aponta para a origem. */
+  finalidade_emissao?: number;
+  documento_referenciado_id?: number | null;
+  chave_documento_referenciado?: string | null;
+  /** Todos os itens já voltaram por devolução autorizada. */
+  totalmente_devolvida?: boolean;
   mensagem_sefaz: string | null;
   codigo_status_sefaz: number | null;
   /** Status cru da emissora ('autorizado', 'denegado', 'erro_autorizacao'). */
@@ -85,6 +98,41 @@ export interface DocumentoFiscalRead {
   destinatario_uf?: string | null;
   destinatario_municipio?: string | null;
   itens_resumo?: DocumentoItemResumo[] | null;
+}
+
+// --- Devolução (TASK003) — espelham EmissaoDevolucaoRequest do backend ---
+
+export interface ItemDevolucaoPayload {
+  documento_item_id: number;
+  /** Inteiro em milésimos (1000 = 1.0 UN). */
+  quantidade: number;
+}
+
+export interface DestinatarioAvulsoPayload {
+  /** Só dígitos (11 ou 14). */
+  cpf_ou_cnpj: string;
+  nome_razao_social: string;
+  /** 1=Contribuinte, 2=Isento, 9=Não contribuinte. */
+  indicador_inscricao_estadual: 1 | 2 | 9;
+  inscricao_estadual?: string | null;
+  logradouro: string;
+  numero: string;
+  complemento?: string | null;
+  bairro: string;
+  /** IBGE, 7 dígitos. */
+  codigo_municipio: string;
+  municipio: string;
+  uf: string;
+  /** 8 dígitos. */
+  cep: string;
+}
+
+export interface EmissaoDevolucaoPayload {
+  motivo: string;
+  devolver_estoque: boolean;
+  /** null/omitido = devolução total do saldo restante. */
+  itens?: ItemDevolucaoPayload[] | null;
+  destinatario_avulso?: DestinatarioAvulsoPayload | null;
 }
 
 export interface VendaCorrecaoFiscalPayload {

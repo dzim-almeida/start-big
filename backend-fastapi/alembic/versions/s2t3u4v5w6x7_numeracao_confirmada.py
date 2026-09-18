@@ -45,11 +45,13 @@ def upgrade() -> None:
     conn = op.get_bind()
     insp = sa.inspect(conn)
 
+    # ADD COLUMN direto: o batch recria a tabela e, com PRAGMA foreign_keys=ON
+    # no boot, isso pode falhar no DROP (ver u4v5w6x7y8z9). ALTER TABLE ADD
+    # COLUMN é nativo no SQLite.
     if not _tem_coluna(insp, TABELA, COLUNA):
-        with op.batch_alter_table(TABELA) as batch_op:
-            batch_op.add_column(sa.Column(
-                COLUNA, sa.Boolean(), nullable=False, server_default=sa.text("0"),
-            ))
+        op.add_column(TABELA, sa.Column(
+            COLUNA, sa.Boolean(), nullable=False, server_default=sa.text("0"),
+        ))
 
     if "documento_fiscal" in insp.get_table_names():
         op.execute(sa.text(

@@ -12,6 +12,9 @@ origem -- é esse acumulado que impede devolver duas vezes a mesma peça.
 SEGURANÇA:
 - Cada coluna é adicionada só se AUSENTE: o create_all() do startup pode já
   tê-las criado num banco novo.
+- Sem batch_alter_table: ver `_adicionar_faltantes`.
+- Limpa um `_alembic_tmp_documento_fiscal` órfão de uma tentativa anterior
+  interrompida, senão o Alembic recusa com "already exists".
 - `finalidade_emissao` nasce 1 (normal) e `quantidade_devolvida_acumulada`
   nasce 0 nas linhas existentes -- nenhum documento antigo vira devolução.
 """
@@ -43,17 +46,27 @@ def _tem_coluna(insp, tabela: str, coluna: str) -> bool:
 
 
 def _adicionar_faltantes(insp, tabela: str, colunas: list) -> list[str]:
+    """ADD COLUMN direto, sem batch.
+
+    O batch do Alembic recria a tabela (move-and-copy). No boot o engine roda
+    com `PRAGMA foreign_keys=ON`, e recriar `documento_fiscal` enquanto
+    `documento_fiscal_item` e `carta_correcao_fiscal` apontam para ela falha
+    no DROP -- foi o que derrubou o primeiro boot desta migration e deixou um
+    `_alembic_tmp_documento_fiscal` para trás. `ALTER TABLE ADD COLUMN` é
+    nativo no SQLite e não toca nas FKs.
+    """
     faltantes = [c for c in colunas if not _tem_coluna(insp, tabela, c.name)]
-    if faltantes:
-        with op.batch_alter_table(tabela) as batch_op:
-            for coluna in faltantes:
-                batch_op.add_column(coluna)
+    for coluna in faltantes:
+        op.add_column(tabela, coluna)
     return [c.name for c in faltantes]
 
 
 def upgrade() -> None:
     conn = op.get_bind()
     insp = sa.inspect(conn)
+
+    if insp.has_table("_alembic_tmp_documento_fiscal"):
+        op.drop_table("_alembic_tmp_documento_fiscal")
 
     novas = _adicionar_faltantes(insp, "documento_fiscal", COLUNAS_DOCUMENTO)
     _adicionar_faltantes(insp, "documento_fiscal_item", COLUNAS_ITEM)
