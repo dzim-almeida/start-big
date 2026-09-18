@@ -149,8 +149,12 @@ def emitir_carta_correcao(
 ) -> CartaCorrecaoFiscal:
     """Registra uma CC-e na NF-e e transmite pela emissora.
 
-    O registro existe ANTES da chamada (mesmo princípio da emissão): uma falha
-    de rede não pode perder o pedido, e a exclusão mútua depende dele.
+    O registro nasce PROCESSANDO antes da chamada: é ele que sustenta a
+    exclusão mútua enquanto a resposta não vem. Numa falha de comunicação o
+    serviço levanta 502 e o `_handle_db_transaction` do endpoint desfaz o
+    registro -- de propósito, para não deixar um PROCESSANDO preso trancando
+    a nota. Se a carta chegou à SEFAZ mesmo assim, a retentativa volta como
+    rejeição 573 (duplicidade), visível no histórico.
     """
     doc = _obter_nfe_autorizada(db, documento_id)
     _assert_cabe_mais_uma_carta(db, doc.id)
@@ -170,8 +174,21 @@ def emitir_carta_correcao(
     client = get_fiscal_client(
         fs.ambiente_emissao if fs else 2, crud.get_licenca_token(db),
     )
+    resultado = _transmitir_carta(db, carta, doc, client, correcao)
+    _aplicar_resultado_carta(carta, resultado)
+    if carta.status == "AUTORIZADA":
+        _arquivar_carta(carta, doc, client)
+
+    # O status final precisa estar visível para a próxima contagem de
+    # PROCESSANDO na mesma sessão; quem comita é o endpoint.
+    db.flush()
+    return carta
+
+
+def _transmitir_carta(db: Session, carta: CartaCorrecaoFiscal, doc: DocumentoFiscal, client, correcao: str) -> EmissaoResultado:
+    """Chama a emissora; falha de transporte vira 501/502 com o registro em ERRO."""
     try:
-        resultado = client.emitir_carta_correcao(doc.ref_api, correcao)
+        return client.emitir_carta_correcao(doc.ref_api, correcao)
     except NotImplementedError as e:
         carta.status = "ERRO"
         carta.mensagem_sefaz = str(e)
@@ -185,15 +202,6 @@ def emitir_carta_correcao(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Erro de comunicação ao registrar a carta de correção: {str(e)[:400]}",
         )
-
-    _aplicar_resultado_carta(carta, resultado)
-    if carta.status == "AUTORIZADA":
-        _arquivar_carta(carta, doc, client)
-
-    # O status final precisa estar visível para a próxima contagem de
-    # PROCESSANDO na mesma sessão; quem comita é o endpoint.
-    db.flush()
-    return carta
 
 
 def listar_cartas_correcao(

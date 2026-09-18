@@ -1,5 +1,7 @@
 import { computed, ref, type Ref } from 'vue';
 
+import { parseTimestampBackend } from '@/shared/utils/date.utils';
+
 import type {
   DestinatarioAvulsoPayload,
   DocumentoFiscalRead,
@@ -42,7 +44,10 @@ export function prazoCancelamentoExpirado(
 ): boolean {
   const referencia = documento.data_autorizacao ?? documento.data_emissao;
   if (!referencia) return false;
-  const inicio = Date.parse(referencia);
+  // O backend serializa UTC SEM fuso; `Date.parse` leria como hora local e
+  // deslocaria a janela pelo offset (3 h no Brasil) -- o cupom de 40 min
+  // ainda mostraria "Cancelar".
+  const inicio = parseTimestampBackend(referencia).getTime();
   if (Number.isNaN(inicio)) return false;
   const janela =
     documento.tipo_documento === 'NFCE' ? JANELA_CANCELAMENTO_MS.NFCE : JANELA_CANCELAMENTO_MS.NFE;

@@ -432,3 +432,53 @@ def test_rejeicao_da_sefaz_nao_consome_saldo(db, cenario, client, monkeypatch):
     assert doc.status == "REJEITADA"
     db.refresh(cenario)
     assert cenario.itens[0].quantidade_devolvida_acumulada == 0
+
+
+# =========================
+# 10. Achados do code review
+# =========================
+
+def test_saldo_e_incrementado_mesmo_sem_codigo_produto_e_com_produto_repetido(db, empresa, client):
+    """Pareamento pelo numero_item da origem, não pelo codigo_produto."""
+    _produto(db, 1, "Teclado")
+    _venda_com_cliente(db)
+    doc = _nota_original(db, itens=[(1, 1000, 10000, "5102"), (1, 3000, 10000, "5102")])
+    for item in doc.itens:
+        item.codigo_produto = None
+    db.commit()
+    segundo = doc.itens[1]
+
+    emitir_devolucao(
+        db, doc.id, EMPRESA_ID,
+        _pedido(itens=[ItemDevolucaoRequest(documento_item_id=segundo.id, quantidade=2000)]),
+        usuario_id=None,
+    )
+    db.refresh(doc)
+    assert [i.quantidade_devolvida_acumulada for i in doc.itens] == [0, 2000]
+
+
+def test_devolucao_nao_vira_o_documento_ativo_da_venda(db, cenario, client):
+    devolucao = emitir_devolucao(db, cenario.id, EMPRESA_ID, _pedido(), usuario_id=None)
+    ativo = crud.get_documento_ativo_por_venda(db, cenario.origem_id)
+    assert ativo.id == cenario.id and ativo.id != devolucao.id
+    relevantes = crud.get_documentos_relevantes_por_vendas(db, [cenario.origem_id])
+    assert relevantes[cenario.origem_id].id == cenario.id
+
+
+def test_cliente_com_endereco_incompleto_exige_avulso(db, empresa, client):
+    _produto(db, 1, "Teclado")
+    _venda_com_cliente(db)
+    endereco = db.query(Endereco).filter_by(tipo_entidade=EntityType.CLIENTE).first()
+    endereco.bairro = ""
+    db.commit()
+    doc = _nota_original(db, itens=[(1, 1000, 10000, "5102")])
+
+    with pytest.raises(HTTPException) as exc:
+        emitir_devolucao(db, doc.id, EMPRESA_ID, _pedido(), usuario_id=None)
+    assert exc.value.detail["codigo"] == "DESTINATARIO_OBRIGATORIO"
+    assert client.payloads == []
+    assert crud.get_fiscal_settings(db, EMPRESA_ID).ultimo_numero_nfe == 42
+
+    novo = emitir_devolucao(db, doc.id, EMPRESA_ID, _pedido(destinatario_avulso=DESTINATARIO), usuario_id=None)
+    assert novo.status == "AUTORIZADA"
+    assert client.payloads[0][1]["destinatario"]["endereco"]["bairro"] == "Centro"

@@ -138,10 +138,17 @@ def _resolver_itens(doc: DocumentoFiscal, dados: EmissaoDevolucaoRequest, intere
 # ===========================================================================
 
 def _resolver_destinatario(db: Session, doc: DocumentoFiscal, dados: EmissaoDevolucaoRequest) -> dict:
-    """Quem devolve. Cliente cadastrado na venda de origem; senão, o avulso."""
+    """Quem devolve. Cliente cadastrado na origem (venda ou OS); senão, o avulso.
+
+    O cadastro só serve se `_montar_destinatario` conseguir o grupo `endereco`
+    completo: a NF-e exige enderDest e a SEFAZ rejeita sem ele -- depois de o
+    número já ter sido consumido. Endereço incompleto cai no avulso.
+    """
     cliente = _cliente_da_origem(db, doc)
-    if cliente is not None and getattr(cliente, "endereco", None):
-        return _montar_destinatario(cliente)
+    if cliente is not None:
+        dest = _montar_destinatario(cliente)
+        if dest.get("endereco"):
+            return dest
     if dados.destinatario_avulso is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -157,11 +164,15 @@ def _resolver_destinatario(db: Session, doc: DocumentoFiscal, dados: EmissaoDevo
 
 
 def _cliente_da_origem(db: Session, doc: DocumentoFiscal):
-    if doc.origem_tipo != "VENDA" or doc.origem_id is None:
-        return None
-    venda_id = crud.get_venda_id_por_numero(db, doc.origem_id)
-    venda = crud.get_venda_completa(db, venda_id) if venda_id else None
-    return getattr(venda, "cliente", None)
+    if doc.origem_tipo == "VENDA" and doc.origem_id is not None:
+        venda_id = crud.get_venda_id_por_numero(db, doc.origem_id)
+        venda = crud.get_venda_completa(db, venda_id) if venda_id else None
+        return getattr(venda, "cliente", None)
+    if doc.origem_tipo == "OS" and doc.origem_numero_os:
+        os_ = crud.get_os_completa(db, doc.origem_numero_os)
+        objeto = getattr(os_, "objeto", None)
+        return getattr(objeto, "cliente", None)
+    return None
 
 
 def _itens_para_o_motor(
@@ -172,24 +183,10 @@ def _itens_para_o_motor(
     PIS/COFINS não estão no snapshot; vêm do regime (Simples = CST 49 zerado)
     ou do cadastro fiscal efetivo do produto, como na emissão original.
     """
-    nao_cumulativo = regime == "NAO_CUMULATIVO"
-    pis_padrao = PIS_NAO_CUMULATIVO if nao_cumulativo else PIS_CUMULATIVO
-    cofins_padrao = COFINS_NAO_CUMULATIVO if nao_cumulativo else COFINS_CUMULATIVO
-
     entradas = []
     for idx, (snap, qtd_mil, cfop_entrada) in enumerate(itens, start=1):
         produto = produto_crud.get_produto_by_id(db, produto_id=snap.produto_id) if snap.produto_id else None
         fiscal = fiscal_efetivo(db, produto) if produto else None
-
-        if simples:
-            aliq_pis = aliq_cofins = Decimal("0")
-            cst_pis = cst_cofins = CST_PIS_COFINS_SIMPLES
-        else:
-            aliq_pis = Decimal(fiscal.aliquota_pis) / 100 if fiscal and fiscal.aliquota_pis is not None else pis_padrao
-            aliq_cofins = Decimal(fiscal.aliquota_cofins) / 100 if fiscal and fiscal.aliquota_cofins is not None else cofins_padrao
-            cst_pis = fiscal.cst_pis if fiscal and fiscal.cst_pis else "01"
-            cst_cofins = fiscal.cst_cofins if fiscal and fiscal.cst_cofins else "01"
-
         quantidade = Decimal(qtd_mil) / 1000
         unitario = Decimal(snap.valor_unitario) / 100
         entradas.append(ItemEntrada(
@@ -206,12 +203,27 @@ def _itens_para_o_motor(
             cst_icms=None if simples else snap.situacao_tributaria,
             csosn=snap.situacao_tributaria if simples else None,
             aliquota_icms=Decimal(snap.aliquota_icms_centesimos or 0) / 100,
-            aliquota_pis=aliq_pis,
-            aliquota_cofins=aliq_cofins,
-            cst_pis=cst_pis,
-            cst_cofins=cst_cofins,
+            **_pis_cofins(fiscal, simples, regime),
         ))
     return entradas
+
+
+def _pis_cofins(fiscal, simples: bool, regime: str) -> dict:
+    """Alíquotas e CST de PIS/COFINS, como o resolver da emissão decide."""
+    if simples:
+        return dict(
+            aliquota_pis=Decimal("0"), aliquota_cofins=Decimal("0"),
+            cst_pis=CST_PIS_COFINS_SIMPLES, cst_cofins=CST_PIS_COFINS_SIMPLES,
+        )
+    nao_cumulativo = regime == "NAO_CUMULATIVO"
+    pis_padrao = PIS_NAO_CUMULATIVO if nao_cumulativo else PIS_CUMULATIVO
+    cofins_padrao = COFINS_NAO_CUMULATIVO if nao_cumulativo else COFINS_CUMULATIVO
+    return dict(
+        aliquota_pis=Decimal(fiscal.aliquota_pis) / 100 if fiscal and fiscal.aliquota_pis is not None else pis_padrao,
+        aliquota_cofins=Decimal(fiscal.aliquota_cofins) / 100 if fiscal and fiscal.aliquota_cofins is not None else cofins_padrao,
+        cst_pis=fiscal.cst_pis if fiscal and fiscal.cst_pis else "01",
+        cst_cofins=fiscal.cst_cofins if fiscal and fiscal.cst_cofins else "01",
+    )
 
 
 # ===========================================================================
@@ -257,15 +269,17 @@ def aplicar_efeitos_autorizacao(db: Session, doc: DocumentoFiscal, usuario_id: O
 
 
 def _parear_itens(origem: DocumentoFiscal, devolucao: DocumentoFiscal):
-    """Casa cada item da devolução com o item de origem pelo `codigo_produto`.
+    """Casa cada item da devolução com o item de origem pelo `numero_item`.
 
-    O snapshot da devolução carrega, em `codigo_produto`, o mesmo código do
-    item original (ver `_montar_itens_devolucao`), e uma nota não repete
-    código de produto entre itens.
+    O snapshot da devolução guarda em `numero_item` o número do item NA
+    ORIGEM (ver `emitir_devolucao`), que é único por nota -- diferente de
+    `codigo_produto`, que pode ser nulo (nota de teste, snapshot antigo) ou
+    repetido (mesmo produto em duas linhas), e nesses casos o saldo não
+    fechava.
     """
-    por_codigo = {i.codigo_produto: i for i in origem.itens}
+    por_numero = {i.numero_item: i for i in origem.itens}
     for item_dev in devolucao.itens:
-        item_origem = por_codigo.get(item_dev.codigo_produto)
+        item_origem = por_numero.get(item_dev.numero_item)
         if item_origem is not None:
             yield item_origem, item_dev
 
@@ -320,7 +334,22 @@ def emitir_devolucao(
         empresa, endereco, fs, origem.chave_acesso, destinatario, itens,
         resultado_calculo, numero, dados.motivo,
     )
+    doc = _criar_documento_devolucao(db, origem, fs, numero, payload, itens, resultado_calculo, dados)
 
+    client = get_fiscal_client(fs.ambiente_emissao, crud.get_licenca_token(db))
+    _transmitir(doc, payload, client)
+
+    if doc.status == "AUTORIZADA":
+        aplicar_efeitos_autorizacao(db, doc, usuario_id)
+
+    return doc
+
+
+def _criar_documento_devolucao(
+    db: Session, origem: DocumentoFiscal, fs, numero: int, payload: dict,
+    itens: list[ItemDevolucao], resultado_calculo, dados: EmissaoDevolucaoRequest,
+) -> DocumentoFiscal:
+    """O DocumentoFiscal da devolução, com snapshot, gravado ANTES de transmitir."""
     doc = DocumentoFiscal(
         tipo_documento="NFE",
         origem_tipo=origem.origem_tipo,
@@ -340,14 +369,20 @@ def emitir_devolucao(
         devolver_estoque=dados.devolver_estoque,
     )
     gravar_snapshot(doc, payload)
-    # O snapshot tira o `produto_id` da venda, que a devolução não tem: ele vem
-    # do item de origem, na mesma ordem em que o payload foi montado. É por ele
-    # que a entrada no estoque acha o produto.
+    # Dois elos com a origem que o snapshot do payload não carrega:
+    # `produto_id` (o snapshot o tira da venda, que a devolução não tem) e o
+    # `numero_item` DA ORIGEM, gravado no lugar do sequencial do payload. É por
+    # ele que `_parear_itens` acha o item certo na autorização -- inclusive a
+    # que chega depois, pelo polling, quando a seleção já não existe.
     for item_dev, (snap, _, _) in zip(doc.itens, itens):
         item_dev.produto_id = snap.produto_id
+        item_dev.numero_item = snap.numero_item
     crud.salvar_documento(db, doc)
+    return doc
 
-    client = get_fiscal_client(fs.ambiente_emissao, crud.get_licenca_token(db))
+
+def _transmitir(doc: DocumentoFiscal, payload: dict, client) -> None:
+    """Mesmos três desfechos da emissão normal (ver `emitir_nfe_venda`)."""
     from app.services.fiscal.emissao import _aplicar_resultado  # evita import circular no topo
 
     try:
@@ -364,8 +399,3 @@ def emitir_devolucao(
             f"Não foi possível confirmar o resultado junto à SEFAZ: {str(e)[:300]}. "
             f"O documento será reconsultado automaticamente."
         )
-
-    if doc.status == "AUTORIZADA":
-        aplicar_efeitos_autorizacao(db, doc, usuario_id)
-
-    return doc

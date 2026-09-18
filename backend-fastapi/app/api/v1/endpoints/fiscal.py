@@ -502,6 +502,7 @@ def cancelar_documento(
     ),
 )
 def emitir_devolucao(
+    background_tasks: BackgroundTasks,
     user_token: dict = Depends(requer_modulo_fiscal),
     *,
     db: Session = Depends(get_db),
@@ -509,6 +510,7 @@ def emitir_devolucao(
     payload: EmissaoDevolucaoRequest = Body(...),
 ):
     from app.services.fiscal.devolucao import emitir_devolucao as _emitir
+    from app.services.fiscal.emissao import poll_nfe_status_async
 
     doc = _handle_db_transaction(
         db,
@@ -518,6 +520,12 @@ def emitir_devolucao(
         payload,
         int(user_token["sub"]) if user_token.get("sub") else None,
     )
+
+    # Mesmo acompanhamento do /emitir/nfe: se a SEFAZ ficou de responder, o
+    # polling é o que traz a autorização -- e com ela o saldo e o estoque.
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, user_token["empresa_id"])
+
     return documento_fiscal_service.obter_documento(db, doc.id)
 
 

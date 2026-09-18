@@ -269,7 +269,9 @@ def test_recusa_da_plataforma_vira_erro_e_nao_rejeitada(db, empresa, client, mon
     assert carta.codigo_status_sefaz is None
 
 
-def test_falha_de_rede_vira_502_e_o_pedido_fica_registrado_como_erro(db, empresa, client, monkeypatch):
+def test_falha_de_rede_vira_502_com_o_registro_marcado_erro_ate_o_rollback(db, empresa, client, monkeypatch):
+    """No endpoint o `_handle_db_transaction` desfaz o registro; aqui, sem
+    rollback, confere-se só o que o serviço deixou na sessão."""
     doc = _doc(db)
 
     def explode(ref, correcao):

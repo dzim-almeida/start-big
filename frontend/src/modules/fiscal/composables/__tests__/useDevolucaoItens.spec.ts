@@ -79,6 +79,14 @@ describe('prazoCancelamentoExpirado', () => {
     expect(prazoCancelamentoExpirado(doc, autorizada + 31 * 60 * 1000)).toBe(true);
   });
 
+  it('timestamp sem fuso do backend é UTC, não hora local', () => {
+    // 2026-09-17 10:00 UTC autorizada; 40 min depois em UTC a NFC-e já expirou,
+    // independentemente do fuso da máquina.
+    const doc = documento({ tipo_documento: 'NFCE', data_autorizacao: '2026-09-17T10:00:00' });
+    expect(prazoCancelamentoExpirado(doc, autorizada + 40 * 60 * 1000)).toBe(true);
+    expect(prazoCancelamentoExpirado(doc, autorizada + 20 * 60 * 1000)).toBe(false);
+  });
+
   it('sem data de autorização usa a de emissão; sem nenhuma, não expira', () => {
     const emitida = Date.parse('2026-09-17T09:59:00Z');
     expect(

@@ -173,11 +173,19 @@ def salvar_documento(db: Session, documento: DocumentoFiscal):
 STATUS_DOCUMENTO_VIVO = ["PROCESSANDO", "AUTORIZADA", "INDETERMINADA"]
 
 
+# A NF-e de devolução (finalidade 4) copia a origem da nota devolvida para
+# rastreio, mas NÃO é "o documento da venda": sem este filtro ela apareceria
+# no lugar da nota original na lista de vendas, no PDV e na mensagem de
+# bloqueio de emissão duplicada.
+_SO_NOTA_DA_OPERACAO = DocumentoFiscal.finalidade_emissao != 4
+
+
 def get_documento_ativo_por_venda(db: Session, numero_venda: int):
     return db.query(DocumentoFiscal).filter(
         DocumentoFiscal.origem_tipo == "VENDA",
         DocumentoFiscal.origem_id == numero_venda,
         DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
+        _SO_NOTA_DA_OPERACAO,
     ).first()
 
 def get_documento_ativo_por_os(db: Session, numero_os: str):
@@ -189,6 +197,7 @@ def get_documento_ativo_por_os(db: Session, numero_os: str):
         DocumentoFiscal.origem_tipo == "OS",
         DocumentoFiscal.origem_numero_os == numero_os,
         DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
+        _SO_NOTA_DA_OPERACAO,
     ).first()
 
 def get_documentos_ativos_por_vendas(db: Session, numeros_venda: list[int]) -> dict[int, DocumentoFiscal]:
@@ -199,6 +208,7 @@ def get_documentos_ativos_por_vendas(db: Session, numeros_venda: list[int]) -> d
         DocumentoFiscal.origem_tipo == "VENDA",
         DocumentoFiscal.origem_id.in_(numeros_venda),
         DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
+        _SO_NOTA_DA_OPERACAO,
     ).all()
     return {doc.origem_id: doc for doc in docs}
 
@@ -213,6 +223,7 @@ def get_documentos_relevantes_por_vendas(db: Session, numeros_venda: list[int]) 
             "PROCESSANDO", "PENDENTE", "AUTORIZADA", "INDETERMINADA",
             "REJEITADA", "DENEGADA", "NAO_TRANSMITIDA",
         ]),
+        _SO_NOTA_DA_OPERACAO,
     ).all()
     # Esta lista é para EXIBIR, não para bloquear — por isso inclui os desfechos
     # que não trancam a venda. NAO_TRANSMITIDA entra com a prioridade mais
