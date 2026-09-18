@@ -21,6 +21,11 @@ class DocumentoItemResumo(BaseModel):
     desconto: int = 0
     ncm: Optional[str] = None
     cfop: Optional[str] = None
+    # Devolução (TASK003): saldo por item em MILÉSIMOS (1000 = 1 UN), porque a
+    # quantidade inteira acima perde a fração e a devolução parcial precisa
+    # dela. Só o snapshot preenche; itens reconstruídos do cadastro ficam None.
+    quantidade_milesimos: Optional[int] = None
+    quantidade_devolvida_acumulada: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +58,12 @@ class DocumentoFiscalRead(BaseModel):
     # a SEFAZ só considera vigente a última, então ela precisa consolidar.
     total_cartas_correcao: int = 0
     ultima_carta_correcao: Optional[str] = None
+    # Devolução: 1 = normal, 4 = esta nota É uma devolução (aponta para a
+    # origem). `totalmente_devolvida` é derivado do saldo dos itens.
+    finalidade_emissao: int = 1
+    documento_referenciado_id: Optional[int] = None
+    chave_documento_referenciado: Optional[str] = None
+    totalmente_devolvida: bool = False
     mensagem_sefaz: Optional[str] = None
     codigo_status_sefaz: Optional[int] = None
     motivo_rejeicao: Optional[str] = None

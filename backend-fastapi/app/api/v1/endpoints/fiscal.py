@@ -40,6 +40,7 @@ from app.schemas.emissao_fiscal import (
     InutilizacaoRequest,
     CancelamentoRequest,
     EmissaoBatchResponse,
+    EmissaoDevolucaoRequest,
     EmissaoNFeBatchRequest,
     EmissaoNFCeRequest,
     EmissaoNFeRequest,
@@ -484,6 +485,40 @@ def cancelar_documento(
         empresa_id,
         payload.justificativa,
     )
+
+
+# ===========================================================================
+# DEVOLUÇÃO — NF-e de entrada (finalidade 4) referenciando a nota original
+# ===========================================================================
+
+@router.post(
+    "/documentos/{documento_id}/devolucao",
+    response_model=DocumentoFiscalRead,
+    summary="Emitir NF-e de Devolução",
+    description=(
+        "Emite uma NF-e de devolução (modelo 55, entrada, finalidade 4) total ou "
+        "parcial a partir de uma NF-e/NFC-e autorizada. Consome número da NF-e. "
+        "Com `devolver_estoque`, os itens voltam ao estoque quando a SEFAZ autorizar."
+    ),
+)
+def emitir_devolucao(
+    user_token: dict = Depends(requer_modulo_fiscal),
+    *,
+    db: Session = Depends(get_db),
+    documento_id: int = Path(..., ge=1, description="ID da nota de origem (autorizada)"),
+    payload: EmissaoDevolucaoRequest = Body(...),
+):
+    from app.services.fiscal.devolucao import emitir_devolucao as _emitir
+
+    doc = _handle_db_transaction(
+        db,
+        _emitir,
+        documento_id,
+        user_token["empresa_id"],
+        payload,
+        int(user_token["sub"]) if user_token.get("sub") else None,
+    )
+    return documento_fiscal_service.obter_documento(db, doc.id)
 
 
 # ===========================================================================

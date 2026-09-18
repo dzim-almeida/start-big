@@ -13,7 +13,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -138,6 +138,27 @@ class DocumentoFiscal(Base):
         Integer, ForeignKey("documento_fiscal.id"), nullable=True, index=True,
         doc="ID da tentativa anterior (reemissão cria nova linha)"
     )
+
+    # --- Devolução (finalidade 4) ---
+    # Uma NF-e de devolução é uma EMISSÃO nova que aponta para a nota que está
+    # sendo devolvida. A chave fica copiada porque é ela que vai no XML
+    # (refNFe) e porque o documento de origem pode ser uma NFC-e.
+    finalidade_emissao: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1"),
+        doc="finNFe: 1=Normal, 4=Devolução de mercadoria",
+    )
+    documento_referenciado_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("documento_fiscal.id", ondelete="SET NULL"), nullable=True, index=True,
+        doc="Nota/cupom devolvido por esta NF-e (só finalidade 4)",
+    )
+    chave_documento_referenciado: Mapped[Optional[str]] = mapped_column(
+        String(44), nullable=True, index=True,
+        doc="Chave SEFAZ (44 dígitos) da nota devolvida",
+    )
+    # A decisão "devolver ao estoque?" precisa sobreviver até a autorização,
+    # que pode chegar pelo polling em outra requisição. Só faz sentido na
+    # devolução; nos demais fica NULL.
+    devolver_estoque: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
     itens: Mapped[list["DocumentoFiscalItem"]] = relationship(
         "DocumentoFiscalItem",

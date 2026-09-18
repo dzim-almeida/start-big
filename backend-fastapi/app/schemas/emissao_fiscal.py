@@ -3,6 +3,7 @@
 # DESCRIÇÃO: Schemas Pydantic para emissão de NF-e (request/response).
 # ---------------------------------------------------------------------------
 
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -88,6 +89,66 @@ class CartaCorrecaoRead(BaseModel):
         dados.xml_local = bool(carta.caminho_xml_local)
         dados.pdf_local = bool(carta.caminho_pdf_local)
         return dados
+
+
+class ItemDevolucaoRequest(BaseModel):
+    """Um item da nota original a devolver, em milésimos (1000 = 1 UN)."""
+
+    documento_item_id: int = Field(..., description="ID do DocumentoFiscalItem da nota original")
+    quantidade: int = Field(..., gt=0, description="Quantidade a devolver em milésimos")
+
+
+class DestinatarioAvulsoRequest(BaseModel):
+    """Quem está devolvendo, quando a nota de origem não identificou ninguém.
+
+    A NF-e (modelo 55) exige destinatário com endereço; uma NFC-e sem CPF não
+    tem de onde tirar isso, então o operador informa aqui.
+    """
+
+    cpf_ou_cnpj: str = Field(..., description="CPF (11) ou CNPJ (14), só dígitos ou formatado")
+    nome_razao_social: str = Field(..., min_length=2, max_length=120)
+    indicador_inscricao_estadual: int = Field(
+        default=9, description="1=Contribuinte, 2=Isento, 9=Não contribuinte",
+    )
+    inscricao_estadual: Optional[str] = Field(None, max_length=20)
+    logradouro: str = Field(..., min_length=2, max_length=120)
+    numero: str = Field(..., min_length=1, max_length=20)
+    complemento: Optional[str] = Field(None, max_length=60)
+    bairro: str = Field(..., min_length=2, max_length=60)
+    codigo_municipio: str = Field(..., min_length=7, max_length=7, description="Código IBGE, 7 dígitos")
+    municipio: str = Field(..., min_length=2, max_length=60)
+    uf: str = Field(..., min_length=2, max_length=2)
+    cep: str = Field(..., description="8 dígitos, com ou sem hífen")
+
+    @model_validator(mode="after")
+    def sanitizar_e_validar(self):
+        self.cpf_ou_cnpj = re.sub(r"\D", "", self.cpf_ou_cnpj)
+        if len(self.cpf_ou_cnpj) not in (11, 14):
+            raise ValueError("Documento deve ser CPF (11 dígitos) ou CNPJ (14 dígitos).")
+        self.cep = re.sub(r"\D", "", self.cep)
+        if len(self.cep) != 8:
+            raise ValueError("CEP deve conter 8 dígitos.")
+        if not self.codigo_municipio.isdigit():
+            raise ValueError("Código do município deve ser o IBGE de 7 dígitos.")
+        if self.indicador_inscricao_estadual == 1 and not self.inscricao_estadual:
+            raise ValueError("Inscrição Estadual obrigatória para contribuinte (indicador=1).")
+        self.uf = self.uf.upper()
+        return self
+
+
+class EmissaoDevolucaoRequest(BaseModel):
+    """Request da NF-e de devolução (finalidade 4) a partir de uma nota autorizada."""
+
+    motivo: str = Field(..., min_length=15, max_length=255, description="Justificativa da devolução")
+    devolver_estoque: bool = Field(
+        default=True, description="Dá entrada dos itens no estoque quando a SEFAZ autorizar",
+    )
+    itens: Optional[list[ItemDevolucaoRequest]] = Field(
+        None, description="Itens parciais. Omitido/vazio = devolve todo o saldo restante.",
+    )
+    destinatario_avulso: Optional[DestinatarioAvulsoRequest] = Field(
+        None, description="Obrigatório quando a nota de origem não identificou o comprador.",
+    )
 
 
 class EmissaoNFCeRequest(BaseModel):
