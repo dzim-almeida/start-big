@@ -40,6 +40,56 @@ class CancelamentoRequest(BaseModel):
         return v
 
 
+class CartaCorrecaoRequest(BaseModel):
+    """Request para registrar uma CC-e numa NF-e autorizada.
+
+    Não reaproveita `CancelamentoRequest`: o limite é OUTRO (1000, não 255) —
+    a carta precisa caber a consolidação de todas as anteriores, porque a
+    SEFAZ só considera vigente a última.
+    """
+
+    correcao: str
+
+    @field_validator("correcao")
+    @classmethod
+    def validar_correcao(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 15:
+            raise ValueError("A correção deve ter no mínimo 15 caracteres (exigência SEFAZ).")
+        if len(v) > 1000:
+            raise ValueError("A correção deve ter no máximo 1000 caracteres.")
+        return v
+
+
+class CartaCorrecaoRead(BaseModel):
+    """Uma CC-e registrada (ou tentada) numa NF-e."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    documento_id: int
+    sequencia: Optional[int] = None
+    correcao: str
+    status: str
+    protocolo: Optional[str] = None
+    codigo_status_sefaz: Optional[int] = None
+    mensagem_sefaz: Optional[str] = None
+    url_xml: Optional[str] = None
+    url_pdf: Optional[str] = None
+    xml_local: bool = False
+    pdf_local: bool = False
+    data_evento: Optional[datetime] = None
+    data_criacao: datetime
+
+    @classmethod
+    def de_registro(cls, carta) -> "CartaCorrecaoRead":
+        """`xml_local`/`pdf_local` derivam dos caminhos, como no DocumentoFiscalRead."""
+        dados = cls.model_validate(carta)
+        dados.xml_local = bool(carta.caminho_xml_local)
+        dados.pdf_local = bool(carta.caminho_pdf_local)
+        return dados
+
+
 class EmissaoNFCeRequest(BaseModel):
     """Request para emitir NFC-e (modelo 65).
 

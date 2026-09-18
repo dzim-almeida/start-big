@@ -48,6 +48,11 @@ class DocumentoFiscalRead(BaseModel):
     # ruído — e informação de infraestrutura que a interface não usa.
     xml_local: bool = False
     pdf_local: bool = False
+    # Cartas de correção AUTORIZADAS (só NF-e). O texto da última vem junto
+    # para o drawer pré-preencher a próxima carta sem uma segunda requisição:
+    # a SEFAZ só considera vigente a última, então ela precisa consolidar.
+    total_cartas_correcao: int = 0
+    ultima_carta_correcao: Optional[str] = None
     mensagem_sefaz: Optional[str] = None
     codigo_status_sefaz: Optional[int] = None
     motivo_rejeicao: Optional[str] = None

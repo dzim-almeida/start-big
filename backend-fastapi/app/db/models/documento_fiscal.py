@@ -20,6 +20,7 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
     from app.db.models.documento_fiscal_item import DocumentoFiscalItem
     from app.db.models.documento_fiscal import DocumentoFiscal as _Self
 
@@ -155,6 +156,13 @@ class DocumentoFiscal(Base):
         foreign_keys=[tentativa_anterior_id],
         uselist=False,
         doc="Documento da tentativa anterior"
+    )
+
+    cartas_correcao: Mapped[list["CartaCorrecaoFiscal"]] = relationship(
+        "CartaCorrecaoFiscal",
+        back_populates="documento",
+        order_by="CartaCorrecaoFiscal.sequencia",
+        doc="Eventos de CC-e registrados nesta NF-e (só modelo 55)",
     )
 
     # --- Timestamps ---

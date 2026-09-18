@@ -58,6 +58,12 @@ def _hidratar_documento_com_venda(db: Session, doc: DocumentoFiscal) -> Document
         doc.caminho_pdf_local and os.path.exists(doc.caminho_pdf_local)
     )
 
+    # Só as AUTORIZADAS contam: rejeitada não existe na SEFAZ. A relação já
+    # vem ordenada por sequência, então a última da lista é a vigente.
+    cartas_vigentes = [c for c in doc.cartas_correcao if c.status == "AUTORIZADA"]
+    doc_read.total_cartas_correcao = len(cartas_vigentes)
+    doc_read.ultima_carta_correcao = cartas_vigentes[-1].correcao if cartas_vigentes else None
+
     # O snapshot manda quando existe.
     #
     # Sem ele, os itens eram reconstruídos AO VIVO de `item.produto.fiscal` —

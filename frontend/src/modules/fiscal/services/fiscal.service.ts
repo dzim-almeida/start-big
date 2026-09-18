@@ -8,6 +8,7 @@ import type { EmissaoPreviewResponse,
   DocumentoFiscalFilters,
   EmissaoNFeRequest,
   EmissaoResponse,
+  CartaCorrecaoRead,
   EmissaoBatchResponse,
   FiscalConfiguracao,
   FiscalConfiguracaoUpdate,
@@ -202,6 +203,39 @@ export const fiscalService = {
       `${FISCAL_ENDPOINT}/documentos/${id}/cancelar`,
       { justificativa },
       { timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
+  /** Registra uma CC-e na NF-e. A resposta pode vir REJEITADA (SEFAZ recusou) sem erro HTTP. */
+  async emitirCartaCorrecao(id: number, correcao: string): Promise<CartaCorrecaoRead> {
+    const { data } = await api.post<CartaCorrecaoRead>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/carta-correcao`,
+      { correcao },
+      { timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
+  async listarCartasCorrecao(id: number): Promise<CartaCorrecaoRead[]> {
+    const { data } = await api.get<CartaCorrecaoRead[]>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/cartas-correcao`,
+    );
+    return data;
+  },
+
+  async baixarPdfCartaCorrecao(cartaId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `${FISCAL_ENDPOINT}/cartas-correcao/${cartaId}/pdf`,
+      { responseType: 'blob', timeout: TIMEOUT_CONSULTA },
+    );
+    return data;
+  },
+
+  async baixarXmlCartaCorrecao(cartaId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `${FISCAL_ENDPOINT}/cartas-correcao/${cartaId}/xml`,
+      { responseType: 'blob', timeout: TIMEOUT_CONSULTA },
     );
     return data;
   },

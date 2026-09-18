@@ -51,6 +51,13 @@ export interface DocumentoFiscalRead {
   xml_local?: boolean;
   /** O DANFE esta guardado nesta maquina? (nao entra no backup em nuvem) */
   pdf_local?: boolean;
+  /**
+   * Cartas de correção AUTORIZADAS nesta NF-e (0 em NFC-e). A SEFAZ só
+   * considera vigente a última, por isso o texto dela vem junto: a próxima
+   * carta precisa consolidar as anteriores.
+   */
+  total_cartas_correcao?: number;
+  ultima_carta_correcao?: string | null;
   mensagem_sefaz: string | null;
   codigo_status_sefaz: number | null;
   /** Status cru da emissora ('autorizado', 'denegado', 'erro_autorizacao'). */
@@ -152,6 +159,25 @@ export interface DocumentoFiscalFilters {
   busca?: string;
   data_inicio?: string;
   data_fim?: string;
+}
+
+/** Uma CC-e registrada (ou tentada) numa NF-e — espelha `CartaCorrecaoRead`. */
+export interface CartaCorrecaoRead {
+  id: number;
+  documento_id: number;
+  /** Sequência atribuída pela SEFAZ (1..20); null enquanto não autorizada. */
+  sequencia: number | null;
+  correcao: string;
+  status: 'PROCESSANDO' | 'AUTORIZADA' | 'REJEITADA' | 'ERRO';
+  protocolo: string | null;
+  codigo_status_sefaz: number | null;
+  mensagem_sefaz: string | null;
+  url_xml: string | null;
+  url_pdf: string | null;
+  xml_local: boolean;
+  pdf_local: boolean;
+  data_evento: string | null;
+  data_criacao: string;
 }
 
 export interface DocumentoFiscalHistorico {
