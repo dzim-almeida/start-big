@@ -19,6 +19,11 @@ export const TIMEOUT_EMISSAO = 45_000;
 export const TIMEOUT_LOTE = 300_000;
 export const TIMEOUT_CONSULTA = 20_000;
 
+/** Carta de correção: limites da SEFAZ/Focus (o backend valida os mesmos). */
+export const CARTA_CORRECAO_MINIMO = 15;
+export const CARTA_CORRECAO_MAXIMO = 1000;
+export const LIMITE_CARTAS_POR_NOTA = 20;
+
 export const fiscalKeys = {
   /** Prefixo de todas as queries do modulo — invalida o fiscal inteiro. */
   all: ['fiscal'] as const,
@@ -38,6 +43,8 @@ export const fiscalKeys = {
   configuracao: () => ['fiscal', 'configuracao'] as const,
   plataforma: () => ['fiscal', 'plataforma'] as const,
   historico: (id: number) => ['fiscal', 'historico', id] as const,
+  /** Cartas de correção de uma NF-e — muda só ao registrar uma nova. */
+  cartasCorrecao: (id: number) => ['fiscal', 'cartas-correcao', id] as const,
   verificacaoBatch: (ids: number[]) => ['fiscal', 'verificacao-batch', ...ids] as const,
   /** Mapa de campos do cadastro de produto — muda só com o regime da empresa. */
   camposProduto: () => ['fiscal', 'campos', 'produto'] as const,
@@ -67,6 +74,9 @@ export const STATUS_COLORS: Record<
   // Nunca chegou na SEFAZ. Cinza, e nao vermelho, porque nao ha rejeicao:
   // separar as duas na cor e metade do motivo de este status existir.
   NAO_TRANSMITIDA: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' },
+  // Carta de correção que a plataforma recusou antes da SEFAZ (mesma ideia
+  // de NAO_TRANSMITIDA: não houve rejeição).
+  ERRO: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' },
 };
 
 /**
@@ -85,6 +95,7 @@ export const STATUS_LABELS: Record<string, string> = {
   DENEGADA: 'Denegada',
   INDETERMINADA: 'Sem retorno',
   NAO_TRANSMITIDA: 'Nao transmitida',
+  ERRO: 'Erro',
 };
 
 export const STATUS_FILTER_OPTIONS = [

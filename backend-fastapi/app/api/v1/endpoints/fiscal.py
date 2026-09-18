@@ -32,12 +32,15 @@ from app.schemas.documento_fiscal import (
     PendenciasGlobais,
 )
 from app.schemas.emissao_fiscal import (
+    CartaCorrecaoRead,
+    CartaCorrecaoRequest,
     DiagnosticoPlataforma,
     GapNumeracao,
     InutilizacaoRead,
     InutilizacaoRequest,
     CancelamentoRequest,
     EmissaoBatchResponse,
+    EmissaoDevolucaoRequest,
     EmissaoNFeBatchRequest,
     EmissaoNFCeRequest,
     EmissaoNFeRequest,
@@ -485,6 +488,164 @@ def cancelar_documento(
 
 
 # ===========================================================================
+# DEVOLUÇÃO — NF-e de entrada (finalidade 4) referenciando a nota original
+# ===========================================================================
+
+@router.post(
+    "/documentos/{documento_id}/devolucao",
+    response_model=DocumentoFiscalRead,
+    summary="Emitir NF-e de Devolução",
+    description=(
+        "Emite uma NF-e de devolução (modelo 55, entrada, finalidade 4) total ou "
+        "parcial a partir de uma NF-e/NFC-e autorizada. Consome número da NF-e. "
+        "Com `devolver_estoque`, os itens voltam ao estoque quando a SEFAZ autorizar."
+    ),
+)
+def emitir_devolucao(
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(requer_modulo_fiscal),
+    *,
+    db: Session = Depends(get_db),
+    documento_id: int = Path(..., ge=1, description="ID da nota de origem (autorizada)"),
+    payload: EmissaoDevolucaoRequest = Body(...),
+):
+    from app.services.fiscal.devolucao import emitir_devolucao as _emitir
+    from app.services.fiscal.emissao import poll_nfe_status_async
+
+    doc = _handle_db_transaction(
+        db,
+        _emitir,
+        documento_id,
+        user_token["empresa_id"],
+        payload,
+        int(user_token["sub"]) if user_token.get("sub") else None,
+    )
+
+    # Mesmo acompanhamento do /emitir/nfe: se a SEFAZ ficou de responder, o
+    # polling é o que traz a autorização -- e com ela o saldo e o estoque.
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, user_token["empresa_id"])
+
+    return documento_fiscal_service.obter_documento(db, doc.id)
+
+
+# ===========================================================================
+# CARTA DE CORREÇÃO (CC-e) — evento anexo à NF-e, até 20 por nota
+# ===========================================================================
+
+@router.post(
+    "/documentos/{documento_id}/carta-correcao",
+    response_model=CartaCorrecaoRead,
+    summary="Registrar Carta de Correção",
+    description=(
+        "Registra uma CC-e na NF-e autorizada (só modelo 55; 15 a 1000 caracteres). "
+        "A última carta substitui as anteriores na SEFAZ."
+    ),
+)
+def registrar_carta_correcao(
+    user_token: dict = Depends(get_current_active_user),
+    *,
+    db: Session = Depends(get_db),
+    documento_id: int = Path(..., ge=1, description="ID da NF-e"),
+    payload: CartaCorrecaoRequest = Body(...),
+):
+    from app.services.fiscal.carta_correcao import emitir_carta_correcao
+
+    carta = _handle_db_transaction(
+        db,
+        emitir_carta_correcao,
+        documento_id,
+        user_token["empresa_id"],
+        payload.correcao,
+        int(user_token["sub"]) if user_token.get("sub") else None,
+    )
+    return CartaCorrecaoRead.de_registro(carta)
+
+
+@router.get(
+    "/documentos/{documento_id}/cartas-correcao",
+    response_model=list[CartaCorrecaoRead],
+    summary="Cartas de Correção da Nota",
+    description="Histórico de CC-e da NF-e, na ordem da SEFAZ (a última é a vigente).",
+)
+def listar_cartas_correcao(
+    user_token: dict = Depends(get_current_active_user),
+    *,
+    db: Session = Depends(get_db),
+    documento_id: int = Path(..., ge=1, description="ID da NF-e"),
+):
+    from app.services.fiscal.carta_correcao import listar_cartas_correcao as _listar
+
+    return [
+        CartaCorrecaoRead.de_registro(c)
+        for c in _listar(db, documento_id, user_token["empresa_id"])
+    ]
+
+
+def _arquivo_da_carta(db: Session, user_token: dict, carta_id: int, extensao: str):
+    """XML ou PDF da carta: disco primeiro; emissora como plano B, guardando."""
+    from fastapi.responses import Response
+    from app.services.fiscal.arquivos import guardar_pdf, guardar_xml, ler_pdf, ler_xml
+    from app.services.fiscal.carta_correcao import obter_carta_correcao
+
+    carta = obter_carta_correcao(db, carta_id, user_token["empresa_id"])
+    e_pdf = extensao == "pdf"
+    conteudo = (ler_pdf if e_pdf else ler_xml)(
+        carta.caminho_pdf_local if e_pdf else carta.caminho_xml_local
+    )
+
+    url = carta.url_pdf if e_pdf else carta.url_xml
+    if not conteudo and url:
+        client = _cliente_fiscal(db, user_token["empresa_id"])
+        conteudo = (client.baixar_pdf if e_pdf else client.baixar_xml)(url)
+        chave = carta.documento.chave_acesso or f"doc-{carta.documento_id}"
+        fallback = f"{chave}_cce_{carta.sequencia or 0:02d}"
+        caminho = (guardar_pdf if e_pdf else guardar_xml)(conteudo, chave=None, fallback=fallback)
+        if caminho:
+            setattr(carta, "caminho_pdf_local" if e_pdf else "caminho_xml_local", caminho)
+            db.commit()
+
+    if not conteudo:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{extensao.upper()} da carta indisponível: não está nesta máquina e a emissora não respondeu.",
+        )
+
+    nome = f"{carta.documento.chave_acesso or f'documento-{carta.documento_id}'}_cce_{carta.sequencia or 0:02d}.{extensao}"
+    return Response(
+        content=conteudo,
+        media_type="application/pdf" if e_pdf else "application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
+@router.get(
+    "/cartas-correcao/{carta_id}/pdf",
+    summary="Baixar o PDF da Carta de Correção",
+)
+def baixar_pdf_carta_correcao(
+    user_token: dict = Depends(get_current_active_user),
+    carta_id: int = Path(..., ge=1),
+    *,
+    db: Session = Depends(get_db),
+):
+    return _arquivo_da_carta(db, user_token, carta_id, "pdf")
+
+
+@router.get(
+    "/cartas-correcao/{carta_id}/xml",
+    summary="Baixar o XML da Carta de Correção",
+)
+def baixar_xml_carta_correcao(
+    user_token: dict = Depends(get_current_active_user),
+    carta_id: int = Path(..., ge=1),
+    *,
+    db: Session = Depends(get_db),
+):
+    return _arquivo_da_carta(db, user_token, carta_id, "xml")
+
+
+# ===========================================================================
 # HISTÓRICO DE TENTATIVAS
 # ===========================================================================
 
@@ -520,7 +681,15 @@ def obter_configuracao(
 ):
     empresa_id = user_token["empresa_id"]
     fs = fiscal_crud.get_fiscal_settings(db, empresa_id)
+    return _montar_configuracao(fs)
 
+
+def _montar_configuracao(fs) -> FiscalConfiguracao:
+    """Projeta `EmpresaFiscalSettings` (ou None) na resposta da tela.
+
+    Compartilhado pelo GET e pelo PUT: os dois devolviam o mesmo objeto com o
+    mapeamento copiado, e um campo novo tinha de ser lembrado nos dois lugares.
+    """
     ambiente = fs.ambiente_emissao if fs else 2
     # "Configurado" passou a significar CHEGOU NA EMISSORA.
     #
@@ -557,6 +726,7 @@ def obter_configuracao(
         ultimo_numero_nfe=fs.ultimo_numero_nfe if fs else 0,
         serie_nfce=fs.serie_nfce if fs else 1,
         ultimo_numero_nfce=fs.ultimo_numero_nfce if fs else 0,
+        numeracao_confirmada=bool(fs and fs.numeracao_confirmada),
         csc_token=mascarar_csc(obter_csc_token(fs)) if fs else None,
         csc_configurado=bool(fs and obter_csc_token(fs)),
         csc_id=fs.csc_id if fs else None,
@@ -1129,40 +1299,7 @@ def atualizar_configuracao(
     # limite nunca chegaram ao disco. Quem comita nesta base e o
     # `_handle_db_transaction`, como nos outros oito endpoints deste arquivo.
     fs = _handle_db_transaction(db, update_fiscal_settings, empresa_id, payload)
-    
-    ambiente = fs.ambiente_emissao if fs else 2
-    cert_configurado = bool(
-        fs and (
-            fs.certificado_digital_path
-            or fs.certificado_thumbprint
-            or fs.certificado_status == "CONECTADO_NUVEM"
-        )
-    )
-    cert_valido = bool(
-        cert_configurado and fs.certificado_validade and fs.certificado_validade.replace(tzinfo=None) > datetime.now()
-    )
-
-    return FiscalConfiguracao(
-        ambiente=ambiente,
-        ambiente_label="Homologação" if ambiente == 2 else "Produção",
-        mock_ativo=settings.FISCAL_MOCK_ENABLED,
-        certificado_configurado=cert_configurado,
-        certificado_valido=cert_valido,
-        certificado_status=fs.certificado_status if fs else None,
-        certificado_cnpj=fs.certificado_cnpj if fs else None,
-        certificado_validade=fs.certificado_validade if fs else None,
-        certificado_dias_restantes=dias_para_vencer_certificado(fs.certificado_validade) if fs else None,
-        serie_nfe=fs.serie_nfe if fs else 1,
-        ultimo_numero_nfe=fs.ultimo_numero_nfe if fs else 0,
-        serie_nfce=fs.serie_nfce if fs else 1,
-        ultimo_numero_nfce=fs.ultimo_numero_nfce if fs else 0,
-        csc_token=mascarar_csc(obter_csc_token(fs)) if fs else None,
-        csc_configurado=bool(fs and obter_csc_token(fs)),
-        csc_id=fs.csc_id if fs else None,
-        limite_consumidor_anonimo=(
-            fs.limite_consumidor_anonimo if fs else 1000000
-        ),
-    )
+    return _montar_configuracao(fs)
 
 @router.get(
     "/plataforma",

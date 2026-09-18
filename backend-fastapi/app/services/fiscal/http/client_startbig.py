@@ -178,9 +178,14 @@ class FiscalClientStartBig:
             "protocolo": self._primeiro(response_data, "protocolo", "numero_protocolo"),
             "numero": response_data.get("numero"),
             "serie": response_data.get("serie"),
-            "url_pdf": self._primeiro(response_data, "url_pdf", "caminho_danfe"),
+            # Os `caminho_*_carta_correcao` são os nomes da Focus na CC-e; a
+            # intermediária pode normalizar para `url_*`, e as duas grafias valem.
+            "url_pdf": self._primeiro(
+                response_data, "url_pdf", "caminho_danfe", "caminho_pdf_carta_correcao",
+            ),
             "url_xml": self._primeiro(
                 response_data, "url_xml", "caminho_xml_nota_fiscal",
+                "caminho_xml_carta_correcao",
             ),
             "codigo_sefaz": self._primeiro(response_data, "codigo_sefaz", "status_sefaz"),
             "mensagem_sefaz": mensagem,
@@ -194,6 +199,10 @@ class FiscalClientStartBig:
             # e quem o busca é `obter_valor_tributos_do_xml`.
             "valor_tributos": self._primeiro(
                 response_data, "valor_tributos", "valor_total_tributos",
+            ),
+            # Só a carta de correção devolve; nas demais vem None.
+            "numero_carta_correcao": self._primeiro(
+                response_data, "numero_carta_correcao", "sequencia",
             ),
         }
 
@@ -523,6 +532,42 @@ class FiscalClientStartBig:
         except Exception as exc:
             logger.error("[FISCAL] Falha na requisição de cancelamento: %s", exc)
             return {"status": "erro", "mensagem_sefaz": str(exc)}
+
+    def emitir_carta_correcao(self, ref: str, correcao: str) -> EmissaoResultado:
+        """
+        Registra uma CC-e na NF-e `ref` (Focus: POST /v2/nfe/{ref}/carta_correcao).
+
+        Só a família /nfe: a legislação não prevê CC-e para NFC-e. O corpo não
+        leva `data_evento` de propósito -- a Focus assume a hora atual dela, e o
+        relógio da máquina da loja não é confiável (evento com data futura é
+        rejeitado pela SEFAZ).
+
+        Um 4xx da plataforma passa por `_recusa_local`: sem `codigo_sefaz` não
+        houve transmissão, e isso não é rejeição.
+        """
+        url = f"{self.base_url}/erp/fiscal/nfe/carta-correcao"
+        body = {"ref": ref, "correcao": correcao}
+        _registrar_payload("carta_correcao", ref, body)
+
+        try:
+            with httpx.Client(timeout=20.0) as client:
+                response = client.post(url, json=body, headers=self.headers)
+                response.raise_for_status()
+                return self._parse_response(response.json())
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "[FISCAL] Erro HTTP ao registrar carta de correção: %s",
+                exc.response.status_code,
+            )
+            if exc.response.status_code < 500:
+                return self._recusa_local(exc.response)
+            # 5xx: não se sabe se o evento chegou à SEFAZ. Quem chama registra
+            # ERRO e o operador tenta de novo -- uma duplicidade real volta
+            # como rejeição 573, visível, e não como carta perdida.
+            raise
+        except Exception as exc:
+            logger.error("[FISCAL] Falha na requisição de carta de correção: %s", exc)
+            raise
 
     def inutilizar_numeracao(
         self,

@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.db.crud import fiscal as crud
 from app.services.fiscal.arquivos import guardar_xml, ler_xml
 from app.db.models.documento_fiscal import DocumentoFiscal
+from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
 from app.db.models.inutilizacao_fiscal import InutilizacaoFiscal
 
 from .http import get_fiscal_client
@@ -99,6 +100,19 @@ def listar_inutilizacoes_do_periodo(
     ).all()
 
 
+def listar_cartas_correcao_do_periodo(
+    db: Session, empresa_id: int, data_inicio: date, data_fim: date,
+) -> list[CartaCorrecaoFiscal]:
+    """Cartas AUTORIZADAS no período -- o contador escritura o evento junto da nota."""
+    ini, fim = _janela_utc(data_inicio, data_fim)
+    return db.query(CartaCorrecaoFiscal).filter(
+        CartaCorrecaoFiscal.empresa_id == empresa_id,
+        CartaCorrecaoFiscal.status == "AUTORIZADA",
+        CartaCorrecaoFiscal.data_evento >= ini,
+        CartaCorrecaoFiscal.data_evento <= fim,
+    ).all()
+
+
 def montar_pacote_xml(
     db: Session,
     empresa_id: int,
@@ -109,6 +123,7 @@ def montar_pacote_xml(
     """Devolve (zip_em_bytes, resumo). Nunca levanta por XML que não veio."""
     documentos = listar_documentos_do_periodo(db, data_inicio, data_fim, tipo)
     inutilizacoes = listar_inutilizacoes_do_periodo(db, empresa_id, data_inicio, data_fim)
+    cartas = listar_cartas_correcao_do_periodo(db, empresa_id, data_inicio, data_fim)
 
     fiscal_settings = crud.get_fiscal_settings(db, empresa_id)
     ambiente = fiscal_settings.ambiente_emissao if fiscal_settings else 2
@@ -186,6 +201,21 @@ def montar_pacote_xml(
                     + ("sem URL de XML no registro" if not inut.url_xml else "download falhou")
                 )
 
+        for carta in cartas:
+            chave = carta.documento.chave_acesso or f"doc-{carta.documento_id}"
+            nome = f"CartasCorrecao/{chave}_cce_{carta.sequencia or 0:02d}.xml"
+            xml = ler_xml(carta.caminho_xml_local)
+            if not xml and carta.url_xml:
+                xml = client.baixar_xml(carta.url_xml)
+            if xml:
+                pacote.writestr(nome, xml)
+                baixados += 1
+            else:
+                nao_baixados.append(
+                    f"CARTA DE CORRECAO {carta.sequencia or '?'} da chave {chave}: "
+                    + ("sem URL de XML no registro" if not carta.url_xml else "download falhou")
+                )
+
         # BOM para o Excel PT-BR abrir com acento certo, mesmo padrão do CSV do front.
         pacote.writestr("relacao.csv", "﻿" + relacao.getvalue())
 
@@ -211,6 +241,7 @@ def montar_pacote_xml(
     resumo = {
         "documentos": len(documentos),
         "inutilizacoes": len(inutilizacoes),
+        "cartas_correcao": len(cartas),
         "baixados": baixados,
         "nao_baixados": len(nao_baixados),
     }

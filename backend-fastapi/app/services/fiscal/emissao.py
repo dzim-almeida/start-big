@@ -842,10 +842,16 @@ def consultar_documento(db: Session, documento_id: int, empresa_id: int) -> Docu
     token = crud.get_licenca_token(db)
     client = get_fiscal_client(fiscal_settings.ambiente_emissao, token)
 
+    status_antes = doc.status
     try:
         resultado = client.consultar_nfe(doc.ref_api, doc.tipo_documento)
         _aplicar_resultado(doc, resultado, client)
         espelhar_na_nota_da_venda(db, doc)
+        # A devolução que ficou PROCESSANDO/INDETERMINADA na emissão só devolve
+        # saldo e estoque quando a SEFAZ confirma -- e a confirmação chega aqui.
+        if status_antes != "AUTORIZADA" and doc.status == "AUTORIZADA":
+            from .devolucao import aplicar_efeitos_autorizacao
+            aplicar_efeitos_autorizacao(db, doc)
     except NotImplementedError:
         pass
     except Exception as e:

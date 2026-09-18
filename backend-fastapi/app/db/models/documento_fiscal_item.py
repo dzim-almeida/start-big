@@ -5,7 +5,7 @@
 
 from typing import Optional, TYPE_CHECKING
 
-from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy import text, Integer, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -82,6 +82,13 @@ class DocumentoFiscalItem(Base):
     valor_unitario: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     valor_bruto: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     valor_desconto: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Quanto deste item já voltou por NF-e de devolução AUTORIZADA (milésimos,
+    # 1000 = 1 UN). O saldo devolvível é `quantidade_milesimos - isto`; só a
+    # autorização confirmada incrementa -- rejeição ou INDETERMINADA não.
+    quantidade_devolvida_acumulada: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0"),
+    )
 
     # --- Tributos destacados ---
     base_icms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

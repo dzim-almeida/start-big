@@ -32,6 +32,10 @@ class FiscalSettingsBase(BaseModel):
     ultimo_numero_nfe: int = Field(default=0, ge=0, description="Último número NFe")
     serie_nfce: int = Field(default=1, ge=0, description="Série da NFCe")
     ultimo_numero_nfce: int = Field(default=0, ge=0, description="Último número NFCe")
+    numeracao_confirmada: bool = Field(
+        default=False,
+        description="Série e último número confirmados formalmente (trava da Rejeição 204)",
+    )
     # SEM max_length: na LEITURA este campo carrega o texto CIFRADO vindo do
     # banco (~180 chars), não o CSC digitado. Um limite de 100 aqui rejeitaria
     # a própria configuração salva. O limite de entrada fica no
@@ -59,6 +63,9 @@ class FiscalSettingsUpdate(BaseModel):
     ultimo_numero_nfe: Optional[int] = Field(None, ge=0)
     serie_nfce: Optional[int] = Field(None, ge=0)
     ultimo_numero_nfce: Optional[int] = Field(None, ge=0)
+    numeracao_confirmada: Optional[bool] = Field(
+        None, description="True destrava a emissão; alterar série/número também confirma",
+    )
     csc_token: Optional[str] = Field(None, max_length=100)
     csc_id: Optional[str] = Field(None, max_length=10)
     limite_consumidor_anonimo: Optional[int] = Field(

@@ -69,6 +69,32 @@ NATUREZA_POR_CFOP = {
 # aproximados, o que infringe a Lei 12.741/2012.
 PALAVRAS_QUE_DISPENSAM_TRIBUTOS = ("REMESSA", "EXPORTACAO", "DEVOLUCAO", "LANCAMENTO")
 
+# --- Devolução de venda: CFOP de SAÍDA da nota original -> CFOP de ENTRADA ---
+# O primeiro dígito vira 1 (interna) ou 2 (interestadual); o sufixo segue a
+# natureza do que foi vendido. Mapa confirmado com a contabilidade para a
+# TASK003; o que não estiver aqui cai no genérico "devolução de venda de
+# mercadoria adquirida de terceiros" (1202/2202), que evita a Rejeição 327
+# sem inventar ST onde não havia.
+SUFIXOS_DEVOLUCAO_DE_VENDA = {
+    101: 201,   # venda de produção própria      -> devolução de venda de produção
+    102: 202,   # venda de mercadoria de terceiros -> devolução de venda de mercadoria
+    403: 411,   # venda com ST (substituto)        -> devolução de venda sujeita a ST
+    404: 411,
+    405: 411,   # venda de mercadoria substituída  -> idem
+}
+SUFIXO_DEVOLUCAO_PADRAO = 202
+GRUPO_ENTRADA_INTERNA = 1
+GRUPO_ENTRADA_INTERESTADUAL = 2
+
+
+def cfop_devolucao(cfop_saida: Optional[str], interestadual: bool) -> str:
+    """CFOP de entrada da NF-e de devolução a partir do CFOP de saída original."""
+    grupo = GRUPO_ENTRADA_INTERESTADUAL if interestadual else GRUPO_ENTRADA_INTERNA
+    sufixo = SUFIXO_DEVOLUCAO_PADRAO
+    if cfop_saida and len(cfop_saida) == 4 and cfop_saida.isdigit():
+        sufixo = SUFIXOS_DEVOLUCAO_DE_VENDA.get(int(cfop_saida[1:]), SUFIXO_DEVOLUCAO_PADRAO)
+    return f"{grupo}{sufixo:03d}"
+
 
 class DerivacaoAmbiguaError(ValueError):
     """

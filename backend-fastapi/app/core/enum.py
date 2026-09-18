@@ -171,6 +171,8 @@ class MovimentacaoOrigem(str, enum.Enum):
     CADASTRO = "CADASTRO"
     VENDA = "VENDA"
     ORDEM_SERVICO = "ORDEM_SERVICO"
+    # Mercadoria que voltou por NF-e de devolução autorizada (finalidade 4).
+    DEVOLUCAO = "DEVOLUCAO"
 
 
 class JurosResponsavel(str, enum.Enum):
