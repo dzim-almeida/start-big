@@ -56,6 +56,12 @@ NOT_FOUND_EXCE = HTTPException(
 CERT_UPLOAD_DIR = os.path.join(secure_dir, "certificados")
 os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
 
+# Campos cuja edição explícita equivale a confirmar a numeração fiscal
+# (ver `update_fiscal_settings`).
+CAMPOS_QUE_CONFIRMAM_NUMERACAO = frozenset({
+    "serie_nfe", "ultimo_numero_nfe", "serie_nfce", "ultimo_numero_nfce",
+})
+
 # ---------------------------------------------------------------------------
 # FUNÇÕES DE SERVIÇO
 # ---------------------------------------------------------------------------
@@ -288,6 +294,12 @@ def update_fiscal_settings(
 
     for field, value in update_dict.items():
         setattr(settings, field, value)
+
+    # Quem digita série ou último número está, na prática, confirmando a
+    # sequência -- não faz sentido exigir um segundo clique. Vale mesmo que o
+    # payload traga `numeracao_confirmada=False` junto: o número manda.
+    if update_dict.keys() & CAMPOS_QUE_CONFIRMAM_NUMERACAO:
+        settings.numeracao_confirmada = True
 
     db.flush()
     db.refresh(settings)

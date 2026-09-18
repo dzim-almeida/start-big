@@ -95,6 +95,8 @@ class FiscalConfiguracao(BaseModel):
     ultimo_numero_nfe: Optional[int] = 0
     serie_nfce: Optional[int] = 1
     ultimo_numero_nfce: Optional[int] = 0
+    # Trava da Rejeição 204: False até alguém confirmar a sequência inicial.
+    numeracao_confirmada: bool = False
     # MASCARADO. O CSC é o segredo que autentica o QR Code — sai daqui só com
     # os 4 últimos caracteres, o bastante para o lojista reconhecer qual token
     # cadastrou. Reenviar a máscara no PUT não sobrescreve nada.

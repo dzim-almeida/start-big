@@ -113,6 +113,17 @@ def verificar_emitente(db: Session, empresa_id: int) -> list[PendenciaFiscal]:
                 f"Envie o certificado novo em Centro Fiscal > Configurações.",
             ))
 
+        # Trava da Rejeição 204: sem confirmação da série/último número, a
+        # loja migrada de outro ERP emitiria a nota 1 de novo. É pendência
+        # IMPEDITIVA porque esta função alimenta o gate de emissão.
+        if not fiscal_settings.numeracao_confirmada:
+            pendencias.append(_p(
+                "configuracao", "numeracao_confirmada",
+                "Série e numeração de notas ainda não foram confirmadas. "
+                "Acesse Centro Fiscal > Configurações > Emissão Estadual e "
+                "confirme a sequência inicial.",
+            ))
+
     return pendencias
 
 def verificar_documento_cliente(cliente: Cliente) -> list[PendenciaFiscal]:

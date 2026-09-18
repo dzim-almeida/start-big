@@ -520,7 +520,15 @@ def obter_configuracao(
 ):
     empresa_id = user_token["empresa_id"]
     fs = fiscal_crud.get_fiscal_settings(db, empresa_id)
+    return _montar_configuracao(fs)
 
+
+def _montar_configuracao(fs) -> FiscalConfiguracao:
+    """Projeta `EmpresaFiscalSettings` (ou None) na resposta da tela.
+
+    Compartilhado pelo GET e pelo PUT: os dois devolviam o mesmo objeto com o
+    mapeamento copiado, e um campo novo tinha de ser lembrado nos dois lugares.
+    """
     ambiente = fs.ambiente_emissao if fs else 2
     # "Configurado" passou a significar CHEGOU NA EMISSORA.
     #
@@ -557,6 +565,7 @@ def obter_configuracao(
         ultimo_numero_nfe=fs.ultimo_numero_nfe if fs else 0,
         serie_nfce=fs.serie_nfce if fs else 1,
         ultimo_numero_nfce=fs.ultimo_numero_nfce if fs else 0,
+        numeracao_confirmada=bool(fs and fs.numeracao_confirmada),
         csc_token=mascarar_csc(obter_csc_token(fs)) if fs else None,
         csc_configurado=bool(fs and obter_csc_token(fs)),
         csc_id=fs.csc_id if fs else None,
@@ -1129,40 +1138,7 @@ def atualizar_configuracao(
     # limite nunca chegaram ao disco. Quem comita nesta base e o
     # `_handle_db_transaction`, como nos outros oito endpoints deste arquivo.
     fs = _handle_db_transaction(db, update_fiscal_settings, empresa_id, payload)
-    
-    ambiente = fs.ambiente_emissao if fs else 2
-    cert_configurado = bool(
-        fs and (
-            fs.certificado_digital_path
-            or fs.certificado_thumbprint
-            or fs.certificado_status == "CONECTADO_NUVEM"
-        )
-    )
-    cert_valido = bool(
-        cert_configurado and fs.certificado_validade and fs.certificado_validade.replace(tzinfo=None) > datetime.now()
-    )
-
-    return FiscalConfiguracao(
-        ambiente=ambiente,
-        ambiente_label="Homologação" if ambiente == 2 else "Produção",
-        mock_ativo=settings.FISCAL_MOCK_ENABLED,
-        certificado_configurado=cert_configurado,
-        certificado_valido=cert_valido,
-        certificado_status=fs.certificado_status if fs else None,
-        certificado_cnpj=fs.certificado_cnpj if fs else None,
-        certificado_validade=fs.certificado_validade if fs else None,
-        certificado_dias_restantes=dias_para_vencer_certificado(fs.certificado_validade) if fs else None,
-        serie_nfe=fs.serie_nfe if fs else 1,
-        ultimo_numero_nfe=fs.ultimo_numero_nfe if fs else 0,
-        serie_nfce=fs.serie_nfce if fs else 1,
-        ultimo_numero_nfce=fs.ultimo_numero_nfce if fs else 0,
-        csc_token=mascarar_csc(obter_csc_token(fs)) if fs else None,
-        csc_configurado=bool(fs and obter_csc_token(fs)),
-        csc_id=fs.csc_id if fs else None,
-        limite_consumidor_anonimo=(
-            fs.limite_consumidor_anonimo if fs else 1000000
-        ),
-    )
+    return _montar_configuracao(fs)
 
 @router.get(
     "/plataforma",
