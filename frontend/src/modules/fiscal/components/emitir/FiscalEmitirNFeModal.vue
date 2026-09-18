@@ -11,6 +11,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useSalesListQuery } from '@/modules/sales/composables/queries/useSalesListQuery';
 import { useFiscalEmitirNfeMutation } from '../../composables/useFiscalEmitirNfeMutation';
 import { useFiscalEmitirBatchMutation } from '../../composables/useFiscalEmitirBatchMutation';
+import { useNumeracaoConfirmada } from '../../composables/useNumeracaoConfirmada';
 import { useFiscalPreviewMutation } from '../../composables/useFiscalPreviewMutation';
 import { useFiscalPendenciasQuery } from '../../composables/useFiscalPendenciasQuery';
 import { useFiscalVerificacaoBatchQuery } from '../../composables/useFiscalVerificacaoBatchQuery';
@@ -93,6 +94,7 @@ const toast = useToast();
 const emitirMutation = useFiscalEmitirNfeMutation();
 const emitirBatchMutation = useFiscalEmitirBatchMutation();
 const previewMutation = useFiscalPreviewMutation();
+const { garantirNumeracaoConfirmada } = useNumeracaoConfirmada();
 
 // Pre-check: emitente completo?
 const { data: pendenciasData } = useFiscalPendenciasQuery();
@@ -213,6 +215,7 @@ async function handleEmitirLote() {
 }
 
 async function confirmarEmissaoLote() {
+  if (!garantirNumeracaoConfirmada()) return;
   const ids = [...vendasSelecionadasLote.value];
   emitirBatchMutation.mutate(ids, {
     onSuccess: (data) => {
@@ -316,6 +319,7 @@ function handleVoltar() {
 
 function handleEmitir() {
   if (!vendaSelecionada.value) return;
+  if (!garantirNumeracaoConfirmada()) return;
 
   emitirMutation.mutate(
     { venda_id: vendaSelecionada.value.id },

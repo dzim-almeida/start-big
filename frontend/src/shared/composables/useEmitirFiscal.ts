@@ -9,6 +9,7 @@ import {
   resolverEmissaoIncerta,
   MENSAGEM_EMISSAO_INCERTA,
 } from '@/modules/fiscal/composables/useEmissaoIncerta';
+import { useNumeracaoConfirmada } from '@/modules/fiscal/composables/useNumeracaoConfirmada';
 import type { PendenciaFiscal } from '@/shared/types/fiscal.types';
 import type { DocumentoFiscalRead, EmissaoResponse } from '@/modules/fiscal/types/fiscal.types';
 import type { VendaNotaFiscalUpdate } from '@/modules/sales/schemas/sale.schema';
@@ -21,6 +22,10 @@ export function useEmitirFiscal() {
   const isVerificando = ref(false);
 
   const toast = useToast();
+  // Trava da Rejeição 204 (TASK001): com a configuração em cache dizendo
+  // "não confirmada", nem vale a ida ao backend -- o aviso já leva para a
+  // tela que resolve.
+  const { garantirNumeracaoConfirmada } = useNumeracaoConfirmada();
 
   function handleErroEmissao(err: unknown) {
     const axiosErr = err as AxiosError<any>;
@@ -81,6 +86,7 @@ export function useEmitirFiscal() {
    * Devolve o desfecho para quem chamou decidir a tela; o toast já foi dado.
    */
   async function emitirVenda(vendaId: number): Promise<EmissaoResponse | null> {
+    if (!garantirNumeracaoConfirmada()) return null;
     isVerificando.value = true;
     try {
       const resultado = await saleService.verificarFiscal(vendaId, 'nfe');
@@ -145,6 +151,7 @@ export function useEmitirFiscal() {
     documentoConsumidor?: string | null,
     indicadorPresenca?: number,
   ): Promise<DocumentoFiscalRead | null> {
+    if (!garantirNumeracaoConfirmada()) return null;
     isVerificando.value = true;
     try {
       // Grava o que o caixa escolheu ANTES de emitir. Sem isto o
@@ -215,6 +222,7 @@ export function useEmitirFiscal() {
   }
 
   async function emitirOS(osNumero: string, tipoDocumento: string = 'ambos') {
+    if (!garantirNumeracaoConfirmada()) return;
     isVerificando.value = true;
     try {
       const resultado = await verificarFiscalOS(osNumero, tipoDocumento);

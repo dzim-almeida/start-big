@@ -10,6 +10,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix",
     "format": "prettier --write src/",
     "build:sidecar": "node ../scripts/build-sidecar.mjs",
@@ -56,15 +58,18 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.6.0",
+    "@vue/test-utils": "^2.5.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "^10.6.2",
+    "jsdom": "^29.1.1",
     "prettier": "^3.7.4",
     "storybook": "^9.1.8",
     "tailwind-scrollbar": "^4.0.2",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
+    "vitest": "^5.0.1",
     "vue-tsc": "^2.1.10"
   }
 }

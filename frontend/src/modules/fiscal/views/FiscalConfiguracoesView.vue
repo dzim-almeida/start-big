@@ -244,6 +244,27 @@ function aoEnviarCertificado() {
             </span>
           </div>
 
+          <!-- Confirmação da sequência (trava da Rejeição 204). Enquanto
+               `false`, o backend recusa toda emissão -- por isso o destaque. -->
+          <div class="mb-4">
+            <span
+              v-if="config && !config.numeracao_confirmada"
+              data-testid="badge-numeracao-pendente"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+            >
+              <LucideIcon :icon="AlertCircle" class="w-3.5 h-3.5" />
+              Ação necessária: confirme a numeração
+            </span>
+            <span
+              v-else-if="config?.numeracao_confirmada"
+              data-testid="badge-numeracao-confirmada"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+            >
+              <LucideIcon :icon="CheckCircle" class="w-3.5 h-3.5" />
+              Configurado e Confirmado
+            </span>
+          </div>
+
           <!-- Resumo de parâmetros -->
           <div class="grid grid-cols-2 gap-3 mb-6">
             <div class="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
@@ -276,7 +297,7 @@ function aoEnviarCertificado() {
         </div>
 
         <BaseButton variant="primary" class="w-full sm:w-auto self-start" @click="openEstadualModal">
-          Configurar Emissão Estadual
+          {{ config && !config.numeracao_confirmada ? 'Confirmar Numeração' : 'Configurar Emissão Estadual' }}
         </BaseButton>
       </div>
 

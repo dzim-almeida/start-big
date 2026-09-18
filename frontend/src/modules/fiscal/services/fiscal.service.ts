@@ -10,6 +10,7 @@ import type { EmissaoPreviewResponse,
   EmissaoResponse,
   EmissaoBatchResponse,
   FiscalConfiguracao,
+  FiscalConfiguracaoUpdate,
   PendenciasGlobais,
   DiagnosticoPlataforma,
   ResultadoVerificacaoBatch,
@@ -296,7 +297,7 @@ export const fiscalService = {
     return data;
   },
 
-  async atualizarConfiguracao(payload: Partial<FiscalConfiguracao>): Promise<FiscalConfiguracao> {
+  async atualizarConfiguracao(payload: FiscalConfiguracaoUpdate): Promise<FiscalConfiguracao> {
     const { data } = await api.put<FiscalConfiguracao>(
       `${FISCAL_ENDPOINT}/configuracao`,
       payload,

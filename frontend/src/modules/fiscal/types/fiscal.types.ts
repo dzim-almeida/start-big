@@ -192,6 +192,12 @@ export interface FiscalConfiguracao {
   serie_nfce?: number;
   ultimo_numero_nfce?: number;
   /**
+   * Trava da Rejeição 204: o backend recusa qualquer emissão enquanto for
+   * `false`. Vira `true` ao salvar a tela de Emissão Estadual (que envia o
+   * campo explicitamente) ou ao alterar série/último número.
+   */
+  numeracao_confirmada: boolean;
+  /**
    * MASCARADO pelo backend (ex.: `••••••••AB12`) — só os últimos caracteres,
    * o bastante para reconhecer qual token está cadastrado. Reenviar a máscara
    * no salvamento não sobrescreve o CSC guardado.
@@ -203,6 +209,25 @@ export interface FiscalConfiguracao {
   /** Teto em CENTAVOS para emitir NFC-e sem CPF/CNPJ do comprador. */
   limite_consumidor_anonimo?: number;
 }
+
+/**
+ * Corpo do `PUT /fiscal/configuracao` — espelha `FiscalSettingsUpdate` do
+ * backend. Difere do `FiscalConfiguracao` de leitura (`ambiente_emissao` aqui,
+ * `ambiente` lá), por isso não é um `Partial` dele.
+ */
+export interface FiscalConfiguracaoUpdate {
+  ambiente_emissao?: number;
+  serie_nfe?: number;
+  ultimo_numero_nfe?: number;
+  serie_nfce?: number;
+  ultimo_numero_nfce?: number;
+  numeracao_confirmada?: boolean;
+  csc_token?: string | null;
+  csc_id?: string | null;
+  limite_consumidor_anonimo?: number;
+  tipo_certificado?: string;
+}
+
 export interface EmissaoPreviewItem {
   numero_item: number;
   produto_id: number | null;
