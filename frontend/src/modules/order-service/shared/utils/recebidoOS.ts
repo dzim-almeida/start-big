@@ -10,10 +10,18 @@
  * que tinha pago R$ 6.560 (achado da Fase 3 da marcenaria, 16/09/2026).
  *
  * Somar linhas + crédito também estaria errado: as linhas antigas JÁ estão
- * dentro do crédito. A conta certa é a que `finalizar_ordem_servico` usa para
- * validar o fechamento: crédito + max(0, soma das linhas − crédito) + entrada.
- * O `max` é o que separa "linhas que o crédito já cobre" de "pagamentos feitos
- * depois da reabertura", sem precisar saber qual linha é qual.
+ * dentro do crédito. O que separa "linhas que o crédito já cobre" de
+ * "pagamentos feitos depois da reabertura" é `adiantamentos_anteriores`: o
+ * crédito é `linhas antigas + adiantamentos antigos`, e os adiantamentos são a
+ * única parte dele que não está em `pagamentos`. Então
+ * `linhas no crédito = crédito − adiantamentos_anteriores`, e
+ * `pagamentos após = soma das linhas − linhas no crédito`. Exato, sem chute.
+ *
+ * A conta anterior (até 19/09/2026) fazia `max(0, soma das linhas − crédito)`.
+ * Com adiantamento dentro do crédito, a subtração engolia o pagamento novo
+ * quando ele era menor que o adiantamento antigo — o recibo dizia que a loja
+ * tinha recebido menos do que recebeu. Mesmo defeito que o backend tinha no
+ * `finalizar`, corrigido junto.
  *
  * `listarLinhas` diz à via se deve imprimir as linhas uma a uma (OS normal) ou
  * trocar por "Pago antes da reabertura" + "após a reabertura" (OS reaberta) —
@@ -42,12 +50,14 @@ export function calcularRecebidoOS(os: {
   valor_total?: number | null;
   valor_entrada?: number | null;
   credito_anterior?: number | null;
+  adiantamentos_anteriores?: number | null;
   pagamentos?: ReadonlyArray<{ valor: number }> | null;
 }): RecebidoOS {
   const adiantamento = os.valor_entrada ?? 0;
   const adiantamentoUtilizado = Math.min(adiantamento, os.valor_total ?? 0);
   const somaPagamentos = (os.pagamentos ?? []).reduce((acc, p) => acc + p.valor, 0);
   const creditoAnterior = os.credito_anterior ?? 0;
+  const adiantamentosAnteriores = os.adiantamentos_anteriores ?? 0;
 
   if (creditoAnterior <= 0) {
     return {
@@ -61,7 +71,11 @@ export function calcularRecebidoOS(os: {
     };
   }
 
-  const pagamentosAposReabertura = Math.max(0, somaPagamentos - creditoAnterior);
+  // Linhas que o crédito já cobre = crédito menos a parte que não é linha.
+  // O `max(0, …)` de fora só protege de dado inconsistente (crédito menor que
+  // as linhas antigas); em dado são ele não muda nada.
+  const linhasNoCredito = Math.max(0, creditoAnterior - adiantamentosAnteriores);
+  const pagamentosAposReabertura = Math.max(0, somaPagamentos - linhasNoCredito);
   return {
     adiantamento,
     adiantamentoUtilizado,

@@ -868,3 +868,106 @@ def test_filtro_por_desfecho_ignora_os_reaberta(client, db_session):
     r = client.get("/api/v1/ordens-servico/", params={"situacao_equipamento": "CONDENADO"}, headers=header)
     assert r.status_code == 200, r.text
     assert r.json()["items"] == [], "OS reaberta não é mais um condenado entregue"
+
+
+# =========================
+# DUPLA REABERTURA: o adiantamento não pode sumir
+#
+# A pendência do plano da marcenaria (16/09/2026): a conta de `reabrir`
+# recomputava o crédito a partir de `pagamentos + valor_entrada`, e como
+# `valor_entrada` é zerado a cada reabertura, o adiantamento da PRIMEIRA
+# sessão sumia na SEGUNDA. Caso raro (reabrir, cobrar de novo, reabrir), mas é
+# dinheiro: o cliente era cobrado de novo pelo que já tinha adiantado.
+# =========================
+
+def _reabrir_pagou(client, header, numero):
+    r = client.put(f"/api/v1/ordens-servico/{numero}/reabrir", json={"cliente_pagou": True}, headers=header)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_dupla_reabertura_nao_perde_o_adiantamento(client, db_session):
+    """Tudo em centavos. OS de 100 com adiantamento de 30."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    fp_id = _criar_forma_pagamento(client, header)
+
+    payload = _os_payload(cliente_id, "SERIAL-2X", itens=[_item("Serviço", 10000)])
+    payload["valor_entrada"] = 3000
+    payload["forma_pagamento_entrada_id"] = fp_id
+    r = client.post("/api/v1/ordens-servico/", json=payload, headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    numero = r.json()["numero_os"]
+    assert r.json()["valor_entrada"] == 3000
+
+    # 1ª finalização: paga os 70 que faltam. Recebido de verdade: 100.
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias",
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": 7000}],
+    }, headers=header)
+    assert rf.status_code == 200, rf.text
+
+    # 1ª reabertura: crédito = 100 (70 pago + 30 adiantado).
+    body = _reabrir_pagou(client, header, numero)
+    assert body["credito_anterior"] == 10000, body["credito_anterior"]
+    assert body["valor_entrada"] == 0
+
+    # Serviço cresceu 50 (acréscimo); paga os 50. Recebido de verdade: 150.
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "acrescimo": 5000,
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": 5000}],
+    }, headers=header)
+    assert rf.status_code == 200, rf.text
+    assert rf.json()["valor_total"] == 15000
+
+    # 2ª reabertura: era aqui que os 30 sumiam (crédito vinha 120).
+    body = _reabrir_pagou(client, header, numero)
+    assert body["credito_anterior"] == 15000, (
+        f"crédito veio {body['credito_anterior']}: o adiantamento de 30 sumiu na 2ª reabertura"
+    )
+
+    # Refinaliza sem cobrar nada: o cliente já pagou os 150. Antes, cobrava 30 de novo.
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "pagamentos": [],
+    }, headers=header)
+    assert rf.status_code == 200, f"cobrou de novo o que já tinha sido pago: {rf.text}"
+
+
+def test_pagamento_depois_da_reabertura_nao_e_engolido_pelo_adiantamento_antigo(client, db_session):
+    """O outro lado do mesmo defeito: `finalizar` estimava os pagamentos novos
+    como `pagamentos - credito_anterior`. Com adiantamento antigo dentro do
+    crédito, a subtração engolia o pagamento novo -- e exigia pagar de novo.
+
+    OS de 100, adiantamento 60, paga 40. Reabre. Sobe para 150, paga 50.
+    Reabre. Refinaliza: já pagou 150, não pode cobrar nada."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    fp_id = _criar_forma_pagamento(client, header)
+
+    payload = _os_payload(cliente_id, "SERIAL-3X", itens=[_item("Serviço", 10000)])
+    payload["valor_entrada"] = 6000
+    payload["forma_pagamento_entrada_id"] = fp_id
+    r = client.post("/api/v1/ordens-servico/", json=payload, headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    numero = r.json()["numero_os"]
+
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias",
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": 4000}],
+    }, headers=header)
+    assert rf.status_code == 200, rf.text
+    _reabrir_pagou(client, header, numero)
+
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "acrescimo": 5000,
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": 5000}],
+    }, headers=header)
+    assert rf.status_code == 200, rf.text
+
+    body = _reabrir_pagou(client, header, numero)
+    assert body["credito_anterior"] == 15000, body["credito_anterior"]
+
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json={
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "pagamentos": [],
+    }, headers=header)
+    assert rf.status_code == 200, f"cobrou de novo: {rf.text}"

@@ -460,6 +460,10 @@ class OrdemServicoRead(OrdemServicoBase):
     taxa_entrega: int = Field(0, description="Taxa de entrega/frete (centavos)")
     acrescimo: int = Field(0, description="Acréscimo de juros/cartão (centavos)")
     credito_anterior: Optional[int] = Field(None, description="Crédito efetivo da finalização anterior ao reabrir (centavos)")
+    adiantamentos_anteriores: Optional[int] = Field(
+        None,
+        description="Soma dos adiantamentos das sessões anteriores (centavos). É a parte do crédito que não está em `pagamentos`.",
+    )
 
     # Datas
     data_finalizacao: Optional[datetime] = Field(None, description="Data de finalização efetiva")

@@ -46,6 +46,10 @@ export const OrderServiceReadSchema = z.object({
   taxa_entrega: z.number().int().default(0),
   acrescimo: z.number().int().default(0),
   credito_anterior: z.number().int().nullable().optional(),
+  // A parte do crédito que NÃO está em `pagamentos`: os adiantamentos das
+  // sessões anteriores. É o que permite separar, sem chute, "linhas que o
+  // crédito já cobre" de "pagamentos feitos depois da reabertura".
+  adiantamentos_anteriores: z.number().int().nullable().optional(),
 
   // Datas
   data_finalizacao: z.string().optional().nullable(),

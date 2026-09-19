@@ -93,6 +93,13 @@ class OrdemServico(Base):
     taxa_entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Taxa de entrega/frete (centavos)")
     acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Acréscimo de juros/cartão (centavos)")
     credito_anterior: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None, doc="Crédito efetivo da finalização anterior ao reabrir (centavos)")
+    # Soma dos adiantamentos (`valor_entrada`) das sessões ANTERIORES, dobrada
+    # a cada reabertura. Existe porque `valor_entrada` é zerado ao reabrir e os
+    # pagamentos ficam em `pagamentos`: sem este campo, o adiantamento da 1ª
+    # sessão sumia na 2ª reabertura e o cliente era cobrado de novo por ele
+    # (pendência do plano da marcenaria, 16/09/2026; corrigido em 19/09).
+    # É o único dinheiro recebido que NÃO está em `pagamentos`.
+    adiantamentos_anteriores: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None, doc="Soma dos adiantamentos das sessões anteriores (centavos)")
 
     # --- Datas ---
     garantia: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, doc="Garantia em dias")

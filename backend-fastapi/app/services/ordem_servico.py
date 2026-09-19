@@ -1073,18 +1073,31 @@ def finalizar_ordem_servico(
     # Recalcula valor_total com todos os campos financeiros atualizados
     _recalcular_valor_total_os(os_in_db)
 
-    # Valida valor total: pagamentos desta sessão + novos + entrada >= valor_total
-    # credito_anterior = total pago em finalizações anteriores (pagamentos + entrada anterior)
-    # max(0,...) evita negativo: se os pagamentos em DB são todos históricos, total_anteriores = 0
-    total_historico = os_in_db.credito_anterior or 0
-    total_anteriores = max(0, sum(p.valor for p in os_in_db.pagamentos) - total_historico)
+    # Valida valor total: tudo que já entrou + o que entra agora >= valor_total.
+    #
+    # O recebido é uma SOMA EXATA de três lugares que não se sobrepõem:
+    #   pagamentos               -- todos, de todas as sessões (nunca se apagam
+    #                               numa reabertura "pagou")
+    #   adiantamentos_anteriores -- os `valor_entrada` das sessões anteriores,
+    #                               dobrados ali a cada reabertura
+    #   valor_entrada            -- o adiantamento desta sessão
+    #
+    # A conta antiga tentava DERIVAR os pagamentos novos como
+    # `pagamentos - credito_anterior`, com `max(0, ...)`. Como o crédito
+    # continha o adiantamento antigo, a subtração engolia o pagamento novo
+    # quando ele era menor que aquele adiantamento -- e a OS exigia pagar de
+    # novo. `credito_anterior` fica só para a tela.
+    recebido_antes = (
+        sum(p.valor for p in os_in_db.pagamentos)
+        + (os_in_db.adiantamentos_anteriores or 0)
+    )
     total_novos = sum(p.valor for p in data.pagamentos)
     valor_entrada = os_in_db.valor_entrada or 0
     situacao_sem_cobranca = data.situacao_equipamento in (
         SituacaoEquipamento.SEM_REPARO, SituacaoEquipamento.CONDENADO
     )
     if not situacao_sem_cobranca:
-        if (total_historico + total_anteriores + total_novos + valor_entrada) < os_in_db.valor_total:
+        if (recebido_antes + valor_entrada + total_novos) < os_in_db.valor_total:
             raise pagamento_valor_invalido_exce
 
     # Valida e cria cada pagamento
@@ -1269,9 +1282,22 @@ def reabrir_ordem_servico(
 
     if cliente_pagou:
         # Preserva o que foi pago como crédito abatido do novo total.
-        total_bruto = sum(p.valor for p in os_in_db.pagamentos) + (os_in_db.valor_entrada or 0)
-        valor_total = os_in_db.valor_total or 0
-        os_in_db.credito_anterior = min(total_bruto, valor_total) or None
+        #
+        # O adiantamento desta sessão vai para `adiantamentos_anteriores` ANTES
+        # de `valor_entrada` ser zerado logo abaixo -- é o único dinheiro
+        # recebido que não fica em `pagamentos`. A conta antiga recomputava o
+        # crédito como `pagamentos + valor_entrada`, e na SEGUNDA reabertura o
+        # adiantamento da primeira sessão (já zerado) sumia: o cliente era
+        # cobrado de novo por ele. Esta conta acumula; a antiga sobrescrevia.
+        #
+        # Sem o `min(..., valor_total)` que havia aqui: o crédito passa a ser
+        # exatamente o recebido, e quem abate do total é o `finalizar`. O teto
+        # escondia sobra de pagamento e quebrava a derivação "pagamentos novos
+        # = pagamentos - crédito" que a tela usa para separar as vias.
+        adiantamentos = (os_in_db.adiantamentos_anteriores or 0) + (os_in_db.valor_entrada or 0)
+        os_in_db.adiantamentos_anteriores = adiantamentos or None
+        recebido = sum(p.valor for p in os_in_db.pagamentos) + adiantamentos
+        os_in_db.credito_anterior = recebido or None
     else:
         # Pagamento não era real: apaga os pagamentos (cascade delete-orphan) e
         # zera o crédito, para a OS recobrar o valor cheio.
@@ -1301,6 +1327,8 @@ def reabrir_ordem_servico(
         )
         os_in_db.pagamentos.clear()
         os_in_db.credito_anterior = None
+        # O dinheiro não era real -- nem o adiantado.
+        os_in_db.adiantamentos_anteriores = None
 
     os_in_db.valor_entrada = 0
     os_in_db.forma_pagamento_entrada_id = None
