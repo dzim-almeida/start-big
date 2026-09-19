@@ -32,6 +32,7 @@ from app.api.v1.endpoints import licenca
 from app.api.v1.endpoints import checklist_mobile
 from app.api.v1.endpoints import backup
 from app.api.v1.endpoints import fiscal
+from app.api.v1.endpoints import fiscal_produto
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -135,3 +136,6 @@ router.include_router(financeiro.router, prefix="/financeiro", tags=["Financeiro
 # Inclui o roteador do Centro Fiscal sob o prefixo /fiscal
 # Documentos fiscais, resumo e pendencias globais da NF-e.
 router.include_router(fiscal.router, prefix="/fiscal", tags=["Fiscal"])
+# O lado fiscal do cadastro de produto (sugestão, campos, NCM, pré-validação).
+# MESMO prefixo: saiu de fiscal.py pelo teto do PyArmor, e nenhuma URL mudou.
+router.include_router(fiscal_produto.router, prefix="/fiscal", tags=["Fiscal"])
