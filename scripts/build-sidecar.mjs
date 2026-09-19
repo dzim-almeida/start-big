@@ -27,7 +27,6 @@ import { execFileSync, execSync } from 'node:child_process';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BACKEND = join(RAIZ, 'backend-fastapi');
 const PY = join(BACKEND, '.venv', 'Scripts', 'python.exe');
-const PYARMOR = join(BACKEND, '.venv', 'Scripts', 'pyarmor.exe');
 const SAIDA = join(BACKEND, 'build', 'out');
 const BIN = join(RAIZ, 'frontend', 'src-tauri', 'bin');
 
@@ -52,8 +51,10 @@ if (!existsSync(PY)) {
   console.error('  Crie com: cd backend-fastapi && python -m venv .venv && .venv\\Scripts\\pip install -r requirements.txt\n');
   process.exit(1);
 }
-if (!existsSync(PYARMOR)) {
-  console.error(`\n✖ pyarmor não encontrado: ${PYARMOR}`);
+try {
+  execFileSync(PY, ['-c', 'import pyarmor'], { stdio: 'ignore' });
+} catch {
+  console.error('\n✖ pyarmor não está instalado na venv do backend.');
   console.error('  O sidecar roda o código ofuscado (run.py exige dist/ em produção).');
   console.error('  Instale com: backend-fastapi\\.venv\\Scripts\\pip install pyarmor\n');
   process.exit(1);
@@ -63,7 +64,14 @@ const ALVO = join(BIN, `erp-api-${triple()}.exe`);
 
 passo(1, 'PyArmor — ofuscando app/ para dist/');
 // -O dist: saída; -r: recursivo (o pacote app inteiro)
-rodar(PYARMOR, ['gen', '-O', 'dist', '-r', 'app'], BACKEND);
+//
+// Chamado por `-m`, e não pelo Scripts/pyarmor.exe: o shim .exe guarda o
+// caminho ABSOLUTO do interpretador de quando a venv nasceu. Mover a pasta do
+// projeto o quebra, e ele morre com exit 1 sem imprimir motivo nenhum — foi o
+// que aconteceu em 19/09/2026, quando o projeto saiu de Desktop\start-big-master
+// para Desktop\PROJETOS\StartBig. O passo 2 já chamava o PyInstaller assim, e
+// por isso nunca sofreu disso.
+rodar(PY, ['-m', 'pyarmor.cli', 'gen', '-O', 'dist', '-r', 'app'], BACKEND);
 
 passo(2, 'PyInstaller — empacotando o .exe');
 rmSync(SAIDA, { recursive: true, force: true });
