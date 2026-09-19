@@ -674,8 +674,24 @@ class FiscalClientStartBig:
             # errado. Se a Focus ignorar, nada muda; se honrar, a faixa vai para
             # o ano certo.
             #
+            # O que a plataforma confirmou em 19/09/2026 (DOC-TEC-FISCAL-2026/09):
+            # ela REPASSA o campo como veio, sem transformar -- o schema de lá
+            # o aceita justamente para não descartá-lo em silêncio. Conferiram
+            # a doc da Focus (NF-e e NFC-e) e o campo não existe nela. Três
+            # cenários, e ninguém sabe qual: honra, ignora, ou recusa campo
+            # desconhecido (`requisicao_invalida`). No terceiro, a plataforma
+            # passa a filtrá-lo lá -- e avisa.
+            #
             # ENQUANTO NINGUÉM CONFIRMAR com o suporte da Focus que ela honra:
-            # inutilize a faixa no mesmo ano em que ela foi aberta.
+            # inutilize a faixa no mesmo ano em que ela foi aberta. É a única
+            # regra que funciona nos três cenários.
+            #
+            # A pergunta ao suporte é uma só: "POST /v2/nfe/inutilizacao aceita
+            # um campo `ano`? Se não, de onde sai o ano do evento?". O combinado
+            # com a plataforma: quem receber a resposta avisa o outro lado. Do
+            # lado de lá, o mesmo aviso mora em `fiscal.schema.ts` e na seção
+            # 13.3.2 do `docs/integracao-erp-local.md`; do lado de cá, é este
+            # comentário. Os dois saem juntos.
             "ano": payload.get("ano"),
         }
         headers = dict(self.headers)
