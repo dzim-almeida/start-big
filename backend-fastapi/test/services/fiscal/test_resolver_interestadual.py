@@ -247,3 +247,40 @@ def test_operacao_interna_mantem_o_cfop_do_produto(db, perfil_st):
         db, _venda(_pj(ie="1234567890"), uf_cliente=State.SAO_PAULO, perfil_id=perfil_st.id), "SP", simples_nacional=False,
     )
     assert itens[0].cfop == "5102" and itens[0].st_mva is None and itens[0].cst_icms == "00"
+
+
+# --- Code review 19/09/2026 ------------------------------------------------------
+
+def test_nfce_interestadual_e_barrada_antes_de_reservar_numero(db, perfil):
+    """NFC-e é sempre interna (idDest 1): entrega a domicílio para outra UF não pode virar 6108 no cupom."""
+    with pytest.raises(OperacaoInterestadualError) as exc:
+        resolver_aliquotas_venda(
+            db, _venda(_pf(), indicador_presenca=4, perfil_id=perfil.id), "SP", simples_nacional=True, modelo_documento=65,
+        )
+    assert exc.value.campo == "uf_destinatario" and "NFC-e" in exc.value.mensagem
+
+
+def test_nfce_na_mesma_uf_ou_balcao_continua_passando(db, perfil):
+    itens, _ = resolver_aliquotas_venda(
+        db, _venda(_pf(), uf_cliente=State.SAO_PAULO, indicador_presenca=4), "SP", simples_nacional=True, modelo_documento=65,
+    )
+    assert itens[0].cfop == "5102"
+
+
+@pytest.mark.parametrize("cst, csosn, simples", [("40", None, False), ("41", None, False), ("60", None, False), (None, "500", True)])
+def test_item_isento_ou_substituido_interestadual_e_barrado(db, perfil, cst, csosn, simples):
+    """Tributação de isento/substituído fora do estado é decisão do contador — nada de DIFAL zerado aceito."""
+    venda = _venda(_pf(), perfil_id=perfil.id)
+    venda.itens[0].produto.fiscal.cst_icms = cst
+    venda.itens[0].produto.fiscal.csosn = csosn
+    with pytest.raises(OperacaoInterestadualError) as exc:
+        resolver_aliquotas_venda(db, venda, "SP", simples_nacional=simples)
+    assert exc.value.campo in ("cst_icms", "csosn") and exc.value.item == 1
+
+
+def test_substituido_para_contribuinte_com_mva_vira_substituto(db, perfil_st):
+    """CST 60 com regra de ST para a UF: o remetente assume a ST (6404/10) — o caso que o contador configurou."""
+    venda = _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id)
+    venda.itens[0].produto.fiscal.cst_icms = "60"
+    itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
+    assert itens[0].cst_icms == "10" and itens[0].cfop == "6404"

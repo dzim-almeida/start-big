@@ -18,17 +18,18 @@ from .test_payload_builder import (
     _empresa, _endereco_empresa, _fiscal_settings, _item_venda, _pagamento, _produto, _venda,
 )
 
+# Nomes conferidos em campos.focusnfe.com.br/nfe/NotaFiscalXML.html (code review 19/09/2026)
 CHAVES_DIFAL = {
-    "base_calculo_uf_destino", "aliquota_interna_uf_destino", "aliquota_interestadual",
-    "valor_icms_interestadual_uf_destino", "valor_icms_interestadual_uf_remetente",
+    "icms_base_calculo_uf_destino", "icms_aliquota_interna_uf_destino", "icms_aliquota_interestadual",
+    "icms_valor_uf_destino", "icms_valor_uf_remetente",
 }
-CHAVES_FCP = {"base_calculo_fcp_uf_destino", "percentual_fcp_uf_destino", "valor_fcp_uf_destino"}
+CHAVES_FCP = {"fcp_base_calculo_uf_destino", "fcp_percentual_uf_destino", "fcp_valor_uf_destino"}
 CHAVES_ST = {
     "icms_modalidade_base_calculo_st", "icms_base_calculo_st", "icms_aliquota_st",
     "icms_valor_st", "icms_margem_valor_adicionado_st",
 }
 CHAVES_TOTAIS_NOVAS = {
-    "icms_base_calculo_st", "icms_valor_total_st", "valor_icms_uf_destino", "valor_fcp_uf_destino",
+    "icms_base_calculo_st", "icms_valor_total_st", "icms_valor_total_uf_destino", "fcp_valor_total_uf_destino",
 }
 
 
@@ -77,12 +78,12 @@ def test_difal_sai_no_item_com_as_chaves_da_focus(venda):
     item = payload["items"][0]
     assert item["cfop"] == "6108"
     assert CHAVES_DIFAL | CHAVES_FCP <= set(item)
-    assert item["base_calculo_uf_destino"] == 1000.0
-    assert item["aliquota_interestadual"] == 12.0 and item["aliquota_interna_uf_destino"] == 18.0
-    assert item["valor_icms_interestadual_uf_destino"] == 60.0
-    assert item["valor_icms_interestadual_uf_remetente"] == 120.0
-    assert item["percentual_fcp_uf_destino"] == 2.0 and item["valor_fcp_uf_destino"] == 20.0
-    assert item["base_calculo_fcp_uf_destino"] == 1000.0
+    assert item["icms_base_calculo_uf_destino"] == 1000.0
+    assert item["icms_aliquota_interestadual"] == 12.0 and item["icms_aliquota_interna_uf_destino"] == 18.0
+    assert item["icms_valor_uf_destino"] == 60.0
+    assert item["icms_valor_uf_remetente"] == 120.0
+    assert item["fcp_percentual_uf_destino"] == 2.0 and item["fcp_valor_uf_destino"] == 20.0
+    assert item["fcp_base_calculo_uf_destino"] == 1000.0
     assert not CHAVES_ST & set(item)
 
 
@@ -91,8 +92,8 @@ def test_difal_nos_totais_sem_mexer_no_valor_total(venda):
         venda.itens[0], "6108", difal_aliquota_interestadual=d("12"), difal_aliquota_interna_destino=d("18"),
     )])
     t = payload["totais"]
-    assert t["valor_icms_uf_destino"] == 60.0 and t["valor_total"] == 1000.0
-    assert "valor_fcp_uf_destino" not in t and "icms_valor_total_st" not in t   # zero = omitido
+    assert t["icms_valor_total_uf_destino"] == 60.0 and t["valor_total"] == 1000.0
+    assert "fcp_valor_total_uf_destino" not in t and "icms_valor_total_st" not in t   # zero = omitido
 
 
 def test_local_destino_2_acompanha_o_cfop(venda):

@@ -57,7 +57,7 @@ def _assert_substituto_tem_regra_de_st(item: ItemEntrada, situacao: str) -> None
     perfil (`st_mva`) o grupo sairia vazio e a SEFAZ rejeitaria — ou pior,
     aceitaria uma nota que promete retenção que ninguém calculou.
     """
-    if item.st_mva is None:
+    if item.st_mva is None or item.st_mva <= ZERO:
         raise CSTNaoSuportadoError(
             f"Situação tributária '{situacao}' (substituto tributário) exige "
             f"regra de ST no perfil tributário do produto, e só vale em operação "

@@ -431,21 +431,27 @@ def _campos_difal(imp) -> dict:
     Só quando o motor calculou DIFAL (venda interestadual a não contribuinte,
     regime normal). Operação interna não ganha chave nenhuma — o contrato com
     a plataforma é exato (test_contrato_payload_campos).
+
+    Nomes conferidos na referência oficial (campos.focusnfe.com.br/nfe/
+    NotaFiscalXML.html) em 19/09/2026 — a spec trazia outros, e chave que a
+    Focus não conhece é descartada em silêncio (Rejeição 694 na SEFAZ).
+    `icms_percentual_partilha` (pICMSInterPart) fica de fora: a Focus assume
+    100, que é o valor desde 2019.
     """
     if imp.difal_valor is None:
         return {}
     campos = {
-        "base_calculo_uf_destino": float(imp.difal_base_calculo),                      # vBCUFDest
-        "aliquota_interna_uf_destino": float(imp.difal_aliquota_interna_destino),      # pICMSUFDest
-        "aliquota_interestadual": float(imp.difal_aliquota_interestadual),             # pICMSInter
-        "valor_icms_interestadual_uf_destino": float(imp.difal_valor),                 # vICMSUFDest
-        "valor_icms_interestadual_uf_remetente": float(imp.difal_valor_remetente or 0),  # vICMSUFRemet
+        "icms_base_calculo_uf_destino": float(imp.difal_base_calculo),                 # vBCUFDest
+        "icms_aliquota_interna_uf_destino": float(imp.difal_aliquota_interna_destino), # pICMSUFDest
+        "icms_aliquota_interestadual": float(imp.difal_aliquota_interestadual),        # pICMSInter
+        "icms_valor_uf_destino": float(imp.difal_valor),                               # vICMSUFDest
+        "icms_valor_uf_remetente": float(imp.difal_valor_remetente or 0),              # vICMSUFRemet
     }
     if imp.fcp_aliquota and imp.fcp_aliquota > 0:
         campos.update({
-            "base_calculo_fcp_uf_destino": float(imp.fcp_base_calculo or imp.difal_base_calculo),  # vBCFCPUFDest
-            "percentual_fcp_uf_destino": float(imp.fcp_aliquota),                                # pFCPUFDest
-            "valor_fcp_uf_destino": float(imp.fcp_valor or 0),                                   # vFCPUFDest
+            "fcp_base_calculo_uf_destino": float(imp.fcp_base_calculo or imp.difal_base_calculo),  # vBCFCPUFDest
+            "fcp_percentual_uf_destino": float(imp.fcp_aliquota),                                # pFCPUFDest
+            "fcp_valor_uf_destino": float(imp.fcp_valor or 0),                                   # vFCPUFDest
         })
     return campos
 
@@ -476,9 +482,9 @@ def _totais_interestaduais(t) -> dict:
         campos["icms_base_calculo_st"] = float(t.base_calculo_icms_st)
         campos["icms_valor_total_st"] = float(t.valor_icms_st)
     if t.valor_difal and t.valor_difal > 0:
-        campos["valor_icms_uf_destino"] = float(t.valor_difal)
+        campos["icms_valor_total_uf_destino"] = float(t.valor_difal)    # vICMSUFDest
     if t.valor_fcp and t.valor_fcp > 0:
-        campos["valor_fcp_uf_destino"] = float(t.valor_fcp)
+        campos["fcp_valor_total_uf_destino"] = float(t.valor_fcp)       # vFCPUFDest
     return campos
 
 

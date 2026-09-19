@@ -65,3 +65,16 @@ def test_excluir_perfil_vinculado_e_409(client, header_com_token, fiscal_setting
     assert resposta.status_code == 409, resposta.text
     assert resposta.json()["detail"]["codigo"] == "PERFIL_EM_USO"
     assert "Celular X" in resposta.json()["detail"]["mensagem"]
+
+
+def test_cadastro_de_produto_com_perfil_inexistente_e_422(client, header_com_token, fiscal_settings):
+    """O bloco `fiscal` do POST /produtos passa pela mesma validação do PUT /{id}/fiscal."""
+    resposta = client.post(
+        "/api/v1/produtos/",
+        json={"nome": "Tablet Y", "codigo_produto": "TAB-1", "unidade_medida": "UN",
+              "estoque": {"valor_varejo": 100000, "quantidade": 1, "valor_entrada": 50000},
+              "fiscal": {"ncm": "84713012", "perfil_tributario_id": 999}},
+        headers=header_com_token,
+    )
+    assert resposta.status_code == 422, resposta.text
+    assert resposta.json()["detail"]["codigo"] == "PERFIL_TRIBUTARIO_INVALIDO"

@@ -16,6 +16,7 @@ from app.db.crud import produto as produto_crud
 from app.db.crud import produto_fiscal as produto_fiscal_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.services import movimentacao_estoque as mov_service
+from app.services import produto_fiscal as produto_fiscal_service
 
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
 from app.core.imagem import salvar_imagem, deletar_imagem
@@ -108,7 +109,11 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
     # derruba o produto junto — que é o ponto de gravar os dois de uma vez.
     dados_fiscais = getattr(produto_to_add, "fiscal", None)
     if dados_fiscais is not None:
-        produto_fiscal_crud.upsert(db, produto_in_db.id, dados_fiscais)
+        # Mesma porta do PUT /{id}/fiscal: perfil tributário tem que ser desta
+        # empresa (422 orientador, e não IntegrityError da FK).
+        produto_fiscal_service.upsert_dados_fiscais(
+            db, produto_in_db.id, usuario_token["empresa_id"], dados_fiscais,
+        )
 
     return produto_in_db
 

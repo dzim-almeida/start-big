@@ -48,6 +48,14 @@ from .types import DadosNota, ItemEntrada
 
 ZERO = Decimal("0")
 IND_IE_CONTRIBUINTE = 1
+MODELO_NFCE = 65
+
+# Situações que o motor NÃO sabe levar para fora do estado sem o contador:
+# isento/não tributada (40/41) e ICMS já retido por ST (60/500). Emitir com
+# DIFAL zerado seria a nota aceita e errada. A única saída automática é a do
+# substituído que vira SUBSTITUTO (60/500 + contribuinte + MVA na regra).
+SITUACOES_SEM_DIFAL_AUTOMATICO = frozenset({"40", "41", "60", "500"})
+SITUACOES_SUBSTITUIDO = frozenset({"60", "500"})
 
 
 def _centesimos_para_decimal(valor: Optional[int], padrao: Decimal) -> Decimal:
@@ -230,6 +238,7 @@ def _resolver_item_interestadual(
     existe_st = (
         not operacao.nao_contribuinte and regra is not None and (regra.mva_st or 0) > 0
     )
+    _assert_situacao_cabe_fora_do_estado(fiscal, produto, simples_nacional, existe_st, idx)
     cfop_produto = getattr(fiscal, "cfop_padrao", None) or ""
     cfop = derivar_cfop_operacao(
         uf_emitente=uf_emitente,
@@ -253,6 +262,32 @@ def _resolver_item_interestadual(
     if regra is None:
         return item
     return _aplicar_regra(item, regra, operacao.nao_contribuinte, existe_st, simples_nacional)
+
+
+def _assert_situacao_cabe_fora_do_estado(
+    fiscal: Any, produto: Any, simples_nacional: bool, existe_st: bool, idx: int,
+) -> None:
+    """
+    Isento/não tributado (40/41) e substituído (60/500) não têm tributação
+    interestadual automática: antes desta rodada eram barrados, e continuam.
+    Exceção: substituído vendido a contribuinte com MVA na regra — o
+    remetente vira substituto (6403/6404, CST 10/70 ou CSOSN 201/202).
+    """
+    campo = "csosn" if simples_nacional else "cst_icms"
+    situacao = getattr(fiscal, campo, None)
+    if situacao not in SITUACOES_SEM_DIFAL_AUTOMATICO:
+        return
+    if situacao in SITUACOES_SUBSTITUIDO and existe_st:
+        return
+    nome = getattr(produto, "nome", "?")
+    raise OperacaoInterestadualError(
+        f"Produto '{nome}' (item {idx}) tem situação tributária {situacao} "
+        f"(isento/não tributado ou ICMS já retido por ST). O motor não deriva "
+        f"a tributação interestadual desse caso: defina com a contabilidade "
+        f"a situação e o CFOP para fora do estado.",
+        campo=campo,
+        item=idx,
+    )
 
 
 def _aplicar_regra(
@@ -290,6 +325,7 @@ def resolver_aliquotas_venda(
     simples_nacional: bool,
     excluir_icms_base_pis_cofins: bool = False,
     regime_apuracao: str = "CUMULATIVO",
+    modelo_documento: int = 55,
 ) -> tuple[list[ItemEntrada], DadosNota]:
     """
     Converte uma Venda (ORM) em DTOs puros para o tax_engine.
@@ -304,6 +340,9 @@ def resolver_aliquotas_venda(
         excluir_icms_base_pis_cofins: Flag STF Tema 69.
         regime_apuracao: "CUMULATIVO" (Lucro Presumido) ou "NAO_CUMULATIVO"
             (Lucro Real). Decide o default de PIS/COFINS. Ignorado no Simples.
+        modelo_documento: 55 (NF-e) ou 65 (NFC-e). A NFC-e é sempre interna
+            (idDest 1): entrega a domicílio para outra UF é barrada aqui, antes
+            de reservar número, em vez de virar cupom com CFOP 6xxx.
 
     Returns:
         Tupla (itens_entrada, dados_nota) pronta para calcular_impostos().
@@ -318,6 +357,13 @@ def resolver_aliquotas_venda(
     # 0. Operação interestadual (None = interna ou balcão). Por item, decide
     #    CFOP, CST/CSOSN, DIFAL ou ST — ver _resolver_item_interestadual.
     operacao = _operacao_interestadual(venda, uf_emitente)
+    if operacao and modelo_documento == MODELO_NFCE:
+        raise OperacaoInterestadualError(
+            f"NFC-e não admite operação interestadual (emitente {uf_emitente}, "
+            f"destinatário {operacao.uf_destino}): o cupom é sempre interno. "
+            f"Para entregar em outra UF, emita NF-e.",
+            campo="uf_destinatario",
+        )
 
     # 1. Carregar defaults da UF
     from app.db.crud import fiscal as crud

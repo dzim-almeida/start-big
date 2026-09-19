@@ -130,3 +130,9 @@ def test_csosn_201_sem_st_e_recusado():
 def test_cfop_do_item_chega_ao_resultado():
     resultado = calcular_impostos([_item_st(), item(numero_item=2, cfop="5102")], nota())
     assert [i.cfop for i in resultado.itens] == ["6404", "5102"]
+
+
+def test_cst_10_com_mva_zero_e_recusado():
+    """MVA 0 não gera ST (engine ignora ≤ 0): CST 10 sairia sem grupo ST."""
+    with pytest.raises(CSTNaoSuportadoError, match="ST"):
+        calcular_impostos([_item_st(st_mva=d("0"))], nota())

@@ -293,6 +293,7 @@ def _preparar_dados_emissao(
         itens_entrada, dados_nota = resolver_aliquotas_venda(
             db, venda, uf_emitente, simples,
             regime_apuracao=regime_apuracao(empresa),
+            modelo_documento=65 if tipo_documento == "nfce" else 55,
         )
         resultado_calculo = calcular_impostos(itens_entrada, dados_nota)
     except Exception as e:
