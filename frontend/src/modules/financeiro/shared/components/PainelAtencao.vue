@@ -10,9 +10,9 @@
  * o que faz um painel destes morrer — quem vê aviso todo dia para de ler, e
  * some junto o aviso que importava. Lista vazia é boa notícia, e some da tela.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { AlertTriangle, ArrowRight, BellOff, CircleAlert } from 'lucide-vue-next';
+import { AlertTriangle, ArrowRight, BellOff, CircleAlert, X } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
 import { formatDataPura } from '@/shared/utils/date.utils';
@@ -166,6 +166,28 @@ function agir(item: { alerta: AlertaFinanceiro; texto: Texto }) {
     router.push({ name: item.texto.rota, query: item.texto.query });
   }
 }
+
+// --- Por quanto tempo calar ---
+//
+// O backend sempre aceitou de 1 a 90 dias; a tela é que mandava 7 fixo. Sete
+// dias serve para "resolvo semana que vem", e é pouco para o aviso que o dono
+// LEU e decidiu conviver — concentração de receita, por exemplo, não é defeito
+// a corrigir, é risco a acompanhar. Sem um prazo longo, a única saída era
+// engolir o mesmo aviso toda semana, e é assim que o painel inteiro vira
+// ruído.
+const PRAZOS = [
+  { dias: 7, rotulo: '7 dias' },
+  { dias: 30, rotulo: '30 dias' },
+  { dias: 90, rotulo: '90 dias' },
+] as const;
+
+/** Código do alerta que está com os prazos abertos (null = nenhum). */
+const escolhendoPrazo = ref<string | null>(null);
+
+function adiarPor(codigo: string, dias: number) {
+  adiar.mutate({ codigo, dias });
+  escolhendoPrazo.value = null;
+}
 </script>
 
 <template>
@@ -201,16 +223,43 @@ function agir(item: { alerta: AlertaFinanceiro; texto: Texto }) {
         </div>
 
         <div class="flex shrink-0 items-center gap-4">
-          <!-- ADIAR, e nunca "dispensar": o aviso volta em 7 dias se o
+          <!-- ADIAR, e nunca "dispensar": o aviso volta ao fim do prazo se o
                problema continuar. Sem esta saída, o alerta que o dono decidiu
                não resolver grita todos os dias — e é assim que ele aprende a
-               ignorar o painel inteiro. -->
+               ignorar o painel inteiro.
+               Não existe "resolvido" porque não precisa existir: a lista é
+               recalculada a cada abertura, então o alerta do problema resolvido
+               não chega a nascer. Um botão "resolvido" só serviria para
+               esconder problema que continua de pé. -->
+          <div v-if="escolhendoPrazo === item.alerta.codigo" class="flex items-center gap-2">
+            <span class="text-xs text-zinc-400">Calar por</span>
+            <button
+              v-for="prazo in PRAZOS"
+              :key="prazo.dias"
+              type="button"
+              class="rounded-md border border-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 cursor-pointer hover:border-zinc-400 hover:text-zinc-900"
+              :disabled="adiar.isPending.value"
+              @click="adiarPor(item.alerta.codigo, prazo.dias)"
+            >
+              {{ prazo.rotulo }}
+            </button>
+            <button
+              type="button"
+              class="text-zinc-300 cursor-pointer hover:text-zinc-600"
+              title="Cancelar"
+              @click="escolhendoPrazo = null"
+            >
+              <X :size="13" />
+            </button>
+          </div>
+
           <button
+            v-else
             type="button"
             class="flex items-center gap-1 text-xs font-medium text-zinc-400 cursor-pointer hover:text-zinc-700"
-            title="Adiar por 7 dias"
+            title="Calar este aviso por um tempo"
             :disabled="adiar.isPending.value"
-            @click="adiar.mutate({ codigo: item.alerta.codigo, dias: 7 })"
+            @click="escolhendoPrazo = item.alerta.codigo"
           >
             <BellOff :size="13" /> Adiar
           </button>
@@ -227,9 +276,18 @@ function agir(item: { alerta: AlertaFinanceiro; texto: Texto }) {
       </li>
     </ul>
 
+    <!-- A frase antiga ("ele volta — com o número daquele dia, não com o de
+         hoje") respondia a pergunta errada, e de forma ambígua: "daquele dia"
+         lia como o número de quando se adiou, que é justamente o contrário do
+         que o backend faz. A dúvida real de quem olha o painel é outra — "e se
+         eu já resolvi, vai me encher de novo?" — e é ela que esta versão
+         responde, na primeira linha. -->
     <p class="mt-3 text-xs text-zinc-400">
-      Adiar cala o aviso por 7 dias. Se o problema continuar, ele volta — com o número
-      daquele dia, não com o de hoje.
+      <span class="font-medium text-zinc-500">Resolveu? O aviso some sozinho.</span>
+      Esta lista é recalculada toda vez que a tela abre, então o problema resolvido não
+      volta a aparecer. <span class="font-medium text-zinc-500">Adiar</span> é para o
+      aviso que você leu e decidiu não tratar agora: ele cala pelo prazo escolhido e só
+      reaparece no fim dele, com o número daquele momento, se o problema ainda existir.
     </p>
   </section>
 </template>

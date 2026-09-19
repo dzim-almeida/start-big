@@ -380,9 +380,16 @@ export function useAdiarAlerta() {
   return useMutation({
     mutationFn: ({ codigo, dias }: { codigo: string; dias?: number }) =>
       service.adiarAlerta(codigo, dias),
-    onSuccess: () => {
+    // A frase diz o PRAZO e a CONDIÇÃO. "Ele volta se o problema continuar"
+    // deixava no ar a dúvida que mais confunde: "e se eu já resolvi?" —
+    // resolveu, não volta, porque a lista é recalculada a cada abertura e o
+    // alerta nem chega a nascer.
+    onSuccess: (_resultado, { dias = 7 }) => {
       invalidar();
-      toast.success('Aviso adiado — ele volta se o problema continuar');
+      toast.success(
+        `Aviso adiado por ${dias} dias`,
+        'Só volta ao fim do prazo, e só se o problema ainda existir.',
+      );
     },
   });
 }
