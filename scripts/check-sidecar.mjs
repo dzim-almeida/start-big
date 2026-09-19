@@ -13,10 +13,11 @@
  * Uso: node scripts/check-sidecar.mjs
  */
 
-import { existsSync, statSync, readdirSync } from 'node:fs';
+import { existsSync, statSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BACKEND = join(RAIZ, 'backend-fastapi');
@@ -85,6 +86,35 @@ if (!existsSync(SIDECAR)) {
           `   sidecar  : ${data(mSidecar)}\n` +
           `   dist/    : ${data(ofuscado.mtime)}`,
       );
+    }
+  }
+
+  // 4. A CÓPIA que o bundle leva confere com o sidecar do bin/?
+  //
+  // O `tauri build` copia o externalBin para target/<perfil>/erp-api.exe, mas
+  // não a refaz quando o bin/ muda depois. Em 19/09/2026 o instalador saiu com
+  // a cópia de uma geração anterior: as checagens 1-3 olhavam só o bin/, que
+  // estava certo, e passaram. O sintoma seria o pior possível durante uma
+  // rodada de piloto -- corrigir o backend, gerar o instalador, instalar, e o
+  // bug continuar lá.
+  //
+  // Apagar é seguro e resolve: é artefato dentro do target/, e sem ele o
+  // bundler é obrigado a copiar o atual.
+  const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
+  for (const perfil of ['release', 'debug']) {
+    const copia = join(RAIZ, 'frontend', 'src-tauri', 'target', perfil, 'erp-api.exe');
+    if (!existsSync(copia)) continue;
+    try {
+      if (sha(copia) !== sha(SIDECAR)) {
+        rmSync(copia, { force: true });
+        console.log(
+          `  cópia velha do sidecar removida (target/${perfil}/) — o bundle vai recopiar`,
+        );
+      }
+    } catch (e) {
+      // Não barra o build por não conseguir ler/apagar: o alvo aqui é o
+      // descompasso silencioso, não transformar um EBUSY em build quebrado.
+      console.warn(`  aviso: não deu para conferir target/${perfil}/erp-api.exe (${e.code ?? e})`);
     }
   }
 }
