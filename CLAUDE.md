@@ -33,6 +33,26 @@ fastapi dev app/main.py                  # porta 8000 — para usar no navegador
 pytest test/                             # Run tests
 ```
 
+### ⚠️ Não mova a pasta do projeto sem recriar a venv
+Os atalhos em `.venv/Scripts/*.exe` (`pytest`, `fastapi`, `alembic`, `pyarmor`, `pip`…)
+gravam o caminho **absoluto** do interpretador de quando a venv nasceu. Mover o
+projeto quebra todos de uma vez, e o sintoma é péssimo de ler: saem com **exit 1
+sem imprimir nada**. Foi o que derrubou o `npm run build:sidecar` em 19/09/2026,
+quando o projeto saiu de `Desktop\start-big-master` para `Desktop\PROJETOS\StartBig`.
+
+O `python.exe` da venv **não** é um atalho e continua funcionando — daí a pista:
+se `python -m pytest` roda e `pytest` não, é isto. Para recriar:
+
+```bash
+cd backend-fastapi
+rm -rf .venv && python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt
+```
+
+O `requirements.txt` é a **única** declaração de dependência do backend (não há
+`pyproject.toml`): mantenha-o atualizado com `pip freeze > requirements.txt`, ou
+uma venv perdida leva junto a lista do que instalar.
+
 ### ⚠️ Portas: dev na 8000, loja na 8080-8083 (separados de propósito)
 | Como você roda | Backend procurado em | Origem |
 |---|---|---|
