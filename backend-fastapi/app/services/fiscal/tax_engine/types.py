@@ -43,6 +43,24 @@ class ItemEntrada(BaseModel):
     cst_pis: str = "01"
     cst_cofins: str = "01"
 
+    # --- DIFAL / operação interestadual a não contribuinte (TASK007) ---
+    # None = operação interna, sem DIFAL — o caso de quase toda venda, e o
+    # que mantém todo chamador existente intacto. O resolver preenche a partir
+    # do perfil tributário; o engine só calcula quando a interestadual existe.
+    difal_aliquota_interestadual: Optional[Decimal] = None
+    difal_aliquota_interna_destino: Optional[Decimal] = None
+    difal_percentual_fcp: Decimal = Decimal("0")
+    difal_base_dupla: bool = False
+
+    # --- ICMS-ST / operação interestadual a contribuinte (TASK008) ---
+    # Preenchido pelo resolver quando o destinatário tem IE e a regra do
+    # perfil tem MVA. `st_mva` presente é o que liga o ramo ST do engine e o
+    # que autoriza CST 10/70 e CSOSN 201/202.
+    st_aliquota_interestadual: Optional[Decimal] = None
+    st_aliquota_interna_destino: Optional[Decimal] = None
+    st_mva: Optional[Decimal] = None
+    st_reducao_base: Optional[Decimal] = None
+
 
 class DadosNota(BaseModel):
     """Dados globais da nota para rateio e configuração."""
@@ -66,6 +84,9 @@ class ImpostosItem(BaseModel):
     """Resultado do cálculo tributário para um item."""
 
     numero_item: int
+    # CFOP da OPERAÇÃO (derivado no resolver: 5xxx interna, 6xxx interestadual).
+    # O payload_builder (TASK009) passa a ler daqui, não do cfop_padrao do produto.
+    cfop: Optional[str] = None
 
     # Rateio
     valor_frete: Decimal
@@ -86,6 +107,25 @@ class ImpostosItem(BaseModel):
     # CSOSN 101 específico
     icms_aliquota_credito_simples: Optional[Decimal] = None
     icms_valor_credito_simples: Optional[Decimal] = None
+
+    # DIFAL / ICMSUFDest — None em operação interna. O payload_builder
+    # (TASK009) lê daqui para montar o grupo <ICMSUFDest>.
+    difal_base_calculo: Optional[Decimal] = None
+    difal_aliquota_interestadual: Optional[Decimal] = None
+    difal_aliquota_interna_destino: Optional[Decimal] = None
+    difal_valor: Optional[Decimal] = None            # ICMS devido à UF de destino
+    difal_valor_remetente: Optional[Decimal] = None  # ICMS próprio pela interestadual
+    fcp_base_calculo: Optional[Decimal] = None
+    fcp_aliquota: Optional[Decimal] = None
+    fcp_valor: Optional[Decimal] = None
+
+    # ICMS-ST — None sem substituição. Entra no vNF (ver consolidador).
+    icms_st_modalidade_base_calculo: int = 4  # 4 = Margem Valor Agregado (%)
+    icms_st_base_calculo: Optional[Decimal] = None
+    icms_st_aliquota: Optional[Decimal] = None
+    icms_st_valor: Optional[Decimal] = None
+    icms_st_mva: Optional[Decimal] = None
+    icms_st_reducao_base: Optional[Decimal] = None
 
     # PIS
     pis_situacao_tributaria: str
@@ -111,6 +151,16 @@ class TotaisNota(BaseModel):
     valor_icms: Decimal
     valor_pis: Decimal
     valor_cofins: Decimal
+
+    # Interestadual (DIFAL/FCP). Ficam FORA de valor_total_nota: são tributos
+    # partilhados informados em <ICMSUFDest>, não custo do produto.
+    valor_difal: Decimal = Decimal("0")
+    valor_fcp: Decimal = Decimal("0")
+    base_calculo_fcp: Decimal = Decimal("0")
+
+    # ICMS-ST (vBCST / vST). Ao contrário do DIFAL, SOMA no valor_total_nota.
+    base_calculo_icms_st: Decimal = Decimal("0")
+    valor_icms_st: Decimal = Decimal("0")
 
     valor_frete: Decimal
     valor_seguro: Decimal

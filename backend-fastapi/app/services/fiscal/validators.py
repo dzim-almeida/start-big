@@ -165,6 +165,35 @@ _CAMPOS_ENDERECO_DESTINATARIO = (
 )
 
 
+# IE tem de 2 a 14 dígitos conforme a UF; o que importa aqui é barrar texto
+# ("ISENTO", "N/A") e tamanhos impossíveis.
+_IE_DIGITOS_MIN, _IE_DIGITOS_MAX = 2, 14
+
+
+def verificar_ie_destinatario_interestadual(cliente: Cliente) -> list[PendenciaFiscal]:
+    """IE do contribuinte tem que ser numérica na NF-e interestadual.
+
+    O payload marca `indIEDest = 1` sempre que o PJ tem algo no campo IE
+    (`_montar_destinatario`). Se o que está lá é "ISENTO" ou lixo, a nota sai
+    como contribuinte com IE inválida -- Rejeição 232 da SEFAZ, depois de
+    reservar número. Quem é isento de fato deixa a IE vazia (indIEDest 9).
+    """
+    ie = getattr(cliente, "ie", None)
+    if not ie:
+        return []
+    limpo = ie.strip()
+    if re.fullmatch(r"[\d.\-/ ]+", limpo) and _IE_DIGITOS_MIN <= len(re.sub(r"\D", "", limpo)) <= _IE_DIGITOS_MAX:
+        return []
+    nome = get_nome_cliente(cliente)
+    return [_p(
+        "destinatario", "ie",
+        f"Inscrição Estadual '{ie}' do cliente '{nome}' inválida para NF-e "
+        f"interestadual a contribuinte (Rejeição 232). Informe só os dígitos "
+        f"da IE, ou deixe em branco se o cliente não é contribuinte.",
+        cliente.id, nome,
+    )]
+
+
 def verificar_endereco_destinatario(cliente: Cliente) -> list[PendenciaFiscal]:
     """Endereco do destinatario -- obrigatorio na NF-e, PROIBIDO na NFC-e.
 
