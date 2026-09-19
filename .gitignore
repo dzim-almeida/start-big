@@ -17,6 +17,10 @@ __pycache__/
 # Backup de banco antes de recomeçar do zero (ex: start_big.db.<motivo>.bak).
 # O `*.db` acima não pega estes, e é banco com dado de cliente dentro.
 *.db.*.bak
+# E a outra forma que a gente usa na prática: o .bak no MEIO, com carimbo de
+# data (start_big.db.bak-20260916-112928). O padrão acima espera `.bak` no fim
+# e deixava passar 5,5 MB de banco de loja como arquivo não rastreado.
+*.db.bak*
 *.db-wal
 *.db-shm
 
