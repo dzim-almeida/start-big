@@ -319,6 +319,7 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
         for i in resultado_calculo.itens
     ) * 100) if resultado_calculo else 0
 
+    impostos_por_item = {imp.numero_item: imp for imp in resultado_calculo.itens} if resultado_calculo else {}
     itens_preview = []
     for num, item_venda in enumerate(venda.itens, start=1):
         if not item_venda.produto:
@@ -335,7 +336,9 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
             "quantidade": float(item_venda.quantidade),
             "valor_unitario": float(item_venda.valor_unitario),
             "valor_total": float(item_venda.total),
-            "cfop": fiscal_prod.cfop_padrao if fiscal_prod else "",
+            # CFOP da operação (6xxx se interestadual), como vai na nota
+            "cfop": (impostos_por_item[num].cfop if num in impostos_por_item and impostos_por_item[num].cfop
+                     else (fiscal_prod.cfop_padrao if fiscal_prod else "")),
             "ncm": fiscal_prod.ncm if fiscal_prod else "",
             "cst_csosn": (
                 fiscal_prod.csosn if simples else fiscal_prod.cst_icms

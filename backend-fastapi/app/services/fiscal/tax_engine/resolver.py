@@ -166,6 +166,11 @@ def _operacao_interestadual(venda: Venda, uf_emitente: str) -> Optional[_Operaca
     return _Operacao(uf_destino=uf_cliente.upper(), nao_contribuinte=_cliente_nao_contribuinte(venda))
 
 
+def eh_operacao_interestadual(venda: Venda, uf_emitente: str) -> bool:
+    """A mesma régua do resolver, para o gate de emissão (validators/core)."""
+    return _operacao_interestadual(venda, uf_emitente) is not None
+
+
 def _regra_do_perfil(db: Session, fiscal: Any, produto: Any, uf_destino: str, idx: int):
     """
     A regra do perfil tributário do produto para a UF de destino.

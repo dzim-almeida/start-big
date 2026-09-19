@@ -390,6 +390,14 @@ def _montar_itens(
             # verdade, com cEnq na ordem que o schema pede.
             # ---------------------------------------------------------------
 
+            # CFOP da OPERAÇÃO (5xxx interna, 6xxx interestadual), decidido
+            # pelo resolver junto com o idDest. O cfop_padrao do produto é só
+            # o fallback de quem não passou pelo motor.
+            if imp.cfop:
+                item_dict["cfop"] = imp.cfop
+            item_dict.update(_campos_difal(imp))
+            item_dict.update(_campos_icms_st(imp))
+
             # CST 20 — Redução de base + código benefício fiscal
             if imp.icms_reducao_base is not None:
                 item_dict["icms_reducao_base_calculo"] = float(imp.icms_reducao_base)
@@ -414,6 +422,89 @@ def _montar_itens(
         )
 
     return itens
+
+
+def _campos_difal(imp) -> dict:
+    """
+    Grupo ICMSUFDest (partilha EC 87/2015) na nomenclatura da Focus NFe.
+
+    Só quando o motor calculou DIFAL (venda interestadual a não contribuinte,
+    regime normal). Operação interna não ganha chave nenhuma — o contrato com
+    a plataforma é exato (test_contrato_payload_campos).
+    """
+    if imp.difal_valor is None:
+        return {}
+    campos = {
+        "base_calculo_uf_destino": float(imp.difal_base_calculo),                      # vBCUFDest
+        "aliquota_interna_uf_destino": float(imp.difal_aliquota_interna_destino),      # pICMSUFDest
+        "aliquota_interestadual": float(imp.difal_aliquota_interestadual),             # pICMSInter
+        "valor_icms_interestadual_uf_destino": float(imp.difal_valor),                 # vICMSUFDest
+        "valor_icms_interestadual_uf_remetente": float(imp.difal_valor_remetente or 0),  # vICMSUFRemet
+    }
+    if imp.fcp_aliquota and imp.fcp_aliquota > 0:
+        campos.update({
+            "base_calculo_fcp_uf_destino": float(imp.fcp_base_calculo or imp.difal_base_calculo),  # vBCFCPUFDest
+            "percentual_fcp_uf_destino": float(imp.fcp_aliquota),                                # pFCPUFDest
+            "valor_fcp_uf_destino": float(imp.fcp_valor or 0),                                   # vFCPUFDest
+        })
+    return campos
+
+
+def _campos_icms_st(imp) -> dict:
+    """
+    Grupo de ST do remetente substituto (ICMS10/70, ICMSSN201/202), na
+    nomenclatura da Focus NFe. Só quando o motor calculou ST.
+    """
+    if imp.icms_st_valor is None:
+        return {}
+    campos = {
+        "icms_modalidade_base_calculo_st": imp.icms_st_modalidade_base_calculo,  # modBCST
+        "icms_base_calculo_st": float(imp.icms_st_base_calculo),                 # vBCST
+        "icms_aliquota_st": float(imp.icms_st_aliquota or 0),                    # pICMSST
+        "icms_valor_st": float(imp.icms_st_valor),                               # vICMSST
+        "icms_margem_valor_adicionado_st": float(imp.icms_st_mva or 0),          # pMVAST
+    }
+    if imp.icms_st_reducao_base and imp.icms_st_reducao_base > 0:
+        campos["icms_reducao_base_calculo_st"] = float(imp.icms_st_reducao_base)  # pRedBCST
+    return campos
+
+
+def _totais_interestaduais(t) -> dict:
+    """vBCST/vST e vICMSUFDest/vFCPUFDest do cabeçalho — só quando existem."""
+    campos = {}
+    if t.valor_icms_st and t.valor_icms_st > 0:
+        campos["icms_base_calculo_st"] = float(t.base_calculo_icms_st)
+        campos["icms_valor_total_st"] = float(t.valor_icms_st)
+    if t.valor_difal and t.valor_difal > 0:
+        campos["valor_icms_uf_destino"] = float(t.valor_difal)
+    if t.valor_fcp and t.valor_fcp > 0:
+        campos["valor_fcp_uf_destino"] = float(t.valor_fcp)
+    return campos
+
+
+# idDest da NF-e
+LOCAL_DESTINO_INTERNA = 1
+LOCAL_DESTINO_INTERESTADUAL = 2
+
+
+def _local_destino(resultado_calculo: Optional[ResultadoCalculo]) -> int:
+    """
+    idDest a partir do 1º dígito dos CFOPs que o motor decidiu.
+
+    É a MESMA decisão que gerou o CFOP (tax_engine/resolver), então os dois
+    nunca divergem — idDest 1 com CFOP 6.102 é Rejeição 523. Itens em grupos
+    diferentes na mesma nota não existem: é erro de montagem, antes de
+    reservar número.
+    """
+    if not resultado_calculo:
+        return LOCAL_DESTINO_INTERNA
+    grupos = {imp.cfop[0] for imp in resultado_calculo.itens if imp.cfop}
+    if len(grupos) > 1:
+        raise ValueError(
+            f"Itens com CFOP de grupos diferentes na mesma nota ({', '.join(sorted(grupos))}): "
+            f"a operação é interna OU interestadual."
+        )
+    return LOCAL_DESTINO_INTERESTADUAL if grupos == {"6"} else LOCAL_DESTINO_INTERNA
 
 
 # Códigos SEFAZ que representam cartão. Só neles o grupo `card` faz sentido —
@@ -487,7 +578,8 @@ def _montar_totais_pagamentos(
             "valor_desconto": float(t.valor_desconto),
             "icms_base_calculo": float(t.base_calculo_icms),
             "icms_valor_total": float(t.valor_icms),
-            "valor_total": float(t.valor_total_nota),
+            "valor_total": float(t.valor_total_nota),   # já inclui a ST (não o DIFAL)
+            **_totais_interestaduais(t),
         }
     else:
         totais = {
@@ -716,9 +808,8 @@ def montar_payload_nfe(
         "modelo": 55,
         "natureza_operacao": natureza,
         "tipo_documento": 1,  # 1 = saída
-        # idDest 1 = operação interna. O motor bloqueia operação interestadual
-        # (DIFAL/FCP não implementado), então aqui é sempre interna.
-        "local_destino": 1,
+        # idDest sai da mesma decisão que o CFOP dos itens (ver _local_destino).
+        "local_destino": _local_destino(resultado_calculo),
         # modFrete 9 = sem transporte. Obrigatório mesmo sem frete; quando há
         # valor de entrega ele é por conta do emitente (0).
         "modalidade_frete": 0 if venda.entrega else 9,
