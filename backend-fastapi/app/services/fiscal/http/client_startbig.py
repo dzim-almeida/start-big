@@ -206,7 +206,7 @@ class FiscalClientStartBig:
             ),
         }
 
-    def _recusa_local(self, resposta) -> EmissaoResultado:
+    def _recusa_local(self, resposta, operacao: str = "emissao") -> EmissaoResultado:
         """Recusa que aconteceu ANTES de a nota chegar na SEFAZ.
 
         Um 4xx da plataforma -- Zod, cota, CNPJ divergente, schema recusado pela
@@ -221,6 +221,10 @@ class FiscalClientStartBig:
 
         O discriminador e o `codigo_sefaz`: se a SEFAZ respondeu, existe numero.
         Quando ele vier, respeitamos o que a resposta diz e nao chutamos.
+
+        `operacao` so entra na frase: a inutilizacao passou a usar este mesmo
+        caminho (19/09/2026) e "recusou a emissao" num pedido de inutilizacao
+        mandaria o lojista procurar o erro no lugar errado.
         """
         try:
             resultado = self._parse_response(resposta.json())
@@ -228,7 +232,7 @@ class FiscalClientStartBig:
             return {
                 "status": RESULTADO_NAO_TRANSMITIDO,
                 "mensagem_sefaz": (
-                    f"A plataforma recusou a emissao (HTTP {resposta.status_code}) "
+                    f"A plataforma recusou a {operacao} (HTTP {resposta.status_code}) "
                     f"antes de enviar a SEFAZ."
                 ),
             }
@@ -684,17 +688,24 @@ class FiscalClientStartBig:
                 response.raise_for_status()
                 return self._parse_response(response.json())
         except httpx.HTTPStatusError as exc:
-            logger.error("[FISCAL] Erro HTTP ao inutilizar numeracao: %s", exc.response.status_code)
+            # O CORPO vai para o log, como na emissao. Sem ele nao da para
+            # responder a pergunta que a plataforma faz num 404 -- "versao
+            # antiga no servidor (corpo 'Cannot POST', sem `codigo`) ou licenca
+            # sem ficha fiscal (`codigo: SEM_CONFIGURACAO_FISCAL`)?" -- e foi
+            # exatamente o que aconteceu em 19/09/2026: tinhamos o status, nao
+            # tinhamos o corpo, e a pergunta ficou sem resposta.
+            logger.error(
+                "[FISCAL] Erro HTTP ao inutilizar numeracao: %s - %s",
+                exc.response.status_code, _resposta_para_log(exc.response),
+            )
             if exc.response.status_code >= 500:
                 raise EmissaoIncertaError(
                     f"Servidor respondeu {exc.response.status_code} ao inutilizar."
                 ) from exc
-            try:
-                return self._parse_response(exc.response.json())
-            except Exception:
-                return {
-                    "status": "erro",
-                    "mensagem_sefaz": (
-                        f"A API recusou a inutilização (HTTP {exc.response.status_code})."
-                    ),
-                }
+            # 4xx e recusa ANTES da SEFAZ, e passa pelo mesmo `_recusa_local`
+            # da emissao. Antes caia em `status: "erro"`, que o servico grava
+            # como REJEITADA -- um 404 de rota inexistente aparecia na tela
+            # como "rejeitada pela SEFAZ", e a faixa, que continua aberta,
+            # parecia ter sido julgada. Se o corpo trouxer `codigo_sefaz`, a
+            # SEFAZ respondeu de verdade e a rejeicao e respeitada.
+            return self._recusa_local(exc.response, operacao="inutilização")

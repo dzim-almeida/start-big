@@ -53,7 +53,12 @@ class InutilizacaoFiscal(Base):
     )
 
     # --- Status do pedido ---
-    # PENDENTE, PROCESSANDO, HOMOLOGADA, REJEITADA, INDETERMINADA
+    # PENDENTE, PROCESSANDO, HOMOLOGADA, REJEITADA, INDETERMINADA, NAO_TRANSMITIDA
+    #
+    # REJEITADA e NAO_TRANSMITIDA são as duas que devolvem a faixa à lista de
+    # gaps (os números seguem abertos). A diferença é QUEM disse não: a SEFAZ,
+    # com código, ou a plataforma, antes de transmitir. INDETERMINADA é a única
+    # que não devolve -- sem resposta, a faixa pode ter sido registrada.
     status: Mapped[str] = mapped_column(
         String(15), nullable=False, default="PENDENTE", index=True
     )

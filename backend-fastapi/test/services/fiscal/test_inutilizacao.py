@@ -263,3 +263,79 @@ def test_faixa_indeterminada_nao_reaparece_como_gap(db, empresa, monkeypatch):
     db.commit()
 
     assert listar_gaps_numeracao(db, EMPRESA_ID) == []
+
+
+# ---------------------------------------------------------------------------
+# Recusa ANTES da SEFAZ: nao e rejeicao, e a faixa continua aberta
+#
+# Ate 19/09/2026 um 404 da plataforma (rota inexistente, licenca sem ficha
+# fiscal) caia em `status: "erro"` e virava REJEITADA -- "rejeitada pela
+# SEFAZ" na tela, para um pedido que nunca saiu do predio. E o mesmo defeito
+# que `_recusa_local` corrigiu na emissao; a inutilizacao nao passava por ele.
+# ---------------------------------------------------------------------------
+
+class _ClientQueRecusaAntes:
+    """A plataforma disse nao antes de transmitir -- sem `codigo_sefaz`."""
+
+    def inutilizar_numeracao(self, ref, payload, idempotency_key=None):
+        return {
+            "status": "nao_transmitido",
+            "mensagem_sefaz": "A plataforma recusou a inutilização (HTTP 404) antes de enviar a SEFAZ.",
+        }
+
+
+def test_recusa_da_plataforma_vira_nao_transmitida_e_nao_rejeitada(db, empresa, monkeypatch):
+    monkeypatch.setattr(
+        "app.services.fiscal.http.get_fiscal_client", lambda *a, **k: _ClientQueRecusaAntes()
+    )
+    db.add_all([doc(n, "REJEITADA") for n in (3, 4)])
+    db.commit()
+
+    registro = solicitar_inutilizacao(db, EMPRESA_ID, 1, 3, 4, "Numeros queimados por rejeicao")
+
+    assert registro.status == "NAO_TRANSMITIDA"
+    assert registro.status != "REJEITADA"
+    assert "antes de enviar a sefaz" in registro.mensagem_sefaz.lower()
+    assert registro.protocolo is None
+    assert registro.codigo_status_sefaz is None
+
+
+def test_faixa_nao_transmitida_volta_como_gap(db, empresa, monkeypatch):
+    """Ao contrario da INDETERMINADA: aqui SABEMOS que nada chegou na SEFAZ,
+    entao os numeros seguem abertos e o pedido pode ser refeito."""
+    monkeypatch.setattr(
+        "app.services.fiscal.http.get_fiscal_client", lambda *a, **k: _ClientQueRecusaAntes()
+    )
+    db.add_all([doc(n, "AUTORIZADA") for n in range(1, 11) if n not in (3, 4)])
+    db.commit()
+
+    solicitar_inutilizacao(db, EMPRESA_ID, 1, 3, 4, "Numeros queimados por rejeicao")
+    db.commit()
+
+    assert listar_gaps_numeracao(db, EMPRESA_ID) == [
+        {"serie": 1, "numero_inicial": 3, "numero_final": 4, "quantidade": 2},
+    ]
+
+
+def test_rejeicao_da_sefaz_na_inutilizacao_continua_rejeitada(db, empresa, monkeypatch):
+    """O `codigo_sefaz` e o discriminador: veio numero, a SEFAZ falou."""
+
+    class ClientRejeitadoPelaSefaz:
+        def inutilizar_numeracao(self, ref, payload, idempotency_key=None):
+            return {
+                "status": "erro",
+                "status_focus": "erro_autorizacao",
+                "codigo_sefaz": 241,
+                "mensagem_sefaz": "Rejeicao: Um numero da faixa ja esta inutilizado",
+            }
+
+    monkeypatch.setattr(
+        "app.services.fiscal.http.get_fiscal_client", lambda *a, **k: ClientRejeitadoPelaSefaz()
+    )
+    db.add_all([doc(n, "REJEITADA") for n in (3, 4)])
+    db.commit()
+
+    registro = solicitar_inutilizacao(db, EMPRESA_ID, 1, 3, 4, "Numeros queimados por rejeicao")
+
+    assert registro.status == "REJEITADA"
+    assert registro.codigo_status_sefaz == 241

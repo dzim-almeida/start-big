@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.inutilizacao_fiscal import InutilizacaoFiscal
+from app.services.fiscal.http.client import RESULTADO_NAO_TRANSMITIDO
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +235,23 @@ def solicitar_inutilizacao(
 
 
 def _aplicar_resultado_inutilizacao(registro: InutilizacaoFiscal, resultado: dict) -> None:
-    """Traduz a resposta da API para o registro local."""
+    """Traduz a resposta da API para o registro local.
+
+    Quatro desfechos, e os dois últimos eram um só até 19/09/2026:
+
+      homologado/autorizado  -> HOMOLOGADA      a SEFAZ registrou a faixa
+      processando            -> PROCESSANDO     a SEFAZ ainda vai responder
+      nao_transmitido        -> NAO_TRANSMITIDA a plataforma recusou ANTES da
+                                                SEFAZ (rota inexistente, licença
+                                                sem ficha fiscal, payload)
+      qualquer outro         -> REJEITADA       a SEFAZ recusou, com código
+
+    NAO_TRANSMITIDA fica FORA da lista que fecha a faixa em `listar_gaps`, de
+    propósito: nada chegou na SEFAZ, os números continuam abertos e o pedido
+    pode ser refeito quando a causa for resolvida -- igual à REJEITADA. O que
+    muda é a tela: "a plataforma recusou antes de enviar" manda o lojista olhar
+    a configuração, não a SEFAZ.
+    """
     status_api = resultado.get("status", "")
 
     if status_api in ("homologado", "autorizado"):
@@ -242,6 +259,8 @@ def _aplicar_resultado_inutilizacao(registro: InutilizacaoFiscal, resultado: dic
         registro.data_homologacao = datetime.now(timezone.utc)
     elif status_api == "processando":
         registro.status = "PROCESSANDO"
+    elif status_api == RESULTADO_NAO_TRANSMITIDO:
+        registro.status = "NAO_TRANSMITIDA"
     else:
         registro.status = "REJEITADA"
 
