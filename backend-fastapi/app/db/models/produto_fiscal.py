@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.db.models.perfil_tributario import PerfilTributario
     from app.db.models.produto import Produto
 
 
@@ -138,6 +139,20 @@ class ProdutoFiscal(Base):
         doc="Código de Benefício Fiscal IBS/CBS"
     )
 
+    # --- Perfil Tributário (DIFAL/ST interestadual) ---
+    #
+    # Não entra na cascata de `tributacao.py`: o perfil responde o que a
+    # cascata não sabe (alíquotas por UF de destino). SET NULL de propósito --
+    # apagar um perfil não pode apagar produto; ele só volta a "sem perfil".
+
+    perfil_tributario_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("perfil_tributario.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="Perfil tributário para operações interestaduais (DIFAL/ST). NULL = produto sem configuração interestadual."
+    )
+
     # --- Metadados ---
 
     data_atualizacao: Mapped[datetime] = mapped_column(
@@ -153,6 +168,10 @@ class ProdutoFiscal(Base):
         "Produto",
         back_populates="fiscal",
         doc="Produto ao qual estes dados fiscais pertencem"
+    )
+    perfil_tributario: Mapped[Optional["PerfilTributario"]] = relationship(
+        "PerfilTributario",
+        doc="Perfil tributário vinculado ao produto (lazy)"
     )
 
     def __repr__(self) -> str:

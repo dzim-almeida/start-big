@@ -9,6 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.perfil_tributario import PerfilTributario
+from app.db.models.produto import Produto
+from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.regra_perfil_tributario import RegraPerfilTributario
 
 
@@ -77,10 +79,11 @@ def deletar_perfil(db: Session, perfil: PerfilTributario) -> None:
 
 
 def produtos_que_usam(db: Session, perfil_id: int) -> list[str]:
-    """Nomes dos produtos vinculados ao perfil — guarda da exclusão.
-
-    Até a TASK006 não existe `produto_fiscal.perfil_tributario_id`; nenhum
-    produto aponta para perfil e a lista é sempre vazia. A TASK006 troca o
-    corpo desta função pela consulta real sem mexer no serviço nem no endpoint.
-    """
-    return []
+    """Nomes dos produtos vinculados ao perfil — guarda da exclusão."""
+    stmt = (
+        select(Produto.nome)
+        .join(ProdutoFiscal, ProdutoFiscal.produto_id == Produto.id)
+        .where(ProdutoFiscal.perfil_tributario_id == perfil_id)
+        .order_by(Produto.nome)
+    )
+    return list(db.scalars(stmt))
