@@ -386,14 +386,22 @@ def test_venda_sem_dados_fiscais_assume_presencial(db):
 
 
 @pytest.mark.parametrize("indpres", [2, 3, 4, 9])
-def test_operacao_nao_presencial_interestadual_continua_travada(db, indpres):
-    """Aí a mercadoria circula de fato e DIFAL/FCP seriam devidos."""
+def test_operacao_nao_presencial_interestadual_sem_perfil_continua_travada(db, indpres):
+    """
+    Aí a mercadoria circula de fato e DIFAL/FCP são devidos (TASK007): no
+    regime normal a venda só sai se o produto tiver perfil tributário. O
+    Simples Nacional não recolhe o DIFAL de partilha (ADI 5464) e passa —
+    ver test_resolver_interestadual.py.
+    """
     venda = _venda(uf_cliente=State.MINAS_GERAIS, indicador_presenca=indpres)
 
     with pytest.raises(OperacaoInterestadualError) as exc:
-        resolver_aliquotas_venda(db, venda, "SP", simples_nacional=True)
+        resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
 
-    assert exc.value.campo == "uf_destinatario"
+    assert exc.value.campo == "perfil_tributario_id"
+
+    itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=True)
+    assert itens[0].difal_aliquota_interestadual is None
 
 
 def test_operacao_nao_presencial_na_mesma_uf_e_permitida(db):

@@ -6,13 +6,17 @@
 # Fluxo:
 #   1. Rateio proporcional de frete/seguro/despesas/desconto
 #   2. Cálculo de ICMS por item (CST ou CSOSN)
+#   2b. DIFAL/FCP por item — só quando o resolver marcou o item como
+#       interestadual a não contribuinte (TASK007)
 #   3. Cálculo de PIS/COFINS por item (com exclusão opcional de ICMS)
 #   4. Consolidação dos totais do cabeçalho
 # ---------------------------------------------------------------------------
 
 from decimal import Decimal
+from typing import Optional
 
-from .calculators.icms import calcular_icms
+from .calculators.difal import ResultadoDIFAL, calcular_difal
+from .calculators.icms import ResultadoICMS, _base_calculo_padrao, calcular_icms
 from .calculators.pis_cofins import calcular_pis_cofins
 from .consolidador import consolidar_totais
 from .constants import (
@@ -75,6 +79,9 @@ def calcular_impostos(
             simples_nacional=dados_nota.simples_nacional,
         )
 
+        # DIFAL/FCP (operação interestadual a não contribuinte)
+        difal = _calcular_difal_do_item(item, icms, r, desconto_total)
+
         # PIS/COFINS (usa ICMS calculado para possível exclusão da base)
         piscofins = calcular_pis_cofins(
             valor_bruto=item.valor_bruto,
@@ -107,6 +114,15 @@ def calcular_impostos(
             icms_codigo_beneficio_fiscal=icms.codigo_beneficio_fiscal,
             icms_aliquota_credito_simples=icms.aliquota_credito_simples,
             icms_valor_credito_simples=icms.valor_credito_simples,
+            # DIFAL / FCP
+            difal_base_calculo=difal.base_calculo if difal else None,
+            difal_aliquota_interestadual=difal.aliquota_interestadual if difal else None,
+            difal_aliquota_interna_destino=difal.aliquota_interna_destino if difal else None,
+            difal_valor=difal.valor_difal if difal else None,
+            difal_valor_remetente=difal.icms_interestadual_valor if difal else None,
+            fcp_base_calculo=difal.fcp_base_calculo if difal else None,
+            fcp_aliquota=difal.fcp_aliquota if difal else None,
+            fcp_valor=difal.fcp_valor if difal else None,
             # PIS
             pis_situacao_tributaria=piscofins.pis_cst,
             pis_base_calculo=piscofins.pis_base,
@@ -126,3 +142,35 @@ def calcular_impostos(
     totais = consolidar_totais(itens, itens_impostos)
 
     return ResultadoCalculo(itens=itens_impostos, totais=totais)
+
+
+def _calcular_difal_do_item(
+    item: ItemEntrada,
+    icms: ResultadoICMS,
+    rateio: dict,
+    desconto_total: Decimal,
+) -> Optional[ResultadoDIFAL]:
+    """
+    DIFAL só para item marcado pelo resolver (alíquota interestadual presente).
+
+    A base é a mesma do ICMS próprio, SEM a redução do CST 20: a redução é
+    benefício da UF de origem e não diminui o diferencial devido ao destino.
+    """
+    if item.difal_aliquota_interestadual is None:
+        return None
+
+    if icms.reducao_base is not None:
+        base = _base_calculo_padrao(
+            item, rateio["valor_frete"], rateio["valor_seguro"],
+            rateio["valor_outras_despesas"], desconto_total,
+        )
+    else:
+        base = icms.base_calculo
+
+    return calcular_difal(
+        base_icms=base,
+        aliquota_interestadual=item.difal_aliquota_interestadual,
+        aliquota_interna_destino=item.difal_aliquota_interna_destino,
+        percentual_fcp=item.difal_percentual_fcp,
+        base_dupla=item.difal_base_dupla,
+    )

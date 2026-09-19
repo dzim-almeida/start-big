@@ -6,16 +6,19 @@
 # Responsabilidades:
 #   - Resolver alíquotas: override do produto > default da UF
 #   - Converter centavos (int) → Decimal reais
-#   - Validar trava de operação interestadual
+#   - Operação interestadual: liberar a não contribuinte pelo perfil
+#     tributário (DIFAL, TASK007) e travar o resto
 #   - Montar ItemEntrada e DadosNota para o engine
 # ---------------------------------------------------------------------------
 
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
 from app.db.models.aliquota_uf import AliquotaUF
+from app.db.models.cliente import ClientePJ
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.services.fiscal.tributacao import fiscal_efetivo
 from app.db.models.venda import Venda
@@ -32,6 +35,7 @@ from .exceptions import (
     DadosFiscaisAusentesError,
     OperacaoInterestadualError,
 )
+from .perfil_resolver import resolver_regra_perfil
 from .types import DadosNota, ItemEntrada
 
 
@@ -87,6 +91,100 @@ def _obter_uf_cliente(venda: Venda) -> Optional[str]:
     return str(estado) if estado else None
 
 
+def _cliente_nao_contribuinte(venda: Venda) -> bool:
+    """
+    Mesma régua do payload builder para o indIEDest: PF, PJ sem IE e venda
+    sem cliente são não contribuintes (9); só PJ com IE é contribuinte (1).
+
+    Decide a rota interestadual: DIFAL para não contribuinte (TASK007),
+    ICMS-ST para contribuinte (TASK008).
+    """
+    cliente = venda.cliente
+    if cliente is None or not isinstance(cliente, ClientePJ):
+        return True
+    return not bool(cliente.ie)
+
+
+@dataclass(frozen=True)
+class _DadosDIFAL:
+    """O que o perfil respondeu para um item interestadual."""
+
+    aliquota_interestadual: Decimal
+    aliquota_interna_destino: Decimal
+    percentual_fcp: Decimal
+    base_dupla: bool
+
+
+def _uf_destino_interestadual(venda: Venda, uf_emitente: str, simples_nacional: bool) -> Optional[str]:
+    """
+    A UF de destino quando a operação é interestadual DE VERDADE, senão None.
+
+    O critério é a operação, não o endereço cadastrado do cliente. Numa venda
+    presencial a mercadoria sai pelo balcão e não cruza fronteira — é interna
+    mesmo que o comprador more em outra UF. Travar por endereço impedia
+    faturar para qualquer cliente de fora, sem irregularidade alguma.
+
+    Contribuinte (PJ com IE) continua travado: é o cenário de ICMS-ST, que
+    chega na TASK008.
+
+    Simples Nacional: o remetente optante não recolhe o DIFAL de partilha
+    (STF, ADI 5464 — cláusula nona do Convênio 93/2015 suspensa), então não
+    há ICMSUFDest e nada a resolver no perfil; a venda segue como está.
+    PREMISSA LEGAL a confirmar com o contador — ver docs da TASK007.
+    """
+    if _operacao_presencial(venda):
+        return None
+    uf_cliente = _obter_uf_cliente(venda)
+    if not uf_cliente or uf_cliente.upper() == uf_emitente.upper():
+        return None
+
+    if not _cliente_nao_contribuinte(venda):
+        raise OperacaoInterestadualError(
+            f"Operação interestadual para contribuinte de ICMS (emitente: "
+            f"{uf_emitente}, destinatário: {uf_cliente}) não suportada: "
+            f"ICMS-ST não implementado.",
+            campo="uf_destinatario",
+        )
+    if simples_nacional:
+        return None
+    return uf_cliente.upper()
+
+
+def _resolver_difal(db: Session, fiscal: Any, produto: Any, uf_destino: str, idx: int) -> _DadosDIFAL:
+    """
+    As alíquotas interestaduais do item, pelo perfil tributário do produto.
+
+    Sem perfil ou sem regra para a UF, a venda não pode sair: seria uma nota
+    com DIFAL errado, aceita pela SEFAZ e cobrada depois.
+    """
+    perfil_id = getattr(fiscal, "perfil_tributario_id", None)
+    nome = getattr(produto, "nome", "?")
+    if perfil_id is None:
+        raise OperacaoInterestadualError(
+            f"Produto '{nome}' (item {idx}) não possui perfil tributário "
+            f"configurado. Para vendas interestaduais, todos os produtos devem "
+            f"ter um perfil tributário vinculado.",
+            campo="perfil_tributario_id",
+            item=idx,
+        )
+
+    regra = resolver_regra_perfil(db, perfil_id, uf_destino, getattr(fiscal, "ncm", None))
+    if regra is None:
+        raise OperacaoInterestadualError(
+            f"Perfil tributário do produto '{nome}' (item {idx}) não possui "
+            f"regra aplicável para a UF {uf_destino}.",
+            campo="perfil_tributario_id",
+            item=idx,
+        )
+
+    return _DadosDIFAL(
+        aliquota_interestadual=_centesimos_para_decimal(regra.aliquota_interestadual, ZERO),
+        aliquota_interna_destino=_centesimos_para_decimal(regra.aliquota_interna_destino, ZERO),
+        percentual_fcp=_centesimos_para_decimal(regra.percentual_fcp, ZERO),
+        base_dupla=bool(regra.calculo_base_dupla),
+    )
+
+
 def resolver_aliquotas_venda(
     db: Session,
     venda: Venda,
@@ -113,30 +211,15 @@ def resolver_aliquotas_venda(
         Tupla (itens_entrada, dados_nota) pronta para calcular_impostos().
 
     Raises:
-        OperacaoInterestadualError: se UF do cliente difere da UF do emitente.
+        OperacaoInterestadualError: interestadual para contribuinte (ST não
+            implementado) ou, no regime normal, item sem perfil tributário /
+            sem regra para a UF de destino.
         AliquotaNaoEncontradaError: se UF do emitente não tem registro na tabela.
         DadosFiscaisAusentesError: se produto não tem ProdutoFiscal.
     """
-    # 0. Trava interestadual
-    #
-    # O critério é a operação, não o endereço cadastrado do cliente. Numa venda
-    # presencial a mercadoria sai pelo balcão e não cruza fronteira — é interna
-    # mesmo que o comprador more em outra UF. Travar por endereço impedia
-    # faturar para qualquer cliente de fora, sem irregularidade alguma.
-    #
-    # A trava continua valendo para operação não presencial (entrega, internet,
-    # teleatendimento), onde a mercadoria realmente circula entre estados e
-    # DIFAL/FCP seriam devidos — e não estão implementados.
-    if not _operacao_presencial(venda):
-        uf_cliente = _obter_uf_cliente(venda)
-        if uf_cliente and uf_cliente.upper() != uf_emitente.upper():
-            raise OperacaoInterestadualError(
-                f"Operação interestadual não presencial detectada (emitente: "
-                f"{uf_emitente}, destinatário: {uf_cliente}). O motor fiscal "
-                f"atual suporta apenas operações internas. DIFAL/FCP não "
-                f"implementado.",
-                campo="uf_destinatario",
-            )
+    # 0. Operação interestadual: None = interna (ou balcão, ou Simples).
+    #    Preenchida = não contribuinte no regime normal → DIFAL pelo perfil.
+    uf_destino = _uf_destino_interestadual(venda, uf_emitente, simples_nacional)
 
     # 1. Carregar defaults da UF
     from app.db.crud import fiscal as crud
@@ -186,6 +269,13 @@ def resolver_aliquotas_venda(
         aliq_icms = _centesimos_para_decimal(
             fiscal.aliquota_icms if fiscal else None, icms_padrao,
         )
+
+        # Interestadual: o ICMS próprio sai pela alíquota interestadual do
+        # perfil (7%/12%), não pela interna do emitente; o diferencial vai
+        # para o destino como DIFAL.
+        difal = _resolver_difal(db, fiscal, produto, uf_destino, idx) if uf_destino else None
+        if difal:
+            aliq_icms = difal.aliquota_interestadual
         reducao = _centesimos_para_decimal(
             fiscal.reducao_base_icms if fiscal else None, ZERO,
         )
@@ -230,6 +320,11 @@ def resolver_aliquotas_venda(
             aliquota_cofins=aliq_cofins,
             cst_pis=cst_pis,
             cst_cofins=cst_cofins,
+            # DIFAL (None = operação interna)
+            difal_aliquota_interestadual=difal.aliquota_interestadual if difal else None,
+            difal_aliquota_interna_destino=difal.aliquota_interna_destino if difal else None,
+            difal_percentual_fcp=difal.percentual_fcp if difal else ZERO,
+            difal_base_dupla=difal.base_dupla if difal else False,
         ))
 
     # 3. Montar dados da nota

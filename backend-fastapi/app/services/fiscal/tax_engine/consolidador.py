@@ -36,6 +36,19 @@ def consolidar_totais(
         i.icms_valor for i in itens_impostos
     ).quantize(PRECISAO, ROUND_MODE)
 
+    # DIFAL/FCP: só os itens interestaduais têm valor; os demais somam zero.
+    total_difal = sum(
+        (i.difal_valor or Decimal("0")) for i in itens_impostos
+    ).quantize(PRECISAO, ROUND_MODE)
+
+    total_fcp = sum(
+        (i.fcp_valor or Decimal("0")) for i in itens_impostos
+    ).quantize(PRECISAO, ROUND_MODE)
+
+    total_base_fcp = sum(
+        (i.fcp_base_calculo or Decimal("0")) for i in itens_impostos
+    ).quantize(PRECISAO, ROUND_MODE)
+
     total_pis = sum(
         i.pis_valor for i in itens_impostos
     ).quantize(PRECISAO, ROUND_MODE)
@@ -66,6 +79,7 @@ def consolidar_totais(
 
     # Total da nota: produtos + frete + seguro + despesas - desconto
     # Impostos (ICMS, PIS, COFINS) NÃO somam — já estão embutidos.
+    # DIFAL e FCP também não: vão em <ICMSUFDest>, fora do vNF.
     total_nota = (
         total_produtos + total_frete + total_seguro + total_despesas - total_desconto
     ).quantize(PRECISAO, ROUND_MODE)
@@ -75,6 +89,9 @@ def consolidar_totais(
         valor_icms=total_icms,
         valor_pis=total_pis,
         valor_cofins=total_cofins,
+        valor_difal=total_difal,
+        valor_fcp=total_fcp,
+        base_calculo_fcp=total_base_fcp,
         valor_frete=total_frete,
         valor_seguro=total_seguro,
         valor_desconto=total_desconto,
