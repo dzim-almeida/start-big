@@ -11,13 +11,17 @@ CFOP é atributo da operação, não da mercadoria — o mesmo item vendido no
 balcão (5102) e entregue em outra UF (6102) tem CFOPs diferentes. Guardar por
 produto só funciona hoje porque o motor bloqueia operação interestadual.
 
-ESCOPO: CEARÁ, OPERAÇÃO INTERNA.
-O primeiro dígito é sempre 5. Quando a operação interestadual sair do
-bloqueio, `_grupo_por_destino` é o único ponto a mudar — e aí ele passa a
-decidir junto com o `idDest`, que precisa sair da MESMA decisão, senão os dois
-divergem e a nota é rejeitada.
+DUAS PORTAS DE ENTRADA
+- `derivar_cfop(ctx)`: sugestão para o CADASTRO, que não sabe do perfil
+  tributário. Numa saída interestadual de item substituído ela se recusa a
+  chutar (`DerivacaoAmbiguaError`), a menos que `existe_st_na_regra` chegue.
+- `derivar_cfop_operacao(...)`: a EMISSÃO (tax_engine/resolver), que já
+  consultou o perfil e sabe se há ST para a UF de destino. Determinística,
+  sem ambiguidade. O `idDest` do payload (TASK009) tem que sair da MESMA
+  decisão de grupo, senão os dois divergem e a nota é rejeitada.
 
-Regras confirmadas com a contabilidade em 05/09/2026.
+Regras confirmadas com a contabilidade em 05/09/2026; interestadual em
+18/09/2026 (TASK008).
 """
 from typing import Optional
 
@@ -33,6 +37,14 @@ SUFIXO_REVENDA = 102            # Venda de mercadoria adquirida de terceiros
 SUFIXO_DEVOLUCAO_COMPRA = 202   # Devolução de compra para comercialização
 SUFIXO_SUBSTITUIDO = 405        # Venda de merc. sujeita a ST (substituído)
 SUFIXO_SERVICO = 933            # Prestação de serviço tributado por ISSQN
+# Interestadual (só grupo 6):
+SUFIXO_NAO_CONTRIBUINTE_PRODUCAO = 107  # Venda de produção a não contribuinte
+SUFIXO_NAO_CONTRIBUINTE_REVENDA = 108   # Venda de merc. de terceiros a não contribuinte
+SUFIXO_SUBSTITUTO_PRODUCAO = 403        # Venda de produção com ST retida (substituto)
+SUFIXO_SUBSTITUTO_REVENDA = 404         # Venda de merc. de terceiros com ST retida
+
+# indIEDest da NF-e
+IND_IE_NAO_CONTRIBUINTE = 9
 
 # CST/CSOSN que indicam mercadoria com ICMS já retido por substituição.
 SITUACOES_SUBSTITUIDO = frozenset({"60", "500"})
@@ -59,7 +71,11 @@ NATUREZA_POR_CFOP = {
     "5933": "Prestacao de servico",
     "6101": "Venda de producao do estabelecimento",
     "6102": "Venda de mercadoria adquirida de terceiros",
+    "6107": "Venda de producao do estabelecimento a nao contribuinte",
+    "6108": "Venda de mercadoria adquirida de terceiros a nao contribuinte",
     "6202": "Devolucao de compra para comercializacao",
+    "6403": "Venda de producao do estabelecimento sujeita a ST (substituto)",
+    "6404": "Venda de merc. adq. de terceiros sujeita a ST (substituto)",
     "6933": "Prestacao de servico",
 }
 
@@ -123,11 +139,58 @@ def _grupo_por_destino(ctx: ContextoDerivacao) -> int:
     return GRUPO_INTERNA
 
 
+def _sufixo_interestadual(
+    indicador_ie_destinatario: int, existe_st_na_regra: bool, eh_producao_propria: bool,
+) -> int:
+    """3 últimos dígitos de uma saída interestadual, pela operação."""
+    if indicador_ie_destinatario == IND_IE_NAO_CONTRIBUINTE:
+        # Consumidor final: não há cadeia seguinte, ST não se aplica (DIFAL sim).
+        return SUFIXO_NAO_CONTRIBUINTE_PRODUCAO if eh_producao_propria else SUFIXO_NAO_CONTRIBUINTE_REVENDA
+    if existe_st_na_regra:
+        return SUFIXO_SUBSTITUTO_PRODUCAO if eh_producao_propria else SUFIXO_SUBSTITUTO_REVENDA
+    return SUFIXO_PRODUCAO_PROPRIA if eh_producao_propria else SUFIXO_REVENDA
+
+
+def derivar_cfop_operacao(
+    uf_emitente: str,
+    uf_destinatario: Optional[str],
+    indicador_presenca: Optional[int],
+    indicador_ie_destinatario: int,
+    existe_st_na_regra: bool,
+    eh_producao_propria: bool = False,
+) -> str:
+    """
+    CFOP de saída de mercadoria decidido pela OPERAÇÃO, sem ambiguidade.
+
+    Quem chama já consultou o perfil tributário: `existe_st_na_regra` é o
+    `mva_st` da regra para a UF de destino. Interna (mesma UF, ou presencial,
+    ou sem UF) fica no grupo 5; o resto vai para o 6 conforme o destinatário.
+
+    Args:
+        indicador_ie_destinatario: indIEDest (1 contribuinte, 2 isento, 9 não).
+    """
+    interna = (
+        indicador_presenca == 1
+        or not uf_destinatario
+        or uf_destinatario.upper() == uf_emitente.upper()
+    )
+    if interna:
+        if existe_st_na_regra:
+            sufixo = SUFIXO_SUBSTITUIDO
+        else:
+            sufixo = SUFIXO_PRODUCAO_PROPRIA if eh_producao_propria else SUFIXO_REVENDA
+        return f"{GRUPO_INTERNA}{sufixo}"
+
+    sufixo = _sufixo_interestadual(indicador_ie_destinatario, existe_st_na_regra, eh_producao_propria)
+    return f"{GRUPO_INTERESTADUAL}{sufixo}"
+
+
 def derivar_cfop(
     ctx: ContextoDerivacao,
     *,
     situacao_tributaria: Optional[str] = None,
     tipo_item: str = "PRODUTO",
+    existe_st_na_regra: Optional[bool] = None,
 ) -> CampoSugerido:
     """
     CFOP de saída para um item.
@@ -136,17 +199,21 @@ def derivar_cfop(
         ctx: Contexto da operação.
         situacao_tributaria: CST (regime normal) ou CSOSN (Simples) do item.
         tipo_item: "PRODUTO" ou "SERVICO".
+        existe_st_na_regra: o que o perfil tributário diz da UF de destino.
+            None = não se sabe (cadastro), e a saída interestadual de item
+            substituído continua ambígua.
 
     Raises:
-        DerivacaoAmbiguaError: numa saída interestadual de item substituído.
-            Não existe equivalente interestadual limpo do 5.405 — confirmado
-            com a contabilidade. Nessa operação o remetente costuma assumir o
-            papel de SUBSTITUTO (6.403/6.404) por forca de protocolo, e ainda
-            cabe pedido de ressarcimento do ICMS-ST pago na compra. Quem decide
-            isso é o contador, não uma tabela.
+        DerivacaoAmbiguaError: numa saída interestadual de item substituído
+            SEM a resposta do perfil. Não existe equivalente interestadual
+            limpo do 5.405 — confirmado com a contabilidade. Nessa operação o
+            remetente costuma assumir o papel de SUBSTITUTO (6.403/6.404) por
+            forca de protocolo, e ainda cabe pedido de ressarcimento do ICMS-ST
+            pago na compra. Quem decide isso é o contador — pelo perfil.
     """
     grupo = _grupo_por_destino(ctx)
     substituido = (situacao_tributaria or "") in SITUACOES_SUBSTITUIDO
+    producao_propria = ctx.tipo_atividade in ATIVIDADES_PRODUCAO_PROPRIA
 
     if tipo_item == "SERVICO":
         sufixo = SUFIXO_SERVICO
@@ -154,8 +221,8 @@ def derivar_cfop(
     elif ctx.finalidade_emissao == 4:
         sufixo = SUFIXO_DEVOLUCAO_COMPRA
         motivo = "finalidade de devolucao de compra, em operacao de SAIDA"
-    elif substituido:
-        if grupo == GRUPO_INTERESTADUAL:
+    elif substituido and grupo == GRUPO_INTERESTADUAL:
+        if existe_st_na_regra is None:
             raise DerivacaoAmbiguaError(
                 "Saida interestadual de mercadoria com ICMS-ST retido nao tem "
                 "CFOP derivavel: nao existe equivalente limpo do 5.405. "
@@ -163,9 +230,13 @@ def derivar_cfop(
                 "6.403/6.404, com o remetente como substituto. Informe o CFOP "
                 "manualmente, com orientacao da contabilidade."
             )
+        ind_ie = 1 if ctx.destinatario_pj_com_ie else IND_IE_NAO_CONTRIBUINTE
+        sufixo = _sufixo_interestadual(ind_ie, existe_st_na_regra, producao_propria)
+        motivo = "saida interestadual decidida pelo perfil tributario"
+    elif substituido:
         sufixo = SUFIXO_SUBSTITUIDO
         motivo = f"mercadoria com ICMS retido por ST (situacao {situacao_tributaria})"
-    elif ctx.tipo_atividade in ATIVIDADES_PRODUCAO_PROPRIA:
+    elif producao_propria:
         sufixo = SUFIXO_PRODUCAO_PROPRIA
         motivo = f"saida de producao propria (atividade {ctx.tipo_atividade.value})"
     else:

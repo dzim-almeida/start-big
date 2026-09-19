@@ -2,8 +2,11 @@
 # ARQUIVO: app/services/fiscal/tax_engine/calculators/icms.py
 # DESCRIÇÃO: Calculador de ICMS por CST (Regime Normal) e CSOSN (Simples Nacional).
 #
-# CSTs suportados:  00, 20, 40, 41, 60
-# CSOSNs suportados: 101, 102, 500
+# CSTs suportados:  00, 20, 40, 41, 60 — e 10, 70 quando o item tem regra de ST
+# CSOSNs suportados: 101, 102, 500 — e 201, 202 idem
+#
+# O ICMS PRÓPRIO do substituto (10/70, 201/202) é o mesmo do 00/20 e 101/102;
+# a retenção da ST é calculada à parte (calculators/icms_st.py).
 # ---------------------------------------------------------------------------
 
 from dataclasses import dataclass
@@ -20,6 +23,10 @@ from ..constants import (
     CSOSN_COM_CREDITO,
     CSOSN_SEM_CREDITO,
     CSOSN_ST,
+    CST_ICMS_SUBSTITUTO,
+    CST_ICMS_SUBSTITUTO_REDUZIDA,
+    CSOSN_SUBSTITUTO_COM_CREDITO,
+    CSOSN_SUBSTITUTO_SEM_CREDITO,
 )
 from ..exceptions import CSTNaoSuportadoError
 from ..types import ItemEntrada
@@ -42,6 +49,23 @@ class ResultadoICMS:
     # CSOSN 101 — crédito do Simples Nacional
     aliquota_credito_simples: Optional[Decimal] = None
     valor_credito_simples: Optional[Decimal] = None
+
+
+def _assert_substituto_tem_regra_de_st(item: ItemEntrada, situacao: str) -> None:
+    """
+    CST 10/70 e CSOSN 201/202 prometem um grupo de ST na nota. Sem a regra do
+    perfil (`st_mva`) o grupo sairia vazio e a SEFAZ rejeitaria — ou pior,
+    aceitaria uma nota que promete retenção que ninguém calculou.
+    """
+    if item.st_mva is None:
+        raise CSTNaoSuportadoError(
+            f"Situação tributária '{situacao}' (substituto tributário) exige "
+            f"regra de ST no perfil tributário do produto, e só vale em operação "
+            f"interestadual para contribuinte. Use 00/20 (ou 102) para operação "
+            f"sem retenção.",
+            campo="cst_icms" if item.cst_icms else "csosn",
+            item=item.numero_item,
+        )
 
 
 def _base_calculo_padrao(
@@ -103,8 +127,11 @@ def _calcular_cst(
 
     base = _base_calculo_padrao(item, vf, vs, vod, vd)
 
-    # CST 00 — Tributada integralmente
-    if cst in CST_ICMS_TRIBUTADO:
+    if cst in CST_ICMS_SUBSTITUTO | CST_ICMS_SUBSTITUTO_REDUZIDA:
+        _assert_substituto_tem_regra_de_st(item, cst)
+
+    # CST 00 — Tributada integralmente (10 = idem, como substituto)
+    if cst in CST_ICMS_TRIBUTADO | CST_ICMS_SUBSTITUTO:
         valor = (base * item.aliquota_icms / CEM).quantize(PRECISAO, ROUND_MODE)
         return ResultadoICMS(
             base_calculo=base,
@@ -114,8 +141,8 @@ def _calcular_cst(
             origem=item.origem_mercadoria,
         )
 
-    # CST 20 — Com redução de base de cálculo
-    if cst in CST_ICMS_REDUZIDA:
+    # CST 20 — Com redução de base de cálculo (70 = idem, como substituto)
+    if cst in CST_ICMS_REDUZIDA | CST_ICMS_SUBSTITUTO_REDUZIDA:
         fator_reducao = (CEM - item.reducao_base_icms) / CEM
         base_reduzida = (base * fator_reducao).quantize(PRECISAO, ROUND_MODE)
         valor = (base_reduzida * item.aliquota_icms / CEM).quantize(PRECISAO, ROUND_MODE)
@@ -151,7 +178,7 @@ def _calcular_cst(
 
     raise CSTNaoSuportadoError(
         f"CST ICMS '{cst}' não é suportado nesta versão do motor fiscal. "
-        f"CSTs suportados: 00, 20, 40, 41, 60.",
+        f"CSTs suportados: 00, 10, 20, 40, 41, 60, 70.",
         campo="cst_icms",
         item=item.numero_item,
     )
@@ -171,8 +198,11 @@ def _calcular_csosn(
 
     base = _base_calculo_padrao(item, vf, vs, vod, vd)
 
-    # CSOSN 101 — Tributada com permissão de crédito
-    if csosn in CSOSN_COM_CREDITO:
+    if csosn in CSOSN_SUBSTITUTO_COM_CREDITO | CSOSN_SUBSTITUTO_SEM_CREDITO:
+        _assert_substituto_tem_regra_de_st(item, csosn)
+
+    # CSOSN 101 — Tributada com permissão de crédito (201 = idem, com ST)
+    if csosn in CSOSN_COM_CREDITO | CSOSN_SUBSTITUTO_COM_CREDITO:
         valor_credito = (base * item.aliquota_icms / CEM).quantize(PRECISAO, ROUND_MODE)
         return ResultadoICMS(
             # O grupo ICMSSN101 do XML admite apenas pCredSN e vCredICMSSN —
@@ -188,8 +218,8 @@ def _calcular_csosn(
             valor_credito_simples=valor_credito,
         )
 
-    # CSOSN 102 — Tributada sem permissão de crédito
-    if csosn in CSOSN_SEM_CREDITO:
+    # CSOSN 102 — Tributada sem permissão de crédito (202 = idem, com ST)
+    if csosn in CSOSN_SEM_CREDITO | CSOSN_SUBSTITUTO_SEM_CREDITO:
         return ResultadoICMS(
             base_calculo=ZERO,
             aliquota=ZERO,
@@ -210,7 +240,7 @@ def _calcular_csosn(
 
     raise CSTNaoSuportadoError(
         f"CSOSN '{csosn}' não é suportado nesta versão do motor fiscal. "
-        f"CSOSNs suportados: 101, 102, 500.",
+        f"CSOSNs suportados: 101, 102, 201, 202, 500.",
         campo="csosn",
         item=item.numero_item,
     )

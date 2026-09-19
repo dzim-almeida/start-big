@@ -49,6 +49,15 @@ def consolidar_totais(
         (i.fcp_base_calculo or Decimal("0")) for i in itens_impostos
     ).quantize(PRECISAO, ROUND_MODE)
 
+    # ICMS-ST: retido pelo substituto, cobrado a mais do destinatário.
+    total_base_st = sum(
+        (i.icms_st_base_calculo or Decimal("0")) for i in itens_impostos
+    ).quantize(PRECISAO, ROUND_MODE)
+
+    total_st = sum(
+        (i.icms_st_valor or Decimal("0")) for i in itens_impostos
+    ).quantize(PRECISAO, ROUND_MODE)
+
     total_pis = sum(
         i.pis_valor for i in itens_impostos
     ).quantize(PRECISAO, ROUND_MODE)
@@ -80,8 +89,9 @@ def consolidar_totais(
     # Total da nota: produtos + frete + seguro + despesas - desconto
     # Impostos (ICMS, PIS, COFINS) NÃO somam — já estão embutidos.
     # DIFAL e FCP também não: vão em <ICMSUFDest>, fora do vNF.
+    # O ICMS-ST SIM: é encargo cobrado a mais do destinatário (vNF = ... + vST).
     total_nota = (
-        total_produtos + total_frete + total_seguro + total_despesas - total_desconto
+        total_produtos + total_frete + total_seguro + total_despesas - total_desconto + total_st
     ).quantize(PRECISAO, ROUND_MODE)
 
     return TotaisNota(
@@ -92,6 +102,8 @@ def consolidar_totais(
         valor_difal=total_difal,
         valor_fcp=total_fcp,
         base_calculo_fcp=total_base_fcp,
+        base_calculo_icms_st=total_base_st,
+        valor_icms_st=total_st,
         valor_frete=total_frete,
         valor_seguro=total_seguro,
         valor_desconto=total_desconto,

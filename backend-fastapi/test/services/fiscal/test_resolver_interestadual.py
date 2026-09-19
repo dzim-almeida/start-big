@@ -140,10 +140,11 @@ def test_perfil_sem_regra_para_a_uf_e_barrado(db, perfil):
     assert exc.value.campo == "perfil_tributario_id" and "RJ" in exc.value.mensagem
 
 
-def test_contribuinte_continua_travado_ate_o_icms_st(db, perfil):
-    with pytest.raises(OperacaoInterestadualError) as exc:
-        resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil.id), "SP", simples_nacional=False)
-    assert exc.value.campo == "uf_destinatario" and "ST" in exc.value.mensagem
+def test_contribuinte_com_perfil_sem_mva_nao_recebe_difal(db, perfil):
+    """A trava do contribuinte caiu na TASK008: sem MVA na regra é revenda interestadual comum."""
+    itens, _ = resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil.id), "SP", simples_nacional=False)
+    assert itens[0].difal_aliquota_interestadual is None and itens[0].st_mva is None
+    assert itens[0].aliquota_icms == Decimal("12") and itens[0].cfop == "6102"
 
 
 # --- O que não muda -----------------------------------------------------------
@@ -160,3 +161,89 @@ def test_simples_nacional_libera_sem_difal_e_sem_exigir_perfil(db):
     """ADI 5464: remetente do Simples não recolhe o DIFAL de partilha — sem ICMSUFDest, sem perfil."""
     itens, _ = resolver_aliquotas_venda(db, _venda(_pf(), perfil_id=None), "SP", simples_nacional=True)
     assert itens[0].difal_aliquota_interestadual is None and itens[0].csosn == "102"
+
+
+# --- TASK008: contribuinte (ICMS-ST) e CFOP/CST da operação ---------------------
+
+@pytest.fixture
+def perfil_st(db) -> PerfilTributario:
+    """MG com ST (MVA 40%, redução 20%); RJ sem ST; fallback sem ST."""
+    p = PerfilTributario(empresa_id=1, descricao="Peças - ST")
+    p.regras = [
+        RegraPerfilTributario(aliquota_interestadual=1200, aliquota_interna_destino=1700),
+        RegraPerfilTributario(uf_destino="MG", aliquota_interestadual=1200, aliquota_interna_destino=1800,
+                              mva_st=4000, reducao_base_calculo=2000),
+        RegraPerfilTributario(uf_destino="RJ", aliquota_interestadual=1200, aliquota_interna_destino=2000, mva_st=0),
+    ]
+    db.add(p)
+    db.commit()
+    return p
+
+
+def test_contribuinte_com_st_recebe_mva_cfop_6404_e_cst_10(db, perfil_st):
+    itens, _ = resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id), "SP", simples_nacional=False)
+    i = itens[0]
+    assert i.aliquota_icms == Decimal("12")
+    assert (i.st_aliquota_interestadual, i.st_aliquota_interna_destino) == (Decimal("12"), Decimal("18"))
+    assert (i.st_mva, i.st_reducao_base) == (Decimal("40"), Decimal("20"))
+    assert i.cfop == "6404" and i.cst_icms == "10"
+    assert i.difal_aliquota_interestadual is None
+
+
+def test_contribuinte_com_st_e_produto_com_reducao_vira_cst_70(db, perfil_st):
+    venda = _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id)
+    venda.itens[0].produto.fiscal.cst_icms = "20"
+    venda.itens[0].produto.fiscal.reducao_base_icms = 5000
+    itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
+    assert itens[0].cst_icms == "70"
+
+
+def test_contribuinte_sem_st_na_regra_e_b2b_normal(db, perfil_st):
+    itens, _ = resolver_aliquotas_venda(
+        db, _venda(_pj(ie="1234567890"), uf_cliente=State.RIO_DE_JANEIRO, perfil_id=perfil_st.id), "SP", simples_nacional=False,
+    )
+    i = itens[0]
+    assert i.aliquota_icms == Decimal("12") and i.st_mva is None
+    assert i.cfop == "6102" and i.cst_icms == "00"
+
+
+def test_contribuinte_sem_perfil_e_barrado(db, perfil_st):
+    with pytest.raises(OperacaoInterestadualError) as exc:
+        resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=None), "SP", simples_nacional=False)
+    assert exc.value.campo == "perfil_tributario_id"
+
+
+def test_simples_contribuinte_com_st_recebe_csosn_202_e_st(db, perfil_st):
+    itens, _ = resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id), "SP", simples_nacional=True)
+    i = itens[0]
+    assert i.csosn == "202" and i.cfop == "6404" and i.st_mva == Decimal("40")
+    assert i.aliquota_icms == Decimal("18")   # no Simples o ICMS próprio não é destacado; a alíquota fica como está
+
+
+def test_simples_contribuinte_exige_perfil(db):
+    with pytest.raises(OperacaoInterestadualError):
+        resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=None), "SP", simples_nacional=True)
+
+
+def test_cfop_interestadual_no_b2c(db, perfil):
+    itens, _ = resolver_aliquotas_venda(db, _venda(_pf(), perfil_id=perfil.id), "SP", simples_nacional=False)
+    assert itens[0].cfop == "6108" and itens[0].cst_icms == "00"
+
+
+def test_producao_propria_vai_para_6107(db, perfil):
+    venda = _venda(_pf(), perfil_id=perfil.id)
+    venda.itens[0].produto.fiscal.cfop_padrao = "5101"
+    itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
+    assert itens[0].cfop == "6107"
+
+
+def test_simples_b2c_tambem_sai_com_cfop_6108(db):
+    itens, _ = resolver_aliquotas_venda(db, _venda(_pf(), perfil_id=None), "SP", simples_nacional=True)
+    assert itens[0].cfop == "6108" and itens[0].csosn == "102"
+
+
+def test_operacao_interna_mantem_o_cfop_do_produto(db, perfil_st):
+    itens, _ = resolver_aliquotas_venda(
+        db, _venda(_pj(ie="1234567890"), uf_cliente=State.SAO_PAULO, perfil_id=perfil_st.id), "SP", simples_nacional=False,
+    )
+    assert itens[0].cfop == "5102" and itens[0].st_mva is None and itens[0].cst_icms == "00"
