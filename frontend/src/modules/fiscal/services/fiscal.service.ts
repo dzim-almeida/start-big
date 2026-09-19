@@ -8,8 +8,11 @@ import type { EmissaoPreviewResponse,
   DocumentoFiscalFilters,
   EmissaoNFeRequest,
   EmissaoResponse,
+  CartaCorrecaoRead,
   EmissaoBatchResponse,
+  EmissaoDevolucaoPayload,
   FiscalConfiguracao,
+  FiscalConfiguracaoUpdate,
   PendenciasGlobais,
   DiagnosticoPlataforma,
   ResultadoVerificacaoBatch,
@@ -205,6 +208,52 @@ export const fiscalService = {
     return data;
   },
 
+  /**
+   * NF-e de devolução (finalidade 4) a partir da nota `id`. Devolve o
+   * documento NOVO; a origem ganha saldo devolvido quando a SEFAZ autoriza.
+   */
+  async emitirDevolucao(id: number, payload: EmissaoDevolucaoPayload): Promise<DocumentoFiscalRead> {
+    const { data } = await api.post<DocumentoFiscalRead>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/devolucao`,
+      payload,
+      { timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
+  /** Registra uma CC-e na NF-e. A resposta pode vir REJEITADA (SEFAZ recusou) sem erro HTTP. */
+  async emitirCartaCorrecao(id: number, correcao: string): Promise<CartaCorrecaoRead> {
+    const { data } = await api.post<CartaCorrecaoRead>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/carta-correcao`,
+      { correcao },
+      { timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
+  async listarCartasCorrecao(id: number): Promise<CartaCorrecaoRead[]> {
+    const { data } = await api.get<CartaCorrecaoRead[]>(
+      `${FISCAL_ENDPOINT}/documentos/${id}/cartas-correcao`,
+    );
+    return data;
+  },
+
+  async baixarPdfCartaCorrecao(cartaId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `${FISCAL_ENDPOINT}/cartas-correcao/${cartaId}/pdf`,
+      { responseType: 'blob', timeout: TIMEOUT_CONSULTA },
+    );
+    return data;
+  },
+
+  async baixarXmlCartaCorrecao(cartaId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `${FISCAL_ENDPOINT}/cartas-correcao/${cartaId}/xml`,
+      { responseType: 'blob', timeout: TIMEOUT_CONSULTA },
+    );
+    return data;
+  },
+
   async obterHistorico(id: number): Promise<DocumentoFiscalHistorico> {
     const { data } = await api.get<DocumentoFiscalHistorico>(
       `${FISCAL_ENDPOINT}/documentos/${id}/historico`,
@@ -296,7 +345,7 @@ export const fiscalService = {
     return data;
   },
 
-  async atualizarConfiguracao(payload: Partial<FiscalConfiguracao>): Promise<FiscalConfiguracao> {
+  async atualizarConfiguracao(payload: FiscalConfiguracaoUpdate): Promise<FiscalConfiguracao> {
     const { data } = await api.put<FiscalConfiguracao>(
       `${FISCAL_ENDPOINT}/configuracao`,
       payload,

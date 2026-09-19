@@ -838,3 +838,148 @@ def montar_payload_teste_nfe(
             "valor_total": 1.0,
         },
     }
+
+
+# ===========================================================================
+# NF-e DE DEVOLUÇÃO (finalidade 4, entrada) — TASK003
+# ===========================================================================
+
+NATUREZA_DEVOLUCAO = "DEVOLUCAO DE VENDA"
+FORMA_PAGAMENTO_SEM_PAGAMENTO = "90"
+
+
+def _montar_destinatario_avulso(dados) -> dict:
+    """Destinatário informado na hora, para nota de origem sem comprador identificado."""
+    dest: dict = {
+        "nome": _sanitizar_texto_sefaz(dados.nome_razao_social),
+        "indicador_ie": str(dados.indicador_inscricao_estadual),
+        "endereco": {
+            "logradouro": _sanitizar_texto_sefaz(dados.logradouro),
+            "numero": dados.numero,
+            "complemento": _sanitizar_texto_sefaz(dados.complemento or ""),
+            "bairro": _sanitizar_texto_sefaz(dados.bairro),
+            "cidade": _sanitizar_texto_sefaz(dados.municipio),
+            "uf": dados.uf,
+            "cep": dados.cep,
+        },
+        # A Focus aceita o código IBGE no nível do destinatário; vai também no
+        # endereço para a intermediária normalizar como preferir.
+        "codigo_municipio": dados.codigo_municipio,
+    }
+    dest["endereco"]["codigo_municipio"] = dados.codigo_municipio
+    if len(dados.cpf_ou_cnpj) == 14:
+        dest["cnpj"] = dados.cpf_ou_cnpj
+        dest["razao_social"] = dest["nome"]
+        if dados.inscricao_estadual:
+            dest["inscricao_estadual"] = dados.inscricao_estadual
+    else:
+        dest["cpf"] = dados.cpf_ou_cnpj
+    return dest
+
+
+def _montar_itens_devolucao(
+    itens_devolucao: list,
+    resultado_calculo: ResultadoCalculo,
+    simples_nacional: bool,
+) -> list[dict]:
+    """Itens da devolução a partir do SNAPSHOT da nota original.
+
+    `itens_devolucao` é uma lista de `(item_snapshot, quantidade_milesimos,
+    cfop_entrada)`. Os valores espelham o que a SEFAZ viu na nota original,
+    proporcionais à quantidade devolvida; os tributos vêm do tax_engine,
+    alimentado com o CST/CSOSN e a alíquota congelados no snapshot.
+    """
+    impostos_por_item = {imp.numero_item: imp for imp in resultado_calculo.itens}
+    itens = []
+    for idx, (snap, qtd_mil, cfop_entrada) in enumerate(itens_devolucao, start=1):
+        imp = impostos_por_item[idx]
+        item = {
+            "numero_item": idx,
+            "codigo_produto": snap.codigo_produto or str(snap.produto_id or idx),
+            "descricao": snap.descricao,
+            "quantidade_comercial": qtd_mil / 1000,
+            "valor_unitario_comercial": _centavos_para_reais(snap.valor_unitario),
+            # quantidade (milésimos) × unitário (centavos) / 1000 / 100 = reais
+            "valor_bruto": round(qtd_mil * snap.valor_unitario / 100_000, 2),
+            "unidade_comercial": snap.unidade or "UN",
+            "unidade_tributavel": snap.unidade or "UN",
+            "codigo_barras_comercial": _codigo_barras_para_sefaz(snap.codigo_barras),
+            "codigo_barras_tributavel": _codigo_barras_para_sefaz(snap.codigo_barras),
+            "ncm": _sanitizar_ncm(snap.ncm),
+            "cfop": cfop_entrada,
+            "icms_origem": imp.icms_origem,
+            "icms_situacao_tributaria": imp.icms_situacao_tributaria,
+            "icms_modalidade_base_calculo": imp.icms_modalidade_base_calculo,
+            "icms_base_calculo": float(imp.icms_base_calculo),
+            "icms_aliquota": float(imp.icms_aliquota),
+            "icms_valor": float(imp.icms_valor),
+            "pis_situacao_tributaria": imp.pis_situacao_tributaria,
+            "pis_base_calculo": float(imp.pis_base_calculo),
+            "pis_aliquota_porcentual": float(imp.pis_aliquota),
+            "pis_valor": float(imp.pis_valor),
+            "cofins_situacao_tributaria": imp.cofins_situacao_tributaria,
+            "cofins_base_calculo": float(imp.cofins_base_calculo),
+            "cofins_aliquota_porcentual": float(imp.cofins_aliquota),
+            "cofins_valor": float(imp.cofins_valor),
+        }
+        if snap.cest:
+            item["cest"] = snap.cest
+        itens.append(item)
+    return itens
+
+
+def montar_payload_devolucao(
+    empresa: Empresa,
+    endereco_empresa: Endereco,
+    fiscal_settings: EmpresaFiscalSettings,
+    chave_referenciada: str,
+    destinatario: dict,
+    itens_devolucao: list,
+    resultado_calculo: ResultadoCalculo,
+    numero: int,
+    motivo: str,
+) -> dict:
+    """NF-e de devolução: os 4 pilares da Focus/SEFAZ num payload só.
+
+    1. `finalidade_emissao: 4`
+    2. `notas_referenciadas` com a chave de 44 dígitos da nota devolvida
+    3. `tipo_documento: 0` (entrada) com CFOP 1xxx/2xxx nos itens
+    4. `formas_pagamento` = 90 (sem pagamento), valor zero
+    """
+    simples = usa_csosn(obter_crt(empresa))
+    t = resultado_calculo.totais
+
+    return {
+        "modelo": 55,
+        "natureza_operacao": NATUREZA_DEVOLUCAO,
+        "tipo_documento": 0,
+        "local_destino": 1,
+        "modalidade_frete": 9,
+        "finalidade_emissao": 4,
+        "consumidor_final": 1,
+        "presenca_comprador": 1,
+        "numero": numero,
+        "serie": fiscal_settings.serie_nfe,
+        "emitente": _montar_emitente(empresa, endereco_empresa, fiscal_settings),
+        "destinatario": destinatario,
+        "notas_referenciadas": [{"chave_nfe": chave_referenciada}],
+        "items": _montar_itens_devolucao(itens_devolucao, resultado_calculo, simples),
+        "formas_pagamento": [
+            {"forma_pagamento": FORMA_PAGAMENTO_SEM_PAGAMENTO, "valor_pagamento": 0.0},
+        ],
+        "valor_troco": 0.0,
+        "informacoes_adicionais_contribuinte": _sanitizar_texto_sefaz(
+            f"Devolucao referente a NF chave {chave_referenciada}. Motivo: {motivo}", 2000,
+        ),
+        "totais": {
+            "valor_produtos": float(t.valor_total_produtos),
+            "valor_frete": 0.0,
+            "valor_seguro": 0.0,
+            "valor_outras_despesas": 0.0,
+            "valor_desconto": float(t.valor_desconto),
+            "icms_base_calculo": float(t.base_calculo_icms),
+            "icms_valor_total": float(t.valor_icms),
+            "valor_total": float(t.valor_total_nota),
+        },
+        "valor_total": float(t.valor_total_nota),
+    }

@@ -6,7 +6,7 @@
 
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -74,6 +74,19 @@ class EmpresaFiscalSettings(Base):
         default=0,
         nullable=False,
         doc="Último número de NFCe emitida"
+    )
+
+    # Trava contra a Rejeição 204 (duplicidade). Uma loja que vem de outro ERP
+    # entra com "último número 0" por padrão e emitiria a nota 1 de novo. Fica
+    # False até alguém confirmar série e último número na tela de Emissão
+    # Estadual; até lá `verificar_emitente` barra qualquer emissão.
+    # `server_default="0"` e não "false": o SQLite guarda Boolean como inteiro.
+    numeracao_confirmada: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("0"),
+        nullable=False,
+        doc="Operador/implantador confirmou formalmente a série e o último número emitido",
     )
 
     # --- CSC (Código de Segurança do Contribuinte - NFCe) ---

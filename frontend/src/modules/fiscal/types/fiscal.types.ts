@@ -25,6 +25,13 @@ export interface DocumentoItemResumo {
   desconto?: number;
   ncm?: string | null;
   cfop?: string | null;
+  /**
+   * Devolução: saldo por item em MILÉSIMOS (1000 = 1 UN). `quantidade` acima
+   * é inteira e perde a fração; a devolução parcial precisa destes dois.
+   * Só o snapshot preenche — itens reconstruídos do cadastro vêm sem.
+   */
+  quantidade_milesimos?: number | null;
+  quantidade_devolvida_acumulada?: number | null;
 }
 
 export interface DocumentoFiscalRead {
@@ -51,6 +58,19 @@ export interface DocumentoFiscalRead {
   xml_local?: boolean;
   /** O DANFE esta guardado nesta maquina? (nao entra no backup em nuvem) */
   pdf_local?: boolean;
+  /**
+   * Cartas de correção AUTORIZADAS nesta NF-e (0 em NFC-e). A SEFAZ só
+   * considera vigente a última, por isso o texto dela vem junto: a próxima
+   * carta precisa consolidar as anteriores.
+   */
+  total_cartas_correcao?: number;
+  ultima_carta_correcao?: string | null;
+  /** 1 = normal; 4 = esta nota É uma devolução e aponta para a origem. */
+  finalidade_emissao?: number;
+  documento_referenciado_id?: number | null;
+  chave_documento_referenciado?: string | null;
+  /** Todos os itens já voltaram por devolução autorizada. */
+  totalmente_devolvida?: boolean;
   mensagem_sefaz: string | null;
   codigo_status_sefaz: number | null;
   /** Status cru da emissora ('autorizado', 'denegado', 'erro_autorizacao'). */
@@ -78,6 +98,41 @@ export interface DocumentoFiscalRead {
   destinatario_uf?: string | null;
   destinatario_municipio?: string | null;
   itens_resumo?: DocumentoItemResumo[] | null;
+}
+
+// --- Devolução (TASK003) — espelham EmissaoDevolucaoRequest do backend ---
+
+export interface ItemDevolucaoPayload {
+  documento_item_id: number;
+  /** Inteiro em milésimos (1000 = 1.0 UN). */
+  quantidade: number;
+}
+
+export interface DestinatarioAvulsoPayload {
+  /** Só dígitos (11 ou 14). */
+  cpf_ou_cnpj: string;
+  nome_razao_social: string;
+  /** 1=Contribuinte, 2=Isento, 9=Não contribuinte. */
+  indicador_inscricao_estadual: 1 | 2 | 9;
+  inscricao_estadual?: string | null;
+  logradouro: string;
+  numero: string;
+  complemento?: string | null;
+  bairro: string;
+  /** IBGE, 7 dígitos. */
+  codigo_municipio: string;
+  municipio: string;
+  uf: string;
+  /** 8 dígitos. */
+  cep: string;
+}
+
+export interface EmissaoDevolucaoPayload {
+  motivo: string;
+  devolver_estoque: boolean;
+  /** null/omitido = devolução total do saldo restante. */
+  itens?: ItemDevolucaoPayload[] | null;
+  destinatario_avulso?: DestinatarioAvulsoPayload | null;
 }
 
 export interface VendaCorrecaoFiscalPayload {
@@ -154,6 +209,25 @@ export interface DocumentoFiscalFilters {
   data_fim?: string;
 }
 
+/** Uma CC-e registrada (ou tentada) numa NF-e — espelha `CartaCorrecaoRead`. */
+export interface CartaCorrecaoRead {
+  id: number;
+  documento_id: number;
+  /** Sequência atribuída pela SEFAZ (1..20); null enquanto não autorizada. */
+  sequencia: number | null;
+  correcao: string;
+  status: 'PROCESSANDO' | 'AUTORIZADA' | 'REJEITADA' | 'ERRO';
+  protocolo: string | null;
+  codigo_status_sefaz: number | null;
+  mensagem_sefaz: string | null;
+  url_xml: string | null;
+  url_pdf: string | null;
+  xml_local: boolean;
+  pdf_local: boolean;
+  data_evento: string | null;
+  data_criacao: string;
+}
+
 export interface DocumentoFiscalHistorico {
   tentativas: DocumentoFiscalRead[];
   total_tentativas: number;
@@ -192,6 +266,12 @@ export interface FiscalConfiguracao {
   serie_nfce?: number;
   ultimo_numero_nfce?: number;
   /**
+   * Trava da Rejeição 204: o backend recusa qualquer emissão enquanto for
+   * `false`. Vira `true` ao salvar a tela de Emissão Estadual (que envia o
+   * campo explicitamente) ou ao alterar série/último número.
+   */
+  numeracao_confirmada: boolean;
+  /**
    * MASCARADO pelo backend (ex.: `••••••••AB12`) — só os últimos caracteres,
    * o bastante para reconhecer qual token está cadastrado. Reenviar a máscara
    * no salvamento não sobrescreve o CSC guardado.
@@ -220,6 +300,25 @@ export interface EnvioPlataforma {
   indisponivel: boolean;
   mensagem?: string | null;
 }
+
+/**
+ * Corpo do `PUT /fiscal/configuracao` — espelha `FiscalSettingsUpdate` do
+ * backend. Difere do `FiscalConfiguracao` de leitura (`ambiente_emissao` aqui,
+ * `ambiente` lá), por isso não é um `Partial` dele.
+ */
+export interface FiscalConfiguracaoUpdate {
+  ambiente_emissao?: number;
+  serie_nfe?: number;
+  ultimo_numero_nfe?: number;
+  serie_nfce?: number;
+  ultimo_numero_nfce?: number;
+  numeracao_confirmada?: boolean;
+  csc_token?: string | null;
+  csc_id?: string | null;
+  limite_consumidor_anonimo?: number;
+  tipo_certificado?: string;
+}
+
 export interface EmissaoPreviewItem {
   numero_item: number;
   produto_id: number | null;

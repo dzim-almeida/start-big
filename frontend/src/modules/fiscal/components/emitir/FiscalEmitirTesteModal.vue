@@ -4,6 +4,7 @@ import { FlaskConical } from 'lucide-vue-next';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 
 import { useFiscalEmitirTesteMutation } from '../../composables/useFiscalEmitirMutation';
+import { useNumeracaoConfirmada } from '../../composables/useNumeracaoConfirmada';
 
 interface Props {
   isOpen: boolean;
@@ -16,8 +17,10 @@ const emit = defineEmits<{
 }>();
 
 const emitirMutation = useFiscalEmitirTesteMutation();
+const { garantirNumeracaoConfirmada } = useNumeracaoConfirmada();
 
 function handleConfirm() {
+  if (!garantirNumeracaoConfirmada()) return;
   emitirMutation.mutate(undefined, {
     onSuccess: () => emit('close'),
   });

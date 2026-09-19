@@ -77,6 +77,11 @@ class EmissaoResultado(TypedDict):
     url_consulta: NotRequired[Optional[str]]
     valor_tributos: NotRequired[Optional[float]]
 
+    # --- Só na carta de correção ---
+    # Sequência (1..20) atribuída pela SEFAZ; a Focus devolve em
+    # `numero_carta_correcao`. Só `emitir_carta_correcao` a preenche.
+    numero_carta_correcao: NotRequired[Optional[int]]
+
 
 class EnvioCertificadoResultado(TypedDict):
     """Retorno do envio do certificado A1 para a plataforma.
@@ -185,6 +190,15 @@ class FiscalClientProtocol(Protocol):
         self, ref: str, justificativa: str, tipo_documento: str = "NFE"
     ) -> EmissaoResultado:
         """Solicita cancelamento de NF-e autorizada."""
+        ...
+
+    def emitir_carta_correcao(self, ref: str, correcao: str) -> EmissaoResultado:
+        """Registra uma CC-e na NF-e `ref`.
+
+        Só modelo 55 -- por isso não recebe `tipo_documento`. `status` vem
+        `autorizado` ou `erro_autorizacao` (rejeição da SEFAZ, com o código em
+        `codigo_sefaz`); a sequência da carta vem em `numero_carta_correcao`.
+        """
         ...
 
     def inutilizar_numeracao(

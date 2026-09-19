@@ -8,5 +8,7 @@ export interface ViaCepResponse {
   bairro: string;
   localidade: string;
   uf: string;
+  /** Código IBGE do município (7 dígitos) — a NF-e exige no destinatário. */
+  ibge?: string;
   erro?: boolean;
 }

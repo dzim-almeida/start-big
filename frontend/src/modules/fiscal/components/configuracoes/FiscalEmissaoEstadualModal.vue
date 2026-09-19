@@ -6,7 +6,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useFiscalConfiguracaoMutation } from '../../composables/useFiscalConfiguracaoMutation';
 import { useFiscalPlataformaQuery } from '../../composables/useFiscalPlataformaQuery';
 import type { EnvioPlataforma, FiscalConfiguracao } from '../../types/fiscal.types';
-import { Building, ShieldAlert, CheckCircle2, AlertTriangle } from 'lucide-vue-next';
+import { Building, ShieldAlert, CheckCircle2, AlertTriangle, Info } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 
 const props = defineProps<{
@@ -90,7 +90,11 @@ async function handleSave() {
       ultimo_numero_nfce: Number(ultimoNumeroNfce.value) || 0,
       csc_id: cscId.value?.trim() || null,
       csc_token: cscToken.value?.trim() || null,
-    } as any);
+      // Salvar esta tela É a confirmação formal da sequência (trava da
+      // Rejeição 204). Vai explícito porque a empresa nova mantém série 1 /
+      // número 0 -- sem alterar nada, o backend não teria como saber.
+      numeracao_confirmada: true,
+    });
 
     success.value = true;
     cscPlataforma.value = salvo?.csc_plataforma ?? null;
@@ -117,6 +121,24 @@ async function handleSave() {
     @close="close"
   >
     <div class="space-y-6">
+      <!-- Estado da confirmação da sequência (trava da Rejeição 204) -->
+      <div class="flex justify-end -mt-2">
+        <span
+          v-if="configuracao?.numeracao_confirmada"
+          data-testid="badge-sequencia-confirmada"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+        >
+          <LucideIcon :icon="CheckCircle2" class="w-3.5 h-3.5" /> Sequência Confirmada
+        </span>
+        <span
+          v-else
+          data-testid="badge-sequencia-pendente"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
+        >
+          <LucideIcon :icon="AlertTriangle" class="w-3.5 h-3.5" /> Confirmação pendente
+        </span>
+      </div>
+
       <div v-if="error" class="p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
         <LucideIcon :icon="ShieldAlert" class="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
         <p class="text-sm text-red-600 font-medium">{{ error }}</p>
@@ -195,6 +217,28 @@ async function handleSave() {
             aparece no detalhe dela depois que a SEFAZ responde.
           </span>
         </p>
+      </div>
+
+      <!-- Orientação de preenchimento: empresa nova × migração de outro ERP.
+           Salvar esta tela confirma a sequência e destrava a emissão. -->
+      <div
+        data-testid="banner-orientacao-numeracao"
+        class="bg-blue-50/50 border border-blue-200 rounded-lg p-3 text-xs text-zinc-700 flex items-start gap-3"
+      >
+        <LucideIcon :icon="Info" class="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+        <div class="space-y-1.5 leading-relaxed">
+          <p>
+            <strong>Empresa nova:</strong> mantenha Série <strong>1</strong> e Último Número
+            <strong>0</strong>. A 1ª nota emitida será a número 1.
+          </p>
+          <p>
+            <strong>Migrando de outro sistema:</strong> informe a mesma série e o último número
+            emitido no software anterior — senão a SEFAZ rejeita por duplicidade (Rejeição 204).
+          </p>
+          <p class="text-zinc-500">
+            Ao salvar, a sequência fica confirmada e a emissão é liberada.
+          </p>
+        </div>
       </div>
 
       <!-- Parâmetros NF-e -->

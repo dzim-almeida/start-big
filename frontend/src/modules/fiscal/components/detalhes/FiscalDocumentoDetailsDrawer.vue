@@ -24,15 +24,29 @@ import {
   Clock,
   ExternalLink,
   Printer,
+  FilePenLine,
+  Undo2,
+  PackageCheck,
 } from 'lucide-vue-next';
 
 import { useToast } from '@/shared/composables/useToast';
 import { salvarArquivo } from '@/shared/utils/arquivo';
 import { fiscalService } from '../../services/fiscal.service';
-import { STATUS_COLORS, STATUS_LABELS } from '../../constants/fiscal.constants';
+import {
+  CARTA_CORRECAO_MAXIMO,
+  CARTA_CORRECAO_MINIMO,
+  LIMITE_CARTAS_POR_NOTA,
+  STATUS_COLORS,
+  STATUS_LABELS,
+} from '../../constants/fiscal.constants';
 import { useFiscalHistoricoQuery } from '../../composables/useFiscalHistoricoQuery';
 import { useFiscalConsultarMutation } from '../../composables/useFiscalConsultarMutation';
 import { useFiscalCancelarMutation } from '../../composables/useFiscalCancelarMutation';
+import { useFiscalCartaCorrecaoMutation } from '../../composables/useFiscalCartaCorrecaoMutation';
+import {
+  podeTerCartaCorrecao,
+  useFiscalCartasCorrecaoQuery,
+} from '../../composables/useFiscalCartasCorrecaoQuery';
 import { useFiscalReemitirMutation } from '../../composables/useFiscalReemitirMutation';
 import { useNfceReimpressao } from '../../composables/useNfceReimpressao';
 import { formatCurrency } from '@/shared/utils/finance';
@@ -44,12 +58,14 @@ import {
   nomeAmbienteDocumento,
 } from '../../utils/fiscalDiagnostic';
 import FiscalEditarVendaModal from './FiscalEditarVendaModal.vue';
+import FiscalEmitirDevolucaoModal from './FiscalEmitirDevolucaoModal.vue';
+import { prazoCancelamentoExpirado, totalmenteDevolvida } from '../../composables/useDevolucaoItens';
 
 // Integração com Edição de Produtos do Sistema
 import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal';
 import { getProdutoById, getProdutos } from '@/modules/products/inventory/services/product.service';
-import type { DocumentoItemResumo } from '../../types/fiscal.types';
+import type { CartaCorrecaoRead, DocumentoItemResumo } from '../../types/fiscal.types';
 
 const props = defineProps<{
   documentoId: number | null;
@@ -264,6 +280,92 @@ const salvarXmlLocal = async () => {
   } finally {
     isBaixandoXml.value = false;
   }
+};
+
+// --- Carta de correção (CC-e) — só NF-e autorizada, até 20 por nota ---
+const cartaMutation = useFiscalCartaCorrecaoMutation();
+const { data: cartasCorrecao } = useFiscalCartasCorrecaoQuery(documento);
+
+const formCartaOpen = ref(false);
+const textoCorrecao = ref('');
+const cartaExpandida = ref<number | null>(null);
+const isBaixandoCarta = ref<number | null>(null);
+
+const podeEmitirCarta = computed(() => podeTerCartaCorrecao(documento.value));
+const totalCartas = computed(() => documento.value?.total_cartas_correcao ?? 0);
+const limiteCartasAtingido = computed(() => totalCartas.value >= LIMITE_CARTAS_POR_NOTA);
+
+/**
+ * A SEFAZ só considera vigente a ÚLTIMA carta: abrir o form já com o texto
+ * da anterior é o que impede o operador de, sem querer, apagar uma correção
+ * válida ao acrescentar outra.
+ */
+const abrirFormCarta = () => {
+  textoCorrecao.value = documento.value?.ultima_carta_correcao ?? '';
+  formCartaOpen.value = true;
+};
+
+const handleRegistrarCarta = async () => {
+  if (!documento.value || textoCorrecao.value.trim().length < CARTA_CORRECAO_MINIMO) return;
+  const carta = await cartaMutation.mutateAsync({
+    id: documento.value.id,
+    correcao: textoCorrecao.value.trim(),
+  });
+  if (carta.status === 'AUTORIZADA') {
+    formCartaOpen.value = false;
+    textoCorrecao.value = '';
+  }
+};
+
+const salvarArquivoCarta = async (carta: CartaCorrecaoRead, extensao: 'pdf' | 'xml') => {
+  isBaixandoCarta.value = carta.id;
+  try {
+    const blob =
+      extensao === 'pdf'
+        ? await fiscalService.baixarPdfCartaCorrecao(carta.id)
+        : await fiscalService.baixarXmlCartaCorrecao(carta.id);
+    const chave = documento.value?.chave_acesso || `documento-${carta.documento_id}`;
+    const nome = `${chave}_cce_${String(carta.sequencia ?? 0).padStart(2, '0')}.${extensao}`;
+    const caminho = await salvarArquivo(nome, blob);
+    toast.success(`${extensao.toUpperCase()} da carta salvo`, caminho ? `Salvo em ${caminho}` : undefined);
+  } catch {
+    toast.error(
+      `Não foi possível obter o ${extensao.toUpperCase()} da carta`,
+      'Ele não está guardado nesta máquina e a emissora não respondeu.',
+    );
+  } finally {
+    isBaixandoCarta.value = null;
+  }
+};
+
+// --- Devolução (NF-e de entrada, finalidade 4) ---
+const modalDevolucaoOpen = ref(false);
+
+/**
+ * Passado o prazo legal (24 h NF-e / 30 min NFC-e), cancelar é impossível e
+ * o backend recusa com PRAZO_CANCELAMENTO_EXPIRADO -- então a tela nem
+ * oferece; oferece a devolução, que é a via que resta.
+ */
+const prazoCancelamentoExpiradoRef = computed(
+  () => !!documento.value && prazoCancelamentoExpirado(documento.value),
+);
+const isTotalmenteDevolvida = computed(
+  () => !!documento.value && (documento.value.totalmente_devolvida || totalmenteDevolvida(documento.value.itens_resumo ?? [])),
+);
+// A própria devolução (finalidade 4) não se devolve de novo.
+const isDocumentoDeDevolucao = computed(() => documento.value?.finalidade_emissao === 4);
+const podeDevolver = computed(
+  () =>
+    !!documento.value &&
+    documento.value.status === 'AUTORIZADA' &&
+    !isDocumentoDeDevolucao.value &&
+    !isTotalmenteDevolvida.value &&
+    (documento.value.itens_resumo?.length ?? 0) > 0,
+);
+
+const handleDevolucaoSucesso = (novoDocumentoId: number) => {
+  // O documento novo é onde está o desfecho: abre nele, como a reemissão faz.
+  emit('reemitir', novoDocumentoId);
 };
 
 // --- Copy helpers ---
@@ -810,14 +912,189 @@ function formatarData(iso?: string | null): string {
                           }}
                         </p>
 
+                        <!-- Carta de correção: ação CORRETIVA (âmbar), não
+                             destrutiva -- não pode parecer o cancelamento. Só
+                             NF-e: a NFC-e não tem CC-e, e nem um botão
+                             desabilitado deve sugerir que existe. -->
                         <button
+                          v-if="podeEmitirCarta"
                           type="button"
+                          data-testid="btn-carta-correcao"
+                          @click="formCartaOpen ? (formCartaOpen = false) : abrirFormCarta()"
+                          :disabled="limiteCartasAtingido"
+                          :title="limiteCartasAtingido ? `Limite de ${LIMITE_CARTAS_POR_NOTA} cartas atingido` : undefined"
+                          class="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50/50 p-2.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <FilePenLine class="h-4 w-4" />
+                          Carta de Correção
+                          <span v-if="totalCartas > 0" class="font-normal text-amber-700/80">({{ totalCartas }}/{{ LIMITE_CARTAS_POR_NOTA }})</span>
+                        </button>
+
+                        <!-- Nota 100% devolvida: nada mais a fazer aqui. -->
+                        <p
+                          v-if="isTotalmenteDevolvida"
+                          data-testid="badge-totalmente-devolvida"
+                          class="col-span-2 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700"
+                        >
+                          <PackageCheck class="h-4 w-4" />
+                          Todos os itens desta nota já foram devolvidos por NF-e de devolução.
+                        </p>
+
+                        <!-- Prazo legal expirado: cancelar não existe mais; a via é a devolução. -->
+                        <p
+                          v-else-if="prazoCancelamentoExpiradoRef && !isDocumentoDeDevolucao"
+                          data-testid="banner-prazo-expirado"
+                          class="col-span-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900 leading-relaxed"
+                        >
+                          <AlertTriangle class="h-4 w-4 shrink-0 text-amber-500" />
+                          <span>
+                            O prazo legal de cancelamento ({{ documento.tipo_documento === 'NFCE' ? '30 minutos' : '24 horas' }})
+                            expirou. Para reverter esta operação, emita uma <strong>NF-e de Devolução</strong>.
+                          </span>
+                        </p>
+
+                        <button
+                          v-if="podeDevolver"
+                          type="button"
+                          data-testid="btn-devolver"
+                          @click="modalDevolucaoOpen = true"
+                          :class="[
+                            'flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-semibold transition-colors cursor-pointer',
+                            prazoCancelamentoExpiradoRef
+                              ? 'col-span-2 bg-brand-primary text-white hover:bg-brand-primary-hover'
+                              : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50',
+                          ]"
+                        >
+                          <Undo2 class="h-4 w-4" />
+                          {{ prazoCancelamentoExpiradoRef ? 'Emitir NF-e de Devolução' : 'Devolver Itens' }}
+                        </button>
+
+                        <button
+                          v-if="!prazoCancelamentoExpiradoRef"
+                          type="button"
+                          data-testid="btn-cancelar"
                           @click="modalCancelarOpen = !modalCancelarOpen"
-                          class="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                          :class="[
+                            'flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer',
+                            podeDevolver ? '' : 'col-span-2',
+                          ]"
                         >
                           <Ban class="h-4 w-4" />
-                          Cancelar NF-e na SEFAZ
+                          Cancelar {{ rotuloDocumento }} na SEFAZ
                         </button>
+                      </div>
+                    </div>
+
+                    <!-- Form inline da carta de correção -->
+                    <Transition name="fade">
+                      <div v-if="formCartaOpen" data-testid="form-carta-correcao" class="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                        <label class="block text-xs font-bold text-amber-900 uppercase tracking-wider">
+                          Carta de Correção
+                        </label>
+                        <p class="text-[11px] text-amber-900/80 leading-relaxed">
+                          Corrige apenas texto, endereço, transporte e observações. Valores, impostos,
+                          quantidades e o destinatário <strong>não</strong> podem ser alterados — para isso,
+                          cancele no prazo ou emita devolução.
+                        </p>
+                        <textarea
+                          v-model="textoCorrecao"
+                          rows="5"
+                          :maxlength="CARTA_CORRECAO_MAXIMO"
+                          class="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs shadow-sm focus:border-amber-400 focus:outline-none"
+                          placeholder="Descreva a correção (mínimo 15 caracteres)..."
+                        />
+                        <div class="flex items-center justify-between text-[11px] text-amber-900/70">
+                          <span v-if="documento.ultima_carta_correcao">
+                            A SEFAZ considera apenas a última carta. Mantenha as correções anteriores e acrescente a nova.
+                          </span>
+                          <span v-else />
+                          <span class="tabular-nums shrink-0">{{ textoCorrecao.length }}/{{ CARTA_CORRECAO_MAXIMO }}</span>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            @click="formCartaOpen = false"
+                            class="rounded-lg px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                          >
+                            Fechar
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="btn-registrar-carta"
+                            @click="handleRegistrarCarta"
+                            :disabled="textoCorrecao.trim().length < CARTA_CORRECAO_MINIMO || cartaMutation.isPending.value"
+                            class="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer"
+                          >
+                            {{ cartaMutation.isPending.value ? 'Registrando…' : 'Registrar na SEFAZ' }}
+                          </button>
+                        </div>
+                      </div>
+                    </Transition>
+
+                    <!-- Histórico de cartas de correção -->
+                    <div v-if="cartasCorrecao && cartasCorrecao.length > 0" data-testid="lista-cartas-correcao" class="space-y-2">
+                      <span class="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
+                        Cartas de Correção
+                      </span>
+                      <div
+                        v-for="carta in cartasCorrecao"
+                        :key="carta.id"
+                        class="rounded-xl border border-zinc-200 bg-white p-3 space-y-2"
+                      >
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-xs font-bold text-zinc-800 shrink-0">
+                              nº {{ carta.sequencia ?? '—' }}
+                            </span>
+                            <span class="text-[11px] text-zinc-400 truncate">
+                              {{ formatDataHora(carta.data_evento ?? carta.data_criacao) }}
+                            </span>
+                          </div>
+                          <span
+                            :class="[
+                              'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0',
+                              getStatusColors(carta.status).bg,
+                              getStatusColors(carta.status).text,
+                              getStatusColors(carta.status).border,
+                            ]"
+                          >
+                            {{ STATUS_LABELS[carta.status] ?? carta.status }}
+                          </span>
+                        </div>
+                        <p
+                          class="text-xs text-zinc-700 leading-relaxed cursor-pointer"
+                          :class="cartaExpandida === carta.id ? '' : 'line-clamp-2'"
+                          @click="cartaExpandida = cartaExpandida === carta.id ? null : carta.id"
+                        >
+                          {{ carta.correcao }}
+                        </p>
+                        <p v-if="carta.status === 'REJEITADA' || carta.status === 'ERRO'" class="text-[11px] text-red-600">
+                          {{ carta.mensagem_sefaz }}
+                        </p>
+                        <div v-else-if="carta.status === 'AUTORIZADA'" class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            @click="salvarArquivoCarta(carta, 'pdf')"
+                            :disabled="isBaixandoCarta === carta.id"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 cursor-pointer"
+                          >
+                            <FileText class="h-3 w-3 text-rose-500" /> PDF
+                          </button>
+                          <button
+                            type="button"
+                            @click="salvarArquivoCarta(carta, 'xml')"
+                            :disabled="isBaixandoCarta === carta.id"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 cursor-pointer"
+                          >
+                            <FileCode class="h-3 w-3 text-blue-500" /> XML
+                          </button>
+                          <span
+                            v-if="carta.xml_local"
+                            class="ml-auto flex items-center gap-1 text-[10px] text-emerald-600"
+                          >
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" /> guardado neste computador
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1028,6 +1305,15 @@ function formatarData(iso?: string | null): string {
         </div>
       </div>
     </Transition>
+
+    <!-- Devolução (NF-e de entrada, finalidade 4) -->
+    <FiscalEmitirDevolucaoModal
+      v-if="documento"
+      :is-open="modalDevolucaoOpen"
+      :documento="documento"
+      @close="modalDevolucaoOpen = false"
+      @sucesso="handleDevolucaoSucesso"
+    />
 
     <!-- Modal Integrado de Edição de Venda -->
     <FiscalEditarVendaModal

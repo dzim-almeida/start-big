@@ -48,6 +48,9 @@ class FiscalClientMock:
 
     def __init__(self, delay: float = 0.3):
         self._delay = delay
+        # Sequência da CC-e por nota, como a SEFAZ faz. Importa para testar o
+        # limite de 20 sem plataforma.
+        self._cartas_por_ref: dict[str, int] = {}
 
     def _simular_latencia(self) -> None:
         if self._delay > 0:
@@ -216,6 +219,26 @@ class FiscalClientMock:
             "url_xml": None,
             "codigo_sefaz": 135,
             "mensagem_sefaz": "Evento registrado e vinculado a NF-e (HOMOLOGAÇÃO)",
+        }
+
+    def emitir_carta_correcao(self, ref: str, correcao: str) -> EmissaoResultado:
+        logger.info("[FISCAL MOCK] emitir_carta_correcao ref=%s correcao=%s", ref, correcao[:60])
+        self._simular_latencia()
+
+        sequencia = self._cartas_por_ref.get(ref, 0) + 1
+        self._cartas_por_ref[ref] = sequencia
+
+        return {
+            "status": "autorizado",
+            "chave_acesso": None,
+            "protocolo": _gerar_protocolo(),
+            "numero": None,
+            "serie": None,
+            "url_pdf": None,
+            "url_xml": None,
+            "codigo_sefaz": 135,
+            "mensagem_sefaz": "Evento registrado e vinculado a NF-e (HOMOLOGAÇÃO)",
+            "numero_carta_correcao": sequencia,
         }
 
     def inutilizar_numeracao(

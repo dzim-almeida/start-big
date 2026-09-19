@@ -851,10 +851,16 @@ def consultar_documento(db: Session, documento_id: int, empresa_id: int) -> Docu
     token = crud.get_licenca_token(db)
     client = get_fiscal_client(fiscal_settings.ambiente_emissao, token)
 
+    status_antes = doc.status
     try:
         resultado = client.consultar_nfe(doc.ref_api, doc.tipo_documento)
         _aplicar_resultado(doc, resultado, client)
         espelhar_na_nota_da_venda(db, doc)
+        # A devolução que ficou PROCESSANDO/INDETERMINADA na emissão só devolve
+        # saldo e estoque quando a SEFAZ confirma -- e a confirmação chega aqui.
+        if status_antes != "AUTORIZADA" and doc.status == "AUTORIZADA":
+            from .devolucao import aplicar_efeitos_autorizacao
+            aplicar_efeitos_autorizacao(db, doc)
     except NotImplementedError:
         pass
     except Exception as e:
@@ -1009,6 +1015,37 @@ def emitir_teste_nfe(db: Session, empresa_id: int) -> DocumentoFiscal:
     """
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
 
+    # O gate vem ANTES da ida à plataforma: ele é local e barato, e com a
+    # trava de numeração fechada (Rejeição 204) não há por que gastar uma
+    # chamada à emissora para descobrir um "não" que já se sabe aqui.
+    #
+    # O emitente precisa estar completo ANTES de reservar numeração.
+    #
+    # A emissão real passa por `_preparar_dados_emissao`, que já verifica isto.
+    # A de teste não passava por nada: com CNPJ, IE ou regime tributário em
+    # branco ela reservava o número, montava a nota, e a plataforma recusava com
+    # 4xx antes de chegar na Focus. Como o corpo do 4xx vira `mensagem_sefaz`, o
+    # lojista lia "CNPJ do emitente não autorizado" achando que era a SEFAZ
+    # falando -- quando o dado faltava aqui e a nota nunca saiu da nossa rede.
+    #
+    # Verificar antes do `ultimo_numero_nfe + 1` também evita queimar numeração
+    # à toa: a reversão existe, mas depende de o fluxo chegar até ela.
+    from . import validators
+
+    pendencias = validators.verificar_emitente(db, empresa_id)
+    if pendencias:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "codigo": "EMITENTE_INCOMPLETO",
+                "mensagem": (
+                    "Os dados da empresa ainda não permitem emitir. "
+                    "Complete-os em Dados da Empresa e tente de novo."
+                ),
+                "pendencias": [p.mensagem for p in pendencias],
+            },
+        )
+
     # Quem responde é a PLATAFORMA. O campo local `ambiente_emissao` não
     # decide para onde a nota vai, então perguntar a ele deixava passar uma
     # nota de teste — destinatário fictício, R$ 1,00 — como documento REAL
@@ -1039,32 +1076,6 @@ def emitir_teste_nfe(db: Session, empresa_id: int) -> DocumentoFiscal:
             detail="Empresa ou endereço não cadastrados.",
         )
 
-    # O emitente precisa estar completo ANTES de reservar numeração.
-    #
-    # A emissão real passa por `_preparar_dados_emissao`, que já verifica isto.
-    # A de teste não passava por nada: com CNPJ, IE ou regime tributário em
-    # branco ela reservava o número, montava a nota, e a plataforma recusava com
-    # 4xx antes de chegar na Focus. Como o corpo do 4xx vira `mensagem_sefaz`, o
-    # lojista lia "CNPJ do emitente não autorizado" achando que era a SEFAZ
-    # falando -- quando o dado faltava aqui e a nota nunca saiu da nossa rede.
-    #
-    # Verificar antes do `ultimo_numero_nfe + 1` também evita queimar numeração
-    # à toa: a reversão existe, mas depende de o fluxo chegar até ela.
-    from . import validators
-
-    pendencias = validators.verificar_emitente(db, empresa_id)
-    if pendencias:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "codigo": "EMITENTE_INCOMPLETO",
-                "mensagem": (
-                    "Os dados da empresa ainda não permitem emitir. "
-                    "Complete-os em Dados da Empresa e tente de novo."
-                ),
-                "pendencias": [p.mensagem for p in pendencias],
-            },
-        )
 
     payload = montar_payload_teste_nfe(empresa, endereco, fiscal_settings)
 

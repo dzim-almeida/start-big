@@ -3,6 +3,7 @@
 # DESCRIÇÃO: Schemas Pydantic para emissão de NF-e (request/response).
 # ---------------------------------------------------------------------------
 
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -38,6 +39,116 @@ class CancelamentoRequest(BaseModel):
         if len(v) > 255:
             raise ValueError("Justificativa deve ter no máximo 255 caracteres.")
         return v
+
+
+class CartaCorrecaoRequest(BaseModel):
+    """Request para registrar uma CC-e numa NF-e autorizada.
+
+    Não reaproveita `CancelamentoRequest`: o limite é OUTRO (1000, não 255) —
+    a carta precisa caber a consolidação de todas as anteriores, porque a
+    SEFAZ só considera vigente a última.
+    """
+
+    correcao: str
+
+    @field_validator("correcao")
+    @classmethod
+    def validar_correcao(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 15:
+            raise ValueError("A correção deve ter no mínimo 15 caracteres (exigência SEFAZ).")
+        if len(v) > 1000:
+            raise ValueError("A correção deve ter no máximo 1000 caracteres.")
+        return v
+
+
+class CartaCorrecaoRead(BaseModel):
+    """Uma CC-e registrada (ou tentada) numa NF-e."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    documento_id: int
+    sequencia: Optional[int] = None
+    correcao: str
+    status: str
+    protocolo: Optional[str] = None
+    codigo_status_sefaz: Optional[int] = None
+    mensagem_sefaz: Optional[str] = None
+    url_xml: Optional[str] = None
+    url_pdf: Optional[str] = None
+    xml_local: bool = False
+    pdf_local: bool = False
+    data_evento: Optional[datetime] = None
+    data_criacao: datetime
+
+    @classmethod
+    def de_registro(cls, carta) -> "CartaCorrecaoRead":
+        """`xml_local`/`pdf_local` derivam dos caminhos, como no DocumentoFiscalRead."""
+        dados = cls.model_validate(carta)
+        dados.xml_local = bool(carta.caminho_xml_local)
+        dados.pdf_local = bool(carta.caminho_pdf_local)
+        return dados
+
+
+class ItemDevolucaoRequest(BaseModel):
+    """Um item da nota original a devolver, em milésimos (1000 = 1 UN)."""
+
+    documento_item_id: int = Field(..., description="ID do DocumentoFiscalItem da nota original")
+    quantidade: int = Field(..., gt=0, description="Quantidade a devolver em milésimos")
+
+
+class DestinatarioAvulsoRequest(BaseModel):
+    """Quem está devolvendo, quando a nota de origem não identificou ninguém.
+
+    A NF-e (modelo 55) exige destinatário com endereço; uma NFC-e sem CPF não
+    tem de onde tirar isso, então o operador informa aqui.
+    """
+
+    cpf_ou_cnpj: str = Field(..., description="CPF (11) ou CNPJ (14), só dígitos ou formatado")
+    nome_razao_social: str = Field(..., min_length=2, max_length=120)
+    indicador_inscricao_estadual: int = Field(
+        default=9, description="1=Contribuinte, 2=Isento, 9=Não contribuinte",
+    )
+    inscricao_estadual: Optional[str] = Field(None, max_length=20)
+    logradouro: str = Field(..., min_length=2, max_length=120)
+    numero: str = Field(..., min_length=1, max_length=20)
+    complemento: Optional[str] = Field(None, max_length=60)
+    bairro: str = Field(..., min_length=2, max_length=60)
+    codigo_municipio: str = Field(..., min_length=7, max_length=7, description="Código IBGE, 7 dígitos")
+    municipio: str = Field(..., min_length=2, max_length=60)
+    uf: str = Field(..., min_length=2, max_length=2)
+    cep: str = Field(..., description="8 dígitos, com ou sem hífen")
+
+    @model_validator(mode="after")
+    def sanitizar_e_validar(self):
+        self.cpf_ou_cnpj = re.sub(r"\D", "", self.cpf_ou_cnpj)
+        if len(self.cpf_ou_cnpj) not in (11, 14):
+            raise ValueError("Documento deve ser CPF (11 dígitos) ou CNPJ (14 dígitos).")
+        self.cep = re.sub(r"\D", "", self.cep)
+        if len(self.cep) != 8:
+            raise ValueError("CEP deve conter 8 dígitos.")
+        if not self.codigo_municipio.isdigit():
+            raise ValueError("Código do município deve ser o IBGE de 7 dígitos.")
+        if self.indicador_inscricao_estadual == 1 and not self.inscricao_estadual:
+            raise ValueError("Inscrição Estadual obrigatória para contribuinte (indicador=1).")
+        self.uf = self.uf.upper()
+        return self
+
+
+class EmissaoDevolucaoRequest(BaseModel):
+    """Request da NF-e de devolução (finalidade 4) a partir de uma nota autorizada."""
+
+    motivo: str = Field(..., min_length=15, max_length=255, description="Justificativa da devolução")
+    devolver_estoque: bool = Field(
+        default=True, description="Dá entrada dos itens no estoque quando a SEFAZ autorizar",
+    )
+    itens: Optional[list[ItemDevolucaoRequest]] = Field(
+        None, description="Itens parciais. Omitido/vazio = devolve todo o saldo restante.",
+    )
+    destinatario_avulso: Optional[DestinatarioAvulsoRequest] = Field(
+        None, description="Obrigatório quando a nota de origem não identificou o comprador.",
+    )
 
 
 class EmissaoNFCeRequest(BaseModel):
@@ -108,6 +219,8 @@ class FiscalConfiguracao(BaseModel):
     ultimo_numero_nfe: Optional[int] = 0
     serie_nfce: Optional[int] = 1
     ultimo_numero_nfce: Optional[int] = 0
+    # Trava da Rejeição 204: False até alguém confirmar a sequência inicial.
+    numeracao_confirmada: bool = False
     # MASCARADO. O CSC é o segredo que autentica o QR Code — sai daqui só com
     # os 4 últimos caracteres, o bastante para o lojista reconhecer qual token
     # cadastrou. Reenviar a máscara no PUT não sobrescreve nada.

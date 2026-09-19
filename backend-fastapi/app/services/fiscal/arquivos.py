@@ -243,13 +243,70 @@ def sincronizar_pendentes(db, client, limite: int = 200) -> dict:
             except Exception as exc:
                 logger.warning("[FISCAL] Documento %s: DANFE não veio: %s", doc.id, exc)
 
+    cartas_guardadas, cartas_falharam = _sincronizar_cartas_pendentes(db, client, limite)
+
     return {
         "pendentes_encontrados": len(pendentes),
-        "guardados": guardados,
-        "falharam": falharam,
+        "guardados": guardados + cartas_guardadas,
+        "falharam": falharam + cartas_falharam,
         # Quem chama decide se roda de novo — a tela mostra isso ao usuário.
         "restam": max(0, len(pendentes) - guardados) if len(pendentes) == limite else 0,
     }
+
+
+def _sincronizar_cartas_pendentes(db, client, limite: int) -> tuple[int, int]:
+    """
+    Mesma varredura para as cartas de correção autorizadas sem XML local.
+
+    A carta é da contabilidade tanto quanto a nota: o contador escritura o
+    evento junto do documento. O nome leva `_cce_NN` para não colidir com o
+    XML da nota (que `guardar_xml` nunca sobrescreve).
+    """
+    from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
+
+    pendentes = (
+        db.query(CartaCorrecaoFiscal)
+        .filter(
+            CartaCorrecaoFiscal.status == "AUTORIZADA",
+            CartaCorrecaoFiscal.url_xml.isnot(None),
+            (CartaCorrecaoFiscal.caminho_xml_local.is_(None))
+            | (CartaCorrecaoFiscal.caminho_xml_local == ""),
+        )
+        .order_by(CartaCorrecaoFiscal.id.desc())
+        .limit(limite)
+        .all()
+    )
+
+    guardados = falharam = 0
+    for carta in pendentes:
+        chave = carta.documento.chave_acesso or f"doc-{carta.documento_id}"
+        fallback = f"{chave}_cce_{carta.sequencia or 0:02d}"
+        try:
+            xml = client.baixar_xml(carta.url_xml)
+        except Exception as exc:
+            logger.warning("[FISCAL] Carta %s: falha ao baixar XML: %s", carta.id, exc)
+            falharam += 1
+            continue
+
+        caminho = guardar_xml(xml, chave=None, fallback=fallback, quando=carta.data_evento)
+        if caminho:
+            carta.caminho_xml_local = caminho
+            guardados += 1
+        else:
+            falharam += 1
+
+        if carta.url_pdf and not carta.caminho_pdf_local:
+            try:
+                caminho_pdf = guardar_pdf(
+                    client.baixar_pdf(carta.url_pdf), chave=None,
+                    fallback=fallback, quando=carta.data_evento,
+                )
+                if caminho_pdf:
+                    carta.caminho_pdf_local = caminho_pdf
+            except Exception as exc:
+                logger.warning("[FISCAL] Carta %s: PDF não veio: %s", carta.id, exc)
+
+    return guardados, falharam
 
 
 def obter_xml(db, client, doc) -> Optional[str]:
