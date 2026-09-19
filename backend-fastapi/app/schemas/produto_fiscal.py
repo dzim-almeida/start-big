@@ -158,6 +158,16 @@ class ProdutoFiscalBase(BaseModel):
         examples=["IBS12345"],
     )
 
+    # --- Perfil Tributário (DIFAL/ST interestadual) ---
+
+    perfil_tributario_id: Optional[int] = Field(
+        None, ge=1,
+        description=(
+            "Perfil tributário para operações interestaduais. `null` desvincula; "
+            "campo omitido não altera o vínculo."
+        ),
+    )
+
     # -----------------------------------------------------------------------
     # Validadores de formato (Camada 1)
     # -----------------------------------------------------------------------

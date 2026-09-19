@@ -42,8 +42,13 @@ def upsert(db: Session, produto_id: int, dados: ProdutoFiscalCreate | ProdutoFis
     """
     Cria ou atualiza os dados fiscais de um produto.
     Simplifica o frontend: não precisa saber se o registro já existe.
+
+    No update só entram os campos que o chamador ENVIOU (`exclude_unset`):
+    reinstanciar o schema com o dump completo marcava tudo como enviado e
+    zerava o que foi omitido -- um save do formulário, que não conhece
+    `perfil_tributario_id`, desvincularia o perfil sem ninguém pedir.
     """
     registro = get_by_produto_id(db, produto_id)
     if registro is None:
         return create(db, produto_id, ProdutoFiscalCreate(**dados.model_dump()))
-    return update(db, registro, ProdutoFiscalUpdate(**dados.model_dump()))
+    return update(db, registro, ProdutoFiscalUpdate(**dados.model_dump(exclude_unset=True)))

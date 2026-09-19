@@ -15,13 +15,22 @@ CST_ICMS_TRIBUTADO = frozenset({"00"})       # Tributada integralmente
 CST_ICMS_REDUZIDA = frozenset({"20"})        # Com redução de base de cálculo
 CST_ICMS_ISENTO = frozenset({"40", "41"})    # Isenta / Não tributada
 CST_ICMS_ST = frozenset({"60"})              # ICMS cobrado anteriormente por ST
+# O que o CADASTRO do produto aceita (validators.py). CST 10/70 ficam de fora
+# de propósito: a condição de substituto é da OPERAÇÃO interestadual e é
+# derivada na emissão a partir da regra do perfil, nunca gravada no produto.
 CST_ICMS_SUPORTADOS = CST_ICMS_TRIBUTADO | CST_ICMS_REDUZIDA | CST_ICMS_ISENTO | CST_ICMS_ST
+# Remetente como SUBSTITUTO (TASK008): própria como 00/20 + retenção da ST.
+# Só o calculador aceita, e só com regra de ST no item.
+CST_ICMS_SUBSTITUTO = frozenset({"10"})          # Tributada e com cobrança por ST
+CST_ICMS_SUBSTITUTO_REDUZIDA = frozenset({"70"}) # Com redução de base e cobrança por ST
 
 # --- CSOSNs suportados (Simples Nacional) ---
 CSOSN_COM_CREDITO = frozenset({"101"})       # Tributada com permissão de crédito
 CSOSN_SEM_CREDITO = frozenset({"102"})       # Tributada sem permissão de crédito
 CSOSN_ST = frozenset({"500"})                # ICMS cobrado anteriormente por ST
-CSOSN_SUPORTADOS = CSOSN_COM_CREDITO | CSOSN_SEM_CREDITO | CSOSN_ST
+CSOSN_SUPORTADOS = CSOSN_COM_CREDITO | CSOSN_SEM_CREDITO | CSOSN_ST  # cadastro
+CSOSN_SUBSTITUTO_COM_CREDITO = frozenset({"201"})  # 101 + cobrança por ST (só na emissão)
+CSOSN_SUBSTITUTO_SEM_CREDITO = frozenset({"202"})  # 102 + cobrança por ST (só na emissão)
 
 # --- CSTs de PIS/COFINS ---
 CST_PIS_COFINS_TRIBUTADO = frozenset({"01", "02"})  # Alíquota normal / diferenciada

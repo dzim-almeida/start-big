@@ -63,8 +63,9 @@ CAMPOS_EM_CASCATA = (
 # a substituição tributária, e o padrão da loja não tem opinião sobre isso.
 CAMPO_CEST = "cest"
 
-# Só do produto.
-CAMPOS_DO_PRODUTO = ("ncm", "gtin_tributavel", "unidade_tributavel")
+# Só do produto. O perfil tributário (TASK006) também: é o produto que aponta
+# para o perfil interestadual -- nem o NCM nem o padrão da loja opinam.
+CAMPOS_DO_PRODUTO = ("ncm", "gtin_tributavel", "unidade_tributavel", "perfil_tributario_id")
 
 
 @dataclass
@@ -101,6 +102,7 @@ class FiscalEfetivo:
     aliquota_ibs: Optional[int] = None
     aliquota_cbs: Optional[int] = None
     c_benef: Optional[str] = None
+    perfil_tributario_id: Optional[int] = None
 
     procedencia: dict[str, str] = None  # type: ignore[assignment]
 

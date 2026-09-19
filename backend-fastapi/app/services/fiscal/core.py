@@ -7,6 +7,7 @@ from app.db.crud import fiscal as crud
 
 from . import validators
 from .helpers import obter_crt, usa_csosn, criar_pendencia as _p
+from .tax_engine.resolver import eh_operacao_interestadual
 
 def verificar_completude_venda(
     db: Session, venda_id: int, empresa_id: int, tipo_documento: str = "nfe",
@@ -37,11 +38,22 @@ def verificar_completude_venda(
         pendencias.extend(validators.verificar_documento_cliente(venda.cliente))
         if tipo_documento == "nfe":
             pendencias.extend(validators.verificar_endereco_destinatario(venda.cliente))
+            if _interestadual(db, venda, empresa_id):
+                pendencias.extend(validators.verificar_ie_destinatario_interestadual(venda.cliente))
 
     pendencias.extend(validators.verificar_itens_venda(db, venda, simples))
     pendencias.extend(validators.verificar_pagamentos(venda.pagamentos))
 
     return ResultadoVerificacaoFiscal(completo=len(pendencias) == 0, pendencias=pendencias)
+
+def _interestadual(db: Session, venda, empresa_id: int) -> bool:
+    """Guardrails interestaduais (TASK009) só quando a mercadoria cruza a fronteira."""
+    endereco = crud.get_endereco_empresa(db, empresa_id)
+    if not endereco or not endereco.estado:
+        return False
+    uf = endereco.estado.value if hasattr(endereco.estado, "value") else str(endereco.estado)
+    return eh_operacao_interestadual(venda, uf)
+
 
 def verificar_completude_os(db: Session, numero_os: str, empresa_id: int, tipo_documento: str = "ambos") -> ResultadoVerificacaoFiscal:
     os_obj = crud.get_os_completa(db, numero_os)

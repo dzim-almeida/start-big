@@ -36,6 +36,7 @@ __pycache__/
 backend-fastapi/nota.txt
 /.claude
 /.github
+/.agent
 /node_modules
 
 # 6. Ignorar arquivos e pastas relacionados a migrações e estáticos

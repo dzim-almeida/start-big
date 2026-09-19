@@ -132,6 +132,32 @@ Numa venda real aparecem ainda, conforme o caso: `icms_aliquota`,
 
 Nós já **expurgamos nulos** antes de enviar: nó vazio é rejeição na hora.
 
+### 3.1 Operação interestadual (desde 19/09/2026 — TASK007/008/009)
+
+Quando a mercadoria cruza a fronteira estadual o payload ganha campos **opcionais**,
+com os nomes canônicos da Focus NFe — o Zod da plataforma precisa aceitá-los (ou
+usar `.passthrough()`), senão a nota sai interna com CFOP 6xxx e é rejeitada:
+
+- Raiz: `local_destino` vira `2`. Os CFOPs dos itens começam com 6 (`6102`, `6107`,
+  `6108`, `6403`, `6404`), sempre em conjunto com o `local_destino` — os dois saem da
+  mesma decisão.
+- Item, venda a **não contribuinte** no regime normal (grupo `ICMSUFDest`, DIFAL/FCP):
+  `icms_base_calculo_uf_destino`, `icms_aliquota_interna_uf_destino`,
+  `icms_aliquota_interestadual`, `icms_valor_uf_destino`, `icms_valor_uf_remetente` e,
+  quando há FCP, `fcp_base_calculo_uf_destino`, `fcp_percentual_uf_destino`,
+  `fcp_valor_uf_destino` (nomes da referência campos.focusnfe.com.br). Simples
+  Nacional não manda este grupo (ADI 5464).
+- Item, venda a **contribuinte com ST** (remetente substituto; CST `10`/`70` ou CSOSN
+  `201`/`202`): `icms_modalidade_base_calculo_st` (4 = MVA), `icms_base_calculo_st`,
+  `icms_aliquota_st`, `icms_valor_st`, `icms_margem_valor_adicionado_st` e, se houver,
+  `icms_reducao_base_calculo_st`.
+- Totais, só quando existem: `icms_base_calculo_st`, `icms_valor_total_st`,
+  `icms_valor_total_uf_destino`, `fcp_valor_total_uf_destino`. O `valor_total` **já inclui** a ST
+  (encargo cobrado do destinatário) e **não inclui** o DIFAL/FCP (partilha).
+
+Venda interna continua enviando exatamente os campos de antes — nenhum dos acima
+aparece com zero.
+
 ---
 
 ## 4. Payload da NFC-e (modelo 65)

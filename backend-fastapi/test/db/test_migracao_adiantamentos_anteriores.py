@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # ARQUIVO: test/db/test_migracao_adiantamentos_anteriores.py
-# DESCRIÇÃO: A migration v5w6x7y8z9a0 num banco de loja já em operação.
+# DESCRIÇÃO: A migration x7y8z9a0b1c2 num banco de loja já em operação.
 #
 # O que ela precisa acertar: recuperar, por diferença, o adiantamento que uma
 # OS reaberta UMA vez pela conta antiga carrega dentro de `credito_anterior`.
@@ -22,8 +22,8 @@ from alembic import command
 from app.core.config import settings
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REVISAO_ANTERIOR = "u4v5w6x7y8z9"
-REVISAO = "v5w6x7y8z9a0"
+REVISAO_ANTERIOR = "w6x7y8z9a0b1"
+REVISAO = "x7y8z9a0b1c2"
 
 
 def _config(url: str) -> Config:

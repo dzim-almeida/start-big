@@ -26,7 +26,15 @@ from .types import CampoSugerido, Confianca, ContextoDerivacao, Fonte
 CRT_QUE_USAM_CSOSN = frozenset({1, 4})
 
 CSOSN_TRIBUTADO_SEM_CREDITO = "102"
+CSOSN_TRIBUTADO_COM_CREDITO = "101"
 CST_TRIBUTADO_INTEGRALMENTE = "00"
+
+# Remetente como substituto tributário (operação interestadual com ST na
+# regra do perfil — TASK008). Mesma tributação própria, mais a retenção.
+CST_SUBSTITUTO = "10"
+CST_SUBSTITUTO_COM_REDUCAO = "70"
+CSOSN_SUBSTITUTO_COM_CREDITO = "201"
+CSOSN_SUBSTITUTO_SEM_CREDITO = "202"
 
 CST_PIS_COFINS_SIMPLES = "49"
 CST_PIS_COFINS_TRIBUTADO = "01"
@@ -79,6 +87,29 @@ def derivar_situacao_icms(ctx: ContextoDerivacao) -> CampoSugerido:
             ("60", "ICMS ja retido por ST — so se o item estiver em ST na UF"),
         ],
     )
+
+
+def derivar_situacao_operacao(
+    cst_icms: "str | None",
+    csosn: "str | None",
+    *,
+    simples: bool,
+    existe_st: bool,
+    tem_reducao: bool,
+) -> "str | None":
+    """
+    CST/CSOSN efetivo do item numa OPERAÇÃO, a partir do que o produto tem.
+
+    Sem ST na regra do perfil, nada muda: CST 20/40 do produto continuam
+    legítimos fora do estado. Com ST, o remetente vira substituto e a situação
+    ganha a versão "com cobrança por ST": 10 (70 se o próprio tem redução) no
+    regime normal; 201 (se era 101) ou 202 no Simples.
+    """
+    if not existe_st:
+        return csosn if simples else cst_icms
+    if simples:
+        return CSOSN_SUBSTITUTO_COM_CREDITO if csosn == CSOSN_TRIBUTADO_COM_CREDITO else CSOSN_SUBSTITUTO_SEM_CREDITO
+    return CST_SUBSTITUTO_COM_REDUCAO if tem_reducao else CST_SUBSTITUTO
 
 
 def derivar_cst_pis_cofins(ctx: ContextoDerivacao) -> list[CampoSugerido]:

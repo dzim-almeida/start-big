@@ -48,6 +48,12 @@ from app.schemas.emissao_fiscal import (
     EnvioPlataforma,
     FiscalConfiguracao,
 )
+from app.schemas.perfil_tributario import (
+    PerfilTributarioCreate,
+    PerfilTributarioListItem,
+    PerfilTributarioRead,
+    PerfilTributarioUpdate,
+)
 from app.schemas.produto_fiscal import ProdutoFiscalUpdate
 from app.schemas.tributacao import (
     RegraNcmRead,
@@ -57,6 +63,7 @@ from app.schemas.tributacao import (
 )
 from app.services import documento_fiscal as documento_fiscal_service
 from app.services import pendencias_globais as pendencias_globais_service
+from app.services import perfil_tributario as perfil_tributario_service
 from app.services.fiscal.helpers import (
     dias_para_vencer_certificado, e_csc_mascarado, mascarar_csc, obter_csc_token,
 )
@@ -1265,6 +1272,100 @@ def remover_regra_ncm(
     if not removeu:
         raise HTTPException(status_code=404, detail=f"Nenhuma regra cadastrada para o NCM {ncm}.")
 
+
+
+# ===========================================================================
+# PERFIS TRIBUTÁRIOS (operação interestadual)
+# ===========================================================================
+#
+# Um perfil agrupa as alíquotas que variam por UF de destino (interestadual,
+# interna do destino, FCP, MVA-ST) para N produtos apontarem para ele
+# (TASK004–006). Complementa a cascata acima, não a substitui.
+#
+# O perfil chega e sai EM BLOCO com suas regras: o PUT é replace-all. Ler é
+# para qualquer usuário ativo (o cadastro de produto precisa da lista);
+# escrever exige master, como a tributação padrão.
+
+
+@router.get(
+    "/perfis-tributarios",
+    response_model=list[PerfilTributarioListItem],
+    summary="Listar Perfis Tributários",
+    description="Os perfis da empresa, sem as regras — só quantas cada um tem.",
+)
+def listar_perfis_tributarios(
+    user_token: dict = Depends(get_current_active_user),
+    *,
+    db: Session = Depends(get_db),
+):
+    return perfil_tributario_service.listar_perfis(db, user_token["empresa_id"])
+
+
+@router.post(
+    "/perfis-tributarios",
+    response_model=PerfilTributarioRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar Perfil Tributário",
+    description="Cria o perfil com a lista completa de regras (exige uma regra de fallback).",
+)
+def criar_perfil_tributario(
+    user_token: dict = Depends(requer_configuracao_fiscal),
+    *,
+    dados: PerfilTributarioCreate,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db, perfil_tributario_service.criar_perfil, user_token["empresa_id"], dados,
+    )
+
+
+@router.get(
+    "/perfis-tributarios/{perfil_id}",
+    response_model=PerfilTributarioRead,
+    summary="Detalhar Perfil Tributário",
+)
+def obter_perfil_tributario(
+    user_token: dict = Depends(get_current_active_user),
+    perfil_id: int = Path(..., ge=1),
+    *,
+    db: Session = Depends(get_db),
+):
+    return perfil_tributario_service.obter_perfil(db, user_token["empresa_id"], perfil_id)
+
+
+@router.put(
+    "/perfis-tributarios/{perfil_id}",
+    response_model=PerfilTributarioRead,
+    summary="Atualizar Perfil Tributário",
+    description="Troca a descrição e SUBSTITUI todas as regras pelas enviadas.",
+)
+def atualizar_perfil_tributario(
+    user_token: dict = Depends(requer_configuracao_fiscal),
+    perfil_id: int = Path(..., ge=1),
+    *,
+    dados: PerfilTributarioUpdate,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db, perfil_tributario_service.atualizar_perfil, user_token["empresa_id"], perfil_id, dados,
+    )
+
+
+@router.delete(
+    "/perfis-tributarios/{perfil_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir Perfil Tributário",
+    description="Apaga o perfil e suas regras. Recusa (409 PERFIL_EM_USO) se algum produto o usa.",
+)
+def excluir_perfil_tributario(
+    user_token: dict = Depends(requer_configuracao_fiscal),
+    perfil_id: int = Path(..., ge=1),
+    *,
+    db: Session = Depends(get_db),
+):
+    _handle_db_transaction(
+        db, perfil_tributario_service.deletar_perfil, user_token["empresa_id"], perfil_id,
+    )
 
 
 # ===========================================================================
