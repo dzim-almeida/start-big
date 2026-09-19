@@ -510,3 +510,54 @@ export interface BuscaNcmResposta {
   resultados: NcmItem[];
   total_na_base: number;
 }
+
+// ===========================================================================
+// NUMERAÇÃO — buracos e inutilização
+// ===========================================================================
+
+/** Faixa reservada que nunca virou nota autorizada. Precisa ir à SEFAZ. */
+export interface GapNumeracao {
+  serie: number;
+  numero_inicial: number;
+  numero_final: number;
+  quantidade: number;
+}
+
+/**
+ * Situação de um pedido de inutilização. Espelha `InutilizacaoFiscal.status`.
+ *
+ * REJEITADA e NAO_TRANSMITIDA devolvem a faixa à lista de buracos; a diferença
+ * é quem disse não: a SEFAZ (com código) ou a plataforma, antes de transmitir.
+ * INDETERMINADA é a única que não devolve -- sem resposta, a faixa pode ter
+ * sido registrada.
+ */
+export type StatusInutilizacao =
+  | 'PENDENTE'
+  | 'PROCESSANDO'
+  | 'HOMOLOGADA'
+  | 'REJEITADA'
+  | 'INDETERMINADA'
+  | 'NAO_TRANSMITIDA';
+
+export interface InutilizacaoRead {
+  id: number;
+  serie: number;
+  ano: number;
+  numero_inicial: number;
+  numero_final: number;
+  justificativa: string;
+  status: StatusInutilizacao | string;
+  protocolo?: string | null;
+  mensagem_sefaz?: string | null;
+  url_xml?: string | null;
+  data_solicitacao?: string | null;
+  data_homologacao?: string | null;
+}
+
+export interface InutilizacaoRequest {
+  serie: number;
+  numero_inicial: number;
+  numero_final: number;
+  /** Mínimo de 15 caracteres — é o que a SEFAZ exige. */
+  justificativa: string;
+}

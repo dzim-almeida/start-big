@@ -10,6 +10,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import FiscalCertificadoModal from '../components/configuracoes/FiscalCertificadoModal.vue';
 import FiscalEmissaoEstadualModal from '../components/configuracoes/FiscalEmissaoEstadualModal.vue';
 import FiscalPlataformaCard from '../components/configuracoes/FiscalPlataformaCard.vue';
+import FiscalNumeracaoCard from '../components/configuracoes/FiscalNumeracaoCard.vue';
 import FiscalTributacaoModal from '../components/configuracoes/FiscalTributacaoModal.vue';
 import { useFiscalConfiguracaoQuery } from '../composables/useFiscalConfiguracaoQuery';
 import { useTributacaoPadrao } from '../composables/useTributacaoPadrao';
@@ -387,6 +388,10 @@ function aoEnviarCertificado() {
     <!-- O outro lado do cano: sem isto, uma recusa da plataforma chega
          disfarcada de SEFAZ e nao ha como saber de quem e o problema. -->
     <FiscalPlataformaCard :configuracao="config" />
+
+    <!-- Buracos na numeração e inutilização. Abaixo da plataforma: só faz
+         sentido depois que a loja emite. -->
+    <FiscalNumeracaoCard />
 
     <!-- Modais -->
     <FiscalCertificadoModal

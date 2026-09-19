@@ -22,6 +22,9 @@ import type { EmissaoPreviewResponse,
   TributacaoPadrao,
   ValidacaoFiscalProduto,
   BuscaNcmResposta,
+  GapNumeracao,
+  InutilizacaoRead,
+  InutilizacaoRequest,
 } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
@@ -372,6 +375,32 @@ export const fiscalService = {
 
   async corrigirVendaFiscal(vendaId: number, payload: VendaCorrecaoFiscalPayload): Promise<unknown> {
     const { data } = await api.patch(`/vendas/${vendaId}/correcao-fiscal`, payload);
+    return data;
+  },
+
+  // --- Numeração: buracos e inutilização ---
+
+  async listarGapsNumeracao(): Promise<GapNumeracao[]> {
+    const { data } = await api.get<GapNumeracao[]>(`${FISCAL_ENDPOINT}/numeracao/gaps`);
+    return data;
+  },
+
+  async listarInutilizacoes(): Promise<InutilizacaoRead[]> {
+    const { data } = await api.get<InutilizacaoRead[]>(`${FISCAL_ENDPOINT}/numeracao/inutilizacoes`);
+    return data;
+  },
+
+  /**
+   * Pede à SEFAZ a inutilização de uma faixa. A resposta pode vir REJEITADA
+   * (a SEFAZ recusou) ou NAO_TRANSMITIDA (a plataforma recusou antes) sem
+   * erro HTTP -- quem decide o toast é `resolverDesfechoInutilizacao`.
+   */
+  async inutilizarNumeracao(payload: InutilizacaoRequest): Promise<InutilizacaoRead> {
+    const { data } = await api.post<InutilizacaoRead>(
+      `${FISCAL_ENDPOINT}/numeracao/inutilizar`,
+      payload,
+      { timeout: TIMEOUT_EMISSAO },
+    );
     return data;
   },
 };

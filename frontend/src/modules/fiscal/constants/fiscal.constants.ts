@@ -50,6 +50,10 @@ export const fiscalKeys = {
   camposProduto: () => ['fiscal', 'campos', 'produto'] as const,
   /** Tributação padrão da loja — muda a nota de todo produto que herda dela. */
   tributacaoPadrao: () => ['fiscal', 'tributacao-padrao'] as const,
+  /** Buracos na numeração — mudam a cada emissão que falha e a cada inutilização. */
+  numeracaoGaps: () => ['fiscal', 'numeracao', 'gaps'] as const,
+  /** Histórico de inutilizações pedidas à SEFAZ. */
+  inutilizacoes: () => ['fiscal', 'numeracao', 'inutilizacoes'] as const,
 };
 
 /**
