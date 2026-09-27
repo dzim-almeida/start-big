@@ -13,6 +13,12 @@ rejeitar nota.
 
 **Nada começa a ser codado antes de as decisões da §4 estarem aceitas.**
 
+> **Status (27/09/2026):** o Alan respondeu as perguntas (§9) pensando no
+> primeiro cliente, uma **adega de bebidas**. As respostas entraram nas decisões
+> (D14–D20) e trouxeram uma parte nova: as **regras de preço por quantidade**
+> (§6.1). Princípio que ele deixou claro: **quem define a regra de venda é o
+> dono da loja** — o sistema oferece as opções, a loja liga as que usa.
+
 ---
 
 ## 0. O que "pronto" significa
@@ -27,6 +33,10 @@ rejeitar nota.
 | B6 | Cancelar ou devolver o fardo devolve **12 UN** ao estoque | — |
 | B7 | Imprimir a etiqueta do fardo com o DUN-14 em **ITF-14** e "Contém 12 un" | a etiqueta só conhece o produto |
 | B8 | Quem **não** usa embalagem não vê nada mudar — venda, nota e estoque idênticos | cláusula de não-regressão |
+| B9 | Bipar 17 latas avulsas de um produto com "fardo de 15 por R$ 50" cobra 1 fardo + 2 unidades — **se o dono ligou essa regra** | não existe |
+| B10 | "A partir de 6 un, R$ 3,80 cada" aplicado sozinho no caixa — **se o dono ligou** | o preço de atacado existe no cadastro, mas a venda não usa |
+| B11 | Fardo sem código do fornecedor ganha código interno e etiqueta pela Central de Etiquetas | — |
+| B12 | NF-e **e** NFC-e com fardo autorizadas em homologação | — |
 
 B8 é a mais importante: nenhuma venda antiga e nenhum produto sem embalagem pode
 mudar de comportamento. Tudo novo nasce com `fator = 1`.
@@ -115,7 +125,7 @@ Estoque: 120 UN   (a tela pode mostrar "120 un · 20 FD")
 |---|---|---|
 | D1 | **Estoque, custo médio e CMV continuam na unidade base.** | Um lugar só para a verdade. Estoque "em fardos" e "em unidades" ao mesmo tempo nunca fecha. |
 | D2 | **Tabela nova `produto_embalagens`**, filha do produto (não um produto novo). | Produto novo por embalagem é o que as lojas fazem hoje por falta de opção — e é o que separa o estoque. |
-| D3 | **Fator inteiro ≥ 2.** | Cobre fardo, caixa, pacote, display. Fator decimal (caixa de piso com 2,5 m²) muda o tipo de `venda_produto.quantidade` (inteiro) e fica para depois (§8). |
+| D3 | **Fator inteiro ≥ 1.** Fator **1** é um **código de barras adicional da unidade** (ver A1, §11); fator ≥ 2 é embalagem de verdade. | Cobre fardo, caixa, pacote, display — e o produto com dois EANs. Fator decimal (caixa de piso com 2,5 m²) muda o tipo de `venda_produto.quantidade` (inteiro) e fica para depois (§8). |
 | D4 | **O código de barras é único no sistema inteiro** — embalagem não pode repetir código de produto, SKU nem outra embalagem. | O PDV recusa código ambíguo (`leitorCodigoBarras.util.ts`); a colisão viraria "não achei" no caixa. |
 | D5 | **Preço da embalagem opcional.** Vazio = fator × preço da unidade. | Fardo costuma ser mais barato por unidade; mas obrigar preço em toda embalagem é mais um campo para esquecer desatualizado. |
 | D6 | **A linha da venda congela embalagem e fator** (`embalagem_id`, `fator_embalagem`, sigla). Linhas antigas ficam com `fator = 1`. | Mudar o fator do cadastro amanhã não pode reescrever a baixa, a devolução nem a nota de ontem — mesma regra do `custo_unitario` congelado. |
@@ -126,6 +136,14 @@ Estoque: 120 UN   (a tela pode mostrar "120 un · 20 FD")
 | D11 | **OS continua em unidade.** Orçamento ganha embalagem junto com a venda. | OS vende peça solta; orçamento vira venda e precisa carregar a embalagem. |
 | D12 | **Relatório de quantidade vendida soma na unidade base** (qtd × fator); faturamento e comissão não mudam (são por valor). | "Vendeu 3" sem dizer 3 o quê é pior que não dizer. |
 | D13 | **Etiqueta:** fonte `embalagem` na Central (produto + tipo, "Contém 12 un", código da embalagem, preço da embalagem). O DUN-14 sai em ITF-14 pela simbologia automática que já existe. | Fecha o B7 e a §8 do plano de etiquetas. |
+| D14 | **Preço próprio por embalagem**, com a sugestão "fator × unidade" já preenchida. *(resposta 1)* | É o que o caixa e o dono entendem; o Winthor e a frente de caixa TOTVS fazem assim. |
+| D15 | **A quantidade da embalagem é a de cada produto** (6, 12, 15, 24…), nunca fixa. | Cada fornecedor monta o fardo de um jeito. |
+| D16 | **As regras de preço por quantidade entram NESTE plano, como opções que o dono liga** (§6.1). *(resposta 2)* | "Quem dita a regra de venda é quem está vendendo." |
+| D17 | **O que vale quando duas regras servem é escolha do dono** (menor preço ao cliente, ou uma ordem de prioridade que ele define). Padrão ao ligar: menor preço. *(resposta ao conflito)* | Idem. O padrão é o que evita reclamação no balcão enquanto ele não escolhe. |
+| D18 | **Fardo sem código do fornecedor ganha código interno** (EAN-13 de uso interno, prefixo 2), com etiqueta impressa pela Central. Na nota sai **"SEM GTIN"** — código interno não está no Cadastro Centralizado. *(resposta 3)* | O Winthor gera o código da embalagem quando o fornecedor não manda; sem código, o fardo volta a ser digitado à mão. |
+| D19 | **NF-e e NFC-e ficam prontas juntas** (fase 4 cobre as duas). *(resposta 4)* | A adega vende no balcão (NFC-e) e para CNPJ (NF-e). |
+| D20 | **Sem quantidade quebrada** (meio fardo, granel): a quantidade da venda continua inteira. *(resposta 5)* | Mantém o tipo de `venda_produto.quantidade` e o risco baixo. |
+| D21 | **Estoque em unidade, com o fardo discreto no card** ("120 un" em destaque; "= 10 FD" pequeno, em cinza). *(resposta 7)* | É o que os grandes fazem: o saldo vive na unidade (Winthor, Omie, Bling) e a embalagem aparece como conversão. |
 
 ---
 
@@ -140,8 +158,14 @@ produto_embalagens
 ├── fator               Integer ≥ 2
 ├── codigo_barras       String(20)  único no sistema (D4), opcional
 ├── preco               Integer (centavos), nulo = fator × preço da unidade (D5)
+├── vende_no_pdv        Boolean  — aparece e é bipável no caixa (A2)
+├── usa_na_entrada      Boolean  — oferecida na entrada de estoque (A2)
+├── aplica_as_avulsas   Boolean  — regra R1 da §6.1
+├── peso_kg             Decimal, opcional — alimenta a etiqueta de envio (A5)
 ├── ativo               Boolean
 └── datas
+
+produtos           + so_embalagem_fechada (Boolean, default falso) — A3
 
 venda_produto      + embalagem_id (FK, nulo) + fator_embalagem (int, default 1) + sigla_embalagem (nulo)
 orcamento_produto  + os mesmos três
@@ -184,21 +208,55 @@ SEFAZ). Devolução usa o fator congelado no snapshot.
 **Etiqueta** — fila aceita "produto + embalagem"; "Etiqueta" no card do produto
 pergunta qual (unidade ou fardo) quando houver embalagens.
 
+### 6.1 Regras de preço por quantidade (o dono escolhe)
+
+Três mecanismos, os mesmos dos PDVs profissionais. **Todos nascem desligados**;
+o dono liga em *Configurações › Regras de Vendas* (vale para a loja) e ajusta
+em cada produto. Quem não liga nada vende exatamente como hoje (B8).
+
+| Regra | Como funciona | Onde se configura | Quem já usa |
+|---|---|---|---|
+| **R1 — Embalagem por múltiplo** | Avulsas que completam a quantidade de uma embalagem cobram o preço dela; o resto fica na unidade. Fardo de 15 por R$ 50: 17 latas = 1 × R$ 50 + 2 × unidade. As **linhas continuam UN** e o estoque baixa 17 — só o preço muda. | Liga na loja; em cada embalagem, "aplicar às avulsas" (sim/não) | Winthor (preço entre embalagens), frente de caixa TOTVS (pack) |
+| **R2 — Faixas "a partir de N"** | Preço por unidade escalonado, com várias faixas por produto: a partir de 6 un = R$ 3,80; a partir de 24 un = R$ 3,50. | Liga na loja; faixas no produto | TOTVS Supermercados ("Preço a partir de"), Omie.PDV, Datacaixa, atacarejos |
+| **R3 — Leve X, pague Y** | Promoção com **data de início e fim**: leve 3, pague 2 (o item de menor valor sai de graça). | Liga na loja; promoção no produto, com vigência | TOTVS Supermercados ("Leve X Pague Y"), VTEX |
+
+**Quando mais de uma serve** (D17): o dono escolhe na mesma tela —
+*"cobrar o menor preço ao cliente"* (padrão) ou *"seguir esta ordem"* (ele
+arrasta R1, R2, R3). O caixa **mostra na linha qual regra aplicou** ("preço de
+fardo", "a partir de 6", "leve 3 pague 2") — sem isso, preço que muda sozinho
+vira discussão no balcão.
+
+**Regras que valem para as três:**
+- O preço é recalculado a cada item bipado, e a linha mostra o preço cheio
+  riscado quando a regra baixou o valor.
+- **Desconto manual do operador** continua existindo e é aplicado **depois** da
+  regra (a tela de Regras de Vendas pode proibir desconto manual em item com
+  regra ativa — a TOTVS tem essa trava).
+- **O que foi aplicado fica congelado na linha** (regra, preço de referência),
+  pela mesma razão de D6: mudar a regra amanhã não reescreve a venda de hoje.
+- **Na nota**, o preço já com a regra vai como `vUnCom`; a diferença não vira
+  desconto (`vDesc`) — é preço praticado. O "leve 3 pague 2" é a exceção: o item
+  gratuito sai como **desconto** na linha, que é o jeito aceito pela SEFAZ de
+  dizer "levou 3, pagou 2".
+- **Comissão e relatórios** usam o valor efetivamente cobrado.
+
 ---
 
 ## 7. Fases
 
 | Fase | Entrega | Risco |
 |---|---|---|
-| **1. Cadastro + etiqueta** | Tabela, API, seção no formulário, unicidade do código, fonte `embalagem` na Central de Etiquetas | Baixo: nada vende nem baixa ainda |
+| **1. Cadastro + etiqueta** | Tabela, API, seção no formulário, unicidade do código, código interno (D18), códigos adicionais (A1), fonte `embalagem` e preço duplo na Central de Etiquetas (A6) | Baixo: nada vende nem baixa ainda |
 | **2. Entrada por embalagem** | Movimentação de entrada em FD/CX, custo convertido | Médio: custo médio |
 | **3. Venda e orçamento** | PDV bipa a embalagem, linha por embalagem, baixa/cancelamento/reabertura por fator | **Alto**: estoque de lojas em produção |
 | **4. NF-e e NFC-e** | uCom/uTrib/qTrib/vUnTrib, cEAN/cEANTrib, validação 629/630/885/886, devolução | **Alto**: rejeição na SEFAZ |
-| **5. Relatórios** | Quantidade vendida na unidade base | Baixo |
+| **5. Regras de preço por quantidade** (§6.1) | R1, R2 e R3 como opções do dono, com a escolha do que vale no conflito e a linha mostrando a regra aplicada | **Alto**: preço no caixa |
+| **6. Relatórios** | Quantidade vendida na unidade base; vendas por regra de preço | Baixo |
 
-**As fases 3 e 4 sobem juntas para as lojas que emitem nota:** vender fardo
-sem a nota saber do fator é exatamente o erro clássico do §2. Loja sem módulo
-fiscal pode receber a 3 antes.
+**As fases 3 e 4 sobem juntas para as lojas que emitem nota** — e a adega emite
+NF-e e NFC-e (D19): vender fardo sem a nota saber do fator é exatamente o erro
+clássico do §2. A fase 5 pode vir logo depois: ela só mexe no preço, não no
+estoque nem na unidade da nota.
 
 **Liberação:** homologação primeiro (testar 629/630/885/886/894 de propósito),
 depois **uma loja canário com backup** antes de todas.
@@ -224,31 +282,98 @@ depois **uma loja canário com backup** antes de todas.
 
 ---
 
-## 9. Perguntas em aberto — primeiro cliente: **adega de bebidas**
+## 9. Respostas do Alan (27/09/2026) — primeiro cliente: adega de bebidas
 
-1. **Preço do fardo.** Qual destes a adega pratica?
-   a) preço próprio por embalagem ("fardo de 12 por R$ 45,00");
-   b) percentual sobre a unidade ("fardo = 12 × unidade − 5%", o "fator preço" do Winthor);
-   c) sempre fator × unidade (sem desconto).
-   *Recomendação:* (a), com a sugestão (c) pré-preenchida — é o que o caixa entende.
-2. **12 latas avulsas bipadas uma a uma** viram preço de fardo sozinhas?
-   Se sim, é o **preço por quantidade** do atacarejo, um recurso à parte (as
-   linhas continuam UN, só o preço muda a partir de N). *Recomendação:* fase
-   depois das embalagens; o cadastro já nasce com espaço para isso.
-3. **Fardo sem código de barras** (fardo montado na loja, pack de fornecedor
-   sem DUN): gerar um **código interno** para o leitor do caixa, impresso pela
-   Central de Etiquetas? Na nota ele sai como "SEM GTIN" (não está no CCG).
-   *Recomendação:* sim — o Winthor faz isso, e sem código o fardo volta a ser
-   digitado à mão.
-4. **A adega emite NFC-e, NF-e ou nenhuma?** Define se as fases 3 e 4 sobem juntas.
-5. **Fator decimal** (vender "meio fardo", granel): a adega precisa? *Esperado:* não.
-6. **Vasilhame retornável** e **entrada pela XML do fornecedor**: a adega usa?
-   Não entram aqui, mas definem o próximo plano.
-7. **Na tela do estoque**, mostrar "120 un · 10 FD" ajuda ou polui?
+| # | Pergunta | Resposta | Virou |
+|---|---|---|---|
+| 1 | Como a adega cobra o fardo? | **Preço próprio** | D14 |
+| 2 | 12 latas avulsas viram preço de fardo sozinhas? | **Sim, já nesta entrega** — e a quantidade é a de cada produto, não 12 fixo | D15, D16, §6.1 (R1) |
+| 3 | Fardo sem código: gerar código interno? | **Sim** | D18 |
+| 4 | A adega emite nota? | **NF-e e NFC-e — deixar as duas prontas** | D19 |
+| 5 | Vende quantidade quebrada? | **Não** | D20 |
+| 6 | Próximos planos | **Entrada pela XML, vasilhame retornável e combo/kit** — pensados para **PDV em geral**, não só adega, com as opções completas | §10 |
+| 7 | Fardo na tela do estoque? | **Como os grandes fazem, discreto no card** | D21 |
+| — | Quais regras de preço entram? Qual vale no conflito? | **"Quem dita a regra é quem está vendendo"; "a forma de venda quem sabe é o dono"** | D16, D17: as três regras como **opções do dono**, e ele escolhe o que vale no conflito |
+
+**Não há mais pergunta que trave a implementação.** O que falta decidir é do
+dono de cada loja, na tela de configuração.
+
+---
+
+## 10. Próximos planos (pedido do Alan: servir a qualquer PDV)
+
+Ficam fora deste, cada um com plano próprio, e todos pensados para o varejo em
+geral — a adega é o primeiro caso, não o único:
+
+1. **Entrada pela XML da nota do fornecedor** — lê a NF-e de compra (arquivo ou
+   chave), casa cada item com o produto pelo GTIN/DUN (ou pelo código do
+   fornecedor, aprendido na primeira vez), converte caixa em unidade pelo fator
+   da embalagem (este plano), atualiza custo e estoque. É o que os sistemas de
+   adega e o Omie vendem como "recebimento da NF-e".
+2. **Combo / kit** — um item de venda que baixa vários produtos (cerveja + gelo,
+   cesta, kit festa), com preço próprio e a nota discriminando os itens.
+3. **Vasilhame retornável** — casco e engradado emprestados e devolvidos por
+   cliente, com saldo por cliente e cobrança do casco não devolvido.
+
+---
+
+## 11. O plano × o mercado (revisão de 27/09/2026)
+
+Cruzamento do plano com o que os sistemas profissionais pesquisados fazem
+(§2.1 e §6.1). **Onde o plano já está no padrão**, **onde o mercado vai além**
+e **o que ajustei** por causa disso.
+
+### 11.1 Já no padrão
+
+| Recurso | Mercado | Plano |
+|---|---|---|
+| Embalagens dentro do produto, com fator, código e preço | Winthor (rotinas 2014/292), frente de caixa TOTVS | D2, D5, D14 |
+| Estoque sempre na unidade, embalagem como conversão | Winthor, Omie, Bling | D1, D21 |
+| O código bipado decide a embalagem no caixa | Winthor (conversão pelo código lido) | D7, §6 |
+| Validar EAN-13/EAN-8/DUN-14 no cadastro | Winthor ("validar código auxiliar") | §6 (cadastro) |
+| Gerar código para embalagem sem código do fornecedor | Winthor ("gerar código auxiliar automático") | D18 |
+| Nota com `uCom`/`uTrib`/`qTrib`/`vUnTrib` calculados pelo fator | Omie, Bling, WK | D8, D9 |
+| Preço "a partir de N" e "leve X pague Y" | TOTVS Supermercados, Omie.PDV, Datacaixa | §6.1 (R2, R3) |
+| Travar desconto manual em item com regra de preço | TOTVS Supermercados PDV 24.01 | §6.1 |
+| Congelar na venda o que foi aplicado | prática geral (custo e preço congelados) | D6, §6.1 |
+
+**Vantagem do desenho sobre o Winthor:** lá existe uma rotina de "conversão de
+estoque entre produto pai e filho", para quando o fardo e a unidade viram
+estoques separados. Aqui isso não é necessário: o estoque nunca se divide (D1).
+
+### 11.2 Onde o mercado vai além — e o ajuste no plano
+
+| # | O mercado faz | Quem | Ajuste |
+|---|---|---|---|
+| **A1** | **Vários códigos de barras para a mesma unidade** (o mesmo refrigerante com EAN de duas fábricas, embalagem nova do fabricante) | Winthor ("códigos auxiliares") | Embalagem com **fator 1** vira código adicional da unidade (D3 mudou de "≥ 2" para "≥ 1"). Resolve o "bipei e não achou" com código novo do fabricante, sem cadastrar produto novo. Na nota, fator 1 = unidade: nada muda. |
+| **A2** | **Embalagem de compra ≠ embalagem de venda** (compra em caixa de 24, vende em fardo de 12 e unidade) | Winthor ("unidade de compra master" × unidade de venda) | Cada embalagem ganha **"vende no PDV"** e **"usa na entrada"**. A caixa de 24 do fornecedor pode existir só para a entrada. |
+| **A3** | **Vender só em múltiplo da embalagem** (distribuidora que não abre fardo) | Winthor ("Qt. múltipla") | Opção no produto **"só vende embalagem fechada"**: o caixa recusa a unidade avulsa daquele produto. Desligada por padrão. |
+| **A4** | **Preço da embalagem por percentual** sobre a unidade ("fator preço") | Winthor | Fica como **alternativa** ao preço próprio (D14): no cadastro, "preço fixo" ou "X% sobre a unidade". O dono escolhe (D16). |
+| **A5** | **Peso e dimensões por embalagem** | Winthor, Bling ("itens por caixa", volumes) | **Peso opcional** na embalagem; a etiqueta de envio soma o peso dos volumes sozinha. Dimensões ficam para quando houver cálculo de frete. |
+| **A6** | **Etiqueta de gôndola com dois preços** (unidade e fardo/atacado) | VR (modelos de gôndola com vários preços), atacarejos | Campos novos na Central de Etiquetas: **preço do fardo**, **preço "a partir de N"** e **preço por unidade dentro do fardo** ("R$ 3,33 a lata"). |
+| **A7** | **O mesmo produto chega em embalagens diferentes conforme o fornecedor** | Winthor ("entrada de produto com fornecedores de diferentes embalagens") | Entra no plano da **entrada pela XML** (§10.1): o casamento "item do fornecedor → embalagem" é aprendido por fornecedor. |
+| **A8** | **Centenas de regras de preço combináveis** | TOTVS Supermercados (~450 regras) | **Não seguimos.** Três regras (§6.1) cobrem o varejo pequeno e médio; um motor de promoções é outro produto. Registrado para não virar escopo escondido. |
+
+### 11.3 O que o mercado tem e continua fora (de propósito)
+
+- **Motor de promoções completo** (A8), **cashback** e **clube de fidelidade**.
+- **Balança** (código de peso variável no EAN com prefixo 2): a loja com balança
+  usa a mesma faixa de código de D18. **Antes de implementar D18, conferir se o
+  PDV já lê código de balança** — os dois não podem colidir.
+- **Dimensões e cálculo de frete** (A5).
 
 ---
 
 ## Fontes
+
+- TOTVS Varejo Supermercados PDV 24.01 (trava de desconto em item com regra de incentivo): <https://produtos.totvs.com/totvs-varejo-supermercados-pdv/varejo/totvs-varejo-supermercados-pdv-24-01/>
+- Winthor — unidade de venda × unidade de compra master, e fornecedores com embalagens diferentes: <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360026400192-WINT-Qual-a-diferen%C3%A7a-de-unidade-de-vendas-para-unidade-de-compra-master>, <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360028355671-WINT-O-que-fazer-para-realizar-entrada-de-um-produto-com-fornecedores-de-diferentes-embalagens>
+- VR Software — modelos de etiqueta de gôndola com vários preços: <https://vrsystem.info/publico/post/layout-de-etiquetas-modelos/8befdc57-ea95-4ce1-92db-bfb54a212206>
+- TOTVS Varejo Supermercados PDV — "Preço a partir de": <https://tdn.totvs.com/pages/releaseview.action?pageId=806777930>
+- TOTVS Varejo Supermercados — "Leve X Pague Y": <https://centraldeatendimento.totvs.com/hc/pt-br/articles/4411287331223-Varejo-Supermercados-Cadastro-Como-configurar-pre%C3%A7o-promocional-do-tipo-pague-x-leve-y>
+- Omie.PDV — preço de atacado: <https://ajuda.omie.com.br/pt-BR/articles/8627615-omie-pdv-configurando-o-preco-de-atacado-no-omie-pdv>
+- Winthor — conversão da embalagem master na entrada: <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360026253631-WINT-Como-funciona-a-convers%C3%A3o-de-embalagem-master-para-venda-na-entrada-de-mercadorias>
+- Omie — recebimento da NF-e do fornecedor (fator de conversão, unidade tributável): <https://ajuda.omie.com.br/pt-BR/articles/1419039-recebimento-da-nf-e-de-fornecedor>
 
 - TOTVS Winthor — embalagens (rotinas 2014/292), código auxiliar, validação EAN/DUN, fator preço e atacado por embalagem: <https://centraldeatendimento.totvs.com/hc/pt-br/articles/4570383682199-WINT-Como-incluir-cadastrar-embalagem-na-rotina-2014>, <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360028430431-WINT-Como-utilizar-o-fator-pre%C3%A7o-entre-atacado-e-varejo-atrav%C3%A9s-da-rotina-2014-utilizando-precifica%C3%A7%C3%A3o-por-embalagem>, <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360026950151-WINT-Como-trabalhar-com-pre%C3%A7o-de-Atacado-e-varejo-utilizando-precifica%C3%A7%C3%A3o-por-embalagem>
 - TOTVS Varejo Supermercados PDV (preço de embalagem fechada): <https://produtos.totvs.com/ficha-tecnica/tudo-sobre-o-totvs-varejo-supermercados-pdv/>
