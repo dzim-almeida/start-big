@@ -77,7 +77,17 @@ venda usa** — não serve de atalho para "preço do fardo".
 Como o mercado faz: Bling e Tiny separam GTIN e GTIN tributável e calculam
 `qTrib`/`vUnTrib` pelo **fator de conversão** do produto; WK e Conta Azul
 chamam de "taxa/fator de conversão" entre a unidade de compra/venda e a do
-estoque. É o mesmo desenho deste plano.
+estoque. É o mesmo desenho deste plano. O detalhe por sistema está na §2.1.
+
+### 2.1 O que os sistemas profissionais já usam (pesquisa de 27/09/2026)
+
+| Sistema | Como resolve | O que aproveitamos |
+|---|---|---|
+| **Winthor (TOTVS)** — referência em distribuição e atacarejo | Cadastro de **embalagens por produto** (rotinas 2014/292): cada uma com **quantidade (fator)**, **código auxiliar** (código de barras da embalagem), **descrição PDV** e preço. Preço da embalagem de três jeitos: **preço próprio**, **"fator preço"** (1,05 = +5%, 0,95 = −5% sobre a unidade) ou **atacado por quantidade** ("Qt. mínima atacado" + "Pr. venda atacado"). Opção de **gerar o código da embalagem automaticamente** quando o fornecedor não manda, e de **validar EAN-13/EAN-8/DUN-14**. No caixa, a conversão segue o código bipado: bipou a caixa, usa o fator da caixa. | É o desenho deste plano (D2, D5, D6, D7). O "fator preço" e o código gerado entram como perguntas (§9). |
+| **TOTVS Supermercados (Consinco/RMS)** — frente de caixa | Reconhece preço de **embalagem fechada**, com valor diferente no pack ou na unidade. | Confirma D5 (preço próprio da embalagem). |
+| **Bling** | "Variação composta": o kit com 2 ou 10 consome o estoque da unidade; campo "Itens por caixa". | Mesmo princípio de D1 (estoque na unidade), mas como kit — pensado para e-commerce, não para o leitor do caixa. |
+| **Sistemas de adega/distribuidora** (SisFood, Nex, DistribuidorPro, MBM…) | Venda por **unidade e fardo** com **preço atacado/varejo automático**, **estoque pela XML de compra**, **combos** (cerveja + gelo) e **vasilhame retornável**. | Unidade/fardo é este plano. XML de compra, combo e vasilhame são planos próprios (§8). |
+| **PDVs de atacarejo** (ex.: Datacaixa) | **Preço por quantidade:** "a partir de N unidades, cada uma sai por X", aplicado sozinho no caixa. | É o caso "bipou 12 latas avulsas" — pergunta 2 da §9. |
 
 ---
 
@@ -202,23 +212,49 @@ depois **uma loja canário com backup** antes de todas.
   `venda_produto.quantidade` de inteiro para decimal.
 - **OS vendendo embalagem** (D11).
 - **Gerar DUN-14** para a loja: o DUN precisa estar no Cadastro Centralizado
-  de GTIN (rejeição 894) — quem gera é o fabricante na GS1.
+  de GTIN (rejeição 894) — quem gera é o fabricante na GS1. (Um código
+  **interno** só para o leitor do caixa é outra coisa — pergunta 3 da §9.)
+- **Entrada pela XML da nota do fornecedor** (o que os sistemas de adega vendem
+  como "estoque por XML"): a nota já traz o DUN, a caixa e o `qTrib`, e é o que
+  mais poupa digitação numa adega. Plano próprio — depende deste.
+- **Vasilhame retornável** (casco de 600 ml/litrão, engradado): controle de
+  casco emprestado/devolvido. Plano próprio, se a adega usar.
+- **Combo** (cerveja + gelo, kit festa): produto composto que baixa vários
+  produtos. Plano próprio.
 
 ---
 
-## 9. Perguntas em aberto
+## 9. Perguntas em aberto — primeiro cliente: **adega de bebidas**
 
-1. **Quem vai usar primeiro?** Qual loja (e segmento) pediu fardo/caixa? Define
-   se a fase 3 vai com ou sem nota.
-2. **Preço do fardo:** as lojas praticam preço próprio do fardo (mais barato por
-   unidade)? Se sempre for "fator × unidade", o campo de preço pode esperar.
-3. **Fator decimal** (piso, tecido, fio) é necessidade real de alguma loja
-   agora? Se for, a fase 3 muda de tamanho.
-4. **Na tela do estoque**, mostrar "120 un · 20 FD" ajuda ou polui?
+1. **Preço do fardo.** Qual destes a adega pratica?
+   a) preço próprio por embalagem ("fardo de 12 por R$ 45,00");
+   b) percentual sobre a unidade ("fardo = 12 × unidade − 5%", o "fator preço" do Winthor);
+   c) sempre fator × unidade (sem desconto).
+   *Recomendação:* (a), com a sugestão (c) pré-preenchida — é o que o caixa entende.
+2. **12 latas avulsas bipadas uma a uma** viram preço de fardo sozinhas?
+   Se sim, é o **preço por quantidade** do atacarejo, um recurso à parte (as
+   linhas continuam UN, só o preço muda a partir de N). *Recomendação:* fase
+   depois das embalagens; o cadastro já nasce com espaço para isso.
+3. **Fardo sem código de barras** (fardo montado na loja, pack de fornecedor
+   sem DUN): gerar um **código interno** para o leitor do caixa, impresso pela
+   Central de Etiquetas? Na nota ele sai como "SEM GTIN" (não está no CCG).
+   *Recomendação:* sim — o Winthor faz isso, e sem código o fardo volta a ser
+   digitado à mão.
+4. **A adega emite NFC-e, NF-e ou nenhuma?** Define se as fases 3 e 4 sobem juntas.
+5. **Fator decimal** (vender "meio fardo", granel): a adega precisa? *Esperado:* não.
+6. **Vasilhame retornável** e **entrada pela XML do fornecedor**: a adega usa?
+   Não entram aqui, mas definem o próximo plano.
+7. **Na tela do estoque**, mostrar "120 un · 10 FD" ajuda ou polui?
 
 ---
 
 ## Fontes
+
+- TOTVS Winthor — embalagens (rotinas 2014/292), código auxiliar, validação EAN/DUN, fator preço e atacado por embalagem: <https://centraldeatendimento.totvs.com/hc/pt-br/articles/4570383682199-WINT-Como-incluir-cadastrar-embalagem-na-rotina-2014>, <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360028430431-WINT-Como-utilizar-o-fator-pre%C3%A7o-entre-atacado-e-varejo-atrav%C3%A9s-da-rotina-2014-utilizando-precifica%C3%A7%C3%A3o-por-embalagem>, <https://centraldeatendimento.totvs.com/hc/pt-br/articles/360026950151-WINT-Como-trabalhar-com-pre%C3%A7o-de-Atacado-e-varejo-utilizando-precifica%C3%A7%C3%A3o-por-embalagem>
+- TOTVS Varejo Supermercados PDV (preço de embalagem fechada): <https://produtos.totvs.com/ficha-tecnica/tudo-sobre-o-totvs-varejo-supermercados-pdv/>
+- Bling — variação composta (kit consome a unidade): <https://ajuda.bling.com.br/hc/pt-br/articles/34016549651095-Como-cadastrar-produtos-com-varia%C3%A7%C3%A3o-composta-no-Bling>
+- Sistemas de adega/distribuidora: <https://sisfood.com.br/segmentos/sistema-para-distribuidora-bebida>, <https://www.nextar.com.br/segmento/loja-de-bebidas>, <https://mbmsolutions.com.br/sistema-para-distribuidora-de-bebidas>
+- Datacaixa — preço de atacado por quantidade mínima no PDV: <https://www.datacaixa.com.br/ajuda/pdv/pdv-cadastros/como-configurar-o-preco-de-atacado-do-produto-no-pdv/>
 
 - Bling — rejeições 612, 630, 885, 886 e 894 (cEANTrib, GTIN tributável, CCG): <https://ajuda.bling.com.br/hc/pt-br/articles/1500001500302-Rejei%C3%A7%C3%A3o-885-GTIN-informado-mas-n%C3%A3o-informado-o-GTIN-da-unidade-tribut%C3%A1vel>, <https://ajuda.bling.com.br/hc/pt-br/articles/360060144114-Rejei%C3%A7%C3%A3o-630-Valor-do-Produto-difere-do-produto-Valor-Unit%C3%A1rio-de-Tributa%C3%A7%C3%A3o-e-Quantidade-Tribut%C3%A1vel>, <https://ajuda.bling.com.br/hc/pt-br/articles/16647254094487-Rejei%C3%A7%C3%A3o-894-GTIN-da-unidade-tribut%C3%A1vel-inexistente-no-Cadastro-Centralizado-de-GTIN-CCG>
 - Tecnospeed — rejeições 629 e 630: <https://atendimento.tecnospeed.com.br/hc/pt-br/articles/360010451513-NF-e-Como-resolver-a-Rejei%C3%A7%C3%A3o-629-Valor-do-Produto-difere-do-produto-Valor-Unit%C3%A1rio-de-Comercializa%C3%A7%C3%A3o-e-Quantidade-Comercial>
