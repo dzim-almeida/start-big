@@ -66,7 +66,7 @@ const TEXTO_DO_BLOCO: Partial<Record<BlocoAuto, { campo: CampoEtiqueta; prefixo?
 const PT_EM_MM = 0.3528;
 
 /** Maior corpo de letra (pt) que cabe `linhas` linhas em `alturaMm`. */
-function fontePara(alturaMm: number, linhas: number): number {
+export function fontePara(alturaMm: number, linhas: number): number {
   const pt = alturaMm / linhas / PT_EM_MM / 1.2;
   return Math.max(4, Math.min(40, Math.floor(pt * 2) / 2));
 }

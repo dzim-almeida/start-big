@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * @fileoverview Formulário de modelo de etiqueta: medidas do papel + o que imprimir.
+ * @fileoverview Formulário de modelo de etiqueta: medidas do papel + layout.
  *
- * É a "configuração fácil" antes do editor visual (plano §9, fase 3): o
- * lojista mede o rolo ou a folha, marca os dados, e o layout automático
- * posiciona tudo. Mesmo roteiro de medidas do Tiny/Olist (largura, altura,
- * margem, espaço entre colunas, nº de colunas), com preview ao vivo.
+ * Dois jeitos de montar o layout:
+ * - Automático: o lojista mede o rolo ou a folha, marca os dados, e o layout
+ *   se ajusta ao tamanho. Mesmo roteiro de medidas do Tiny/Olist.
+ * - Editor visual (fase 3): parte do automático e deixa arrastar, redimensionar
+ *   e acrescentar elementos. Salvo assim, o modelo não tem mais `layout_auto`.
  */
-import { computed, reactive, watch } from 'vue';
-import { AlertTriangle } from 'lucide-vue-next';
+import { computed, reactive, ref, watch } from 'vue';
+import { AlertTriangle, Wand2, MousePointer2 } from 'lucide-vue-next';
 
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -16,7 +17,9 @@ import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import EtiquetaPreview from '@/shared/etiquetas/components/EtiquetaPreview.vue';
 import { PRESETS } from '@/shared/etiquetas/presets';
 import { BLOCOS_AUTO, gerarElementos, type BlocoAuto } from '@/shared/etiquetas/layoutAuto';
-import { problemasDaPagina, type DefinicaoEtiqueta, type PaginaEtiqueta } from '@/shared/etiquetas/modelo';
+import { problemasDaPagina, type DefinicaoEtiqueta, type ElementoEtiqueta, type PaginaEtiqueta } from '@/shared/etiquetas/modelo';
+import { problemasDosElementos } from '@/shared/etiquetas/editor/operacoes';
+import EditorEtiqueta from '@/shared/etiquetas/editor/EditorEtiqueta.vue';
 import { VALORES_EXEMPLO } from '@/shared/etiquetas/campos';
 import type { ModeloEtiquetaPayload } from '../../types/etiquetas.types';
 
@@ -43,6 +46,12 @@ const form = reactive({
   blocos: new Set<BlocoAuto>(base.layout_auto?.blocos ?? ['nome', 'preco_varejo', 'barras']),
 });
 
+// Modelo salvo sem `layout_auto` foi posicionado à mão: reabre no editor.
+const modo = ref<'auto' | 'manual'>(props.inicial && !props.inicial.definicao.layout_auto ? 'manual' : 'auto');
+const elementosManuais = ref<ElementoEtiqueta[]>(
+  modo.value === 'manual' ? JSON.parse(JSON.stringify(props.inicial!.definicao.elementos)) : [],
+);
+
 const opcoesPreset = PRESETS.map((p) => ({ value: p.chave, label: p.nome }));
 const opcoesTipo = [
   { value: 'bobina', label: 'Rolo (impressora térmica)' },
@@ -60,6 +69,8 @@ watch(
     if (!preset) return;
     form.pagina = copiarPagina(preset.definicao.pagina);
     form.blocos = new Set(preset.definicao.layout_auto?.blocos ?? []);
+    // O preset traz o layout dele: o que estava posicionado à mão sai.
+    modo.value = 'auto';
     if (!form.nome.trim()) form.nome = preset.nome;
   },
 );
@@ -109,19 +120,32 @@ const paginaNormalizada = computed<PaginaEtiqueta>(() => {
   };
 });
 
-const problemas = computed(() => {
-  const lista = problemasDaPagina(paginaNormalizada.value);
-  if (form.blocos.size === 0) lista.push('Marque pelo menos um dado para imprimir.');
-  if (!form.nome.trim()) lista.push('Dê um nome ao modelo.');
-  return lista;
-});
-
-const definicao = computed<DefinicaoEtiqueta>(() => {
+const definicaoAuto = computed<DefinicaoEtiqueta>(() => {
   const opcoes = { blocos: BLOCOS_AUTO.map((b) => b.bloco).filter((b) => form.blocos.has(b)) };
   const pagina = paginaNormalizada.value;
   const valida = pagina.largura_mm >= 5 && pagina.altura_mm >= 5;
   return { pagina, elementos: valida ? gerarElementos(pagina, opcoes) : [], layout_auto: opcoes };
 });
+
+const definicao = computed<DefinicaoEtiqueta>(() =>
+  modo.value === 'manual'
+    ? { pagina: paginaNormalizada.value, elementos: elementosManuais.value, layout_auto: null }
+    : definicaoAuto.value,
+);
+
+const problemas = computed(() => {
+  const lista = problemasDaPagina(paginaNormalizada.value);
+  if (modo.value === 'manual') lista.push(...problemasDosElementos(elementosManuais.value, paginaNormalizada.value));
+  else if (form.blocos.size === 0) lista.push('Marque pelo menos um dado para imprimir.');
+  if (!form.nome.trim()) lista.push('Dê um nome ao modelo.');
+  return lista;
+});
+
+/** O editor parte do layout automático atual — ninguém começa do zero. */
+function abrirEditor() {
+  elementosManuais.value = JSON.parse(JSON.stringify(definicaoAuto.value.elementos));
+  modo.value = 'manual';
+}
 
 /** O payload, ou nulo se o formulário ainda tem problema. */
 function payload(): ModeloEtiquetaPayload | null {
@@ -189,8 +213,30 @@ defineExpose({ payload, problemas });
       </section>
 
       <section class="space-y-3">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">O que imprimir</h4>
-        <div class="grid grid-cols-2 gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Layout</h4>
+          <div class="inline-flex p-0.5 rounded-lg bg-zinc-100">
+            <button
+              type="button"
+              :class="['modo', modo === 'auto' && 'modo--ativo']"
+              title="O layout se ajusta sozinho às medidas"
+              @click="modo = 'auto'"
+            >
+              <Wand2 :size="14" />
+              Automático
+            </button>
+            <button
+              type="button"
+              :class="['modo', modo === 'manual' && 'modo--ativo']"
+              title="Arraste e redimensione cada elemento"
+              @click="modo === 'manual' || abrirEditor()"
+            >
+              <MousePointer2 :size="14" />
+              Editor visual
+            </button>
+          </div>
+        </div>
+        <div v-if="modo === 'auto'" class="grid grid-cols-2 gap-2">
           <BaseCheckbox
             v-for="b in BLOCOS_AUTO"
             :key="b.bloco"
@@ -199,23 +245,28 @@ defineExpose({ payload, problemas });
             @update:model-value="alternarBloco(b.bloco, $event)"
           />
         </div>
+        <p v-else class="text-xs text-zinc-500">
+          Posicionado à mão no editor abaixo. Voltar ao <strong>Automático</strong> descarta essas posições.
+        </p>
       </section>
     </div>
 
     <div class="lg:col-span-2 space-y-3">
-      <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Pré-visualização</h4>
-      <div class="flex justify-center rounded-xl bg-zinc-50 border border-zinc-100 p-4 min-h-40 items-center">
-        <EtiquetaPreview
-          v-if="definicao.elementos.length"
-          :definicao="definicao"
-          :valores="VALORES_EXEMPLO"
-          :largura-max-px="280"
-          :altura-max-px="220"
-        />
-      </div>
-      <p class="text-[11px] text-zinc-400 text-center">
-        O layout se ajusta sozinho ao tamanho. Posicionar à mão chega com o editor visual.
-      </p>
+      <template v-if="modo === 'auto'">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Pré-visualização</h4>
+        <div class="flex justify-center rounded-xl bg-zinc-50 border border-zinc-100 p-4 min-h-40 items-center">
+          <EtiquetaPreview
+            v-if="definicao.elementos.length"
+            :definicao="definicao"
+            :valores="VALORES_EXEMPLO"
+            :largura-max-px="280"
+            :altura-max-px="220"
+          />
+        </div>
+        <p class="text-[11px] text-zinc-400 text-center">
+          O layout se ajusta sozinho ao tamanho. Para posicionar à mão, use o <strong>Editor visual</strong>.
+        </p>
+      </template>
       <div
         v-if="problemas.length"
         class="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900"
@@ -226,5 +277,29 @@ defineExpose({ payload, problemas });
         </ul>
       </div>
     </div>
+
+    <section v-if="modo === 'manual'" class="lg:col-span-5 space-y-3 pt-2 border-t border-zinc-100">
+      <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Editor visual</h4>
+      <EditorEtiqueta v-model:elementos="elementosManuais" :pagina="paginaNormalizada" :valores="VALORES_EXEMPLO" />
+    </section>
   </div>
 </template>
+
+<style scoped>
+.modo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #71717a;
+  cursor: pointer;
+}
+.modo--ativo {
+  background: #fff;
+  color: var(--color-brand-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+</style>

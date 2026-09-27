@@ -81,7 +81,7 @@ function resumo(m: ModeloEtiqueta): string {
     :is-open="isOpen"
     :title="noFormulario ? (emEdicao ? 'Editar modelo' : 'Novo modelo de etiqueta') : 'Modelos da loja'"
     subtitle="Compartilhados com todos os terminais da loja"
-    :size="noFormulario ? '2xl' : 'lg'"
+    :size="noFormulario ? '3xl' : 'lg'"
     @close="emit('close')"
   >
     <ModeloEtiquetaForm
@@ -99,9 +99,8 @@ function resumo(m: ModeloEtiqueta): string {
             <p class="text-xs text-zinc-400">{{ resumo(m) }}</p>
           </div>
           <button
-            class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            :disabled="!m.definicao.layout_auto"
-            :title="m.definicao.layout_auto ? 'Editar' : 'Posicionado à mão — edite pelo editor visual'"
+            class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 cursor-pointer"
+            title="Editar"
             @click="emEdicao = m"
           >
             <Pencil :size="16" />

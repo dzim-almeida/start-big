@@ -25,8 +25,8 @@ gerada pelo software da seccionadora/CNC a partir do código `PRJ`
 **Nada começa a ser codado antes de as decisões da §4 estarem aceitas.**
 
 > **Status (27/09/2026, branch `etiquetas`):** decisões aceitas pelo Alan, e as
-> **fases 1 e 2 estão implementadas** — ver §12 para o que foi entregue, o que
-> mudou em relação a este plano e o que falta conferir na loja.
+> **fases 1, 2 e 3 estão implementadas** — ver §12 e §13 para o que foi entregue,
+> o que mudou em relação a este plano e o que falta conferir na loja.
 
 ---
 
@@ -103,7 +103,8 @@ frontend/src/shared/etiquetas/                 ← o motor (Venda e OS também c
 │                         EtiquetaPreview, EtiquetasImpressao
 ├── styles/print-etiquetas.css
 ├── render/zpl.ts  tspl.ts  ppla.ts  pplb.ts  epl.ts  bitmap.ts   (fase 4)
-└── editor/                                                         (fase 3)
+└── editor/               EditorEtiqueta (canvas + ferramentas), PropriedadesElemento,
+                          operacoes.ts (mover/redimensionar/encaixar), useHistorico.ts
 
 backend-fastapi/app/
 ├── db/models/modelo_etiqueta.py
@@ -397,6 +398,29 @@ a migration nele. Falta conferir, com impressora de verdade:
 
 **Migration:** `y8z9a0b1c2d3_modelo_etiqueta` (só cria tabela, decide pela
 ausência dela). **Regerar o sidecar** antes de gerar instalador.
+
+---
+
+## 13. Entrega da fase 3 — editor visual (27/09/2026)
+
+Feita antes da fase 4 porque, sem impressora à mão, é a que se valida inteira na tela.
+
+- No formulário de modelo, a seção **Layout** alterna entre **Automático** e
+  **Editor visual**. O editor parte do layout automático atual; salvo assim, o
+  modelo vai sem `layout_auto` e reabre direto no editor.
+- Canvas com o mesmo `EtiquetaView` da impressão, ampliado, grade de 5 mm e zoom.
+- Arrastar move com ímã de 0,5 mm (Alt solta); a alça do canto redimensiona;
+  nada sai da etiqueta. Setas movem 0,5 mm (Shift: 0,1 mm), Delete apaga,
+  Ctrl+D duplica, Ctrl+Z / Ctrl+Y desfazem e refazem.
+- Adicionar: dado do produto, texto fixo, código de barras, QR Code, linha e moldura.
+- Painel de propriedades por tipo: posição e tamanho em mm, conteúdo (dado ou
+  texto fixo, com prefixo), fonte com "ajustar à caixa", linhas, alinhamento,
+  negrito, simbologia e legenda das barras, espessura.
+- Mudar a etiqueta para um tamanho menor com elementos já posicionados mostra
+  quais saíram e oferece **Trazer tudo para dentro**.
+
+**Testes:** `src/shared/etiquetas/__tests__/editor.spec.ts` — operações, histórico
+e o editor montado (selecionar, mover com seta, apagar, desfazer, adicionar).
 
 ---
 
