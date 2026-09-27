@@ -29,7 +29,7 @@ export type CampoEtiqueta =
   | 'remetente.cidade_uf' | 'remetente.uf' | 'remetente.cep' | 'remetente.telefone'
   | 'destinatario.nome' | 'destinatario.documento' | 'destinatario.ie' | 'destinatario.endereco' | 'destinatario.bairro'
   | 'destinatario.cidade_uf' | 'destinatario.uf' | 'destinatario.cep' | 'destinatario.telefone'
-  | 'envio.origem' | 'envio.codigo' | 'envio.identificador' | 'envio.peso' | 'envio.observacao'
+  | 'envio.origem' | 'envio.codigo' | 'envio.peso' | 'envio.observacao'
   | 'volume.contador' | 'volume.rotulo'
   | 'nfe.numero' | 'nfe.chave' | 'nfe.chave_formatada' | 'nfe.protocolo' | 'nfe.data_emissao' | 'nfe.valor_total'
   | 'nfe.homologacao';
@@ -64,9 +64,8 @@ export const CAMPOS_VOLUME: { campo: CampoEtiqueta; rotulo: string }[] = [
   { campo: 'remetente.telefone', rotulo: 'Remetente — telefone' },
   { campo: 'volume.contador', rotulo: 'Volume (1/3)' },
   { campo: 'volume.rotulo', rotulo: 'Volume (VOLUME 1 DE 3)' },
-  { campo: 'envio.origem', rotulo: 'Pedido (OS ou venda)' },
-  { campo: 'envio.codigo', rotulo: 'Número do pedido (para código de barras)' },
-  { campo: 'envio.identificador', rotulo: 'Identificador (projeto, placa, série)' },
+  { campo: 'envio.origem', rotulo: 'Venda (número)' },
+  { campo: 'envio.codigo', rotulo: 'Número da venda (para código de barras)' },
   { campo: 'envio.peso', rotulo: 'Peso' },
   { campo: 'envio.observacao', rotulo: 'Observação' },
   { campo: 'nfe.numero', rotulo: 'NF-e — número e série' },
@@ -82,7 +81,7 @@ export const CAMPOS_CODIGO_PRODUTO: OpcaoCampo[] = CAMPOS_PRODUTO.filter((c) =>
   (['produto.codigo_barras', 'produto.codigo_produto'] as CampoEtiqueta[]).includes(c.campo),
 );
 export const CAMPOS_CODIGO_VOLUME: OpcaoCampo[] = CAMPOS_VOLUME.filter((c) =>
-  (['envio.codigo', 'nfe.chave', 'envio.identificador'] as CampoEtiqueta[]).includes(c.campo),
+  (['envio.codigo', 'nfe.chave'] as CampoEtiqueta[]).includes(c.campo),
 );
 
 export type ValoresEtiqueta = Partial<Record<CampoEtiqueta, string>>;

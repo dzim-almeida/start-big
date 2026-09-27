@@ -17,16 +17,14 @@ describe('valores do envio', () => {
     expect(v['destinatario.endereco']).toBe('Rua do Cliente, 250 — Casa B');
     expect(v['destinatario.cep']).toBe('63500-123');
     expect(v['remetente.documento']).toBe('CNPJ 11.222.333/0001-81');
-    expect(v['envio.origem']).toBe('OS-2026-000123');
+    expect(v['envio.origem']).toBe('Venda 41');
     expect(v['envio.peso']).toBe('12,5 kg');
     expect(v['nfe.homologacao']).toContain('SEM VALOR FISCAL');
   });
 
-  it('venda aparece como "Venda N" e sem NF-e não imprime linha de nota', () => {
-    const venda: DadosEnvio = { ...DADOS_EXEMPLO, tipo: 'venda', numero: '41', nfe: null };
-    const v = valoresDoEnvio(venda, detalhes);
-    expect(v['envio.origem']).toBe('Venda 41');
-    expect(v['nfe.numero']).toBe('');
+  it('sem NF-e não imprime linha de nota', () => {
+    const venda: DadosEnvio = { ...DADOS_EXEMPLO, nfe: null };
+    expect(valoresDoEnvio(venda, detalhes)['nfe.numero']).toBe('');
   });
 
   it('um jogo por volume, com o contador certo', () => {

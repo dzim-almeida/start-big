@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
- * @fileoverview Escolha de "de onde vem o envio": uma OS ou venda recente.
- * O backend já filtra pelo que o usuário pode ver (OS exige permissão de
- * serviço, venda exige permissão de venda).
+ * @fileoverview Escolha de "de onde vem o envio": uma venda finalizada recente.
+ * O backend já filtra pelo que o usuário pode ver (exige permissão de vendas).
  */
 import { computed, ref } from 'vue';
 import { refDebounced } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
-import { FileCheck2, Wrench, ShoppingCart } from 'lucide-vue-next';
+import { FileCheck2, ShoppingCart } from 'lucide-vue-next';
 
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
 import type { OrigemEnvioItem } from '@/shared/etiquetas/envio';
@@ -31,13 +30,13 @@ const origens = computed(() => data.value ?? []);
 
 <template>
   <div class="space-y-3">
-    <BaseSearchInput v-model="busca" placeholder="Buscar por número da OS/venda, cliente ou projeto..." />
+    <BaseSearchInput v-model="busca" placeholder="Buscar venda por número ou cliente..." />
 
     <div class="border border-zinc-100 rounded-xl divide-y divide-zinc-100 max-h-80 overflow-y-auto">
       <p v-if="isLoading" class="px-4 py-6 text-center text-sm text-zinc-400">Buscando...</p>
-      <p v-else-if="isError" class="px-4 py-6 text-center text-sm text-red-500">Não foi possível buscar as OS e vendas.</p>
+      <p v-else-if="isError" class="px-4 py-6 text-center text-sm text-red-500">Não foi possível buscar as vendas.</p>
       <p v-else-if="origens.length === 0" class="px-4 py-6 text-center text-sm text-zinc-400">
-        Nenhuma OS ou venda encontrada.
+        Nenhuma venda finalizada encontrada.
       </p>
       <button
         v-for="o in origens"
@@ -47,12 +46,11 @@ const origens = computed(() => data.value ?? []);
         @click="emit('selecionar', o)"
       >
         <span class="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center bg-brand-primary/10 text-brand-primary">
-          <Wrench v-if="o.tipo === 'os'" :size="15" />
-          <ShoppingCart v-else :size="15" />
+          <ShoppingCart :size="15" />
         </span>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-zinc-800 truncate">
-            {{ o.tipo === 'os' ? o.numero : `Venda ${o.numero}` }}
+            Venda {{ o.numero }}
             <span class="font-normal text-zinc-500"> · {{ o.cliente_nome || 'Sem cliente' }}</span>
           </p>
           <p class="text-xs text-zinc-400">{{ formatPrintDate(o.data) }}</p>

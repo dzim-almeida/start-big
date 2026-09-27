@@ -35,7 +35,7 @@ import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 const MAX_POR_IMPRESSAO = 2000;
 
 const props = defineProps<{
-  /** Atalho da OS/venda: abre direto na sub-aba Envio com esta origem. */
+  /** Atalho da lista de vendas: abre direto na sub-aba Envio com esta venda. */
   envioInicial?: { tipo: TipoOrigemEnvio; id: number } | null;
   produtos: ProdutoRead[];
   isLoading?: boolean;

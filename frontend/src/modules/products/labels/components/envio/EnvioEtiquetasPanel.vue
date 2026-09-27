@@ -2,7 +2,8 @@
 /**
  * @fileoverview Sub-aba Envio da Central de Etiquetas (plano, fase 5).
  *
- * 1. De onde vem o envio: OS ou venda (dados do sistema) ou avulsa.
+ * 1. De onde vem o envio: uma venda (dados do sistema) ou avulsa. Só venda:
+ *    o que se embala e despacha é produto — serviço não se envia.
  * 2. Destinatário, editável só para esta remessa.
  * 3. Volumes, peso e observação.
  * A impressão abre num painel pela direita (mesmo padrão da fila do Estoque):
@@ -58,7 +59,7 @@ import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta'
 const MAX_VOLUMES = 200;
 
 const props = defineProps<{
-  /** Atalho vindo da OS ou da venda: já abre com a origem escolhida. */
+  /** Atalho vindo da lista de vendas: já abre com a venda escolhida. */
   origemInicial?: { tipo: TipoOrigemEnvio; id: number } | null;
 }>();
 
@@ -115,7 +116,6 @@ const dados = computed<DadosEnvio | null>(() => {
       tipo: 'venda',
       id: 0,
       numero: '',
-      identificador: null,
       remetente: remetente.value,
       destinatario: null,
       nfe: null,
@@ -151,7 +151,7 @@ const tituloOrigem = computed(() => {
   if (origem.value === 'avulsa') return 'Envio avulso';
   const d = dadosPedido.value;
   if (!d) return 'Carregando...';
-  return d.tipo === 'os' ? d.numero : `Venda ${d.numero}`;
+  return `Venda ${d.numero}`;
 });
 
 // --- Volumes ---
@@ -321,7 +321,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
             {{ volumesValidos }} {{ volumesValidos === 1 ? 'volume' : 'volumes' }} ·
             {{ tipo === 'danfe' ? 'DANFE Simplificado' : modelo.nome }}
           </template>
-          <template v-else>Escolha uma OS, venda ou envio avulso.</template>
+          <template v-else>Escolha uma venda ou envio avulso.</template>
         </p>
       </div>
       <button
@@ -380,7 +380,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
             <template v-else-if="origem === 'avulsa'">Destinatário digitado abaixo.</template>
             <template v-else>
               {{ dados?.destinatario?.nome || 'Sem cliente vinculado' }}
-              <template v-if="dados?.identificador"> · {{ dados.identificador }}</template>
+              
               <template v-if="dados?.nfe"> · NF-e {{ dados.nfe.numero }}</template>
             </template>
           </p>
@@ -478,7 +478,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
                 :title="
                   temNfe
                     ? 'DANFE Simplificado – Etiqueta (NT 2020.004)'
-                    : 'Só para OS ou venda com NF-e autorizada'
+                    : 'Só para venda com NF-e autorizada'
                 "
                 @click="tipo = 'danfe'"
               >
@@ -544,7 +544,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
               />
               <span class="text-[11px] text-zinc-400">
                 {{
-                  dados ? 'Primeira etiqueta' : 'Exemplo — escolha uma OS, venda ou envio avulso'
+                  dados ? 'Primeira etiqueta' : 'Exemplo — escolha uma venda ou envio avulso'
                 }}
               </span>
             </div>

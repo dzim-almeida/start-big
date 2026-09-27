@@ -116,14 +116,14 @@ watch(
   { immediate: true }
 );
 
-// Atalho "Etiqueta de envio" da OS e da venda: ?envio=os:12 ou ?envio=venda:5
-// abre a aba Etiquetas já na sub-aba Envio, com a origem escolhida.
-const envioInicial = ref<{ tipo: 'os' | 'venda'; id: number } | null>(null);
+// Atalho "Etiqueta de envio" da lista de vendas: ?envio=venda:5 abre a aba
+// Etiquetas já na sub-aba Envio, com a venda escolhida.
+const envioInicial = ref<{ tipo: 'venda'; id: number } | null>(null);
 watch(
   () => route.query.envio,
   (valor) => {
     const [tipo, id] = String(valor ?? '').split(':');
-    if ((tipo !== 'os' && tipo !== 'venda') || !Number(id)) return;
+    if (tipo !== 'venda' || !Number(id)) return;
     envioInicial.value = { tipo, id: Number(id) };
     activeTab.value = 'labels';
     router.replace({ query: { ...route.query, envio: undefined } });

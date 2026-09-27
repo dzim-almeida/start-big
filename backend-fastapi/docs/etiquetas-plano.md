@@ -165,7 +165,7 @@ Também vale para o nosso caso:
 | D5 | **A impressora de etiqueta e a calibração ficam por terminal**, no `impressao.store` | É por terminal que a impressora está plugada, como a do cupom |
 | D6 | **O editor visual vem logo depois da aba de estoque**, antes das linguagens nativas | O Alan pediu "configuração visual fácil", e o Tiny prova que é o padrão. Como o motor já nasce no modelo neutro, o editor só edita esse JSON |
 | D7 | **Embalagens (fardo/caixa) ganham plano próprio** e andam em paralelo | Mexe em PDV, estoque e NF-e de lojas em produção; a etiqueta só **consome** a embalagem quando ela existir |
-| D8 | **As fontes do envio são OS, Venda e Avulsa** (destinatário digitado) | OS: a marcenaria tem a etapa "Embalado & Pronto para Transporte". Venda: loja que entrega. Avulsa: casos que não passam pelo sistema. Não temos "pedido" |
+| D8 | ~~**As fontes do envio são OS, Venda e Avulsa**~~ → **só Venda e Avulsa** (revisto em 27/09: a Central mora no Estoque, e o que se despacha é produto — serviço não se envia) | OS: a marcenaria tem a etapa "Embalado & Pronto para Transporte". Venda: loja que entrega. Avulsa: casos que não passam pelo sistema. Não temos "pedido" |
 | D9 | **Etiqueta oficial de transportadora fica fora** deste plano | Exige contrato e API de cada transportadora (Correios, Melhor Envio); é outro projeto |
 | D10 | **Etiqueta de peça de marcenaria fica fora** | O software da seccionadora/CNC gera essa etiqueta a partir do `PRJ` |
 | D11 | **O backend não imprime nem gera PDF** para etiqueta | Ele guarda modelos e resolve dados; quem renderiza e imprime é o terminal |
@@ -436,6 +436,12 @@ e o editor montado (selecionar, mover com seta, apagar, desfazer, adicionar).
 ---
 
 ## 14. Entrega da fase 5 — envio (27/09/2026)
+
+> **Revisto no mesmo dia (pedido do Alan):** a OS saiu do envio. "No estoque só
+> tratamos produto" — serviço não se envia. Ficam **venda finalizada** e **envio
+> avulso**; saíram a rota `/envio/os/{id}`, o caminhão da lista de OS e o campo
+> "identificador" (placa/série/projeto), que só existia por causa da OS. O que
+> segue abaixo sobre OS vale como histórico.
 
 A aba Etiquetas ganhou as sub-abas **Estoque | Envio**.
 

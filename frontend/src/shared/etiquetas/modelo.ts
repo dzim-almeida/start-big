@@ -11,7 +11,7 @@ import type { CampoEtiqueta } from './campos';
 import type { SimbologiaPreferida } from './codigoBarras';
 import type { OpcoesLayoutAuto } from './layoutAuto';
 
-/** De onde vêm os dados: produto (estoque) ou volume de envio (OS/venda). */
+/** De onde vêm os dados: produto (estoque) ou volume de envio (venda). */
 export type FonteEtiqueta = 'produto' | 'volume';
 
 export interface FolhaEtiqueta {

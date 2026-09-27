@@ -60,7 +60,6 @@ def test_gerenciar_cria_mas_so_excluir_apaga(client: TestClient, como):
 def test_envio_de_venda_continua_exigindo_permissao_de_venda(client: TestClient, como):
     como(etiqueta=True, view_labels=True)
     assert client.get(f"{URL}/envio/venda/1").status_code == 403
-    assert client.get(f"{URL}/envio/os/1").status_code == 403
     assert client.get(f"{URL}/envio/origens").json() == []
 
 

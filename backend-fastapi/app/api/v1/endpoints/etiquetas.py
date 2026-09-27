@@ -109,17 +109,17 @@ def excluir_modelo(
 # ENVIO (fase 5): etiquetas de volume e DANFE Simplificado
 # ---------------------------------------------------------------------------
 #
-# Os dados saem prontos (remetente, destinatário, NF-e autorizada). Além da
-# permissão de etiquetas, cada tipo de origem exige a do seu módulo (OS →
-# serviço, venda → venda) — ver services/etiqueta_envio.py.
+# Os dados saem prontos (remetente, destinatário, NF-e autorizada). Só venda:
+# o que se embala e despacha é produto. Além da permissão de etiquetas, exige
+# a de vendas — ver services/etiqueta_envio.py.
 
 
 
 @router.get(
     "/envio/origens",
     response_model=list[OrigemEnvioItem],
-    summary="Buscar OS e vendas para etiqueta de envio",
-    description="As mais recentes primeiro, por número, cliente ou identificador. Só os tipos que o usuário pode ver.",
+    summary="Buscar vendas para etiqueta de envio",
+    description="Vendas finalizadas, as mais recentes primeiro, por número ou cliente. Vazio sem permissão de vendas.",
 )
 def buscar_origens_envio(
     busca: Optional[str] = Query(None, max_length=100),
@@ -127,15 +127,6 @@ def buscar_origens_envio(
     db: Session = Depends(get_db),
 ):
     return envio_service.buscar_origens(db, user_token, busca)
-
-
-@router.get("/envio/os/{os_id}", response_model=DadosEnvio, summary="Dados de envio de uma OS")
-def dados_envio_os(
-    os_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_ver),
-    db: Session = Depends(get_db),
-):
-    return envio_service.dados_os(db, user_token, os_id)
 
 
 @router.get("/envio/venda/{venda_id}", response_model=DadosEnvio, summary="Dados de envio de uma venda")

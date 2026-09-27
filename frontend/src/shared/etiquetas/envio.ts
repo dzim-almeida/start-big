@@ -9,7 +9,8 @@ import { formatCurrency } from '@/shared/utils/finance';
 import { formatPrintDate, formatPrintDoc, formatPrintPhone } from '@/shared/utils/print.utils';
 import type { ValoresEtiqueta } from './campos';
 
-export type TipoOrigemEnvio = 'os' | 'venda';
+/** Só venda: o que se embala e despacha é produto (serviço não se envia). */
+export type TipoOrigemEnvio = 'venda';
 
 export interface OrigemEnvioItem {
   tipo: TipoOrigemEnvio;
@@ -56,7 +57,6 @@ export interface DadosEnvio {
   tipo: TipoOrigemEnvio;
   id: number;
   numero: string;
-  identificador: string | null;
   remetente: ParteEnvio;
   destinatario: ParteEnvio | null;
   nfe: NfeEnvio | null;
@@ -99,7 +99,7 @@ function documento(parte: ParteEnvio | null): string {
 
 function rotuloOrigem(dados: DadosEnvio): string {
   if (!dados.numero) return '';
-  return dados.tipo === 'os' ? dados.numero : `Venda ${dados.numero}`;
+  return `Venda ${dados.numero}`;
 }
 
 /** Valores comuns a todos os volumes; o contador "N/M" entra por volume. */
@@ -126,7 +126,6 @@ export function valoresDoEnvio(dados: DadosEnvio, detalhes: DetalhesEnvio): Valo
     'destinatario.telefone': formatPrintPhone(d?.telefone ?? undefined),
     'envio.origem': rotuloOrigem(dados),
     'envio.codigo': dados.numero,
-    'envio.identificador': dados.identificador ?? '',
     'envio.peso': peso,
     'envio.observacao': detalhes.observacao,
     'nfe.numero': nfe ? `NF-e ${nfe.numero} · Série ${nfe.serie}` : '',
@@ -171,10 +170,9 @@ export function etiquetasDosVolumes(base: ValoresEtiqueta, volumes: number): Val
 
 /** Dados de exemplo para o preview e o editor sem origem escolhida. */
 export const DADOS_EXEMPLO: DadosEnvio = {
-  tipo: 'os',
+  tipo: 'venda',
   id: 0,
-  numero: 'OS-2026-000123',
-  identificador: 'PRJ-000123',
+  numero: '41',
   remetente: {
     nome: 'Minha Loja LTDA',
     documento: '11222333000181',

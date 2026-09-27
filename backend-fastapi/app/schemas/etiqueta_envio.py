@@ -13,11 +13,12 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-TipoOrigemEnvio = Literal["os", "venda"]
+# Só venda: o que se embala e despacha é produto (OS ficou de fora — serviço não se envia).
+TipoOrigemEnvio = Literal["venda"]
 
 
 class OrigemEnvioItem(BaseModel):
-    """Uma OS ou Venda na busca de "de onde vem a etiqueta"."""
+    """Uma venda na busca de "de onde vem a etiqueta"."""
 
     tipo: TipoOrigemEnvio
     id: int
@@ -69,8 +70,6 @@ class DadosEnvio(BaseModel):
     tipo: TipoOrigemEnvio
     id: int
     numero: str
-    # Placa, nº de série, código do projeto (PRJ)... — o que o segmento usa.
-    identificador: Optional[str] = None
     remetente: ParteEnvio
     destinatario: Optional[ParteEnvio] = None
     nfe: Optional[NfeEnvio] = None

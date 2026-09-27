@@ -18,7 +18,7 @@ from app.db.models.funcionario import Funcionario
 from app.db.models.objeto_servico import ObjetoServico
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.venda import Venda
-from app.services.etiqueta_envio import PERMISSOES_OS, PERMISSOES_VENDA, pode
+from app.services.etiqueta_envio import PERMISSOES_VENDA, pode
 
 URL = "/api/v1/etiquetas/envio"
 CHAVE = "35260912345678000199550010000000111000000110"
@@ -45,9 +45,10 @@ def cenario(db_session: Session, header_com_token) -> dict:
     ])
 
     venda = Venda(funcionario_id=func.id, cliente_id=maria.id, status=VendaStatus.FINALIZADA, numero_venda=41)
+    venda_loja = Venda(funcionario_id=func.id, cliente_id=loja.id, status=VendaStatus.FINALIZADA, numero_venda=2)
     rascunho = Venda(funcionario_id=func.id, cliente_id=maria.id, status=VendaStatus.ATIVA, numero_venda=None)
     objeto = ObjetoServico(cliente_id=loja.id, marca="Cozinha", modelo="Planejada", numero_serie="PRJ-000123")
-    db_session.add_all([venda, rascunho, objeto])
+    db_session.add_all([venda, venda_loja, rascunho, objeto])
     db_session.flush()
     os_ = OrdemServico(
         numero_os="OS-2026-000009", objeto_id=objeto.id, defeito_relatado="Cozinha planejada",
@@ -69,25 +70,23 @@ def cenario(db_session: Session, header_com_token) -> dict:
         numero_documento=12, serie=1, chave_acesso=CHAVE, ref_api="os-9",
     ))
     db_session.commit()
-    return {"venda": venda.id, "rascunho": rascunho.id, "os": os_.id}
+    return {"venda": venda.id, "venda_loja": venda_loja.id, "rascunho": rascunho.id, "os": os_.id}
 
 
-def test_origens_traz_os_e_so_vendas_finalizadas(client: TestClient, header_com_token, cenario):
+def test_origens_traz_so_vendas_finalizadas_e_nunca_os(client: TestClient, header_com_token, cenario):
+    # Etiqueta de envio é de produto: OS não aparece (serviço não se envia).
     resposta = client.get(f"{URL}/origens", headers=header_com_token)
     assert resposta.status_code == 200, resposta.text
     itens = {(i["tipo"], i["id"]): i for i in resposta.json()}
-    assert ("venda", cenario["venda"]) in itens
-    assert ("venda", cenario["rascunho"]) not in itens
+    assert set(itens) == {("venda", cenario["venda"]), ("venda", cenario["venda_loja"])}
     assert itens[("venda", cenario["venda"])]["tem_nfe"] is True
-    assert itens[("os", cenario["os"])]["tem_nfe"] is False
-    assert itens[("os", cenario["os"])]["cliente_nome"] == "Móveis Norte"
+    assert itens[("venda", cenario["venda_loja"])]["tem_nfe"] is False
+    assert itens[("venda", cenario["venda_loja"])]["cliente_nome"] == "Móveis Norte"
 
 
-def test_origens_busca_por_cliente_sem_acento_e_por_identificador(client: TestClient, header_com_token, cenario):
+def test_origens_busca_por_cliente_sem_acento(client: TestClient, header_com_token, cenario):
     por_cliente = client.get(f"{URL}/origens", params={"busca": "moveis norte"}, headers=header_com_token).json()
-    assert [(i["tipo"], i["id"]) for i in por_cliente] == [("os", cenario["os"])]
-    por_projeto = client.get(f"{URL}/origens", params={"busca": "prj 000123"}, headers=header_com_token).json()
-    assert [(i["tipo"], i["id"]) for i in por_projeto] == [("os", cenario["os"])]
+    assert [(i["tipo"], i["id"]) for i in por_cliente] == [("venda", cenario["venda_loja"])]
 
 
 def test_dados_da_venda_com_nfe_autorizada(client: TestClient, header_com_token, cenario):
@@ -105,17 +104,19 @@ def test_dados_da_venda_com_nfe_autorizada(client: TestClient, header_com_token,
     assert dados["remetente"]["nome"]
 
 
-def test_dados_da_os_usam_razao_social_e_ignoram_nfe_rejeitada(client: TestClient, header_com_token, cenario):
-    dados = client.get(f"{URL}/os/{cenario['os']}", headers=header_com_token).json()
-    assert dados["numero"] == "OS-2026-000009"
-    assert dados["identificador"] == "PRJ-000123"
+def test_dados_de_venda_pj_usam_razao_social(client: TestClient, header_com_token, cenario):
+    dados = client.get(f"{URL}/venda/{cenario['venda_loja']}", headers=header_com_token).json()
+    assert dados["numero"] == "2"
     assert dados["destinatario"]["nome"] == "Móveis Norte LTDA"
     assert dados["destinatario"]["inscricao_estadual"] == "123456"
     assert dados["nfe"] is None
 
 
+def test_rota_de_os_nao_existe_mais(client: TestClient, header_com_token, cenario):
+    assert client.get(f"{URL}/os/{cenario['os']}", headers=header_com_token).status_code == 404
+
+
 def test_origem_inexistente_e_404(client: TestClient, header_com_token, cenario):
-    assert client.get(f"{URL}/os/9999", headers=header_com_token).status_code == 404
     assert client.get(f"{URL}/venda/9999", headers=header_com_token).status_code == 404
 
 
@@ -128,21 +129,15 @@ def test_remetente(client: TestClient, header_com_token):
 def test_permissao_por_tipo_de_origem():
     so_estoque = {"permissoes": {"produto": True}}
     vendedor = {"permissoes": {"venda": True}}
-    assert not pode(so_estoque, PERMISSOES_VENDA) and not pode(so_estoque, PERMISSOES_OS)
-    assert pode(vendedor, PERMISSOES_VENDA) and not pode(vendedor, PERMISSOES_OS)
-    assert pode({"is_master": True}, PERMISSOES_OS)
+    assert not pode(so_estoque, PERMISSOES_VENDA)
+    assert pode(vendedor, PERMISSOES_VENDA)
+    assert pode({"is_master": True}, PERMISSOES_VENDA)
     assert pode({"permissoes": {"all": True}}, PERMISSOES_VENDA)
 
 
-def test_busca_so_com_digitos_compara_com_o_numero_e_nao_com_o_ano(client: TestClient, header_com_token, cenario, db_session):
-    # "02" está dentro de "2026": comparar texto traria toda OS do ano.
-    objeto = db_session.query(ObjetoServico).first()
-    outra = OrdemServico(numero_os="OS-2026-000002", objeto_id=objeto.id, defeito_relatado="x", status=OrdemServicoStatus.ABERTA)
-    db_session.add(outra)
-    db_session.commit()
-
-    os_02 = client.get(f"{URL}/origens", params={"busca": "02"}, headers=header_com_token).json()
-    assert [(i["tipo"], i["numero"]) for i in os_02] == [("os", "OS-2026-000002")]
+def test_busca_so_com_digitos_compara_com_o_numero_da_venda(client: TestClient, header_com_token, cenario):
+    venda_2 = client.get(f"{URL}/origens", params={"busca": "02"}, headers=header_com_token).json()
+    assert [(i["tipo"], i["id"]) for i in venda_2] == [("venda", cenario["venda_loja"])]
 
     venda_41 = client.get(f"{URL}/origens", params={"busca": "41"}, headers=header_com_token).json()
     assert [(i["tipo"], i["id"]) for i in venda_41] == [("venda", cenario["venda"])]

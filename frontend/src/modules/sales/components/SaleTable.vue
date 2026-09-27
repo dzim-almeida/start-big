@@ -202,7 +202,7 @@ const emit = defineEmits<{
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
                     title="Etiqueta de envio (volumes e DANFE Simplificado)"
-                    @click.stop="router.push(rotaEtiquetaEnvio('venda', sale.id))"
+                    @click.stop="router.push(rotaEtiquetaEnvio(sale.id))"
                   >
                     <Truck class="h-4 w-4" />
                   </button>

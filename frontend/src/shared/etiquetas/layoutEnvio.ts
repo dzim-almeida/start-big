@@ -122,7 +122,6 @@ export function gerarVolume(pagina: PaginaEtiqueta): ElementoEtiqueta[] {
     { campo: 'envio.observacao', peso: 0.8, alinhamento: 'centro' },
     { separador: true },
     { campo: 'envio.origem', peso: 0.9, negrito: true, alinhamento: 'centro' },
-    { campo: 'envio.identificador', texto: 'Ref.: ', peso: 0.8, alinhamento: 'centro' },
     { barras: 'envio.codigo', peso: 2.2 },
     { campo: 'nfe.numero', peso: 0.8, alinhamento: 'centro' },
   ]);
