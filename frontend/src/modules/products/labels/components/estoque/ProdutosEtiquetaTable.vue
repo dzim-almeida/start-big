@@ -75,22 +75,21 @@ function situacaoCodigo(p: ProdutoRead): { rotulo: string; classe: string } {
 </script>
 
 <template>
-  <BaseTableContainer
-    :is-loading="isLoading"
-    :is-empty="filtrados.length === 0"
-    :current-page="paginaAtual"
-    :total-pages="totalPaginas"
-    :total-items="filtrados.length"
-    item-label="produto"
-    empty-title="Nenhum produto encontrado"
-    empty-description="Ajuste a busca ou o filtro de categoria."
-    @update:current-page="paginaAtual = $event"
-  >
-    <template #toolbar>
-      <BaseSearchInput v-model="busca" placeholder="Buscar por nome, código ou EAN..." />
-      <BaseFilter v-model="categoria" :filter-config="filtroCategoria" title="Filtrar por Categoria" button-label="Categoria" />
+  <!--
+    Barra própria, no mesmo desenho da aba Estoque: a toolbar do
+    BaseTableContainer tem teto de meia tela (lg:max-w-1/2), pensado para
+    busca + um filtro — com os dois botões de ação a busca ficava espremida.
+  -->
+  <div class="flex flex-wrap gap-3 p-4 bg-white rounded-2xl">
+    <BaseSearchInput
+      class="md:max-w-2/3 lg:max-w-1/2"
+      v-model="busca"
+      placeholder="Buscar por nome, código ou EAN..."
+    />
+    <BaseFilter v-model="categoria" :filter-config="filtroCategoria" title="Filtrar por Categoria" button-label="Categoria" />
+    <div class="ml-auto flex flex-wrap gap-3">
       <button
-        class="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shrink-0"
+        class="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shrink-0"
         title="Adicionar à fila os produtos que entraram no estoque"
         @click="emit('entradas')"
       >
@@ -105,7 +104,20 @@ function situacaoCodigo(p: ProdutoRead): { rotulo: string; classe: string } {
         Fila de impressão
         <span class="min-w-6 px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-bold text-center">{{ totalEtiquetas }}</span>
       </button>
-    </template>
+    </div>
+  </div>
+
+  <BaseTableContainer
+    :is-loading="isLoading"
+    :is-empty="filtrados.length === 0"
+    :current-page="paginaAtual"
+    :total-pages="totalPaginas"
+    :total-items="filtrados.length"
+    item-label="produto"
+    empty-title="Nenhum produto encontrado"
+    empty-description="Ajuste a busca ou o filtro de categoria."
+    @update:current-page="paginaAtual = $event"
+  >
 
     <div class="overflow-x-auto">
       <table class="w-full text-left min-w-120">
