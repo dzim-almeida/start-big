@@ -46,12 +46,7 @@ const origens = computed(() => data.value ?? []);
         class="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-zinc-50 cursor-pointer"
         @click="emit('selecionar', o)"
       >
-        <span
-          :class="[
-            'w-8 h-8 shrink-0 rounded-lg flex items-center justify-center',
-            o.tipo === 'os' ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600',
-          ]"
-        >
+        <span class="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center bg-brand-primary/10 text-brand-primary">
           <Wrench v-if="o.tipo === 'os'" :size="15" />
           <ShoppingCart v-else :size="15" />
         </span>
