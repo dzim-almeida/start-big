@@ -28,6 +28,7 @@ import { useFilaEtiquetasStore } from '../labels/store/filaEtiquetas.store';
 import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
 import type { ProdutoRead } from '../inventory/types/products.types';
@@ -74,6 +75,9 @@ const { data: products } = useProductsQuery(searchTerm);
 // herdar o filtro da busca da aba Estoque.
 const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
 const filaEtiquetas = useFilaEtiquetasStore();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
+// A aba Etiquetas só aparece para quem tem a linha "Etiquetas" no cargo.
+const abas = computed(() => TAB_OPTIONS.filter((aba) => aba.id !== 'labels' || podeVerEtiquetas.value));
 const toggleMutation = useToggleProductActiveMutation();
 
 const localOverrides = ref<Record<number, ProdutoRead>>({});
@@ -341,7 +345,7 @@ function handleEmptyAction() {
       />
 
       <div class="flex gap-5">
-        <BaseTab2 :options="TAB_OPTIONS" v-model="activeTab" />
+        <BaseTab2 :options="abas" v-model="activeTab" />
         <BaseButton
           v-if="cabecalho.addLabel"
           variant="primary"
@@ -422,6 +426,7 @@ function handleEmptyAction() {
               @toggle="handleToggleProduct"
               @entrada="handleEntrada"
               @saida="handleSaida"
+              :mostrar-etiqueta="podeVerEtiquetas"
               @etiqueta="handleEtiqueta"
             />
           </div>
@@ -447,6 +452,7 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          :mostrar-etiqueta="podeVerEtiquetas"
           @etiqueta="handleEtiqueta"
         />
       </div>
@@ -478,7 +484,7 @@ function handleEmptyAction() {
     </template>
 
     <!-- Etiquetas Tab -->
-    <template v-else-if="activeTab === 'labels'">
+    <template v-else-if="activeTab === 'labels' && podeVerEtiquetas">
       <EtiquetasTab
         :produtos="todosProdutos ?? []"
         :is-loading="isTodosProdutosLoading"

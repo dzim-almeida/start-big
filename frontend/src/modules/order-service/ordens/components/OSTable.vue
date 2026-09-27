@@ -2,6 +2,7 @@
 import { Ellipsis, Pencil, CheckCircle, XCircle, RotateCcw, Printer, Truck } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { rotaEtiquetaEnvio } from '@/shared/etiquetas/atalhoEnvio';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 import { OS_STATUS_FILTER_CONFIG } from '../constants/ordemServico.constants';
 import { getEstadoOS, getClienteNome } from '../../shared/utils/formatters';
@@ -29,6 +30,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
 
 const emit = defineEmits<{
   view: [os: OrderServiceReadDataType];
@@ -152,6 +154,7 @@ function getOSSequence(numero_os: string): string {
                       <Printer :size="18" />
                     </button>
                     <button
+                      v-if="podeVerEtiquetas"
                       type="button"
                       title="Etiqueta de envio (volumes e DANFE Simplificado)"
                       class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
@@ -202,7 +205,7 @@ function getOSSequence(numero_os: string): string {
                       <Printer :size="18" />
                     </button>
                     <button
-                      v-if="os.status !== 'CANCELADA'"
+                      v-if="podeVerEtiquetas && os.status !== 'CANCELADA'"
                       type="button"
                       title="Etiqueta de envio (volumes e DANFE Simplificado)"
                       class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"

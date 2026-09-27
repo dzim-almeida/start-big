@@ -53,6 +53,7 @@ import CalibracaoEtiquetaModal from '../estoque/CalibracaoEtiquetaModal.vue';
 import ModelosEtiquetaModal from '../modelo/ModelosEtiquetaModal.vue';
 import { useModelosEtiqueta } from '../../composables/useModelosEtiqueta';
 import { getDadosEnvio, getRemetenteEnvio } from '../../services/envio.service';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 
 const MAX_VOLUMES = 200;
 
@@ -62,6 +63,7 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
+const { podeGerenciar } = usePermissoesEtiqueta();
 const impressaoStore = useImpressaoStore();
 const { trabalho, imprimir } = useImpressaoEtiquetas();
 const { todos: modelosVolume, modelosDaLoja } = useModelosEtiqueta('volume');
@@ -489,7 +491,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
                   class="flex-1"
                 />
                 <button
-                  v-if="tipo === 'volume'"
+                  v-if="tipo === 'volume' && podeGerenciar"
                   type="button"
                   class="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-brand-primary hover:border-brand-primary cursor-pointer"
                   title="Criar e editar modelos de envio da loja"
@@ -515,7 +517,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
                   }}
                 </p>
                 <button
-                  v-if="tipo === 'volume'"
+                  v-if="tipo === 'volume' && podeGerenciar"
                   type="button"
                   class="flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                   @click="abrirModelos(modelo)"

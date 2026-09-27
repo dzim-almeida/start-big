@@ -8,7 +8,10 @@
 # Quem renderiza e manda para a impressora é o terminal (docs/etiquetas-plano.md,
 # decisão D11). Os dados dos produtos vêm da listagem de /produtos que já existe.
 #
-# Modelos: mesma permissão do Estoque ("produto"). Envio: ver o bloco no fim.
+# Permissões: linha "Etiquetas" da tela de Cargos. Qualquer caixa dela deixa
+# ver e imprimir (o frontend grava também a chave "etiqueta" quando alguma está
+# marcada); criar/editar modelo exige "Gerenciar"; apagar exige "Excluir" — um
+# modelo apagado some de todos os terminais da loja.
 # ---------------------------------------------------------------------------
 
 from typing import Optional
@@ -25,7 +28,11 @@ from app.services import modelo_etiqueta as modelo_service
 
 router = APIRouter()
 
-permissao_estoque = check_permission(required_permission="produto")
+PERMISSOES_VER = ["etiqueta", "view_labels", "manage_labels", "delete_labels"]
+
+permissao_ver = check_permission(required_permission=PERMISSOES_VER)
+permissao_gerenciar = check_permission(required_permission=["manage_labels"])
+permissao_excluir = check_permission(required_permission=["delete_labels"])
 
 
 @router.get(
@@ -35,7 +42,7 @@ permissao_estoque = check_permission(required_permission="produto")
     description="Os modelos criados pela loja. Os presets de fábrica ficam no frontend.",
 )
 def listar_modelos(
-    user_token: dict = Depends(permissao_estoque),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return modelo_service.listar_modelos(db, user_token["empresa_id"])
@@ -49,7 +56,7 @@ def listar_modelos(
 )
 def criar_modelo(
     dados: ModeloEtiquetaCreate,
-    user_token: dict = Depends(permissao_estoque),
+    user_token: dict = Depends(permissao_gerenciar),
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(db, modelo_service.criar_modelo, user_token["empresa_id"], dados)
@@ -62,7 +69,7 @@ def criar_modelo(
 )
 def obter_modelo(
     modelo_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_estoque),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return modelo_service.obter_modelo(db, user_token["empresa_id"], modelo_id)
@@ -77,7 +84,7 @@ def obter_modelo(
 def atualizar_modelo(
     dados: ModeloEtiquetaUpdate,
     modelo_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_estoque),
+    user_token: dict = Depends(permissao_gerenciar),
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(
@@ -92,7 +99,7 @@ def atualizar_modelo(
 )
 def excluir_modelo(
     modelo_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_estoque),
+    user_token: dict = Depends(permissao_excluir),
     db: Session = Depends(get_db),
 ):
     _handle_db_transaction(db, modelo_service.deletar_modelo, user_token["empresa_id"], modelo_id)
@@ -102,12 +109,10 @@ def excluir_modelo(
 # ENVIO (fase 5): etiquetas de volume e DANFE Simplificado
 # ---------------------------------------------------------------------------
 #
-# Os dados saem prontos (remetente, destinatário, NF-e autorizada). Cada tipo
-# de origem exige a permissão do seu módulo — ver services/etiqueta_envio.py.
+# Os dados saem prontos (remetente, destinatário, NF-e autorizada). Além da
+# permissão de etiquetas, cada tipo de origem exige a do seu módulo (OS →
+# serviço, venda → venda) — ver services/etiqueta_envio.py.
 
-permissao_envio = check_permission(
-    required_permission=["produto", *envio_service.PERMISSOES_OS, *envio_service.PERMISSOES_VENDA]
-)
 
 
 @router.get(
@@ -118,7 +123,7 @@ permissao_envio = check_permission(
 )
 def buscar_origens_envio(
     busca: Optional[str] = Query(None, max_length=100),
-    user_token: dict = Depends(permissao_envio),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return envio_service.buscar_origens(db, user_token, busca)
@@ -127,7 +132,7 @@ def buscar_origens_envio(
 @router.get("/envio/os/{os_id}", response_model=DadosEnvio, summary="Dados de envio de uma OS")
 def dados_envio_os(
     os_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_envio),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return envio_service.dados_os(db, user_token, os_id)
@@ -136,7 +141,7 @@ def dados_envio_os(
 @router.get("/envio/venda/{venda_id}", response_model=DadosEnvio, summary="Dados de envio de uma venda")
 def dados_envio_venda(
     venda_id: int = Path(..., ge=1),
-    user_token: dict = Depends(permissao_envio),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return envio_service.dados_venda(db, user_token, venda_id)
@@ -144,7 +149,7 @@ def dados_envio_venda(
 
 @router.get("/envio/remetente", response_model=ParteEnvio, summary="Remetente (a empresa) para etiqueta avulsa")
 def remetente_envio(
-    user_token: dict = Depends(permissao_envio),
+    user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
     return envio_service.remetente(db, user_token)

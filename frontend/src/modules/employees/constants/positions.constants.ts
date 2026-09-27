@@ -15,6 +15,7 @@ import {
   IdCard,
   ShieldCheck,
   Wallet,
+  Printer,
 } from 'lucide-vue-next';
 
 import { PERMISSIONS } from '@/shared/constants/permissions.constants';
@@ -130,6 +131,17 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     deleteKey: 'delete_products',
   },
   {
+    id: 'labels',
+    label: 'Etiquetas',
+    description: 'Imprimir etiquetas e editar modelos',
+    icon: Printer,
+    // Visualizar = ver a aba e imprimir; Gerenciar = criar e editar modelos;
+    // Excluir = apagar modelos (some de todos os terminais da loja).
+    viewKey: 'view_labels',
+    manageKey: 'manage_labels',
+    deleteKey: 'delete_labels',
+  },
+  {
     id: 'reports',
     label: 'Relatorios',
     description: 'Faturamento, ranking e comissoes',
@@ -193,6 +205,7 @@ export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], s
   services: PERMISSIONS.services,
   customers: PERMISSIONS.customers,
   products: PERMISSIONS.products,
+  labels: PERMISSIONS.labels,
   enterprise: PERMISSIONS.enterprise,
   employees: PERMISSIONS.employees,
   roles: PERMISSIONS.positions,

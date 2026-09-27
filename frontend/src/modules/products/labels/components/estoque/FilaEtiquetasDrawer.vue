@@ -17,6 +17,9 @@ import { etiquetasPorPagina, type ModeloEtiqueta } from '@/shared/etiquetas/mode
 import { VALORES_EXEMPLO } from '@/shared/etiquetas/campos';
 import { MAX_POR_ITEM } from '../../store/filaEtiquetas.store';
 import type { LinhaFila } from '../../types/etiquetas.types';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
+
+const { podeGerenciar } = usePermissoesEtiqueta();
 
 const props = defineProps<{
   isOpen: boolean;
@@ -114,6 +117,7 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
               <div class="flex items-end gap-2">
                 <BaseSelect v-model="chaveModelo" :options="opcoesModelo" label="Modelo de etiqueta" class="flex-1" />
                 <button
+                  v-if="podeGerenciar"
                   class="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-brand-primary hover:border-brand-primary cursor-pointer"
                   title="Criar e editar modelos da loja"
                   @click="emit('gerenciarModelos')"
@@ -131,6 +135,7 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="text-xs text-zinc-500">{{ resumoPapel }}</p>
                 <button
+                  v-if="podeGerenciar"
                   type="button"
                   class="flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                   :title="modelo.id ? 'Abrir este modelo no editor visual' : 'Modelo pronto não se altera: abre uma cópia no editor visual'"

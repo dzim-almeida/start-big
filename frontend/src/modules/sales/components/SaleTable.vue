@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer, Truck } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { rotaEtiquetaEnvio } from '@/shared/etiquetas/atalhoEnvio';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -28,6 +29,7 @@ const filtrosDisponiveis = computed(() =>
 );
 
 const router = useRouter();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
 
 const emit = defineEmits<{
   (e: 'cancel', saleId: number): void;
@@ -196,6 +198,7 @@ const emit = defineEmits<{
                     <Printer class="h-4 w-4" />
                   </button>
                   <button
+                    v-if="podeVerEtiquetas"
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
                     title="Etiqueta de envio (volumes e DANFE Simplificado)"

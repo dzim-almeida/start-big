@@ -371,7 +371,8 @@ fases já entregues.
 ## 11. Perguntas em aberto
 
 1. ~~**Permissão:** a aba Etiquetas segue a mesma permissão do Estoque, ou ganha uma própria?~~
-   Decidido na implementação: a mesma (`produto`). Quem cuida do estoque cuida das etiquetas.
+   Primeiro foi a mesma (`produto`); em 27/09 ganhou **linha própria** na tela de
+   Cargos — ver §15.
 2. **Loja piloto:** qual loja testa a fase 1, e qual impressora (e rolo) ela tem? Serve de primeiro caso de calibração.
 3. **Envio na Venda:** hoje a venda guarda endereço de entrega, ou só o endereço do cadastro do cliente?
 
@@ -475,6 +476,33 @@ da chave desenhado).
 **Falta conferir na loja:** um volume 100 × 150 numa térmica e o DANFE
 Simplificado lido por um leitor (a chave de 44 dígitos em 94 mm dá módulo de
 ~0,34 mm, perto do limite de uma térmica de 203 dpi).
+
+---
+
+## 15. Permissão própria: linha "Etiquetas" na tela de Cargos (27/09/2026)
+
+Antes as etiquetas iam de carona em Produtos, e quem só **visualizava** produtos
+conseguia apagar um modelo que a loja inteira usa.
+
+| Caixa | Libera | Chave no backend |
+|---|---|---|
+| Visualizar | ver a aba, imprimir, envio | qualquer uma de `etiqueta`, `view_labels`, `manage_labels`, `delete_labels` |
+| Gerenciar | criar e editar modelos (inclui o editor visual) | `manage_labels` |
+| Excluir | apagar modelos | `delete_labels` |
+
+O envio continua exigindo, além disso, a permissão do módulo de origem (OS →
+`servico`, venda → as de venda). Produtos **não** libera mais as etiquetas.
+
+**Migração `z9a0b1c2d3e4`:** cargo que tinha Produtos ganha as três caixas de
+Etiquetas — o mesmo acesso que tinha antes; ninguém perde nada no dia da
+atualização. Decide pela ausência da chave `etiqueta` (cargo já configurado na
+tela nova não é tocado); rodar de novo não muda nada.
+
+Na tela: a aba, o botão "Etiqueta" do card de produto e o caminhão da OS/venda
+somem sem a permissão; criar/editar/"Editar layout" somem sem Gerenciar; a
+lixeira dos modelos some sem Excluir.
+
+**Testes:** `test/api/v1/etiquetas/test_permissoes_etiquetas.py`.
 
 ---
 

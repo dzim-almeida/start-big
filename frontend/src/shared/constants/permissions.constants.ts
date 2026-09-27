@@ -27,6 +27,12 @@ export const PERMISSIONS = {
   finance: 'view_financeiro',
   /** Lançar, dar baixa e estornar. Inclui o que `finance` já permite ver. */
   manageFinance: 'manage_financeiro',
+  /** Etiquetas: ver a aba e imprimir (qualquer caixa da linha Etiquetas). */
+  labels: 'etiqueta',
+  /** Criar e editar modelos de etiqueta. */
+  manageLabels: 'manage_labels',
+  /** Apagar modelos — some de todos os terminais da loja. */
+  deleteLabels: 'delete_labels',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -58,4 +64,7 @@ export const PERMISSION_ALIASES: Partial<Record<PermissionKey, string[]>> = {
   // enxergaria a tela que a lista.
   [PERMISSIONS.finance]: ['view_financeiro', 'manage_financeiro'],
   [PERMISSIONS.manageFinance]: ['manage_financeiro'],
+  [PERMISSIONS.labels]: ['view_labels', 'manage_labels', 'delete_labels'],
+  [PERMISSIONS.manageLabels]: ['manage_labels'],
+  [PERMISSIONS.deleteLabels]: ['delete_labels'],
 };

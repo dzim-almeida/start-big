@@ -12,6 +12,9 @@ import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseC
 import type { FonteEtiqueta, ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 import { useExcluirModeloEtiqueta, useSalvarModeloEtiqueta } from '../../composables/useModelosEtiqueta';
 import ModeloEtiquetaForm from './ModeloEtiquetaForm.vue';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
+
+const { podeGerenciar, podeExcluir } = usePermissoesEtiqueta();
 
 const props = defineProps<{
   isOpen: boolean;
@@ -122,6 +125,7 @@ function resumo(m: ModeloEtiqueta): string {
             <p class="text-xs text-zinc-400">{{ resumo(m) }}</p>
           </div>
           <button
+            v-if="podeGerenciar"
             class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 cursor-pointer"
             title="Editar"
             @click="emEdicao = m"
@@ -129,6 +133,7 @@ function resumo(m: ModeloEtiqueta): string {
             <Pencil :size="16" />
           </button>
           <button
+            v-if="podeExcluir"
             class="p-2 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
             title="Excluir"
             @click="paraExcluir = m"
@@ -154,7 +159,7 @@ function resumo(m: ModeloEtiqueta): string {
         >
           Salvar modelo
         </BaseButton>
-        <BaseButton v-else class="flex items-center gap-1" @click="criando = true">
+        <BaseButton v-else-if="podeGerenciar" class="flex items-center gap-1" @click="criando = true">
           <Plus :size="16" />
           Novo modelo
         </BaseButton>
