@@ -80,7 +80,7 @@ function resumo(m: ModeloEtiqueta): string {
   <BaseModal
     :is-open="isOpen"
     :title="noFormulario ? (emEdicao ? 'Editar modelo' : 'Novo modelo de etiqueta') : 'Modelos da loja'"
-    subtitle="Compartilhados com todos os terminais da loja"
+    :subtitle="noFormulario ? 'Depois de salvo, aparece em todos os terminais da loja' : 'Compartilhados com todos os terminais da loja'"
     :size="noFormulario ? '3xl' : 'lg'"
     @close="emit('close')"
   >
@@ -127,7 +127,6 @@ function resumo(m: ModeloEtiqueta): string {
         <BaseButton
           v-if="noFormulario"
           :is-loading="salvar.isPending.value"
-          :disabled="(formRef?.problemas.length ?? 0) > 0"
           @click="confirmar"
         >
           Salvar modelo

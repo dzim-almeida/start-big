@@ -133,13 +133,23 @@ const definicao = computed<DefinicaoEtiqueta>(() =>
     : definicaoAuto.value,
 );
 
+const ERRO_NOME = 'Dê um nome ao modelo.';
+
 const problemas = computed(() => {
   const lista = problemasDaPagina(paginaNormalizada.value);
   if (modo.value === 'manual') lista.push(...problemasDosElementos(elementosManuais.value, paginaNormalizada.value));
   else if (form.blocos.size === 0) lista.push('Marque pelo menos um dado para imprimir.');
-  if (!form.nome.trim()) lista.push('Dê um nome ao modelo.');
+  if (!form.nome.trim()) lista.push(ERRO_NOME);
   return lista;
 });
+
+// O nome vazio só é cobrado depois de tentar salvar: avisar ao abrir um
+// formulário em branco parece erro antes de a pessoa ter feito qualquer coisa.
+const tentouSalvar = ref(false);
+const problemasVisiveis = computed(() =>
+  tentouSalvar.value ? problemas.value : problemas.value.filter((p) => p !== ERRO_NOME),
+);
+const erroNome = computed(() => (tentouSalvar.value && !form.nome.trim() ? ERRO_NOME : ''));
 
 /** O editor parte do layout automático atual — ninguém começa do zero. */
 function abrirEditor() {
@@ -147,8 +157,9 @@ function abrirEditor() {
   modo.value = 'manual';
 }
 
-/** O payload, ou nulo se o formulário ainda tem problema. */
+/** O payload, ou nulo se o formulário ainda tem problema (e aí os mostra todos). */
 function payload(): ModeloEtiquetaPayload | null {
+  tentouSalvar.value = true;
   if (problemas.value.length) return null;
   return { nome: form.nome.trim(), fonte: 'produto', definicao: definicao.value };
 }
@@ -160,7 +171,13 @@ defineExpose({ payload, problemas });
   <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
     <div class="lg:col-span-3 space-y-5">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <BaseInput v-model="form.nome" label="Nome do modelo" placeholder="Ex: Gôndola da loja" :required="true" />
+        <BaseInput
+          v-model="form.nome"
+          label="Nome do modelo"
+          placeholder="Ex: Gôndola da loja"
+          :required="true"
+          :error="erroNome"
+        />
         <BaseSelect
           v-model="form.preset"
           :options="opcoesPreset"
@@ -251,7 +268,8 @@ defineExpose({ payload, problemas });
       </section>
     </div>
 
-    <div class="lg:col-span-2 space-y-3">
+    <!-- Fixa ao rolar: é olhando o preview que se marca o que imprimir, lá embaixo. -->
+    <div class="lg:col-span-2 space-y-3 lg:sticky lg:top-0 self-start">
       <template v-if="modo === 'auto'">
         <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Pré-visualização</h4>
         <div class="flex justify-center rounded-xl bg-zinc-50 border border-zinc-100 p-4 min-h-40 items-center">
@@ -268,12 +286,12 @@ defineExpose({ payload, problemas });
         </p>
       </template>
       <div
-        v-if="problemas.length"
+        v-if="problemasVisiveis.length"
         class="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900"
       >
         <AlertTriangle :size="15" class="shrink-0 mt-0.5" />
         <ul class="space-y-1">
-          <li v-for="p in problemas" :key="p">{{ p }}</li>
+          <li v-for="p in problemasVisiveis" :key="p">{{ p }}</li>
         </ul>
       </div>
     </div>
