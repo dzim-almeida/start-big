@@ -122,8 +122,12 @@ def venda_pronta(client: TestClient, db_session, header_with_token):
     empresa.documento = CNPJ_VALIDO
     empresa.indicador_ie = "1"
     empresa.inscricao_estadual = "123456789"
+    # `numeracao_confirmada`: a trava da Rejeição 204 (de3f937) barra a emissão
+    # até alguém confirmar série e último número. Uma loja pronta para emitir,
+    # que é o que este cenário monta, já passou por essa confirmação.
     db_session.add(EmpresaFiscalSettings(
         empresa_id=empresa.id, serie_nfe=1, ultimo_numero_nfe=10, ambiente_emissao=2,
+        numeracao_confirmada=True,
     ))
     db_session.commit()
 

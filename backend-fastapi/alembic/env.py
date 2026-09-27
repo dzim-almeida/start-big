@@ -46,7 +46,13 @@ import app.db.models.venda_produto
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` é obrigatório: as migrações rodam DENTRO
+    # do app, no startup (app/db/migrations.py), e o padrão do fileConfig
+    # desligava todo logger que já existia — os logs do app sumiam em silêncio
+    # depois da inicialização (ex.: o corpo das respostas 4xx da API fiscal,
+    # que o suporte pede). Pego pelo test_inutilizacao_recusa_local, que só
+    # falhava rodando depois de um teste que sobe o app.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
