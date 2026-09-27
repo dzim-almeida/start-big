@@ -16,6 +16,7 @@ from app.db.crud import produto as produto_crud
 from app.db.crud import produto_fiscal as produto_fiscal_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.services import movimentacao_estoque as mov_service
+from app.services import produto_embalagem as embalagem_service
 from app.services import produto_fiscal as produto_fiscal_service
 
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
@@ -68,7 +69,12 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
     
     if produto_in_db and produto_in_db.ativo:
         raise conflict_codigo_produto_exce
-    
+
+    # O código do produto não pode ser o de uma embalagem (fardo/caixa) de
+    # outro produto: o leitor do caixa não saberia qual dos dois lançar.
+    for codigo in (produto_to_add.codigo_barras, produto_to_add.codigo_produto):
+        embalagem_service.codigo_de_produto_livre(db, codigo)
+
     # Prepara dados (separa estoque e fiscal do produto principal)
     produto_data = produto_to_add.model_dump(exclude={"estoque", "fiscal"})
     produto_to_db = ProdutoModel(**produto_data)
@@ -212,6 +218,9 @@ def update_produto_by_id(db: Session, produto_id: int, produto_to_update: Produt
         raise not_found_exce
 
     data_to_update = produto_to_update.model_dump(exclude_unset=True)
+    for campo in ("codigo_barras", "codigo_produto"):
+        if data_to_update.get(campo) and data_to_update[campo] != getattr(produto_in_db, campo):
+            embalagem_service.codigo_de_produto_livre(db, data_to_update[campo], produto_id)
     campos_alterados: list[str] = []
     # Quantidade não é um campo editável como os outros: ela precisa passar pelo
     # livro de estoque. Fica de fora do setattr e é aplicada depois, como AJUSTE.

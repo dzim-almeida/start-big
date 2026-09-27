@@ -8,6 +8,7 @@ from typing import Optional, Sequence
 from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
 from app.schemas.produto_fiscal import ProdutoFiscalUpdate
+from app.schemas.produto_embalagem import EmbalagemRead
 
 class ProdutoCreate(BaseModel):
     """Modelo de entrada para criação de Produto."""
@@ -79,6 +80,8 @@ class ProdutoRead(ProdutoCreate):
     id: int = Field(..., description="ID único do sistema.")
     fotos: Optional[Sequence[ProdutoFotoRead]] = Field(default=[], description="Galeria de imagens.")
     estoque: EstoqueRead = Field(..., description="Dados atuais de estoque.")
+    # Fardo, caixa, pack. Vazio para quem não usa embalagens.
+    embalagens: list[EmbalagemRead] = Field(default_factory=list, description="Embalagens do produto.")
     ativo: bool = Field(..., description="Estado do produto no sistema.")
 
 class ProdutoSimpleRead(BaseModel):

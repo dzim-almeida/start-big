@@ -17,6 +17,7 @@ from typing import List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from .log_produto import LogProduto
     from .produto_fiscal import ProdutoFiscal
+    from .produto_embalagem import ProdutoEmbalagem
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -89,6 +90,18 @@ class Produto(Base):
         cascade="all, delete-orphan",
         uselist=False,
         doc="Dados fiscais do produto (NCM, CFOP, CST etc.) — None para empresas sem módulo fiscal"
+    )
+
+    # Embalagens (fardo, caixa, pack) — o estoque continua na unidade deste
+    # produto; ver produto_embalagem.py. `selectin` porque a listagem de
+    # produtos devolve as embalagens junto, e lazy viraria uma consulta por produto.
+    embalagens: Mapped[List["ProdutoEmbalagem"]] = relationship(
+        "ProdutoEmbalagem",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProdutoEmbalagem.fator",
+        doc="Embalagens de venda/compra do produto",
     )
 
     # Restrições (Constraints)

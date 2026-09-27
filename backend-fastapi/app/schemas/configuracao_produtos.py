@@ -18,6 +18,8 @@ class ConfiguracaoProdutosRead(BaseModel):
     quantidade_minima_padrao: int
     unidade_medida_padrao: str
 
+    usar_embalagens: bool = False
+
     data_atualizacao: datetime
 
     model_config = {"from_attributes": True}
@@ -34,3 +36,4 @@ class ConfiguracaoProdutosUpdate(BaseModel):
     permitir_venda_estoque_zerado: Optional[bool] = None
     quantidade_minima_padrao: Optional[int] = None
     unidade_medida_padrao: Optional[str] = None
+    usar_embalagens: Optional[bool] = None

@@ -33,6 +33,10 @@ class ConfiguracaoProdutos(Base):
     quantidade_minima_padrao: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     unidade_medida_padrao: Mapped[str] = mapped_column(String(10), default="UN", nullable=False)
 
+    # Embalagens (fardo/caixa): desligado por padrão — quem não usa nem vê a
+    # seção no cadastro (docs/produto-embalagens-plano.md, G10).
+    usar_embalagens: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),

@@ -67,3 +67,6 @@ from app.db.models.regra_perfil_tributario import RegraPerfilTributario  # noqa:
 
 # --- Central de Etiquetas ---
 from app.db.models.modelo_etiqueta import ModeloEtiqueta  # noqa: F401
+
+# --- Embalagens do produto (fardo/caixa) ---
+from app.db.models.produto_embalagem import ProdutoEmbalagem  # noqa: F401
