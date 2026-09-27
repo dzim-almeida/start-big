@@ -7,7 +7,7 @@
  * Mesmo padrão visual do `TransacoesEstoquePanel` do Estoque.
  */
 import { computed } from 'vue';
-import { Printer, Trash2, X, Settings2, Ruler, Tags, AlertTriangle } from 'lucide-vue-next';
+import { Printer, Trash2, X, Settings2, Ruler, Tags, AlertTriangle, MousePointer2 } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -34,6 +34,7 @@ const emit = defineEmits<{
   imprimir: [];
   imprimirTeste: [];
   gerenciarModelos: [];
+  editarLayout: [];
   calibrar: [];
 }>();
 
@@ -127,7 +128,18 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
                   <Ruler :size="18" />
                 </button>
               </div>
-              <p class="text-xs text-zinc-500">{{ resumoPapel }}</p>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs text-zinc-500">{{ resumoPapel }}</p>
+                <button
+                  type="button"
+                  class="flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+                  :title="modelo.id ? 'Abrir este modelo no editor visual' : 'Modelo pronto não se altera: abre uma cópia no editor visual'"
+                  @click="emit('editarLayout')"
+                >
+                  <MousePointer2 :size="13" />
+                  Editar layout
+                </button>
+              </div>
             </div>
 
             <!-- Preview -->

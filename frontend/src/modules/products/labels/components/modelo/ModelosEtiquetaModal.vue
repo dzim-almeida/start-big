@@ -16,6 +16,11 @@ import ModeloEtiquetaForm from './ModeloEtiquetaForm.vue';
 const props = defineProps<{
   isOpen: boolean;
   modelos: ModeloEtiqueta[];
+  /**
+   * Atalho "Editar layout" da fila: abre este modelo já no editor visual.
+   * Modelo da loja é editado; preset vira uma CÓPIA (preset não se altera).
+   */
+  abrirNoEditor?: ModeloEtiqueta | null;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +31,9 @@ const emit = defineEmits<{
 
 const emEdicao = ref<ModeloEtiqueta | null>(null);
 const criando = ref(false);
+/** Ponto de partida de um modelo NOVO (cópia de preset); nulo = formulário em branco. */
+const rascunho = ref<{ nome: string; definicao: ModeloEtiqueta['definicao'] } | null>(null);
+const iniciarNoEditor = ref(false);
 const paraExcluir = ref<ModeloEtiqueta | null>(null);
 const formRef = ref<InstanceType<typeof ModeloEtiquetaForm> | null>(null);
 
@@ -38,15 +46,26 @@ watch(
   () => props.isOpen,
   (aberto) => {
     if (!aberto) return;
+    const alvo = props.abrirNoEditor;
+    iniciarNoEditor.value = !!alvo;
+    if (alvo?.id) {
+      emEdicao.value = alvo;
+      criando.value = false;
+      rascunho.value = null;
+      return;
+    }
     emEdicao.value = null;
+    rascunho.value = alvo ? { nome: `${alvo.nome} (cópia)`, definicao: alvo.definicao } : null;
     // Sem modelo da loja ainda, a lista vazia é um passo inútil: vai direto ao formulário.
-    criando.value = props.modelos.length === 0;
+    criando.value = !!alvo || props.modelos.length === 0;
   },
 );
 
 function voltar() {
   emEdicao.value = null;
   criando.value = false;
+  rascunho.value = null;
+  iniciarNoEditor.value = false;
 }
 
 function confirmar() {
@@ -86,9 +105,10 @@ function resumo(m: ModeloEtiqueta): string {
   >
     <ModeloEtiquetaForm
       v-if="noFormulario"
-      :key="emEdicao?.chave ?? 'novo'"
+      :key="emEdicao?.chave ?? rascunho?.nome ?? 'novo'"
       ref="formRef"
-      :inicial="emEdicao ? { nome: emEdicao.nome, definicao: emEdicao.definicao } : null"
+      :inicial="emEdicao ? { nome: emEdicao.nome, definicao: emEdicao.definicao } : rascunho"
+      :iniciar-no-editor="iniciarNoEditor"
     />
 
     <div v-else class="space-y-3">

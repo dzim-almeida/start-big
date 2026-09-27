@@ -26,6 +26,7 @@ import ModelosEtiquetaModal from './modelo/ModelosEtiquetaModal.vue';
 import { useFilaEtiquetasStore } from '../store/filaEtiquetas.store';
 import { useModelosEtiqueta } from '../composables/useModelosEtiqueta';
 import type { LinhaFila } from '../types/etiquetas.types';
+import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 
 /** Acima disto o diálogo de impressão do Windows fica lento demais para montar. */
 const MAX_POR_IMPRESSAO = 2000;
@@ -47,6 +48,13 @@ onUnmounted(() => (fila.painelAberto = false));
 
 const isEntradasOpen = ref(false);
 const isModelosOpen = ref(false);
+/** Modelo que o atalho "Editar layout" abre direto no editor; nulo = lista de modelos. */
+const modeloParaEditor = ref<ModeloEtiqueta | null>(null);
+
+function abrirModelos(noEditor: ModeloEtiqueta | null) {
+  modeloParaEditor.value = noEditor;
+  isModelosOpen.value = true;
+}
 const isCalibracaoOpen = ref(false);
 
 // --- Modelo (lembrado por terminal) ---
@@ -139,7 +147,8 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
     @limpar="fila.limpar"
     @imprimir="imprimirFila"
     @imprimir-teste="imprimirTeste()"
-    @gerenciar-modelos="isModelosOpen = true"
+    @gerenciar-modelos="abrirModelos(null)"
+    @editar-layout="abrirModelos(modelo)"
     @calibrar="isCalibracaoOpen = true"
   />
 
@@ -153,6 +162,7 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
   <ModelosEtiquetaModal
     :is-open="isModelosOpen"
     :modelos="modelosDaLoja"
+    :abrir-no-editor="modeloParaEditor"
     @close="isModelosOpen = false"
     @salvo="chaveModelo = $event"
   />

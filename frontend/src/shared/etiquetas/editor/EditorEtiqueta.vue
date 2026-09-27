@@ -31,8 +31,9 @@ import type { ElementoEtiqueta, PaginaEtiqueta } from '../modelo';
 import type { ValoresEtiqueta } from '../campos';
 
 const PX_POR_MM = 96 / 25.4;
-const LARGURA_UTIL_PX = 560;
-const ALTURA_UTIL_PX = 340;
+const LARGURA_UTIL_PX = 520;
+// Cabe no modal sem rolar numa tela de notebook (768 px de altura); detalhe é no zoom.
+const ALTURA_UTIL_PX = 220;
 // Alça mínima clicável: uma linha de 0,3 mm não dá para pegar com o mouse.
 const ALVO_MINIMO_PX = 10;
 

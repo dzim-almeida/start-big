@@ -8,7 +8,7 @@
  * - Editor visual (fase 3): parte do automático e deixa arrastar, redimensionar
  *   e acrescentar elementos. Salvo assim, o modelo não tem mais `layout_auto`.
  */
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { AlertTriangle, Wand2, MousePointer2 } from 'lucide-vue-next';
 
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -24,8 +24,10 @@ import { VALORES_EXEMPLO } from '@/shared/etiquetas/campos';
 import type { ModeloEtiquetaPayload } from '../../types/etiquetas.types';
 
 const props = defineProps<{
-  /** Modelo em edição; nulo para criar. */
+  /** Modelo em edição (ou ponto de partida de um novo); nulo para formulário em branco. */
   inicial: { nome: string; definicao: DefinicaoEtiqueta } | null;
+  /** Abre já no editor visual (atalho "Editar layout" da fila). */
+  iniciarNoEditor?: boolean;
 }>();
 
 const FOLHAS = {
@@ -151,11 +153,26 @@ const problemasVisiveis = computed(() =>
 );
 const erroNome = computed(() => (tentouSalvar.value && !form.nome.trim() ? ERRO_NOME : ''));
 
+const secaoEditor = ref<HTMLElement | null>(null);
+
+// O editor aparece ABAIXO da dobra do formulário: sem rolar até ele, clicar
+// em "Editor visual" parecia não fazer nada.
+function mostrarEditor() {
+  nextTick(() => secaoEditor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
 /** O editor parte do layout automático atual — ninguém começa do zero. */
 function abrirEditor() {
   elementosManuais.value = JSON.parse(JSON.stringify(definicaoAuto.value.elementos));
   modo.value = 'manual';
+  mostrarEditor();
 }
+
+onMounted(() => {
+  if (!props.iniciarNoEditor) return;
+  if (modo.value === 'auto') abrirEditor();
+  else mostrarEditor();
+});
 
 /** O payload, ou nulo se o formulário ainda tem problema (e aí os mostra todos). */
 function payload(): ModeloEtiquetaPayload | null {
@@ -296,7 +313,7 @@ defineExpose({ payload, problemas });
       </div>
     </div>
 
-    <section v-if="modo === 'manual'" class="lg:col-span-5 space-y-3 pt-2 border-t border-zinc-100">
+    <section v-if="modo === 'manual'" ref="secaoEditor" class="lg:col-span-5 space-y-3 pt-2 border-t border-zinc-100 scroll-mt-4">
       <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Editor visual</h4>
       <EditorEtiqueta v-model:elementos="elementosManuais" :pagina="paginaNormalizada" :valores="VALORES_EXEMPLO" />
     </section>
