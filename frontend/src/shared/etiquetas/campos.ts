@@ -11,6 +11,7 @@
  */
 
 import { formatCurrency } from '@/shared/utils/finance';
+import { precoDaEmbalagem, precoUnitarioNaEmbalagem } from '@/shared/utils/embalagem';
 
 export type CampoEtiqueta =
   | 'produto.nome'
@@ -24,6 +25,11 @@ export type CampoEtiqueta =
   | 'preco.atacado'
   | 'empresa.nome'
   | 'data.impressao'
+  // Embalagem (fardo/caixa) — ver valoresDaEmbalagem
+  | 'embalagem.descricao'
+  | 'embalagem.conteudo'
+  | 'preco.unidade'
+  | 'preco.unidade_na_embalagem'
   // Envio (fase 5) — ver envio.ts
   | 'remetente.nome' | 'remetente.documento' | 'remetente.ie' | 'remetente.endereco' | 'remetente.bairro'
   | 'remetente.cidade_uf' | 'remetente.uf' | 'remetente.cep' | 'remetente.telefone'
@@ -46,6 +52,11 @@ export const CAMPOS_PRODUTO: { campo: CampoEtiqueta; rotulo: string }[] = [
   { campo: 'preco.atacado', rotulo: 'Preço de atacado' },
   { campo: 'empresa.nome', rotulo: 'Nome da empresa' },
   { campo: 'data.impressao', rotulo: 'Data de impressão' },
+  // Só têm valor na etiqueta de uma embalagem (fardo/caixa).
+  { campo: 'embalagem.descricao', rotulo: 'Embalagem (ex.: Fardo com 12)' },
+  { campo: 'embalagem.conteudo', rotulo: 'Conteúdo (ex.: Contém 12 un)' },
+  { campo: 'preco.unidade', rotulo: 'Preço da unidade avulsa' },
+  { campo: 'preco.unidade_na_embalagem', rotulo: 'Preço da unidade dentro da embalagem' },
 ];
 
 export const CAMPOS_VOLUME: { campo: CampoEtiqueta; rotulo: string }[] = [
@@ -117,6 +128,7 @@ export function valoresDoProduto(produto: ProdutoParaEtiqueta, contexto: Context
     'produto.unidade_medida': produto.unidade_medida ?? '',
     'produto.localizacao_estoque': produto.localizacao_estoque ?? '',
     'preco.varejo': centavosParaTexto(produto.estoque?.valor_varejo),
+    'preco.unidade': centavosParaTexto(produto.estoque?.valor_varejo),
     'preco.atacado': centavosParaTexto(produto.estoque?.valor_atacado),
     'empresa.nome': contexto.empresaNome ?? '',
     'data.impressao': (contexto.data ?? new Date()).toLocaleDateString('pt-BR'),
@@ -126,11 +138,52 @@ export function valoresDoProduto(produto: ProdutoParaEtiqueta, contexto: Context
 /**
  * Valor do código de barras de uma etiqueta. Sem EAN, cai para o código
  * interno (§5.2) — produto sem nenhum dos dois não tem o que ler.
+ *
+ * Etiqueta de EMBALAGEM nunca cai para o código da unidade: o caixa bipava o
+ * fardo e lançava uma lata. Sem código de fardo, a etiqueta sai sem barras.
  */
 export function valorDoCodigo(valores: ValoresEtiqueta, campo: CampoEtiqueta): string {
   const valor = valores[campo] ?? '';
-  if (valor || campo !== 'produto.codigo_barras') return valor;
+  if (valor || campo !== 'produto.codigo_barras' || valores['embalagem.conteudo']) return valor;
   return valores['produto.codigo_produto'] ?? '';
+}
+
+/** O mínimo da embalagem que a etiqueta usa — `EmbalagemRead` satisfaz. */
+export interface EmbalagemParaEtiqueta {
+  sigla: string;
+  descricao: string | null;
+  fator: number;
+  codigo_barras: string | null;
+  preco: number | null;
+  desconto_bp: number | null;
+}
+
+/**
+ * Valores da etiqueta de uma EMBALAGEM (fardo/caixa): o nome ganha a
+ * embalagem, o código e o preço são os DELA. Os modelos de produto servem
+ * sem mudança nenhuma — e o editor oferece os campos extras
+ * ("Contém 12 un", preço da unidade dentro do fardo).
+ */
+export function valoresDaEmbalagem(
+  produto: ProdutoParaEtiqueta,
+  embalagem: EmbalagemParaEtiqueta,
+  contexto: ContextoEtiqueta = {},
+): ValoresEtiqueta {
+  const base = valoresDoProduto(produto, contexto);
+  const precoUnidade = produto.estoque?.valor_varejo ?? 0;
+  const descricao = embalagem.descricao || `${embalagem.sigla} com ${embalagem.fator}`;
+  return {
+    ...base,
+    'produto.nome': `${produto.nome} · ${descricao}`,
+    'produto.codigo_barras': embalagem.codigo_barras ?? '',
+    'preco.varejo': centavosParaTexto(precoDaEmbalagem(embalagem, precoUnidade)),
+    'preco.atacado': '',
+    'embalagem.descricao': descricao,
+    'embalagem.conteudo': `Contém ${embalagem.fator} un`,
+    'preco.unidade_na_embalagem': precoUnidade
+      ? `${centavosParaTexto(precoUnitarioNaEmbalagem(embalagem, precoUnidade))} a unidade`
+      : '',
+  };
 }
 
 /** Valores de exemplo para o preview de um modelo sem fila. */

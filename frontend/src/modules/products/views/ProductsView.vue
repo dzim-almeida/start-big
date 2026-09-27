@@ -29,6 +29,9 @@ import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
 import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { saldoEmEmbalagem } from '@/shared/utils/embalagem';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
 import type { ProdutoRead } from '../inventory/types/products.types';
@@ -76,6 +79,11 @@ const { data: products } = useProductsQuery(searchTerm);
 const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
 const filaEtiquetas = useFilaEtiquetasStore();
 const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
+// Fardo discreto no card ("= 10 FD"), só com as embalagens ligadas.
+const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
+function saldoDoCard(produto: ProdutoRead): string | null {
+  return usarEmbalagens.value ? saldoEmEmbalagem(produto.estoque.quantidade || 0, produto.embalagens) : null;
+}
 // A aba Etiquetas só aparece para quem tem a linha "Etiquetas" no cargo.
 const abas = computed(() => TAB_OPTIONS.filter((aba) => aba.id !== 'labels' || podeVerEtiquetas.value));
 const toggleMutation = useToggleProductActiveMutation();
@@ -427,6 +435,7 @@ function handleEmptyAction() {
               @entrada="handleEntrada"
               @saida="handleSaida"
               :mostrar-etiqueta="podeVerEtiquetas"
+              :saldo-embalagem="saldoDoCard(product)"
               @etiqueta="handleEtiqueta"
             />
           </div>
@@ -452,6 +461,7 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          :saldo-embalagem="saldoDoCard(product)"
           :mostrar-etiqueta="podeVerEtiquetas"
           @etiqueta="handleEtiqueta"
         />

@@ -67,6 +67,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   // ── Produtos: preços e exibição ──
   const margemLucroPadrao = computed(() => configProdutos.value?.margem_lucro_padrao ?? 0)
   const utilizarPrecoAtacado = computed(() => configProdutos.value?.utilizar_preco_atacado ?? true)
+  // Embalagens (fardo/caixa): desligado, nem a seção do cadastro aparece.
+  const usarEmbalagens = computed(() => configProdutos.value?.usar_embalagens ?? false)
 
   // ── Produtos: controle de estoque ──
   // O padrão acompanha o do banco (`configuracao_produtos.permitir_venda_estoque_zerado`,
@@ -154,6 +156,7 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
 
     margemLucroPadrao,
     utilizarPrecoAtacado,
+    usarEmbalagens,
 
     permitirVendaEstoqueZerado,
     quantidadeMinimaPadrao,

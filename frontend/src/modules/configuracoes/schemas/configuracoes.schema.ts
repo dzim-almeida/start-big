@@ -15,6 +15,10 @@ export const ConfiguracaoProdutosSchema = z.object({
   quantidade_minima_padrao: z.number(),
   unidade_medida_padrao: z.string(),
 
+  // Embalagens (fardo/caixa) — desligado por padrão. `default` para um
+  // backend antigo, que ainda não manda o campo, não quebrar a tela.
+  usar_embalagens: z.boolean().default(false),
+
   data_atualizacao: z.string(),
 })
 

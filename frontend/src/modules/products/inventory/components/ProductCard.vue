@@ -17,6 +17,8 @@ interface Props {
   status: boolean;
   /** Botão "Imprimir etiqueta" — só para quem tem a permissão de etiquetas. */
   mostrarEtiqueta?: boolean;
+  /** Saldo em embalagem fechada ("= 10 FD"), discreto embaixo do estoque. Nulo = não mostra. */
+  saldoEmbalagem?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), { mostrarEtiqueta: true });
@@ -130,6 +132,9 @@ const isInactive = computed(() => !props.status);
         <div class="text-right">
           <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">ESTOQUE</p>
           <p class="text-lg font-bold" :class="stockTextColor">{{ stockDisplay }}</p>
+          <p v-if="saldoEmbalagem" class="text-[11px] text-zinc-400 -mt-0.5" title="Em embalagens fechadas">
+            {{ saldoEmbalagem }}
+          </p>
         </div>
       </div>
 

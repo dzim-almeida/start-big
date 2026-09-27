@@ -17,6 +17,10 @@ import type { ItemFilaEtiqueta } from '../types/etiquetas.types';
 /** Teto por item: acima disto é quase certamente dígito a mais. */
 export const MAX_POR_ITEM = 999;
 
+export function chaveDoItem(item: { produtoId: number; embalagemId: number | null }): string {
+  return `${item.produtoId}:${item.embalagemId ?? 'un'}`;
+}
+
 function limitar(quantidade: number): number {
   return Math.max(1, Math.min(MAX_POR_ITEM, Math.round(quantidade) || 1));
 }
@@ -28,25 +32,35 @@ export const useFilaEtiquetasStore = defineStore('filaEtiquetas', () => {
 
   const totalEtiquetas = computed(() => itens.value.reduce((soma, i) => soma + i.quantidade, 0));
 
+  const achar = (chave: string) => itens.value.find((i) => chaveDoItem(i) === chave);
+
   /** Soma à quantidade de quem já está na fila, em vez de duplicar a linha. */
-  function adicionar(produtoId: number, quantidade = 1) {
-    const existente = itens.value.find((i) => i.produtoId === produtoId);
+  function adicionar(produtoId: number, quantidade = 1, embalagemId: number | null = null) {
+    const existente = achar(chaveDoItem({ produtoId, embalagemId }));
     if (existente) existente.quantidade = limitar(existente.quantidade + quantidade);
-    else itens.value.push({ produtoId, quantidade: limitar(quantidade) });
+    else itens.value.push({ produtoId, quantidade: limitar(quantidade), embalagemId });
   }
 
-  function definirQuantidade(produtoId: number, quantidade: number) {
-    const item = itens.value.find((i) => i.produtoId === produtoId);
+  function definirQuantidade(chave: string, quantidade: number) {
+    const item = achar(chave);
     if (item) item.quantidade = limitar(quantidade);
   }
 
-  function remover(produtoId: number) {
-    itens.value = itens.value.filter((i) => i.produtoId !== produtoId);
+  function remover(chave: string) {
+    itens.value = itens.value.filter((i) => chaveDoItem(i) !== chave);
+  }
+
+  /** Troca unidade ↔ fardo numa linha; se a outra já está na fila, soma nela. */
+  function trocarEmbalagem(chave: string, embalagemId: number | null) {
+    const item = achar(chave);
+    if (!item || item.embalagemId === embalagemId) return;
+    remover(chave);
+    adicionar(item.produtoId, item.quantidade, embalagemId);
   }
 
   function limpar() {
     itens.value = [];
   }
 
-  return { itens, painelAberto, totalEtiquetas, adicionar, definirQuantidade, remover, limpar };
+  return { itens, painelAberto, totalEtiquetas, adicionar, definirQuantidade, remover, trocarEmbalagem, limpar };
 });

@@ -16,6 +16,9 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import DadosProdutoSection from './form/DadosProdutoSection.vue';
 import DadosEstoqueSection from './form/DadosEstoqueSection.vue';
 import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
+import EmbalagensSection from './form/EmbalagensSection.vue';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 const nfeDisponivel = recursoDisponivel('nfe');
 
@@ -29,7 +32,12 @@ const {
   isViewMode,
   modalTitle,
   closeModal,
+  selectedProduct,
 } = useProductModal();
+
+// Embalagens (fardo/caixa) só aparecem com a chave ligada em Configurações:
+// para quem não usa, o cadastro fica exatamente como sempre foi.
+const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
 
 const { onSubmit, isPending, submitCount, apiError } = useProductFormProvider();
 
@@ -190,6 +198,27 @@ watch(isOpen, (open) => {
                   />
                 </template>
               </form>
+
+              <!--
+                Fora do <form> de propósito: tem o próprio "Salvar" (rota
+                separada), e Enter num campo daqui não pode salvar o produto.
+              -->
+              <template v-if="usarEmbalagens">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Embalagens (fardo, caixa)
+                    </span>
+                  </div>
+                </div>
+                <EmbalagensSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                />
+              </template>
             </div>
 
             <!-- Footer -->

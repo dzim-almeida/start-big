@@ -4,6 +4,7 @@
  */
 
 import type { Component } from 'vue';
+import type { EmbalagemRead } from './embalagens.types';
 
 // =============================================
 // API TYPES (matching produto.py and estoque.py)
@@ -73,6 +74,8 @@ export interface ProdutoRead extends ProdutoBase {
   estoque: EstoqueRead;
   ativo: boolean;
   fotos?: ProdutoFotoRead[];
+  /** Fardo, caixa, pack. Vazio para quem não usa embalagens. */
+  embalagens?: EmbalagemRead[];
 }
 
 export interface ProdutoUpdate extends Partial<ProdutoBase> {
