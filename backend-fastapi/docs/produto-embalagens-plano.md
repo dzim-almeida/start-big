@@ -364,6 +364,66 @@ estoques separados. Aqui isso não é necessário: o estoque nunca se divide (D1
 
 ---
 
+## 12. Auditoria de cobertura (27/09/2026)
+
+Pergunta do Alan: *"tem certeza que contemplou todas as áreas?"*. Resposta
+honesta: **não tinha**. O plano nasceu olhando PDV, estoque, entrada, nota e
+etiqueta; faltava varrer o código inteiro. A varredura procurou todo arquivo que
+usa item de venda/orçamento (quantidade, custo, preço unitário) ou código de
+barras/unidade do produto — **42 arquivos no backend e 23 telas/impressões no
+frontend** — e comparou com o plano.
+
+### 12.1 Áreas e situação
+
+| Área | Onde (principais) | Situação |
+|---|---|---|
+| Cadastro do produto | `produto.py`, `useProductForm.ts`, `DadosProdutoSection` | coberto (§6) |
+| Busca e leitor no PDV | `leitorCodigoBarras.util.ts`, `useProductSearch.ts`, `crud/produto.py` | coberto (§6, D7) |
+| **Adicionar produto à mão** (sem leitor) | `AddProductModal.vue`, `ProductOption.vue`, `useItemSaleForm.ts` | **faltava → G1** |
+| Linha da venda e totais | `venda_produto.py`, `schemas/vendas.py`, `SaleItemsTable.vue` | coberto (D6) |
+| **Aviso de estoque negativo** | `AvisoEstoqueNegativoModal.vue`, `services/venda.py` | citado de passagem → **G2** |
+| Baixa, cancelamento e reabertura | `services/produto.py` (`decrease/restore_product_in_stock`), `services/venda.py` | coberto (§6) |
+| Orçamento e **conversão em venda** | `services/orcamento.py` (`converter_orcamento` copia os itens) | citado → **G3** |
+| **Impressões da venda** | `SalePrintCupom.vue`, `SalePrintTemplate.vue`, `saleToEscPos.ts`, `nfceToEscPos.ts` | **faltava → G4** |
+| Entrada de estoque | `MovimentacaoModal.vue`, `movimentacao_estoque.py` | coberto (D10) |
+| **Ajuste de inventário** (contagem) | movimentação `AJUSTE` = quantidade final contada | **faltava → G5** |
+| **CMV e comissão sobre lucro** | `crud/relatorio_custo.py` (Σ quantidade × custo congelado), `crud/relatorio.py` | implícito → **G6** |
+| Relatórios de quantidade e estoque | `crud/relatorio.py`, `EstoqueSection.vue`, `dashboard.py`, `EstoqueBaixoTable.vue` | coberto (D12, D21) |
+| NF-e/NFC-e: payload, validação, pendências | `payload_builder.py`, `validators.py`, `verificacao_fiscal.py`, `campos_produto.py` | coberto (D8, D9) |
+| **Motor de impostos** | `tax_engine/resolver.py` (usa quantidade × valor unitário por item) | **faltava → G7** |
+| **Emissão de NF-e a partir da venda e correção** | `FiscalEmitirNFeModal.vue`, `FiscalEditarVendaModal.vue`, `FiscalDocumentoDetailsDrawer.vue` | **faltava → G8** |
+| Devolução | `devolucao.py`, `snapshot.py`, `FiscalEmitirDevolucaoModal.vue`, `useDevolucaoItens.ts` | coberto (D6, §6) |
+| OS | `ordem_servico_item.py`, `adaptador_os.py` | fora, de propósito (D11) |
+| Central de Etiquetas | fila, **Entradas recentes**, envio | parcial → **G9** |
+| **Liga/desliga do recurso** | Configurações › Produtos e Estoque | **faltava → G10** |
+| Permissões | cargo "Produtos" (cadastro), Configurações (regras de preço) | **faltava → G11** |
+| Backup em nuvem | `services/cloud` (copia o banco inteiro) | sem impacto: a tabela nova vai junto |
+| Leitor de balança | — (não existe hoje no PDV) | sem conflito hoje com D18; ver §11.3 |
+
+### 12.2 Lacunas encontradas e como ficam
+
+| # | Lacuna | Como fica no plano |
+|---|---|---|
+| **G1** | O modal "adicionar produto" e a lista de opções do PDV só conhecem o produto | Produto com embalagens abre a escolha **UN / FD 12 / CX 24** (com preço de cada); sem embalagem, nada muda. **Fase 3.** |
+| **G2** | O aviso de estoque negativo compara quantidade da linha com o saldo | Compara **quantidade × fator** com o saldo, e a mensagem fala em unidade e em fardo ("faltam 8 un, menos de 1 FD"). **Fase 3.** |
+| **G3** | A conversão de orçamento em venda copia os itens campo a campo | Copia também embalagem, fator e sigla — senão o orçamento "2 FD" vira venda "2 UN" em silêncio. **Fase 3.** |
+| **G4** | Cupom, via A4 e as duas impressões ESC/POS mostram quantidade e unidade do produto | Mostram a **sigla da embalagem** ("2 FD") e, embaixo, "(24 un)" em letra menor. **Fase 3.** |
+| **G5** | O ajuste de inventário recebe a contagem só em unidade | A contagem aceita **fardos + unidades** ("10 FD + 3 un" = 123 un). **Fase 2.** |
+| **G6** | CMV e comissão sobre lucro calculam **quantidade × custo congelado** da linha | Regra explícita: a **linha da venda guarda o custo da embalagem** (custo médio × fator); a **movimentação de estoque fica sempre em unidade, com custo por unidade**. Assim as duas contas continuam certas sem mudar os relatórios. Teste de CMV com venda de fardo. **Fase 3.** |
+| **G7** | O motor de impostos calcula item a item com quantidade × valor unitário | Recebe a linha **na embalagem** (quantidade de fardos × preço do fardo): o total é o mesmo. Para o `qTrib` da nota, a conversão fica no payload (D8). **Ponto a confirmar com o contador da adega:** bebida quase sempre tem **ICMS-ST**; se a adega compra com ST retida, a venda não calcula ST e nada muda; se algum estado cobrar ST por **pauta/PMPF por unidade**, o motor precisaria usar `qTrib` — hoje ele não tem pauta. **Fase 4.** |
+| **G8** | Emitir NF-e a partir da venda e a correção fiscal da venda editam os itens | Mostram e preservam embalagem e fator; a correção não pode trocar "2 FD" por "2 UN". **Fase 4.** |
+| **G9** | "Entradas recentes" da Central de Etiquetas conta etiquetas em unidade | Entrada de "3 CX" oferece **3 etiquetas de caixa ou 72 de unidade**. **Fase 2.** |
+| **G10** | O recurso aparece para todo mundo | **"Usar embalagens (fardo/caixa)"** em Configurações › Produtos e Estoque, **desligado por padrão**. Desligado, nem a seção do cadastro aparece — é o que garante o B8 na tela, não só no banco. **Fase 1.** |
+| **G11** | Não estava dito quem mexe em quê | Cadastrar embalagem: permissão de **Produtos**. Ligar as regras de preço (§6.1): permissão de **Configurações**. Etiqueta de fardo: linha **Etiquetas**. **Fase 1.** |
+
+**O que ainda pode estar faltando:** a varredura foi por nome de campo. Um
+cálculo que use a quantidade sem citar esses nomes (uma soma montada em SQL
+bruto, por exemplo) escaparia. Por isso cada fase fecha com um **teste de
+ponta a ponta com fardo** — vender, cancelar, devolver, emitir — e não só com
+os testes da parte alterada.
+
+---
+
 ## Fontes
 
 - TOTVS Varejo Supermercados PDV 24.01 (trava de desconto em item com regra de incentivo): <https://produtos.totvs.com/totvs-varejo-supermercados-pdv/varejo/totvs-varejo-supermercados-pdv-24-01/>
