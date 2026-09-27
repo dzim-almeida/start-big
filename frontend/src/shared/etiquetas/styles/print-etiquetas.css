@@ -1,0 +1,67 @@
+/* =========================================================================
+   IMPRESSÃO DE ETIQUETAS
+
+   Importado pelo EtiquetasImpressao.vue, e por isso GLOBAL (como o
+   print-a4.css e o print-cupom.css). Repete as regras de isolamento da
+   impressão porque a tela de etiquetas pode ser a primeira a imprimir desde
+   que o app abriu: sem elas, se nenhum outro CSS de impressão tiver sido
+   carregado ainda, o app inteiro sairia no papel.
+
+   O tamanho do papel NÃO mora aqui: quem define o `@page size` é
+   `imprimirEtiquetas`, injetando a regra por último no <head> (mesmo
+   mecanismo de `imprimirComPagina`, ver print.utils.ts).
+   ========================================================================= */
+@media print {
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body {
+    visibility: hidden;
+    background: white;
+    margin: 0;
+    padding: 0;
+  }
+
+  body > *:not(.print-container):not(.print-cupom-container) {
+    display: none !important;
+  }
+
+  .print-container.etiquetas-print {
+    visibility: visible;
+    display: block !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Fora do @media print de propósito: especificidade 0,2,0 vence o
+   `.print-container { padding: 1cm; width: 100% }` do print-a4.css, que é
+   margem de DOCUMENTO — na etiqueta, a posição vem toda do modelo. */
+.print-container.etiquetas-print {
+  width: auto;
+  padding: 0;
+  background: white;
+  font-size: initial;
+}
+
+.etiquetas-pagina {
+  position: relative;
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+}
+
+.etiquetas-pagina:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.etiquetas-posicao {
+  position: absolute;
+}

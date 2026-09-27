@@ -22,6 +22,8 @@ import MovimentacaoModal from '@/modules/products/inventory/components/Movimenta
 import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
+import EtiquetasTab from '../labels/components/EtiquetasTab.vue';
+import { useFilaEtiquetasStore } from '../labels/store/filaEtiquetas.store';
 
 import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
@@ -68,6 +70,10 @@ const isFornecedorToggleModalOpen = ref(false);
 const fornecedorToToggle = ref<FornecedorReadType | null>(null);
 
 const { data: products } = useProductsQuery(searchTerm);
+// A aba de etiquetas lista o catálogo inteiro, com busca própria: não pode
+// herdar o filtro da busca da aba Estoque.
+const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
+const filaEtiquetas = useFilaEtiquetasStore();
 const toggleMutation = useToggleProductActiveMutation();
 
 const localOverrides = ref<Record<number, ProdutoRead>>({});
@@ -219,12 +225,26 @@ function getProductImage(product: ProdutoRead) {
   return product.fotos?.[0]?.url || '';
 }
 
+// Título, descrição e botão do topo por aba. Com três abas, o ternário de duas
+// opções que havia aqui já não servia.
+const CABECALHO_POR_ABA: Record<string, { title: string; description: string; addLabel: string }> = {
+  product: { title: 'Estoque', description: 'Gerencia os produtos no seu estoque', addLabel: 'Adicionar Produto' },
+  supplier: { title: 'Fornecedores', description: 'Gerencie os fornecedores da sua empresa', addLabel: 'Adicionar Fornecedor' },
+  labels: { title: 'Etiquetas', description: 'Imprima etiquetas de preço e código de barras', addLabel: 'Adicionar Produto' },
+};
+const cabecalho = computed(() => CABECALHO_POR_ABA[activeTab.value] ?? CABECALHO_POR_ABA.product);
+
 function handleAddClick() {
-  if (activeTab.value === 'product') {
-    openCreateModal();
-  } else {
+  if (activeTab.value === 'supplier') {
     openCreateFornecedorModal();
+  } else {
+    openCreateModal();
   }
+}
+
+function handleEtiqueta(id: number) {
+  filaEtiquetas.adicionar(id);
+  activeTab.value = 'labels';
 }
 
 function handleToggleFornecedor(fornecedor: FornecedorReadType) {
@@ -298,8 +318,8 @@ function handleEmptyAction() {
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview
-        :title="activeTab === 'product' ? 'Estoque' : 'Fornecedores'"
-        :description="activeTab === 'product' ? 'Gerencia os produtos no seu estoque' : 'Gerencie os fornecedores da sua empresa'"
+        :title="cabecalho.title"
+        :description="cabecalho.description"
       />
 
       <div class="flex gap-5">
@@ -312,7 +332,7 @@ function handleEmptyAction() {
           @click="handleAddClick"
         >
           <Plus :size="20" />
-          {{ activeTab === 'product' ? 'Adicionar Produto' : 'Adicionar Fornecedor' }}
+          {{ cabecalho.addLabel }}
         </BaseButton>
       </div>
     </div>
@@ -383,6 +403,7 @@ function handleEmptyAction() {
               @toggle="handleToggleProduct"
               @entrada="handleEntrada"
               @saida="handleSaida"
+              @etiqueta="handleEtiqueta"
             />
           </div>
         </div>
@@ -407,6 +428,7 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          @etiqueta="handleEtiqueta"
         />
       </div>
 
@@ -434,6 +456,11 @@ function handleEmptyAction() {
           </BaseButton>
         </div>
       </div>
+    </template>
+
+    <!-- Etiquetas Tab -->
+    <template v-else-if="activeTab === 'labels'">
+      <EtiquetasTab :produtos="todosProdutos ?? []" :is-loading="isTodosProdutosLoading" />
     </template>
 
     <!-- Fornecedores Tab -->
