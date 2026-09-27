@@ -454,6 +454,12 @@ A aba Etiquetas ganhou as sub-abas **Estoque | Envio**.
   pelo menos 6 pt, chave em Code 128, e o destinatário **como foi para a nota**
   (`destinatario_*_enviado`), não o cadastro atual. Homologação sai com
   "SEM VALOR FISCAL".
+- **Impressão em painel lateral** (pedido do Alan, igual à fila do Estoque): o
+  formulário ocupa a largura toda; a barra do topo e o fim da seção de volumes
+  têm o botão que abre o painel. Não abre sozinho ao escolher a origem, para não
+  cobrir o destinatário e os volumes.
+- **Busca só com dígitos** ("02") compara com o NÚMERO da OS/venda: por texto,
+  "02" casava com toda OS de 2026 ("OS-2026-...").
 - **Atalhos:** botão de caminhão na lista de OS (menos canceladas) e na de
   vendas finalizadas, que abre `Produtos › Etiquetas › Envio` já com a origem
   (`/produtos?envio=os:12`).

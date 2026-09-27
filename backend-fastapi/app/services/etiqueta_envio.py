@@ -17,6 +17,7 @@ Permissão: cada tipo de origem exige a permissão do seu módulo. Quem só
 cuida do estoque não enxerga o endereço dos clientes das vendas.
 """
 
+import re
 from datetime import datetime
 from typing import Any, Optional
 
@@ -176,9 +177,21 @@ def _casa(termos: list[str], *campos: Optional[str]) -> bool:
     return all(t in alvo for t in termos)
 
 
+def _sequencial_os(numero_os: str) -> Optional[int]:
+    """O número sequencial da OS: "OS-2026-000002" → 2."""
+    grupos = re.findall(r"\d+", numero_os or "")
+    return int(grupos[-1]) if grupos else None
+
+
 def buscar_origens(db: Session, usuario_token: dict[str, Any], busca: Optional[str]) -> list[OrigemEnvioItem]:
-    """OS e vendas recentes que podem virar etiqueta de envio, mais novas primeiro."""
+    """OS e vendas recentes que podem virar etiqueta de envio, mais novas primeiro.
+
+    Busca só com dígitos ("02") compara com o NÚMERO da OS/venda, e não com o
+    texto: "02" está dentro de "2026", e casaria com toda OS do ano.
+    """
     termos = extrair_termos(busca)
+    digitado = (busca or "").strip()
+    numero_digitado = int(digitado) if digitado.isdigit() else None
     itens: list[OrigemEnvioItem] = []
 
     if pode(usuario_token, PERMISSOES_OS):
@@ -193,7 +206,12 @@ def buscar_origens(db: Session, usuario_token: dict[str, Any], busca: Optional[s
             cliente = os_.objeto.cliente if os_.objeto else None
             nome = _nome_cliente(cliente)
             identificador = os_.objeto.numero_serie if os_.objeto else None
-            if _casa(termos, os_.numero_os, nome, identificador):
+            casa = (
+                _sequencial_os(os_.numero_os) == numero_digitado or _casa(termos, nome, identificador)
+                if numero_digitado is not None
+                else _casa(termos, os_.numero_os, nome, identificador)
+            )
+            if casa:
                 itens.append(OrigemEnvioItem(
                     tipo="os", id=os_.id, numero=os_.numero_os, cliente_nome=nome, data=os_.data_criacao,
                 ))
@@ -209,7 +227,12 @@ def buscar_origens(db: Session, usuario_token: dict[str, Any], busca: Optional[s
         for venda in vendas:
             nome = _nome_cliente(venda.cliente)
             numero = _numero_venda(venda)
-            if _casa(termos, numero, f"venda {numero}", nome):
+            casa = (
+                venda.numero_venda == numero_digitado or _casa(termos, nome)
+                if numero_digitado is not None
+                else _casa(termos, numero, f"venda {numero}", nome)
+            )
+            if casa:
                 itens.append(OrigemEnvioItem(
                     tipo="venda", id=venda.id, numero=numero, cliente_nome=nome, data=venda.criado_em,
                 ))

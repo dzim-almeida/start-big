@@ -132,3 +132,17 @@ def test_permissao_por_tipo_de_origem():
     assert pode(vendedor, PERMISSOES_VENDA) and not pode(vendedor, PERMISSOES_OS)
     assert pode({"is_master": True}, PERMISSOES_OS)
     assert pode({"permissoes": {"all": True}}, PERMISSOES_VENDA)
+
+
+def test_busca_so_com_digitos_compara_com_o_numero_e_nao_com_o_ano(client: TestClient, header_com_token, cenario, db_session):
+    # "02" está dentro de "2026": comparar texto traria toda OS do ano.
+    objeto = db_session.query(ObjetoServico).first()
+    outra = OrdemServico(numero_os="OS-2026-000002", objeto_id=objeto.id, defeito_relatado="x", status=OrdemServicoStatus.ABERTA)
+    db_session.add(outra)
+    db_session.commit()
+
+    os_02 = client.get(f"{URL}/origens", params={"busca": "02"}, headers=header_com_token).json()
+    assert [(i["tipo"], i["numero"]) for i in os_02] == [("os", "OS-2026-000002")]
+
+    venda_41 = client.get(f"{URL}/origens", params={"busca": "41"}, headers=header_com_token).json()
+    assert [(i["tipo"], i["id"]) for i in venda_41] == [("venda", cenario["venda"])]
