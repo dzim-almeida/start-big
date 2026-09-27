@@ -18,11 +18,35 @@ import { fontePara } from './layoutAuto';
 import { arredondar, type Alinhamento, type ElementoEtiqueta, type PaginaEtiqueta } from './modelo';
 
 type Linha =
-  | { texto?: string; campo?: CampoEtiqueta; peso: number; negrito?: boolean; linhas?: number; alinhamento?: Alinhamento; minimoPt?: number }
+  | {
+      texto?: string;
+      campo?: CampoEtiqueta;
+      peso: number;
+      negrito?: boolean;
+      linhas?: number;
+      alinhamento?: Alinhamento;
+      minimoPt?: number;
+      /**
+       * Tamanho do texto, quando se sabe de antemão, para a letra caber também
+       * na LARGURA (e não só na altura). Texto fixo sem campo usa o próprio
+       * comprimento. Sem isto o título do DANFE saía "DANFE SIMPLIFICADO -…".
+       */
+      caracteres?: number;
+    }
   | { separador: true }
   | { barras: CampoEtiqueta; peso: number };
 
 const PESO_SEPARADOR = 0.35;
+
+// Largura média de um caractere em Arial MAIÚSCULO negrito, em "em". Folgado de
+// propósito: sobrar um pouco de espaço é melhor que cortar o título.
+const LARGURA_CARACTERE_EM = 0.68;
+const PT_EM_MM = 0.3528;
+
+function fontePelaLargura(larguraMm: number, caracteres: number, linhas: number): number {
+  const porLinha = Math.ceil(caracteres / linhas);
+  return Math.floor((larguraMm / (porLinha * LARGURA_CARACTERE_EM * PT_EM_MM)) * 2) / 2;
+}
 
 function empilhar(pagina: PaginaEtiqueta, linhas: Linha[]): ElementoEtiqueta[] {
   const margem = Math.max(1.5, Math.min(3, Math.min(pagina.largura_mm, pagina.altura_mm) * 0.03));
@@ -44,10 +68,13 @@ function empilhar(pagina: PaginaEtiqueta, linhas: Linha[]): ElementoEtiqueta[] {
       });
     } else {
       const n = linha.linhas ?? 1;
+      const caracteres = linha.caracteres ?? (linha.campo ? undefined : linha.texto?.length);
+      const pelaAltura = fontePara(h, n);
+      const fonte = caracteres ? Math.min(pelaAltura, fontePelaLargura(w, caracteres, n)) : pelaAltura;
       elementos.push({
         tipo: 'texto', x, y: arredondar(y, 1), w, h: arredondar(h, 1),
         campo: linha.campo, texto: linha.texto,
-        fonte_pt: Math.max(linha.minimoPt ?? 4, fontePara(h, n)),
+        fonte_pt: Math.max(linha.minimoPt ?? 4, fonte),
         negrito: linha.negrito ?? false, alinhamento: linha.alinhamento ?? 'esquerda', linhas_max: n,
       });
     }
@@ -106,7 +133,8 @@ export function gerarDanfe(pagina: PaginaEtiqueta): ElementoEtiqueta[] {
   const seis = { minimoPt: 6 };
   return empilhar(pagina, [
     { texto: 'DANFE SIMPLIFICADO - ETIQUETA', peso: 1.1, negrito: true, alinhamento: 'centro', ...seis },
-    { campo: 'nfe.homologacao', peso: 0.7, negrito: true, alinhamento: 'centro', ...seis },
+    // 'EMITIDA EM HOMOLOGAÇÃO — SEM VALOR FISCAL' (ver envio.ts)
+    { campo: 'nfe.homologacao', peso: 0.7, negrito: true, alinhamento: 'centro', caracteres: 41, ...seis },
     { separador: true },
     { texto: 'CHAVE DE ACESSO', peso: 0.6, negrito: true, ...seis },
     { barras: 'nfe.chave', peso: 3 },

@@ -28,7 +28,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useToast } from '@/shared/composables/useToast';
-import { useImpressaoStore } from '@/shared/stores/impressao.store';
+import { useImpressaoStore, type ConfigImpressao } from '@/shared/stores/impressao.store';
 import EtiquetaPreview from '@/shared/etiquetas/components/EtiquetaPreview.vue';
 import EtiquetasImpressao from '@/shared/etiquetas/components/EtiquetasImpressao.vue';
 import { useImpressaoEtiquetas } from '@/shared/etiquetas/useImpressaoEtiquetas';
@@ -276,14 +276,19 @@ function imprimirEnvio() {
   });
 }
 
-function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }) {
+function imprimirTeste(config?: ConfigImpressao) {
   const definicao = definicaoDeTeste(modelo.value.definicao, modelo.value.nome);
-  imprimir({
-    definicao,
-    etiquetas: etiquetasDeTeste(definicao),
-    pular: 0,
-    ...(ajuste ?? deslocamento()),
-  });
+  const cfg = config ?? impressaoStore.config;
+  imprimir(
+    {
+      definicao,
+      etiquetas: etiquetasDeTeste(definicao),
+      pular: 0,
+      deslocamentoX: cfg.etiqueta_deslocamento_x_mm ?? 0,
+      deslocamentoY: cfg.etiqueta_deslocamento_y_mm ?? 0,
+    },
+    cfg,
+  );
 }
 
 // --- Modelos e calibração ---
@@ -502,7 +507,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
                 <button
                   type="button"
                   class="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-brand-primary hover:border-brand-primary cursor-pointer"
-                  title="Calibrar a impressão neste computador"
+                  title="Impressora de etiquetas deste computador (saída, calibração)"
                   @click="isCalibracaoOpen = true"
                 >
                   <Ruler :size="18" />
@@ -601,7 +606,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
   <CalibracaoEtiquetaModal
     :is-open="isCalibracaoOpen"
     @close="isCalibracaoOpen = false"
-    @testar="(x, y) => imprimirTeste({ deslocamentoX: x, deslocamentoY: y })"
+    @testar="imprimirTeste"
   />
 
   <EtiquetasImpressao v-if="trabalho" v-bind="trabalho" />

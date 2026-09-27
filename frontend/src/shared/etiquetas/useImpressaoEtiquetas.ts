@@ -1,13 +1,19 @@
 /**
- * @fileoverview Dispara a impressão de etiquetas pelo driver do Windows.
+ * @fileoverview Dispara a impressão de etiquetas.
  *
- * Quem usa renderiza `<EtiquetasImpressao v-if="trabalho" v-bind="trabalho" />`
- * e chama `imprimir(...)`: o trabalho monta as páginas, o `@page` recebe o
- * tamanho do papel da etiqueta e o diálogo do Windows abre. Terminada a
- * impressão (`afterprint`), o trabalho é desmontado.
+ * Dois caminhos, decididos pela configuração do terminal:
+ * - DIRETO na térmica (ZPL/TSPL/EPL, fase 4): sem diálogo — ver nativo/.
+ * - Pelo DRIVER do Windows: quem usa renderiza
+ *   `<EtiquetasImpressao v-if="trabalho" v-bind="trabalho" />`; o trabalho
+ *   monta as páginas, o `@page` recebe o tamanho do papel e o diálogo abre.
+ *   Terminada a impressão (`afterprint`), o trabalho é desmontado.
  */
 
 import { nextTick, shallowRef } from 'vue';
+
+import { useToast } from '@/shared/composables/useToast';
+import { useImpressaoStore, type ConfigImpressao } from '@/shared/stores/impressao.store';
+import { imprimirNaTermica, motivoParaDriver } from './nativo/imprimirNativo';
 
 import { tamanhoDoPapel, type DefinicaoEtiqueta } from './modelo';
 import type { ValoresEtiqueta } from './campos';
@@ -51,9 +57,32 @@ function proximoQuadro(): Promise<void> {
 
 export function useImpressaoEtiquetas() {
   const trabalho = shallowRef<TrabalhoEtiquetas | null>(null);
+  const store = useImpressaoStore();
+  const toast = useToast();
 
-  async function imprimir(novo: TrabalhoEtiquetas): Promise<void> {
+  /**
+   * @param config configuração a usar no lugar da salva — o teste da tela de
+   *   calibração imprime com o que está sendo editado, antes de salvar.
+   */
+  async function imprimir(novo: TrabalhoEtiquetas, config: ConfigImpressao = store.config): Promise<void> {
     if (novo.etiquetas.length === 0) return;
+
+    if (motivoParaDriver(config, novo.definicao) === null) {
+      try {
+        await imprimirNaTermica(novo, config);
+        toast.success(
+          novo.etiquetas.length === 1 ? 'Etiqueta enviada à impressora' : `${novo.etiquetas.length} etiquetas enviadas à impressora`,
+        );
+      } catch (erro) {
+        console.error('[Etiquetas] Falha na impressão direta:', erro);
+        toast.error(
+          'Falha ao imprimir na térmica',
+          `${erro instanceof Error ? erro.message : String(erro)} — confira em "Impressora de etiquetas" (botão da régua).`,
+        );
+      }
+      return;
+    }
+
     trabalho.value = novo;
     // Monta as páginas (os códigos de barras desenham no onMounted) e deixa o
     // navegador aplicar o layout antes de fotografar a página.

@@ -10,7 +10,7 @@ import { Tags, Truck } from 'lucide-vue-next';
 
 import { useToast } from '@/shared/composables/useToast';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
-import { useImpressaoStore } from '@/shared/stores/impressao.store';
+import { useImpressaoStore, type ConfigImpressao } from '@/shared/stores/impressao.store';
 import EtiquetasImpressao from '@/shared/etiquetas/components/EtiquetasImpressao.vue';
 import { useImpressaoEtiquetas } from '@/shared/etiquetas/useImpressaoEtiquetas';
 import { PRESET_PADRAO } from '@/shared/etiquetas/presets';
@@ -129,9 +129,19 @@ function imprimirFila() {
   imprimir({ definicao: modelo.value.definicao, etiquetas, pular: pular.value, ...deslocamento() });
 }
 
-function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }) {
+function imprimirTeste(config?: ConfigImpressao) {
   const definicao = definicaoDeTeste(modelo.value.definicao, modelo.value.nome);
-  imprimir({ definicao, etiquetas: etiquetasDeTeste(definicao), pular: 0, ...(ajuste ?? deslocamento()) });
+  const cfg = config ?? impressaoStore.config;
+  imprimir(
+    {
+      definicao,
+      etiquetas: etiquetasDeTeste(definicao),
+      pular: 0,
+      deslocamentoX: cfg.etiqueta_deslocamento_x_mm ?? 0,
+      deslocamentoY: cfg.etiqueta_deslocamento_y_mm ?? 0,
+    },
+    cfg,
+  );
 }
 </script>
 
@@ -198,7 +208,7 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
   <CalibracaoEtiquetaModal
     :is-open="isCalibracaoOpen"
     @close="isCalibracaoOpen = false"
-    @testar="(x, y) => imprimirTeste({ deslocamentoX: x, deslocamentoY: y })"
+    @testar="imprimirTeste"
   />
 
   <EtiquetasImpressao v-if="trabalho" v-bind="trabalho" />

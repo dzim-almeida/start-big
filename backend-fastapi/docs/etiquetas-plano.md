@@ -25,9 +25,9 @@ gerada pelo software da seccionadora/CNC a partir do código `PRJ`
 **Nada começa a ser codado antes de as decisões da §4 estarem aceitas.**
 
 > **Status (27/09/2026, branch `etiquetas`):** decisões aceitas pelo Alan, e as
-> **fases 1, 2, 3 e 5 estão implementadas** — ver §12, §13 e §14 para o que foi
-> entregue, o que mudou em relação a este plano e o que falta conferir na loja.
-> Faltam a fase 4 (linguagens nativas, depende de impressora para validar) e as
+> **fases 1 a 5 estão implementadas** — ver §12 a §16 para o que foi entregue,
+> o que mudou em relação a este plano e o que falta conferir na loja. A fase 4
+> (impressão direta) ainda não foi validada numa térmica de verdade. Faltam as
 > embalagens (§8, plano próprio).
 
 ---
@@ -109,7 +109,8 @@ frontend/src/shared/etiquetas/                 ← o motor (Venda e OS também c
 ├── components/           EtiquetaView (render HTML em mm), BarrasSvg, QrSvg,
 │                         EtiquetaPreview, EtiquetasImpressao
 ├── styles/print-etiquetas.css
-├── render/zpl.ts  tspl.ts  ppla.ts  pplb.ts  epl.ts  bitmap.ts   (fase 4)
+├── nativo/               fase 4: rasterizar.ts (página → bitmap em pontos),
+│                         bitmap.ts, linguagens.ts (ZPL/TSPL/EPL), imprimirNativo.ts
 └── editor/               EditorEtiqueta (canvas + ferramentas), PropriedadesElemento,
                           operacoes.ts (mover/redimensionar/encaixar), useHistorico.ts
 
@@ -503,6 +504,57 @@ somem sem a permissão; criar/editar/"Editar layout" somem sem Gerenciar; a
 lixeira dos modelos some sem Excluir.
 
 **Testes:** `test/api/v1/etiquetas/test_permissoes_etiquetas.py`.
+
+---
+
+## 16. Entrega da fase 4 — impressão direta na térmica (27/09/2026)
+
+**Decisão: modo imagem para as três linguagens** (ZPL, TSPL, EPL/PPLB). A
+etiqueta é desenhada num canvas na resolução da impressora (203/300 dpi),
+reduzida a preto e branco e enviada como gráfico (`^GFA` / `BITMAP` / `GW`).
+O "modo texto nativo" do plano ficou de fora: as fontes internas das térmicas
+tropeçam em "ç"/"ã", cada linguagem tem as suas, e o modo imagem sai igual ao
+preview. Volta a ser considerado se alguma loja precisar de velocidade em
+lotes muito grandes.
+
+- **Barras sem esticar:** cada módulo tem um número inteiro de pontos, a barra
+  sai centralizada na caixa (esticada, a térmica arredonda umas barras para
+  cima e outras para baixo e o leitor erra). EAN/UPC com barras-guia retas
+  (`flat`), senão elas descem por cima da legenda.
+- **Páginas iguais em sequência viram uma com quantidade** (`^PQ` / `PRINT 1,n`
+  / `Pn`): 40 etiquetas do mesmo produto em ZPL = 1 bloco de ~3,5 KB (com a
+  compressão ASCII do ZPL: `G`–`Y`/`g`–`z`, `,`, `!`, `:`).
+- **Polaridade:** ZPL 1 = impresso; TSPL 0 = impresso (confirmado); EPL não
+  documentado, segue o TSPL. A opção **"Inverter cores"** do terminal cobre o
+  caso de sair tudo preto.
+- **Configuração por terminal** (botão da régua → "Impressora de etiquetas"):
+  saída (Windows | ZPL | TSPL | EPL/PPLB), impressora do Windows ou IP de rede,
+  dpi, espaço entre etiquetas, escuridão, girar 180°, inverter cores e o ajuste
+  fino. O **"Imprimir teste" usa o que está na tela, antes de salvar**, para
+  achar a linguagem na frente da impressora.
+- Folha A4/Carta continua sempre pelo driver; fora do aplicativo (navegador)
+  também.
+- **PPLA (Argox) não foi feito.** Argox costuma aceitar PPLB (configurável na
+  impressora); senão, pelo driver.
+
+**Achado no caminho (vale para o preview e o driver também):** o título do
+DANFE saía cortado ("DANFE SIMPLIFICADO -…") porque o layout escolhia a letra
+só pela altura da linha. Linhas de texto conhecido agora limitam a letra pela
+largura também.
+
+**Verificado:** encoders e compressão por teste (`nativo.spec.ts`); o
+rasterizador visto num Chrome headless (rolo 50 × 30, gôndola, volume e DANFE
+100 × 150 a 203 dpi, com acento). **Não verificado:** numa térmica de verdade.
+
+**Roteiro do primeiro teste na impressora:**
+1. Botão da régua → Saída **ZPL** → escolher a impressora → **Imprimir teste**.
+2. Saiu em branco, sai papel sem parar ou imprimiu texto de código? Trocar para
+   **TSPL** e testar; depois **EPL**.
+3. Saiu com o fundo preto? Marcar **Inverter cores**.
+4. Saiu de cabeça para baixo? **Girar 180°**. Pulando etiqueta ou cortando no
+   meio? Conferir o **espaço entre etiquetas** (gap do rolo).
+5. Contorno deslocado? Ajuste fino em mm. Salvar.
+6. Bipar no PDV um EAN-13 impresso em 40 × 25 ou 50 × 30.
 
 ---
 

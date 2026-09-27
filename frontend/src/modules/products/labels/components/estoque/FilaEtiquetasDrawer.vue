@@ -126,7 +126,7 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
                 </button>
                 <button
                   class="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-brand-primary hover:border-brand-primary cursor-pointer"
-                  title="Calibrar a impressão neste computador"
+                  title="Impressora de etiquetas deste computador (saída, calibração)"
                   @click="emit('calibrar')"
                 >
                   <Ruler :size="18" />
