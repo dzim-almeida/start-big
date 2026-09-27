@@ -242,10 +242,12 @@ function getProductImage(product: ProdutoRead) {
 
 // Título, descrição e botão do topo por aba. Com três abas, o ternário de duas
 // opções que havia aqui já não servia.
-const CABECALHO_POR_ABA: Record<string, { title: string; description: string; addLabel: string }> = {
+// `addLabel` nulo = aba sem botão de adicionar (na de Etiquetas ele não teria
+// relação com a tela, principalmente no Envio).
+const CABECALHO_POR_ABA: Record<string, { title: string; description: string; addLabel: string | null }> = {
   product: { title: 'Estoque', description: 'Gerencia os produtos no seu estoque', addLabel: 'Adicionar Produto' },
   supplier: { title: 'Fornecedores', description: 'Gerencie os fornecedores da sua empresa', addLabel: 'Adicionar Fornecedor' },
-  labels: { title: 'Etiquetas', description: 'Imprima etiquetas de preço e código de barras', addLabel: 'Adicionar Produto' },
+  labels: { title: 'Etiquetas', description: 'Etiquetas de preço, código de barras e envio', addLabel: null },
 };
 const cabecalho = computed(() => CABECALHO_POR_ABA[activeTab.value] ?? CABECALHO_POR_ABA.product);
 
@@ -341,6 +343,7 @@ function handleEmptyAction() {
       <div class="flex gap-5">
         <BaseTab2 :options="TAB_OPTIONS" v-model="activeTab" />
         <BaseButton
+          v-if="cabecalho.addLabel"
           variant="primary"
           size="md"
           type="button"
