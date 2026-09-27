@@ -10,8 +10,8 @@ import type { AxiosError } from 'axios';
 import type { ApiError } from '@/shared/types/axios.types';
 import { useToast } from '@/shared/composables/useToast';
 import { getErrorMessage } from '@/shared/utils/error.utils';
-import { PRESETS } from '@/shared/etiquetas/presets';
-import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
+import { PRESETS, PRESETS_VOLUME } from '@/shared/etiquetas/presets';
+import type { FonteEtiqueta, ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 import {
   createModeloEtiqueta,
   deleteModeloEtiqueta,
@@ -25,16 +25,20 @@ export function modeloDaLoja(api: ModeloEtiquetaApi): ModeloEtiqueta {
   return { chave: `loja:${api.id}`, id: api.id, nome: api.nome, fonte: api.fonte, definicao: api.definicao };
 }
 
-export function useModelosEtiqueta() {
+/** Presets + modelos da loja DA FONTE: etiqueta de estoque não aparece no envio e vice-versa. */
+export function useModelosEtiqueta(fonte: FonteEtiqueta = 'produto') {
   const query = useQuery({
     queryKey: [MODELOS_ETIQUETA_QUERY_KEY],
     queryFn: getModelosEtiqueta,
     staleTime: MODELOS_ETIQUETA_STALE_TIME,
   });
 
-  const modelosDaLoja = computed(() => (query.data.value ?? []).map(modeloDaLoja));
+  const modelosDaLoja = computed(() =>
+    (query.data.value ?? []).filter((m) => m.fonte === fonte).map(modeloDaLoja),
+  );
+  const presets = fonte === 'volume' ? PRESETS_VOLUME : PRESETS;
   // Os da loja primeiro: quem criou um modelo quer achá-lo sem rolar os presets.
-  const todos = computed<ModeloEtiqueta[]>(() => [...modelosDaLoja.value, ...PRESETS]);
+  const todos = computed<ModeloEtiqueta[]>(() => [...modelosDaLoja.value, ...presets]);
 
   return { ...query, modelosDaLoja, todos };
 }

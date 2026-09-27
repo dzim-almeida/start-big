@@ -11,7 +11,8 @@ import type { CampoEtiqueta } from './campos';
 import type { SimbologiaPreferida } from './codigoBarras';
 import type { OpcoesLayoutAuto } from './layoutAuto';
 
-export type FonteEtiqueta = 'produto';
+/** De onde vêm os dados: produto (estoque) ou volume de envio (OS/venda). */
+export type FonteEtiqueta = 'produto' | 'volume';
 
 export interface FolhaEtiqueta {
   largura_mm: number;

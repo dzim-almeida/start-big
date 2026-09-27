@@ -15,20 +15,40 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import EtiquetaPreview from '@/shared/etiquetas/components/EtiquetaPreview.vue';
-import { PRESETS } from '@/shared/etiquetas/presets';
+import { PRESETS, PRESETS_VOLUME } from '@/shared/etiquetas/presets';
+import { gerarVolume } from '@/shared/etiquetas/layoutEnvio';
+import { DADOS_EXEMPLO, etiquetasDosVolumes, valoresDoEnvio } from '@/shared/etiquetas/envio';
 import { BLOCOS_AUTO, gerarElementos, type BlocoAuto } from '@/shared/etiquetas/layoutAuto';
-import { problemasDaPagina, type DefinicaoEtiqueta, type ElementoEtiqueta, type PaginaEtiqueta } from '@/shared/etiquetas/modelo';
+import {
+  problemasDaPagina,
+  type DefinicaoEtiqueta,
+  type ElementoEtiqueta,
+  type FonteEtiqueta,
+  type PaginaEtiqueta,
+} from '@/shared/etiquetas/modelo';
 import { problemasDosElementos } from '@/shared/etiquetas/editor/operacoes';
 import EditorEtiqueta from '@/shared/etiquetas/editor/EditorEtiqueta.vue';
 import { VALORES_EXEMPLO } from '@/shared/etiquetas/campos';
 import type { ModeloEtiquetaPayload } from '../../types/etiquetas.types';
 
-const props = defineProps<{
-  /** Modelo em edição (ou ponto de partida de um novo); nulo para formulário em branco. */
-  inicial: { nome: string; definicao: DefinicaoEtiqueta } | null;
-  /** Abre já no editor visual (atalho "Editar layout" da fila). */
-  iniciarNoEditor?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** Modelo em edição (ou ponto de partida de um novo); nulo para formulário em branco. */
+    inicial: { nome: string; definicao: DefinicaoEtiqueta } | null;
+    /** Abre já no editor visual (atalho "Editar layout" da fila). */
+    iniciarNoEditor?: boolean;
+    /** Etiqueta de estoque (produto) ou de envio (volume). */
+    fonte?: FonteEtiqueta;
+  }>(),
+  { fonte: 'produto' },
+);
+
+const ehVolume = props.fonte === 'volume';
+const presetsDaFonte = ehVolume ? PRESETS_VOLUME : PRESETS;
+// Preview com dados de exemplo da fonte certa: produto ou volume de envio.
+const valoresExemplo = ehVolume
+  ? etiquetasDosVolumes(valoresDoEnvio(DADOS_EXEMPLO, { volumes: 3, pesoKg: 12.5, observacao: 'Frágil' }), 3)[0]
+  : VALORES_EXEMPLO;
 
 const FOLHAS = {
   A4: { largura_mm: 210, altura_mm: 297 },
@@ -39,7 +59,7 @@ function copiarPagina(pagina: PaginaEtiqueta): PaginaEtiqueta {
   return { ...pagina, folha: pagina.folha ? { ...pagina.folha } : null };
 }
 
-const base = props.inicial?.definicao ?? PRESETS[1].definicao;
+const base = props.inicial?.definicao ?? (ehVolume ? PRESETS_VOLUME[0] : PRESETS[1]).definicao;
 
 const form = reactive({
   nome: props.inicial?.nome ?? '',
@@ -54,7 +74,7 @@ const elementosManuais = ref<ElementoEtiqueta[]>(
   modo.value === 'manual' ? JSON.parse(JSON.stringify(props.inicial!.definicao.elementos)) : [],
 );
 
-const opcoesPreset = PRESETS.map((p) => ({ value: p.chave, label: p.nome }));
+const opcoesPreset = presetsDaFonte.map((p) => ({ value: p.chave, label: p.nome }));
 const opcoesTipo = [
   { value: 'bobina', label: 'Rolo (impressora térmica)' },
   { value: 'folha', label: 'Folha adesiva (impressora comum)' },
@@ -67,7 +87,7 @@ const opcoesFolha = [
 watch(
   () => form.preset,
   (chave) => {
-    const preset = PRESETS.find((p) => p.chave === chave);
+    const preset = presetsDaFonte.find((p) => p.chave === chave);
     if (!preset) return;
     form.pagina = copiarPagina(preset.definicao.pagina);
     form.blocos = new Set(preset.definicao.layout_auto?.blocos ?? []);
@@ -126,7 +146,10 @@ const definicaoAuto = computed<DefinicaoEtiqueta>(() => {
   const opcoes = { blocos: BLOCOS_AUTO.map((b) => b.bloco).filter((b) => form.blocos.has(b)) };
   const pagina = paginaNormalizada.value;
   const valida = pagina.largura_mm >= 5 && pagina.altura_mm >= 5;
-  return { pagina, elementos: valida ? gerarElementos(pagina, opcoes) : [], layout_auto: opcoes };
+  if (!valida) return { pagina, elementos: [], layout_auto: opcoes };
+  // Envio não tem caixas de marcar: o automático é o layout padrão de volume.
+  if (ehVolume) return { pagina, elementos: gerarVolume(pagina), layout_auto: { blocos: [] } };
+  return { pagina, elementos: gerarElementos(pagina, opcoes), layout_auto: opcoes };
 });
 
 const definicao = computed<DefinicaoEtiqueta>(() =>
@@ -140,7 +163,7 @@ const ERRO_NOME = 'Dê um nome ao modelo.';
 const problemas = computed(() => {
   const lista = problemasDaPagina(paginaNormalizada.value);
   if (modo.value === 'manual') lista.push(...problemasDosElementos(elementosManuais.value, paginaNormalizada.value));
-  else if (form.blocos.size === 0) lista.push('Marque pelo menos um dado para imprimir.');
+  else if (!ehVolume && form.blocos.size === 0) lista.push('Marque pelo menos um dado para imprimir.');
   if (!form.nome.trim()) lista.push(ERRO_NOME);
   return lista;
 });
@@ -178,7 +201,7 @@ onMounted(() => {
 function payload(): ModeloEtiquetaPayload | null {
   tentouSalvar.value = true;
   if (problemas.value.length) return null;
-  return { nome: form.nome.trim(), fonte: 'produto', definicao: definicao.value };
+  return { nome: form.nome.trim(), fonte: props.fonte, definicao: definicao.value };
 }
 
 defineExpose({ payload, problemas });
@@ -270,7 +293,11 @@ defineExpose({ payload, problemas });
             </button>
           </div>
         </div>
-        <div v-if="modo === 'auto'" class="grid grid-cols-2 gap-2">
+        <p v-if="modo === 'auto' && ehVolume" class="text-xs text-zinc-500">
+          Layout padrão de envio: destinatário em destaque, remetente, volume e código do pedido. Para mudar algo de
+          lugar ou acrescentar um dado, use o <strong>Editor visual</strong>.
+        </p>
+        <div v-else-if="modo === 'auto'" class="grid grid-cols-2 gap-2">
           <BaseCheckbox
             v-for="b in BLOCOS_AUTO"
             :key="b.bloco"
@@ -293,7 +320,7 @@ defineExpose({ payload, problemas });
           <EtiquetaPreview
             v-if="definicao.elementos.length"
             :definicao="definicao"
-            :valores="VALORES_EXEMPLO"
+            :valores="valoresExemplo"
             :largura-max-px="280"
             :altura-max-px="220"
           />
@@ -315,7 +342,12 @@ defineExpose({ payload, problemas });
 
     <section v-if="modo === 'manual'" ref="secaoEditor" class="lg:col-span-5 space-y-3 pt-2 border-t border-zinc-100 scroll-mt-4">
       <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-500">Editor visual</h4>
-      <EditorEtiqueta v-model:elementos="elementosManuais" :pagina="paginaNormalizada" :valores="VALORES_EXEMPLO" />
+      <EditorEtiqueta
+        v-model:elementos="elementosManuais"
+        :pagina="paginaNormalizada"
+        :valores="valoresExemplo"
+        :fonte="fonte"
+      />
     </section>
   </div>
 </template>

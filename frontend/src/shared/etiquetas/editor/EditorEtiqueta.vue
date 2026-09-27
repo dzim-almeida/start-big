@@ -19,6 +19,8 @@ import {
   NOVOS_ELEMENTOS,
   PASSO_FINO_MM,
   PASSO_MM,
+  PADRAO_PRODUTO,
+  PADRAO_VOLUME,
   encaixar,
   mover,
   novoElemento,
@@ -28,7 +30,8 @@ import {
 } from './operacoes';
 import { useHistorico } from './useHistorico';
 import type { ElementoEtiqueta, PaginaEtiqueta } from '../modelo';
-import type { ValoresEtiqueta } from '../campos';
+import { CAMPOS_CODIGO_PRODUTO, CAMPOS_CODIGO_VOLUME, CAMPOS_PRODUTO, CAMPOS_VOLUME, type ValoresEtiqueta } from '../campos';
+import type { FonteEtiqueta } from '../modelo';
 
 const PX_POR_MM = 96 / 25.4;
 const LARGURA_UTIL_PX = 520;
@@ -37,10 +40,17 @@ const ALTURA_UTIL_PX = 220;
 // Alça mínima clicável: uma linha de 0,3 mm não dá para pegar com o mouse.
 const ALVO_MINIMO_PX = 10;
 
-const props = defineProps<{
-  pagina: PaginaEtiqueta;
-  valores: ValoresEtiqueta;
-}>();
+const props = withDefaults(
+  defineProps<{
+    pagina: PaginaEtiqueta;
+    valores: ValoresEtiqueta;
+    fonte?: FonteEtiqueta;
+  }>(),
+  { fonte: 'produto' },
+);
+
+const campos = computed(() => (props.fonte === 'volume' ? CAMPOS_VOLUME : CAMPOS_PRODUTO));
+const camposCodigo = computed(() => (props.fonte === 'volume' ? CAMPOS_CODIGO_VOLUME : CAMPOS_CODIGO_PRODUTO));
 
 const elementos = defineModel<ElementoEtiqueta[]>('elementos', { required: true });
 
@@ -87,7 +97,7 @@ function substituir(indice: number, novo: ElementoEtiqueta) {
 }
 
 function adicionar(tipo: TipoNovoElemento) {
-  lista.value = [...lista.value, novoElemento(tipo, props.pagina)];
+  lista.value = [...lista.value, novoElemento(tipo, props.pagina, props.fonte === 'volume' ? PADRAO_VOLUME : PADRAO_PRODUTO)];
   selecionado.value = lista.value.length - 1;
   menuAberto.value = false;
   historico.registrar();
@@ -360,6 +370,8 @@ defineExpose({ reiniciarHistorico: historico.reiniciar });
         :elemento="elementoSelecionado"
         :numero="selecionado + 1"
         :pagina="pagina"
+        :campos="campos"
+        :campos-codigo="camposCodigo"
         @atualizar="substituir(selecionado!, $event)"
         @concluir="historico.registrar()"
       />

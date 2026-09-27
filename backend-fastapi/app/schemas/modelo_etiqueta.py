@@ -29,7 +29,8 @@ TOLERANCIA_MM = 0.5
 
 MAX_ELEMENTOS = 50
 
-FonteEtiqueta = Literal["produto"]
+# produto: etiqueta de estoque; volume: etiqueta de envio (OS/venda).
+FonteEtiqueta = Literal["produto", "volume"]
 TipoElemento = Literal["texto", "barras", "qr", "linha", "caixa", "imagem"]
 
 

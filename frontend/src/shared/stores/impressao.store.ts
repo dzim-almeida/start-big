@@ -35,6 +35,8 @@ export interface ConfigImpressao {
   etiqueta_deslocamento_y_mm: number
   /** Chave do último modelo usado na fila (`preset:...` ou `loja:<id>`). */
   etiqueta_modelo: string | null
+  /** Idem, para a etiqueta de envio (volume ou DANFE) — papel diferente do estoque. */
+  etiqueta_modelo_envio: string | null
 }
 
 const STORAGE_KEY = 'startbig-impressao'
@@ -60,6 +62,7 @@ const CONFIG_PADRAO: ConfigImpressao = {
   etiqueta_deslocamento_x_mm: 0,
   etiqueta_deslocamento_y_mm: 0,
   etiqueta_modelo: null,
+  etiqueta_modelo_envio: null,
 }
 
 export const useImpressaoStore = defineStore('impressao', () => {

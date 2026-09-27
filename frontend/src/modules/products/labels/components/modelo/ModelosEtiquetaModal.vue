@@ -9,7 +9,7 @@ import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
-import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
+import type { FonteEtiqueta, ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 import { useExcluirModeloEtiqueta, useSalvarModeloEtiqueta } from '../../composables/useModelosEtiqueta';
 import ModeloEtiquetaForm from './ModeloEtiquetaForm.vue';
 
@@ -21,6 +21,8 @@ const props = defineProps<{
    * Modelo da loja é editado; preset vira uma CÓPIA (preset não se altera).
    */
   abrirNoEditor?: ModeloEtiqueta | null;
+  /** Estoque (produto) ou envio (volume): o formulário muda presets, campos e layout. */
+  fonte?: FonteEtiqueta;
 }>();
 
 const emit = defineEmits<{
@@ -98,7 +100,7 @@ function resumo(m: ModeloEtiqueta): string {
 <template>
   <BaseModal
     :is-open="isOpen"
-    :title="noFormulario ? (emEdicao ? 'Editar modelo' : 'Novo modelo de etiqueta') : 'Modelos da loja'"
+    :title="noFormulario ? (emEdicao ? 'Editar modelo' : fonte === 'volume' ? 'Novo modelo de envio' : 'Novo modelo de etiqueta') : fonte === 'volume' ? 'Modelos de envio da loja' : 'Modelos da loja'"
     :subtitle="noFormulario ? 'Depois de salvo, aparece em todos os terminais da loja' : 'Compartilhados com todos os terminais da loja'"
     :size="noFormulario ? '3xl' : 'lg'"
     @close="emit('close')"
@@ -109,6 +111,7 @@ function resumo(m: ModeloEtiqueta): string {
       ref="formRef"
       :inicial="emEdicao ? { nome: emEdicao.nome, definicao: emEdicao.definicao } : rascunho"
       :iniciar-no-editor="iniciarNoEditor"
+      :fonte="fonte ?? 'produto'"
     />
 
     <div v-else class="space-y-3">

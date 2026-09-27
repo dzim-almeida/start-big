@@ -9,7 +9,7 @@
 import { computed } from 'vue';
 import { Wand2 } from 'lucide-vue-next';
 
-import { CAMPOS_PRODUTO, type CampoEtiqueta } from '../campos';
+import type { CampoEtiqueta, OpcaoCampo } from '../campos';
 import { fontePara } from '../layoutAuto';
 import { mover, redimensionar, PASSO_FINO_MM } from './operacoes';
 import type { ElementoEtiqueta, ElementoTexto, PaginaEtiqueta } from '../modelo';
@@ -19,6 +19,9 @@ const props = defineProps<{
   elemento: ElementoEtiqueta;
   numero: number;
   pagina: PaginaEtiqueta;
+  /** Dados que a fonte do modelo oferece (produto ou envio). */
+  campos: OpcaoCampo[];
+  camposCodigo: OpcaoCampo[];
 }>();
 
 const emit = defineEmits<{
@@ -42,10 +45,6 @@ const SIMBOLOGIAS: { valor: SimbologiaPreferida; rotulo: string }[] = [
   { valor: 'ITF14', rotulo: 'ITF-14 (caixa/fardo)' },
   { valor: 'CODE128', rotulo: 'Code 128 (qualquer texto)' },
 ];
-
-const CAMPOS_CODIGO = CAMPOS_PRODUTO.filter((c) =>
-  (['produto.codigo_barras', 'produto.codigo_produto'] as CampoEtiqueta[]).includes(c.campo),
-);
 
 const el = computed(() => props.elemento);
 const texto = computed(() => (el.value.tipo === 'texto' ? el.value : null));
@@ -128,7 +127,7 @@ function ajustarFonte() {
       <label class="campo">
         <span>Conteúdo</span>
         <select :value="texto.campo ?? 'fixo'" @change="conteudo">
-          <option v-for="c in CAMPOS_PRODUTO" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
+          <option v-for="c in campos" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
           <option value="fixo">Texto fixo</option>
         </select>
       </label>
@@ -199,7 +198,7 @@ function ajustarFonte() {
       <label class="campo">
         <span>Código impresso</span>
         <select :value="el.campo" @change="atualizar({ campo: valor($event) as CampoEtiqueta }); emit('concluir')">
-          <option v-for="c in CAMPOS_CODIGO" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
+          <option v-for="c in camposCodigo" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
         </select>
       </label>
       <label class="campo">
@@ -229,7 +228,7 @@ function ajustarFonte() {
     <label v-else-if="el.tipo === 'qr'" class="campo">
       <span>Conteúdo do QR</span>
       <select :value="el.campo" @change="atualizar({ campo: valor($event) as CampoEtiqueta }); emit('concluir')">
-        <option v-for="c in CAMPOS_PRODUTO" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
+        <option v-for="c in campos" :key="c.campo" :value="c.campo">{{ c.rotulo }}</option>
       </select>
     </label>
 

@@ -8,6 +8,7 @@
  * modelo (422), e o lojista não saberia qual dos elementos arrastou para fora.
  */
 
+import type { CampoEtiqueta } from '../campos';
 import { fontePara } from '../layoutAuto';
 import { arredondar, type ElementoEtiqueta, type PaginaEtiqueta } from '../modelo';
 
@@ -86,8 +87,27 @@ export const NOVOS_ELEMENTOS: { tipo: TipoNovoElemento; rotulo: string }[] = [
   { tipo: 'caixa', rotulo: 'Moldura' },
 ];
 
+/** Campos com que um elemento novo nasce — os da fonte do modelo. */
+export interface CamposPadrao {
+  texto: CampoEtiqueta;
+  codigo: CampoEtiqueta;
+  qr: CampoEtiqueta;
+}
+
+export const PADRAO_PRODUTO: CamposPadrao = {
+  texto: 'produto.nome',
+  codigo: 'produto.codigo_barras',
+  qr: 'produto.codigo_produto',
+};
+
+export const PADRAO_VOLUME: CamposPadrao = {
+  texto: 'destinatario.nome',
+  codigo: 'envio.codigo',
+  qr: 'envio.codigo',
+};
+
 /** Um elemento novo, no canto superior esquerdo, num tamanho que cabe. */
-export function novoElemento(tipo: TipoNovoElemento, pagina: PaginaEtiqueta): ElementoEtiqueta {
+export function novoElemento(tipo: TipoNovoElemento, pagina: PaginaEtiqueta, padrao: CamposPadrao = PADRAO_PRODUTO): ElementoEtiqueta {
   const W = pagina.largura_mm;
   const H = pagina.altura_mm;
   const x = Math.min(1, W / 10);
@@ -101,15 +121,15 @@ export function novoElemento(tipo: TipoNovoElemento, pagina: PaginaEtiqueta): El
       const h = altura(0.25, 6);
       return {
         tipo: 'texto', x, y, w: largura(0.8, 60), h,
-        ...(tipo === 'campo' ? { campo: 'produto.nome' as const } : { texto: 'Texto' }),
+        ...(tipo === 'campo' ? { campo: padrao.texto } : { texto: 'Texto' }),
         fonte_pt: fontePara(h, 1), negrito: false, alinhamento: 'esquerda', linhas_max: 1,
       };
     }
     case 'barras':
-      return { tipo: 'barras', x, y, w: largura(0.8, 50), h: altura(0.4, 15), campo: 'produto.codigo_barras', simbologia: 'auto', legenda: true };
+      return { tipo: 'barras', x, y, w: largura(0.8, 50), h: altura(0.4, 15), campo: padrao.codigo, simbologia: 'auto', legenda: true };
     case 'qr': {
       const lado = Math.min(largura(0.4, 20), altura(0.6, 20));
-      return { tipo: 'qr', x, y, w: lado, h: lado, campo: 'produto.codigo_produto' };
+      return { tipo: 'qr', x, y, w: lado, h: lado, campo: padrao.qr };
     }
     case 'linha':
       return { tipo: 'linha', x, y: arredondar(H / 2, 1), w: largura(0.8, 80), h: 0, espessura_mm: 0.3 };

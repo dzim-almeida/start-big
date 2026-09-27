@@ -13,6 +13,7 @@
  */
 
 import { gerarElementos, type OpcoesLayoutAuto } from './layoutAuto';
+import { gerarDanfe, gerarVolume } from './layoutEnvio';
 import type { ModeloEtiqueta, PaginaEtiqueta } from './modelo';
 
 const CARTA = { largura_mm: 215.9, altura_mm: 279.4 };
@@ -130,3 +131,40 @@ export const PRESETS: ModeloEtiqueta[] = [
 ];
 
 export const PRESET_PADRAO = PRESETS[1];
+
+// --- Envio (fase 5) ---
+
+function presetEnvio(
+  slug: string,
+  nome: string,
+  descricao: string,
+  pagina: PaginaEtiqueta,
+  gerar: (p: PaginaEtiqueta) => ModeloEtiqueta['definicao']['elementos'],
+): ModeloEtiqueta {
+  return {
+    chave: `preset:${slug}`,
+    nome,
+    descricao: descricao || undefined,
+    fonte: 'volume',
+    id: null,
+    // `blocos` vazio = "o layout padrão da fonte" (gerarVolume): o envio não
+    // tem caixas de marcar; quem quer mudar usa o editor visual.
+    definicao: { pagina, elementos: gerar(pagina), layout_auto: { blocos: [] } },
+  };
+}
+
+// A4 cortada em 4 (ou folha adesiva de 4): 105 × 148,5 mm, sem margem.
+const A4_EM_4 = folha(A4, { largura: 105, altura: 148.5, colunas: 2, linhas: 2 }, { topo: 0, esquerda: 0, passoHorizontal: 105 });
+
+export const PRESETS_VOLUME: ModeloEtiqueta[] = [
+  presetEnvio('volume-100x150', 'Volume 100 × 150 mm', 'padrão de transportadora', bobina(100, 150), gerarVolume),
+  presetEnvio('volume-100x100', 'Volume 100 × 100 mm', '', bobina(100, 100), gerarVolume),
+  presetEnvio('volume-100x50', 'Volume 100 × 50 mm', 'compacta', bobina(100, 50), gerarVolume),
+  presetEnvio('volume-a4-4', 'Volume — folha A4 em 4', 'impressora comum', A4_EM_4, gerarVolume),
+];
+
+/** DANFE Simplificado – Etiqueta: layout fixo (NT 2020.004), só o papel muda. */
+export const PRESETS_DANFE: ModeloEtiqueta[] = [
+  presetEnvio('danfe-100x150', 'DANFE Simplificado 100 × 150 mm', '', bobina(100, 150), gerarDanfe),
+  presetEnvio('danfe-a4-4', 'DANFE Simplificado — folha A4 em 4', 'impressora comum', A4_EM_4, gerarDanfe),
+];

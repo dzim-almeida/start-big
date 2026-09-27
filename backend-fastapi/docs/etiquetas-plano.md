@@ -25,8 +25,10 @@ gerada pelo software da seccionadora/CNC a partir do código `PRJ`
 **Nada começa a ser codado antes de as decisões da §4 estarem aceitas.**
 
 > **Status (27/09/2026, branch `etiquetas`):** decisões aceitas pelo Alan, e as
-> **fases 1, 2 e 3 estão implementadas** — ver §12 e §13 para o que foi entregue,
-> o que mudou em relação a este plano e o que falta conferir na loja.
+> **fases 1, 2, 3 e 5 estão implementadas** — ver §12, §13 e §14 para o que foi
+> entregue, o que mudou em relação a este plano e o que falta conferir na loja.
+> Faltam a fase 4 (linguagens nativas, depende de impressora para validar) e as
+> embalagens (§8, plano próprio).
 
 ---
 
@@ -84,7 +86,9 @@ frontend/src/modules/products/labels/          ← a tela (padrão de inventory/
 │   ├── estoque/CalibracaoEtiquetaModal.vue     deslocamento do terminal + página de teste
 │   ├── modelo/ModelosEtiquetaModal.vue         modelos da loja: listar, criar, editar, excluir
 │   ├── modelo/ModeloEtiquetaForm.vue           medidas + o que imprimir + preview ao vivo
-│   └── envio/                                  (fase 5)
+│   ├── envio/EnvioEtiquetasPanel.vue           origem, destinatário, volumes + impressão (volume/DANFE)
+│   ├── envio/OrigemEnvioBusca.vue              busca de OS e vendas recentes
+│   └── envio/DestinatarioEnvioForm.vue         destinatário editável só para a remessa
 ├── composables/useModelosEtiqueta.ts           presets + modelos da loja num só seletor
 ├── services/modeloEtiqueta.service.ts
 ├── store/filaEtiquetas.store.ts                a fila (o card do produto também alimenta)
@@ -96,6 +100,9 @@ frontend/src/shared/etiquetas/                 ← o motor (Venda e OS também c
 ├── campos.ts             catálogo de variáveis e resolução a partir do produto (§5.3)
 ├── layoutAuto.ts         gera os elementos a partir do tamanho + blocos escolhidos
 ├── presets.ts            presets de fábrica (rolos, gôndola, Pimaco Carta, A4)
+├── envio.ts              tipos do envio e valores de volume/DANFE
+├── layoutEnvio.ts        layouts de fábrica do volume e do DANFE Simplificado
+├── atalhoEnvio.ts        rota do atalho "Etiqueta de envio" (OS e vendas)
 ├── paginacao.ts          distribui nas páginas, "pular N posições"
 ├── teste.ts              página de teste (contorno + cruz)
 ├── useImpressaoEtiquetas.ts   monta o trabalho, injeta o @page e abre o diálogo
@@ -287,8 +294,10 @@ linguagem, essa parte vai para Configurações.
     necessários**: a fila lê a listagem de `/produtos` que a tela já carrega, e as
     entradas vêm de `/produtos/movimentacoes`. Voltam a ser avaliados com as
     embalagens (§8), se o dado não estiver na listagem.
-  - `GET /dados/volume?os_id= | venda_id=` → remetente, destinatário e NF *(fase 5)*
-  - `GET /dados/danfe/{documento_fiscal_id}` → dados do DANFE Simplificado *(fase 5)*
+  - `GET /envio/origens?busca=` · `GET /envio/os/{id}` · `GET /envio/venda/{id}` ·
+    `GET /envio/remetente` — **entregues na fase 5** (§14). Um endpoint por origem
+    no lugar do `/dados/volume` e do `/dados/danfe` planejados: os dados do DANFE
+    vêm no mesmo pacote, em `nfe`.
 - **Não tem** `/imprimir` (D11), e o relatório original tinha.
 - **Regerar o sidecar** ao final de cada fase que mexer no backend (`npm run build:sidecar`).
 
@@ -421,6 +430,45 @@ Feita antes da fase 4 porque, sem impressora à mão, é a que se valida inteira
 
 **Testes:** `src/shared/etiquetas/__tests__/editor.spec.ts` — operações, histórico
 e o editor montado (selecionar, mover com seta, apagar, desfazer, adicionar).
+
+---
+
+## 14. Entrega da fase 5 — envio (27/09/2026)
+
+A aba Etiquetas ganhou as sub-abas **Estoque | Envio**.
+
+- **Origem:** busca de OS e vendas finalizadas recentes (número, cliente sem
+  acento, identificador — ex.: `PRJ-000123`), ou **envio avulso** com o
+  destinatário digitado. Cada tipo só aparece para quem tem a permissão do
+  módulo (`servico` para OS, as de venda para venda): quem só cuida do estoque
+  não vê endereço de cliente.
+- **Destinatário** pré-preenchido do cadastro e editável **só para a remessa**
+  (a obra da marcenaria fica num endereço, o cliente mora em outro).
+- **Volumes:** quantidade, peso total e observação; uma etiqueta por volume, com
+  "VOLUME 2 DE 5".
+- **Etiqueta de volume:** 4 presets (100 × 150, 100 × 100, 100 × 50 compacta,
+  A4 em 4), modelos da loja com `fonte = "volume"` e editor visual com os campos
+  de envio (remetente, destinatário, volume, pedido, NF-e).
+- **DANFE Simplificado – Etiqueta** (NT 2020.004), só com NF-e **autorizada**,
+  modelo 55 e finalidade normal: layout fixo, 100 × 150 ou A4 em 4, letra de
+  pelo menos 6 pt, chave em Code 128, e o destinatário **como foi para a nota**
+  (`destinatario_*_enviado`), não o cadastro atual. Homologação sai com
+  "SEM VALOR FISCAL".
+- **Atalhos:** botão de caminhão na lista de OS (menos canceladas) e na de
+  vendas finalizadas, que abre `Produtos › Etiquetas › Envio` já com a origem
+  (`/produtos?envio=os:12`).
+
+**Pegadinha registrada:** no `documento_fiscal`, o `origem_id` da VENDA é o
+**número** da venda (emissao.py), e o da OS é o **id**. O service trata os dois
+lados, e o teste cobre.
+
+**Testes:** `test/api/v1/etiquetas/test_envio_api.py` (7) e
+`src/shared/etiquetas/__tests__/envio.spec.ts` (valores, layouts, 6 pt, código
+da chave desenhado).
+
+**Falta conferir na loja:** um volume 100 × 150 numa térmica e o DANFE
+Simplificado lido por um leitor (a chave de 44 dígitos em 94 mm dá módulo de
+~0,34 mm, perto do limite de uma térmica de 203 dpi).
 
 ---
 

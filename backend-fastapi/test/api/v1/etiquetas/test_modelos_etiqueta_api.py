@@ -119,3 +119,10 @@ def test_delete_e_depois_404(client: TestClient, header_com_token):
 
 def test_sem_token_e_401(client: TestClient):
     assert client.get(URL).status_code == 401
+
+
+def test_modelo_de_volume_e_aceito_e_fonte_desconhecida_nao(client: TestClient, header_com_token):
+    volume = client.post(URL, json={"nome": "Volume", "fonte": "volume", "definicao": definicao_bobina()}, headers=header_com_token)
+    assert volume.status_code == 201 and volume.json()["fonte"] == "volume"
+    outra = client.post(URL, json={"nome": "X", "fonte": "embalagem", "definicao": definicao_bobina()}, headers=header_com_token)
+    assert outra.status_code == 422

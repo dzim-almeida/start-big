@@ -46,7 +46,7 @@ class ModeloEtiqueta(Base):
     fonte: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        doc="De onde vêm os dados impressos: 'produto' (a embalagem e o volume vêm depois)",
+        doc="De onde vêm os dados impressos: 'produto' (estoque) ou 'volume' (envio de OS/venda)",
     )
     definicao: Mapped[dict] = mapped_column(
         JSON, nullable=False, doc="Página e elementos em mm — ver schemas/modelo_etiqueta.py"

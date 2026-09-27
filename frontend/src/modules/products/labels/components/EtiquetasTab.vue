@@ -2,10 +2,11 @@
 /**
  * @fileoverview Aba Etiquetas do Estoque (docs/etiquetas-plano.md, fases 1 e 2).
  *
- * Catálogo na largura toda; a fila abre num painel pela direita. A sub-aba "Envio" (fase 5)
- * entra aqui quando existir — sem aba morta antes disso.
+ * Duas sub-abas: Estoque (catálogo na largura toda; a fila abre num painel
+ * pela direita) e Envio (etiqueta de volume e DANFE Simplificado, fase 5).
  */
 import { computed, onUnmounted, ref, watch } from 'vue';
+import { Tags, Truck } from 'lucide-vue-next';
 
 import { useToast } from '@/shared/composables/useToast';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
@@ -19,6 +20,8 @@ import { definicaoDeTeste, etiquetasDeTeste } from '@/shared/etiquetas/teste';
 import type { ProdutoRead } from '@/modules/products/inventory/types/products.types';
 
 import ProdutosEtiquetaTable from './estoque/ProdutosEtiquetaTable.vue';
+import EnvioEtiquetasPanel from './envio/EnvioEtiquetasPanel.vue';
+import type { TipoOrigemEnvio } from '@/shared/etiquetas/envio';
 import FilaEtiquetasDrawer from './estoque/FilaEtiquetasDrawer.vue';
 import EntradasRecentesModal from './estoque/EntradasRecentesModal.vue';
 import CalibracaoEtiquetaModal from './estoque/CalibracaoEtiquetaModal.vue';
@@ -32,6 +35,8 @@ import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
 const MAX_POR_IMPRESSAO = 2000;
 
 const props = defineProps<{
+  /** Atalho da OS/venda: abre direto na sub-aba Envio com esta origem. */
+  envioInicial?: { tipo: TipoOrigemEnvio; id: number } | null;
   produtos: ProdutoRead[];
   isLoading?: boolean;
 }>();
@@ -45,6 +50,14 @@ const { trabalho, imprimir } = useImpressaoEtiquetas();
 
 // O painel mora dentro da aba: saindo dela, não pode reabrir sozinho na volta.
 onUnmounted(() => (fila.painelAberto = false));
+
+const subAba = ref<'estoque' | 'envio'>(props.envioInicial ? 'envio' : 'estoque');
+watch(
+  () => props.envioInicial,
+  (origem) => {
+    if (origem) subAba.value = 'envio';
+  },
+);
 
 const isEntradasOpen = ref(false);
 const isModelosOpen = ref(false);
@@ -123,34 +136,49 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
 </script>
 
 <template>
-  <ProdutosEtiquetaTable
-    :produtos="produtos"
-    :ids-na-fila="idsNaFila"
-    :total-etiquetas="totalEtiquetas"
-    :is-loading="isLoading"
-    @adicionar="fila.adicionar($event)"
-    @entradas="isEntradasOpen = true"
-    @abrir-fila="fila.painelAberto = true"
-  />
+  <div class="inline-flex p-1 rounded-xl bg-white border border-zinc-200">
+    <button type="button" :class="['sub-aba', subAba === 'estoque' && 'sub-aba--ativa']" @click="subAba = 'estoque'">
+      <Tags :size="15" />
+      Estoque
+    </button>
+    <button type="button" :class="['sub-aba', subAba === 'envio' && 'sub-aba--ativa']" @click="subAba = 'envio'">
+      <Truck :size="15" />
+      Envio
+    </button>
+  </div>
 
-  <FilaEtiquetasDrawer
-    v-model:chave-modelo="chaveModelo"
-    v-model:pular="pular"
-    :is-open="fila.painelAberto"
-    :linhas="linhas"
-    :modelos="modelos"
-    :modelo="modelo"
-    :total-etiquetas="totalEtiquetas"
-    @close="fila.painelAberto = false"
-    @update:quantidade="fila.definirQuantidade"
-    @remover="fila.remover"
-    @limpar="fila.limpar"
-    @imprimir="imprimirFila"
-    @imprimir-teste="imprimirTeste()"
-    @gerenciar-modelos="abrirModelos(null)"
-    @editar-layout="abrirModelos(modelo)"
-    @calibrar="isCalibracaoOpen = true"
-  />
+  <EnvioEtiquetasPanel v-if="subAba === 'envio'" :origem-inicial="envioInicial" />
+
+  <template v-else>
+    <ProdutosEtiquetaTable
+      :produtos="produtos"
+      :ids-na-fila="idsNaFila"
+      :total-etiquetas="totalEtiquetas"
+      :is-loading="isLoading"
+      @adicionar="fila.adicionar($event)"
+      @entradas="isEntradasOpen = true"
+      @abrir-fila="fila.painelAberto = true"
+    />
+
+    <FilaEtiquetasDrawer
+      v-model:chave-modelo="chaveModelo"
+      v-model:pular="pular"
+      :is-open="fila.painelAberto"
+      :linhas="linhas"
+      :modelos="modelos"
+      :modelo="modelo"
+      :total-etiquetas="totalEtiquetas"
+      @close="fila.painelAberto = false"
+      @update:quantidade="fila.definirQuantidade"
+      @remover="fila.remover"
+      @limpar="fila.limpar"
+      @imprimir="imprimirFila"
+      @imprimir-teste="imprimirTeste()"
+      @gerenciar-modelos="abrirModelos(null)"
+      @editar-layout="abrirModelos(modelo)"
+      @calibrar="isCalibracaoOpen = true"
+    />
+  </template>
 
   <EntradasRecentesModal
     :is-open="isEntradasOpen"
@@ -175,3 +203,25 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
 
   <EtiquetasImpressao v-if="trabalho" v-bind="trabalho" />
 </template>
+
+<style scoped>
+.sub-aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #71717a;
+  cursor: pointer;
+}
+.sub-aba:hover {
+  color: var(--color-brand-primary);
+}
+.sub-aba--ativa,
+.sub-aba--ativa:hover {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+</style>
