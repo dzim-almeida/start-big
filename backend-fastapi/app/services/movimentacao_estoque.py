@@ -263,19 +263,57 @@ def create_movimentacao(
     if data.tipo in (MovimentacaoTipo.ENTRADA, MovimentacaoTipo.SAIDA) and data.quantidade <= 0:
         raise quantidade_invalida
 
+    # Entrada por embalagem: converte para a unidade ANTES do registro central,
+    # que continua recebendo unidade e custo por unidade (é o que o custo médio
+    # e os relatórios de CMV esperam). Plano de embalagens, D10 / G6.
+    embalagem = _embalagem_da_entrada(produto, data) if data.embalagem_id is not None else None
+    quantidade = data.quantidade
+    custo_unitario = data.custo_unitario
+    if embalagem is not None:
+        quantidade = data.quantidade * embalagem.fator
+        if custo_unitario is not None:
+            custo_unitario = round(custo_unitario / embalagem.fator)
+
     movimentacao = registrar_movimentacao(
         db,
         produto=produto,
         tipo=data.tipo,
-        quantidade=data.quantidade,
+        quantidade=quantidade,
         origem=MovimentacaoOrigem.MANUAL,
         usuario_id=int(usuario_token["sub"]),
         usuario_nome=usuario_token.get("nome", "Desconhecido"),
         observacao=data.observacao,
-        custo_unitario=data.custo_unitario,
+        custo_unitario=custo_unitario,
     )
     assert movimentacao is not None  # as guardas acima já cobrem os casos de None
+    if embalagem is not None:
+        movimentacao.embalagem_id = embalagem.id
+        movimentacao.embalagem_sigla = embalagem.sigla
+        movimentacao.embalagem_fator = embalagem.fator
+        movimentacao.quantidade_embalagem = int(data.quantidade)
+        db.flush()
     return movimentacao
+
+
+def _embalagem_da_entrada(produto, data: MovimentacaoCreate):
+    """A embalagem da entrada, conferida: do produto, ativa, marcada para entrada."""
+    if data.tipo != MovimentacaoTipo.ENTRADA:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Embalagem só vale na entrada. Saída e ajuste são em unidade.",
+        )
+    if data.quantidade != int(data.quantidade):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Entrada por embalagem é em número inteiro de embalagens.",
+        )
+    embalagem = next((e for e in produto.embalagens if e.id == data.embalagem_id), None)
+    if embalagem is None or not embalagem.ativo or not embalagem.usa_na_entrada:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Essa embalagem não é deste produto, está inativa ou não é usada na entrada.",
+        )
+    return embalagem
 
 
 def get_movimentacoes(

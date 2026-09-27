@@ -19,6 +19,10 @@ rejeitar nota.
 > (§6.1). Princípio que ele deixou claro: **quem define a regra de venda é o
 > dono da loja** — o sistema oferece as opções, a loja liga as que usa.
 
+> **Execução (27/09/2026, branch `embalagens`):** **fases 1 e 2 entregues** —
+> ver §13. As fases 3 (venda), 4 (NF-e/NFC-e) e 5 (regras de preço) esperam:
+> sobem juntas, com homologação e loja canário.
+
 ---
 
 ## 0. O que "pronto" significa
@@ -421,6 +425,49 @@ cálculo que use a quantidade sem citar esses nomes (uma soma montada em SQL
 bruto, por exemplo) escaparia. Por isso cada fase fecha com um **teste de
 ponta a ponta com fardo** — vender, cancelar, devolver, emitir — e não só com
 os testes da parte alterada.
+
+---
+
+## 13. Entrega das fases 1 e 2 (27/09/2026)
+
+Tudo atrás da chave **"Vender e receber em fardo, caixa ou pack"**
+(Configurações › Produtos e Estoque), **desligada por padrão**. Desligada, o
+sistema fica exatamente como antes — cadastro, card, estoque e etiquetas.
+
+**Fase 1 — cadastro e etiqueta**
+- Tabela `produto_embalagens` e `GET/PUT /produtos/{id}/embalagens`
+  (replace-all, permissão de Produtos); as embalagens voltam na leitura do produto.
+- Código **único no sistema inteiro** (produto, SKU, outras embalagens); o
+  produto também não pode usar o código de uma embalagem.
+- **Código interno** para fardo sem código: EAN-13 com prefixo **29** (faixa
+  restrita GS1), pelo id — o "29" fica longe do "2" + código que as balanças
+  usam (§11.3).
+- Seção **Embalagens** no produto (só em edição), componente independente do
+  formulário, fora do `<form>` (Enter num campo dela não salva o produto).
+- Card do estoque com **"= 10 FD"** discreto.
+- Central de Etiquetas: cada linha escolhe **Unidade / FD / CX**; etiqueta do
+  fardo com código, preço e nome dele; **fardo sem código nunca imprime o
+  código da unidade**.
+
+**Fase 2 — entrada e inventário**
+- Entrada em embalagem: "3 CX a R$ 120,00" → **72 un a R$ 5,00** no registro
+  central, que continua recebendo unidade (custo médio e CMV intactos — G6).
+  A movimentação guarda sigla, fator e quantidade de embalagens, congelados.
+- Ajuste de inventário contando **"10 FD + 3 un"**.
+- Histórico mostra "(3 CX de 24)"; Entradas recentes das etiquetas oferecem a
+  etiqueta da embalagem (padrão continua unidade).
+
+**Migrations:** `a0b1c2d3e4f5` (tabela + chave) e `e7b2c9d41f60` (colunas da
+movimentação), só criam o que falta; nada existente é reescrito. (A segunda
+nasceu com um id que já existia — `b1c2d3e4f5a6`, da cor do tema — e o Alembic
+acusou ciclo; renomeada antes do commit.)
+
+**Regressão:** a suíte INTEIRA do backend rodou num banco temporário
+(`DATABASE_URL` apontado para a pasta de rascunho — a fixture padrão sobe o app
+contra o banco real): **1792 passam; 17 falham, e as mesmas 17 já falhavam no
+código de antes das etiquetas** (`test_emissao_ponta_a_ponta.py` — pendência
+"numeração confirmada" — e `test_inutilizacao_recusa_local.py`). Nenhuma
+regressão das embalagens. Frontend: 121 testes, `vue-tsc` e build limpos.
 
 ---
 

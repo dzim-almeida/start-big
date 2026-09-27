@@ -228,6 +228,9 @@ function quantidadeClass(tipo: string) {
                       {{ quantidadeLabel(mov.tipo, mov.quantidade) }}
                       <span v-if="mov.tipo !== 'EDICAO_DADOS'"> {{ siglaUnidade(mov.unidade_medida) }}</span>
                     </p>
+                    <p v-if="mov.quantidade_embalagem && mov.embalagem_sigla" class="text-[11px] text-zinc-400">
+                      ({{ mov.quantidade_embalagem }} {{ mov.embalagem_sigla }} de {{ mov.embalagem_fator }})
+                    </p>
                     <p v-if="mov.tipo !== 'EDICAO_DADOS'" class="text-xs text-zinc-400">
                       → {{ formatarQuantidade(mov.quantidade_posterior, mov.unidade_medida) }}
                     </p>

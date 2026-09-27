@@ -120,8 +120,8 @@ const linhas = computed<LinhaFila[]>(() =>
 
 const totalEtiquetas = computed(() => linhas.value.reduce((soma, l) => soma + l.quantidade, 0));
 
-function adicionarEntradas(itens: { produtoId: number; quantidade: number }[]) {
-  itens.forEach((i) => fila.adicionar(i.produtoId, i.quantidade));
+function adicionarEntradas(itens: { produtoId: number; quantidade: number; embalagemId: number | null }[]) {
+  itens.forEach((i) => fila.adicionar(i.produtoId, i.quantidade, i.embalagemId));
   isEntradasOpen.value = false;
   fila.painelAberto = true;
 }

@@ -31,6 +31,13 @@ class MovimentacaoCreate(BaseModel):
         ),
     )
     observacao: Optional[str] = Field(None, max_length=500, description="Motivo ou observação")
+    embalagem_id: Optional[int] = Field(
+        None,
+        description=(
+            "Só na ENTRADA: a quantidade e o custo vêm POR EMBALAGEM (3 caixas a R$ 120,00) "
+            "e o estoque recebe em unidade (72 un a R$ 5,00)."
+        ),
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,6 +73,10 @@ class MovimentacaoRead(BaseModel):
         description="Custo unitário congelado nesta movimentação (centavos). NULL nas linhas anteriores ao campo.",
     )
     observacao: Optional[str]
+    embalagem_id: Optional[int] = None
+    embalagem_sigla: Optional[str] = None
+    embalagem_fator: Optional[int] = None
+    quantidade_embalagem: Optional[int] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
