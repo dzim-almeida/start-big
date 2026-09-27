@@ -2,10 +2,10 @@
 /**
  * @fileoverview Aba Etiquetas do Estoque (docs/etiquetas-plano.md, fases 1 e 2).
  *
- * Catálogo à esquerda, fila de impressão à direita. A sub-aba "Envio" (fase 5)
+ * Catálogo na largura toda; a fila abre num painel pela direita. A sub-aba "Envio" (fase 5)
  * entra aqui quando existir — sem aba morta antes disso.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 
 import { useToast } from '@/shared/composables/useToast';
 import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
@@ -19,7 +19,7 @@ import { definicaoDeTeste, etiquetasDeTeste } from '@/shared/etiquetas/teste';
 import type { ProdutoRead } from '@/modules/products/inventory/types/products.types';
 
 import ProdutosEtiquetaTable from './estoque/ProdutosEtiquetaTable.vue';
-import FilaEtiquetasCard from './estoque/FilaEtiquetasCard.vue';
+import FilaEtiquetasDrawer from './estoque/FilaEtiquetasDrawer.vue';
 import EntradasRecentesModal from './estoque/EntradasRecentesModal.vue';
 import CalibracaoEtiquetaModal from './estoque/CalibracaoEtiquetaModal.vue';
 import ModelosEtiquetaModal from './modelo/ModelosEtiquetaModal.vue';
@@ -41,6 +41,9 @@ const impressaoStore = useImpressaoStore();
 const { companyInfo } = useCompanyPrintInfo();
 const { todos: modelos, modelosDaLoja } = useModelosEtiqueta();
 const { trabalho, imprimir } = useImpressaoEtiquetas();
+
+// O painel mora dentro da aba: saindo dela, não pode reabrir sozinho na volta.
+onUnmounted(() => (fila.painelAberto = false));
 
 const isEntradasOpen = ref(false);
 const isModelosOpen = ref(false);
@@ -81,7 +84,7 @@ const totalEtiquetas = computed(() => linhas.value.reduce((soma, l) => soma + l.
 function adicionarEntradas(itens: { produtoId: number; quantidade: number }[]) {
   itens.forEach((i) => fila.adicionar(i.produtoId, i.quantidade));
   isEntradasOpen.value = false;
-  toast.success('Entradas adicionadas à fila');
+  fila.painelAberto = true;
 }
 
 // --- Impressão ---
@@ -112,33 +115,33 @@ function imprimirTeste(ajuste?: { deslocamentoX: number; deslocamentoY: number }
 </script>
 
 <template>
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-    <ProdutosEtiquetaTable
-      class="xl:col-span-7"
-      :produtos="produtos"
-      :ids-na-fila="idsNaFila"
-      :is-loading="isLoading"
-      @adicionar="fila.adicionar($event)"
-      @entradas="isEntradasOpen = true"
-    />
+  <ProdutosEtiquetaTable
+    :produtos="produtos"
+    :ids-na-fila="idsNaFila"
+    :total-etiquetas="totalEtiquetas"
+    :is-loading="isLoading"
+    @adicionar="fila.adicionar($event)"
+    @entradas="isEntradasOpen = true"
+    @abrir-fila="fila.painelAberto = true"
+  />
 
-    <FilaEtiquetasCard
-      v-model:chave-modelo="chaveModelo"
-      v-model:pular="pular"
-      class="xl:col-span-5 xl:sticky xl:top-4"
-      :linhas="linhas"
-      :modelos="modelos"
-      :modelo="modelo"
-      :total-etiquetas="totalEtiquetas"
-      @update:quantidade="fila.definirQuantidade"
-      @remover="fila.remover"
-      @limpar="fila.limpar"
-      @imprimir="imprimirFila"
-      @imprimir-teste="imprimirTeste()"
-      @gerenciar-modelos="isModelosOpen = true"
-      @calibrar="isCalibracaoOpen = true"
-    />
-  </div>
+  <FilaEtiquetasDrawer
+    v-model:chave-modelo="chaveModelo"
+    v-model:pular="pular"
+    :is-open="fila.painelAberto"
+    :linhas="linhas"
+    :modelos="modelos"
+    :modelo="modelo"
+    :total-etiquetas="totalEtiquetas"
+    @close="fila.painelAberto = false"
+    @update:quantidade="fila.definirQuantidade"
+    @remover="fila.remover"
+    @limpar="fila.limpar"
+    @imprimir="imprimirFila"
+    @imprimir-teste="imprimirTeste()"
+    @gerenciar-modelos="isModelosOpen = true"
+    @calibrar="isCalibracaoOpen = true"
+  />
 
   <EntradasRecentesModal
     :is-open="isEntradasOpen"

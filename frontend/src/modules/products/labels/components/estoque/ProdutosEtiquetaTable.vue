@@ -5,7 +5,7 @@
  * errado é descoberto aqui, e não na frente do leitor do caixa.
  */
 import { computed, ref, watch } from 'vue';
-import { Plus, PackagePlus, Check } from 'lucide-vue-next';
+import { Plus, PackagePlus, Check, Tags } from 'lucide-vue-next';
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -20,12 +20,14 @@ const ITENS_POR_PAGINA = 8;
 const props = defineProps<{
   produtos: ProdutoRead[];
   idsNaFila: Set<number>;
+  totalEtiquetas: number;
   isLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
   adicionar: [produtoId: number];
   entradas: [];
+  abrirFila: [];
 }>();
 
 const busca = ref<string | null>('');
@@ -94,6 +96,14 @@ function situacaoCodigo(p: ProdutoRead): { rotulo: string; classe: string } {
       >
         <PackagePlus :size="16" />
         Entradas recentes
+      </button>
+      <button
+        class="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary text-white text-sm font-semibold hover:bg-brand-primary-hover transition-colors cursor-pointer shrink-0"
+        @click="emit('abrirFila')"
+      >
+        <Tags :size="16" />
+        Fila de impressão
+        <span class="min-w-6 px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-bold text-center">{{ totalEtiquetas }}</span>
       </button>
     </template>
 

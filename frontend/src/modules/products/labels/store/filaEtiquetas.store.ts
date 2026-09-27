@@ -23,6 +23,8 @@ function limitar(quantidade: number): number {
 
 export const useFilaEtiquetasStore = defineStore('filaEtiquetas', () => {
   const itens = ref<ItemFilaEtiqueta[]>([]);
+  /** Painel da fila aberto. No store para quem adiciona de fora (card do produto) poder abrir. */
+  const painelAberto = ref(false);
 
   const totalEtiquetas = computed(() => itens.value.reduce((soma, i) => soma + i.quantidade, 0));
 
@@ -46,5 +48,5 @@ export const useFilaEtiquetasStore = defineStore('filaEtiquetas', () => {
     itens.value = [];
   }
 
-  return { itens, totalEtiquetas, adicionar, definirQuantidade, remover, limpar };
+  return { itens, painelAberto, totalEtiquetas, adicionar, definirQuantidade, remover, limpar };
 });

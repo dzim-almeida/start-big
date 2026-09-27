@@ -57,7 +57,8 @@ function preset(slug: string, nome: string, descricao: string, pagina: PaginaEti
   return {
     chave: `preset:${slug}`,
     nome,
-    descricao,
+    // Só o que COMPLEMENTA o resumo de papel da fila (tipo, medida, colunas).
+    descricao: descricao || undefined,
     fonte: 'produto',
     id: null,
     definicao: { pagina, elementos: gerarElementos(pagina, opcoes), layout_auto: opcoes },
@@ -66,18 +67,18 @@ function preset(slug: string, nome: string, descricao: string, pagina: PaginaEti
 
 export const PRESETS: ModeloEtiqueta[] = [
   // --- Rolos de térmica ---
-  preset('rolo-40x25', 'Rolo 40 × 25 mm', 'Térmica, 1 coluna', bobina(40, 25)),
-  preset('rolo-50x30', 'Rolo 50 × 30 mm', 'Térmica, 1 coluna', bobina(50, 30)),
-  preset('rolo-60x40', 'Rolo 60 × 40 mm', 'Térmica, 1 coluna', bobina(60, 40), {
+  preset('rolo-40x25', 'Rolo 40 × 25 mm', '', bobina(40, 25)),
+  preset('rolo-50x30', 'Rolo 50 × 30 mm', '', bobina(50, 30)),
+  preset('rolo-60x40', 'Rolo 60 × 40 mm', '', bobina(60, 40), {
     blocos: ['nome', 'preco_varejo', 'barras', 'codigo_produto'],
   }),
   preset(
     'rolo-33x22-3col',
     'Rolo 33 × 22 mm (3 colunas)',
-    'Térmica, rolo de 3 colunas — muito usado em joalheria e bijuteria',
+    'muito usado em joalheria e bijuteria',
     bobina(33, 22, { colunas: 3, espaco_colunas_mm: 2.5, margem_esq_mm: 1.5 }),
   ),
-  preset('gondola-100x30', 'Gôndola 100 × 30 mm', 'Térmica, preço em destaque', bobina(100, 30), {
+  preset('gondola-100x30', 'Gôndola 100 × 30 mm', 'preço em destaque', bobina(100, 30), {
     blocos: ['nome', 'preco_varejo', 'codigo_produto', 'barras'],
   }),
 
@@ -85,45 +86,45 @@ export const PRESETS: ModeloEtiqueta[] = [
   preset(
     'pimaco-6180',
     'Pimaco 6180 — Carta',
-    '30 por folha · 66,7 × 25,4 mm',
+    'folha tamanho Carta',
     folha(CARTA, { largura: 66.7, altura: 25.4, colunas: 3, linhas: 10 }, { topo: 12.7, esquerda: 4.8, passoHorizontal: 69.9 }),
   ),
   preset(
     'pimaco-6181',
     'Pimaco 6181 — Carta',
-    '20 por folha · 101,6 × 25,4 mm',
+    'folha tamanho Carta',
     folha(CARTA, { largura: 101.6, altura: 25.4, colunas: 2, linhas: 10 }, { topo: 12.7, esquerda: 4, passoHorizontal: 106.4 }),
   ),
   preset(
     'pimaco-6182',
     'Pimaco 6182 — Carta',
-    '14 por folha · 101,6 × 33,9 mm',
+    'folha tamanho Carta',
     folha(CARTA, { largura: 101.6, altura: 33.9, colunas: 2, linhas: 7 }, { topo: 21.2, esquerda: 4, passoHorizontal: 106.4 }),
   ),
   preset(
     'pimaco-6183',
     'Pimaco 6183 — Carta',
-    '10 por folha · 101,6 × 50,8 mm',
+    'folha tamanho Carta',
     folha(CARTA, { largura: 101.6, altura: 50.8, colunas: 2, linhas: 5 }, { topo: 12.7, esquerda: 4.1, passoHorizontal: 106.4 }),
     { blocos: ['nome', 'marca', 'preco_varejo', 'barras', 'codigo_produto'] },
   ),
   preset(
     'a4-65-38x21',
     'Folha A4 — 65 etiquetas',
-    '38,1 × 21,2 mm (ex.: Pimaco A4251)',
+    'ex.: Pimaco A4251',
     folha(A4, { largura: 38.1, altura: 21.2, colunas: 5, linhas: 13 }, { topo: 10.7, esquerda: 4.75, passoHorizontal: 40.64 }),
     { blocos: ['nome', 'barras'] },
   ),
   preset(
     'a4-21-63x38',
     'Folha A4 — 21 etiquetas',
-    '63,5 × 38,1 mm (ex.: Pimaco A4256)',
+    'ex.: Pimaco A4256',
     folha(A4, { largura: 63.5, altura: 38.1, colunas: 3, linhas: 7 }, { topo: 15.15, esquerda: 7.2, passoHorizontal: 66.04 }),
   ),
   preset(
     'a4-14-99x38',
     'Folha A4 — 14 etiquetas',
-    '99,1 × 38,1 mm (ex.: Pimaco A4263)',
+    'ex.: Pimaco A4263',
     folha(A4, { largura: 99.1, altura: 38.1, colunas: 2, linhas: 7 }, { topo: 15.15, esquerda: 4.65, passoHorizontal: 101.6 }),
   ),
 ];

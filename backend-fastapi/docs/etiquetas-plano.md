@@ -77,9 +77,9 @@ Como ficou (fases 1 e 2). O que ainda não existe está marcado com *(fase N)*.
 ```
 frontend/src/modules/products/labels/          ← a tela (padrão de inventory/ e suppliers/)
 ├── components/
-│   ├── EtiquetasTab.vue                        catálogo + fila (sub-aba Envio: fase 5)
+│   ├── EtiquetasTab.vue                        catálogo na largura toda (sub-aba Envio: fase 5)
 │   ├── estoque/ProdutosEtiquetaTable.vue       catálogo, com a situação do código de cada produto
-│   ├── estoque/FilaEtiquetasCard.vue           modelo, preview, pular posições, quantidades, imprimir
+│   ├── estoque/FilaEtiquetasDrawer.vue         painel pela direita: modelo, preview, pular, quantidades, imprimir
 │   ├── estoque/EntradasRecentesModal.vue       "etiquetas desta entrada" (E3)
 │   ├── estoque/CalibracaoEtiquetaModal.vue     deslocamento do terminal + página de teste
 │   ├── modelo/ModelosEtiquetaModal.vue         modelos da loja: listar, criar, editar, excluir

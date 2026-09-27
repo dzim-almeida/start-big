@@ -244,6 +244,7 @@ function handleAddClick() {
 
 function handleEtiqueta(id: number) {
   filaEtiquetas.adicionar(id);
+  filaEtiquetas.painelAberto = true;
   activeTab.value = 'labels';
 }
 
