@@ -64,3 +64,6 @@ from app.db.models.aliquota_uf import AliquotaUF  # noqa: F401
 from app.db.models.documento_fiscal_item import DocumentoFiscalItem  # noqa: F401
 from app.db.models.perfil_tributario import PerfilTributario  # noqa: F401
 from app.db.models.regra_perfil_tributario import RegraPerfilTributario  # noqa: F401
+
+# --- Central de Etiquetas ---
+from app.db.models.modelo_etiqueta import ModeloEtiqueta  # noqa: F401
