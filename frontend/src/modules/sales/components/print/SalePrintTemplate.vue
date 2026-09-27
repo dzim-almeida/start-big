@@ -4,6 +4,7 @@ import { User, CreditCard, ShoppingBag } from 'lucide-vue-next';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
+import { quantidadeDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
 import {
   useCompanyPrintInfo,
   getClienteNome,
@@ -123,7 +124,10 @@ const pix = computed(() =>
           <tr v-for="item in sale.produtos" :key="item.id">
             <td class="py-2 pl-2 text-neutral-900">{{ item.nome }}</td>
             <td class="py-2 text-center text-neutral-600">{{ item.sku || '-' }}</td>
-            <td class="py-2 text-center text-neutral-700">{{ item.quantidade }}</td>
+            <td class="py-2 text-center text-neutral-700">
+              {{ quantidadeDaLinha(item) }}
+              <div v-if="unidadesDaLinha(item)" class="text-[10px] text-neutral-500">{{ unidadesDaLinha(item) }}</div>
+            </td>
             <td class="py-2 text-right text-neutral-700">{{ formatCurrency(item.valor_unitario) }}</td>
             <td class="py-2 text-right text-neutral-700">{{ item.desconto > 0 ? `- ${formatCurrency(item.desconto)}` : '-' }}</td>
             <td class="py-2 pr-2 text-right font-bold text-neutral-900">{{ formatCurrency(item.total) }}</td>

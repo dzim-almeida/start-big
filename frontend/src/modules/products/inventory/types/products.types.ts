@@ -76,6 +76,8 @@ export interface ProdutoRead extends ProdutoBase {
   fotos?: ProdutoFotoRead[];
   /** Fardo, caixa, pack. Vazio para quem não usa embalagens. */
   embalagens?: EmbalagemRead[];
+  /** Só vende em embalagem fechada: o caixa recusa a unidade avulsa (A3). */
+  so_embalagem_fechada?: boolean;
 }
 
 export interface ProdutoUpdate extends Partial<ProdutoBase> {

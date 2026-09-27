@@ -10,6 +10,7 @@
 # ---------------------------------------------------------------------------
 
 import re
+from decimal import Decimal
 from typing import Optional
 
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
@@ -19,6 +20,7 @@ from app.db.models.endereco import Endereco
 from app.db.models.venda import Venda
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
 
+from .embalagem_nota import campos_da_embalagem, conferir_valores_do_item
 from .helpers import obter_crt, usa_csosn
 from .tax_engine.types import ResultadoCalculo
 
@@ -338,6 +340,27 @@ def _montar_itens(
                 item_dict["icms_situacao_tributaria"] = fiscal.csosn
             else:
                 item_dict["icms_situacao_tributaria"] = fiscal.cst_icms
+
+        # Linha de fardo/caixa: unidade comercial = embalagem, tributável =
+        # unidade do produto (plano de embalagens, D8/D9). Linha de unidade
+        # (fator 1, todas as antigas) passa reto: payload idêntico ao de antes.
+        fator = getattr(item, "fator_embalagem", 1) or 1
+        if fator > 1:
+            embalagem = getattr(item, "embalagem", None)
+            item_dict.update(campos_da_embalagem(
+                quantidade=Decimal(item.quantidade),
+                fator=fator,
+                sigla=item.sigla_embalagem or (embalagem.sigla if embalagem else "UN"),
+                valor_bruto=Decimal(item.subtotal) / 100,
+                unidade_base=(fiscal.unidade_tributavel if fiscal else None) or produto.unidade_medida or "UN",
+                gtin_embalagem=embalagem.codigo_barras if embalagem else None,
+                gtin_unidade=(fiscal.gtin_tributavel if fiscal else None) or produto.codigo_barras,
+                gtin_valido=_gtin_valido,
+                sem_gtin=SEM_GTIN,
+            ))
+            problemas = conferir_valores_do_item(item_dict)
+            if problemas:
+                raise ValueError(" ".join(problemas))
 
         # Enriquecer com dados tributários calculados pelo tax_engine
         imp = impostos_por_item.get(idx)
@@ -1021,6 +1044,19 @@ def _montar_itens_devolucao(
         }
         if snap.cest:
             item["cest"] = snap.cest
+        # Fardo devolvido: mesma unidade tributável da nota original (D8).
+        fator = getattr(snap, "fator_embalagem", 1) or 1
+        if fator > 1:
+            q_trib = Decimal(qtd_mil) * fator / 1000
+            v_prod = Decimal(str(item["valor_bruto"]))
+            item["unidade_tributavel"] = snap.unidade_tributavel or "UN"
+            item["codigo_barras_tributavel"] = (
+                snap.codigo_barras_tributavel if item["codigo_barras_comercial"] != SEM_GTIN else SEM_GTIN
+            ) or SEM_GTIN
+            item["quantidade_tributavel"] = float(q_trib)
+            item["valor_unitario_tributavel"] = float(
+                (v_prod / q_trib).quantize(Decimal("0.0000000001"))
+            )
         itens.append(item)
     return itens
 

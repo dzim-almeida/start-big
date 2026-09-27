@@ -99,6 +99,9 @@ def salvar(db: Session, produto_id: int, dados: EmbalagensSalvar) -> list[Produt
         if dono:
             raise _conflito(f"O código {item.codigo_barras} já é {dono}.")
 
+    if dados.so_embalagem_fechada is not None:
+        produto.so_embalagem_fechada = dados.so_embalagem_fechada
+
     manter = set(ids_da_lista)
     for emb_id, emb in existentes.items():
         if emb_id not in manter:
@@ -137,3 +140,69 @@ def codigo_de_produto_livre(db: Session, codigo: Optional[str], produto_id: Opti
         return
     dono = "deste produto" if emb.produto_id == produto_id else f"do produto '{emb.produto.nome}'"
     raise _conflito(f"O código {codigo} já é da embalagem {emb.sigla} {dono}.")
+
+
+# ---------------------------------------------------------------------------
+# Venda e orçamento (fase 3)
+# ---------------------------------------------------------------------------
+
+def embalagens_ligadas(db: Session, empresa_id: Optional[int]) -> bool:
+    """A chave `usar_embalagens` da empresa. Desligada (o padrão), a venda
+    funciona exatamente como antes do recurso existir (plano, B8)."""
+    if not empresa_id:
+        return False
+    from app.db.crud import configuracao_produtos as config_produtos_crud
+
+    config = config_produtos_crud.get_configuracao_produtos(db, empresa_id=empresa_id)
+    return bool(config and config.usar_embalagens)
+
+
+def embalagem_para_venda(db: Session, produto: Produto, embalagem_id: int, empresa_id: Optional[int]) -> ProdutoEmbalagem:
+    """A embalagem que o caixa quer lançar, conferida: recurso ligado, do
+    produto, ativa e marcada para o PDV."""
+    from app.helpers.exceptions import BadRequestException
+
+    if not embalagens_ligadas(db, empresa_id):
+        raise BadRequestException(detail="Venda por embalagem está desligada em Configurações › Produtos e Estoque.")
+    embalagem = next((e for e in produto.embalagens if e.id == embalagem_id), None)
+    if embalagem is None or not embalagem.ativo or not embalagem.vende_no_pdv:
+        raise BadRequestException(
+            detail=f"Essa embalagem não é do produto {produto.nome}, está inativa ou não é vendida no caixa."
+        )
+    return embalagem
+
+
+def exigir_embalagem_fechada(db: Session, produto: Produto, empresa_id: Optional[int]) -> None:
+    """A3: produto marcado "só vende embalagem fechada" recusa a unidade avulsa."""
+    if not produto.so_embalagem_fechada or not embalagens_ligadas(db, empresa_id):
+        return
+    from app.helpers.exceptions import BadRequestException
+
+    siglas = ", ".join(e.sigla for e in produto.embalagens if e.ativo and e.vende_no_pdv and e.fator >= 2)
+    raise BadRequestException(
+        detail=f"{produto.nome} só é vendido em embalagem fechada ({siglas or 'cadastre uma embalagem'})."
+    )
+
+
+def aplicar_embalagem_na_linha(db: Session, linha, produto: Produto, embalagem_id: Optional[int], empresa_id: Optional[int]) -> int:
+    """Carimba embalagem, fator e sigla na linha (venda ou orçamento) e devolve
+    o preço unitário DA LINHA — o da embalagem, ou o da unidade.
+
+    Sem embalagem, a linha fica como sempre foi (fator 1) e o preço é o de
+    varejo; só a trava A3 pode recusar.
+    """
+    preco_unidade = produto.estoque.valor_varejo
+    if embalagem_id is None:
+        exigir_embalagem_fechada(db, produto, empresa_id)
+        linha.embalagem_id = None
+        linha.fator_embalagem = 1
+        linha.sigla_embalagem = None
+        return preco_unidade
+
+    from app.core.embalagem import preco_da_embalagem
+
+    embalagem = embalagem_para_venda(db, produto, embalagem_id, empresa_id)
+    linha.embalagem_id = embalagem.id
+    linha.fator_embalagem = embalagem.fator
+    linha.sigla_embalagem = embalagem.sigla
+    return preco_da_embalagem(embalagem.fator, embalagem.preco, embalagem.desconto_bp, preco_unidade)

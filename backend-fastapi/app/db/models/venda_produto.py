@@ -14,6 +14,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from .venda import Venda
     from .produto import Produto
+    from .produto_embalagem import ProdutoEmbalagem
 
 
 class ProdutoVenda(Base):
@@ -89,6 +90,29 @@ class ProdutoVenda(Base):
     )
     desconto: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Desconto especifico deste item (centavos)")
     subtotal: Mapped[int] = mapped_column(Integer, nullable=False, doc="Subtotal calculado (quantidade * valor_unitario)")
+
+    # --- Embalagem (fardo/caixa) — plano de embalagens, D6 ---
+    # A linha vende EMBALAGENS: `quantidade` = 2 (FD), `valor_unitario` = preço
+    # do fardo. O estoque baixa `quantidade × fator_embalagem`. Sigla e fator são
+    # congelados: mudar o cadastro amanhã não reescreve a baixa, o estorno nem a
+    # nota de hoje. Linha sem embalagem (todas as antigas) tem fator 1.
+    embalagem_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("produto_embalagens.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="Embalagem vendida nesta linha (nulo = unidade)",
+    )
+    fator_embalagem: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1",
+        doc="Unidades por embalagem, congelado (1 = unidade)",
+    )
+    sigla_embalagem: Mapped[Optional[str]] = mapped_column(String(6), nullable=True, doc="FD, CX... congelado")
+
+    @property
+    def quantidade_base(self) -> int:
+        """Quantas unidades do produto a linha representa (2 FD de 12 = 24)."""
+        return (self.quantidade or 0) * (self.fator_embalagem or 1)
+
     @property
     def total(self):
         return self.subtotal - self.desconto
@@ -113,3 +137,6 @@ class ProdutoVenda(Base):
     # --- Relacionamentos ---
     venda: Mapped["Venda"] = relationship(back_populates="itens")
     produto: Mapped[Optional["Produto"]] = relationship(doc="Produto do catalogo associado")
+    # So para a nota (cEAN do fardo, fase 4). Sigla e fator NAO vem daqui: estao
+    # congelados na linha.
+    embalagem: Mapped[Optional["ProdutoEmbalagem"]] = relationship(doc="Embalagem vendida (fardo/caixa)")

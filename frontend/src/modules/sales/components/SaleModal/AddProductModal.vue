@@ -41,6 +41,9 @@ const {
   quantity,
   desconto,
   totalItem,
+  embalagemSelecionadaId,
+  embalagemSelecionada,
+  precoSelecionado,
   handleInputChange,
   handleKeydown: navegarNaLista,
   selectProduct,
@@ -168,6 +171,18 @@ function ciclarParaBusca(e: KeyboardEvent) {
   focarBusca();
 }
 
+// G1 do plano de embalagens: produto com fardo/caixa escolhe em que vende.
+// Fator 1 é só um código a mais da unidade (D3) e não entra na escolha.
+const opcoesDeVenda = computed(() => {
+  const produto = selectedProduct.value;
+  const embalagens = (produto?.embalagens ?? []).filter((e) => e.fator > 1);
+  if (!produto || !embalagens.length) return [];
+  const unidade = produto.so_embalagem_fechada
+    ? []
+    : [{ id: null as number | null, rotulo: 'Unidade', preco: produto.preco }];
+  return [...unidade, ...embalagens.map((e) => ({ id: e.id as number | null, rotulo: `${e.sigla} ${e.fator}`, preco: e.preco }))];
+});
+
 function getEstoqueStatus(product: { estoque: number; quantidade_minima?: number | null }) {
   if (product.estoque <= 0) return 'sem_estoque';
   if (product.quantidade_minima != null && product.estoque <= product.quantidade_minima) return 'baixo';
@@ -198,6 +213,7 @@ async function handleAdd() {
       produto,
       quantidade: quantity.value,
       desconto: desconto.value,
+      embalagem: embalagemSelecionada.value,
     }),
   );
 }
@@ -362,13 +378,37 @@ function handleAddAvulso() {
           </div>
         </div>
 
+        <!-- Vender em: unidade ou embalagem (só com fardo/caixa cadastrado) -->
+        <div v-if="opcoesDeVenda.length" class="mb-4">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Vender em</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="opcao in opcoesDeVenda"
+              :key="opcao.id ?? 'un'"
+              type="button"
+              :class="[
+                'px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer',
+                embalagemSelecionadaId === opcao.id
+                  ? 'border-brand-primary bg-brand-primary text-white'
+                  : 'border-zinc-200 bg-white text-zinc-600 hover:border-brand-primary/40',
+              ]"
+              @click="embalagemSelecionadaId = opcao.id"
+            >
+              {{ opcao.rotulo }} · {{ formatCurrency(opcao.preco) }}
+            </button>
+          </div>
+          <p v-if="embalagemSelecionada" class="mt-1.5 text-xs text-zinc-500">
+            {{ quantity }} {{ embalagemSelecionada.sigla }} = {{ quantity * embalagemSelecionada.fator }} un do estoque
+          </p>
+        </div>
+
         <!-- Grid de campos -->
         <div class="grid grid-cols-4 gap-3">
           <!-- Valor unitário (somente leitura) -->
           <div>
             <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Valor unit.</p>
             <div class="h-9 bg-white border border-zinc-200 rounded-lg flex items-center px-3">
-              <span class="text-sm font-semibold text-zinc-600">{{ formatCurrency(selectedProduct?.preco ?? 0) }}</span>
+              <span class="text-sm font-semibold text-zinc-600">{{ formatCurrency(precoSelecionado) }}</span>
             </div>
           </div>
 
@@ -408,7 +448,7 @@ function handleAddAvulso() {
             <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 mb-1.5">Desconto (R$)</p>
             <div
               class="flex items-center gap-1 border rounded-lg bg-white h-9 px-3"
-              :class="desconto > (selectedProduct?.preco ?? 0) * quantity ? 'border-red-400' : 'border-zinc-200'"
+              :class="desconto > precoSelecionado * quantity ? 'border-red-400' : 'border-zinc-200'"
             >
               <span class="text-xs text-zinc-400 shrink-0">R$</span>
               <input

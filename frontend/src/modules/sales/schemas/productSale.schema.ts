@@ -15,6 +15,9 @@ export const ProductSaleBaseSchema = z.object({
     .optional()
     .transform((val) => (!!val ? 0 : val)),
   desconto: z.number().nullable().optional(),
+  // Venda por embalagem (fardo/caixa): a quantidade é de embalagens e o preço é
+  // o dela; o estoque baixa quantidade × fator. Só com `usarEmbalagens` ligado.
+  embalagem_id: z.number().nullable().optional(),
 });
 
 export const ProductSaleCreateSchema = ProductSaleBaseSchema.superRefine((data, ctx) => {
@@ -75,6 +78,9 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   imagem_url: z.string().nullable().optional(),
   unidade_medida: z.string().nullable().optional(),
   estoque_disponivel: z.number().nullable().optional(),
+  // Congelados na linha (backend mais antigo não manda: vale 1 / nulo).
+  fator_embalagem: z.number().optional().default(1),
+  sigla_embalagem: z.string().nullable().optional(),
   valor_unitario: z.number().transform((val) => (!val ? 0 : val)),
   desconto: z.number().transform((val) => (!val ? 0 : val)),
 }).omit({ descricao_avulsa: true });
@@ -108,10 +114,26 @@ export const ProductSaleListItemSchema = z
     estoque: z.number(),
     quantidade_minima: z.number().nullable().optional(),
     imagem_url: z.string().nullable().optional(),
+    // Só vêm com `usar_embalagens` ligado; o preço já vem resolvido pelo backend.
+    embalagens: z
+      .array(
+        z.object({
+          id: z.number(),
+          sigla: z.string(),
+          descricao: z.string().nullable().optional(),
+          fator: z.number(),
+          codigo_barras: z.string().nullable().optional(),
+          preco: z.number(),
+        }),
+      )
+      .optional()
+      .default([]),
+    so_embalagem_fechada: z.boolean().optional().default(false),
   })
   .array();
 
 export type ProductSaleListItem = z.infer<typeof ProductSaleListItemSchema>;
+export type EmbalagemPdv = ProductSaleListItem[number]['embalagens'][number];
 
 export const ItemSaleFormSchema = z.object({
   descricao: z.string().min(1, 'Informe a descrição do produto'),

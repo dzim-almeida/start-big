@@ -5,12 +5,13 @@
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from typing import Sequence, Optional
 
 from app.core.busca import filtro_busca, ordenacao_relevancia, por_similaridade
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
+from app.db.models.produto_embalagem import ProdutoEmbalagem
 
 # Campos varridos pela busca de produto. O código de barras entra na lista
 # porque o balcão usa leitor — sem ele, bipar não acha nada.
@@ -132,14 +133,25 @@ def get_produto_simple_by_search(
     db: Session,
     search: str | None,
     limite: int | None = None,
+    com_embalagens: bool = False,
 ) -> Sequence[ProdutoModel]:
     """
     Versão para o auto-complete do PDV: só produtos ativos e sem termo, sem
     resultado (o campo não deve despejar o catálogo ao ganhar foco).
+
+    `com_embalagens`: o código EXATO de uma embalagem vendida no caixa também
+    acha o produto dono dela — é o fardo bipado no PDV.
     """
     filtro = filtro_busca(search, _CAMPOS_BUSCA)
     if filtro is None:
         return []
+    if com_embalagens:
+        dono_da_embalagem = select(ProdutoEmbalagem.produto_id).where(
+            ProdutoEmbalagem.codigo_barras == search.strip(),
+            ProdutoEmbalagem.ativo == True,
+            ProdutoEmbalagem.vende_no_pdv == True,
+        )
+        filtro = or_(filtro, ProdutoModel.id.in_(dono_da_embalagem))
 
     relevancia = ordenacao_relevancia(search, ProdutoModel.nome, _CAMPOS_EXATOS)
     stmt = (

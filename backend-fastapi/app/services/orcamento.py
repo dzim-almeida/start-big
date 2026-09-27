@@ -14,6 +14,7 @@ from app.schemas.orcamentos import (
 from app.services.cliente import cliente_exists
 from app.services.funcionario import funcionario_exists
 from app.services import produto as produto_service
+from app.services import produto_embalagem as embalagem_service
 
 from app.db.crud import orcamento as orcamento_crud
 from app.db.crud import venda as venda_crud
@@ -98,15 +99,26 @@ def add_item_to_orcamento(db: Session, orcamento_id: int, item_data: OrcamentoPr
     valor_unitario = item_data.valor_unitario
     desconto = item_data.desconto
 
+    product_data = OrcamentoProduto(
+        **item_data.model_dump(exclude={"valor_unitario", "embalagem_id"}),
+        orcamento_id=orcamento_id,
+    )
+
+    if item_data.embalagem_id is not None and item_data.tipo_produto != TipoProdutoVenda.CADASTRADO:
+        raise BadRequestException(detail="So produto cadastrado e vendido por embalagem")
+
     if item_data.produto_id:
         if item_data.tipo_produto == TipoProdutoVenda.AVULSO:
             raise BadRequestException(detail="Um produto avulso nao pode estar cadastrado")
 
         product_in_db = produto_service.get_produto_by_id(db, produto_id=item_data.produto_id)
-        if quantidade > product_in_db.estoque.quantidade:
-            raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
 
-        valor_unitario = product_in_db.estoque.valor_varejo
+        # Mesmo carimbo da venda: o orcamento "2 FD" precisa virar venda "2 FD" (G3).
+        valor_unitario = embalagem_service.aplicar_embalagem_na_linha(
+            db, product_data, product_in_db, item_data.embalagem_id, orcamento_in_db.funcionario.empresa_id
+        )
+        if product_data.quantidade_base > product_in_db.estoque.quantidade:
+            raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
 
     if item_data.tipo_produto == TipoProdutoVenda.AVULSO and item_data.descricao_avulsa is None:
         raise BadRequestException(detail="Um produto avulso deve ter descricao")
@@ -116,12 +128,8 @@ def add_item_to_orcamento(db: Session, orcamento_id: int, item_data: OrcamentoPr
 
     subtotal = quantidade * valor_unitario - desconto
 
-    product_data = OrcamentoProduto(
-        **item_data.model_dump(exclude={"valor_unitario"}),
-        orcamento_id=orcamento_id,
-        valor_unitario=valor_unitario,
-        subtotal=subtotal
-    )
+    product_data.valor_unitario = valor_unitario
+    product_data.subtotal = subtotal
 
     product_in_db = orcamento_crud.add_product_to_orcamento(db, product_data)
 
@@ -148,7 +156,7 @@ def update_item_in_orcamento(db: Session, orcamento_id: int, item_id: int, item_
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
 
     if item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO and item_in_db.produto:
-        if item_in_db.produto.estoque.quantidade < quantidade:
+        if item_in_db.produto.estoque.quantidade < quantidade * (item_in_db.fator_embalagem or 1):
             raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {item_in_db.nome}")
 
     preco_unitario = item_update.valor_unitario or (item_in_db.valor_unitario or 0)
@@ -233,6 +241,10 @@ def converter_orcamento(db: Session, orcamento_id: int, payload: ConverterOrcame
             valor_unitario=item.valor_unitario,
             desconto=item.desconto,
             subtotal=item.subtotal,
+            # G3: sem isto, o orcamento "2 FD" virava venda "2 UN" em silencio.
+            embalagem_id=item.embalagem_id,
+            fator_embalagem=item.fator_embalagem or 1,
+            sigla_embalagem=item.sigla_embalagem,
         )
         venda_crud.add_product_to_sale(db, produto_venda)
 

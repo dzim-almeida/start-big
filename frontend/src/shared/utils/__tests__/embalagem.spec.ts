@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { precoDaEmbalagem, precoUnitarioNaEmbalagem, saldoEmEmbalagem } from '../embalagem';
+import {
+  multiplicadorDaLinha,
+  precoDaEmbalagem,
+  precoUnitarioNaEmbalagem,
+  quantidadeDaLinha,
+  saldoEmEmbalagem,
+  unidadesDaLinha,
+} from '../embalagem';
 
 describe('preço da embalagem', () => {
   it('preço próprio vale mais que tudo', () => {
@@ -30,5 +37,24 @@ describe('saldo em embalagem', () => {
   it('sem embalagem ou sem estoque, nada', () => {
     expect(saldoEmEmbalagem(0, [emb('FD', 12)])).toBeNull();
     expect(saldoEmEmbalagem(30, undefined)).toBeNull();
+  });
+});
+
+describe('quantidade da linha nas impressões (G4)', () => {
+  const fardo = { quantidade: 2, sigla_embalagem: 'FD', fator_embalagem: 12 };
+  const unidade = { quantidade: 3, sigla_embalagem: null, fator_embalagem: 1 };
+
+  it('linha de fardo sai "2 FD (24 un)"', () => {
+    expect(quantidadeDaLinha(fardo)).toBe('2 FD');
+    expect(unidadesDaLinha(fardo)).toBe('(24 un)');
+    expect(multiplicadorDaLinha(fardo)).toBe('2 FD x');
+  });
+
+  it('linha de unidade sai exatamente como antes', () => {
+    expect(quantidadeDaLinha(unidade)).toBe('3');
+    expect(unidadesDaLinha(unidade)).toBeNull();
+    expect(multiplicadorDaLinha(unidade)).toBe('3x');
+    // Backend antigo, sem os campos novos.
+    expect(multiplicadorDaLinha({ quantidade: 1 })).toBe('1x');
   });
 });

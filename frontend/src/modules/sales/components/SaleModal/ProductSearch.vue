@@ -13,7 +13,7 @@ import { useAddProductModal } from '../../composables/flows/useAddProductModal';
 import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 import { pareceCodigoDeBarras } from '../../leitorCodigoBarras.util';
 
-import type { ProductSaleRead } from '../../schemas/productSale.schema';
+import type { EmbalagemPdv, ProductSaleRead } from '../../schemas/productSale.schema';
 
 const props = defineProps<{
   saleId: number | null;
@@ -57,6 +57,13 @@ async function handleAutoAdd(product: { id: number }) {
   const produto = products.value.find((p) => p.id === product.id);
   if (!produto) return;
   avisarResultado(await tentarAdicionarProduto({ saleId: props.saleId, produto }));
+}
+
+/** Clique no chip do fardo/caixa: lança 1 embalagem, pela mesma porta. */
+async function handleEmbalagem(product: { id: number }, embalagem: EmbalagemPdv) {
+  const produto = products.value.find((p) => p.id === product.id);
+  if (!produto) return;
+  avisarResultado(await tentarAdicionarProduto({ saleId: props.saleId, produto, embalagem }));
 }
 
 /**
@@ -208,6 +215,7 @@ async function handleKeydown(e: KeyboardEvent) {
               :highlighted="highlightedIndex === index"
               :data-product-index="index"
               @click="handleAutoAdd(product)"
+              @embalagem="(e) => handleEmbalagem(product, e)"
               @select-for-quantity="handleSelectForQuantity(product)"
             />
           </div>

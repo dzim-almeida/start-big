@@ -1,4 +1,4 @@
-import type { ProductSaleListItem } from './schemas/productSale.schema';
+import type { EmbalagemPdv, ProductSaleListItem } from './schemas/productSale.schema';
 
 /**
  * Regras do leitor de código de barras na venda.
@@ -30,7 +30,7 @@ export function pareceCodigoDeBarras(termo: string): boolean {
 
 /** O que a busca por código exato encontrou. */
 export type ResolucaoCodigo =
-  | { tipo: 'unico'; produto: ProductSaleListItem[number] }
+  | { tipo: 'unico'; produto: ProductSaleListItem[number]; embalagem?: EmbalagemPdv }
   | { tipo: 'nenhum' }
   | { tipo: 'ambiguo'; quantos: number };
 
@@ -55,11 +55,23 @@ export function resolverPorCodigoExato(
   const alvo = (termo ?? '').trim();
   if (!alvo) return { tipo: 'nenhum' };
 
-  const exatos = produtos.filter(
-    (p) => p.codigo_barras?.trim() === alvo || p.sku?.trim() === alvo,
-  );
+  // O código de um fardo/caixa também vale — é o fardo bipado (plano de
+  // embalagens, fase 3). A lista `embalagens` só vem com o recurso ligado.
+  // O backend garante código único no sistema, mas a regra do "um só" vale
+  // igual: produto e embalagem contam juntos.
+  const exatos: { produto: ProductSaleListItem[number]; embalagem?: EmbalagemPdv }[] = [];
+  for (const p of produtos) {
+    if (p.codigo_barras?.trim() === alvo || p.sku?.trim() === alvo) exatos.push({ produto: p });
+    for (const e of p.embalagens ?? []) {
+      if (e.codigo_barras?.trim() === alvo) exatos.push({ produto: p, embalagem: e });
+    }
+  }
 
-  if (exatos.length === 1) return { tipo: 'unico', produto: exatos[0] };
+  if (exatos.length === 1) {
+    const { produto, embalagem } = exatos[0];
+    // Fator 1 é só um código a mais da própria unidade (D3): lança a unidade.
+    return embalagem && embalagem.fator > 1 ? { tipo: 'unico', produto, embalagem } : { tipo: 'unico', produto };
+  }
   if (exatos.length === 0) return { tipo: 'nenhum' };
   return { tipo: 'ambiguo', quantos: exatos.length };
 }

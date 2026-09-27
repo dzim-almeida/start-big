@@ -468,6 +468,59 @@ contra o banco real): **1792 passam; 17 falham, e as mesmas 17 já falhavam no
 código de antes das etiquetas** (`test_emissao_ponta_a_ponta.py` — pendência
 "numeração confirmada" — e `test_inutilizacao_recusa_local.py`). Nenhuma
 regressão das embalagens. Frontend: 121 testes, `vue-tsc` e build limpos.
+(As 17 foram corrigidas depois, em `74841b3`: 16 eram fixture desatualizada e 1
+era bug real — o `fileConfig` do Alembic calava os logs do app no startup.)
+
+---
+
+## 14. Entrega das fases 3 e 4 (27/09/2026)
+
+Continuam atrás da mesma chave, **desligada por padrão**. Desligada: a busca do
+PDV não acha o código do fardo nem devolve embalagens, a venda recusa
+`embalagem_id`, a trava "só fechada" não morde, e toda linha nasce com fator 1 —
+baixa, estorno, relatório e nota **idênticos aos de antes** (testado).
+
+**Fase 3 — venda e orçamento**
+- Linha da venda e do orçamento congela `embalagem_id`, `fator_embalagem`
+  (padrão 1) e `sigla_embalagem` (D6). `quantidade` e `valor_unitario` são da
+  embalagem ("2 FD a R$ 48,00"); o preço vem do backend (próprio, desconto ou soma).
+- **Baixa e estorno = quantidade × fator congelado** (finalizar e cancelar). Mudar
+  o fator no cadastro depois não muda o estorno de ontem (testado).
+- Estoque do PDV compara **quantidade × fator** com o saldo (G2) — ao lançar, ao
+  mudar a quantidade na linha e no aviso de estoque negativo.
+- CMV e comissão **não mudaram**: o custo do cadastrado já vinha do livro de
+  estoque, em unidade (G6 resolvido por construção). Relatório de quantidade
+  vendida soma na unidade base (D12, adiantado da fase 6).
+- PDV: o **leitor acha o fardo pelo código** (a busca inclui o código exato da
+  embalagem); a lista mostra chips **"FD 12 · R$ 48,00"** clicáveis e o saldo
+  "= 10 FD"; unidade e fardo são **linhas diferentes** (D7). Código adicional de
+  fator 1 lança a unidade (D3).
+- Modal "Adicionar Produto": **Vender em Unidade / FD / CX** com o preço de cada (G1).
+- Orçamento lança por embalagem e a **conversão em venda copia os três campos** (G3).
+- Impressões (cupom, A4, ESC/POS): **"2 FD x R$ 48,00" e "(24 un)"** embaixo (G4);
+  linha de unidade sai exatamente como antes ("3x R$ 4,50").
+- **Só vende embalagem fechada** (A3): opção na seção Embalagens do produto; o
+  caixa recusa a unidade avulsa (backend e aviso no PDV).
+
+**Fase 4 — NF-e e NFC-e**
+- Linha de embalagem: `uCom` = sigla, `qCom` = embalagens, `vUnCom` = preço dela;
+  `uTrib` = unidade do produto, `qTrib` = qCom × fator, `vUnTrib` = vProd ÷ qTrib
+  com 10 casas (D8). **629/630 conferidas antes de mandar** (linha que não fecha
+  não sai). Linha de unidade: payload **idêntico** ao de antes (não manda qTrib).
+- GTIN **tudo-ou-nada** (D9): se o fardo ou a unidade não tiver GTIN público,
+  os dois vão "SEM GTIN". Código interno (prefixo 2, D18) nunca vai como GTIN;
+  GTIN-14 nunca vai no `cEANTrib`.
+- Snapshot da nota congela fator, unidade e GTIN tributáveis. **Devolução** de
+  1 FD sai com qTrib 12 e **devolve 12 un ao estoque**.
+- Correção fiscal da venda não mexe em itens (G8 já atendido).
+
+**Migrations:** `f3a8d15c6b92` (linha da venda/orçamento + `so_embalagem_fechada`)
+e `c6e4f0a9d217` (snapshot da nota). Só colunas, decididas pela ausência; o
+`DEFAULT 1` preenche as linhas existentes — nada é reescrito.
+
+**Ainda falta antes de ligar na adega:** homologação testando 629/630/885/886/894
+de propósito; confirmar ICMS-ST com o contador (G7 — o motor não tem pauta por
+unidade); loja canário com backup (§7).
 
 ---
 

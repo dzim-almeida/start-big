@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { SlidersHorizontal } from 'lucide-vue-next';
-import { ProductSaleListItem } from '../../schemas/productSale.schema';
+import { ProductSaleListItem, type EmbalagemPdv } from '../../schemas/productSale.schema';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import { saldoEmEmbalagem } from '@/shared/utils/embalagem';
 
 type EstoqueStatus = 'sem_estoque' | 'baixo' | 'normal';
 
@@ -15,7 +16,19 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: [];
   selectForQuantity: [];
+  /** Lançar 1 fardo/caixa (só existe com embalagens ligadas). */
+  embalagem: [embalagem: EmbalagemPdv];
 }>();
+
+// Fator 1 é só um código a mais da unidade (D3): não vira botão.
+const embalagens = computed(() => (props.product.embalagens ?? []).filter((e) => e.fator > 1));
+// "= 10 FD", discreto, ao lado do saldo em unidade (D21).
+const saldoFechado = computed(() =>
+  saldoEmEmbalagem(
+    props.product.estoque,
+    embalagens.value.map((e) => ({ ...e, ativo: true, vende_no_pdv: true })),
+  ),
+);
 
 import { getBackendBaseUrl } from '@/api/backendUrl';
 
@@ -82,6 +95,21 @@ const imgUrl = computed(() => {
       <div>
         <h1 class="font-poppins font-semibold text-md text-zinc-800 group-hover:text-brand-primary">{{ product.nome }}</h1>
         <p class="font-poppins font-semibold text-xs text-zinc-500">{{ `SKU: ${product.sku}` }}</p>
+        <div v-if="embalagens.length" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <button
+            v-for="emb in embalagens"
+            :key="emb.id"
+            type="button"
+            class="px-2 py-0.5 rounded-md border border-brand-primary/30 bg-brand-primary/5 text-[11px] font-semibold text-brand-primary hover:bg-brand-primary/15 transition-colors cursor-pointer"
+            :title="`Lançar 1 ${emb.descricao || emb.sigla} (${emb.fator} un)`"
+            @click.stop="emit('embalagem', emb)"
+          >
+            {{ emb.sigla }} {{ emb.fator }} · {{ formatCurrency(emb.preco) }}
+          </button>
+          <span v-if="product.so_embalagem_fechada" class="text-[10px] font-semibold uppercase text-zinc-400">
+            só fechada
+          </span>
+        </div>
       </div>
     </div>
     <div class="flex items-center gap-3">
@@ -93,6 +121,7 @@ const imgUrl = computed(() => {
             ]"
           >
             {{ `Estoque: ${product.estoque} un.` }}
+            <span v-if="saldoFechado" class="font-semibold opacity-70">{{ saldoFechado }}</span>
           </p>
           <p class="font-poppins font-bold text-xl text-brand-primary">
             {{ formatCurrency(product.preco) }}

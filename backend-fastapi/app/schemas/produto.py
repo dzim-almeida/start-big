@@ -82,7 +82,20 @@ class ProdutoRead(ProdutoCreate):
     estoque: EstoqueRead = Field(..., description="Dados atuais de estoque.")
     # Fardo, caixa, pack. Vazio para quem não usa embalagens.
     embalagens: list[EmbalagemRead] = Field(default_factory=list, description="Embalagens do produto.")
+    so_embalagem_fechada: bool = Field(False, description="Só vende em embalagem fechada (A3).")
     ativo: bool = Field(..., description="Estado do produto no sistema.")
+
+class EmbalagemPdvRead(BaseModel):
+    """Embalagem que o caixa pode lançar, com o preço JÁ resolvido (D5/D14/A4)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    sigla: str
+    descricao: Optional[str] = None
+    fator: int
+    codigo_barras: Optional[str] = None
+    preco: int = Field(..., ge=0, description="Preço da embalagem em centavos, já calculado.")
+
 
 class ProdutoSimpleRead(BaseModel):
     model_config = ConfigDict(
@@ -100,6 +113,15 @@ class ProdutoSimpleRead(BaseModel):
     estoque: int = Field(..., validation_alias=AliasPath("estoque", "quantidade"), ge=0, description="Quantidade atual em estoque.")
     quantidade_minima: Optional[int] = Field(None, validation_alias=AliasPath("estoque", "quantidade_minima"), description="Quantidade mínima de estoque.")
     imagem_url: Optional[str] = Field(None, description="URL da imagem principal do produto.")
+    # Só preenchido com `usar_embalagens` ligado (o serviço de busca pendura
+    # `embalagens_pdv` no produto). Desligado, vem vazio: o PDV nem sabe que
+    # embalagem existe.
+    embalagens: list[EmbalagemPdvRead] = Field(
+        default_factory=list,
+        validation_alias="embalagens_pdv",
+        description="Embalagens vendidas no caixa, com preço.",
+    )
+    so_embalagem_fechada: bool = Field(False, description="Recusa a unidade avulsa no caixa (A3).")
 
 class ProdutoUpdate(BaseModel):
     """Modelo de entrada para atualização parcial de Produto."""

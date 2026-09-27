@@ -161,9 +161,38 @@ def get_produto_simple_by_search(
     db: Session,
     search: str | None,
     limite: int | None = None,
+    empresa_id: int | None = None,
 ) -> Sequence[ProdutoSimpleRead]:
-    """Intermediário para busca rápida de produtos."""
-    return produto_crud.get_produto_simple_by_search(db, search=search, limite=limite)
+    """Intermediário para busca rápida de produtos (o auto-complete do PDV).
+
+    Com `usar_embalagens` ligado, o código do fardo também acha o produto e
+    cada produto leva as embalagens vendáveis com o preço resolvido. Desligado,
+    a busca é exatamente a de antes.
+    """
+    from app.core.embalagem import preco_da_embalagem
+    from app.services import produto_embalagem as embalagem_service
+
+    com_embalagens = embalagem_service.embalagens_ligadas(db, empresa_id)
+    produtos = produto_crud.get_produto_simple_by_search(
+        db, search=search, limite=limite, com_embalagens=com_embalagens
+    )
+    if com_embalagens:
+        for produto in produtos:
+            preco_unidade = produto.estoque.valor_varejo if produto.estoque else 0
+            # Atributo de passagem (não é coluna): o schema lê `embalagens_pdv`.
+            produto.embalagens_pdv = [
+                {
+                    "id": e.id,
+                    "sigla": e.sigla,
+                    "descricao": e.descricao,
+                    "fator": e.fator,
+                    "codigo_barras": e.codigo_barras,
+                    "preco": preco_da_embalagem(e.fator, e.preco, e.desconto_bp, preco_unidade),
+                }
+                for e in produto.embalagens
+                if e.ativo and e.vende_no_pdv
+            ]
+    return produtos
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)

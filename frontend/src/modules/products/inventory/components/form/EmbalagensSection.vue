@@ -60,6 +60,8 @@ const queryClient = useQueryClient();
 let proximaChave = 1;
 const linhas = ref<Linha[]>([]);
 const salvas = ref<string>('');
+/** A3: recusar a unidade avulsa no caixa (distribuidora que não abre fardo). */
+const soFechada = ref(false);
 
 function linhaDe(e: EmbalagemRead): Linha {
   return {
@@ -79,19 +81,25 @@ function linhaDe(e: EmbalagemRead): Linha {
   };
 }
 
-function carregar(embalagens: EmbalagemRead[] | undefined) {
+function carregar(embalagens: EmbalagemRead[] | undefined, fechada: boolean) {
   linhas.value = (embalagens ?? []).map(linhaDe);
-  salvas.value = JSON.stringify(payload());
+  soFechada.value = fechada;
+  salvas.value = retrato();
+}
+
+/** O que conta como "alterado": as linhas e a opção de só vender fechado. */
+function retrato(): string {
+  return JSON.stringify([payload(), soFechada.value]);
 }
 
 watch(
   () => props.produto?.id,
-  () => carregar(props.produto?.embalagens),
+  () => carregar(props.produto?.embalagens, !!props.produto?.so_embalagem_fechada),
   { immediate: true },
 );
 
 const precoUnidade = computed(() => props.produto?.estoque.valor_varejo ?? 0);
-const alterado = computed(() => JSON.stringify(payload()) !== salvas.value);
+const alterado = computed(() => retrato() !== salvas.value);
 
 function adicionar() {
   const ja = new Set(linhas.value.map((l) => l.sigla));
@@ -177,9 +185,9 @@ const problemas = computed(() => {
 });
 
 const mutation = useMutation<EmbalagemRead[], AxiosError<ApiError>, EmbalagemEscrita[]>({
-  mutationFn: (lista) => salvarEmbalagens(props.produto!.id, lista),
+  mutationFn: (lista) => salvarEmbalagens(props.produto!.id, lista, soFechada.value),
   onSuccess: (salvasAgora) => {
-    carregar(salvasAgora);
+    carregar(salvasAgora, soFechada.value);
     toast.success('Embalagens salvas');
     queryClient.invalidateQueries({ queryKey: [PRODUTOS_QUERY_KEY] });
   },
@@ -306,6 +314,17 @@ function salvar() {
       <p v-if="!linhas.length" class="text-sm text-zinc-400 text-center py-4 border border-dashed border-zinc-200 rounded-xl">
         Nenhuma embalagem. Este produto só é vendido em unidade.
       </p>
+
+      <label
+        v-if="linhas.some((l) => Number(l.fator) > 1)"
+        class="flex items-start gap-2 text-xs text-zinc-600 cursor-pointer select-none"
+      >
+        <input v-model="soFechada" :disabled="disabled" type="checkbox" class="accent-brand-primary mt-0.5" />
+        <span>
+          <strong>Só vende em embalagem fechada</strong> — o caixa recusa a unidade avulsa deste produto
+          (para quem não abre fardo).
+        </span>
+      </label>
 
       <ul v-if="problemas.length && !disabled" class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
         <li v-for="p in problemas" :key="p">{{ p }}</li>

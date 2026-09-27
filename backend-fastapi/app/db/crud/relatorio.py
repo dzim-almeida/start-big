@@ -375,7 +375,8 @@ def get_vendas_por_produto(
             Produto.codigo_produto.label("sku"),
             Produto.categoria,
             faturamento.label("faturamento"),
-            func.coalesce(func.sum(ProdutoVenda.quantidade), 0).label("quantidade"),
+            # Na unidade base (D12 do plano de embalagens): "2 FD" de 12 conta 24.
+            func.coalesce(func.sum(ProdutoVenda.quantidade * ProdutoVenda.fator_embalagem), 0).label("quantidade"),
         )
         .join(Venda, Venda.id == ProdutoVenda.venda_id)
         .join(Funcionario, Funcionario.id == Venda.funcionario_id)

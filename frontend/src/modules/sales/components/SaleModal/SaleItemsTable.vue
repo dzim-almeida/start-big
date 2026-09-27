@@ -148,10 +148,12 @@ function aplicarQuantidade(
 
   const atual = quantidadeVisivel(item);
   const estoque = item.estoque_disponivel;
+  // O estoque é em unidade; a linha de fardo pede quantidade × fator (G2).
+  const fator = item.fator_embalagem ?? 1;
 
   // Só o AUMENTO consulta o estoque. Reduzir nunca pode ser barrado — senão um
   // item que já está acima do disponível não conseguiria nem VOLTAR.
-  if (!opcoes.ignorarEstoque && nova > atual && estoque !== null && estoque !== undefined && nova > estoque) {
+  if (!opcoes.ignorarEstoque && nova > atual && estoque !== null && estoque !== undefined && nova * fator > estoque) {
     pendingItem.value = item;
     pendingQuantidade.value = nova;
     avisoEstoqueOpen.value = true;
@@ -267,7 +269,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
     :is-open="avisoEstoqueOpen"
     :nome-produto="pendingItem?.nome ?? ''"
     :estoque-atual="pendingItem?.estoque_disponivel ?? 0"
-    :quantidade-desejada="pendingQuantidade ?? 1"
+    :quantidade-desejada="(pendingQuantidade ?? 1) * (pendingItem?.fator_embalagem ?? 1)"
     @confirmar="confirmarIncremento"
     @cancelar="fecharAviso"
   />
@@ -339,8 +341,16 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
             </td>
 
             <td class="px-2 text-center">
+              <!-- Linha de embalagem: a sigla congelada ("FD") e quantas unidades cada uma tem -->
               <span
-                v-if="'unidade_medida' in item && item.unidade_medida"
+                v-if="item.sigla_embalagem"
+                class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-brand-primary/10 text-brand-primary uppercase"
+                :title="`${item.sigla_embalagem} com ${item.fator_embalagem} un`"
+              >
+                {{ item.sigla_embalagem }} {{ item.fator_embalagem }}
+              </span>
+              <span
+                v-else-if="'unidade_medida' in item && item.unidade_medida"
                 class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-zinc-100 text-zinc-500 uppercase"
               >
                 {{ item.unidade_medida }}
@@ -389,6 +399,9 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                   <Plus class="h-4 w-4" />
                 </button>
               </div>
+              <p v-if="(item.fator_embalagem ?? 1) > 1" class="mt-0.5 text-[10px] text-zinc-400">
+                ({{ quantidadeVisivel(item) * (item.fator_embalagem ?? 1) }} un)
+              </p>
             </td>
 
             <td class="px-4 text-center text-sm font-medium text-zinc-700">

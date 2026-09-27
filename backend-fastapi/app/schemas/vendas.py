@@ -26,6 +26,13 @@ class ProdutoVendaCreate(BaseModel):
         )
     )
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
+    embalagem_id: Optional[int] = Field(
+        None,
+        description=(
+            "Vende a EMBALAGEM (fardo/caixa): a quantidade é de embalagens e o preço é o dela; "
+            "o estoque baixa quantidade × fator. Só com `usar_embalagens` ligado."
+        ),
+    )
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaCreate':
@@ -128,6 +135,9 @@ class ProdutoVendaRead(BaseModel):
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto, preenchido automaticamente com base no tipo do produto e suas referências")
     unidade_medida: Optional[str] = Field(None, description="Unidade de medida do produto (ex: UN, KG, CX)")
     estoque_disponivel: Optional[int] = Field(None, description="Estoque atual do produto no momento da consulta")
+    embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
+    fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
+    sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")

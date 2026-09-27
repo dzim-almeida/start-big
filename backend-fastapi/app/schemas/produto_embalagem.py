@@ -80,6 +80,9 @@ class EmbalagemEscrita(EmbalagemBase):
 
 class EmbalagensSalvar(BaseModel):
     embalagens: list[EmbalagemEscrita] = Field(default_factory=list, max_length=MAX_EMBALAGENS)
+    # A3 — mora no produto, mas é editado junto das embalagens (a seção tem o
+    # próprio botão Salvar). Nulo = não mexe.
+    so_embalagem_fechada: Optional[bool] = None
 
     @model_validator(mode="after")
     def _codigos_distintos(self) -> "EmbalagensSalvar":

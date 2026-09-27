@@ -90,6 +90,16 @@ class DocumentoFiscalItem(Base):
         Integer, nullable=False, default=0, server_default=text("0"),
     )
 
+    # --- Linha de embalagem (fardo/caixa) — plano de embalagens, fase 4 ---
+    # `unidade`/`quantidade_milesimos` acima são os COMERCIAIS (2 FD). O fator
+    # congelado é o que faz a devolução de 1 FD voltar 12 un ao estoque e sair
+    # na nota com qTrib = 12. Linha de unidade: fator 1, tributáveis nulos.
+    fator_embalagem: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1"),
+    )
+    unidade_tributavel: Mapped[Optional[str]] = mapped_column(String(6), nullable=True)
+    codigo_barras_tributavel: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
     # --- Tributos destacados ---
     base_icms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     valor_icms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

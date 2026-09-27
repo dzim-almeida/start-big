@@ -46,3 +46,28 @@ export function saldoEmEmbalagem(quantidade: number, embalagens: EmbalagemSaldo[
   const fechadas = Math.floor(quantidade / alvo.fator);
   return `= ${fechadas} ${alvo.sigla}`;
 }
+
+interface LinhaComEmbalagem {
+  quantidade: number;
+  sigla_embalagem?: string | null;
+  fator_embalagem?: number | null;
+}
+
+/** "2 FD" na linha de embalagem; só "2" na de unidade (impressões, G4). */
+export function quantidadeDaLinha(item: LinhaComEmbalagem): string {
+  return item.sigla_embalagem && (item.fator_embalagem ?? 1) > 1
+    ? `${item.quantidade} ${item.sigla_embalagem}`
+    : `${item.quantidade}`;
+}
+
+/** "(24 un)" embaixo da linha de embalagem; nulo na de unidade (G4). */
+export function unidadesDaLinha(item: LinhaComEmbalagem): string | null {
+  const fator = item.fator_embalagem ?? 1;
+  return item.sigla_embalagem && fator > 1 ? `(${item.quantidade * fator} un)` : null;
+}
+
+/** Começo da linha do cupom: "2x" na unidade (como sempre foi), "2 FD x" na embalagem. */
+export function multiplicadorDaLinha(item: LinhaComEmbalagem): string {
+  const q = quantidadeDaLinha(item);
+  return q === `${item.quantidade}` ? `${q}x` : `${q} x`;
+}

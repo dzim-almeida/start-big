@@ -258,7 +258,9 @@ def aplicar_efeitos_autorizacao(db: Session, doc: DocumentoFiscal, usuario_id: O
                 db,
                 produto=produto_crud.get_produto_by_id(db, produto_id=item_dev.produto_id),
                 tipo=MovimentacaoTipo.ENTRADA,
-                quantidade=item_dev.quantidade_milesimos / 1000,
+                # Fardo devolvido volta em unidade: 1 FD de 12 = 12 un (fator
+                # congelado na nota original; 1 nas linhas de unidade).
+                quantidade=item_dev.quantidade_milesimos * (item_origem.fator_embalagem or 1) / 1000,
                 origem=MovimentacaoOrigem.DEVOLUCAO,
                 usuario_id=usuario_id,
                 usuario_nome="Sistema",

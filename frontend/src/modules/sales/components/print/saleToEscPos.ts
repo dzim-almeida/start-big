@@ -6,6 +6,7 @@
 
 import { EscPosBuilder } from '@/shared/services/escpos'
 import { formatCurrency } from '@/shared/utils/finance'
+import { multiplicadorDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem'
 import {
   getClienteNome,
   getClienteDoc,
@@ -96,7 +97,9 @@ export function saleToEscPos(
     b.negrito(true).linha('ITENS').negrito(false)
     for (const item of sale.produtos) {
       b.linha(item.nome)
-      b.parLados(`${item.quantidade}x ${formatCurrency(item.valor_unitario)}`, formatCurrency(item.total))
+      b.parLados(`${multiplicadorDaLinha(item)} ${formatCurrency(item.valor_unitario)}`, formatCurrency(item.total))
+      const unidades = unidadesDaLinha(item)
+      if (unidades) b.linha(unidades)
       if (item.desconto > 0) b.parLados('Desc:', `-${formatCurrency(item.desconto)}`)
     }
     b.separador()

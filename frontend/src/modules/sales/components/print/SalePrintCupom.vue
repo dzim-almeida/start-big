@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
+import { multiplicadorDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
 import {
   useCompanyPrintInfo,
   getClienteNome,
@@ -112,9 +113,10 @@ const pix = computed(() =>
       >
         <div>{{ item.nome }}</div>
         <div class="flex justify-between">
-          <span>{{ item.quantidade }}x {{ formatCurrency(item.valor_unitario) }}</span>
+          <span>{{ multiplicadorDaLinha(item) }} {{ formatCurrency(item.valor_unitario) }}</span>
           <span class="font-bold">{{ formatCurrency(item.total) }}</span>
         </div>
+        <div v-if="unidadesDaLinha(item)" class="text-[10px]">{{ unidadesDaLinha(item) }}</div>
         <div v-if="item.desconto > 0" class="flex justify-between">
           <span>Desc:</span>
           <span>-{{ formatCurrency(item.desconto) }}</span>

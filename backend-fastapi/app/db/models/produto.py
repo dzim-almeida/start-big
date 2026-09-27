@@ -47,6 +47,13 @@ class Produto(Base):
     fornecedor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fornecedores.id", ondelete="SET NULL"), nullable=True, doc="ID do fornecedor principal (FK)")
 
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o produto está ativo (True) ou desativado (False)")
+    # Plano de embalagens, A3: distribuidora que não abre fardo. Ligado, o caixa
+    # recusa a unidade avulsa — só vende as embalagens. Só vale com a chave
+    # `usar_embalagens` da empresa ligada.
+    so_embalagem_fechada: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Só vende em embalagem fechada (recusa a unidade avulsa no caixa)",
+    )
     
     # Relação Lado "Muitos" (Produto) para "Um" (Fornecedor)
     # Tipagem simplificada: Um produto tem UM fornecedor (ou None, devido à FK SET NULL)
