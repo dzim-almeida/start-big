@@ -385,7 +385,7 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
         },
         "totais": {
             "valor_produtos": float(sum(i.total for i in venda.itens)),
-            "descontos": float(venda.descontos or 0),
+            "descontos": float((venda.descontos or 0) + (venda.descontos_regra or 0)),
             "frete": float(venda.entrega or 0),
             "valor_nota": float(venda.total),
             "total_tributos": total_tributos_centavos

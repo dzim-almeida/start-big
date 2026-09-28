@@ -6,7 +6,7 @@
 
 import { EscPosBuilder } from '@/shared/services/escpos'
 import { formatCurrency } from '@/shared/utils/finance'
-import { multiplicadorDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem'
+import { descontosRegraDaVenda, multiplicadorDaLinha, regraDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem'
 import {
   getClienteNome,
   getClienteDoc,
@@ -100,6 +100,11 @@ export function saleToEscPos(
       b.parLados(`${multiplicadorDaLinha(item)} ${formatCurrency(item.valor_unitario)}`, formatCurrency(item.total))
       const unidades = unidadesDaLinha(item)
       if (unidades) b.linha(unidades)
+      const regra = regraDaLinha(item)
+      if (regra) {
+        if (regra.desconto > 0) b.parLados(regra.texto, `-${formatCurrency(regra.desconto)}`)
+        else b.linha(regra.texto)
+      }
       if (item.desconto > 0) b.parLados('Desc:', `-${formatCurrency(item.desconto)}`)
     }
     b.separador()
@@ -118,6 +123,8 @@ export function saleToEscPos(
 
   // Totais — Total Pago e Troco só na venda (orçamento não tem pagamento)
   b.parLados('Subtotal:', formatCurrency(sale.subtotal))
+  const descontosRegra = descontosRegraDaVenda(sale)
+  if (descontosRegra > 0) b.parLados('Preço por qtd.:', `-${formatCurrency(descontosRegra)}`)
   if (sale.descontos > 0) b.parLados('Desconto:', `-${formatCurrency(sale.descontos)}`)
   if (sale.entrega > 0) b.parLados('Entrega:', `+${formatCurrency(sale.entrega)}`)
   b.negrito(true).parLados('TOTAL:', formatCurrency(sale.total)).negrito(false)

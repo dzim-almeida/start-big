@@ -84,6 +84,17 @@ export const ConfiguracaoVendasSchema = z.object({
   requer_pin_abrir_caixa: z.boolean().catch(false),
   usar_fila_do_caixa: z.boolean().catch(false),
 
+  /**
+   * Regras de preço por quantidade (plano de embalagens, §6.1). Mesmo `.catch`
+   * do caixa: backend mais antigo não manda, e tudo desligado é o padrão.
+   */
+  regra_embalagem_avulsas: z.boolean().catch(false),
+  regra_faixas_quantidade: z.boolean().catch(false),
+  regra_leve_pague: z.boolean().catch(false),
+  regra_conflito: z.enum(['MENOR_PRECO', 'ORDEM']).catch('MENOR_PRECO'),
+  regra_ordem: z.string().catch('R1,R2,R3'),
+  bloquear_desconto_com_regra: z.boolean().catch(false),
+
   data_atualizacao: z.string(),
 })
 

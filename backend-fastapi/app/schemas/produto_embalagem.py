@@ -39,6 +39,9 @@ class EmbalagemBase(BaseModel):
     )
     vende_no_pdv: bool = True
     usa_na_entrada: bool = True
+    # R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. Só
+    # morde com a chave da R1 ligada em Regras de Vendas.
+    aplica_as_avulsas: bool = False
     ativo: bool = True
 
     @field_validator("sigla")

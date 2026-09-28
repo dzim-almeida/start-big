@@ -434,6 +434,7 @@ const saleDisplay = computed(() => {
         <SaleSummary
           :subtotal="sale?.subtotal"
           :discount="sale?.descontos"
+          :desconto-regra="sale?.descontos_regra"
           :delivery="sale?.entrega"
           :total="sale?.total"
           :form="saleForm"

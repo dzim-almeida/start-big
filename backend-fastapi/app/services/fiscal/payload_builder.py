@@ -431,9 +431,11 @@ def _montar_itens(
                 item_dict["icms_aliquota_aplicavel_calculo_credito"] = float(imp.icms_aliquota_credito_simples)
                 item_dict["icms_valor_credito_aproveitado"] = float(imp.icms_valor_credito_simples)
         else:
-            # Fallback: sem tax_engine, mantém desconto do item
-            if item.desconto and item.desconto > 0:
-                item_dict["valor_desconto"] = _centavos_para_reais(item.desconto)
+            # Fallback: sem tax_engine, mantém desconto do item. Inclui o da
+            # regra de preço (R1/R3 vão no vDesc, §6.1); item de OS não tem.
+            desconto_item = (item.desconto or 0) + (getattr(item, "desconto_regra", 0) or 0)
+            if desconto_item > 0:
+                item_dict["valor_desconto"] = _centavos_para_reais(desconto_item)
 
         itens.append(item_dict)
 

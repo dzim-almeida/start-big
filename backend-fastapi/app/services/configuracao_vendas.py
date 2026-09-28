@@ -29,13 +29,16 @@ def _zerar_descontos_excessivos(db: Session, empresa_id: int, desconto_maximo_pe
         .all()
     )
     for venda in vendas_ativas:
-        if venda.total_bruto <= 0 or venda.descontos <= 0:
+        # Só o desconto do OPERADOR conta e é zerado; o da regra de preço
+        # (§6.1) fica. Sem regra, `descontos_regra` é 0 e a conta é a de sempre.
+        base = venda.total_bruto - venda.descontos_regra
+        if base <= 0 or venda.descontos <= 0:
             continue
-        percentual = (venda.descontos * 100) // venda.total_bruto
+        percentual = (venda.descontos * 100) // base
         if percentual > desconto_maximo_percent:
             for item in venda.itens:
                 item.desconto = 0
-            venda.total = venda.total_bruto
+            venda.total = venda.total_bruto - venda.descontos_regra
 
 
 def update_configuracao_vendas(

@@ -15,6 +15,7 @@ from app.services.funcionario import funcionario_exists
 from app.services import produto as produto_service
 from app.services import sessao_caixa as caixa_service
 from app.services import produto_embalagem as embalagem_service
+from app.services import regras_preco as regras_preco_service
 
 from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
@@ -94,12 +95,23 @@ def _assert_sem_documento_fiscal_ativo(db: Session, sale_in_db: Venda, acao: str
     )
 
 
-def _recalc_total_sale(db: Session, sale_in_db: Venda, *, sai_da_fila: bool = True) -> Venda:
+def _recalc_total_sale(
+    db: Session, sale_in_db: Venda, *, sai_da_fila: bool = True, aplicar_regras: bool = True
+) -> Venda:
 
-    if sale_in_db.total_bruto < sale_in_db.descontos:
+    # Regras de preço por quantidade (§6.1): recalculadas a cada mudança no
+    # carrinho, porque "17 latas" só vira "1 fardo + 2" olhando o carrinho
+    # inteiro. `finish_sale` passa False: o caixa cobra o que viu na tela.
+    # Com as chaves desligadas não toca em nada (B8). Os ids das OUTRAS linhas
+    # que mudaram vão para a resposta, para a tela trocá-las também.
+    if aplicar_regras:
+        sale_in_db.itens_alterados_pela_regra = regras_preco_service.aplicar_na_venda(db, sale_in_db)
+
+    descontos = sale_in_db.descontos + sale_in_db.descontos_regra
+    if sale_in_db.total_bruto < descontos:
         raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
 
-    total_sale = sale_in_db.total_bruto - sale_in_db.descontos + (sale_in_db.acrescimo or 0)
+    total_sale = sale_in_db.total_bruto - descontos + (sale_in_db.acrescimo or 0)
 
     sale_in_db.subtotal = sale_in_db.total_bruto
     sale_in_db.total = total_sale
@@ -178,17 +190,37 @@ def devolver_para_montagem(db: Session, sale_id: int) -> Venda:
     sale_in_db.enviada_ao_caixa_em = None
     return venda_crud.update_sale(db, sale_in_db)
 
-def _aplly_discount(sale_in_db: Venda, discount: int) -> Venda:
-    items_subtotal = sum(item.subtotal for item in sale_in_db.itens)
+def _aplly_discount(sale_in_db: Venda, discount: int, *, fora: frozenset[int] = frozenset()) -> Venda:
+    # Rateia sobre o que SOBRA depois da regra de preço (§6.1): a linha com
+    # "leve 3 pague 2" já tem um terço em `desconto_regra`, e o desconto do
+    # operador vem depois dela. Sem regra, `desconto_regra` é 0 e a conta é a
+    # de sempre. `fora`: linhas que não recebem desconto (trava da regra).
+    for item in sale_in_db.itens:
+        if item.id in fora:
+            item.desconto = 0
+    itens = [item for item in sale_in_db.itens if item.id not in fora]
+    base = [item.subtotal - (item.desconto_regra or 0) for item in itens]
+    items_subtotal = sum(base)
     discount_remaining = discount
-    for index, item in enumerate(sale_in_db.itens):
-        if index == len(sale_in_db.itens) - 1:
+    for index, item in enumerate(itens):
+        if index == len(itens) - 1:
             item.desconto = discount_remaining
         else:
-            item_discount = (item.subtotal * discount) // (items_subtotal or 1)
+            item_discount = (base[index] * discount) // (items_subtotal or 1)
             item.desconto = item_discount
             discount_remaining -= item_discount
     return sale_in_db
+
+
+def _linhas_sem_desconto(sale_in_db: Venda, config_vendas) -> frozenset[int]:
+    """Com `bloquear_desconto_com_regra`, a linha com regra de preço não
+    recebe desconto manual (a trava do TOTVS, §6.1)."""
+    if not (config_vendas and config_vendas.bloquear_desconto_com_regra):
+        return frozenset()
+    return frozenset(
+        item.id for item in sale_in_db.itens
+        if item.regra_preco in regras_preco_service.calc.REGRAS
+    )
 
 def _payments_valid(db: Session, payments: Sequence[PagamentoVendaCreate]) -> Sequence[PagamentoVenda]:
     sale_payments: Sequence[PagamentoVenda] = []
@@ -266,13 +298,25 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
         sale_in_db.entrega = update_data.entrega
 
     if update_data.desconto is not None:
-        if update_data.desconto > sale_in_db.subtotal:
-            raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
         empresa_id = sale_in_db.funcionario.empresa_id
         config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
         config_seg = config_seg_crud.get_configuracao_seguranca(db, empresa_id=empresa_id)
-        if config_vendas and config_vendas.permitir_desconto and sale_in_db.subtotal > 0 and update_data.desconto > 0:
-            percentual = (update_data.desconto * 100) // sale_in_db.subtotal
+        fora = _linhas_sem_desconto(sale_in_db, config_vendas)
+        # O desconto do operador vale sobre o que sobra depois da regra de
+        # preço. Sem regra, `base` é o `subtotal` de sempre (que inclui a
+        # entrega — é assim desde antes, e o limite não pode mudar para ninguém).
+        base = (sale_in_db.subtotal or 0) - sale_in_db.descontos_regra - sum(
+            item.subtotal - (item.desconto_regra or 0)
+            for item in sale_in_db.itens if item.id in fora
+        )
+        if update_data.desconto > base:
+            if fora and update_data.desconto <= sale_in_db.subtotal:
+                raise BadRequestException(
+                    detail="Itens com regra de preço não aceitam desconto manual (Configurações › Regras de Vendas)"
+                )
+            raise BadRequestException(detail="O desconto não pode ser maior que o total da venda")
+        if config_vendas and config_vendas.permitir_desconto and base > 0 and update_data.desconto > 0:
+            percentual = (update_data.desconto * 100) // base
             if percentual > config_vendas.desconto_maximo_percent:
                 if config_seg and config_seg.requer_pin_desconto_venda and config_seg.pin_gerente:
                     codigo = update_data.codigo_gerente
@@ -284,7 +328,7 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
                     raise BadRequestException(
                         detail=f"Desconto máximo permitido é de {config_vendas.desconto_maximo_percent}%"
                     )
-        sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto)
+        sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=update_data.desconto, fora=fora)
 
     if update_data.observacao is not None:
         sale_in_db.observacao = update_data.observacao
@@ -376,6 +420,13 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
             if not verify_password(codigo, config_seg.pin_gerente):
                 raise BadRequestException(detail="PIN_GERENTE_INVALIDO")
 
+    if item_update.desconto and item_in_db.regra_preco in regras_preco_service.calc.REGRAS:
+        config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=sale_in_db.funcionario.empresa_id)
+        if config_vendas and config_vendas.bloquear_desconto_com_regra:
+            raise BadRequestException(
+                detail="Item com regra de preço não aceita desconto manual (Configurações › Regras de Vendas)"
+            )
+
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
 
     # Linha de fardo: 3 FD de 12 pedem 36 un do estoque (G2).
@@ -399,6 +450,13 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
         
     item_in_db.descricao_avulsa = item_update.descricao_avulsa or item_in_db.descricao_avulsa
     item_in_db.quantidade = quantidade
+    if item_update.valor_unitario and item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO:
+        # Preço trocado pelo gerente: a regra de preço sai e não volta nesta
+        # linha — o gerente decidiu o preço (§6.1).
+        item_in_db.regra_preco = regras_preco_service.MANUAL
+        item_in_db.regra_descricao = None
+        item_in_db.valor_unitario_tabela = None
+        item_in_db.desconto_regra = 0
     item_in_db.valor_unitario = preco_unitario
     # Custo interno só existe no avulso. No cadastrado o custo vem do livro de
     # estoque, e aceitar um valor aqui criaria dois números divergentes para a
@@ -483,7 +541,7 @@ def finish_sale(
     sale_in_db.acrescimo = acrescimo or 0
     # `sai_da_fila=False`: quem esta mexendo aqui e o proprio caixa, e a venda
     # esta saindo da fila pela porta certa. Ver `_recalc_total_sale`.
-    sale_in_db = _recalc_total_sale(db, sale_in_db, sai_da_fila=False)
+    sale_in_db = _recalc_total_sale(db, sale_in_db, sai_da_fila=False, aplicar_regras=False)
 
     total_payments = sum(payment.valor for payment in valid_payments_to_db)
     total_sale = sale_in_db.total or 0
@@ -498,11 +556,15 @@ def finish_sale(
     # Zera desconto se exceder o limite configurado no momento da finalização
     empresa_id = sale_in_db.funcionario.empresa_id
     config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
-    if config_vendas and config_vendas.permitir_desconto and sale_in_db.total_bruto > 0 and sale_in_db.descontos > 0:
-        percentual = (sale_in_db.descontos * 100) // sale_in_db.total_bruto
+    # Só o desconto do OPERADOR: o da regra de preço (§6.1) não conta no
+    # limite nem é zerado aqui — é a loja que o ligou. A base é o que sobra
+    # depois da regra; sem regra, é o total bruto de sempre.
+    base_desconto = sale_in_db.total_bruto - sale_in_db.descontos_regra
+    if config_vendas and config_vendas.permitir_desconto and base_desconto > 0 and sale_in_db.descontos > 0:
+        percentual = (sale_in_db.descontos * 100) // base_desconto
         if percentual > config_vendas.desconto_maximo_percent:
             sale_in_db = _aplly_discount(sale_in_db=sale_in_db, discount=0)
-            sale_in_db = _recalc_total_sale(db, sale_in_db, sai_da_fila=False)
+            sale_in_db = _recalc_total_sale(db, sale_in_db, sai_da_fila=False, aplicar_regras=False)
 
     # Atribui número sequencial oficial
     contador = db.query(ContadorVenda).filter(ContadorVenda.id == 1).with_for_update().first()

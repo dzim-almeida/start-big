@@ -4,7 +4,7 @@ import { User, CreditCard, ShoppingBag } from 'lucide-vue-next';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
-import { quantidadeDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
+import { descontosRegraDaVenda, quantidadeDaLinha, regraDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
 import {
   useCompanyPrintInfo,
   getClienteNome,
@@ -122,14 +122,22 @@ const pix = computed(() =>
         </thead>
         <tbody class="divide-y divide-neutral-200">
           <tr v-for="item in sale.produtos" :key="item.id">
-            <td class="py-2 pl-2 text-neutral-900">{{ item.nome }}</td>
+            <td class="py-2 pl-2 text-neutral-900">
+              {{ item.nome }}
+              <div v-if="regraDaLinha(item)" class="text-[10px] text-neutral-500">{{ regraDaLinha(item)!.texto }}</div>
+            </td>
             <td class="py-2 text-center text-neutral-600">{{ item.sku || '-' }}</td>
             <td class="py-2 text-center text-neutral-700">
               {{ quantidadeDaLinha(item) }}
               <div v-if="unidadesDaLinha(item)" class="text-[10px] text-neutral-500">{{ unidadesDaLinha(item) }}</div>
             </td>
             <td class="py-2 text-right text-neutral-700">{{ formatCurrency(item.valor_unitario) }}</td>
-            <td class="py-2 text-right text-neutral-700">{{ item.desconto > 0 ? `- ${formatCurrency(item.desconto)}` : '-' }}</td>
+            <td class="py-2 text-right text-neutral-700">
+              {{ item.desconto > 0 ? `- ${formatCurrency(item.desconto)}` : (regraDaLinha(item)?.desconto ? '' : '-') }}
+              <div v-if="regraDaLinha(item)?.desconto" class="text-[10px] text-neutral-500">
+                - {{ formatCurrency(regraDaLinha(item)!.desconto) }} regra
+              </div>
+            </td>
             <td class="py-2 pr-2 text-right font-bold text-neutral-900">{{ formatCurrency(item.total) }}</td>
           </tr>
         </tbody>
@@ -164,6 +172,10 @@ const pix = computed(() =>
           <div class="flex justify-between text-xs text-neutral-600">
             <span>Subtotal:</span>
             <span>{{ formatCurrency(sale.subtotal) }}</span>
+          </div>
+          <div v-if="descontosRegraDaVenda(sale) > 0" class="flex justify-between text-xs text-neutral-600">
+            <span>Preço por quantidade:</span>
+            <span>- {{ formatCurrency(descontosRegraDaVenda(sale)) }}</span>
           </div>
           <div v-if="sale.descontos > 0" class="flex justify-between text-xs text-neutral-600">
             <span>Desconto:</span>

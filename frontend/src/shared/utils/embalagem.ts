@@ -71,3 +71,25 @@ export function multiplicadorDaLinha(item: LinhaComEmbalagem): string {
   const q = quantidadeDaLinha(item);
   return q === `${item.quantidade}` ? `${q}x` : `${q} x`;
 }
+
+interface LinhaComRegra {
+  regra_preco?: string | null;
+  regra_descricao?: string | null;
+  desconto_regra?: number | null;
+}
+
+/**
+ * Regra de preço por quantidade na via impressa (§6.1): o cliente vê por que
+ * pagou menos. R1/R3 trazem o valor ("Preço de 1 FD (15 un)", −17,50); a R2 só
+ * o texto, porque o preço dela já é o unitário da linha. Nulo sem regra —
+ * a linha sai exatamente como antes.
+ */
+export function regraDaLinha(item: LinhaComRegra): { texto: string; desconto: number } | null {
+  if (!item.regra_preco || item.regra_preco === 'MANUAL' || !item.regra_descricao) return null;
+  return { texto: item.regra_descricao, desconto: item.desconto_regra ?? 0 };
+}
+
+/** Soma das regras na venda; orçamento (e backend antigo) não tem: 0. */
+export function descontosRegraDaVenda(venda: object): number {
+  return 'descontos_regra' in venda ? Number(venda.descontos_regra) || 0 : 0;
+}

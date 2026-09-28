@@ -35,6 +35,7 @@ from app.api.v1.endpoints import fiscal
 from app.api.v1.endpoints import fiscal_produto
 from app.api.v1.endpoints import etiquetas
 from app.api.v1.endpoints import produto_embalagem
+from app.api.v1.endpoints import produto_regra_preco
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -74,6 +75,7 @@ router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Forneced
 router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
 # Embalagens (fardo/caixa) — também antes de produto.router, pelo mesmo motivo.
 router.include_router(produto_embalagem.router, prefix="/produtos", tags=["Embalagens do Produto"])
+router.include_router(produto_regra_preco.router, prefix="/produtos", tags=["Regras de Preço do Produto"])
 
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
 

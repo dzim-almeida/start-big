@@ -23,6 +23,7 @@ import { getErrorMessage } from '@/shared/utils/error.utils';
 import { formatCurrency } from '@/shared/utils/finance';
 import { precoDaEmbalagem, precoUnitarioNaEmbalagem } from '@/shared/utils/embalagem';
 import { resolverCodigo, nomeSimbologia } from '@/shared/etiquetas/codigoBarras';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { PRODUTOS_QUERY_KEY } from '../../../shared/constants/queryKeys';
 import { salvarEmbalagens } from '../../services/embalagem.service';
 import type { EmbalagemEscrita, EmbalagemRead } from '../../types/embalagens.types';
@@ -49,6 +50,8 @@ interface Linha {
   descontoPct: number | null;
   vende_no_pdv: boolean;
   usa_na_entrada: boolean;
+  /** R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. */
+  aplica_as_avulsas: boolean;
   ativo: boolean;
 }
 
@@ -56,6 +59,7 @@ const SIGLAS_SUGERIDAS = ['FD', 'CX', 'PCT', 'DP', 'UN'];
 
 const toast = useToast();
 const queryClient = useQueryClient();
+const configStore = useConfiguracoesStore();
 
 let proximaChave = 1;
 const linhas = ref<Linha[]>([]);
@@ -77,6 +81,7 @@ function linhaDe(e: EmbalagemRead): Linha {
     descontoPct: e.desconto_bp != null ? e.desconto_bp / 100 : null,
     vende_no_pdv: e.vende_no_pdv,
     usa_na_entrada: e.usa_na_entrada,
+    aplica_as_avulsas: e.aplica_as_avulsas ?? false,
     ativo: e.ativo,
   };
 }
@@ -115,6 +120,7 @@ function adicionar() {
     descontoPct: null,
     vende_no_pdv: true,
     usa_na_entrada: true,
+    aplica_as_avulsas: false,
     ativo: true,
   });
 }
@@ -165,6 +171,7 @@ function payload(): EmbalagemEscrita[] {
     desconto_bp: l.modoPreco === 'desconto' && l.descontoPct != null ? Math.round(l.descontoPct * 100) : null,
     vende_no_pdv: l.vende_no_pdv,
     usa_na_entrada: l.usa_na_entrada,
+    aplica_as_avulsas: l.aplica_as_avulsas && Number(l.fator) > 1,
     ativo: l.ativo,
     gerar_codigo_interno: l.gerar_codigo_interno && !l.codigo_barras.trim(),
   }));
@@ -299,6 +306,19 @@ function salvar() {
           <label class="flex items-center gap-2 cursor-pointer select-none">
             <input v-model="l.usa_na_entrada" :disabled="disabled" type="checkbox" class="accent-brand-primary" />
             Usa na entrada de estoque
+          </label>
+          <label
+            v-if="Number(l.fator) > 1"
+            class="flex items-center gap-2 cursor-pointer select-none"
+            :title="configStore.regraEmbalagemAvulsas
+              ? 'Ex.: fardo de 15 — 17 latas avulsas cobram 1 fardo + 2 unidades'
+              : 'Só vale com a regra ligada em Configurações › Regras de Vendas'"
+          >
+            <input v-model="l.aplica_as_avulsas" :disabled="disabled" type="checkbox" class="accent-brand-primary" />
+            Avulsas que completam {{ l.fator }} cobram o preço {{ l.sigla ? `do ${l.sigla}` : 'dela' }}
+            <span v-if="l.aplica_as_avulsas && !configStore.regraEmbalagemAvulsas" class="text-amber-700">
+              (ligue a regra em Regras de Vendas)
+            </span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer select-none">
             <input v-model="l.ativo" :disabled="disabled" type="checkbox" class="accent-brand-primary" />

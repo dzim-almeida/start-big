@@ -17,6 +17,7 @@ import DadosProdutoSection from './form/DadosProdutoSection.vue';
 import DadosEstoqueSection from './form/DadosEstoqueSection.vue';
 import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
 import EmbalagensSection from './form/EmbalagensSection.vue';
+import RegrasPrecoSection from './form/RegrasPrecoSection.vue';
 import { storeToRefs } from 'pinia';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
@@ -37,7 +38,7 @@ const {
 
 // Embalagens (fardo/caixa) só aparecem com a chave ligada em Configurações:
 // para quem não usa, o cadastro fica exatamente como sempre foi.
-const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
+const { usarEmbalagens, regraFaixasQuantidade, regraLevePague } = storeToRefs(useConfiguracoesStore());
 
 const { onSubmit, isPending, submitCount, apiError } = useProductFormProvider();
 
@@ -215,6 +216,26 @@ watch(isOpen, (open) => {
                   </div>
                 </div>
                 <EmbalagensSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                />
+              </template>
+
+              <!-- Regras de preço por quantidade (R2/R3, §6.1): só com a chave
+                   de alguma delas ligada em Regras de Vendas. Mesmo motivo de
+                   ficar fora do <form> que as embalagens. -->
+              <template v-if="regraFaixasQuantidade || regraLevePague">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Preço por quantidade
+                    </span>
+                  </div>
+                </div>
+                <RegrasPrecoSection
                   :produto="isCreateMode ? null : selectedProduct"
                   :disabled="isViewMode"
                 />

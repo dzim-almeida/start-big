@@ -108,14 +108,46 @@ class ProdutoVenda(Base):
     )
     sigla_embalagem: Mapped[Optional[str]] = mapped_column(String(6), nullable=True, doc="FD, CX... congelado")
 
+    # --- Regra de preço por quantidade (§6.1, fase 5) ---
+    # Congelado na linha, como o preço (D6): mudar a regra amanhã não reescreve
+    # a venda de hoje.
+    #
+    # `desconto_regra` é SEPARADO de `desconto` de propósito. `desconto` é do
+    # operador: o rateio do desconto da venda o sobrescreve, a finalização o
+    # zera acima do limite da loja, e a tela o devolve no PATCH. Guardar a R1/R3
+    # ali faria a regra sumir no checkout ou contar duas vezes.
+    #
+    # R2 ("a partir de N") não usa desconto: muda `valor_unitario` (dá centavos
+    # exatos) e guarda o preço cheio em `valor_unitario_tabela`.
+    desconto_regra: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0",
+        doc="Desconto da regra de preço R1/R3 (centavos). Fora do limite de desconto do operador",
+    )
+    regra_preco: Mapped[Optional[str]] = mapped_column(
+        String(12), nullable=True,
+        doc="R1, R2, R3 — regra aplicada; MANUAL = preço trocado pelo gerente (as regras não mexem)",
+    )
+    regra_descricao: Mapped[Optional[str]] = mapped_column(
+        String(80), nullable=True, doc="Como a linha mostra a regra ('Preço de fardo: 1 FD')"
+    )
+    valor_unitario_tabela: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc="Preço cheio da unidade antes da R2 (centavos) — o que a tela mostra riscado",
+    )
+
     @property
     def quantidade_base(self) -> int:
         """Quantas unidades do produto a linha representa (2 FD de 12 = 24)."""
         return (self.quantidade or 0) * (self.fator_embalagem or 1)
 
     @property
+    def desconto_total(self) -> int:
+        """Operador + regra: o que vai no vDesc da nota e sai do faturamento."""
+        return (self.desconto or 0) + (self.desconto_regra or 0)
+
+    @property
     def total(self):
-        return self.subtotal - self.desconto
+        return self.subtotal - self.desconto_total
     @property
     def imagem_url(self):
         if self.tipo_produto == TipoProdutoVenda.CADASTRADO and self.produto:

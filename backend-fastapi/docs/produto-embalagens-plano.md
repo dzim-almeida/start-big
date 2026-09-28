@@ -19,9 +19,9 @@ rejeitar nota.
 > (§6.1). Princípio que ele deixou claro: **quem define a regra de venda é o
 > dono da loja** — o sistema oferece as opções, a loja liga as que usa.
 
-> **Execução (27/09/2026, branch `embalagens`):** **fases 1 e 2 entregues** —
-> ver §13. As fases 3 (venda), 4 (NF-e/NFC-e) e 5 (regras de preço) esperam:
-> sobem juntas, com homologação e loja canário.
+> **Execução (branch `embalagens`):** fases 1 e 2 em 27/09 (§13), 3 e 4 em
+> 27/09 (§14), **5 em 28/09 (§15)**. Sobem juntas, com homologação e loja
+> canário. Falta a fase 6 (relatório "vendas por regra de preço").
 
 ---
 
@@ -242,6 +242,9 @@ vira discussão no balcão.
   desconto (`vDesc`) — é preço praticado. O "leve 3 pague 2" é a exceção: o item
   gratuito sai como **desconto** na linha, que é o jeito aceito pela SEFAZ de
   dizer "levou 3, pagou 2".
+  **Revisto em 28/09 (decisão do Alan, §15):** a R1 também sai como desconto
+  (`vDesc`). O preço guardado é em centavos inteiros, e "fardo de 15 por
+  R$ 50,00 + 2 latas" dá R$ 3,4706 a lata, que não existe. Só a R2 muda o preço.
 - **Comissão e relatórios** usam o valor efetivamente cobrado.
 
 ---
@@ -521,6 +524,63 @@ e `c6e4f0a9d217` (snapshot da nota). Só colunas, decididas pela ausência; o
 **Ainda falta antes de ligar na adega:** homologação testando 629/630/885/886/894
 de propósito; confirmar ICMS-ST com o contador (G7 — o motor não tem pauta por
 unidade); loja canário com backup (§7).
+
+---
+
+## 15. Entrega da fase 5 — regras de preço (28/09/2026)
+
+**Decisão (Alan, 28/09):** como cada regra entra na venda.
+
+| Regra | Na venda | Na nota |
+|---|---|---|
+| R1 — preço de fardo nas avulsas | `desconto_regra`, campo **próprio** da linha | `vDesc` |
+| R2 — "a partir de N" | muda `valor_unitario`; o cheio fica em `valor_unitario_tabela` | `vUnCom` |
+| R3 — leve X, pague Y | `desconto_regra` | `vDesc` |
+
+**Por que um campo próprio:** o `desconto` da linha é do operador. O rateio do
+desconto da venda o sobrescreve, a finalização o **zera** acima do limite da
+loja, e a tela o devolve no PATCH (o modal do item e o resumo da venda
+preenchem com ele). Guardar a regra ali faria ela sumir no checkout ou contar
+duas vezes. `total` da linha = `subtotal − desconto − desconto_regra`;
+`Venda.descontos` continua só o do operador e `descontos_regra` vem à parte.
+
+**O que foi feito**
+- **Configurações › Regras de Vendas › Preço por quantidade:** uma chave por
+  regra, "quando mais de uma serve" (menor preço, padrão, ou ordem com ↑↓) e
+  "item com regra não aceita desconto manual" (trava do TOTVS). Tudo desligado.
+- **Produto:** "Avulsas que completam N cobram o preço do FD" na embalagem (R1);
+  seção **Preço por quantidade** com faixas (R2) e leve-pague com vigência (R3),
+  só com a chave ligada. `GET/PUT /produtos/{id}/regras-preco` (replace-all,
+  permissão de Produtos).
+- **Motor:** `core/regras_preco.py` (conta pura) + `services/regras_preco.py`.
+  Recalcula o carrinho inteiro a cada mudança (`_recalc_total_sale`) e na
+  conversão do orçamento; **não** na finalização (o caixa cobra o que viu). Só
+  linhas de unidade (fator 1) de produto cadastrado; fardo vendido como fardo,
+  avulso e linha com preço trocado pelo gerente (`MANUAL`) ficam de fora. Uma
+  regra por produto, nunca somam. Linhas do mesmo produto e preço somam as
+  unidades (17 latas em duas linhas = 1 fardo + 2).
+- **Desconto do operador vem depois da regra:** o rateio e o limite (%) usam o
+  que sobra depois dela; o zeramento (finalização e mudança de limite) só mexe
+  no do operador.
+- **PDV:** a linha mostra a regra ("Preço de 1 FD (15 un)"), o preço cheio
+  riscado (R2) e "−R$ 17,50 regra"; o resumo mostra "preço por qtd.". A resposta
+  de adicionar/editar traz `itens_alterados` (as outras linhas que a regra mudou).
+- **Impressões** (cupom, A4, ESC/POS): a regra embaixo da linha e "Preço por
+  qtd." nos totais. Linha sem regra sai igual a antes.
+- **Nota:** `vDesc` = operador + regra (com e sem motor de impostos); a prévia
+  de conferência também soma os dois. Faturamento por produto (curva ABC) desconta a regra.
+
+**Migration:** `d2f8b61e9a47` — tabela `produto_regras_preco` + colunas; só cria
+o que falta, tudo nasce desligado/0/nulo. Testada numa cópia do banco local
+(cadeia inteira desde `d1a2b3c4e5f6`).
+
+**Testes:** conta pura (12), ponta a ponta pela API (13 — desligado não muda
+nada, R1/R2/R3, vigência, conflito, limite do operador, zeramento, trava,
+orçamento convertido) e payload fiscal (3). Frontend: 131 testes, `vue-tsc` e
+build limpos.
+
+**Fica para a fase 6:** relatório "vendas por regra de preço" (a linha já
+guarda `regra_preco`, `regra_descricao` e `desconto_regra`).
 
 ---
 

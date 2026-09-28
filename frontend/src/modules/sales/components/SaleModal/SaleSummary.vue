@@ -9,6 +9,8 @@ import { focarBuscaDeProduto } from '../../focarBusca.util';
 const props = defineProps<{
   subtotal?: number;
   discount?: number;
+  /** R1/R3 (§6.1): desconto das regras de preço, fora do campo do operador. */
+  descontoRegra?: number;
   delivery?: number;
   total?: number;
   form?: SaleUpdate;
@@ -64,6 +66,10 @@ const hasDelivery = computed(() => {
         <div class="h-9.5 flex items-center">
           <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
         </div>
+        <!-- Sem esta linha, subtotal − desconto não fecharia com o total. -->
+        <p v-if="(descontoRegra ?? 0) > 0" class="-mt-1 text-[10px] font-semibold text-emerald-700 whitespace-nowrap">
+          −{{ formatCurrency(descontoRegra ?? 0) }} preço por qtd.
+        </p>
       </div>
     </div>
 

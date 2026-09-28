@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  descontosRegraDaVenda,
   multiplicadorDaLinha,
   precoDaEmbalagem,
   precoUnitarioNaEmbalagem,
   quantidadeDaLinha,
+  regraDaLinha,
   saldoEmEmbalagem,
   unidadesDaLinha,
 } from '../embalagem';
@@ -56,5 +58,24 @@ describe('quantidade da linha nas impressões (G4)', () => {
     expect(multiplicadorDaLinha(unidade)).toBe('3x');
     // Backend antigo, sem os campos novos.
     expect(multiplicadorDaLinha({ quantidade: 1 })).toBe('1x');
+  });
+});
+
+describe('regraDaLinha', () => {
+  it('sem regra (ou preço manual) não imprime nada', () => {
+    expect(regraDaLinha({})).toBeNull();
+    expect(regraDaLinha({ regra_preco: 'MANUAL', regra_descricao: 'x' })).toBeNull();
+  });
+
+  it('R1/R3 trazem texto e valor; R2 só o texto', () => {
+    expect(regraDaLinha({ regra_preco: 'R1', regra_descricao: 'Preço de 1 FD (15 un)', desconto_regra: 1750 }))
+      .toEqual({ texto: 'Preço de 1 FD (15 un)', desconto: 1750 });
+    expect(regraDaLinha({ regra_preco: 'R2', regra_descricao: 'A partir de 6 un: R$ 3,80', desconto_regra: 0 }))
+      .toEqual({ texto: 'A partir de 6 un: R$ 3,80', desconto: 0 });
+  });
+
+  it('descontosRegraDaVenda: orçamento e backend antigo valem 0', () => {
+    expect(descontosRegraDaVenda({ descontos: 10 })).toBe(0);
+    expect(descontosRegraDaVenda({ descontos_regra: 1750 })).toBe(1750);
   });
 });

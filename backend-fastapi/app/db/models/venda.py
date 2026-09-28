@@ -100,7 +100,13 @@ class Venda(Base):
         return total_itens + (self.entrega or 0)
     @property
     def descontos(self):
+        # Só o do OPERADOR — é o que o limite de desconto confere e o que a tela
+        # devolve no campo de desconto da venda. O da regra fica à parte.
         return sum(item.desconto for item in self.itens)
+    @property
+    def descontos_regra(self):
+        """R1/R3 (§6.1): fora do limite de desconto do operador."""
+        return sum(item.desconto_regra or 0 for item in self.itens)
     total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (descontos) + acrescimo (centavos)")
     @property
     def troco(self):

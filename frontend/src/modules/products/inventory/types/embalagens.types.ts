@@ -18,6 +18,8 @@ export interface EmbalagemRead {
   desconto_bp: number | null;
   vende_no_pdv: boolean;
   usa_na_entrada: boolean;
+  /** R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. Backend antigo não manda. */
+  aplica_as_avulsas?: boolean;
   ativo: boolean;
 }
 
@@ -32,6 +34,7 @@ export interface EmbalagemEscrita {
   desconto_bp: number | null;
   vende_no_pdv: boolean;
   usa_na_entrada: boolean;
+  aplica_as_avulsas: boolean;
   ativo: boolean;
   gerar_codigo_interno?: boolean;
 }

@@ -64,6 +64,13 @@ class ProdutoEmbalagem(Base):
     usa_na_entrada: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, doc="Oferecida na entrada de estoque"
     )
+    aplica_as_avulsas: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="0",
+        nullable=False,
+        doc="R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela",
+    )
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
     data_atualizacao: Mapped[datetime] = mapped_column(

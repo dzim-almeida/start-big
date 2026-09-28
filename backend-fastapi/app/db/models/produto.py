@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .log_produto import LogProduto
     from .produto_fiscal import ProdutoFiscal
     from .produto_embalagem import ProdutoEmbalagem
+    from .produto_regra_preco import ProdutoRegraPreco
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -109,6 +110,16 @@ class Produto(Base):
         lazy="selectin",
         order_by="ProdutoEmbalagem.fator",
         doc="Embalagens de venda/compra do produto",
+    )
+
+    # Regras de preço por quantidade (R2 faixas, R3 leve-pague) — plano de
+    # embalagens, §6.1. Só a venda lê; a listagem não precisa delas.
+    regras_preco: Mapped[List["ProdutoRegraPreco"]] = relationship(
+        "ProdutoRegraPreco",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        order_by="[ProdutoRegraPreco.tipo, ProdutoRegraPreco.quantidade]",
+        doc="Faixas 'a partir de N' e promoções 'leve X pague Y'",
     )
 
     # Restrições (Constraints)

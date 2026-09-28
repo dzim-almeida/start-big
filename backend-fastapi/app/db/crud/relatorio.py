@@ -367,7 +367,10 @@ def get_vendas_por_produto(
     pós-desconto do item). Itens avulsos (produto_id NULL) ficam de fora — não têm
     produto de estoque para classificar. Escopo por empresa via funcionário da venda.
     """
-    faturamento = func.coalesce(func.sum(ProdutoVenda.subtotal - ProdutoVenda.desconto), 0)
+    # Menos o desconto da regra de preço (R1/R3, §6.1) — é receita que não entrou.
+    faturamento = func.coalesce(
+        func.sum(ProdutoVenda.subtotal - ProdutoVenda.desconto - ProdutoVenda.desconto_regra), 0
+    )
     stmt = (
         select(
             Produto.id.label("produto_id"),

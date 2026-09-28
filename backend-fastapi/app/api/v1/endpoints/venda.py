@@ -137,10 +137,18 @@ def adicionar_item(
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
             descontos=sale.descontos or 0,
+            descontos_regra=sale.descontos_regra or 0,
             entrega=sale.entrega or 0,
             total=sale.total or 0
-        )
+        ),
+        itens_alterados=_itens_alterados_pela_regra(sale, product),
     )
+
+
+def _itens_alterados_pela_regra(sale, product) -> list:
+    """As outras linhas que a regra de preço mexeu (ver `_recalc_total_sale`)."""
+    ids = getattr(sale, "itens_alterados_pela_regra", None) or set()
+    return [item for item in sale.itens if item.id in ids and item.id != product.id]
 
 
 @router.patch(
@@ -173,9 +181,11 @@ def editar_item(
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
             descontos=sale.descontos or 0,
+            descontos_regra=sale.descontos_regra or 0,
             entrega=sale.entrega or 0,
             total=sale.total or 0
-        )
+        ),
+        itens_alterados=_itens_alterados_pela_regra(sale, product),
     )
 
 

@@ -81,6 +81,12 @@ export const ProductSaleReadSchema = ProductSaleBaseSchema.extend({
   // Congelados na linha (backend mais antigo não manda: vale 1 / nulo).
   fator_embalagem: z.number().optional().default(1),
   sigla_embalagem: z.string().nullable().optional(),
+  // Regra de preço por quantidade aplicada (§6.1). `desconto` continua sendo
+  // só o do operador; `total` já desconta os dois. Backend antigo não manda.
+  desconto_regra: z.number().optional().default(0),
+  regra_preco: z.string().nullable().optional(),
+  regra_descricao: z.string().nullable().optional(),
+  valor_unitario_tabela: z.number().nullable().optional(),
   valor_unitario: z.number().transform((val) => (!val ? 0 : val)),
   desconto: z.number().transform((val) => (!val ? 0 : val)),
 }).omit({ descricao_avulsa: true });
@@ -90,6 +96,7 @@ export type ProductSaleRead = z.infer<typeof ProductSaleReadSchema>;
 export const SaleFinanceSummarySchema = z.object({
   subtotal: z.number(),
   descontos: z.number(),
+  descontos_regra: z.number().optional().default(0),
   entrega: z.number(),
   total: z.number(),
 });
@@ -97,6 +104,9 @@ export const SaleFinanceSummarySchema = z.object({
 export const ProductAlterationSchema = z.object({
   produto_adicionado: ProductSaleReadSchema,
   financeiro_atualizado: SaleFinanceSummarySchema,
+  // As OUTRAS linhas que a regra de preço mudou (17 latas em duas linhas: as
+  // duas ganham a regra). Vazio sem regra; backend antigo não manda.
+  itens_alterados: z.array(ProductSaleReadSchema).optional().default([]),
 });
 
 export type ProductAlteration = z.infer<typeof ProductAlterationSchema>;

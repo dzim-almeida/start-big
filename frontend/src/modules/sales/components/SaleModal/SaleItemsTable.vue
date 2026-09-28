@@ -52,6 +52,16 @@ function getProductDescription(item: SaleOrOrcamento['produtos'][number]) {
   return item.produto_id ? `SKU: #${item.sku}` : 'Produto cadastrado';
 }
 
+/** Regra de preço por quantidade aplicada na linha (§6.1). Orçamento não tem. */
+function regraDaLinha(item: SaleOrOrcamento['produtos'][number]) {
+  if (!('regra_preco' in item) || !item.regra_preco || item.regra_preco === 'MANUAL') return null;
+  return {
+    descricao: item.regra_descricao ?? '',
+    tabela: item.valor_unitario_tabela ?? null,
+    desconto: item.desconto_regra ?? 0,
+  };
+}
+
 function mutateUpdate(
   entityId: number,
   productId: number,
@@ -336,6 +346,16 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                     {{ getProductDescription(item) }}
                   </p>
 
+                  <!-- Preço que muda sozinho vira discussão no balcão: a linha
+                       diz qual regra aplicou (§6.1). -->
+                  <p
+                    v-if="regraDaLinha(item)"
+                    class="mt-0.5 inline-block truncate rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+                    :title="regraDaLinha(item)!.descricao"
+                  >
+                    {{ regraDaLinha(item)!.descricao }}
+                  </p>
+
                 </div>
               </div>
             </td>
@@ -405,11 +425,17 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
             </td>
 
             <td class="px-4 text-center text-sm font-medium text-zinc-700">
+              <span v-if="regraDaLinha(item)?.tabela" class="block text-[11px] text-zinc-400 line-through">
+                {{ formatCurrency(regraDaLinha(item)!.tabela!) }}
+              </span>
               {{ formatCurrency(item.valor_unitario) }}
             </td>
 
             <td class="px-4 text-center text-sm font-medium text-zinc-700">
               {{ formatCurrency(item.desconto) }}
+              <span v-if="regraDaLinha(item)?.desconto" class="block text-[11px] font-semibold text-emerald-700">
+                −{{ formatCurrency(regraDaLinha(item)!.desconto) }} regra
+              </span>
             </td>
 
             <td class="px-4 text-right text-sm font-semibold text-zinc-800">
