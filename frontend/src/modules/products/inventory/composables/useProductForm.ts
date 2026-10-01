@@ -45,7 +45,7 @@ const DEFAULT_FORM_VALUES: ProductFormData = {
   valor_entrada: 0,
   valor_varejo: 0,
   valor_atacado: 0,
-  quantidade: 0,
+  quantidade: '' as unknown as number,
   quantidade_minima: 0,
   quantidade_ideal: 0,
 
@@ -366,7 +366,7 @@ export function useProductFormProvider() {
       localizacao_estoque: formData.localizacao_estoque || undefined,
       estoque: {
         valor_varejo: toCents(formData.valor_varejo) || 0,
-        quantidade: formData.quantidade || undefined,
+        quantidade: Number(formData.quantidade),
         valor_entrada: toCents(formData.valor_entrada),
         valor_atacado: toCents(formData.valor_atacado),
         quantidade_minima: formData.quantidade_minima || undefined,
@@ -380,6 +380,19 @@ export function useProductFormProvider() {
       apiError.value = null;
 
       const errosConfig: Record<string, string> = {};
+      if (isCreateMode.value) {
+        const qtd = Number(formData.quantidade);
+        if (
+          formData.quantidade === undefined ||
+          formData.quantidade === null ||
+          formData.quantidade === ('' as unknown) ||
+          isNaN(qtd)
+        ) {
+          errosConfig.quantidade = 'Quantidade inicial é obrigatória';
+        } else if (qtd <= 0) {
+          errosConfig.quantidade = 'Quantidade inicial deve ser maior que zero';
+        }
+      }
       if (configStore.exigirCodigoBarras && !formData.codigo_barras) {
         errosConfig.codigo_barras = 'Código de barras é obrigatório';
       }
