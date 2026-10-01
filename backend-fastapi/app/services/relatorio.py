@@ -4,12 +4,16 @@
 #            reusando as agregacoes do dashboard e a serie por dia do crud proprio.
 # ---------------------------------------------------------------------------
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
 from app.core.enum import SituacaoEquipamento
-from app.core.tempo import intervalo_utc
+from app.core.tempo import fuso_local, intervalo_utc
+from app.core import segregacao_receita
+from app.core.segregacao_receita import ratear
+from app.core.enum import OrdemServicoItemTipo
+from app.db.models.empresa import Empresa
 from app.helpers.exceptions import NotFoundException
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import relatorio as relatorio_crud
@@ -30,10 +34,14 @@ from app.schemas.relatorio import (
     RelatorioOSPerformance,
     RelatorioExtratoFuncionario,
     ExtratoServicoItem,
+    ExtratoVendaItem,
     OSReparoResumo,
     OSStatusItem,
     OSTecnicoItem,
     RelatorioRegrasPreco,
+    RelatorioContador,
+    ReceitaGrupoItem,
+    ProdutoSemClassificacaoItem,
     RegraPrecoResumo,
     RegraPrecoProdutoItem,
 )
@@ -482,6 +490,122 @@ def get_regras_preco(db: Session, inicio: date, fim: date, empresa_id: int) -> R
 
 
 # ---------------------------------------------------------------------------
+# RECEITA PARA O CONTADOR (segregação do PGDAS-D)
+# ---------------------------------------------------------------------------
+
+# Todo grupo aparece, mesmo zerado: o contador confere a declaração linha a
+# linha, e um grupo que some parece esquecido.
+_GRUPOS = [
+    segregacao_receita.Grupo(icms_st=False, monofasico=False),
+    segregacao_receita.Grupo(icms_st=True, monofasico=False),
+    segregacao_receita.Grupo(icms_st=False, monofasico=True),
+    segregacao_receita.Grupo(icms_st=True, monofasico=True),
+]
+
+
+def get_contador(db: Session, inicio: date, fim: date, empresa_id: int) -> RelatorioContador:
+    """
+    A receita do período como o contador declara no PGDAS-D: mercadoria em
+    quatro grupos (ICMS normal/ST × PIS-COFINS normal/monofásico), serviços, e
+    frete e juros à parte.
+
+    Bate com o faturamento bruto do relatório de faturamento (mesmas datas e
+    filtros): `receita_total == faturamento_vendas + faturamento_os`.
+
+    - Classifica pelo cadastro fiscal ATUAL do produto: a linha da venda não
+      congela o CST. Corrigir o cadastro corrige o relatório do mês passado.
+    - O desconto da OS é da OS, não do item: é rateado pelos itens na
+      proporção do valor. Na venda o desconto já está na linha.
+    - Avulso e produto sem CSOSN/CST não são chutados como "normal": vão para
+      "sem classificação", com a lista do que corrigir.
+    """
+    dt_inicio, dt_fim = intervalo_utc(inicio, fim)
+    empresa = db.get(Empresa, empresa_id)
+    crt = empresa.crt if empresa else None
+    motivo_sem_codigo = (
+        "Sem CSOSN no cadastro fiscal" if crt in segregacao_receita.CRT_QUE_USAM_CSOSN
+        else "Sem CST de ICMS no cadastro fiscal"
+    )
+
+    grupos: dict[segregacao_receita.Grupo, int] = {g: 0 for g in _GRUPOS}
+    sem_classificacao: dict[tuple, dict] = {}
+    servicos = 0
+    frete_e_juros = 0
+
+    def mercadoria(linha, valor: int, motivo_avulso: str) -> None:
+        if linha.produto_id is None:
+            grupo, motivo = None, motivo_avulso
+        else:
+            grupo = segregacao_receita.classificar(
+                crt, linha.csosn, linha.cst_icms, linha.cst_pis, linha.cst_cofins
+            )
+            motivo = motivo_sem_codigo
+        if grupo is not None:
+            grupos[grupo] += valor
+            return
+        # Avulso não tem id: agrupa pelo nome digitado.
+        chave = (linha.produto_id, linha.nome if linha.produto_id is None else None)
+        item = sem_classificacao.setdefault(
+            chave, {"produto_id": linha.produto_id, "nome": linha.nome or "—", "valor": 0, "motivo": motivo}
+        )
+        item["valor"] += valor
+
+    # Vendas: a linha já é líquida (desconto do operador e da regra).
+    for linha in relatorio_crud.get_linhas_venda_fiscal(db, dt_inicio, dt_fim, empresa_id):
+        mercadoria(linha, linha.valor or 0, "Item avulso (sem cadastro)")
+    extras = relatorio_crud.get_extras_vendas(db, dt_inicio, dt_fim, empresa_id)
+    frete_e_juros += (extras.entrega or 0) + (extras.acrescimo or 0)
+    faturamento_vendas = extras.total or 0
+
+    # OS: agrupa os itens por OS para ratear o desconto dela.
+    por_os: dict[int, list] = {}
+    for linha in relatorio_crud.get_itens_os_fiscal(db, dt_inicio, dt_fim, empresa_id):
+        por_os.setdefault(linha.os_id, []).append(linha)
+
+    faturamento_os = 0
+    for itens in por_os.values():
+        os_total = itens[0].os_total or 0
+        faturamento_os += os_total
+        pesos = [i.valor or 0 for i in itens]
+        liquido = max(0, sum(pesos) - (itens[0].os_desconto or 0))
+        # O que sobra do total é taxa de entrega e juros.
+        frete_e_juros += os_total - liquido
+        for item, valor in zip(itens, segregacao_receita.ratear(liquido, pesos)):
+            if item.tipo == OrdemServicoItemTipo.SERVICO:
+                servicos += valor
+            else:
+                mercadoria(item, valor, "Peça avulsa na OS (sem cadastro)")
+
+    # OS sem item que conte (só taxa, ou tudo reprovado): o total é extra.
+    sem_itens = relatorio_crud.get_os_finalizadas_sem_itens_total(db, dt_inicio, dt_fim, empresa_id)
+    faturamento_os += sem_itens
+    frete_e_juros += sem_itens
+
+    lista_sem = sorted(
+        (ProdutoSemClassificacaoItem(**i) for i in sem_classificacao.values() if i["valor"]),
+        key=lambda i: i.valor,
+        reverse=True,
+    )
+    total_sem = sum(i["valor"] for i in sem_classificacao.values())
+
+    return RelatorioContador(
+        inicio=inicio,
+        fim=fim,
+        crt=crt,
+        receita_total=sum(grupos.values()) + total_sem + servicos + frete_e_juros,
+        mercadoria=[
+            ReceitaGrupoItem(icms_st=g.icms_st, monofasico=g.monofasico, valor=v) for g, v in grupos.items()
+        ],
+        mercadoria_sem_classificacao=total_sem,
+        servicos=servicos,
+        frete_e_juros=frete_e_juros,
+        faturamento_vendas=faturamento_vendas,
+        faturamento_os=faturamento_os,
+        produtos_sem_classificacao=lista_sem,
+    )
+
+
+# ---------------------------------------------------------------------------
 # OS-PERFORMANCE (Fase 4b)
 # ---------------------------------------------------------------------------
 
@@ -560,6 +684,36 @@ def get_extrato_funcionario(
         )
         total_mao_de_obra += max(0, (linha.valor_total or 0) - custo_linha)
 
+    # --- Vendas: uma por linha, com a margem que é a base da comissão -------
+    vendas: list[ExtratoVendaItem] = []
+    for v in relatorio_crud.get_vendas_do_funcionario(db, dt_inicio, dt_fim, funcionario_id):
+        total_venda = v.total or 0
+        vendas.append(ExtratoVendaItem(
+            venda_id=v.venda_id,
+            numero=str(v.numero_venda) if v.numero_venda is not None else f"#{v.venda_id}",
+            data=_data_local(v.criado_em),
+            cliente=v.cliente_nome,
+            valor_total=total_venda,
+            base=round(total_venda - (v.acrescimo or 0) - (v.custo or 0)),
+        ))
+
+    # --- Comissão: a MESMA da folha, repartida pelas linhas -----------------
+    #
+    # Recalcular aqui seria a segunda cópia da regra (taxa por cascata, meta,
+    # piso em zero, base sobre margem) — e duas cópias divergem. O total vem
+    # de `get_comissao` e é dividido na proporção da base de cada linha; linha
+    # com base negativa (venda abaixo do custo) não recebe parte. Assim a soma
+    # das linhas é exatamente o que a folha manda pagar.
+    folha = next(
+        (c for c in get_comissao(db, inicio, fim, empresa_id).itens if c.funcionario_id == funcionario_id),
+        None,
+    )
+    if folha is not None:
+        for venda, parte in zip(vendas, ratear(folha.comissao_vendas, [max(0, v.base) for v in vendas])):
+            venda.comissao = parte
+        for item, parte in zip(itens, ratear(folha.comissao_servico, [max(0, i.mao_de_obra) for i in itens])):
+            item.comissao = parte
+
     return RelatorioExtratoFuncionario(
         inicio=inicio,
         fim=fim,
@@ -570,7 +724,26 @@ def get_extrato_funcionario(
         valor_total=total,
         total_mao_de_obra=total_mao_de_obra,
         itens=itens,
+        qtd_vendas=len(vendas),
+        total_vendas=sum(v.valor_total for v in vendas),
+        vendas=vendas,
+        base_vendas=folha.faturamento_vendas if folha else 0,
+        base_servicos=folha.faturamento_os if folha else 0,
+        percentual_venda=folha.percentual_venda if folha else None,
+        percentual_servico=folha.percentual_servico if folha else None,
+        comissao_vendas=folha.comissao_vendas if folha else 0,
+        comissao_servico=folha.comissao_servico if folha else 0,
+        comissao_total=folha.comissao_total if folha else 0,
+        comissao_modo=folha.comissao_modo if folha else "direto",
+        meta_mensal=folha.meta_mensal if folha else None,
+        meta_atingida_percentual=folha.meta_atingida_percentual if folha else None,
+        comissao_liberada=folha.comissao_liberada if folha else True,
     )
+
+
+def _data_local(dt_utc: datetime) -> date:
+    """A data da loja de um timestamp gravado em UTC (venda às 22h não vira o dia seguinte)."""
+    return dt_utc.replace(tzinfo=timezone.utc).astimezone(fuso_local()).date()
 
 
 def get_os_performance(db: Session, inicio: date, fim: date, empresa_id: int) -> RelatorioOSPerformance:

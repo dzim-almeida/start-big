@@ -202,6 +202,40 @@ class RelatorioRegrasPreco(BaseModel):
     por_regra: list[RegraPrecoResumo] = Field(default_factory=list)
     por_produto: list[RegraPrecoProdutoItem] = Field(default_factory=list)
 
+
+# ===========================================================================
+# RECEITA PARA O CONTADOR (segregação do PGDAS-D)
+# ===========================================================================
+
+class ReceitaGrupoItem(BaseModel):
+    """Receita de mercadoria de um grupo do PGDAS-D."""
+    icms_st: bool = Field(..., description="ICMS já pago por substituição tributária (CSOSN 500 / CST 60)")
+    monofasico: bool = Field(..., description="PIS/COFINS monofásico (CST 04)")
+    valor: int = Field(..., description="Centavos")
+
+
+class ProdutoSemClassificacaoItem(BaseModel):
+    """Produto vendido no período cujo cadastro não diz se o ICMS é ST."""
+    produto_id: Optional[int] = None
+    nome: str
+    valor: int = Field(..., description="Receita do período (centavos)")
+    motivo: str
+
+
+class RelatorioContador(BaseModel):
+    """Receita do período separada como o contador declara no PGDAS-D."""
+    inicio: date
+    fim: date
+    crt: Optional[int] = Field(None, description="Regime da empresa: 1 Simples, 2 excesso de sublimite, 3 normal, 4 MEI")
+    receita_total: int = Field(0, description="Bate com o faturamento bruto (vendas + OS)")
+    mercadoria: list[ReceitaGrupoItem] = Field(default_factory=list)
+    mercadoria_sem_classificacao: int = 0
+    servicos: int = Field(0, description="Itens de serviço das OS")
+    frete_e_juros: int = Field(0, description="Frete/taxa de entrega e juros de cartão cobrados do cliente")
+    faturamento_vendas: int = 0
+    faturamento_os: int = 0
+    produtos_sem_classificacao: list[ProdutoSemClassificacaoItem] = Field(default_factory=list)
+
 # ===========================================================================
 # RELATORIO DE OS-PERFORMANCE (Fase 4b)
 # ===========================================================================
@@ -254,6 +288,24 @@ class ExtratoServicoItem(BaseModel):
             "pagamento"
         ),
     )
+    comissao: int = Field(0, description="Parte da comissão de serviço que cabe a esta linha (centavos)")
+
+
+class ExtratoVendaItem(BaseModel):
+    """Uma venda finalizada do funcionário, com a base da comissão dela."""
+    venda_id: int
+    numero: str
+    data: date
+    cliente: Optional[str] = None
+    valor_total: int = Field(..., description="Total da venda (centavos)")
+    base: int = Field(
+        ...,
+        description=(
+            "Margem da venda: total − juros da operadora − custo das mercadorias "
+            "(centavos). Pode ser negativa (venda abaixo do custo)"
+        ),
+    )
+    comissao: int = Field(0, description="Parte da comissão de venda que cabe a esta venda (centavos)")
 
 
 class RelatorioExtratoFuncionario(BaseModel):
@@ -274,6 +326,24 @@ class RelatorioExtratoFuncionario(BaseModel):
         ),
     )
     itens: list[ExtratoServicoItem] = Field(default_factory=list)
+
+    # --- Vendas e comissão (extrato de comissão, 01/10/2026) ---------------
+    # A comissão é a MESMA da folha (`get_comissao`): o total vem de lá e é
+    # repartido pelas linhas, para a soma do papel bater com a folha.
+    qtd_vendas: int = 0
+    total_vendas: int = Field(0, description="Σ total das vendas (centavos)")
+    vendas: list[ExtratoVendaItem] = Field(default_factory=list)
+    base_vendas: int = Field(0, description="Margem das vendas usada na folha (piso em zero)")
+    base_servicos: int = Field(0, description="Mão de obra usada na folha (piso em zero)")
+    percentual_venda: Optional[int] = Field(None, description="Basis points (500 = 5,00%)")
+    percentual_servico: Optional[int] = Field(None, description="Basis points")
+    comissao_vendas: int = 0
+    comissao_servico: int = 0
+    comissao_total: int = 0
+    comissao_modo: str = "direto"
+    meta_mensal: Optional[int] = None
+    meta_atingida_percentual: Optional[float] = None
+    comissao_liberada: bool = True
 
 
 class RelatorioOSPerformance(BaseModel):

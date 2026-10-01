@@ -17,6 +17,7 @@ import EstoqueSection from '../components/EstoqueSection.vue';
 import OSPerformanceSection from '../components/OSPerformanceSection.vue';
 import CaixaSection from '../components/CaixaSection.vue';
 import RegrasPrecoSection from '../components/RegrasPrecoSection.vue';
+import ContadorSection from '../components/ContadorSection.vue';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { useSessaoCaixaQuery } from '@/modules/sales/caixa/composables/queries/useSessaoCaixaQuery';
 import { useAuthStore } from '@/shared/stores/auth.store';
@@ -315,6 +316,9 @@ async function imprimirFinanceiro() {
 
         <!-- Estoque e Curva ABC -->
         <EstoqueSection :inicio="inicio" :fim="fim" />
+
+        <!-- Receita separada para o PGDAS-D -->
+        <ContadorSection :inicio="inicio" :fim="fim" />
 
         <!-- Vendas por regra de preço (R1/R2/R3) -->
         <RegrasPrecoSection v-if="usaRegrasPreco" :inicio="inicio" :fim="fim" />

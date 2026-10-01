@@ -31,6 +31,7 @@ from app.schemas.relatorio import (
     RelatorioOSPerformance,
     RelatorioExtratoFuncionario,
     RelatorioRegrasPreco,
+    RelatorioContador,
 )
 from app.services import relatorio as relatorio_service
 
@@ -200,3 +201,25 @@ def obter_regras_preco(
 ):
     # Só o dono, como a Curva ABC: o abatimento é margem que a loja abriu mão.
     return relatorio_service.get_regras_preco(db, inicio, fim, user_token["empresa_id"])
+
+
+@router.get(
+    "/contador",
+    response_model=RelatorioContador,
+    summary="Receita do período para o contador (segregação do PGDAS-D)",
+    description=(
+        "Receita das vendas e OS finalizadas separada como o contador declara no "
+        "PGDAS-D: mercadoria por ICMS normal/ST e PIS-COFINS normal/monofásico "
+        "(pelo cadastro fiscal do produto), serviços, e frete e juros à parte. "
+        "Lista os produtos vendidos sem classificação fiscal."
+    ),
+)
+def obter_contador(
+    user_token: dict = Depends(get_current_master_user),
+    *,
+    db: Session = Depends(get_db),
+    inicio: date = Query(..., description="Data inicial do periodo (YYYY-MM-DD)"),
+    fim: date = Query(..., description="Data final do periodo (YYYY-MM-DD)"),
+):
+    # Só o dono: é a receita inteira da loja.
+    return relatorio_service.get_contador(db, inicio, fim, user_token["empresa_id"])
