@@ -42,6 +42,8 @@ class EmbalagemBase(BaseModel):
     # R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. Só
     # morde com a chave da R1 ligada em Regras de Vendas.
     aplica_as_avulsas: bool = False
+    # A5: peso da embalagem fechada (gramas). Alimenta a etiqueta de envio.
+    peso_gramas: Optional[int] = Field(None, ge=1, le=10_000_000, description="Peso em gramas (opcional)")
     ativo: bool = True
 
     @field_validator("sigla")

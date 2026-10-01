@@ -160,6 +160,23 @@ const volumes = ref(1);
 const pesoKg = ref<number | null>(null);
 const observacao = ref('');
 
+// A5: venda só de fardos/caixas com peso cadastrado já chega com volumes e
+// peso preenchidos — o lojista ainda pode corrigir. Se faltar peso em alguma
+// linha (latas avulsas, embalagem sem peso), não preenche: a soma sairia menor
+// que a caixa de verdade. Aí o parcial vira só dica embaixo do campo.
+watch(dadosPedido, (d) => {
+  if (!d?.peso_completo || !d.volumes_embalagens) return;
+  volumes.value = Math.min(MAX_VOLUMES, d.volumes_embalagens);
+  pesoKg.value = (d.peso_embalagens_gramas ?? 0) / 1000;
+});
+
+const dicaPesoParcial = computed(() => {
+  const d = dadosPedido.value;
+  if (origem.value === 'avulsa' || !d || d.peso_completo || !d.peso_embalagens_gramas) return '';
+  const kg = (d.peso_embalagens_gramas / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+  return `Os fardos/caixas com peso somam ${kg} kg; some o restante dos itens.`;
+});
+
 const volumesValidos = computed(() =>
   Math.max(1, Math.min(MAX_VOLUMES, Math.round(Number(volumes.value) || 1))),
 );
@@ -415,6 +432,7 @@ function abrirModelos(noEditor: ModeloEtiqueta | null) {
           />
           <BaseInput v-model="observacao" label="Observação" placeholder="Ex: Frágil" />
         </div>
+        <p v-if="dicaPesoParcial" class="text-xs text-amber-700">{{ dicaPesoParcial }}</p>
         <div class="flex justify-end">
           <BaseButton class="flex items-center gap-2" @click="painelAberto = true">
             <Printer :size="16" />

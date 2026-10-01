@@ -843,7 +843,13 @@ function formatDocumento(doc: string): string {
                   <td class="px-4 py-2.5 text-zinc-800 font-medium truncate max-w-40" :title="item.nome">
                     {{ item.nome }}
                   </td>
-                  <td class="px-4 py-2.5 text-zinc-600 text-center">{{ item.quantidade }}</td>
+                  <td class="px-4 py-2.5 text-zinc-600 text-center">
+                    {{ item.quantidade }}<template v-if="item.sigla_embalagem"> {{ item.sigla_embalagem }}</template>
+                    <span
+                      v-if="item.sigla_embalagem && (item.fator_embalagem ?? 1) > 1"
+                      class="block text-[10px] text-zinc-400"
+                    >{{ item.quantidade * (item.fator_embalagem ?? 1) }} un</span>
+                  </td>
                   <td class="px-4 py-2.5 text-zinc-600 text-right font-mono">{{ formatCurrency(item.valor_unitario) }}</td>
                   <td class="px-4 py-2.5 text-center">
                     <span v-if="item.cfop" class="inline-block px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded text-[10px] font-mono">{{ item.cfop }}</span>

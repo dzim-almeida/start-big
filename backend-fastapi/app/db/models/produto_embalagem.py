@@ -71,6 +71,11 @@ class ProdutoEmbalagem(Base):
         nullable=False,
         doc="R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela",
     )
+    # A5: peso da embalagem fechada, para a etiqueta de envio somar sozinha.
+    # Gramas inteiras, como os centavos — nada de float no banco.
+    peso_gramas: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="Peso da embalagem fechada, em gramas (opcional)"
+    )
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
     data_atualizacao: Mapped[datetime] = mapped_column(

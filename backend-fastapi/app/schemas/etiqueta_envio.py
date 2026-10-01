@@ -73,3 +73,11 @@ class DadosEnvio(BaseModel):
     remetente: ParteEnvio
     destinatario: Optional[ParteEnvio] = None
     nfe: Optional[NfeEnvio] = None
+    # A5 (plano de embalagens): o que dá para tirar dos fardos/caixas vendidos.
+    # Volumes = quantas embalagens fechadas; peso = Σ quantidade × peso delas.
+    # `peso_completo` só é verdade quando TODA linha da venda é embalagem com
+    # peso — aí a tela preenche sozinha. Senão ela só mostra o parcial como
+    # dica: uma soma que esquece as latas avulsas é peso errado na etiqueta.
+    volumes_embalagens: int = 0
+    peso_embalagens_gramas: int = 0
+    peso_completo: bool = False

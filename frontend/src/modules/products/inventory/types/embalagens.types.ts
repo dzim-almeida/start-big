@@ -20,6 +20,8 @@ export interface EmbalagemRead {
   usa_na_entrada: boolean;
   /** R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. Backend antigo não manda. */
   aplica_as_avulsas?: boolean;
+  /** A5: peso da embalagem fechada, em gramas. Backend antigo não manda. */
+  peso_gramas?: number | null;
   ativo: boolean;
 }
 
@@ -35,6 +37,7 @@ export interface EmbalagemEscrita {
   vende_no_pdv: boolean;
   usa_na_entrada: boolean;
   aplica_as_avulsas: boolean;
+  peso_gramas: number | null;
   ativo: boolean;
   gerar_codigo_interno?: boolean;
 }

@@ -60,6 +60,14 @@ export interface DadosEnvio {
   remetente: ParteEnvio;
   destinatario: ParteEnvio | null;
   nfe: NfeEnvio | null;
+  /**
+   * A5 (embalagens): volumes e peso tirados dos fardos/caixas da venda.
+   * `peso_completo` = toda linha é embalagem com peso; só aí a tela preenche
+   * sozinha. Envio avulso e backend antigo não mandam.
+   */
+  volumes_embalagens?: number;
+  peso_embalagens_gramas?: number;
+  peso_completo?: boolean;
 }
 
 /** O que o lojista informa na hora (volumes, peso) — não vem do cadastro. */

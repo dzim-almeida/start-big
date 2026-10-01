@@ -270,6 +270,9 @@ class EmissaoPreviewItem(BaseModel):
     produto_id: Optional[int] = None
     nome: str
     quantidade: float
+    # Embalagem da linha (FD, CX). Nulo e fator 1 = unidade, como sempre foi.
+    sigla_embalagem: Optional[str] = None
+    fator_embalagem: int = 1
     valor_unitario: float
     valor_total: float
     cfop: str

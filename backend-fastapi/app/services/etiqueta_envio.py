@@ -32,6 +32,7 @@ from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa import Empresa
 from app.db.models.endereco import Endereco
 from app.db.models.venda import Venda
+from app.db.models.venda_produto import ProdutoVenda
 from app.schemas.etiqueta_envio import DadosEnvio, EnderecoEnvio, NfeEnvio, OrigemEnvioItem, ParteEnvio
 
 PERMISSOES_VENDA = ["venda", "view_sales", "manage_sales", "delete_sales"]
@@ -219,15 +220,41 @@ def buscar_origens(db: Session, usuario_token: dict[str, Any], busca: Optional[s
 # Dados de uma venda
 # ---------------------------------------------------------------------------
 
+def _volumes_e_peso(venda: Venda) -> tuple[int, int, bool]:
+    """(volumes, peso em gramas, completo) a partir das embalagens vendidas (A5).
+
+    Usa o fator CONGELADO na linha para saber se é embalagem, e o peso do
+    cadastro atual dela (o peso não é congelado: não muda valor nem estoque).
+    """
+    volumes = 0
+    peso = 0
+    completo = bool(venda.itens)
+    for linha in venda.itens:
+        embalagem = linha.embalagem
+        if (linha.fator_embalagem or 1) <= 1 or embalagem is None:
+            completo = False
+            continue
+        volumes += linha.quantidade or 0
+        if embalagem.peso_gramas:
+            peso += (linha.quantidade or 0) * embalagem.peso_gramas
+        else:
+            completo = False
+    return volumes, peso, completo
+
+
 def dados_venda(db: Session, usuario_token: dict[str, Any], venda_id: int) -> DadosEnvio:
     _exigir(usuario_token, PERMISSOES_VENDA)
     venda = db.scalars(
         select(Venda)
-        .options(selectinload(Venda.cliente).selectinload(Cliente.endereco))
+        .options(
+            selectinload(Venda.cliente).selectinload(Cliente.endereco),
+            selectinload(Venda.itens).selectinload(ProdutoVenda.embalagem),
+        )
         .where(Venda.id == venda_id)
     ).first()
     if venda is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Venda não encontrada.")
+    volumes, peso, completo = _volumes_e_peso(venda)
     return DadosEnvio(
         tipo="venda",
         id=venda.id,
@@ -235,6 +262,9 @@ def dados_venda(db: Session, usuario_token: dict[str, Any], venda_id: int) -> Da
         remetente=_remetente(db, usuario_token["empresa_id"]),
         destinatario=_destinatario(venda.cliente),
         nfe=_nfe(_nfe_autorizada(db, "VENDA", venda.numero_venda)),
+        volumes_embalagens=volumes,
+        peso_embalagens_gramas=peso,
+        peso_completo=completo,
     )
 
 

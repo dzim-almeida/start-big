@@ -20,8 +20,8 @@ rejeitar nota.
 > dono da loja** — o sistema oferece as opções, a loja liga as que usa.
 
 > **Execução (branch `embalagens`):** fases 1 e 2 em 27/09 (§13), 3 e 4 em
-> 27/09 (§14), **5 em 28/09 (§15)**. Sobem juntas, com homologação e loja
-> canário. Falta a fase 6 (relatório "vendas por regra de preço").
+> 27/09 (§14), 5 em 28/09 (§15), **6 e as pendências em 01/10 (§16)**. O
+> código do plano está completo. Sobem juntas, com homologação e loja canário.
 
 ---
 
@@ -581,6 +581,47 @@ build limpos.
 
 **Fica para a fase 6:** relatório "vendas por regra de preço" (a linha já
 guarda `regra_preco`, `regra_descricao` e `desconto_regra`).
+
+---
+
+## 16. Entrega da fase 6 e das pendências (01/10/2026)
+
+**Fase 6 — vendas por regra de preço**
+- `GET /relatorios/regras-preco?inicio&fim` (só o dono, como a Curva ABC).
+  Lê o que ficou congelado na linha; `MANUAL` não é regra e fica de fora.
+- **Abatimento** = o que a regra deixou de cobrar, nas duas formas dela:
+  `desconto_regra` (R1/R3) + `(valor_unitario_tabela − valor_unitario) ×
+  quantidade` (R2). **Faturamento** = subtotal − os dois descontos, o mesmo da
+  Curva ABC, para os dois relatórios baterem.
+- Venda com linhas de duas regras conta **uma vez** no topo (contagem própria,
+  não a soma dos grupos).
+- Tela: Relatórios › "Vendas por regra de preço" — KPIs, um cartão por regra e
+  a tabela por produto, com exportação CSV. Aparece só para o dono **e** com
+  alguma regra ligada (B8).
+
+**Prévia da emissão (NF-e/NFC-e):** a conferência mostra "2 FD" e "24 un"
+embaixo, em vez de "2". `sigla_embalagem`/`fator_embalagem` opcionais na
+resposta; linha de unidade sai como antes.
+
+**A5 — peso da embalagem**
+- `produto_embalagens.peso_gramas` (opcional, **gramas inteiras** — mesma régua
+  dos centavos; o §5 falava em `peso_kg` Decimal). Na tela, "Peso (kg)".
+- A etiqueta de envio da venda recebe `volumes_embalagens`,
+  `peso_embalagens_gramas` e `peso_completo`. Só com **toda** linha sendo
+  embalagem com peso a tela preenche volumes e peso sozinha (editáveis). Com
+  latas avulsas ou embalagem sem peso, mostra o parcial como dica — uma soma
+  que esquece itens é peso errado na etiqueta.
+- O peso **não** é congelado na linha: não mexe em valor, estoque nem nota.
+
+**Migration:** `e4a7c1b93f20` — só a coluna, decide pela ausência dela.
+Testada numa cópia do banco local (cadeia desde `d1a2b3c4e5f6`).
+
+**Testes:** relatório (2: vazio; R1+R2 com venda de duas regras, venda sem
+regra, rascunho e período fora), prévia (1) e peso/etiqueta (3).
+
+**Fica fora do código (precisa do Alan):** homologar NF-e/NFC-e
+(629/630/885/886/894), ICMS-ST com o contador, `npm run build:sidecar`, loja
+canário com backup; impressora real da branch `etiquetas`.
 
 ---
 

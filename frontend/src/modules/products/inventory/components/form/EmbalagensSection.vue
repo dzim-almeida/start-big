@@ -52,6 +52,8 @@ interface Linha {
   usa_na_entrada: boolean;
   /** R1 (§6.1): avulsas que completam esta embalagem cobram o preço dela. */
   aplica_as_avulsas: boolean;
+  /** A5: em kg na tela; vai em gramas para o backend. */
+  pesoKg: number | null;
   ativo: boolean;
 }
 
@@ -82,6 +84,7 @@ function linhaDe(e: EmbalagemRead): Linha {
     vende_no_pdv: e.vende_no_pdv,
     usa_na_entrada: e.usa_na_entrada,
     aplica_as_avulsas: e.aplica_as_avulsas ?? false,
+    pesoKg: e.peso_gramas ? e.peso_gramas / 1000 : null,
     ativo: e.ativo,
   };
 }
@@ -121,6 +124,7 @@ function adicionar() {
     vende_no_pdv: true,
     usa_na_entrada: true,
     aplica_as_avulsas: false,
+    pesoKg: null,
     ativo: true,
   });
 }
@@ -172,6 +176,7 @@ function payload(): EmbalagemEscrita[] {
     vende_no_pdv: l.vende_no_pdv,
     usa_na_entrada: l.usa_na_entrada,
     aplica_as_avulsas: l.aplica_as_avulsas && Number(l.fator) > 1,
+    peso_gramas: l.pesoKg ? Math.round(Number(l.pesoKg) * 1000) : null,
     ativo: l.ativo,
     gerar_codigo_interno: l.gerar_codigo_interno && !l.codigo_barras.trim(),
   }));
@@ -186,6 +191,9 @@ const problemas = computed(() => {
     if (l.modoPreco === 'proprio' && l.precoReais == null) lista.push(`${n}: informe o preço, ou escolha "soma das unidades".`);
     if (l.modoPreco === 'desconto' && (l.descontoPct == null || l.descontoPct < 0 || l.descontoPct > 99)) {
       lista.push(`${n}: desconto entre 0 e 99%.`);
+    }
+    if (l.pesoKg != null && (l.pesoKg as unknown) !== '' && !(Number(l.pesoKg) > 0)) {
+      lista.push(`${n}: peso maior que zero, ou deixe em branco.`);
     }
   });
   return lista;
@@ -275,7 +283,7 @@ function salvar() {
         </label>
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-          <label class="campo md:col-span-4">
+          <label class="campo md:col-span-3">
             <span>Preço</span>
             <select v-model="l.modoPreco" :disabled="disabled">
               <option value="proprio">Preço próprio</option>
@@ -291,7 +299,12 @@ function salvar() {
             <input v-model.number="l.descontoPct" :disabled="disabled" type="number" min="0" max="99" step="0.5" placeholder="5" />
           </label>
           <div v-else class="md:col-span-3" />
-          <p v-if="precoCalculado(l)" class="md:col-span-5 text-xs text-zinc-500 pb-2.5">
+          <!-- A5: a etiqueta de envio soma o peso dos fardos vendidos. -->
+          <label class="campo md:col-span-2" title="Opcional — a etiqueta de envio soma o peso dos volumes">
+            <span>Peso (kg)</span>
+            <input v-model.number="l.pesoKg" :disabled="disabled" type="number" min="0" step="0.001" placeholder="opcional" />
+          </label>
+          <p v-if="precoCalculado(l)" class="md:col-span-4 text-xs text-zinc-500 pb-2.5">
             Sai por <strong class="text-zinc-800">{{ formatCurrency(precoCalculado(l)!.total) }}</strong>
             — {{ formatCurrency(precoCalculado(l)!.unidade) }} a unidade
             <template v-if="precoUnidade">(avulsa: {{ formatCurrency(precoUnidade) }})</template>

@@ -30,6 +30,7 @@ from app.schemas.relatorio import (
     RelatorioEstoque,
     RelatorioOSPerformance,
     RelatorioExtratoFuncionario,
+    RelatorioRegrasPreco,
 )
 from app.services import relatorio as relatorio_service
 
@@ -178,3 +179,24 @@ def obter_os_performance(
     fim: date = Query(..., description="Data final do periodo (YYYY-MM-DD)"),
 ):
     return relatorio_service.get_os_performance(db, inicio, fim, user_token["empresa_id"])
+
+
+@router.get(
+    "/regras-preco",
+    response_model=RelatorioRegrasPreco,
+    summary="Vendas por regra de preço por quantidade",
+    description=(
+        "Linhas vendidas com R1 (preço de embalagem nas avulsas), R2 (a partir de N) "
+        "ou R3 (leve X, pague Y) nas vendas finalizadas do período: unidades, o que "
+        "entrou e o que cada regra deixou de cobrar, por regra e por produto."
+    ),
+)
+def obter_regras_preco(
+    user_token: dict = Depends(get_current_master_user),
+    *,
+    db: Session = Depends(get_db),
+    inicio: date = Query(..., description="Data inicial do periodo (YYYY-MM-DD)"),
+    fim: date = Query(..., description="Data final do periodo (YYYY-MM-DD)"),
+):
+    # Só o dono, como a Curva ABC: o abatimento é margem que a loja abriu mão.
+    return relatorio_service.get_regras_preco(db, inicio, fim, user_token["empresa_id"])

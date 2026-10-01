@@ -24,7 +24,7 @@ from app.db.models.produto import Produto
 from app.db.models.produto_embalagem import ProdutoEmbalagem
 from app.schemas.produto_embalagem import EmbalagensSalvar
 
-CAMPOS = ("sigla", "descricao", "fator", "codigo_barras", "preco", "desconto_bp", "vende_no_pdv", "usa_na_entrada", "aplica_as_avulsas", "ativo")
+CAMPOS = ("sigla", "descricao", "fator", "codigo_barras", "preco", "desconto_bp", "vende_no_pdv", "usa_na_entrada", "aplica_as_avulsas", "peso_gramas", "ativo")
 
 
 def _conflito(detalhe: str) -> HTTPException:
