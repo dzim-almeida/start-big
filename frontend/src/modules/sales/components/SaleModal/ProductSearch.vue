@@ -196,12 +196,14 @@ async function handleKeydown(e: KeyboardEvent) {
           </p>
         </div>
 
-        <div class="w-full min-h-20 max-h-80 overflow-y-auto bg-white flex items-center justify-center">
+        <div class="w-full min-h-20 max-h-80 overflow-y-auto bg-white">
           <div
             v-if="isLoading"
-            class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary"
-          />
-          <div v-else-if="products?.length == 0" class="py-5 flex flex-col items-center">
+            class="py-8 flex items-center justify-center"
+          >
+            <div class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary" />
+          </div>
+          <div v-else-if="products?.length == 0" class="py-8 flex flex-col items-center justify-center">
             <ArchiveX :size="30" class="text-mid-gray" />
             <p class="mt-1 font-poppins font-semibold text-xs text-mid-gray">
               Nenhum produto encontrado

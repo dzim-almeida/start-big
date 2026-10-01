@@ -506,7 +506,8 @@ export function useProductSearch(
 
   function scrollToHighlighted() {
     nextTick(() => {
-      const el = document.querySelector(`[data-product-index="${highlightedIndex.value}"]`);
+      const root = searchContainerRef.value ?? document;
+      const el = root.querySelector(`[data-product-index="${highlightedIndex.value}"]`);
       el?.scrollIntoView({ block: 'nearest' });
     });
   }
@@ -526,6 +527,7 @@ export function useProductSearch(
    */
   watch(sortedProducts, () => {
     highlightedIndex.value = 0;
+    scrollToHighlighted();
   });
 
   watch(searchTerm, (term) => {
