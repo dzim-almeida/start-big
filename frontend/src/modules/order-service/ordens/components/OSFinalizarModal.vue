@@ -213,8 +213,9 @@ const taxaEntrega = computed(() => props.ordemServico?.taxa_entrega ?? 0);
 
 // Desconto já gravado na OS — somente leitura; o backend ACUMULA o desconto novo em
 // cima deste, então ele precisa ser sempre o os.desconto atual. NÃO condicionar ao
-// credito_anterior: numa reabertura "não pagou" o crédito é zerado mas o desconto
-// permanece, e amarrar ao crédito fazia o modal ignorar o desconto existente.
+// credito_anterior: numa reabertura "pagou" o desconto fica e precisa aparecer. Na
+// "não pagou" o backend zera o desconto (e o juros) junto com os pagamentos, então
+// aqui ele já chega 0.
 const existingDesconto = computed(() => props.ordemServico?.desconto ?? 0);
 
 const valorEntrada = computed(() => props.ordemServico?.valor_entrada ?? 0);
