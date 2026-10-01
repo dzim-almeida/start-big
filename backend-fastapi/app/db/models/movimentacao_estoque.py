@@ -151,6 +151,13 @@ class MovimentacaoEstoque(Base):
     quantidade_embalagem: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True, doc="Quantas embalagens entraram (3 CX)"
     )
+    # Entrada por XML: de que nota veio esta compra.
+    nota_entrada_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("notas_entrada.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="NF-e de compra importada que gerou esta entrada",
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
