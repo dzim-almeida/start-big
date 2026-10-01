@@ -100,31 +100,33 @@ function handleGenerateSku() {
           />
         </div>
         <div class="col-span-12 md:col-span-5">
+          <!-- Campo e botão alinhados pela base do campo; a dica fica embaixo
+               da linha inteira. Com a dica dentro do campo, o botão (alinhado
+               pelo fundo do bloco) descia até ela e ficava torto. -->
           <div class="flex items-end gap-2">
             <BaseInput
-            v-model="codigo_produto"
-            label="Código SKU"
-            placeholder="Ex: PRD-001"
-            :required="true"
-            :error="submitCount > 0 ? errors.codigo_produto : ''"
-            :disabled="disabled"
-            class="flex-1"
-          >
-            <template #hint>
-              <span class="text-xs text-zinc-400">Identificador interno do sistema</span>
-            </template>
-          </BaseInput>
-          <div>
-          <BaseButton
-            v-if="!disabled"
-            variant="primary"
-            :disabled="codigo_produto.length > 0"
-            @click="handleGenerateSku"
-          >
-            Gerar
-          </BaseButton>
+              v-model="codigo_produto"
+              label="Código SKU"
+              placeholder="Ex: PRD-001"
+              :required="true"
+              :disabled="disabled"
+              class="flex-1"
+            />
+            <BaseButton
+              v-if="!disabled"
+              variant="primary"
+              size="sm"
+              class="min-h-9.5 px-4"
+              :disabled="codigo_produto.length > 0"
+              @click="handleGenerateSku"
+            >
+              Gerar
+            </BaseButton>
           </div>
-        </div>
+          <p v-if="submitCount > 0 && errors.codigo_produto" class="select-none mt-0.5 text-xs text-red-500">
+            {{ errors.codigo_produto }}
+          </p>
+          <p v-else class="select-none mt-0.5 text-xs text-zinc-400">Identificador interno do sistema</p>
         </div>
         <!-- Row 2: Código Barras, Unidade Medida, Categoria -->
         <div class="col-span-12 md:col-span-4">
