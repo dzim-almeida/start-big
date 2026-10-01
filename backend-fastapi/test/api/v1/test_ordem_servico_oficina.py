@@ -1033,3 +1033,14 @@ def test_pagamento_depois_da_reabertura_nao_e_engolido_pelo_adiantamento_antigo(
         "situacao_equipamento": "REPARADO", "garantia": "90 dias", "pagamentos": [],
     }, headers=header)
     assert rf.status_code == 200, f"cobrou de novo: {rf.text}"
+
+
+def test_os_criada_ja_com_deslocamento_soma_no_total(client, db_session):
+    """O deslocamento informado na abertura entra no total desde a criação."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    payload = _os_payload(cliente_id, "SERIAL-FRETE", itens=[_item("Visita técnica", 10000)])
+    payload["taxa_entrega"] = 1500
+    r = client.post("/api/v1/ordens-servico/", json=payload, headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    assert (r.json()["taxa_entrega"], r.json()["valor_total"]) == (1500, 11500)

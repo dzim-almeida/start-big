@@ -13,6 +13,7 @@ interface UseOSFinancialSummaryParams {
   updateValorEntrada: Ref<number | null | undefined>;
   createFormaPagamentoEntrada: Ref<number | null | undefined>;
   updateFormaPagamentoEntrada: Ref<number | null | undefined>;
+  createTaxaEntrega: Ref<number | null | undefined>;
   updateTaxaEntrega: Ref<number | null | undefined>;
 }
 
@@ -25,6 +26,7 @@ export function useOSFinancialSummary({
   updateValorEntrada,
   createFormaPagamentoEntrada,
   updateFormaPagamentoEntrada,
+  createTaxaEntrega,
   updateTaxaEntrega,
 }: UseOSFinancialSummaryParams) {
   // Item REPROVADO fora da soma — regra única em `itemContaNoTotal`, que espelha
@@ -39,12 +41,19 @@ export function useOSFinancialSummary({
     return somarItensDaOS(currentOSData.value?.itens);
   });
 
-  const displayValorEntrega = computed(() =>
-    updateTaxaEntrega.value ?? currentOSData.value?.taxa_entrega ?? 0
-  );
+  const displayValorEntrega = computed(() => {
+    if (isCreateMode.value) return createTaxaEntrega.value ?? 0;
+    return updateTaxaEntrega.value ?? currentOSData.value?.taxa_entrega ?? 0;
+  });
 
+  // Na OS nova o valor ia para lugar nenhum (só a edição gravava): o campo
+  // aparecia, aceitava o número e o total não mudava.
   function handleValorEntregaUpdate(value: number) {
-    if (!isCreateMode.value) updateTaxaEntrega.value = value;
+    if (isCreateMode.value) {
+      createTaxaEntrega.value = value;
+      return;
+    }
+    updateTaxaEntrega.value = value;
   }
 
   const displayValorDesconto = computed(() => {
@@ -54,7 +63,8 @@ export function useOSFinancialSummary({
 
   const displayValorTotal = computed(() => {
     if (isCreateMode.value) {
-      return Math.max(0, displaySubtotal.value - displayValorDesconto.value);
+      // Mesma fórmula do backend na criação: itens − desconto + deslocamento.
+      return Math.max(0, displaySubtotal.value - displayValorDesconto.value + displayValorEntrega.value);
     }
     const dbTotal = currentOSData.value?.valor_total ?? 0;
     if (updateTaxaEntrega.value !== undefined && updateTaxaEntrega.value !== null) {

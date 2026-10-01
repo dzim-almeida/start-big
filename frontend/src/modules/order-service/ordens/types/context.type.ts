@@ -16,6 +16,7 @@ export interface OSCreateFormContext {
   desconto: Ref<number | null | undefined>;
   valor_entrada: Ref<number | null | undefined>;
   forma_pagamento_entrada_id: Ref<number | null | undefined>;
+  taxa_entrega: Ref<number | null | undefined>;
   garantia: Ref<string | null | undefined>;
   data_previsao: Ref<string | null | undefined>;
   senha_aparelho: Ref<string | null | undefined>;
