@@ -9,6 +9,7 @@ import {
   ChartColumn,
   Wallet,
   FileText,
+  ClipboardList,
 } from 'lucide-vue-next';
 
 import { SidebarSection } from '../types/layout.types';
@@ -127,6 +128,41 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
             label: 'Plano de Contas',
             requiredPermission: PERMISSIONS.manageFinance,
             requiredModule: MODULOS.FINANCEIRO,
+          },
+        ],
+      },
+      {
+        // Módulo de Compras (contratável). `featureFlag`, e não cadeado, pelo
+        // mesmo motivo da NF-e: enquanto a plataforma não vende o módulo,
+        // mostrar o item travado anunciaria algo que o cliente não consegue
+        // comprar — e a loja sem o módulo tem de ver o menu de sempre (plano de
+        // compras, C11). Quando for hora de vender pelo cadeado, troque por
+        // `requiredModule: MODULOS.COMPRAS` neste item.
+        id: 'purchases',
+        icon: ClipboardList,
+        label: 'Compras',
+        // Qualquer das duas linhas de Cargos (Compras ou Recebimento): o
+        // almoxarife vê o grupo com só o item dele.
+        requiredPermission: PERMISSIONS.purchasesAny,
+        featureFlag: () => recursoDisponivel('compras'),
+        children: [
+          {
+            id: 'purchases-needs',
+            label: 'Necessidades',
+            requiredPermission: PERMISSIONS.purchases,
+            requiredModule: MODULOS.COMPRAS,
+          },
+          {
+            id: 'purchases-orders',
+            label: 'Pedidos',
+            requiredPermission: PERMISSIONS.purchases,
+            requiredModule: MODULOS.COMPRAS,
+          },
+          {
+            id: 'purchases-receiving',
+            label: 'Recebimento',
+            requiredPermission: PERMISSIONS.purchasesAny,
+            requiredModule: MODULOS.COMPRAS,
           },
         ],
       },

@@ -48,6 +48,7 @@ from app.schemas.nfe_entrada import (
 )
 from app.schemas.produto import ProdutoCreateComFiscal
 from app.schemas.produto_fiscal import ProdutoFiscalUpdate
+from app.services.compras import fornecedores_produto as compras_fornecedores
 
 # Teto do arquivo: uma NF-e com 990 itens (o máximo) fica bem abaixo disto.
 TAMANHO_MAXIMO = 5 * 1024 * 1024
@@ -485,6 +486,20 @@ def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) ->
         movimentos.append(movimento.id)
         entradas.append(EntradaLancada(produto_id=produto.id, unidades=unidades))
         _lembrar_vinculo(db, fornecedor, item.codigo, produto, embalagem, fator)
+        # Último preço pago a este fornecedor (módulo Compras, docs/compras-plano.md
+        # D13/D18). Grava com ou sem o módulo: quem contratar depois já encontra
+        # o histórico. Sem o módulo, nenhuma tela lê isto.
+        compras_fornecedores.registrar_compra(
+            db,
+            produto_id=produto.id,
+            fornecedor_id=fornecedor.id,
+            custo_total=item.custo_total,
+            unidades=item.quantidade * fator,
+            fator=fator,
+            embalagem_id=embalagem.id if embalagem else None,
+            codigo_fornecedor=item.codigo,
+            data=nota.emissao,
+        )
 
     contas = 0
     if dados.lancar_contas_pagar and nota.duplicatas and _financeiro_disponivel(db):

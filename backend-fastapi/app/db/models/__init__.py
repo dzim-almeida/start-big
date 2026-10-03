@@ -74,3 +74,9 @@ from app.db.models.produto_embalagem import ProdutoEmbalagem  # noqa: F401
 from app.db.models.produto_regra_preco import ProdutoRegraPreco  # noqa: F401
 from app.db.models.nota_entrada import NotaEntrada  # noqa: F401
 from app.db.models.produto_codigo_fornecedor import ProdutoCodigoFornecedor  # noqa: F401
+
+# --- Compras (docs/compras-plano.md) ---
+from app.db.models.produto_fornecedor import ProdutoFornecedor  # noqa: F401
+from app.db.models.pedido_compra import PedidoCompra, PedidoCompraItem, PedidoCompraParcela  # noqa: F401
+from app.db.models.compra_log import CompraLog  # noqa: F401
+from app.db.models.recebimento_compra import RecebimentoCompra, RecebimentoCompraItem  # noqa: F401

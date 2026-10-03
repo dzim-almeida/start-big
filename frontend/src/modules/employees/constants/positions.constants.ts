@@ -16,8 +16,11 @@ import {
   ShieldCheck,
   Wallet,
   Printer,
+  ClipboardList,
+  PackageCheck,
 } from 'lucide-vue-next';
 
+import { MODULOS } from '@/shared/constants/modulos.constants';
 import { PERMISSIONS } from '@/shared/constants/permissions.constants';
 import type { FilterOption } from '@/shared/types/filter.types';
 import type {
@@ -142,6 +145,30 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     deleteKey: 'delete_labels',
   },
   {
+    id: 'purchases',
+    label: 'Compras',
+    description: 'Fornecedores do produto e pedidos de compra',
+    icon: ClipboardList,
+    // Visualizar = ver necessidades, pedidos e precos de compra;
+    // Gerenciar = fornecedores do produto, criar/editar/enviar pedidos;
+    // Excluir = CANCELAR pedido (desfaz o que ja foi mandado ao fornecedor).
+    viewKey: 'view_purchases',
+    manageKey: 'manage_purchases',
+    deleteKey: 'delete_purchases',
+    modulo: MODULOS.COMPRAS,
+  },
+  {
+    id: 'purchase_receiving',
+    label: 'Recebimento',
+    description: 'Conferir e dar entrada na mercadoria comprada',
+    icon: PackageCheck,
+    // Para o almoxarife: confere QUANTIDADE, nunca ve preco (plano de compras,
+    // D14). Visualizar = ver os pedidos a receber; Gerenciar = dar entrada.
+    viewKey: 'view_receiving',
+    manageKey: 'receive_purchases',
+    modulo: MODULOS.COMPRAS,
+  },
+  {
     id: 'reports',
     label: 'Relatorios',
     description: 'Faturamento, ranking e comissoes',
@@ -190,15 +217,28 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
   },
 ];
 
-export const PERMISSION_KEYS = Array.from(
-  new Set(
-    PERMISSION_MATRIX.flatMap((item) =>
-      [item.viewKey, item.manageKey, item.deleteKey].filter(
-        (key): key is string => Boolean(key),
+function chavesDe(itens: PermissionMatrixItem[]): string[] {
+  return Array.from(
+    new Set(
+      itens.flatMap((item) =>
+        [item.viewKey, item.manageKey, item.deleteKey].filter(
+          (key): key is string => Boolean(key),
+        ),
       ),
     ),
-  ),
-);
+  );
+}
+
+/**
+ * As caixas que contam no nivel do cargo (Administrador, Gestor...): so as dos
+ * modulos que toda loja tem. As dos modulos contrataveis (`modulo`) ficam de
+ * fora de proposito -- contar Compras rebaixaria o nivel de todo cargo ja
+ * cadastrado no dia da atualizacao, numa loja que nem contratou o modulo.
+ */
+export const PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX.filter((item) => !item.modulo));
+
+/** Todas as caixas, inclusive as dos modulos contrataveis. */
+export const ALL_PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX);
 
 export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], string>> = {
   sales: 'venda',
@@ -206,13 +246,17 @@ export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], s
   customers: PERMISSIONS.customers,
   products: PERMISSIONS.products,
   labels: PERMISSIONS.labels,
+  purchases: PERMISSIONS.purchases,
+  // Chave PROPRIA, nao `compra`: duas linhas gravando a mesma chave fariam a
+  // segunda sobrescrever a primeira em `applyEndpointPermissions`.
+  purchase_receiving: PERMISSIONS.receiving,
   enterprise: PERMISSIONS.enterprise,
   employees: PERMISSIONS.employees,
   roles: PERMISSIONS.positions,
 };
 
 export function buildPermissionDefaults(): Record<string, boolean> {
-  return PERMISSION_KEYS.reduce(
+  return ALL_PERMISSION_KEYS.reduce(
     (acc, key) => {
       acc[key] = false;
       return acc;

@@ -53,6 +53,12 @@ export interface PermissionMatrixItem {
   manageKey: string;
   // Opcional: módulos read-only (ex.: Relatórios) não têm ação de excluir.
   deleteKey?: string;
+  /**
+   * Módulo contratável (ex.: COMPRAS): a linha só aparece com ele na licença,
+   * e suas caixas NÃO entram na conta do nível do cargo — senão contratar um
+   * módulo novo rebaixaria o "Gestor" de toda loja que já existia.
+   */
+  modulo?: string;
 }
 
 export interface PositionCardTheme {

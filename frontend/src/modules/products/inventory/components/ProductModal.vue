@@ -4,7 +4,7 @@
  * @description Modal for creating/editing products with multi-section form and image upload
  */
 
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { defineAsyncComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import { useProductModal } from '../composables/useProductModal';
@@ -20,8 +20,16 @@ import EmbalagensSection from './form/EmbalagensSection.vue';
 import RegrasPrecoSection from './form/RegrasPrecoSection.vue';
 import { storeToRefs } from 'pinia';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
 
 const nfeDisponivel = recursoDisponivel('nfe');
+
+// Fornecedores do produto: módulo Compras (contratável). Carregado sob demanda
+// para que o código do módulo nem chegue a quem não o tem.
+const { podeVer: comprasDisponivel } = useAcessoCompras();
+const FornecedoresProdutoSection = defineAsyncComponent(
+  () => import('@/modules/compras/fornecedores-produto/components/FornecedoresProdutoSection.vue'),
+);
 
 // =============================================
 // Modal State
@@ -40,7 +48,12 @@ const {
 // para quem não usa, o cadastro fica exatamente como sempre foi.
 const { usarEmbalagens, regraFaixasQuantidade, regraLevePague } = storeToRefs(useConfiguracoesStore());
 
-const { onSubmit, isPending, submitCount, apiError } = useProductFormProvider();
+const { onSubmit, isPending, submitCount, apiError, fornecedor_id } = useProductFormProvider();
+
+/** A aba Fornecedores trocou o principal: o formulário passa a mandar o novo. */
+function aoTrocarPrincipal(fornecedorId: number) {
+  fornecedor_id.value = String(fornecedorId);
+}
 
 // =============================================
 // Event Handlers
@@ -218,6 +231,27 @@ watch(isOpen, (open) => {
                 <EmbalagensSection
                   :produto="isCreateMode ? null : selectedProduct"
                   :disabled="isViewMode"
+                />
+              </template>
+
+              <!-- Fornecedores do produto (módulo Compras): só com o módulo na
+                   licença e a linha "Compras" no cargo. Fora do <form> pelo
+                   mesmo motivo das embalagens: tem o próprio "Salvar". -->
+              <template v-if="comprasDisponivel">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Fornecedores (compras)
+                    </span>
+                  </div>
+                </div>
+                <FornecedoresProdutoSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                  @principal-alterado="aoTrocarPrincipal"
                 />
               </template>
 

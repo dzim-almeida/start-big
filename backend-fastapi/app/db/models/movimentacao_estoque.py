@@ -158,6 +158,13 @@ class MovimentacaoEstoque(Base):
         nullable=True,
         doc="NF-e de compra importada que gerou esta entrada",
     )
+    # Módulo Compras (fase 3): de que recebimento de pedido veio esta entrada.
+    recebimento_compra_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("recebimentos_compra.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="Recebimento de pedido de compra que gerou esta entrada",
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

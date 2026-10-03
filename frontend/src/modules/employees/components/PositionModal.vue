@@ -21,8 +21,10 @@ import {
   getAccessLevel,
   getPermissionStats,
 } from '../constants/positions.constants';
+import { useModulosStore } from '@/shared/stores/modulos.store';
 
 const { usaOrdemServico } = useOrdemServico();
+const modulosStore = useModulosStore();
 
 /**
  * A matriz sem as linhas de modulos que a loja nao tem.
@@ -32,8 +34,23 @@ const { usaOrdemServico } = useOrdemServico();
  * permissao continua existindo no banco; some so da tela.
  */
 const matrizVisivel = computed(() =>
-  PERMISSION_MATRIX.filter((item) => item.id !== 'services' || usaOrdemServico.value),
+  PERMISSION_MATRIX.filter((item) => item.id !== 'services' || usaOrdemServico.value).filter(
+    // Modulo contratavel (ex.: Compras): so com ele na licenca.
+    (item) => !item.modulo || modulosStore.temModulo(item.modulo),
+  ),
 );
+
+/**
+ * O "Marcar tudo" alcanca tambem as linhas contrataveis VISIVEIS: quem tem
+ * Compras e clica espera ver Compras marcado. As escondidas nao sao tocadas.
+ */
+const chavesMarcarTudo = computed(() => [
+  ...PERMISSION_KEYS,
+  ...matrizVisivel.value
+    .filter((item) => item.modulo)
+    .flatMap((item) => [item.viewKey, item.manageKey, item.deleteKey])
+    .filter((key): key is string => Boolean(key)),
+]);
 
 const {
   isOpen,
@@ -101,7 +118,10 @@ const enabledPermissions = computed(() => permissionStats.value.enabled);
 const accessLevel = computed(() => getAccessLevel(permissoes.value));
 
 const isAllSelected = computed(
-  () => enabledPermissions.value === totalPermissions.value && totalPermissions.value > 0,
+  () =>
+    enabledPermissions.value === totalPermissions.value &&
+    totalPermissions.value > 0 &&
+    (permissoes.value?.all === true || chavesMarcarTudo.value.every((key) => permissoes.value?.[key])),
 );
 
 // Cargo Master / de acesso total (permissão 'all'): a matriz é PROTEGIDA — não dá
@@ -134,7 +154,7 @@ function permissaoMarcada(key?: string): boolean {
 
 function toggleAllPermissions() {
   if (matrizBloqueada.value) return;
-  setAllPermissions(!isAllSelected.value);
+  setAllPermissions(!isAllSelected.value, chavesMarcarTudo.value);
 }
 
 function handleDelete() {

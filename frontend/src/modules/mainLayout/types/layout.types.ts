@@ -19,6 +19,7 @@ export type SidebarLabelOptions =
     | 'Gestão de Equipe'
     | 'Minha Conta'
     | 'Gestão Financeira'
+    | 'Compras'
     | 'Centro Fiscal'
 
 /**
