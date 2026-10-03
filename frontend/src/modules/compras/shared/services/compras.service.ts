@@ -8,6 +8,7 @@
 import api from '@/api/axios';
 import type {
   BaseNecessidade,
+  ComprasDaOS,
   RelatorioCompras,
   FornecedorDoProdutoEscrita,
   FornecedorDoProdutoRead,
@@ -138,6 +139,12 @@ export async function receberPedido(id: number, recebimento: RecebimentoEscrita)
 /** O resto de um pedido recebido em parte não vem mais. */
 export async function encerrarSaldoPedido(id: number, motivo: string): Promise<PedidoRead> {
   const { data } = await api.post<PedidoRead>(`compras/pedidos/${id}/encerrar`, { motivo });
+  return data;
+}
+
+/** Fase 6: o que o estoque cobre, o que está pedido e o que falta para uma OS. */
+export async function getComprasDaOS(osId: number): Promise<ComprasDaOS> {
+  const { data } = await api.get<ComprasDaOS>(`compras/ordens-servico/${osId}`);
   return data;
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, type Component } from 'vue';
+import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
 import { ClipboardCheck, ClipboardList, Image as ImageIcon, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
@@ -12,6 +12,15 @@ import { useOSFormView } from '../../context/useOSFormView.context';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
+import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
+
+// Módulo Compras (fase 6): "Compras desta OS" na aba de peças. Só com o módulo
+// e a permissão, e carregado sob demanda — quem não tem Compras nem baixa.
+const { podeVer: comprasDisponivel } = useAcessoCompras();
+const ComprasDaOSPanel = defineAsyncComponent(
+  () => import('@/modules/compras/ordens-servico/components/ComprasDaOSPanel.vue'),
+);
+const osSalvaId = computed(() => view.currentOSData.value?.id ?? null);
 
 type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos';
 
@@ -154,6 +163,12 @@ const objetoModel = computed<ObjetoFormData>({
           @remove-item="view.handleRemoveItem"
         />
       </fieldset>
+
+      <!-- Fora do fieldset: o painel só lê, e não pode travar junto da OS. -->
+      <ComprasDaOSPanel
+        v-if="activeTab === 'servicos' && comprasDisponivel && osSalvaId"
+        :os-id="osSalvaId"
+      />
 
       <OSDiagnosticoTab
         v-if="activeTab === 'diagnostico'"

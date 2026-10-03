@@ -14,10 +14,13 @@
  * "Considerar as vendas" (fase 5) soma a média de venda dos últimos 90 dias:
  * entra também quem não tem mínimo cadastrado mas gira, e a quantidade cobre o
  * prazo do fornecedor mais os dias escolhidos. Desligado, é a regra do mínimo.
+ *
+ * As OS abertas (fase 6) entram sempre: a peça aprovada numa OS já tem dono,
+ * então as contas olham o saldo LIVRE, e a OS a que a peça falta vira origem.
  */
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { AlertTriangle, PackageCheck, ShoppingCart, TrendingDown, TrendingUp } from 'lucide-vue-next';
+import { AlertTriangle, PackageCheck, ShoppingCart, TrendingDown, TrendingUp, Wrench } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
@@ -254,6 +257,20 @@ function gerarPedidos() {
                       pela venda
                     </span>
                   </p>
+                  <!-- Fase 6: OS abertas que já comprometeram a peça. -->
+                  <p v-if="item.ordens.length" class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                    <Wrench :size="12" />
+                    reservado p/
+                    <span v-for="(o, n) in item.ordens" :key="o.os_id">
+                      {{ o.numero_os }} ({{ formatQtd(o.quantidade) }})<template v-if="n < item.ordens.length - 1">,</template>
+                    </span>
+                    <span
+                      v-if="item.origem === 'OS'"
+                      class="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200"
+                    >
+                      falta para OS
+                    </span>
+                  </p>
                   <p v-if="item.rascunhos.length" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
                     <AlertTriangle :size="10" />
                     Já em rascunho {{ item.rascunhos.join(', ') }}
@@ -279,6 +296,9 @@ function gerarPedidos() {
                 </td>
                 <td class="px-3 py-3 text-right tabular-nums" :class="item.saldo <= 0 ? 'text-rose-600 font-semibold' : 'text-zinc-700'">
                   {{ formatQtd(item.saldo) }} {{ item.unidade_medida }}
+                  <span v-if="item.reservado_os" class="block text-[11px] font-normal text-zinc-400">
+                    livre {{ formatQtd(item.saldo - item.reservado_os) }}
+                  </span>
                 </td>
                 <td class="px-3 py-3 text-right tabular-nums text-zinc-500">
                   <template v-if="item.minimo != null">

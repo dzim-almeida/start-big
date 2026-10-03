@@ -25,7 +25,7 @@ estoque recebe `quantidade × fator` no recebimento.
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -132,6 +132,7 @@ class PedidoCompraItem(Base):
     )
 
     pedido = relationship("PedidoCompra", back_populates="itens")
+    origens = relationship("PedidoCompraOrigem", cascade="all, delete-orphan", order_by="PedidoCompraOrigem.id")
 
     @property
     def pendente(self) -> int:
@@ -157,3 +158,30 @@ class PedidoCompraParcela(Base):
     valor: Mapped[int] = mapped_column(Integer, nullable=False, doc="Centavos")
 
     pedido = relationship("PedidoCompra", back_populates="parcelas")
+
+
+class OrigemDemanda:
+    """De onde veio a quantidade de um item do pedido (RC06)."""
+
+    OS = "OS"                  # peça de uma OS aberta (fase 6); origem_id = OS
+    ESTOQUE_MINIMO = "MINIMO"  # repor o mínimo (fase 2)
+    VENDAS = "VENDAS"          # média de venda (fase 5)
+
+
+class PedidoCompraOrigem(Base):
+    """Uma fatia da quantidade de um item do pedido e quem a pediu.
+
+    Hoje só a origem OS é gravada (é a que se rastreia: "esta chapa é da OS
+    123"); o resto do item é reposição. A quantidade está em UNIDADES do
+    produto (o que a OS consome), não na unidade de compra.
+    """
+
+    __tablename__ = "pedido_compra_origens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    pedido_item_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("pedido_compra_itens.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)
+    origem_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False, doc="Unidades do produto")

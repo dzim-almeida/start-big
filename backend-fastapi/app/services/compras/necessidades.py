@@ -29,11 +29,18 @@ from app.core.enum import MovimentacaoOrigem, MovimentacaoTipo
 from app.db.models.estoque import Estoque
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.fornecedor import Fornecedor
-from app.db.models.pedido_compra import PedidoCompra, PedidoCompraItem, SituacaoPedido
+from app.db.models.pedido_compra import (
+    OrigemDemanda,
+    PedidoCompra,
+    PedidoCompraItem,
+    PedidoCompraOrigem,
+    SituacaoPedido,
+)
 from app.db.models.produto import Produto
 from app.db.models.produto_fornecedor import ProdutoFornecedor
 from app.schemas.compras import (
     AlternativaMaisBarata,
+    DemandaOSRead,
     GerarPedidos,
     NecessidadeGrupo,
     NecessidadeItem,
@@ -43,6 +50,7 @@ from app.schemas.compras import (
     PedidoResumo,
 )
 from app.services.compras import pedidos as pedidos_service
+from app.services.compras.demanda_os import demandas_por_produto, reservado
 from app.services.compras.fornecedores_produto import TIPOS_QUE_VENDEM
 from app.services.compras.necessidade import (
     OfertaFornecedor,
@@ -60,6 +68,7 @@ BASE_MINIMO = "MINIMO"
 BASE_VENDAS = "VENDAS"
 ORIGEM_MINIMO = "MINIMO"
 ORIGEM_VENDAS = "VENDAS"
+ORIGEM_OS = "OS"
 # Três meses: longo para não seguir um pico de uma semana, curto para
 # acompanhar a estação (cerveja no verão).
 JANELA_VENDAS_DIAS = 90
@@ -164,9 +173,14 @@ def listar(
     vendido = (
         _vendido_por_produto(db, datetime.now() - timedelta(days=janela_dias)) if pelas_vendas else {}
     )
+    # Fase 6: as OS abertas já comprometeram peças (reserva calculada). Entram
+    # SEMPRE, qualquer que seja a base: a OS é demanda concreta, com cliente.
+    demandas = demandas_por_produto(db)
     filtro = Estoque.quantidade_minima.is_not(None)
     if pelas_vendas and vendido:
         filtro = filtro | Produto.id.in_([pid for pid, qtd in vendido.items() if qtd > 0])
+    if demandas:
+        filtro = filtro | Produto.id.in_(list(demandas))
     produtos = db.scalars(
         select(Produto)
         .join(Estoque, Estoque.id == Produto.id)
@@ -207,8 +221,13 @@ def listar(
 
         fator = escolhido.fator if escolhido else 1
         a_caminho = em_pedido.get(produto.id, 0.0)
+        # O que as OS abertas já comprometeram não está livre: a prateleira tem,
+        # mas tem dono. As três regras olham o SALDO LIVRE.
+        das_os = demandas.get(produto.id, [])
+        reservado_os = reservado(das_os)
+        livre = (estoque.quantidade or 0) - reservado_os
         pelo_minimo = sugerir_compra(
-            saldo=estoque.quantidade or 0,
+            saldo=livre,
             em_pedido=a_caminho,
             minimo=estoque.quantidade_minima,
             ideal=estoque.quantidade_ideal,
@@ -216,7 +235,7 @@ def listar(
         )
         media = vendido.get(produto.id, 0.0) / janela_dias if pelas_vendas else 0.0
         pela_venda = sugerir_por_vendas(
-            saldo=estoque.quantidade or 0,
+            saldo=livre,
             em_pedido=a_caminho,
             media_diaria=media,
             prazo_dias=escolhido.prazo_dias if escolhido else None,
@@ -224,12 +243,19 @@ def listar(
             minimo=estoque.quantidade_minima,
             fator=fator,
         ) if media > 0 else 0
-        # Vale a MAIOR: a venda pede mais que o mínimo quando gira rápido; o
-        # mínimo manda quando o produto gira pouco (ou nada) no período.
-        sugestao = max(pelo_minimo, pela_venda)
+        # A OS: o que ela precisa e o estoque livre + o que está a caminho não
+        # cobrem. "Mínimo zero" na mesma conta pura dá exatamente isso.
+        pela_os = sugerir_compra(saldo=livre, em_pedido=a_caminho, minimo=0, ideal=None, fator=fator) if das_os else 0
+        # Vale a MAIOR das três: a venda pede mais que o mínimo quando gira
+        # rápido; o mínimo manda quando gira pouco; a OS, quando tem cliente
+        # esperando uma peça que não está aqui.
+        sugestao = max(pelo_minimo, pela_venda, pela_os)
         if sugestao <= 0:
             continue
-        origem = ORIGEM_VENDAS if pela_venda > pelo_minimo else ORIGEM_MINIMO
+        if pela_os >= max(pelo_minimo, pela_venda):
+            origem = ORIGEM_OS
+        else:
+            origem = ORIGEM_VENDAS if pela_venda > pelo_minimo else ORIGEM_MINIMO
 
         fornecedor_id = escolhido.fornecedor_id if escolhido else (principal.id if principal else None)
         fornecedor_nome = (
@@ -279,8 +305,14 @@ def listar(
             origem=origem,
             media_diaria=round(media, 3) if media > 0 else None,
             dura_dias=(
-                round(max(estoque.quantidade or 0, 0) / media, 1) if media > 0 else None
+                round(max(livre, 0) / media, 1) if media > 0 else None
             ),
+            reservado_os=reservado_os,
+            ordens=[
+                DemandaOSRead(os_id=d.os_id, numero_os=d.numero_os, quantidade=d.quantidade,
+                              data_previsao=d.data_previsao)
+                for d in das_os
+            ],
         )
         grupo = grupos.get(fornecedor_id)
         if grupo is None:
@@ -344,6 +376,7 @@ def gerar_pedidos(
             fornecedor_id=fornecedor_id, previsao_entrega=previsao, itens=escritos,
         ))
         db.flush()
+        _ligar_as_os(db, pedido)
         pedidos_service.registrar_log(
             db, token, pedido, "CRIADO", None, SituacaoPedido.RASCUNHO, "Gerado pelas Necessidades de compra"
         )
@@ -351,3 +384,51 @@ def gerar_pedidos(
 
     db.flush()
     return [pedidos_service.resumo(p, ver_custos) for p in criados]
+
+
+def _ja_pedido_por_os(db: Session, produto_ids: list[int]) -> dict[tuple[int, int], float]:
+    """(produto, OS) → unidades que pedidos ainda vivos (rascunho, enviado,
+    parcial) já levam para aquela OS. Para não pedir duas vezes a mesma peça."""
+    linhas = db.execute(
+        select(PedidoCompraItem.produto_id, PedidoCompraOrigem.origem_id, func.sum(PedidoCompraOrigem.quantidade))
+        .join(PedidoCompraItem, PedidoCompraItem.id == PedidoCompraOrigem.pedido_item_id)
+        .join(PedidoCompra, PedidoCompra.id == PedidoCompraItem.pedido_id)
+        .where(
+            PedidoCompraOrigem.origem == OrigemDemanda.OS,
+            PedidoCompraItem.produto_id.in_(produto_ids or [0]),
+            PedidoCompra.situacao.in_((SituacaoPedido.RASCUNHO, *SituacaoPedido.EM_ABERTO)),
+        )
+        .group_by(PedidoCompraItem.produto_id, PedidoCompraOrigem.origem_id)
+    ).all()
+    return {(produto_id, os_id): float(total or 0) for produto_id, os_id, total in linhas}
+
+
+def _ligar_as_os(db: Session, pedido: PedidoCompra) -> None:
+    """RC06: reparte o que o pedido traz entre as OS a que a peça FALTA.
+
+    A mesma fila do painel "Compras desta OS": o estoque de hoje cobre
+    primeiro as OS mais antigas; o que ainda falta a cada uma, menos o que
+    outros pedidos vivos já levam para ela, é o que este pedido atende. O que
+    sobra é reposição (não se grava origem). Em unidades do produto.
+    """
+    produto_ids = [i.produto_id for i in pedido.itens if i.produto_id is not None]
+    demandas = demandas_por_produto(db, produto_ids)
+    if not demandas:
+        return
+    ja_pedido = _ja_pedido_por_os(db, produto_ids)
+    for item in pedido.itens:
+        sobra = float(item.quantidade * item.fator)
+        produto = db.get(Produto, item.produto_id) if item.produto_id else None
+        estoque = float(produto.estoque.quantidade or 0) if produto and produto.estoque else 0.0
+        for d in demandas.get(item.produto_id, []):
+            cobre = min(d.quantidade, max(estoque, 0.0))
+            estoque -= cobre
+            if sobra <= 0:
+                break
+            falta = d.quantidade - cobre - ja_pedido.get((item.produto_id, d.os_id), 0.0)
+            if falta <= 0:
+                continue
+            parte = min(falta, sobra)
+            item.origens.append(PedidoCompraOrigem(origem=OrigemDemanda.OS, origem_id=d.os_id, quantidade=parte))
+            sobra -= parte
+    db.flush()

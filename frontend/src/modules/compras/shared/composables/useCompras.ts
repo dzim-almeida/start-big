@@ -45,6 +45,15 @@ export function useNecessidadesQuery(
   });
 }
 
+export function useComprasDaOSQuery(osId: MaybeRef<number | null>) {
+  return useQuery({
+    queryKey: computed(() => [...comprasKeys.todos, 'os', unref(osId)]),
+    queryFn: () => service.getComprasDaOS(unref(osId) as number),
+    enabled: computed(() => !!unref(osId)),
+    refetchInterval: REFETCH_CADASTROS,
+  });
+}
+
 export function useRelatorioComprasQuery(inicio: MaybeRef<string>, fim: MaybeRef<string>) {
   return useQuery({
     queryKey: computed(() => [...comprasKeys.todos, 'relatorio', unref(inicio), unref(fim)]),
