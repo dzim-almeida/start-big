@@ -35,6 +35,11 @@ class RecebimentoCompra(Base):
     numero_nota: Mapped[Optional[str]] = mapped_column(
         String(20), nullable=True, doc="Número da nota em papel, quando o recebimento é manual"
     )
+    # Fase 4: a mercadoria chegou com a XML da NF-e, ligada a este pedido.
+    nota_entrada_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("notas_entrada.id", ondelete="SET NULL"), nullable=True,
+        doc="NF-e importada por XML que deu entrada nesta chegada",
+    )
     observacao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     valor_itens: Mapped[int] = mapped_column(Integer, nullable=False, default=0, doc="Σ qtd × custo real, centavos")
     valor_ajuste: Mapped[int] = mapped_column(

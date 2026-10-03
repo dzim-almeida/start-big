@@ -24,7 +24,7 @@ PRO. Quem não contrata não vê nada mudar.
 > (D8, pesquisado); divergência **só avisa**; sem cotação, mas com **aviso de
 > fornecedor mais barato** (D18). Prazo: no nosso ritmo. Liberado para a fase 1.
 
-> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14).
+> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14); fase 4 em 04/10/2026 (§15).
 
 ---
 
@@ -565,6 +565,55 @@ migration. Suíte do backend: 2025 passaram, 1 pulado, nenhuma falha. Frontend:
 138 testes, `vue-tsc` limpo, `vite build`.
 **Não verificado:** as telas num app rodando, e o leitor de verdade.
 **Falta:** `npm run build:sidecar`; a plataforma emitir `COMPRAS`.
+
+---
+
+## 15. Entrega da fase 4 — Nota × Pedido (04/10/2026)
+
+**Princípio:** a entrada por XML está em produção e continua dona do estoque.
+O pedido só é CONFERIDO e marcado como recebido. Sem o módulo COMPRAS, ou
+sem pedido aberto do fornecedor, prévia e importação ficam idênticas (os 14
+testes antigos da XML passam sem nenhuma mudança neles).
+
+**Backend**
+- `services/compras/nota_pedido.py`: `modulo_compras_ativo` (nega sem
+  resposta), `pedidos_abertos`, `casar` (a menos, a mais, sobra que não fecha a
+  embalagem, preço acima de 2% do combinado, o que não veio, item fora do
+  pedido — tudo AVISO, D11) e `receber_pela_nota`.
+- Prévia (`/estoque/nfe-entrada/ler`) ganhou campos OPCIONAIS:
+  `pedidos_abertos`, `pedido_sugerido_id` (o enviado mais recente),
+  `pedido_avisos` (geral) e `itens[].pedido_avisos`.
+- Importação aceita `pedido_id` (opcional). Valida módulo, situação e mesmo
+  fornecedor ANTES de lançar qualquer item. O estoque entra uma vez, pela XML
+  (origem NFE_ENTRADA); as movimentações ganham `recebimento_compra_id`; o
+  recebimento grava `nota_entrada_id` (migration `d5f1b2c8e604`, coluna nula).
+- Contas (D8): nota COM duplicatas → as da nota, e as do pedido NÃO nascem;
+  nota SEM duplicatas → as parcelas do pedido sobre o valor da nota para os
+  itens do pedido. Nunca em dobro.
+- Resultado da importação: `pedido_codigo`, `pedido_situacao`, `pedido_avisos`.
+
+**Frontend** (`EntradaXmlModal`, módulo de produtos)
+- Bloco "Ligar ao pedido" só quando a prévia traz pedidos abertos; avisos por
+  item e gerais; opção "Lançar pelas parcelas do pedido" quando a nota não tem
+  duplicatas; resumo com o pedido e as divergências. Tipos novos opcionais.
+
+**O que mudou em relação ao papel**
+- **Divergência só avisa** (D11): nada bloqueia; a tolerância de preço é fixa
+  em 2% por enquanto (constante `TOLERANCIA_PRECO_BP`).
+- **O que chega a mais entra no estoque** (é o que a nota diz), mas o pedido
+  só conta até o que faltava.
+- **Frete:** o custo da nota já traz frete por item; o recebimento pela nota
+  grava ajuste zero. Se um pedido for recebido parte por XML e parte à mão, a
+  última chegada manual leva o frete inteiro do pedido — caso raro, anotado.
+- **Avisos item a item só para o pedido sugerido;** escolhendo outro, as
+  diferenças aparecem no resumo depois da entrada.
+
+**Verificado:** 13 testes novos (sem o módulo nada muda; sugere o pedido;
+preço e quantidade; o que não veio; estoque uma vez; parcial; contas com e sem
+duplicatas; outro fornecedor, cancelado, sem o módulo — sem gravar nada) +
+migration. Suíte do backend: 2039 passaram, 1 pulado. Frontend: 138, `vue-tsc`
+limpo, `vite build`.
+**Não verificado:** a tela com uma nota real num app rodando.
 
 ---
 

@@ -146,3 +146,24 @@ def test_fase3_cria_tabelas_e_colunas_sem_tocar_nas_linhas():
         assert conexao.exec_driver_sql(
             "SELECT quantidade, recebimento_compra_id FROM movimentacoes_estoque").one() == (5, None)
         assert conexao.exec_driver_sql("SELECT valor, recebimento_compra_id FROM contas_pagar").one() == (1000, None)
+
+
+# --- fase 4: recebimento pela nota (d5f1b2c8e604) ----------------------------------------
+
+def test_fase4_acrescenta_a_coluna_e_e_idempotente():
+    caminho = Path(__file__).parents[4] / "alembic" / "versions" / "d5f1b2c8e604_compras_recebimento_pela_nota.py"
+    spec = importlib.util.spec_from_file_location("migracao_compras_fase4", caminho)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.down_revision == "c3e8a1f5d927"
+
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conexao:
+        _base_fase3(conexao)
+        conexao.exec_driver_sql("CREATE TABLE notas_entrada (id INTEGER PRIMARY KEY)")
+        with Operations.context(MigrationContext.configure(conexao)):
+            _migracao_fase3().upgrade()
+            m.upgrade()
+            m.upgrade()
+        colunas = {c["name"] for c in sa.inspect(conexao).get_columns("recebimentos_compra")}
+        assert "nota_entrada_id" in colunas

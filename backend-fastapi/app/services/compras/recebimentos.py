@@ -46,7 +46,7 @@ def _erro(codigo: int, detalhe: str) -> HTTPException:
     return HTTPException(status_code=codigo, detail=detalhe)
 
 
-def _financeiro_disponivel(db: Session) -> bool:
+def financeiro_disponivel(db: Session) -> bool:
     """Mesma regra da entrada por XML e do `requer_modulo`: não saber libera."""
     from app.services import licenca as licenca_service
 
@@ -74,7 +74,7 @@ def _proporcional(total: int, pesos: list[int]) -> list[int]:
     return partes
 
 
-def _lancar_contas(
+def lancar_contas(
     db: Session, token: dict[str, Any], pedido: PedidoCompra, recebimento: RecebimentoCompra
 ) -> int:
     """As parcelas do pedido, proporcionais a esta chegada (D8)."""
@@ -256,8 +256,8 @@ def receber(
     )
     db.flush()
 
-    if dados.lancar_contas_pagar and recebimento.valor_total > 0 and _financeiro_disponivel(db):
-        recebimento.contas_pagar_lancadas = _lancar_contas(db, token, pedido, recebimento)
+    if dados.lancar_contas_pagar and recebimento.valor_total > 0 and financeiro_disponivel(db):
+        recebimento.contas_pagar_lancadas = lancar_contas(db, token, pedido, recebimento)
 
     motivo = f"NF {numero_nota}" if numero_nota else None
     if dados.encerrar_saldo and not completou:

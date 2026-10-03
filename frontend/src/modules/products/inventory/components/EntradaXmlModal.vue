@@ -61,6 +61,29 @@ const lendo = ref(false);
 const importando = ref(false);
 const resultado = ref<ResultadoImportacao | null>(null);
 const arrastando = ref(false);
+/**
+ * Módulo Compras: o pedido a que esta nota será ligada (`null` = não ligar).
+ * Nasce no sugerido pelo backend — que só sugere com o módulo contratado e um
+ * pedido enviado do fornecedor. Sem isso, nada desta parte aparece na tela.
+ */
+const pedidoId = ref<number | null>(null);
+const pedidosAbertos = computed(() => previa.value?.pedidos_abertos ?? []);
+/** Os avisos item a item valem para o pedido SUGERIDO (é contra ele que o backend conferiu). */
+const conferindoSugerido = computed(
+  () => pedidoId.value !== null && pedidoId.value === (previa.value?.pedido_sugerido_id ?? null),
+);
+const opcoesPedido = computed<SelectOption[]>(() => [
+  ...pedidosAbertos.value.map((p) => ({
+    value: String(p.id),
+    label: `${p.codigo} · ${p.quantidade_itens} ${p.quantidade_itens === 1 ? 'item' : 'itens'}`
+      + (p.previsao_entrega ? ` · entrega ${formatarData(p.previsao_entrega)}` : ''),
+  })),
+  { value: '', label: 'Não ligar a pedido' },
+]);
+const pedidoEscolhido = computed({
+  get: () => (pedidoId.value === null ? '' : String(pedidoId.value)),
+  set: (valor: string | number) => { pedidoId.value = valor === '' ? null : Number(valor); },
+});
 
 watch(() => props.isOpen, (aberto) => {
   if (!aberto) return;
@@ -68,6 +91,7 @@ watch(() => props.isOpen, (aberto) => {
   xml.value = '';
   previa.value = null;
   resultado.value = null;
+  pedidoId.value = null;
   for (const k of Object.keys(linhas)) delete linhas[Number(k)];
 });
 
@@ -81,7 +105,9 @@ async function lerArquivo(arquivo: File | undefined) {
     const lida = await lerNotaXml(xml.value);
     previa.value = lida;
     for (const item of lida.itens) linhas[item.indice] = linhaInicial(item);
-    lancarContas.value = lida.financeiro_disponivel && lida.duplicatas.length > 0;
+    pedidoId.value = lida.pedido_sugerido_id ?? null;
+    // Com pedido ligado e nota sem duplicatas, as contas saem das parcelas do pedido.
+    lancarContas.value = lida.financeiro_disponivel && (lida.duplicatas.length > 0 || pedidoId.value !== null);
     etapa.value = 'conferencia';
   } catch (erro) {
     toast.error('Não foi possível ler a nota', getErrorMessage(erro as AxiosError<ApiError>, 'Confira se o arquivo é o XML da NF-e.'));
@@ -229,6 +255,7 @@ async function darEntrada() {
     resultado.value = await importarNotaXml({
       xml: xml.value,
       lancar_contas_pagar: lancarContas.value,
+      ...(pedidoId.value !== null ? { pedido_id: pedidoId.value } : {}),
       itens: nota.itens.map((item) => {
         const l = linhas[item.indice];
         if (l.acao === 'ignorar') return { indice: item.indice, acao: 'ignorar', fator: 1 };
@@ -345,6 +372,32 @@ function formatarQtd(n: number): string {
         class="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800"
       >
         <AlertTriangle :size="15" class="shrink-0" /> {{ aviso }}
+      </div>
+
+      <!-- Módulo Compras: o fornecedor tem pedido em aberto. Só existe com o
+           módulo contratado — sem ele o backend não manda `pedidos_abertos`
+           e esta tela fica exatamente como sempre foi. -->
+      <div v-if="pedidosAbertos.length" class="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4 space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          <p class="md:col-span-7 text-sm text-zinc-700">
+            <strong>Este fornecedor tem pedido em aberto.</strong> Ligando a nota a ele, o pedido é dado como
+            recebido (ou recebido em parte) e as diferenças aparecem aqui. O estoque entra pela nota do mesmo jeito.
+          </p>
+          <div class="md:col-span-5">
+            <BaseSelect v-model="pedidoEscolhido" label="Ligar ao pedido" :options="opcoesPedido" />
+          </div>
+        </div>
+        <ul
+          v-if="conferindoSugerido && previa.pedido_avisos?.length"
+          class="text-xs text-amber-800 space-y-1"
+        >
+          <li v-for="a in previa.pedido_avisos" :key="a" class="flex items-start gap-1.5">
+            <AlertTriangle :size="13" class="shrink-0 mt-px" /> {{ a }}
+          </li>
+        </ul>
+        <p v-if="pedidoId !== null && !conferindoSugerido" class="text-xs text-zinc-500">
+          A conferência item a item vale para o pedido sugerido; as diferenças deste aparecem no resumo, depois da entrada.
+        </p>
       </div>
 
       <!-- Itens -->
@@ -518,7 +571,34 @@ function formatarQtd(n: number): string {
               Confira as unidades por {{ item.unidade }} antes de dar entrada.
             </span>
           </p>
+          <!-- Módulo Compras: divergência com o pedido (só avisa, não impede). -->
+          <ul
+            v-if="conferindoSugerido && linhas[item.indice].acao !== 'ignorar' && item.pedido_avisos?.length"
+            class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-0.5"
+          >
+            <li v-for="a in item.pedido_avisos" :key="a" class="flex items-start gap-1.5">
+              <AlertTriangle :size="13" class="shrink-0 mt-px" /> {{ a }}
+            </li>
+          </ul>
         </div>
+      </div>
+
+      <!-- Módulo Compras: nota SEM duplicatas e ligada a um pedido — as contas
+           saem das parcelas combinadas no pedido. Com duplicatas, valem as da
+           nota (bloco abaixo) e as do pedido não nascem: nunca em dobro. -->
+      <div
+        v-if="!previa.duplicatas.length && pedidoId !== null"
+        class="rounded-xl border border-zinc-200 p-4"
+      >
+        <label
+          class="flex items-center gap-2 text-sm font-semibold text-zinc-700 select-none"
+          :class="previa.financeiro_disponivel ? 'cursor-pointer' : 'opacity-60'"
+        >
+          <input v-model="lancarContas" type="checkbox" class="accent-brand-primary" :disabled="!previa.financeiro_disponivel" />
+          Lançar no contas a pagar pelas parcelas do pedido
+          <span v-if="!previa.financeiro_disponivel" class="text-xs font-normal text-zinc-500">(módulo Financeiro não contratado)</span>
+        </label>
+        <p class="pl-6 text-xs text-zinc-500">A nota não traz duplicatas; vale a condição combinada no pedido.</p>
       </div>
 
       <!-- Parcelas -->
@@ -554,6 +634,18 @@ function formatarQtd(n: number): string {
         <li v-if="resultado.itens_ignorados">{{ resultado.itens_ignorados }} item(ns) sem entrada</li>
         <li v-if="resultado.fornecedor_criado">Fornecedor cadastrado</li>
         <li v-if="resultado.contas_pagar_lancadas">{{ resultado.contas_pagar_lancadas }} parcela(s) no contas a pagar</li>
+        <li v-if="resultado.pedido_codigo">
+          Pedido {{ resultado.pedido_codigo }}:
+          {{ resultado.pedido_situacao === 'RECEBIDO' ? 'recebido' : 'recebido em parte' }}
+        </li>
+      </ul>
+      <ul
+        v-if="resultado.pedido_avisos?.length"
+        class="mx-auto max-w-lg text-left text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1"
+      >
+        <li v-for="a in resultado.pedido_avisos" :key="a" class="flex items-start gap-1.5">
+          <AlertTriangle :size="13" class="shrink-0 mt-px" /> {{ a }}
+        </li>
       </ul>
     </div>
 

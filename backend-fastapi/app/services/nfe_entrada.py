@@ -43,6 +43,7 @@ from app.schemas.nfe_entrada import (
     ImportarNota,
     ItemPrevia,
     NotaPrevia,
+    PedidoAbertoPrevia,
     ProdutoPrevia,
     ResultadoImportacao,
 )
@@ -214,6 +215,10 @@ def ler(db: Session, conteudo: bytes, usuario_token: dict[str, Any]) -> NotaPrev
             fiscal_sugerido=_fiscal_sugerido(crt, item),
         ))
 
+    pedidos_abertos, pedido_sugerido_id, pedido_avisos = _conferir_com_pedido(
+        db, usuario_token, fornecedor, nota, itens
+    )
+
     return NotaPrevia(
         chave=nota.chave,
         numero=nota.numero,
@@ -232,7 +237,68 @@ def ler(db: Session, conteudo: bytes, usuario_token: dict[str, Any]) -> NotaPrev
         financeiro_disponivel=_financeiro_disponivel(db),
         ja_importada_em=anterior.importada_em if anterior else None,
         avisos=avisos,
+        pedidos_abertos=pedidos_abertos,
+        pedido_sugerido_id=pedido_sugerido_id,
+        pedido_avisos=pedido_avisos,
     )
+
+
+def _conferir_com_pedido(
+    db: Session,
+    usuario_token: dict[str, Any],
+    fornecedor: Optional[Fornecedor],
+    nota: nfe_xml.NotaLida,
+    itens: list[ItemPrevia],
+) -> tuple[list[PedidoAbertoPrevia], Optional[int], list[str]]:
+    """Módulo Compras (fase 4): os pedidos abertos do fornecedor e a conferência
+    contra o mais recente. SEM o módulo, ou sem pedido aberto, devolve vazio —
+    e a prévia fica exatamente como era antes do módulo existir.
+
+    Os avisos de cada item vão para `ItemPrevia.pedido_avisos` (mexe na lista
+    recebida); os do pedido inteiro (o que não veio) voltam no retorno.
+    """
+    from app.services.compras import nota_pedido
+
+    if fornecedor is None or not nota_pedido.modulo_compras_ativo(db):
+        return [], None, []
+    abertos = nota_pedido.pedidos_abertos(db, usuario_token["empresa_id"], fornecedor.id)
+    if not abertos:
+        return [], None, []
+
+    sugerido = abertos[0]
+    por_indice = {i.indice: i for i in nota.itens}
+    entradas = [
+        nota_pedido.EntradaDaNota(
+            produto_id=previa.produto.id,
+            unidades=por_indice[previa.indice].quantidade * max(previa.fator, 1),
+            custo_total=previa.custo_total,
+        )
+        for previa in itens
+        if previa.produto is not None
+    ]
+    casamento = nota_pedido.casar(sugerido, entradas)
+    avisos_por_produto = {l.item.produto_id: l.avisos for l in casamento.linhas}
+    do_pedido = {i.produto_id for i in sugerido.itens}
+    for previa in itens:
+        if previa.produto is None:
+            continue
+        if previa.produto.id not in do_pedido:
+            previa.pedido_avisos = [f"Não está no pedido {sugerido.codigo} (entra no estoque assim mesmo)."]
+        else:
+            previa.pedido_avisos = list(avisos_por_produto.get(previa.produto.id, []))
+
+    gerais = [
+        f"'{i.descricao}': o pedido espera {i.pendente} {i.unidade_compra} e não veio na nota."
+        for i in casamento.nao_vieram
+    ]
+    lista = [
+        PedidoAbertoPrevia(
+            id=p.id, codigo=p.codigo, situacao=p.situacao,
+            previsao_entrega=p.previsao_entrega, quantidade_itens=len(p.itens),
+        )
+        for p in abertos
+    ]
+    return lista, sugerido.id, gerais
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +469,16 @@ def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) ->
     elif not fornecedor.ativo:
         fornecedor.ativo = True  # comprou dele de novo
 
+    # Módulo Compras (fase 4): o lojista ligou a nota a um pedido. Valida ANTES
+    # de lançar qualquer item (módulo, situação, mesmo fornecedor).
+    pedido = None
+    if dados.pedido_id is not None:
+        from app.services.compras import nota_pedido
+
+        pedido = nota_pedido.validar_pedido_da_nota(db, usuario_token, dados.pedido_id, fornecedor.id)
+    para_o_pedido: list = []
+    movimentos_por_produto: dict[int, list] = {}
+
     registro = NotaEntrada(
         empresa_id=empresa_id,
         chave=nota.chave,
@@ -500,10 +576,29 @@ def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) ->
             codigo_fornecedor=item.codigo,
             data=nota.emissao,
         )
+        if pedido is not None:
+            from app.services.compras.nota_pedido import EntradaDaNota
+
+            para_o_pedido.append(EntradaDaNota(produto.id, item.quantidade * fator, item.custo_total))
+            movimentos_por_produto.setdefault(produto.id, []).append(movimento)
 
     contas = 0
     if dados.lancar_contas_pagar and nota.duplicatas and _financeiro_disponivel(db):
         contas = _lancar_duplicatas(db, empresa_id, nota, fornecedor)
+
+    pedido_avisos: list[str] = []
+    if pedido is not None:
+        # Com duplicatas, as contas são as da nota (acima) e as parcelas do
+        # pedido NÃO nascem — nunca em dobro (plano de compras, D8).
+        pedido_avisos, contas_do_pedido = nota_pedido.receber_pela_nota(
+            db, usuario_token, pedido,
+            nota_entrada_id=registro.id,
+            numero_nota=nota.numero,
+            entradas=para_o_pedido,
+            movimentos_por_produto=movimentos_por_produto,
+            gerar_contas=dados.lancar_contas_pagar and not nota.duplicatas,
+        )
+        contas += contas_do_pedido
 
     registro.itens_lancados = len(movimentos)
     registro.contas_pagar_lancadas = contas
@@ -519,6 +614,9 @@ def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) ->
         contas_pagar_lancadas=contas,
         movimentacao_ids=movimentos,
         entradas=entradas,
+        pedido_codigo=pedido.codigo if pedido is not None else None,
+        pedido_situacao=pedido.situacao if pedido is not None else None,
+        pedido_avisos=pedido_avisos,
     )
 
 
