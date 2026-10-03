@@ -256,6 +256,7 @@ def listar(
     fornecedor_id: Optional[int] = None,
     busca: Optional[str] = None,
     a_receber: bool = False,
+    atrasados: bool = False,
     limit: int = 20,
     offset: int = 0,
 ) -> PedidoListagem:
@@ -263,6 +264,13 @@ def listar(
     if a_receber:
         # A tela de Recebimento: o que foi enviado e ainda não chegou todo.
         filtro = filtro.where(PedidoCompra.situacao.in_(SituacaoPedido.EM_ABERTO))
+    if atrasados:
+        # O mesmo critério do selo "Atrasado": enviado/parcial com a previsão passada.
+        filtro = filtro.where(
+            PedidoCompra.situacao.in_(SituacaoPedido.EM_ABERTO),
+            PedidoCompra.previsao_entrega.is_not(None),
+            PedidoCompra.previsao_entrega < date.today(),
+        )
     if situacao:
         if situacao not in SituacaoPedido.TODAS:
             raise _erro(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Situação desconhecida: {situacao}.")

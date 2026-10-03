@@ -10,10 +10,14 @@
  * Rascunho NÃO desconta (um rascunho esquecido sumiria com a necessidade), mas
  * a linha avisa "já em rascunho" e nasce DESMARCADA — gerar de novo sem querer
  * seria pedir duas vezes.
+ *
+ * "Considerar as vendas" (fase 5) soma a média de venda dos últimos 90 dias:
+ * entra também quem não tem mínimo cadastrado mas gira, e a quantidade cobre o
+ * prazo do fornecedor mais os dias escolhidos. Desligado, é a regra do mínimo.
  */
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { AlertTriangle, PackageCheck, ShoppingCart, TrendingDown } from 'lucide-vue-next';
+import { AlertTriangle, PackageCheck, ShoppingCart, TrendingDown, TrendingUp } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
@@ -21,11 +25,19 @@ import { formatCurrency } from '@/shared/utils/finance';
 
 import { useAcessoCompras } from '../../shared/composables/useAcessoCompras';
 import { useGerarPedidos, useNecessidadesQuery } from '../../shared/composables/useCompras';
-import type { NecessidadeItem, OpcaoFornecedor } from '../../shared/types/compras.types';
+import type { BaseNecessidade, NecessidadeItem, OpcaoFornecedor } from '../../shared/types/compras.types';
 
 const router = useRouter();
 const { podeGerenciar, podeVerCusto } = useAcessoCompras();
-const { data: grupos, isLoading, isError } = useNecessidadesQuery();
+
+const pelasVendas = ref(false);
+const cobertura = ref(30);
+const COBERTURAS = [15, 30, 45, 60, 90];
+const params = computed(() => ({
+  base: (pelasVendas.value ? 'VENDAS' : 'MINIMO') as BaseNecessidade,
+  cobertura_dias: cobertura.value,
+}));
+const { data: grupos, isLoading, isError } = useNecessidadesQuery(params);
 const gerar = useGerarPedidos();
 
 interface Escolha {
@@ -36,6 +48,9 @@ interface Escolha {
 
 /** O que o lojista mexeu, por produto. Repovoa quando a lista muda. */
 const escolhas = ref<Record<number, Escolha>>({});
+
+// Trocar a base muda a sugestão: as escolhas recomeçam da nova lista.
+watch(params, () => { escolhas.value = {}; });
 
 watch(
   grupos,
@@ -130,11 +145,28 @@ function gerarPedidos() {
 
 <template>
   <div class="flex flex-col gap-6 md:gap-8 pb-20">
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-4">
       <PageReview
         title="Necessidades de Compra"
-        description="Produtos abaixo do estoque mínimo, já descontando o que está a caminho"
+        :description="pelasVendas
+          ? 'Pelo estoque mínimo e pela venda dos últimos 90 dias, já descontando o que está a caminho'
+          : 'Produtos abaixo do estoque mínimo, já descontando o que está a caminho'"
       />
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <label class="flex cursor-pointer items-center gap-2 text-zinc-700">
+          <input v-model="pelasVendas" type="checkbox" class="accent-brand-primary" />
+          Considerar as vendas
+        </label>
+        <label v-if="pelasVendas" class="flex items-center gap-2 text-zinc-600">
+          comprar para
+          <select
+            v-model.number="cobertura"
+            class="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-brand-primary"
+          >
+            <option v-for="d in COBERTURAS" :key="d" :value="d">{{ d }} dias</option>
+          </select>
+        </label>
+      </div>
     </div>
 
     <div v-if="isLoading" class="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-sm text-zinc-400">
@@ -153,7 +185,8 @@ function gerarPedidos() {
       <PackageCheck :size="28" class="text-emerald-500" />
       <p class="font-semibold text-zinc-800">Nada para comprar agora</p>
       <p class="max-w-md text-sm text-zinc-500">
-        Só aparecem aqui os produtos com <strong>estoque mínimo</strong> cadastrado que chegaram nele. Cadastre o
+        Só aparecem aqui os produtos com <strong>estoque mínimo</strong> cadastrado que chegaram nele<template
+          v-if="pelasVendas"> — ou que vendem e vão acabar antes de o pedido chegar</template>. Cadastre o
         mínimo (e o ideal) no estoque de cada produto que a loja repõe.
       </p>
     </div>
@@ -209,6 +242,18 @@ function gerarPedidos() {
                 <td class="px-3 py-3">
                   <p class="font-medium text-zinc-800">{{ item.produto_nome }}</p>
                   <p v-if="item.codigo_produto" class="text-[11px] text-zinc-400">{{ item.codigo_produto }}</p>
+                  <!-- Fase 5: o giro do produto, quando a base inclui as vendas. -->
+                  <p v-if="item.media_diaria" class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                    <TrendingUp :size="12" />
+                    vende ~{{ formatQtd(item.media_diaria) }}/dia
+                    <template v-if="item.dura_dias != null"> · o estoque dura {{ formatQtd(item.dura_dias) }} dias</template>
+                    <span
+                      v-if="item.origem === 'VENDAS'"
+                      class="rounded-full bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-primary"
+                    >
+                      pela venda
+                    </span>
+                  </p>
                   <p v-if="item.rascunhos.length" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
                     <AlertTriangle :size="10" />
                     Já em rascunho {{ item.rascunhos.join(', ') }}
@@ -236,7 +281,10 @@ function gerarPedidos() {
                   {{ formatQtd(item.saldo) }} {{ item.unidade_medida }}
                 </td>
                 <td class="px-3 py-3 text-right tabular-nums text-zinc-500">
-                  {{ formatQtd(item.minimo) }}<template v-if="item.ideal"> / {{ formatQtd(item.ideal) }}</template>
+                  <template v-if="item.minimo != null">
+                    {{ formatQtd(item.minimo) }}<template v-if="item.ideal"> / {{ formatQtd(item.ideal) }}</template>
+                  </template>
+                  <span v-else class="text-zinc-300">—</span>
                 </td>
                 <td class="px-3 py-3 text-right tabular-nums text-zinc-500">
                   {{ item.em_pedido ? formatQtd(item.em_pedido) : '—' }}

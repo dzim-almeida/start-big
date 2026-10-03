@@ -14,6 +14,7 @@
 # de produto, que todo mundo tem.
 # ---------------------------------------------------------------------------
 
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -37,6 +38,7 @@ from app.schemas.compras import (
     PedidoRead,
     PedidoResumo,
     RecebimentoEscrita,
+    RelatorioCompras,
     ProdutoParaPedido,
     SimularParcelas,
 )
@@ -45,7 +47,9 @@ from app.services.compras import necessidades as necessidades_service
 from app.services.compras import pedidos as pedidos_service
 from app.services.compras.parcelas import gerar_parcelas
 from app.services.compras import recebimentos as recebimentos_service
+from app.services.compras import relatorios as relatorios_service
 from app.services.compras.permissoes import (
+    permissao_custos,
     permissao_cancelar,
     permissao_gerenciar,
     permissao_receber,
@@ -133,10 +137,17 @@ def salvar_fornecedores_do_produto(
     ),
 )
 def listar_necessidades(
+    base: str = Query(
+        "MINIMO", pattern="^(MINIMO|VENDAS)$",
+        description="MINIMO: só o estoque mínimo. VENDAS: também a média de venda dos últimos 90 dias",
+    ),
+    cobertura_dias: int = Query(30, ge=1, le=180, description="Com base VENDAS: para quantos dias comprar"),
     user_token: dict = Depends(permissao_ver),
     db: Session = Depends(get_db),
 ):
-    return necessidades_service.listar(db, user_token, pode_ver_custos(user_token))
+    return necessidades_service.listar(
+        db, user_token, pode_ver_custos(user_token), base=base, cobertura_dias=cobertura_dias
+    )
 
 
 @router.post(
@@ -181,6 +192,7 @@ def listar_pedidos(
     fornecedor_id: Optional[int] = Query(None, ge=1),
     busca: Optional[str] = Query(None, max_length=100, description="Número (PC-12 ou 12) ou fornecedor"),
     a_receber: bool = Query(False, description="Só enviados e recebidos em parte (tela de Recebimento)"),
+    atrasados: bool = Query(False, description="Só os a receber com a previsão de entrega já passada"),
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     user_token: dict = Depends(permissao_ver),
@@ -188,7 +200,7 @@ def listar_pedidos(
 ):
     return pedidos_service.listar(
         db, user_token, pode_ver_custos(user_token),
-        situacao=situacao, fornecedor_id=fornecedor_id, busca=busca, a_receber=a_receber,
+        situacao=situacao, fornecedor_id=fornecedor_id, busca=busca, a_receber=a_receber, atrasados=atrasados,
         limit=limit, offset=offset,
     )
 
@@ -347,3 +359,27 @@ def encerrar_pedido(
     return _handle_db_transaction(
         db, recebimentos_service.encerrar_saldo, user_token, pedido_id, dados.motivo, pode_ver_custos(user_token)
     )
+
+
+# ---------------------------------------------------------------------------
+# Fase 5 — relatórios
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/relatorios",
+    response_model=RelatorioCompras,
+    summary="Fornecedores (prazo, pontualidade, valor) e variação de preço",
+    description="Exige ver custo (linha Compras); quem só recebe não acessa.",
+)
+def relatorio_compras(
+    inicio: date = Query(..., description="Primeiro dia do período"),
+    fim: date = Query(..., description="Último dia do período"),
+    user_token: dict = Depends(permissao_custos),
+    db: Session = Depends(get_db),
+):
+    if fim < inicio:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "O fim do período é antes do início.")
+    if (fim - inicio).days > 366:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Período de no máximo um ano.")
+    return relatorios_service.gerar(db, user_token, inicio, fim)

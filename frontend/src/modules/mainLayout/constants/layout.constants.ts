@@ -164,6 +164,13 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
             requiredPermission: PERMISSIONS.purchasesAny,
             requiredModule: MODULOS.COMPRAS,
           },
+          {
+            id: 'purchases-reports',
+            label: 'Relatórios',
+            // Mostra preço: só quem vê custo (linha Compras), nunca quem só recebe.
+            requiredPermission: PERMISSIONS.viewPurchaseCosts,
+            requiredModule: MODULOS.COMPRAS,
+          },
         ],
       },
     ],

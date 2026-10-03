@@ -11,12 +11,14 @@ from decimal import Decimal
 import pytest
 
 from app.services.compras.necessidade import (
+    PRAZO_PADRAO_DIAS,
     OfertaFornecedor,
     dividir_para_cima,
     economia_percentual,
     mais_barato,
     preco_por_unidade,
     sugerir_compra,
+    sugerir_por_vendas,
 )
 
 
@@ -115,3 +117,46 @@ def test_quanto_mais_caro_em_pontos_base():
     assert economia_percentual(Decimal(350), Decimal(4000) / 12) == 476
     assert economia_percentual(Decimal(300), Decimal(300)) == 0
     assert economia_percentual(Decimal(0), Decimal(0)) == 0
+
+
+# --- fase 5: pela média de vendas ---------------------------------------------------
+
+
+def test_vende_10_por_dia_prazo_3_cobre_30_dias():
+    # Ponto de pedido = 10 × 3 = 30; alvo = 10 × 33 = 330. Saldo 25 → faltam 305 → 26 fardos de 12.
+    assert sugerir_por_vendas(saldo=25, em_pedido=0, media_diaria=10, prazo_dias=3, cobertura_dias=30,
+                              minimo=None, fator=12) == 26
+
+
+def test_acima_do_ponto_de_pedido_nao_compra():
+    assert sugerir_por_vendas(saldo=31, em_pedido=0, media_diaria=10, prazo_dias=3, cobertura_dias=30,
+                              minimo=None, fator=1) == 0
+
+
+def test_o_que_esta_a_caminho_conta_tambem_aqui():
+    assert sugerir_por_vendas(saldo=10, em_pedido=300, media_diaria=10, prazo_dias=3, cobertura_dias=30,
+                              minimo=None, fator=1) == 0
+
+
+def test_minimo_vira_estoque_de_seguranca():
+    # Ponto = 10 × 3 + 20 = 50; alvo = 10 × 33 + 20 = 350. Saldo 45 → 305.
+    assert sugerir_por_vendas(saldo=45, em_pedido=0, media_diaria=10, prazo_dias=3, cobertura_dias=30,
+                              minimo=20, fator=1) == 305
+
+
+def test_sem_prazo_conta_uma_semana():
+    # Ponto = 2 × 7 = 14; alvo = 2 × (7 + 30) = 74. Saldo 14 → 60.
+    assert PRAZO_PADRAO_DIAS == 7
+    assert sugerir_por_vendas(saldo=14, em_pedido=0, media_diaria=2, prazo_dias=None, cobertura_dias=30,
+                              minimo=None, fator=1) == 60
+
+
+def test_sem_venda_nao_sugere():
+    assert sugerir_por_vendas(saldo=0, em_pedido=0, media_diaria=0, prazo_dias=3, cobertura_dias=30,
+                              minimo=10, fator=1) == 0
+
+
+def test_media_fracionada_arredonda_para_cima():
+    # 0,5/dia, prazo 2 → ponto 1; alvo 0,5 × 32 = 16. Saldo 1 → 15.
+    assert sugerir_por_vendas(saldo=1, em_pedido=0, media_diaria=0.5, prazo_dias=2, cobertura_dias=30,
+                              minimo=None, fator=1) == 15

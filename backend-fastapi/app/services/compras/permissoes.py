@@ -45,6 +45,8 @@ permissao_ver = check_permission(required_permission=PERMISSOES_VER)
 permissao_gerenciar = check_permission(required_permission=PERMISSOES_GERENCIAR)
 permissao_cancelar = check_permission(required_permission=PERMISSOES_CANCELAR)
 permissao_receber = check_permission(required_permission=PERMISSOES_RECEBER)
+# Relatórios: só quem vê custo (as caixas da linha Compras), nunca quem só recebe.
+permissao_custos = check_permission(required_permission=list(PERMISSOES_CUSTO))
 
 
 def pode_ver_custos(usuario_token: dict[str, Any]) -> bool:

@@ -18,14 +18,16 @@ mais barato, quando não é o sugerido, vem em `alternativa` (D18).
 """
 
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.core.enum import MovimentacaoOrigem, MovimentacaoTipo
 from app.db.models.estoque import Estoque
+from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.fornecedor import Fornecedor
 from app.db.models.pedido_compra import PedidoCompra, PedidoCompraItem, SituacaoPedido
 from app.db.models.produto import Produto
@@ -48,9 +50,19 @@ from app.services.compras.necessidade import (
     mais_barato,
     preco_por_unidade,
     sugerir_compra,
+    sugerir_por_vendas,
 )
 
 SEM_FORNECEDOR = "Sem fornecedor cadastrado"
+
+# Fase 5: a base da sugestão. MINIMO é o comportamento da fase 2 (padrão).
+BASE_MINIMO = "MINIMO"
+BASE_VENDAS = "VENDAS"
+ORIGEM_MINIMO = "MINIMO"
+ORIGEM_VENDAS = "VENDAS"
+# Três meses: longo para não seguir um pico de uma semana, curto para
+# acompanhar a estação (cerveja no verão).
+JANELA_VENDAS_DIAS = 90
 
 
 def _vende(fornecedor: Optional[Fornecedor]) -> bool:
@@ -111,12 +123,54 @@ def _opcao(linha: ProdutoFornecedor, unidade_produto: str, ver_custos: bool) -> 
     )
 
 
-def listar(db: Session, token: dict[str, Any], ver_custos: bool) -> list[NecessidadeGrupo]:
+def _vendido_por_produto(db: Session, desde: datetime) -> dict[int, float]:
+    """Quanto saiu por VENDA e OS desde `desde`, líquido do que voltou.
+
+    O livro de estoque é a fonte: saída de venda/OS soma; entrada dessas
+    mesmas origens (venda cancelada, peça devolvida da OS) e DEVOLUÇÃO
+    descontam. Assim a média não conta venda que não aconteceu.
+    """
+    origens = (MovimentacaoOrigem.VENDA.value, MovimentacaoOrigem.ORDEM_SERVICO.value)
+    sinal = case(
+        (MovimentacaoEstoque.tipo == MovimentacaoTipo.SAIDA, MovimentacaoEstoque.quantidade),
+        else_=-MovimentacaoEstoque.quantidade,
+    )
+    linhas = db.execute(
+        select(MovimentacaoEstoque.produto_id, func.sum(sinal))
+        .where(
+            MovimentacaoEstoque.created_at >= desde,
+            MovimentacaoEstoque.tipo.in_([MovimentacaoTipo.SAIDA, MovimentacaoTipo.ENTRADA]),
+            (MovimentacaoEstoque.origem.in_(origens))
+            | (MovimentacaoEstoque.origem == MovimentacaoOrigem.DEVOLUCAO.value),
+        )
+        .group_by(MovimentacaoEstoque.produto_id)
+    ).all()
+    return {produto_id: max(float(total or 0), 0.0) for produto_id, total in linhas}
+
+
+def listar(
+    db: Session,
+    token: dict[str, Any],
+    ver_custos: bool,
+    *,
+    base: str = BASE_MINIMO,
+    cobertura_dias: int = 30,
+    janela_dias: int = JANELA_VENDAS_DIAS,
+) -> list[NecessidadeGrupo]:
+    """`base`: MINIMO (só o estoque mínimo, fase 2) ou VENDAS (também a média
+    de venda dos últimos `janela_dias`, cobrindo `cobertura_dias` — fase 5)."""
     empresa_id = token["empresa_id"]
+    pelas_vendas = base == BASE_VENDAS
+    vendido = (
+        _vendido_por_produto(db, datetime.now() - timedelta(days=janela_dias)) if pelas_vendas else {}
+    )
+    filtro = Estoque.quantidade_minima.is_not(None)
+    if pelas_vendas and vendido:
+        filtro = filtro | Produto.id.in_([pid for pid, qtd in vendido.items() if qtd > 0])
     produtos = db.scalars(
         select(Produto)
         .join(Estoque, Estoque.id == Produto.id)
-        .where(Produto.ativo.is_(True), Estoque.quantidade_minima.is_not(None))
+        .where(Produto.ativo.is_(True), filtro)
         .order_by(Produto.nome)
     ).all()
     if not produtos:
@@ -153,15 +207,29 @@ def listar(db: Session, token: dict[str, Any], ver_custos: bool) -> list[Necessi
 
         fator = escolhido.fator if escolhido else 1
         a_caminho = em_pedido.get(produto.id, 0.0)
-        sugestao = sugerir_compra(
+        pelo_minimo = sugerir_compra(
             saldo=estoque.quantidade or 0,
             em_pedido=a_caminho,
             minimo=estoque.quantidade_minima,
             ideal=estoque.quantidade_ideal,
             fator=fator,
         )
+        media = vendido.get(produto.id, 0.0) / janela_dias if pelas_vendas else 0.0
+        pela_venda = sugerir_por_vendas(
+            saldo=estoque.quantidade or 0,
+            em_pedido=a_caminho,
+            media_diaria=media,
+            prazo_dias=escolhido.prazo_dias if escolhido else None,
+            cobertura_dias=cobertura_dias,
+            minimo=estoque.quantidade_minima,
+            fator=fator,
+        ) if media > 0 else 0
+        # Vale a MAIOR: a venda pede mais que o mínimo quando gira rápido; o
+        # mínimo manda quando o produto gira pouco (ou nada) no período.
+        sugestao = max(pelo_minimo, pela_venda)
         if sugestao <= 0:
             continue
+        origem = ORIGEM_VENDAS if pela_venda > pelo_minimo else ORIGEM_MINIMO
 
         fornecedor_id = escolhido.fornecedor_id if escolhido else (principal.id if principal else None)
         fornecedor_nome = (
@@ -208,6 +276,11 @@ def listar(db: Session, token: dict[str, Any], ver_custos: bool) -> list[Necessi
             ultimo_preco=escolhido.ultimo_preco if (ver_custos and escolhido) else None,
             alternativa=alternativa,
             opcoes=opcoes,
+            origem=origem,
+            media_diaria=round(media, 3) if media > 0 else None,
+            dura_dias=(
+                round(max(estoque.quantidade or 0, 0) / media, 1) if media > 0 else None
+            ),
         )
         grupo = grupos.get(fornecedor_id)
         if grupo is None:

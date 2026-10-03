@@ -59,7 +59,7 @@ def _custo_por_unidade(custo_compra: int, fator: int) -> int:
     return (custo_compra * 2 + fator) // (2 * fator) if fator > 1 else custo_compra
 
 
-def _proporcional(total: int, pesos: list[int]) -> list[int]:
+def proporcional(total: int, pesos: list[int]) -> list[int]:
     """Divide `total` na proporção dos pesos; o resto vai no último (fecha exato).
 
     Sem peso nenhum (tudo zero), divide em partes iguais.
@@ -82,7 +82,7 @@ def lancar_contas(
 
     parcelas = list(pedido.parcelas) or []
     prazos = [p.dias for p in parcelas] or [0]
-    valores = _proporcional(recebimento.valor_total, [p.valor for p in parcelas] or [1])
+    valores = proporcional(recebimento.valor_total, [p.valor for p in parcelas] or [1])
     total = len(valores)
     hoje = date.today()
     nota = f" — NF {recebimento.numero_nota}" if recebimento.numero_nota else ""

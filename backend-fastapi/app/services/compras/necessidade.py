@@ -114,3 +114,48 @@ def economia_percentual(preco_atual: Decimal, preco_menor: Decimal) -> int:
         return 0
     bp = (preco_atual - preco_menor) * 10_000 / preco_atual
     return int(bp.to_integral_value(rounding=ROUND_HALF_UP))
+
+
+# --- Fase 5: pela média de vendas --------------------------------------------------
+
+# Sem prazo de entrega cadastrado no fornecedor, conta uma semana — o ciclo
+# típico de visita de vendedor/entrega no varejo. Melhor que zero, que só
+# dispararia a compra quando o estoque já estivesse no mínimo.
+PRAZO_PADRAO_DIAS = 7
+
+
+def sugerir_por_vendas(
+    saldo: Numero,
+    em_pedido: Numero,
+    media_diaria: Numero,
+    prazo_dias: Optional[int],
+    cobertura_dias: int,
+    minimo: Optional[Numero],
+    fator: int,
+) -> int:
+    """Unidades de compra pela VENDA, não só pelo mínimo (plano, fase 5).
+
+    - ponto de pedido = venda/dia × prazo + mínimo (o mínimo vira estoque de
+      segurança): abaixo disso, o que está na prateleira acaba antes de o
+      pedido chegar;
+    - alvo = venda/dia × (prazo + cobertura) + mínimo: o que precisa haver
+      para atravessar o prazo de entrega E os dias de cobertura escolhidos.
+
+    Sem venda no período, não sugere (é a regra do mínimo que cuida dele).
+    """
+    if fator < 1:
+        raise ValueError("fator precisa ser ao menos 1")
+    media = _dec(media_diaria)
+    if media <= 0:
+        return 0
+    prazo = PRAZO_PADRAO_DIAS if prazo_dias is None else max(prazo_dias, 0)
+    seguranca = _dec(minimo) if minimo is not None else Decimal(0)
+    disponivel = _dec(saldo) + _dec(em_pedido)
+    ponto = media * prazo + seguranca
+    if disponivel > ponto:
+        return 0
+    alvo = media * (prazo + max(cobertura_dias, 0)) + seguranca
+    falta = (alvo - disponivel).quantize(CASAS_DA_QUANTIDADE, rounding=ROUND_HALF_UP)
+    if falta <= 0:
+        return 0
+    return int((falta / fator).to_integral_value(rounding=ROUND_CEILING))

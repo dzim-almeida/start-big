@@ -24,7 +24,7 @@ PRO. Quem não contrata não vê nada mudar.
 > (D8, pesquisado); divergência **só avisa**; sem cotação, mas com **aviso de
 > fornecedor mais barato** (D18). Prazo: no nosso ritmo. Liberado para a fase 1.
 
-> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14); fase 4 em 04/10/2026 (§15).
+> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14); fase 4 em 04/10/2026 (§15); fase 5 em 04/10/2026 (§16). O NÚCLEO (fases 1–5) está completo; a fase 6 depende do plano do segmento marcenaria.
 
 ---
 
@@ -614,6 +614,46 @@ duplicatas; outro fornecedor, cancelado, sem o módulo — sem gravar nada) +
 migration. Suíte do backend: 2039 passaram, 1 pulado. Frontend: 138, `vue-tsc`
 limpo, `vite build`.
 **Não verificado:** a tela com uma nota real num app rodando.
+
+---
+
+## 16. Entrega da fase 5 — Inteligência (04/10/2026)
+
+**Necessidades pela média de vendas** (`necessidade.sugerir_por_vendas`, pura):
+- ponto de pedido = venda/dia × prazo + mínimo (o mínimo vira estoque de
+  segurança); alvo = venda/dia × (prazo + cobertura) + mínimo;
+- sem prazo cadastrado no fornecedor, 7 dias (`PRAZO_PADRAO_DIAS`);
+- venda/dia = saída líquida por VENDA e OS nos últimos 90 dias, descontando
+  venda cancelada e DEVOLUÇÃO (livro de estoque);
+- vale a MAIOR sugestão entre mínimo e venda; `origem` diz qual mandou;
+- `GET /compras/necessidades?base=VENDAS&cobertura_dias=30`. O padrão continua
+  `MINIMO` (comportamento da fase 2 intocado). Na tela: "Considerar as vendas"
+  + "comprar para N dias"; cada linha mostra "vende ~X/dia · o estoque dura N dias".
+- Achado nos testes: produto que entra só pela venda não tem mínimo — o campo
+  `minimo` virou opcional (back e front).
+
+**Pedidos atrasados:** `GET /compras/pedidos?atrasados=true` (enviado/parcial
+com a previsão passada) e aviso em vermelho na lista com "Ver quais".
+
+**Previsão no Fluxo de Caixa** (`services/compras/previsoes.py`, D8d): pedido
+enviado/parcial entra na régua como SAÍDA marcada "previsto · pedido" — o que
+falta chegar + frete proporcional, nas parcelas combinadas, contadas da
+previsão de entrega (ou de hoje, se passou). Só com COMPRAS; sem ele a lista
+vem vazia e a projeção é a de sempre (os 37 testes antigos do fluxo passam).
+`FluxoCaixa.previsto_compras` e `FluxoLancamento.previsao_compra/pedido_compra_id`
+são campos novos com padrão.
+
+**Relatórios** (`GET /compras/relatorios?inicio&fim`, só quem vê custo):
+por fornecedor — pedidos enviados, chegadas, valor recebido, prazo real médio
+(envio → 1ª chegada) e entregas no prazo; variação de preço por produto
+(1ª × última chegada do período, por unidade). Tela Compras › Relatórios.
+
+**Verificado:** 7 testes puros novos + 13 de API (base padrão inalterada, venda
+cancelada/devolução, janela de 90 dias, maior entre mínimo e venda, atrasados,
+previsão no fluxo com e sem Compras, só o que falta chegar, relatório com prazo,
+pontualidade e +10%, 403 para quem só recebe). Suíte do backend: 2059
+passaram, 1 pulado. Frontend: 138, `vue-tsc` limpo, `vite build`.
+**Não verificado:** as telas num app rodando.
 
 ---
 

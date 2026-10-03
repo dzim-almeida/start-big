@@ -341,6 +341,18 @@ const homeRoutes: RouteRecordRaw[] = [
               exigeModulo: MODULOS.COMPRAS,
             },
           },
+          {
+            path: 'relatorios',
+            name: 'purchases-reports',
+            component: () => import('@/modules/compras/relatorios/views/RelatoriosComprasView.vue'),
+            meta: {
+              title: 'Relatórios de Compras',
+              subtitle: 'Prazo e pontualidade dos fornecedores, e variação de preço.',
+              tabId: 'purchases-reports',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
         ],
       },
     ],

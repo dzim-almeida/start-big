@@ -7,6 +7,8 @@
 
 import api from '@/api/axios';
 import type {
+  BaseNecessidade,
+  RelatorioCompras,
   FornecedorDoProdutoEscrita,
   FornecedorDoProdutoRead,
   FornecedorResumo,
@@ -48,8 +50,17 @@ export async function salvarFornecedoresDoProduto(
 // Fase 2 — necessidades e pedido de compra
 // ---------------------------------------------------------------------------
 
-export async function getNecessidades(): Promise<NecessidadeGrupo[]> {
-  const { data } = await api.get<NecessidadeGrupo[]>('compras/necessidades');
+/** `base` VENDAS soma a média de venda dos últimos 90 dias, cobrindo `cobertura_dias`. */
+export async function getNecessidades(
+  params: { base: BaseNecessidade; cobertura_dias: number } = { base: 'MINIMO', cobertura_dias: 30 },
+): Promise<NecessidadeGrupo[]> {
+  const { data } = await api.get<NecessidadeGrupo[]>('compras/necessidades', { params });
+  return data;
+}
+
+/** Fornecedores (prazo, pontualidade, valor) e variação de preço no período. */
+export async function getRelatorioCompras(inicio: string, fim: string): Promise<RelatorioCompras> {
+  const { data } = await api.get<RelatorioCompras>('compras/relatorios', { params: { inicio, fim } });
   return data;
 }
 

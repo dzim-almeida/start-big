@@ -11,7 +11,7 @@
  */
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Plus } from 'lucide-vue-next';
+import { AlertTriangle, Plus } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
@@ -39,18 +39,29 @@ const situacao = ref<string | null>(
   typeof route.query.situacao === 'string' && route.query.situacao in SITUACOES_PEDIDO ? route.query.situacao : null,
 );
 
+/** Recorte "só os atrasados" — vem do aviso logo abaixo do título. */
+const soAtrasados = ref(route.query.atrasados === '1');
+
 const filtros = computed(() => ({
   limit: POR_PAGINA,
   offset: (pagina.value - 1) * POR_PAGINA,
   situacao: (situacao.value || undefined) as SituacaoPedido | undefined,
   busca: busca.value.trim() || undefined,
+  atrasados: soAtrasados.value || undefined,
 }));
 
 // Filtrar volta para a primeira página: na página 4 de um filtro novo, a lista
 // pareceria vazia — há resultado, mas não na altura em que se parou.
-watch([situacao, busca], () => { pagina.value = 1; });
+watch([situacao, busca, soAtrasados], () => { pagina.value = 1; });
 
 const { data: listagem, isLoading, isError } = usePedidosQuery(filtros);
+
+/**
+ * Quantos estão atrasados (enviados com a previsão já passada). Consulta
+ * própria e mínima (limit 1): só o total importa para o aviso.
+ */
+const { data: atrasados } = usePedidosQuery({ atrasados: true, limit: 1, offset: 0 });
+const totalAtrasados = computed(() => atrasados.value?.total_itens ?? 0);
 const totalPaginas = computed(() => Math.max(1, Math.ceil((listagem.value?.total_itens ?? 0) / POR_PAGINA)));
 
 const detalheId = ref<number | null>(null);
@@ -80,6 +91,30 @@ function aoSalvar(pedido: PedidoRead) {
       <BaseButton v-if="podeGerenciar" variant="primary" @click="novoPedido">
         <Plus :size="16" class="mr-1.5" /> Novo pedido
       </BaseButton>
+    </div>
+
+    <!-- Pedido atrasado é o que o dono precisa cobrar do fornecedor hoje. -->
+    <div
+      v-if="totalAtrasados && !soAtrasados"
+      class="flex flex-wrap items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800"
+    >
+      <AlertTriangle :size="15" />
+      <span>
+        <strong>{{ totalAtrasados }}</strong>
+        {{ totalAtrasados === 1 ? 'pedido passou' : 'pedidos passaram' }} da data de entrega e não chegaram.
+      </span>
+      <button type="button" class="font-semibold underline underline-offset-2 cursor-pointer" @click="soAtrasados = true">
+        Ver {{ totalAtrasados === 1 ? 'qual' : 'quais' }}
+      </button>
+    </div>
+    <div
+      v-else-if="soAtrasados"
+      class="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800"
+    >
+      <span>Mostrando <strong>só os atrasados</strong>.</span>
+      <button type="button" class="font-semibold underline underline-offset-2 cursor-pointer" @click="soAtrasados = false">
+        Mostrar todos
+      </button>
     </div>
 
     <BaseTableContainer

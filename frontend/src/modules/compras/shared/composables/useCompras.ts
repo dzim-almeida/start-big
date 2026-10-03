@@ -14,7 +14,13 @@ import { getErrorMessage } from '@/shared/utils/error.utils';
 
 import { comprasKeys } from '../constants/queryKeys';
 import * as service from '../services/compras.service';
-import type { GerarPedidoItem, PedidoEscrita, PedidoFiltros, RecebimentoEscrita } from '../types/compras.types';
+import type {
+  BaseNecessidade,
+  GerarPedidoItem,
+  PedidoEscrita,
+  PedidoFiltros,
+  RecebimentoEscrita,
+} from '../types/compras.types';
 import { FINANCEIRO_KEY, PRODUTOS_KEY } from '@/shared/constants/entityKeys';
 
 function useInvalidarCompras() {
@@ -29,11 +35,21 @@ function avisarErro(titulo: string) {
 
 // --- leitura -----------------------------------------------------------------------
 
-export function useNecessidadesQuery() {
+export function useNecessidadesQuery(
+  params: MaybeRef<{ base: BaseNecessidade; cobertura_dias: number }> = { base: 'MINIMO', cobertura_dias: 30 },
+) {
   return useQuery({
-    queryKey: comprasKeys.necessidades(),
-    queryFn: service.getNecessidades,
+    queryKey: computed(() => [...comprasKeys.necessidades(), unref(params)]),
+    queryFn: () => service.getNecessidades(unref(params)),
     refetchInterval: REFETCH_CADASTROS,
+  });
+}
+
+export function useRelatorioComprasQuery(inicio: MaybeRef<string>, fim: MaybeRef<string>) {
+  return useQuery({
+    queryKey: computed(() => [...comprasKeys.todos, 'relatorio', unref(inicio), unref(fim)]),
+    queryFn: () => service.getRelatorioCompras(unref(inicio), unref(fim)),
+    enabled: computed(() => !!unref(inicio) && !!unref(fim) && unref(inicio) <= unref(fim)),
   });
 }
 

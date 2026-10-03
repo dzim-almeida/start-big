@@ -168,6 +168,8 @@ export interface PedidoFiltros {
   busca?: string;
   /** Só enviados e recebidos em parte (tela de Recebimento). */
   a_receber?: boolean;
+  /** Só os a receber com a previsão de entrega já passada. */
+  atrasados?: boolean;
   limit: number;
   offset: number;
 }
@@ -250,7 +252,8 @@ export interface NecessidadeItem {
   codigo_produto: string | null;
   unidade_medida: string;
   saldo: number;
-  minimo: number;
+  /** Nulo quando o produto entra só pela venda (base VENDAS). */
+  minimo: number | null;
   ideal: number | null;
   /** A caminho (pedidos enviados), na unidade do produto. */
   em_pedido: number;
@@ -267,6 +270,47 @@ export interface NecessidadeItem {
   ultimo_preco: number | null;
   alternativa: AlternativaMaisBarata | null;
   opcoes: OpcaoFornecedor[];
+  /** De onde veio a sugestão (fase 5). */
+  origem: 'MINIMO' | 'VENDAS';
+  /** Vendido por dia nos últimos 90 dias (base VENDAS). */
+  media_diaria: number | null;
+  /** Para quantos dias o estoque de hoje dá, nesse ritmo. */
+  dura_dias: number | null;
+}
+
+export type BaseNecessidade = 'MINIMO' | 'VENDAS';
+
+export interface RelatorioFornecedor {
+  fornecedor_id: number | null;
+  fornecedor_nome: string;
+  pedidos_enviados: number;
+  recebimentos: number;
+  valor_recebido: number;
+  /** Do envio do pedido à primeira chegada. */
+  prazo_medio_dias: number | null;
+  entregas_com_previsao: number;
+  entregas_no_prazo: number;
+}
+
+export interface VariacaoPreco {
+  produto_id: number;
+  descricao: string;
+  fornecedor_nome: string;
+  compras: number;
+  /** Centavos por unidade (com casas). */
+  primeiro_custo_unidade: number;
+  ultimo_custo_unidade: number;
+  /** Pontos-base; positivo = subiu. */
+  variacao_bp: number;
+}
+
+export interface RelatorioCompras {
+  inicio: string;
+  fim: string;
+  pedidos_enviados: number;
+  valor_recebido: number;
+  por_fornecedor: RelatorioFornecedor[];
+  variacao_precos: VariacaoPreco[];
 }
 
 export interface NecessidadeGrupo {

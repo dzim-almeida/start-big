@@ -280,7 +280,7 @@ class NecessidadeItem(BaseModel):
     codigo_produto: Optional[str] = None
     unidade_medida: str
     saldo: float
-    minimo: float
+    minimo: Optional[float] = Field(None, description="Nulo quando o produto entra só pela venda (base VENDAS)")
     ideal: Optional[float] = None
     em_pedido: float = Field(..., description="A caminho (pedidos enviados), na unidade do produto")
     em_rascunho: float = Field(0, description="Em rascunhos ainda não enviados — NÃO desconta da sugestão")
@@ -294,6 +294,10 @@ class NecessidadeItem(BaseModel):
     ultimo_preco: Optional[int] = None
     alternativa: Optional[AlternativaMaisBarata] = None
     opcoes: list[OpcaoFornecedor] = Field(default_factory=list, description="Outros fornecedores do produto")
+    # Fase 5: de onde veio a sugestão, e o giro do produto quando a base é VENDAS.
+    origem: str = Field("MINIMO", description="MINIMO (estoque mínimo) ou VENDAS (média de venda)")
+    media_diaria: Optional[float] = Field(None, description="Vendido por dia na janela (unidade do produto)")
+    dura_dias: Optional[float] = Field(None, description="Para quantos dias o estoque de hoje dá, nesse ritmo")
 
 
 class NecessidadeGrupo(BaseModel):
@@ -356,3 +360,38 @@ class RecebimentoEscrita(BaseModel):
         if len(ids) != len(set(ids)):
             raise ValueError("O mesmo item aparece duas vezes no recebimento.")
         return self
+
+
+# ---------------------------------------------------------------------------
+# Fase 5 — relatórios
+# ---------------------------------------------------------------------------
+
+
+class RelatorioFornecedor(BaseModel):
+    fornecedor_id: Optional[int] = None
+    fornecedor_nome: str
+    pedidos_enviados: int
+    recebimentos: int
+    valor_recebido: int = Field(..., description="Centavos")
+    prazo_medio_dias: Optional[float] = Field(None, description="Do envio do pedido à primeira chegada")
+    entregas_com_previsao: int = 0
+    entregas_no_prazo: int = 0
+
+
+class VariacaoPreco(BaseModel):
+    produto_id: int
+    descricao: str
+    fornecedor_nome: str = Field(..., description="Da última compra")
+    compras: int
+    primeiro_custo_unidade: float = Field(..., description="Centavos por unidade, na 1ª chegada do período")
+    ultimo_custo_unidade: float
+    variacao_bp: int = Field(..., description="Pontos-base (1000 = 10%); positivo = subiu")
+
+
+class RelatorioCompras(BaseModel):
+    inicio: date
+    fim: date
+    pedidos_enviados: int
+    valor_recebido: int
+    por_fornecedor: list[RelatorioFornecedor]
+    variacao_precos: list[VariacaoPreco]
