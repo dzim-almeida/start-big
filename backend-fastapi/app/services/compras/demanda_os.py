@@ -23,7 +23,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.enum import OrdemServicoItemAprovacao, OrdemServicoItemTipo, OrdemServicoStatus
@@ -75,7 +75,9 @@ def demandas_por_produto(db: Session, produto_ids: Optional[list[int]] = None) -
     consulta = (
         select(
             OrdemServicoItem.produto_id,
-            OrdemServicoItem.quantidade,
+            # O que a separação já tirou do estoque não está mais reservado:
+            # já saiu (F4). Nulo fora da fábrica = a conta de sempre.
+            OrdemServicoItem.quantidade - func.coalesce(OrdemServicoItem.quantidade_separada, 0),
             OrdemServico.id,
             OrdemServico.numero_os,
             OrdemServico.data_previsao,
@@ -91,7 +93,7 @@ def demandas_por_produto(db: Session, produto_ids: Optional[list[int]] = None) -
             OrdemServicoItem.tipo == OrdemServicoItemTipo.PRODUTO,
             OrdemServicoItem.produto_id.is_not(None),
             OrdemServicoItem.status_aprovacao == OrdemServicoItemAprovacao.APROVADO,
-            OrdemServicoItem.quantidade > 0,
+            OrdemServicoItem.quantidade - func.coalesce(OrdemServicoItem.quantidade_separada, 0) > 0,
         )
         .order_by(OrdemServico.data_criacao, OrdemServico.id)
     )

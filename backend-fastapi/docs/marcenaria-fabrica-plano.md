@@ -694,6 +694,91 @@ migration. Suíte do backend: **2137 passaram**, 1 pulado. Front: 156 testes
 
 ---
 
+## 17. Entrega da F4 — Separação e margem (06/10/2026)
+
+**Banco** (migration `c6f2d8a4b915`): `ordem_servico_itens.quantidade_separada`
+e `custo_real`.
+
+**Regra única (D6)** — `quantidade − coalesce(quantidade_separada, 0)`:
+- `_movimentar_estoque_os` (finalizar, estorno do cancelar/reabrir) movimenta
+  só isso (`_quantidade_a_movimentar`); fora da fábrica é `quantidade`;
+- a reserva de Compras (`demanda_os`) conta só isso;
+- cancelar devolve o separado (`separacao.devolver_tudo`); reabrir não.
+
+**Separação** (`services/fabrica/separacao.py`): bipe pelo código do
+produto, código de barras ou da EMBALAGEM (conta o fator), ou item escolhido;
+só a partir de "Separação e compra"; separar mais que o aprovado = 409;
+SAÍDA na hora (origem ORDEM_SERVICO, saldo negativo permitido como na OS);
+`custo_real` = custo médio do dia, ponderado se separado aos poucos. Estornar
+com motivo (vai para o log). A tela não tem preço (DC5). Quem separa: a
+permissão de Serviços OU a linha Recebimento de Compras (o almoxarife).
+
+**Travas novas:** "Separação e compra" sai com **tudo separado** (substitui o
+"material no estoque" da F3); com algo separado, a OS não volta para antes da
+separação e não se aprova outra versão (estorne antes).
+
+**Margem** (`GET /fabrica/os/{n}/margem`, só quem vê custo): orçado = a
+fração de chapa com perda ao custo congelado; real = chapas INTEIRAS
+separadas ao custo do dia + serviços recebidos. A margem real só sai com tudo
+separado e recebido. A sobra do corte fica na prateleira (DC7) e entra no
+próximo inventário — por isso o real tende a ser maior que o orçado.
+
+**Tela:** página **Separação de material** (`/fabrica/separacao/:numeroOs`,
+botão no trilho): leitor sempre focado, progresso, localização na prateleira,
+saldo, "+1", "Separar tudo", devolver com motivo. **Margem** na aba
+Orçamento da versão aprovada.
+
+## 18. Entrega da F5 — Terceirizados (06/10/2026)
+
+**Pedido de serviço** (`services/fabrica/terceiros.py`,
+`POST /fabrica/moveis/{id}/pedido-servico`, Gerenciar + módulo COMPRAS):
+pedido de Compras `tipo = SERVICO`, um item sem produto (unidade "SV"),
+rascunho, ligado ao móvel (`fabrica_moveis.pedido_compra_id`). Só móvel
+terceirizado da versão aprovada; um por móvel (outro só se o anterior foi
+cancelado).
+
+**Compras aceita o serviço:** o recebimento de item sem produto em pedido
+SERVIÇO não movimenta estoque — grava o recebimento, o valor e as contas a
+pagar. Editar o pedido de serviço pela tela de Pedidos é recusado (409: a
+edição de pedido é de produto e apagaria o serviço).
+
+**Trava:** "Separação e compra" também exige cada móvel terceirizado com o
+pedido RECEBIDO ("sem pedido" / "PC-000123 enviado"). **Custo real** do móvel
+= o valor recebido do pedido (na margem).
+
+**Tela:** no cartão do móvel terceirizado (versão aprovada), o pedido e a
+situação, e "Fazer pedido à central de corte" (fornecedor, valor sugerido =
+custo do terceiro orçado, previsão, o que vai para a central). Enviar e
+receber seguem em Compras.
+
+**Ficou de fora, à espera do dono (§12):** anexar o arquivo do plano de corte
+(pergunta 4), montador terceirizado (DC6, pergunta 7), retalho de chapa
+(pergunta 6).
+
+**Verificado (F4 + F5):** 13 testes (separa só depois do sinal; bipe dá
+baixa e derruba a reserva; não separa a mais; código desconhecido; separou e
+finalizou = uma baixa; separou metade, o fechamento baixa o resto; cancelar
+devolve; voltar/aprovar travados com separado e estorno; trava da etapa;
+margem orçada × real; almoxarife separa mas não vê margem; pedido à central
+recebe sem estoque, é recusado na edição e libera a etapa; só móvel
+terceirizado aprovado; exige COMPRAS) + 1 da migration. Suíte do backend:
+**2151 passaram**, 1 pulado. Front: 156 testes, `vue-tsc` limpo, `vite build`.
+**Não verificado:** as telas num app rodando (separação no celular, o pedido
+de serviço na tela de Compras e na conferência do Recebimento); sidecar não
+regerado.
+
+## 19. O plano está completo — o que falta antes da loja
+
+1. **Ver tudo rodando** (F2–F5 nunca foram abertas num app): modo fábrica,
+   orçamento de uma cozinha, aprovar, sinal, separar no celular, central de
+   corte, margem, finalizar.
+2. **Respostas do dono** (§12 / PDF): ajustam padrões (travar etapas, sinal,
+   perda, ambientes) e podem pedir o anexo do corte e o montador.
+3. **Sidecar** (`npm run build:sidecar`) e a loja **canário com backup**.
+4. **Plataforma web:** emitir o módulo COMPRAS (a F5 depende dele).
+
+---
+
 ## Fontes
 
 - Resumo do Alan: "Módulo de Compras para Marcenaria — Especificação de

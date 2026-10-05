@@ -39,7 +39,7 @@ import {
   recusarOrcamento,
   salvarOrcamento,
 } from '../services/fabrica.service';
-import type { OrcamentoRead } from '../types/fabrica.types';
+import type { MovelRead, OrcamentoRead } from '../types/fabrica.types';
 import {
   editavelDe,
   escritaDe,
@@ -50,7 +50,11 @@ import {
   type OrcamentoEdit,
 } from '../utils/editor';
 import { useAcessoFabrica } from '../composables/useAcessoFabrica';
+import { useModulosStore } from '@/shared/stores/modulos.store';
+import { MODULOS } from '@/shared/constants/modulos.constants';
+import MargemFabrica from './MargemFabrica.vue';
 import MovelCard from './MovelCard.vue';
+import PedidoServicoModal from './PedidoServicoModal.vue';
 import OrcamentoFabricaPrint from './OrcamentoFabricaPrint.vue';
 
 const props = defineProps<{
@@ -72,6 +76,22 @@ const { margemLucroPadrao } = storeToRefs(useConfiguracoesStore());
 const { podeGerenciar, podeVerCusto } = useAcessoFabrica();
 /** Pode agir sobre as versões (criar, enviar, responder pelo cliente). */
 const podeAgir = computed(() => !props.travada && podeGerenciar.value);
+
+// F5: pedido à central de corte — só com o módulo Compras (é um pedido de compra).
+const modulosStore = useModulosStore();
+const podePedirServico = computed(
+  () => podeAgir.value && orcamento.value?.situacao === 'APROVADO' && modulosStore.temModulo(MODULOS.COMPRAS),
+);
+const movelDoPedido = ref<MovelRead | null>(null);
+function aoCriarPedido() {
+  movelDoPedido.value = null;
+  queryClient.invalidateQueries({ queryKey: fabricaKeys.orcamento(selecionadoId.value ?? 0) });
+  queryClient.invalidateQueries({ queryKey: fabricaKeys.trilho(props.numeroOs) });
+}
+function lidoDe(i: number, j: number): MovelRead | null {
+  if (orcamento.value?.situacao !== 'APROVADO') return null;
+  return orcamento.value.ambientes[i]?.moveis[j] ?? null;
+}
 
 // --- Versões --------------------------------------------------------------------
 
@@ -326,6 +346,9 @@ async function imprimir() {
           :margem-padrao="margemLucroPadrao"
           :editavel="editavel"
           :mostrar-custo="podeVerCusto"
+          :lido="lidoDe(i, j)"
+          :pode-pedir-servico="podePedirServico"
+          @pedir-servico="movelDoPedido = $event"
           @remover="amb.moveis.splice(j, 1)"
         />
         <BaseButton v-if="editavel" type="button" variant="ghost" size="sm" class="flex items-center gap-1.5" @click="amb.moveis.push(novoMovel())">
@@ -372,6 +395,8 @@ async function imprimir() {
         </ul>
       </div>
 
+      <MargemFabrica v-if="orcamento.situacao === 'APROVADO' && podeVerCusto" :numero-os="numeroOs" />
+
       <ul v-if="editavel && problemas.length" class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
         <li v-for="p in problemas" :key="p">{{ p }}</li>
       </ul>
@@ -414,6 +439,7 @@ async function imprimir() {
 
     <p v-else class="text-sm text-zinc-400 text-center py-8">Carregando orçamento…</p>
 
+    <PedidoServicoModal :movel="movelDoPedido" @fechar="movelDoPedido = null" @criado="aoCriarPedido" />
     <MotivoModal
       :aberto="recusaAberta"
       titulo="O cliente recusou"

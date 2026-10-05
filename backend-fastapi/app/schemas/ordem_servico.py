@@ -123,6 +123,7 @@ class OSItemRead(OSItemBase):
     # muda por ele (nulo em todo item lançado à mão).
     fabrica_orcamento_id: Optional[int] = Field(None, description="Versão do orçamento da fábrica que gerou o item")
     fabrica_movel_id: Optional[int] = Field(None, description="Móvel do orçamento da fábrica (item do móvel)")
+    quantidade_separada: Optional[float] = Field(None, description="Fábrica (F4): o que já saiu do estoque na separação")
 
 
 class OSItemUpdate(BaseModel):

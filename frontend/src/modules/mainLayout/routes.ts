@@ -155,6 +155,20 @@ const homeRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        // Marcenaria-fábrica (F4): o almoxarife separa bipando, no PC ou no
+        // celular na rede da loja. A baixa no estoque acontece aqui.
+        path: '/fabrica/separacao/:numeroOs',
+        name: 'fabrica-separacao',
+        component: () => import('@/modules/order-service/fabrica/views/SeparacaoView.vue'),
+        meta: {
+          title: 'Separação de material',
+          subtitle: 'Bipe cada chapa, rolo e ferragem que sai para a produção.',
+          tabId: 'services',
+          requiresAuth: true,
+          exigeOrdemServico: true,
+        },
+      },
+      {
         path: '/vendas',
         name: 'sales',
         component: () => import('@/modules/sales/SalesView.vue'),

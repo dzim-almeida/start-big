@@ -130,16 +130,21 @@ def pode_comprar(fase: Optional[str], compra_liberada_em) -> bool:
     return fase is None or fase not in FASES_SEM_COMPRA or compra_liberada_em is not None
 
 
-def _material_no_estoque(db: Session, os_: OrdemServico) -> Trava:
-    # A F4 troca isto por "tudo SEPARADO" (bipado). Até lá, a trava é o
-    # material existir na prateleira para esta OS, na fila de Compras.
-    from app.services.compras.demanda_os import compras_da_os
+def _material_separado(db: Session, os_: OrdemServico) -> list[Trava]:
+    """RC20: sai de "Separação e compra" com TUDO separado (bipado, F4) e os
+    serviços terceirizados RECEBIDOS da central de corte (F5)."""
+    from app.services.fabrica.separacao import tudo_separado
+    from app.services.fabrica.terceiros import pendencias
 
-    painel = compras_da_os(db, os_.id)
-    faltando = [i.descricao for i in painel.itens if i.situacao != "NO_ESTOQUE"]
-    if not faltando:
-        return Trava("MATERIAL", "Todo o material está no estoque", True)
-    return Trava("MATERIAL", "Material que ainda não chegou: " + ", ".join(faltando), False)
+    completo, faltando = tudo_separado(os_)
+    travas_ = [
+        Trava("MATERIAL", "Todo o material separado", True) if completo
+        else Trava("MATERIAL", "Falta separar: " + ", ".join(faltando), False)
+    ]
+    servicos = pendencias(db, os_)
+    if servicos:
+        travas_.append(Trava("TERCEIROS", "Serviço terceirizado pendente: " + "; ".join(servicos), False))
+    return travas_
 
 
 def travas(db: Session, os_: OrdemServico) -> list[Trava]:
@@ -153,7 +158,7 @@ def travas(db: Session, os_: OrdemServico) -> list[Trava]:
             return [Trava("SINAL", "Compra liberada pelo gestor antes do sinal", True)]
         return [Trava("SINAL", f"Sinal recebido: {_reais(pago)} de {_reais(exigido)}", pago >= exigido)]
     if fase == Fase.SEPARACAO_COMPRA:
-        return [_material_no_estoque(db, os_)]
+        return _material_separado(db, os_)
     if fase == Fase.PRONTO_EXPEDICAO:
         return [Trava("INSTALACAO", "Data de instalação marcada", os_.data_instalacao is not None)]
     return []
@@ -237,6 +242,13 @@ def voltar(db: Session, numero_os: str, destino: str, usuario: str, motivo: str)
         raise _erro(status.HTTP_422_UNPROCESSABLE_ENTITY, "Etapa desconhecida.")
     if Fase.ORDEM.index(destino) >= Fase.ORDEM.index(os_.fase_fabrica):
         raise _erro(status.HTTP_422_UNPROCESSABLE_ENTITY, "Para ir adiante, use Avançar.")
+    from app.services.fabrica.separacao import ha_separado
+
+    if ha_separado(os_) and Fase.ORDEM.index(destino) < Fase.ORDEM.index(Fase.SEPARACAO_COMPRA):
+        raise _erro(
+            status.HTTP_409_CONFLICT,
+            "Há material separado: a OS não volta para antes da separação. Estorne a separação antes.",
+        )
     if orcamento_aprovado(db, os_.id) and Fase.ORDEM.index(destino) < Fase.ORDEM.index(Fase.AGUARDANDO_SINAL):
         raise _erro(
             status.HTTP_409_CONFLICT,

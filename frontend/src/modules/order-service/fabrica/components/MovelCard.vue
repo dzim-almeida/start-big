@@ -9,7 +9,7 @@ import { Trash2, X } from 'lucide-vue-next';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 
-import type { InsumoBusca } from '../types/fabrica.types';
+import type { InsumoBusca, MovelRead } from '../types/fabrica.types';
 import { ROTULO_CONSUMO } from '../utils/calculo';
 import { custoMaterial, custoMovel, materialDe, precoSugerido, type MovelEdit } from '../utils/editor';
 import InsumoPicker from './InsumoPicker.vue';
@@ -22,9 +22,12 @@ const props = defineProps<{
   editavel: boolean;
   /** Linha "Fábrica" de Cargos, Visualizar: sem ela, nada de custo nem preço sugerido. */
   mostrarCusto: boolean;
+  /** F5: o móvel como gravado (versão aprovada) — para o pedido à central de corte. */
+  lido?: MovelRead | null;
+  podePedirServico?: boolean;
 }>();
 
-const emit = defineEmits<{ remover: [] }>();
+const emit = defineEmits<{ remover: []; pedirServico: [movel: MovelRead] }>();
 
 const custo = computed(() => custoMovel(movel.value, props.perdaPercentual));
 const sugerido = computed(() => precoSugerido(custo.value, props.margemPadrao));
@@ -146,6 +149,22 @@ function usarSugerido() {
       <div class="md:col-span-4">
         <BaseMoneyInput v-model="movel.precoReais" label="Preço de venda" :disabled="!editavel" />
       </div>
+    </div>
+
+    <!-- F5: central de corte (só na versão aprovada) -->
+    <div v-if="lido && movel.terceirizado" class="flex flex-wrap items-center justify-between gap-2 text-xs border-t border-zinc-100 pt-2">
+      <span v-if="lido.pedido_codigo" class="text-zinc-600">
+        Central de corte: <strong>{{ lido.pedido_codigo }}</strong> · {{ lido.pedido_situacao?.toLowerCase() }}
+      </span>
+      <span v-else class="text-amber-700">Sem pedido à central de corte.</span>
+      <button
+        v-if="podePedirServico && (!lido.pedido_codigo || lido.pedido_situacao === 'CANCELADO')"
+        type="button"
+        class="px-2 py-1 rounded-lg text-brand-primary hover:bg-brand-primary/5 font-semibold cursor-pointer"
+        @click="emit('pedirServico', lido)"
+      >
+        Fazer pedido à central de corte
+      </button>
     </div>
   </div>
 </template>

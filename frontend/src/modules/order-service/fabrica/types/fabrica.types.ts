@@ -97,6 +97,10 @@ export interface MovelRead {
   custo_terceiro: number | null;
   custo: number | null;
   materiais: MaterialRead[];
+  /** F5: pedido de serviço à central de corte (móvel terceirizado). */
+  pedido_compra_id?: number | null;
+  pedido_codigo?: string | null;
+  pedido_situacao?: string | null;
 }
 
 export interface AmbienteRead {
@@ -188,4 +192,81 @@ export interface TrilhoRead {
   compra_liberada_motivo: string | null;
   data_instalacao: string | null;
   log: LogFaseRead[];
+}
+
+// ---------------------------------------------------------------------------
+// F4 — separação e margem; F5 — central de corte
+// ---------------------------------------------------------------------------
+
+export interface ItemSeparacao {
+  item_id: number;
+  produto_id: number;
+  descricao: string;
+  unidade: string;
+  localizacao: string | null;
+  codigos: string[];
+  quantidade: number;
+  separada: number;
+  falta: number;
+  saldo_estoque: number;
+}
+
+export interface SeparacaoRead {
+  numero_os: string;
+  cliente: string | null;
+  projeto: string | null;
+  fase: string;
+  pode_separar: boolean;
+  completa: boolean;
+  itens: ItemSeparacao[];
+}
+
+export interface InsumoMargem {
+  produto_id: number;
+  descricao: string;
+  quantidade: number;
+  separada: number;
+  custo_orcado: number;
+  custo_real: number | null;
+  custo_unitario_orcado: number | null;
+  custo_unitario_real: number | null;
+}
+
+export interface MovelMargem {
+  movel_id: number;
+  nome: string;
+  custo_orcado: number;
+  custo_real: number | null;
+  pedido_compra_id: number | null;
+}
+
+export interface MargemRead {
+  numero_os: string;
+  versao: number;
+  preco: number;
+  custo_orcado: number;
+  custo_real: number;
+  margem_orcada_bp: number | null;
+  /** Só com tudo separado e os serviços recebidos. */
+  margem_real_bp: number | null;
+  completo: boolean;
+  insumos: InsumoMargem[];
+  terceirizados: MovelMargem[];
+}
+
+export interface PedidoServicoEscrita {
+  fornecedor_id: number;
+  valor: number;
+  previsao_entrega: string | null;
+  condicao_pagamento: string | null;
+  observacao: string | null;
+}
+
+export interface PedidoServicoRead {
+  movel_id: number;
+  pedido_compra_id: number;
+  codigo: string;
+  situacao: string;
+  fornecedor_nome: string;
+  valor_total: number;
 }

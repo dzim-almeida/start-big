@@ -134,6 +134,10 @@ class MovelRead(BaseModel):
     custo_terceiro: Optional[int]
     custo: Optional[int] = Field(None, description="Materiais + terceiro. Nulo sem permissão de custo")
     materiais: list[MaterialRead]
+    # F5: o pedido de serviço à central de corte (móvel terceirizado).
+    pedido_compra_id: Optional[int] = None
+    pedido_codigo: Optional[str] = None
+    pedido_situacao: Optional[str] = None
 
 
 class AmbienteRead(BaseModel):
@@ -243,3 +247,99 @@ class LiberarCompra(BaseModel):
 
 class Instalacao(BaseModel):
     data_instalacao: Optional[date] = None
+
+
+# ---------------------------------------------------------------------------
+# F4 — separação bipada e margem
+# ---------------------------------------------------------------------------
+
+class ItemSeparacao(BaseModel):
+    """Uma linha da tela do almoxarife. Sem preço (DC5)."""
+
+    item_id: int
+    produto_id: int
+    descricao: str
+    unidade: str
+    localizacao: Optional[str] = None
+    codigos: list[str] = Field(default_factory=list, description="O que o leitor pode bipar")
+    quantidade: float
+    separada: float
+    falta: float
+    saldo_estoque: float
+
+
+class SeparacaoRead(BaseModel):
+    numero_os: str
+    cliente: Optional[str] = None
+    projeto: Optional[str] = None
+    fase: str
+    pode_separar: bool
+    completa: bool
+    itens: list[ItemSeparacao]
+
+
+class Separar(BaseModel):
+    """Um bipe (`codigo`) ou um item escolhido na lista (`item_id`)."""
+
+    codigo: Optional[str] = Field(None, max_length=100)
+    item_id: Optional[int] = Field(None, ge=1)
+    quantidade: float = Field(1, gt=0, le=100_000, description="Na unidade bipada (embalagem conta o fator)")
+
+
+class EstornoSeparacao(BaseModel):
+    item_id: int = Field(..., ge=1)
+    quantidade: float = Field(..., gt=0, le=100_000)
+    motivo: str = Field(..., min_length=3, max_length=500)
+
+
+class InsumoMargem(BaseModel):
+    produto_id: int
+    descricao: str
+    quantidade: float
+    separada: float
+    custo_orcado: int = Field(..., description="A fração usada (com a perda) ao custo congelado")
+    custo_real: Optional[int] = Field(None, description="Separado × custo do dia da separação; nulo sem separação")
+    custo_unitario_orcado: Optional[int] = None
+    custo_unitario_real: Optional[int] = None
+
+
+class MovelMargem(BaseModel):
+    movel_id: int
+    nome: str
+    custo_orcado: int
+    custo_real: Optional[int] = Field(None, description="O que foi recebido do pedido de serviço; nulo sem recebimento")
+    pedido_compra_id: Optional[int] = None
+
+
+class MargemRead(BaseModel):
+    numero_os: str
+    versao: int
+    preco: int
+    custo_orcado: int
+    custo_real: int = Field(..., description="Soma do que já é real (separado + serviços recebidos)")
+    margem_orcada_bp: Optional[int] = None
+    margem_real_bp: Optional[int] = Field(None, description="Só quando tudo foi separado e recebido")
+    completo: bool
+    insumos: list[InsumoMargem]
+    terceirizados: list[MovelMargem]
+
+
+# ---------------------------------------------------------------------------
+# F5 — terceirizados (central de corte)
+# ---------------------------------------------------------------------------
+
+class PedidoServicoEscrita(BaseModel):
+    fornecedor_id: int = Field(..., ge=1)
+    valor: int = Field(..., gt=0, le=2_000_000_000, description="O que a central de corte vai cobrar, centavos")
+    previsao_entrega: Optional[date] = None
+    condicao_pagamento: Optional[str] = Field(None, max_length=60)
+    observacao: Optional[str] = Field(None, max_length=2000, description="O que vai para a central (arquivo, medidas)")
+
+
+class PedidoServicoRead(BaseModel):
+    movel_id: int
+    pedido_compra_id: int
+    codigo: str
+    situacao: str
+    fornecedor_nome: str
+    valor_total: int

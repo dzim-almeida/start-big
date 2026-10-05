@@ -440,6 +440,13 @@ def atualizar(
 ) -> PedidoRead:
     pedido = carregar(db, token, pedido_id)
     _exigir(pedido, SituacaoPedido.RASCUNHO, acao="ser editado (volte-o a rascunho antes)")
+    if pedido.tipo == TipoPedido.SERVICO:
+        # O item de serviço não tem produto, e a edição de pedido é de produto:
+        # regravar apagaria o serviço. Cancele e faça outro pela OS da fábrica.
+        raise _erro(
+            status.HTTP_409_CONFLICT,
+            "Pedido de serviço (central de corte) não se edita aqui: cancele e faça outro pela OS da fábrica.",
+        )
     aplicar_escrita(db, pedido, dados)
     registrar_log(db, token, pedido, "EDITADO", pedido.situacao, pedido.situacao)
     db.flush()

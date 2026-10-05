@@ -147,3 +147,24 @@ def test_f3_colunas_e_log_sem_tocar_nas_os_e_idempotente():
         assert conexao.exec_driver_sql("SELECT fabrica_travar_etapas FROM configuracoes_os").scalar() == 0
         assert conexao.exec_driver_sql("SELECT numero_os, data_instalacao FROM ordens_servico").one() == (
             "OS-2026-000001", None)
+
+
+# --- F4: separação (c6f2d8a4b915) -------------------------------------------------------
+
+def test_f4_colunas_do_item_sem_tocar_nos_itens():
+    caminho = Path(__file__).parents[4] / "alembic" / "versions" / "c6f2d8a4b915_fabrica_separacao.py"
+    spec = importlib.util.spec_from_file_location("migracao_fabrica_f4", caminho)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.down_revision == "b4e9c1a7d2f3"
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conexao:
+        _base_f2(conexao)
+        with Operations.context(MigrationContext.configure(conexao)):
+            m.upgrade()
+            m.upgrade()
+        colunas = {c["name"] for c in sa.inspect(conexao).get_columns("ordem_servico_itens")}
+        assert {"quantidade_separada", "custo_real"} <= colunas
+        assert conexao.exec_driver_sql(
+            "SELECT nome, quantidade_separada, custo_real FROM ordem_servico_itens"
+        ).one() == ("Troca de óleo", None, None)

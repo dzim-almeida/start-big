@@ -14,6 +14,10 @@ import type {
   OrcamentoRead,
   OrcamentoResumo,
   TrilhoRead,
+  SeparacaoRead,
+  MargemRead,
+  PedidoServicoEscrita,
+  PedidoServicoRead,
 } from '../types/fabrica.types';
 
 export async function getInsumo(produtoId: number): Promise<InsumoRead> {
@@ -99,5 +103,52 @@ export async function definirInstalacao(numeroOs: string, dataInstalacao: string
   const { data } = await api.put<TrilhoRead>(`fabrica/os/${numeroOs}/instalacao`, {
     data_instalacao: dataInstalacao,
   });
+  return data;
+}
+
+// --- F4: separação e margem ---------------------------------------------------------
+
+export async function getSeparacao(numeroOs: string): Promise<SeparacaoRead> {
+  const { data } = await api.get<SeparacaoRead>(`fabrica/os/${numeroOs}/separacao`);
+  return data;
+}
+
+/** Um bipe (`codigo`) ou um item escolhido (`itemId`). Dá a baixa na hora. */
+export async function separar(
+  numeroOs: string,
+  alvo: { codigo?: string; itemId?: number },
+  quantidade = 1,
+): Promise<SeparacaoRead> {
+  const { data } = await api.post<SeparacaoRead>(`fabrica/os/${numeroOs}/separacao`, {
+    codigo: alvo.codigo ?? null,
+    item_id: alvo.itemId ?? null,
+    quantidade,
+  });
+  return data;
+}
+
+export async function estornarSeparacao(
+  numeroOs: string,
+  itemId: number,
+  quantidade: number,
+  motivo: string,
+): Promise<SeparacaoRead> {
+  const { data } = await api.post<SeparacaoRead>(`fabrica/os/${numeroOs}/separacao/estornar`, {
+    item_id: itemId,
+    quantidade,
+    motivo,
+  });
+  return data;
+}
+
+export async function getMargem(numeroOs: string): Promise<MargemRead> {
+  const { data } = await api.get<MargemRead>(`fabrica/os/${numeroOs}/margem`);
+  return data;
+}
+
+// --- F5: central de corte -------------------------------------------------------------
+
+export async function criarPedidoServico(movelId: number, pedido: PedidoServicoEscrita): Promise<PedidoServicoRead> {
+  const { data } = await api.post<PedidoServicoRead>(`fabrica/moveis/${movelId}/pedido-servico`, pedido);
   return data;
 }

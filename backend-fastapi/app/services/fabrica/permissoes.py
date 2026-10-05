@@ -14,6 +14,10 @@ alguma caixa dela está marcada.
 Quem só tem a permissão da OS (`servico`) — o marceneiro, o montador — vê a
 aba Orçamento sem custo, avança e volta etapas, marca a instalação. Não muda
 o orçamento nem libera compra.
+
+SEPARAR (F4) é de quem tem a OS ou a linha Recebimento de Compras (o
+almoxarife): a tela de separação não tem preço. A MARGEM é de quem vê custo.
+O pedido à central de corte (F5) é Gerenciar, e exige o módulo COMPRAS.
 """
 
 from typing import Any
@@ -25,6 +29,13 @@ PERMISSOES_CUSTO = ("view_fabrica", "manage_fabrica")
 
 permissao_os = check_permission(required_permission="servico")
 permissao_gerenciar = check_permission(required_permission=PERMISSOES_GERENCIAR)
+# Margem: só quem vê custo.
+permissao_custos = check_permission(required_permission=list(PERMISSOES_CUSTO))
+# Separar (F4): quem trabalha na OS OU o almoxarife da linha Recebimento de
+# Compras — a tela dele não mostra preço.
+permissao_separar = check_permission(required_permission=[
+    "servico", "recebimento_compra", "view_receiving", "receive_purchases", "manage_fabrica",
+])
 
 
 def pode_ver_custos(usuario_token: dict[str, Any]) -> bool:

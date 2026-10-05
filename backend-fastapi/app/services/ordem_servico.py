@@ -1023,6 +1023,16 @@ def _itens_de_produto(os_in_db: OSModel) -> list[OSItemModel]:
     ]
 
 
+def _quantidade_a_movimentar(item: OSItemModel) -> float:
+    """O que a finalização baixa (e o estorno devolve): o que a SEPARAÇÃO não levou.
+
+    Só a OS da fábrica separa (services/fabrica/separacao.py); em toda outra
+    `quantidade_separada` é nula e isto é `quantidade`, como sempre foi.
+    Separou tudo e finalizou = uma baixa só.
+    """
+    return max((item.quantidade or 0) - (item.quantidade_separada or 0), 0)
+
+
 def _movimentar_estoque_os(
     db: Session,
     os_in_db: OSModel,
@@ -1039,12 +1049,15 @@ def _movimentar_estoque_os(
     sub = usuario_token.get("sub")
 
     for item in _itens_de_produto(os_in_db):
+        quantidade = _quantidade_a_movimentar(item)
+        if quantidade <= 0:
+            continue
         produto = produto_crud.get_produto_by_id(db, produto_id=item.produto_id)
         mov_service.registrar_movimentacao(
             db,
             produto=produto,
             tipo=MovimentacaoTipo.SAIDA if saida else MovimentacaoTipo.ENTRADA,
-            quantidade=item.quantidade or 0,
+            quantidade=quantidade,
             origem=MovimentacaoOrigem.ORDEM_SERVICO,
             usuario_id=int(sub) if sub else None,
             usuario_nome=usuario_token.get("nome", "Sistema"),
@@ -1251,6 +1264,9 @@ def cancelar_ordem_servico(
     )
 
     os_in_db.status = OrdemServicoStatus.CANCELADA
+    # Fábrica: o que foi separado volta ao estoque (no-op nas outras OS).
+    from app.services.fabrica import separacao as separacao_fabrica
+    separacao_fabrica.devolver_tudo(db, os_in_db, usuario_token or {})
     trilho_fabrica.ao_cancelar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema", data.motivo)
 
     if data.motivo:

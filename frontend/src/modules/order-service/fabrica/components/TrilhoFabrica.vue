@@ -10,9 +10,10 @@
  * avança com motivo (fica no histórico).
  */
 import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { AxiosError } from 'axios';
-import { AlertTriangle, Check, ChevronRight, History, RotateCcw, Unlock } from 'lucide-vue-next';
+import { AlertTriangle, Check, ChevronRight, History, PackageCheck, RotateCcw, Unlock } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -48,6 +49,16 @@ const { data: trilho, refetch } = useQuery({
 watch(() => [props.fase, props.atualizadoEm], () => refetch());
 
 const pendentes = computed(() => trilho.value?.travas.filter((t) => !t.ok) ?? []);
+
+// F4: da "Separação e compra" em diante, o material se separa bipando.
+const router = useRouter();
+const ANTES_DA_SEPARACAO = ['MEDICAO', 'ELABORACAO', 'AGUARDANDO_APROVACAO', 'AGUARDANDO_SINAL'];
+const podeSeparar = computed(
+  () => !!trilho.value && trilho.value.aberta && !ANTES_DA_SEPARACAO.includes(trilho.value.fase),
+);
+function abrirSeparacao() {
+  router.push({ name: 'fabrica-separacao', params: { numeroOs: props.numeroOs } });
+}
 const historicoAberto = ref(false);
 
 const ROTULO_EVENTO: Record<string, string> = {
@@ -226,6 +237,13 @@ function aoMudarInstalacao() {
           @click="avancar.mutate(undefined)"
         >
           Avançar: {{ trilho.proxima_rotulo }} <ChevronRight :size="14" />
+        </BaseButton>
+        <BaseButton
+          v-if="podeSeparar"
+          type="button" size="sm" variant="ghost" class="flex items-center justify-center gap-1.5"
+          @click="abrirSeparacao"
+        >
+          <PackageCheck :size="14" /> Separação de material
         </BaseButton>
         <BaseButton
           v-if="!trilho.pode_comprar && podeGerenciar && trilho.sinal_exigido > 0"

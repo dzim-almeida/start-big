@@ -11,4 +11,6 @@ export const fabricaKeys = {
   orcamentos: (numeroOs: string) => [FABRICA_KEY, 'os', numeroOs, 'orcamentos'] as const,
   orcamento: (id: number) => [FABRICA_KEY, 'orcamento', id] as const,
   trilho: (numeroOs: string) => [FABRICA_KEY, 'os', numeroOs, 'trilho'] as const,
+  separacao: (numeroOs: string) => [FABRICA_KEY, 'os', numeroOs, 'separacao'] as const,
+  margem: (numeroOs: string) => [FABRICA_KEY, 'os', numeroOs, 'margem'] as const,
 };

@@ -129,6 +129,16 @@ class OrdemServicoItem(Base):
         doc="Móvel do orçamento (no item do móvel)",
     )
 
+    # F4 (D6/D7): na OS da fábrica a peça sai do estoque ao ser SEPARADA
+    # (bipada); o finalizar baixa só `quantidade - quantidade_separada`. Nulo em
+    # toda OS fora da fábrica = nada separado = a conta de sempre.
+    quantidade_separada: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True, doc="Quanto já saiu do estoque na separação"
+    )
+    custo_real: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="Custo médio do estoque na separação (centavos), para a margem real"
+    )
+
     ordem_servico: Mapped["OrdemServico"] = relationship(back_populates="itens")
     produtos: Mapped[Optional["Produto"]] = relationship(doc="Produto do catalogo associado")
     servico: Mapped[Optional["Servico"]] = relationship(doc="Servico do catalogo associado")

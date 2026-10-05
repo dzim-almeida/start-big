@@ -5,6 +5,8 @@
 #            F2: orçamento por móvel, com versões, que gera a OS.
 #            F3: o trilho (etapas, sinal, instalação) e a linha "Fábrica" de
 #            Cargos: orçar/aprovar/liberar compra = Gerenciar; custo = Visualizar.
+#            F4: separação bipada (baixa na hora) e margem orçada × real.
+#            F5: pedido de serviço à central de corte, ligado ao móvel.
 # ---------------------------------------------------------------------------
 #
 # O ROUTER INTEIRO só existe para o segmento Marcenaria (403
@@ -23,6 +25,12 @@ from app.core.segmentos.definicoes.marcenaria import SEGMENTO_MARCENARIA
 from app.db.session import get_db
 from app.schemas.fabrica import (
     Avancar,
+    EstornoSeparacao,
+    MargemRead,
+    PedidoServicoEscrita,
+    PedidoServicoRead,
+    SeparacaoRead,
+    Separar,
     Instalacao,
     InsumoBusca,
     LiberarCompra,
@@ -38,11 +46,16 @@ from app.schemas.fabrica import (
 )
 from app.services.fabrica import insumo as insumo_service
 from app.services.fabrica import orcamentos as orcamentos_service
+from app.core.modulos import requer_modulo
+from app.services.fabrica import separacao as separacao_service
+from app.services.fabrica import terceiros as terceiros_service
 from app.services.fabrica import trilho as trilho_service
 from app.services.fabrica.permissoes import (
     nome_do_usuario,
+    permissao_custos,
     permissao_gerenciar,
     permissao_os,
+    permissao_separar,
     pode_ver_custos,
 )
 from app.services.segmentos import get_segmento_atual
@@ -318,3 +331,96 @@ def definir_instalacao(
     return _handle_db_transaction(
         db, _e_devolve_o_trilho, trilho_service.definir_instalacao, numero_os, dados.data_instalacao
     )
+
+
+# ---------------------------------------------------------------------------
+# F4 — separação e margem
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/os/{numero_os}/separacao",
+    response_model=SeparacaoRead,
+    summary="O material da OS para separar (sem preço)",
+)
+def obter_separacao(
+    numero_os: str = Path(..., max_length=20),
+    user_token: Dict[str, Any] = Depends(permissao_separar),
+    db: Session = Depends(get_db),
+):
+    return separacao_service.listar(db, numero_os)
+
+
+@router.post(
+    "/os/{numero_os}/separacao",
+    response_model=SeparacaoRead,
+    summary="Bipar (ou escolher) o material separado — dá a baixa na hora",
+    description=(
+        "`codigo` (do produto ou da embalagem, que conta o fator) ou `item_id`. Só a partir de "
+        "\"Separação e compra\". Separar mais que o aprovado = 409."
+    ),
+)
+def separar(
+    dados: Separar,
+    numero_os: str = Path(..., max_length=20),
+    user_token: Dict[str, Any] = Depends(permissao_separar),
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db, separacao_service.separar, numero_os, user_token, dados.codigo, dados.item_id, dados.quantidade
+    )
+
+
+@router.post(
+    "/os/{numero_os}/separacao/estornar",
+    response_model=SeparacaoRead,
+    summary="Devolver ao estoque o que foi separado (com motivo)",
+)
+def estornar_separacao(
+    dados: EstornoSeparacao,
+    numero_os: str = Path(..., max_length=20),
+    user_token: Dict[str, Any] = Depends(permissao_separar),
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db, separacao_service.estornar, numero_os, user_token, dados.item_id, dados.quantidade, dados.motivo
+    )
+
+
+@router.get(
+    "/os/{numero_os}/margem",
+    response_model=MargemRead,
+    summary="Margem orçada × real",
+    description="Real = material separado ao custo do dia + serviços recebidos. A margem real só sai com tudo separado e recebido.",
+)
+def obter_margem(
+    numero_os: str = Path(..., max_length=20),
+    user_token: Dict[str, Any] = Depends(permissao_custos),
+    db: Session = Depends(get_db),
+):
+    return separacao_service.margem(db, numero_os)
+
+
+# ---------------------------------------------------------------------------
+# F5 — terceirizados
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/moveis/{movel_id}/pedido-servico",
+    response_model=PedidoServicoRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Pedido de serviço à central de corte para este móvel",
+    description=(
+        "Cria um pedido de Compras tipo SERVIÇO (rascunho), ligado ao móvel da versão aprovada. "
+        "Enviar, receber e pagar seguem em Compras. Exige o módulo COMPRAS."
+    ),
+    dependencies=[Depends(requer_modulo("COMPRAS"))],
+)
+def criar_pedido_servico(
+    dados: PedidoServicoEscrita,
+    movel_id: int = Path(..., ge=1),
+    user_token: Dict[str, Any] = Depends(permissao_gerenciar),
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(db, terceiros_service.criar_pedido, user_token, movel_id, dados)

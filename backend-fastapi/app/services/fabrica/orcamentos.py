@@ -46,6 +46,7 @@ from app.db.models.fabrica_orcamento import (
 )
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.ordem_servico_item import OrdemServicoItem
+from app.db.models.pedido_compra import PedidoCompra
 from app.db.models.produto import Produto
 from app.schemas.fabrica import (
     AmbienteRead,
@@ -188,6 +189,15 @@ def _resumo(orc: FabricaOrcamento) -> OrcamentoResumo:
     )
 
 
+def _pedido_do_movel(db: Session, mov: FabricaMovel) -> dict:
+    if mov.pedido_compra_id is None:
+        return {}
+    pedido = db.get(PedidoCompra, mov.pedido_compra_id)
+    if pedido is None:
+        return {}
+    return {"pedido_compra_id": pedido.id, "pedido_codigo": pedido.codigo, "pedido_situacao": pedido.situacao}
+
+
 def _ler(db: Session, orc: FabricaOrcamento, ver_custos: bool = True) -> OrcamentoRead:
     os_ = db.get(OrdemServico, orc.os_id)
     ambientes = [
@@ -201,6 +211,7 @@ def _ler(db: Session, orc: FabricaOrcamento, ver_custos: bool = True) -> Orcamen
                     medidas=mov.medidas, preco_venda=mov.preco_venda,
                     terceirizado=mov.terceirizado, custo_terceiro=mov.custo_terceiro,
                     custo=_custo_movel(mov, orc.perda_bp),
+                    **_pedido_do_movel(db, mov),
                     materiais=[
                         MaterialRead(
                             id=mat.id, produto_id=mat.produto_id, descricao=mat.descricao, consumo=mat.consumo,
@@ -479,6 +490,11 @@ def aprovar(db: Session, orcamento_id: int, usuario_nome: str) -> OrcamentoRead:
     os_ = db.get(OrdemServico, orc.os_id)
     _assert_os_aberta(os_)
     _exigir_insumos_validos(orc)
+    if any((i.quantidade_separada or 0) > 0 for i in os_.itens if i.fabrica_orcamento_id is not None):
+        raise _erro(
+            status.HTTP_409_CONFLICT,
+            "Já há material separado desta OS. Estorne a separação antes de aprovar outra versão.",
+        )
 
     outras = db.scalars(
         select(FabricaOrcamento).where(FabricaOrcamento.os_id == os_.id, FabricaOrcamento.id != orc.id)
