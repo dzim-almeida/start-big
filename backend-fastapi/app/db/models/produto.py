@@ -55,6 +55,23 @@ class Produto(Base):
         Boolean, default=False, server_default="0", nullable=False,
         doc="Só vende em embalagem fechada (recusa a unidade avulsa no caixa)",
     )
+
+    # Marcenaria-fábrica, F1 (docs/marcenaria-fabrica-plano.md, D2/D3): o
+    # produto como INSUMO. O estoque continua na unidade de COMPRA (chapa,
+    # rolo, unidade); o orçamento fala em consumo (m², metro) e a conversão é
+    # services/fabrica/calculo.py. Nulos/false = produto comum, nada muda.
+    unidade_consumo: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True,
+        doc="Unidade em que o orçamento consome o insumo: M2, M ou UN (nulo = não é insumo)",
+    )
+    consumo_por_unidade: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc="Quanto UMA unidade de estoque rende, em inteiro: mm² por chapa, mm por rolo, unidades por UN",
+    )
+    sofre_perda: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="A perda do orçamento (%) entra na quantidade deste insumo (MDF e fita sim, ferragem não)",
+    )
     
     # Relação Lado "Muitos" (Produto) para "Um" (Fornecedor)
     # Tipagem simplificada: Um produto tem UM fornecedor (ou None, devido à FK SET NULL)

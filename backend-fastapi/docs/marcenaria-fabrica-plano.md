@@ -1,364 +1,574 @@
 # Plano: Marcenaria-fábrica (projeto → orçamento → produção → compra → instalação)
 
-Escrito em 04/10/2026, na branch `feat/compras`. Junta três fontes:
+Escrito em 04/10/2026 e **revisado em 05/10/2026 contra o código** (branch
+`feat/compras`, em cima de `529fc34`). Esta versão é para implementar: cada
+fase diz o que muda no banco, na API, nas telas e o que os testes provam.
 
-1. o **resumo do Alan** — "Módulo de Compras para Marcenaria — Especificação de
-   Requisitos" (RC01–RC20, RNC01–RNC05, DC1–DC7, OS em 11 estados);
-2. o **plano do segmento** (`docs/segmento-marcenaria-plano.md`, 16/09) e as
-   decisões que o dono da fábrica tomou naquele dia;
-3. o **código de hoje**, incluindo o módulo de Compras (fases 1–6,
-   `docs/compras-plano.md`).
+Fontes: o resumo do Alan ("Módulo de Compras para Marcenaria", RC01–RC20,
+DC1–DC7), o plano do segmento (`docs/segmento-marcenaria-plano.md`, 16/09), o
+módulo de Compras (`docs/compras-plano.md`, §12–§17) e o código.
 
-**Nada começa a ser codado antes da §2 (o conflito) e da §4 (decisões)
-estarem respondidas pelo dono da fábrica.**
+---
+
+## O que mudou na revisão de 05/10
+
+| Versão de 04/10 | Revisão (05/10) | Por quê |
+|---|---|---|
+| Tabela nova `projetos` (PRJ-000123) | **Não existe.** O projeto é o `ObjetoServico` da OS | Na marcenaria, o objeto da OS **já é** o Projeto ("Cozinha apto 302", `rotulo_objeto_singular = "Projeto"`), e o código PRJ já é gerado do número da OS (`identificador`) |
+| A OS nasce na aprovação do orçamento, mas as 4 primeiras etapas ficavam na OS | **A OS nasce no primeiro contato** (como hoje) e o orçamento pendura nela | Resolvia uma contradição: a etapa "Medição" estava numa OS que ainda não existia |
+| "Aprovado" como etapa | **Evento** (vai para o log), não etapa parada | Ninguém fica em "Aprovado": aprovar já reserva e passa para "Aguardando sinal". Ficam **10 etapas guardadas** |
+| D0 (travar ou só mostrar) bloqueava o plano | **Duas chaves**: `modo_fabrica` e `fabrica_travar_etapas`. A segunda vem **desligada** (só avisa) | O dono responde ligando ou desligando a chave; o código é o mesmo |
+| Item da OS = cada linha da lista de material | Item da OS = **um por móvel** (o que o cliente compra) + **um por insumo somado** (o que sai do estoque) | O cliente compra a cozinha, não a chapa; e a chapa é dividida entre os móveis no corte (arredondar por móvel compraria chapa demais) |
+| Baixa "na separação", sem dizer como | `quantidade_separada` no item; a baixa e a reserva usam **quantidade − separada** | Uma regra só para baixa, reserva, cancelamento e reabertura. Nulo nos outros segmentos = conta de hoje |
+| Sinal "liquidado no financeiro" | Recebido = **mesma soma da finalização** (`valor_entrada` + `adiantamentos_anteriores` + pagamentos) | Já é o que a OS conta como dinheiro recebido; nenhum lugar novo |
+
+**Nada disso depende do dono para começar.** As perguntas da §12 ajustam
+valores padrão (sinal de 50%, travas ligadas ou não), não o desenho.
 
 ---
 
 ## Resumo em uma página
 
-A marcenaria de hoje no StartBig é uma **OS de balcão bem vestida**: tipo de
-trabalho (Planejados / Reforma), ambiente, módulos em texto, endereço da obra,
-adiantamento, aprovação por item e um campo **Etapa** só informativo. O preço
-vem do catálogo. Funciona para a marcenaria de bairro.
+A marcenaria de hoje é uma **OS de balcão bem vestida**: tipos Planejados e
+Reforma, ambiente, módulos em texto, endereço da obra, adiantamento, aprovação
+por item e um campo **Etapa** só informativo. Continua assim para quem não
+ligar o modo fábrica.
 
-A **fábrica de planejados** precisa de outra coisa: orçar **por móvel, com a
-lista de material** (chapa, fita, ferragem) e o fator de perda; aprovar e
-**congelar** o orçamento; **comprar** o que falta só depois do sinal; separar,
-produzir, instalar — com **travas** entre as etapas e a **margem real**
-comparada com a orçada.
+O **modo fábrica** (chave da loja, só no segmento Marcenaria, só para OS do tipo
+*Planejados*) acrescenta à mesma OS:
 
-A boa notícia: metade disso já existe. O "item da OS congelado" do resumo é o
-`OrdemServicoItem` de hoje (produto, quantidade, custo congelado), e o módulo
-de Compras (fase 6) **já reserva, sugere a compra, liga o pedido à OS e mostra
-o painel "Compras desta OS"** em cima dele. O que falta é o **começo**
-(projeto e orçamento por móvel com lista de material) e o **trilho** (as 11
-etapas com travas).
+1. **Insumo** no produto: chapa em m², fita em metro, e a marca "sofre perda" (F1).
+2. **Orçamento por móvel** com versões: ambiente → móvel → lista de material.
+   Aprovar uma versão **escreve os itens na OS**, já com a perda e o custo
+   congelados (F2).
+3. **Trilho de 10 etapas** com travas (ou avisos), log e o **sinal** liberando
+   a compra (F3).
+4. **Separação bipada** que dá a baixa na hora e grava o **custo real**, e a
+   **margem orçada × real** (F4).
+5. **Central de corte** como pedido de serviço do móvel (F5).
 
-| Já existe | Falta (este plano) |
-|---|---|
-| Segmento Marcenaria: tipos, ambiente, endereço da obra, Etapa (informativa) | **Projeto (PRJ)** e **orçamento em árvore**: ambiente → móvel → lista de material |
-| Adiantamento (valor), aprovação por item | **Sinal** que libera a compra e a produção (RC04) |
-| OS com itens de produto e custo congelado | **Aprovar o orçamento gera a OS**, já com a perda na quantidade (RC01) |
-| Compras: reserva calculada, necessidade por OS, pedido × OS, painel, recebimento, contas | **Unidade de consumo × compra** (m² × chapa) no insumo (RC02) |
-| Baixa de estoque ao fechar a OS | **11 etapas com travas** e log (RC20, RC18) |
-| — | **Margem orçada × real** (RC14), **central de corte** (RC15/16), **separação com bipagem** |
+Compras (fases 1–6) já faz o resto: reserva calculada, necessidade por OS,
+pedido ligado à OS, recebimento, contas e o painel "Compras desta OS".
 
-**Custo estimado: 4 a 6 semanas de código**, em 6 entregas que já servem uma de
-cada vez (§8). A primeira entrega útil (orçamento por móvel que gera a OS) sai
-em ~1,5 semana.
+**Custo: 4 a 5 semanas**, em fases que já servem uma de cada vez. A primeira
+entrega útil (orçamento por móvel que gera a OS) sai em ~2 semanas (F1 + F2).
 
 ---
 
 ## 0. O que "pronto" significa
 
-| # | Critério de aceite | Hoje |
+| # | Critério de aceite | Fase |
 |---|---|---|
-| F1 | Cadastrar **insumos** (chapa, fita, ferragem) com unidade de consumo e de compra (m² × chapa) e a marca "sofre perda" | o produto não sabe converter m² em chapa |
-| F2 | Abrir um **Projeto PRJ-000123** do cliente, com endereço da obra | o endereço é campo da OS |
-| F3 | Montar o **orçamento**: ambientes → móveis (com medidas) → lista de material, com o custo puxado do cadastro | só itens soltos do catálogo |
-| F4 | Ter **versões** do orçamento e aprovar uma só | não existe |
-| F5 | Aprovar **gera a OS** com os insumos já com a perda (só em quem "sofre perda") e os valores **congelados** | a OS é montada à mão |
-| F6 | A compra só libera **depois do sinal pago**; o gestor pode liberar antes, com justificativa no histórico | não há trava |
-| F7 | As Necessidades mostram o que falta **por OS**, em chapas inteiras | **já funciona** (Compras fase 6), falta só a conversão m² → chapa |
-| F8 | O almoxarife **separa bipando**; a baixa acontece na separação, não só no fechamento | a baixa é no fechamento |
-| F9 | A OS segue as **11 etapas** e o botão de avançar diz **o que trava** | Etapa é campo livre |
-| F10 | A Visão Geral mostra **margem orçada × real** | não existe |
-| F11 | A **central de corte** é um pedido de serviço ligado ao móvel | não existe |
-| F12 | **Oficina, assistência, serigrafia, PDV e a marcenaria de bairro continuam idênticos** | cláusula de não-regressão |
+| F1 | Cadastrar insumo: chapa 2750×1850 em m², fita em rolo de 50 m, ferragem em unidade, com "sofre perda" | F1 |
+| F2 | Na OS de Planejados (modo fábrica), montar o orçamento: ambientes → móveis (LxAxP) → material, com o custo puxado do cadastro | F2 |
+| F3 | Ter versões do orçamento, enviar, aprovar uma só; recusar ou vencer as outras | F2 |
+| F4 | Aprovar escreve na OS os móveis (preço) e os insumos somados com a perda, arredondados para cima, custo congelado | F2 |
+| F5 | As Necessidades de Compras pedem **chapas inteiras** para a OS aprovada | F2 (de graça, via fase 6) |
+| F6 | A OS segue as 10 etapas; o botão de avançar diz o que falta; tudo vai para o log | F3 |
+| F7 | Sem sinal, a OS **não gera compra**; o gestor libera antes, com motivo | F3 |
+| F8 | A fila de Compras atende primeiro quem **instala primeiro** | F3 |
+| F9 | O almoxarife separa bipando, no PC ou no celular; a baixa acontece ali e o fechamento não baixa de novo | F4 |
+| F10 | A OS mostra margem orçada × real | F4 |
+| F11 | O móvel terceirizado tem pedido de serviço à central de corte | F5 |
+| **F12** | **Oficina, assistência, serigrafia, PDV, a marcenaria de bairro e a Reforma de móveis continuam idênticos** | todas |
 
-F12 manda em todo o resto.
-
----
-
-## 1. Onde estamos (04/10/2026)
-
-**Segmento Marcenaria** (`core/segmentos/definicoes/marcenaria.py`): tipos
-*Planejados* e *Reforma de móveis*; campos `nome_projeto`, `endereco_obra`,
-`ambiente` (lista fechada), `modulos` (lista de texto), `etapa` com as
-palavras do dono (*Aguardando aprovação → Aguardando material → Separação →
-Corte → Montagem interna → Montagem externa → Concluído*). Capacidades:
-aprovação por item, garantia por prazo, imagem na entrada.
-
-**Decisões do dono em 16/09** (plano do segmento, §3):
-1. dois tipos de trabalho;
-2. **Etapa é campo, não workflow** — sem automação, sem trava;
-3. "Aguardando Peças" fica como status (a Etapa diz "Aguardando material");
-4. adiantamento em valor;
-5. **preço vem do catálogo** — "nenhum motor de m² ou de chapa".
-
-**Módulo de Compras** (fases 1–6, `feat/compras`): fornecedores do produto,
-necessidades (mínimo, venda e **OS**), pedido, recebimento com bipagem e
-parcial, XML × pedido, contas a pagar, previsão no fluxo, relatórios,
-**reserva calculada pelas OS abertas** (peça aprovada = estoque com dono),
-**pedido ligado à OS** e **painel "Compras desta OS"** (RC03, RC06, RC08).
-
-**OS hoje:** 7 status comuns a todos os segmentos (ABERTA, EM_ANDAMENTO,
-AGUARDANDO_PECAS, AGUARDANDO_APROVACAO, AGUARDANDO_RETIRADA, FINALIZADA,
-CANCELADA); itens com produto, quantidade (decimal), valor e
-`custo_unitario` congelado; baixa do estoque ao **finalizar**.
+F12 manda em todo o resto: tudo entra por **coluna nula, tabela nova e chave
+desligada**.
 
 ---
 
-## 2. O conflito a resolver ANTES de tudo
+## 1. Onde estamos (05/10/2026), conferido no código
 
-O resumo do Alan e as decisões do dono em 16/09 **dizem coisas diferentes**:
+**Segmento** (`app/core/segmentos/definicoes/marcenaria.py`): tipos `planejados`
+e `reforma_moveis`, gravados em `ordens_servico.dados_adicionais.tipo_trabalho`;
+campos `nome_projeto` (→ `objetos_servico.modelo`), `endereco_obra`, `ambiente`,
+`modulos`, `material`, `acabamento`, `ferragens`, `montagem_incluida`, `etapa`
+(lista do dono). Capacidades: aprovação por item, imagem na entrada, garantia.
+Código do projeto gerado: `PRJ-…` a partir do número da OS.
 
-| Tema | Dono, 16/09 | Resumo do Alan |
-|---|---|---|
-| Etapas | Informação para o dono; "não avança sozinha, não trava" | 11 estados com **travas** e log obrigatório |
-| Preço | Do catálogo ("cozinha — metro linear"); **sem motor de chapa** | Orçamento em árvore com **lista de material por móvel** e perda |
-| Compra | — | Só depois do **sinal**; necessidade por insumo × OS |
+**OS** (`app/db/models/ordem_servico.py`, `services/ordem_servico.py`):
+- 7 status; `update_ordem_servico` deixa trocar livremente, menos para
+  FINALIZADA/CANCELADA (têm endpoint próprio).
+- Item (`ordem_servico_item.py`): `tipo` PRODUTO/SERVICO, `produto_id` ou
+  `servico_id` **ou nenhum** (item avulso), `quantidade` float, `valor_unitario`,
+  `custo_unitario` congelado, `status_aprovacao`, `visivel_cliente` (peça
+  embutida que não sai na via do cliente).
+- Baixa: `_itens_de_produto` + `_movimentar_estoque_os`, **só ao finalizar**;
+  estorno ao cancelar uma finalizada e ao reabrir.
+- Recebido: `sum(pagamentos) + adiantamentos_anteriores + valor_entrada`.
+- Fotos: `ordem_servico_foto.py`.
 
-Não é erro de ninguém: 16/09 foi a **marcenaria de balcão** (as duas lojas
-começando), o resumo é a **fábrica** funcionando de verdade. Mas as duas não
-cabem na mesma tela sem uma escolha.
+**Configuração da OS** (`configuracoes_os`, 1:1 com a empresa): prazos,
+garantia, vias. É onde entra a chave do modo fábrica (padrão de
+`configuracoes_produtos.usar_embalagens`).
 
-**Recomendação (D0): "Modo fábrica", ligado POR LOJA.**
-- Desligado (padrão): a marcenaria fica **exatamente** como está — o que a
-  marcenaria de bairro usa hoje e o que o dono decidiu em 16/09.
-- Ligado (a fábrica de planejados): aparecem Projetos/Orçamento por móvel, as
-  11 etapas com travas, a separação bipada e a margem.
-- É uma configuração da loja (como "usar embalagens"), não um segmento novo —
-  o cadastro, a OS e os relatórios continuam os mesmos.
+**Compras** (`services/compras/demanda_os.py`, `necessidades.py`): reserva
+calculada pela **mesma regra** da baixa (`_itens_de_produto`); fila por
+`data_criacao` da OS; pedido ligado à OS por `pedido_compra_origens`; painel
+"Compras desta OS".
 
-**Pergunta ao dono da fábrica:** *"Hoje você quer o sistema travando a etapa
-(não deixa ir para Produção sem o material separado) ou só mostrando onde cada
-móvel está?"* A resposta decide se este plano começa.
+**Produto**: `unidade_medida` texto (UN, M2, M…). Custo: `estoque.custo_medio`
+(média ponderada), caindo para `estoque.valor_entrada` (último preço) quando
+nulo — é o `custo_atual` de `services/movimentacao_estoque.py`, e é ele que o
+orçamento copia e a separação grava como custo real. Não sabe converter m² em chapa.
 
 ---
 
-## 3. A ideia
+## 2. A ideia
 
 ```
- PROJETO PRJ-000123  (cliente, endereço da obra, medição + fotos)
-   └─ ORÇAMENTO v1, v2, v3…   (perda %, sinal %, validade)   ← uma versão é aprovada
-        └─ AMBIENTE  (Cozinha, Suíte…)
-             └─ MÓVEL  (Armário aéreo 1800×700×350, terceirizado?)
-                  └─ LISTA DE MATERIAL  (insumo, consumo em m²/m/un, custo copiado)
-
- APROVAR ─► gera a OS (a OS de hoje), CONGELADA:
-             item da OS = cada linha da lista de material, com a PERDA na
-             quantidade (só insumo que "sofre perda") e o custo do dia
-         ─► Compras já faz o resto: reserva calculada, necessidade em chapas,
-             pedido ligado à OS, recebimento, contas, painel da OS
-
- SINAL pago ─► libera a compra (RC04) e a etapa "Separação e compra"
- SEPARAÇÃO bipada ─► baixa no estoque NA HORA (não só ao fechar a OS)
- TRAVAS entre as 11 etapas (RC20) ─► log de cada transição (RC18)
- BAIXA ─► custo REAL no item ─► margem orçada × real (RC14)
+ OS PRJ-2026-000123  (já existe: cliente, Projeto "Cozinha apto 302",
+ │                    endereço da obra, fotos)  tipo Planejados, modo fábrica
+ │
+ ├─ fase_fabrica: MEDICAO → ELABORACAO → … (§6)
+ │
+ ├─ ORÇAMENTO v1, v2, v3…  (fabrica_orcamentos: perda %, sinal %, validade)
+ │    └─ AMBIENTE (Cozinha, Suíte…)
+ │         └─ MÓVEL (Armário aéreo 1800×700×350, preço de venda, terceirizado?)
+ │              └─ MATERIAL (insumo, consumo em m²/m/un, custo copiado)
+ │
+ └─ APROVAR v2 ──► escreve os ITENS DA OS (congelados):
+        • 1 item por MÓVEL: SERVICO avulso, valor = preço do móvel,
+          visível ao cliente  → é o que soma no total da OS
+        • 1 item por INSUMO (somado em todos os móveis): PRODUTO,
+          quantidade = ⌈ consumo total com perda ÷ consumo por chapa ⌉,
+          valor 0, invisível ao cliente, custo_unitario congelado
+                                   → é o que reserva, compra e baixa
+    ──► Compras faz o resto (fase 6): reserva, necessidade em chapas,
+        pedido ligado à OS, recebimento, contas, painel
 ```
 
-**Por que gerar a OS de hoje, e não tabelas novas `os_ambiente/os_movel/os_item`
-(como o resumo propõe):** o item da OS já tem quantidade, valor e custo
-congelado, e TODO o módulo de Compras (fase 6) já trabalha em cima dele.
-Tabelas paralelas obrigariam a refazer reserva, necessidade, pedido × OS e
-painel — e criariam duas OS diferentes no mesmo sistema. O item da OS ganha só
-duas colunas opcionais (ambiente e móvel) para agrupar a tela e a impressão.
+**Por que um item por insumo somado, e não por móvel:** o corte divide a chapa
+entre móveis. Três móveis que gastam 1 m² cada cabem em uma chapa;
+arredondando por móvel, o sistema compraria três. A divisão por móvel continua
+guardada no orçamento (`fabrica_materiais`), e a margem por móvel usa a fração
+de chapa, sem arredondar. A sobra (o que o arredondamento comprou a mais) volta
+ao saldo livre depois da separação (DC7).
+
+**Por que o móvel é item avulso de SERVIÇO:** `servico_id` e `produto_id`
+nulos já são aceitos ("itens customizados"), o item SERVIÇO não mexe no
+estoque, e a via do cliente lista exatamente o que ele comprou ("Armário aéreo
+1800×700×350 — R$ 2.400"). O insumo com `visivel_cliente = False` é o
+mecanismo que a oficina já usa para a peça embutida no serviço.
 
 ---
 
-## 4. Decisões
+## 3. Decisões
 
-### 4.1 Do resumo do Alan (DC1–DC7), com recomendação
+### 3.1 Do resumo do Alan (DC1–DC7)
 
-| # | Decisão | Recomendação |
+| # | Decisão | Como fica |
 |---|---|---|
-| DC1 | Compra antes do sinal | **Proibida por padrão**; o gestor libera por OS, com justificativa no histórico (RC04) |
-| DC2 | Alocação do que chega | **Data de instalação**; sem ela, data de aprovação; o gestor pode mudar (RC12). Hoje a fila de Compras é por abertura da OS — muda para instalação quando a OS tiver a data |
-| DC3 | Perda na quantidade | **Na quantidade também**, para reserva e compra (RC01) — sem isso o corte para no meio |
-| DC4 | Título a pagar | **No recebimento, proporcional** — já é assim no módulo de Compras (D8) |
-| DC5 | Custo para o almoxarife | **Oculto** — já é assim (linha Recebimento de Cargos, D14) |
-| DC6 | Montador terceirizado | Depende da loja piloto (RC17) — pergunta §11 |
-| DC7 | Sobra de chapa | **Volta ao saldo livre** depois da separação da OS |
+| DC1 | Compra antes do sinal | **Bloqueada por padrão**; o gestor libera por OS, com motivo no log (RC04) |
+| DC2 | Alocação do que chega | Pela **data de instalação**; sem ela, pela abertura da OS (como hoje) (RC12) |
+| DC3 | Perda na quantidade | **Sim**, para reserva e compra, só em insumo que "sofre perda" (RC01) |
+| DC4 | Título a pagar | No recebimento, proporcional — já é assim em Compras (D8) |
+| DC5 | Custo para o almoxarife | Oculto — já é assim em Compras (D14); a tela de separação não mostra custo |
+| DC6 | Montador terceirizado | Fica para depois do piloto (§12, pergunta 7) |
+| DC7 | Sobra de chapa | Volta ao saldo livre: separa-se a quantidade arredondada, a sobra física fica na prateleira e é contada no próximo inventário. Sem "retalho" no sistema nesta versão |
 
-### 4.2 Novas (deste plano)
+### 3.2 Deste plano
 
-| # | Decisão | Recomendação | Por quê |
-|---|---|---|---|
-| D0 | Modo fábrica | **Configuração por loja**, desligada por padrão (§2) | Não quebrar a marcenaria de balcão nem a decisão de 16/09 |
-| D1 | Onde mora a OS da fábrica | **A OS de hoje**, gerada pela aprovação (§3) | Reaproveita Compras inteiro; uma OS só no sistema |
-| D2 | Insumo | **Produto do catálogo** com 3 campos novos: `unidade_consumo` (M2, M, UN), `consumo_por_unidade` (inteiro: mm² por chapa, mm por rolo) e `sofre_perda` | Sem cadastro paralelo; estoque, compra e XML continuam iguais |
-| D3 | Unidade do estoque | **A de compra** (chapa, rolo, unidade). A lista de material fala em m²/m; a conversão é na aprovação, **arredondando para cima** | É o que se conta na prateleira e o que vem na nota |
-| D4 | Inteiros (RNC01) | Dentro do orçamento: **mm, mm², centavos, pontos-base**. O estoque continua decimal (D3 do plano de Compras) | Mesma regra já usada em Compras |
-| D5 | Etapas | Coluna nova `fase_fabrica` na OS (só no modo fábrica); o **status de sempre** é derivado dela | Os outros segmentos não enxergam as 11 etapas |
-| D6 | Baixa na separação | No modo fábrica, **bipar na separação dá a baixa** e o fechamento não baixa de novo | É o que o resumo pede (RC14) sem mudar a OS dos outros |
-| D7 | Margem real | `custo_real` no item da OS, gravado na baixa; margem real = mesma fórmula da orçada | O custo congelado nunca muda (RC11) |
-| D8 | Central de corte | Pedido de **SERVIÇO** (o `tipo` já existe no pedido desde a fase 2) ligado ao **móvel** | RC15/16 sem tabela nova de pedido |
-| D9 | Medição | **Vistoria** do segmento (o mecanismo da oficina) com o checklist de ambiente | Plano do segmento, 5.6 |
+| # | Decisão | Como fica |
+|---|---|---|
+| D0 | Modo fábrica | `configuracoes_os.modo_fabrica` (bool, padrão **false**). Só tem efeito se `empresa.segmento == "marcenaria"`. Ligado, toda OS **nova** do tipo *Planejados* nasce com `fase_fabrica = MEDICAO`. Reforma e as OS antigas não mudam |
+| D0b | Travar ou avisar | `configuracoes_os.fabrica_travar_etapas` (bool, padrão **false**). Desligado: a trava vira aviso e o usuário avança confirmando um motivo, que vai para o log. Ligado: não avança. A resposta do dono à pergunta D0 é só o valor desta chave |
+| D0c | Desligar o modo depois | OS que já têm `fase_fabrica` continuam no trilho até fechar; só as novas deixam de nascer nele. Nunca apagar `fase_fabrica` |
+| D1 | Onde mora o orçamento | Pendurado na OS (`fabrica_orcamentos.os_id`). Uma OS, várias versões, **uma aprovada** |
+| D2 | Insumo | Produto do catálogo + 3 colunas: `unidade_consumo` (M2, M, UN), `consumo_por_unidade` (inteiro: mm² por chapa, mm por rolo, 1 por unidade), `sofre_perda` |
+| D3 | Unidade do estoque | A **de compra** (chapa, rolo, unidade). O orçamento fala em m²/m; a conversão é na aprovação, **arredondando para cima** |
+| D4 | Inteiros | Dentro do orçamento: mm, mm², centavos, pontos-base (1000 = 10%). O estoque continua decimal |
+| D5 | Etapas | Coluna `fase_fabrica` na OS. O **status de sempre é derivado** dela (§6) e não pode ser trocado à mão nessas OS |
+| D6 | Baixa na separação | `quantidade_separada` (float, nulo) no item. Separar baixa **a diferença**; finalizar baixa `quantidade − separada`; cancelar estorna o separado; a reserva conta `quantidade − separada` |
+| D7 | Custo real | `custo_real` (centavos, nulo) no item: custo médio do estoque no momento da separação. O `custo_unitario` congelado nunca muda (RC11) |
+| D8 | Central de corte | Pedido de compra `tipo = SERVICO` (já existe desde a fase 2) ligado ao **móvel** (`fabrica_moveis.pedido_compra_id`) |
+| D9 | Medição | Fotos da OS (já existem) + medidas do móvel no orçamento. Checklist de vistoria fica fora (§10) |
+| D10 | Preço do móvel | Digitado por móvel. O sistema mostra o custo e **sugere** custo × (1 + `margem_lucro_padrao` de Produtos). Não há tabela de preço por m² |
+| D11 | Aprovação por item | Na OS da fábrica, quem aprova é a **versão**. "Aprovou a cozinha, deixou o closet" = nova versão sem o closet. Os itens já nascem APROVADO |
+| D12 | Mudar depois de aprovado | Permitido até a primeira separação: aprovar outra versão **troca** os itens gerados pela anterior. Depois de separar, só com estorno da separação |
+| D13 | Licença | Nesta versão, sem módulo pago próprio: a chave basta. Orçamento, trilho e separação funcionam **sem** o módulo COMPRAS; necessidade/pedido/painel exigem COMPRAS, como hoje. Se o Alan quiser cobrar, vira `requer_modulo("FABRICA")` no router — uma linha |
 
 ---
 
-## 5. Modelo de dados
+## 4. Modelo de dados
 
-Tudo novo é aditivo; migrations decidem pela ausência (modelo `965c71a2da9a`).
+Tudo aditivo. Tabelas novas nascem pelo `create_all()`; colunas novas vão em
+migration que decide pela **ausência da coluna** (modelo `965c71a2da9a`). Os
+nomes levam o prefixo `fabrica_` porque `orcamentos` já é o orçamento de venda
+do PDV.
 
 ```
-produtos  (+3 colunas, nulas/false — nada muda para quem não usa)
-├── unidade_consumo      VARCHAR(4)  nulo   M2 | M | UN
-├── consumo_por_unidade  INT nulo           mm² por chapa (2750×1850 = 5.087.500), mm por rolo
-└── sofre_perda          BOOL default false  MDF e fita sim, ferragem não
+produtos (+3, F1)
+├── unidade_consumo      VARCHAR(4)  nulo     M2 | M | UN
+├── consumo_por_unidade  INTEGER     nulo     mm² por chapa (2750×1850 = 5.087.500),
+│                                             mm por rolo (50 m = 50.000), 1 por unidade
+└── sofre_perda          BOOLEAN     false    MDF e fita sim, ferragem não
 
-projetos (nova)
-├── id, numero (PRJ-000123), cliente_id, endereco_obra, observacao
-├── medido_por, medido_em, fotos (via anexos existentes)
+configuracoes_os (+2, F2/F3)
+├── modo_fabrica            BOOLEAN false
+└── fabrica_travar_etapas   BOOLEAN false
+
+fabrica_orcamentos (nova, F2) — as versões
+├── id, os_id FK (CASCADE), versao INT  (única por OS)
+├── situacao   RASCUNHO | ENVIADO | APROVADO | RECUSADO | VENCIDO
+├── perda_bp INT (1000 = 10%), sinal_bp INT (5000 = 50%), validade DATE nulo
+├── total INT (centavos, soma dos preços), custo_total INT (centavos)
+├── observacao TEXT nulo
+├── enviado_em, aprovado_em, aprovado_por (nome), recusado_motivo
 └── criado_em, atualizado_em
 
-orcamentos_projeto (nova) — versões
-├── id, projeto_id, versao INT, situacao  RASCUNHO | ENVIADO | APROVADO | RECUSADO | VENCIDO
-├── perda_bp INT (1000 = 10%), sinal_bp INT (5000 = 50%), validade DATE
-├── total INT (centavos, calculado), aprovado_em, aprovado_por
-└── os_id FK nulo  ← a OS gerada na aprovação
+fabrica_ambientes (nova, F2): id, orcamento_id FK (CASCADE), nome, ordem
+fabrica_moveis (nova, F2):    id, ambiente_id FK (CASCADE), nome,
+                              largura_mm, altura_mm, profundidade_mm (nulos),
+                              preco_venda INT, terceirizado BOOL,
+                              custo_terceiro INT (centavos, nulo), ordem,
+                              pedido_compra_id FK nulo (F5)
+fabrica_materiais (nova, F2): id, movel_id FK (CASCADE), produto_id FK,
+                              consumo INT (na unidade de consumo: mm², mm, un),
+                              custo_unitario INT (centavos POR UNIDADE DE COMPRA,
+                                                  copiado do cadastro ao incluir)
 
-orcamento_ambientes (nova): id, orcamento_id, nome, ordem
-orcamento_moveis (nova): id, ambiente_id, nome, largura_mm, altura_mm, profundidade_mm,
-                         terceirizado BOOL, custo_terceiro INT, preco_venda INT, ordem
-orcamento_materiais (nova): id, movel_id, produto_id, consumo INT (na unidade de consumo),
-                            custo_unitario INT (copiado do cadastro ao incluir)
+ordens_servico (+, nulos)
+├── fase_fabrica            VARCHAR(30)   F3 (F2 já grava MEDICAO/ELABORACAO/…)
+├── data_instalacao         DATE          F3
+├── compra_liberada_em      DATETIME      F3
+├── compra_liberada_por     VARCHAR(100)  F3
+└── compra_liberada_motivo  TEXT          F3
 
-ordens_servico (+ colunas nulas, só modo fábrica)
-├── projeto_id, orcamento_id
-├── fase_fabrica  VARCHAR(30)  ← as 11 etapas (D5)
-├── data_instalacao  DATE      ← alocação (DC2) e alerta de atraso (RC08)
-└── compra_liberada_por / compra_liberada_em / compra_liberada_motivo  (RC04)
+ordem_servico_itens (+, nulos)
+├── fabrica_orcamento_id   FK nulo   F2  ← marca o item GERADO pela aprovação
+├── fabrica_movel_id       FK nulo   F2  ← no item do móvel
+├── quantidade_separada    FLOAT     F4
+└── custo_real             INTEGER   F4
 
-ordem_servico_itens (+ colunas nulas)
-├── ambiente, movel        VARCHAR — agrupar tela e impressão
-├── movel_orcamento_id     FK nulo
-├── separado_em            DATETIME nulo  ← baixa na separação (D6)
-└── custo_real             INT nulo        ← margem real (D7)
-
-os_fases_log (nova) — só INSERT (RC18)
-└── os_id, fase_anterior, fase_nova, usuario, ocorrido_em, motivo
+fabrica_fases_log (nova, F3) — só INSERT (RC18)
+└── id, os_id, fase_anterior, fase_nova, evento (AVANCO, RETROCESSO,
+    APROVACAO, LIBERACAO_COMPRA, AVISO_IGNORADO), motivo, usuario, ocorrido_em
 ```
 
-**Cálculo da quantidade na aprovação (RC01 + RC02 + D3), puro e testado:**
+**Migrations (uma por fase):** F1 `produtos`; F2 `configuracoes_os.modo_fabrica`,
+`ordens_servico.fase_fabrica`, `ordem_servico_itens.fabrica_*`; F3 o resto da
+OS e `fabrica_travar_etapas`; F4 `quantidade_separada` e `custo_real`.
 
+---
+
+## 5. Cálculos (`app/services/fabrica/calculo.py`, funções puras)
+
+```python
+def consumo_com_perda(consumo: int, perda_bp: int, sofre_perda: bool) -> int:
+    # ⌈ consumo × (10000 + perda_bp) ÷ 10000 ⌉, em inteiro (sem float)
+    if not sofre_perda: return consumo
+    return -(-consumo * (10000 + perda_bp) // 10000)
+
+def quantidade_de_compra(consumo_total: int, consumo_por_unidade: int) -> int:
+    # ⌈ consumo_total ÷ consumo_por_unidade ⌉  — chapas, rolos, unidades
+    return -(-consumo_total // consumo_por_unidade)
+
+def custo_do_material(consumo: int, perda_bp, sofre_perda, consumo_por_unidade,
+                      custo_unitario: int) -> int:
+    # fração de chapa, sem arredondar a chapa — é o custo do MÓVEL
+    # round_half_up(consumo_com_perda × custo_unitario ÷ consumo_por_unidade)
+
+def itens_da_aprovacao(orcamento) -> list[ItemGerado]:
+    # móveis → 1 item SERVICO cada; insumos → somar consumo_com_perda por
+    # produto em TODOS os móveis, depois quantidade_de_compra UMA vez
 ```
-consumo_com_perda = ⌈ consumo × (10000 + perda_bp) ÷ 10000 ⌉   (só se sofre_perda)
-quantidade_os     = ⌈ consumo_com_perda ÷ consumo_por_unidade ⌉ (em chapas/rolos)
-```
 
-Exemplo do resumo: 12 m² de MDF, 10% de perda, chapa 2750×1850 →
-13,2 m² → 2,59 chapas → **3 chapas** na OS. A necessidade de compra já
-desconta o estoque livre e o que está a caminho (Compras fase 6).
+**Exemplos que viram teste (RNC04):**
+
+| Caso | Entrada | Resultado |
+|---|---|---|
+| Resumo | 12 m² MDF, perda 10%, chapa 2750×1850 | 13,2 m² → 2,59 → **3 chapas** |
+| Soma antes de arredondar | 3 móveis × 1 m², perda 10%, mesma chapa | 3,3 m² → 0,65 → **1 chapa** (não 3) |
+| Sem perda | 24 dobradiças, perda 10%, `sofre_perda = false` | **24** |
+| Fita | 37,5 m, perda 10%, rolo 50 m | 41,25 m → **1 rolo** |
+| Exato | 2 chapas exatas, perda 0 | **2** (não 3) |
+| Custo do móvel | 1 m² de chapa de R$ 300,00 (5,0875 m²), perda 10% | R$ 64,86 |
+
+**Validações:** insumo sem `unidade_consumo`/`consumo_por_unidade` não entra
+na lista de material (o erro aponta o produto e leva ao cadastro);
+`consumo_por_unidade > 0`; `perda_bp` entre 0 e 5000; `sinal_bp` entre 0 e 10000.
 
 ---
 
-## 6. As 11 etapas (modo fábrica)
+## 6. As 10 etapas
 
-| Etapa (`fase_fabrica`) | Responsável | Trava para sair | Status de sempre |
+| `fase_fabrica` | Rótulo | Status derivado | Trava para avançar | Quem avança |
+|---|---|---|---|---|
+| `MEDICAO` | Medição | ABERTA | ≥ 1 foto na OS | manual |
+| `ELABORACAO` | Em elaboração | ABERTA | versão com ≥ 1 móvel e preço > 0 | **enviar a versão** move sozinho |
+| `AGUARDANDO_APROVACAO` | Aguardando aprovação | AGUARDANDO_APROVACAO | uma versão aprovada | **aprovar** move sozinho (evento APROVACAO) |
+| `AGUARDANDO_SINAL` | Aguardando sinal | AGUARDANDO_APROVACAO | recebido ≥ sinal exigido **ou** compra liberada | manual (o botão mostra "faltam R$ X") |
+| `SEPARACAO_COMPRA` | Separação e compra | AGUARDANDO_PECAS | todo insumo com `quantidade_separada == quantidade` (RC20) | manual |
+| `EM_PRODUCAO` | Em produção | EM_ANDAMENTO | — (o campo `etapa` de hoje vira a sub-etapa: Corte, Montagem interna) | manual |
+| `PRONTO_EXPEDICAO` | Pronto para expedição | EM_ANDAMENTO | `data_instalacao` preenchida | manual |
+| `EM_INSTALACAO` | Em instalação | EM_ANDAMENTO | — | manual |
+| `VISTORIA_FINAL` | Vistoria final | AGUARDANDO_RETIRADA | — | manual |
+| `ENTREGUE` | Entregue | FINALIZADA | o `/finalizar` de sempre (saldo coberto) | **finalizar** move sozinho |
+
+- **Sinal exigido** = ⌈ total da versão aprovada × `sinal_bp` ÷ 10000 ⌉.
+  **Recebido** = `valor_entrada + adiantamentos_anteriores + Σ pagamentos`
+  (a soma da finalização).
+- **Avançar** só para a próxima. **Retroceder** para qualquer anterior, sempre
+  com motivo; não volta para antes de `SEPARACAO_COMPRA` se houver item separado
+  (estorne a separação antes). Voltar para `ELABORACAO` com versão aprovada
+  "desaprova" (D12).
+- **Cancelar** é o `/cancelar` de sempre; a fase fica onde estava e o log
+  registra. **Reabrir** uma ENTREGUE volta para `VISTORIA_FINAL`.
+- Com `fabrica_travar_etapas = false`, a trava vira aviso: o usuário confirma
+  com motivo e o log grava `AVISO_IGNORADO`. As automáticas (enviar, aprovar,
+  finalizar) não têm aviso, são sempre verdade.
+- `update_ordem_servico` passa a **recusar** `status` em OS com `fase_fabrica`
+  (o status vem da fase). Nas outras, nada muda.
+
+---
+
+## 7. API — router `/api/v1/fabrica` (`endpoints/fabrica.py`)
+
+Todas as rotas checam: segmento marcenaria, modo fábrica ligado (exceto
+leitura de OS que já tem fase) e a OS ser de fábrica. Erros em português, no
+padrão dos `*_exce` do projeto.
+
+| Método e rota | Faz | Fase |
+|---|---|---|
+| `GET /fabrica/os/{numero_os}/orcamentos` | lista as versões (resumo) | F2 |
+| `POST /fabrica/os/{numero_os}/orcamentos` | nova versão vazia ou **copiando** `{copiar_de: id}` | F2 |
+| `GET /fabrica/orcamentos/{id}` | a árvore inteira, com custos e totais calculados | F2 |
+| `PUT /fabrica/orcamentos/{id}` | **salva a árvore inteira** (só RASCUNHO); devolve com totais | F2 |
+| `POST /fabrica/orcamentos/{id}/enviar` | RASCUNHO → ENVIADO; OS → AGUARDANDO_APROVACAO | F2 |
+| `POST /fabrica/orcamentos/{id}/aprovar` | ENVIADO → APROVADO; escreve os itens; as outras ENVIADAS → RECUSADO | F2 |
+| `POST /fabrica/orcamentos/{id}/recusar` | `{motivo}` | F2 |
+| `GET /fabrica/os/{numero_os}/trilho` | fase, próxima, travas (`[{codigo, texto, ok}]`), sinal exigido/recebido, log | F3 |
+| `POST /fabrica/os/{numero_os}/fase` | `{fase, motivo?}`; 409 com a lista de travas se travado | F3 |
+| `POST /fabrica/os/{numero_os}/liberar-compra` | `{motivo}` obrigatório; só gestor | F3 |
+| `GET /fabrica/os/{numero_os}/separacao` | insumos: a separar, separado, local no estoque (sem custo) | F4 |
+| `POST /fabrica/os/{numero_os}/separacao` | `{codigo \| item_id, quantidade}` — bipe; baixa a diferença | F4 |
+| `POST /fabrica/os/{numero_os}/separacao/estornar` | `{item_id, quantidade, motivo}` | F4 |
+| `GET /fabrica/os/{numero_os}/margem` | por móvel e total: orçado × real (só quem vê custo) | F4 |
+| `POST /fabrica/moveis/{id}/pedido-servico` | cria o pedido SERVICO à central de corte | F5 |
+
+O "salvar a árvore inteira" (em vez de uma rota por ambiente/móvel/material)
+é de propósito: a tela edita a árvore em memória e salva de uma vez, o backend
+recalcula tudo e não há estado parcial. A árvore de uma cozinha tem dezenas de
+linhas, não milhares.
+
+`PUT /configuracoes/os` (já existe) ganha `modo_fabrica` e
+`fabrica_travar_etapas`. O schema da OS devolve `fase_fabrica` e
+`data_instalacao` (nulos para quem não usa).
+
+**Permissões** (linha "Fábrica" em Cargos, no padrão de
+`services/compras/permissoes.py`, fora da conta do nível do cargo):
+`orcar` (montar/enviar), `aprovar` (aprovar versão, liberar compra),
+`separar` (tela de separação), `avancar` (mudar fase). Ver custo e margem
+segue a regra de custo que já existe (D14 de Compras).
+
+---
+
+## 8. Telas (frontend)
+
+Pasta nova `frontend/src/modules/order-service/fabrica/` (components,
+composables, services, types, schemas), no padrão de `ordens/`. Tudo
+aparece **só** quando a OS tem `fase_fabrica`.
+
+| Tela | Onde | Fase |
+|---|---|---|
+| **Seção "Insumo de marcenaria"** no cadastro do produto: unidade de consumo; para M2, largura × altura da chapa em mm (o front calcula mm²); para M, comprimento do rolo; "sofre perda". Só no segmento marcenaria | `modules/products` | F1 |
+| **Chave "Modo fábrica"** e "Travar etapas" em Configurações › Ordens de Serviço, com texto explicando | `modules/configuracoes` | F2/F3 |
+| **Aba "Orçamento"** na OS: seletor de versão; árvore ambiente → móvel → material; consumo em m²/m/un (o front converte para inteiro); custo e preço sugerido por móvel; totais; botões Nova versão, Copiar, Enviar, Aprovar, Recusar | `fabrica/components/OrcamentoFabricaTab.vue` | F2 |
+| **Impressão do orçamento** (proposta ao cliente): ambientes, móveis com medidas e preço, total, sinal, validade. Sem material e sem custo | `fabrica/components/OrcamentoFabricaPrint.vue` | F2 |
+| **Trilho** no topo da OS: as 10 etapas, a atual destacada, botão "Avançar" que lista as travas, "Voltar" com motivo, log recolhível; sinal exigido × recebido; data de instalação | `fabrica/components/TrilhoFabrica.vue` | F3 |
+| **Separação** (`/fabrica/separacao/:numero_os`): lista de insumos com local na prateleira, campo do leitor sempre focado (o mesmo do Recebimento de Compras), barra de progresso, funciona no celular na rede da loja | `fabrica/views/SeparacaoView.vue` | F4 |
+| **Margem** na Visão Geral da OS: por móvel e total, orçado × real | `fabrica/components/MargemFabrica.vue` | F4 |
+
+Na OS de fábrica, a aba "Serviços e Peças" mostra os itens gerados **somente
+leitura** (editar é pelo orçamento) e o campo `etapa` do segmento passa a ser
+a sub-etapa de produção.
+
+---
+
+## 9. Fases de entrega
+
+Cada fase termina com: testes novos, a **suíte inteira do backend** passando
+(F12), `vue-tsc --noEmit`, `vite build`, a tela vista no app rodando,
+`build:sidecar` e uma seção "Entrega da fase" neste documento (como §12–§17 do
+plano de Compras).
+
+### F1 — Insumo (2–3 dias)
+- Migration + model + schema do produto (3 colunas); a seção no cadastro.
+- `services/fabrica/calculo.py` com os exemplos da §5 como teste.
+- **Prova F12:** produto sem as colunas sai idêntico no GET/PUT; PDV, XML e
+  Compras não mudam.
+
+### F2 — Orçamento que gera a OS (1,5–2 semanas)
+- Chave `modo_fabrica`; OS nova de Planejados nasce com `fase_fabrica = MEDICAO`
+  (em `create_ordem_servico`, só se modo ligado + segmento + tipo).
+- Tabelas `fabrica_*`, `services/fabrica/orcamentos.py`, router das versões.
+- Aprovar: gera os itens (§2), recalcula o total da OS
+  (`_recalcular_valor_total_os`), marca os itens com `fabrica_orcamento_id`;
+  aprovar outra versão troca os itens (D12).
+- Enviar/aprovar já movem `fase_fabrica` (sem travas ainda — elas vêm na F3).
+- Aba Orçamento + impressão.
+- **Testes:** os exemplos da §5 de ponta a ponta (aprovar → item com 3 chapas);
+  versão aprovada única; re-aprovação troca e não duplica; RASCUNHO só;
+  Necessidades pedem chapas inteiras para a OS; Reforma e OS sem modo não
+  ganham fase; modo desligado = 403 nas rotas.
+- **Já serve sozinha:** a fábrica orça por móvel, imprime a proposta e compra
+  pelas Necessidades.
+
+### F3 — Trilho (1 semana)
+- Colunas restantes da OS, `fabrica_fases_log`, `fabrica_travar_etapas`.
+- `services/fabrica/trilho.py`: tabela da §6 como dado; `travas(os)`,
+  `avancar`, `retroceder`, `status_derivado`; `update_ordem_servico` recusa
+  status manual em OS de fábrica; finalizar/cancelar/reabrir gravam log e fase.
+- **Sinal (RC04):** `demanda_os` ganha "pode comprar?" — OS em fase anterior a
+  `SEPARACAO_COMPRA` sem `compra_liberada_em` **reserva mas não gera
+  necessidade**. Liberar compra grava log.
+- **Fila (RC12):** `demandas_por_produto` ordena por
+  `coalesce(data_instalacao, data_criacao)`; o aviso do painel compara com
+  `data_instalacao` quando houver.
+- Trilho na tela.
+- **Testes:** a tabela da §6 inteira (cada trava, aviso × trava, retroceder,
+  motivo obrigatório); status derivado em cada fase; dashboard/lista de OS
+  contam certo; sem sinal = sem necessidade, liberado = com; OS sem
+  `data_instalacao` mantém a ordem de hoje (prova F12 da fila).
+
+### F4 — Separação e margem (1 semana)
+- Colunas `quantidade_separada` e `custo_real`.
+- `services/fabrica/separacao.py`: bipe → acha o item pelo código do produto
+  (o mesmo achador do Recebimento) → registra SAÍDA da diferença
+  (`registrar_movimentacao`, origem ORDEM_SERVICO) → grava `custo_real`.
+- **Regra única (D6):** `_itens_de_produto` passa a usar
+  `quantidade − coalesce(quantidade_separada, 0)` na baixa e no estorno;
+  `demanda_os` idem na reserva. Cancelar estorna também o separado.
+- Tela de separação e margem.
+- **Testes:** separou tudo e finalizou = **uma baixa só**; separou metade =
+  finaliza baixando a outra metade; cancelar devolve o separado; reabrir não
+  devolve o separado; reserva cai ao separar; **oficina e assistência:
+  baixa idêntica** (item sem `quantidade_separada`); separar mais que a
+  quantidade = 409.
+
+### F5 — Terceirizados (3–5 dias)
+- Móvel `terceirizado`: botão gera pedido SERVICO ao fornecedor (central de
+  corte), ligado em `fabrica_moveis.pedido_compra_id`; a trava de
+  `SEPARACAO_COMPRA` passa a exigir esse pedido **recebido**; o custo real do
+  móvel usa o valor recebido do pedido.
+- O que o pedido guarda depende da pergunta 4 da §12 (arquivo do plano de
+  corte? só texto?). Detalhar quando houver a resposta.
+
+### F6 — Depois do piloto
+Cotação, retalho de chapa, relatório de margem por projeto, retrabalho,
+montador (DC6), checklist de medição. Só com pedido da loja piloto.
+
+---
+
+## 10. O que NÃO entra
+
+- **Projeto 3D / importar do Promob** — outro produto.
+- **Plano de corte otimizado** (encaixar peças na chapa) — Promob Cut e Corte
+  Certo fazem; aqui a perda é o fator %.
+- **Retalho de chapa** como estoque próprio — sobra volta ao saldo (DC7).
+- **Kanban/PCP por peça** — a etapa é por OS.
+- **Offline no celular** — a separação funciona no celular na rede da loja.
+- **Orçamento por m² na marcenaria de bairro** — continua pelo catálogo
+  (decisão de 16/09).
+- **Aprovação por móvel** — aprova-se a versão (D11).
+
+---
+
+## 11. Riscos
+
+| Risco | Defesa |
+|---|---|
+| Código da OS compartilhado com três segmentos em produção | Colunas nulas, chave desligada, `if os.fase_fabrica` como única porta; suíte inteira em cada fase |
+| Baixa em dois lugares | Uma fórmula só (`quantidade − separada`) usada na baixa, estorno e reserva; teste "separou e finalizou = uma baixa" |
+| Status derivado errado tira a OS do filtro certo | A tabela da §6 vira teste, fase por fase |
+| Conversão m² → chapa compra a mais ou a menos em silêncio | Cálculo puro, inteiro, com os exemplos da §5 |
+| Re-aprovar duplica itens | Itens gerados marcados por `fabrica_orcamento_id`; aprovar apaga os da versão anterior antes de gravar; teste |
+| Total da OS muda e o adiantamento fica maior que o total | Aprovar versão mais barata com adiantamento acima do total: aviso na tela; o crédito segue a regra de hoje da finalização |
+| Sidecar e PyArmor | `build:sidecar` no fim de cada fase |
+
+---
+
+## 12. Perguntas para o dono da fábrica (piloto)
+
+Nenhuma bloqueia a F1 ou a F2. Cada uma diz o que ajusta.
+
+1. **Travar ou só mostrar** as etapas? → valor de `fabrica_travar_etapas`.
+2. **Prazo** do fornecedor de chapa? → se a liberação antes do sinal vai ser
+   exceção ou rotina.
+3. Compra o mesmo insumo de **mais de um fornecedor**? → o que Compras mostra
+   primeiro.
+4. O pedido à **central de corte** vai pelo software de corte ou por
+   e-mail/WhatsApp? → detalhe da F5.
+5. Alguém **confere a nota** na chegada? → se a XML × pedido vai ser usada.
+6. **Sobra de chapa** é reaproveitada? → confirma DC7 (ou puxa o retalho para
+   F6).
+7. **Montador:** funcionário ou contratado por instalação? → DC6.
+8. O **sinal** padrão é 50%? Muda por cliente? → padrão de `sinal_bp`
+   (editável por versão de qualquer jeito).
+9. Quem **mede** e quem **orça** são pessoas diferentes? → permissões.
+10. A lista de **ambientes** está certa? → `AMBIENTES` no segmento.
+11. **Perda** padrão é 10%? Muda por material? → padrão de `perda_bp`
+    (por versão nesta entrega; por insumo, se ele pedir).
+
+---
+
+## 13. Do resumo ao código (RC01–RC20)
+
+| RC | O que é | Onde | Situação |
 |---|---|---|---|
-| Medição | Projetista | Medidas e fotos anexadas | ABERTA |
-| Em elaboração | Comercial | Orçamento com ao menos 1 móvel | ABERTA |
-| Aguardando aprovação | Comercial | Cliente aceita (ou vence) | AGUARDANDO_APROVACAO |
-| Aprovado | Comercial | Automático: gera a OS e reserva | AGUARDANDO_APROVACAO |
-| Aguardando sinal | Financeiro | Sinal liquidado no financeiro | AGUARDANDO_APROVACAO |
-| Separação e compra | Almoxarife | Todos os insumos recebidos **e separados** (RC20) | AGUARDANDO_PECAS |
-| Em produção | Marceneiro | Todos os móveis na última etapa de fábrica | EM_ANDAMENTO |
-| Pronto para expedição | Gestor | Checklist de expedição + instalação agendada | EM_ANDAMENTO |
-| Em instalação | Montador | Instalação concluída | EM_ANDAMENTO |
-| Vistoria | Montador / cliente | Termo assinado; pendência volta para instalação | AGUARDANDO_RETIRADA |
-| Entregue | Financeiro | Saldo coberto | FINALIZADA |
-
-- O **status de sempre** é derivado: relatórios, dashboard e a lista de OS
-  continuam funcionando sem saber das 11 etapas.
-- **Retroceder ou cancelar exige motivo**; toda transição vai para o log.
-- O botão de avançar mostra a trava que falta ("3 itens em pedido").
-
----
-
-## 7. Do resumo ao código (RC01–RC20)
-
-| RC | O que é | Onde fica | Situação |
-|---|---|---|---|
-| RC01 | Reserva com perda | Aprovação gera a OS com a perda | Fase F2 |
-| RC02 | Consumo × compra, arredonda para cima | Produto + cálculo puro | Fase F1 |
-| RC03 | Necessidade por insumo, todas as OS | **Compras fase 6** | ✅ feito |
-| RC04 | Compra só após o sinal (ou liberação) | Necessidades filtram OS sem sinal | Fase F3 |
-| RC05 | Pedido por fornecedor, último preço | **Compras fase 2** | ✅ feito |
-| RC06 | Pedido × itens da OS | **Compras fase 6** (`pedido_compra_origens`) | ✅ feito |
-| RC07 | Status de compra no item da OS | **Painel "Compras desta OS"** | ✅ feito (por peça) |
-| RC08 | Previsão × instalação | Painel avisa contra a previsão; passa a usar `data_instalacao` | Fase F3 |
-| RC09 | Cancelar OS libera reserva | Reserva é calculada: OS cancelada já sai | ✅ feito |
-| RC10 | Recebimento bipado e parcial | **Compras fase 3** | ✅ feito |
-| RC11 | Custo real no livro, sem mexer na OS | **Compras fase 3** | ✅ feito |
-| RC12 | Alocação por data de instalação | Fila de Compras ordena por `data_instalacao` | Fase F3 |
-| RC13 | Título a pagar no recebimento | **Compras fase 3** | ✅ feito |
-| RC14 | Custo real × congelado, margem | Baixa na separação grava `custo_real` | Fase F4 |
-| RC15 | Central de corte = pedido de serviço do móvel | Pedido tipo SERVIÇO ligado ao móvel | Fase F5 |
-| RC16 | Custo real do serviço × orçado | Idem | Fase F5 |
-| RC17 | Montador terceirizado | Depende do piloto | A decidir |
-| RC18 | Log de pedido, alocação, liberação | `compras_log` (✅) + `os_fases_log` | Fase F3 |
-| RC19 | Almoxarife/marceneiro sem preço | Cargos (✅ em Compras) + telas da fábrica | Fases F3–F4 |
-| RC20 | Trava em "Separação e compra" | Máquina de etapas | Fase F3 |
-
-**Já feito no módulo de Compras: 9 dos 20.**
+| RC01 | Reserva com perda | Aprovação gera itens com perda | F2 |
+| RC02 | Consumo × compra, arredonda para cima | Produto + `calculo.py` | F1 |
+| RC03 | Necessidade por insumo, todas as OS | Compras fase 6 | ✅ |
+| RC04 | Compra só após o sinal | `demanda_os` + liberação | F3 |
+| RC05 | Pedido por fornecedor, último preço | Compras fase 2 | ✅ |
+| RC06 | Pedido × itens da OS | Compras fase 6 | ✅ |
+| RC07 | Status de compra no item | Painel "Compras desta OS" | ✅ |
+| RC08 | Previsão × instalação | Painel usa `data_instalacao` | F3 |
+| RC09 | Cancelar libera reserva | Reserva calculada | ✅ |
+| RC10 | Recebimento bipado e parcial | Compras fase 3 | ✅ |
+| RC11 | Custo real no livro, OS congelada | Compras fase 3 + `custo_real` à parte | ✅ / F4 |
+| RC12 | Alocação por instalação | Fila por `data_instalacao` | F3 |
+| RC13 | Título a pagar no recebimento | Compras fase 3 | ✅ |
+| RC14 | Margem orçada × real | `custo_real` na separação | F4 |
+| RC15 | Central de corte = pedido de serviço | `fabrica_moveis.pedido_compra_id` | F5 |
+| RC16 | Custo real do serviço × orçado | Idem | F5 |
+| RC17 | Montador terceirizado | — | depois do piloto |
+| RC18 | Log de pedido, alocação, liberação | `compras_log` ✅ + `fabrica_fases_log` | F3 |
+| RC19 | Almoxarife/marceneiro sem preço | Cargos + separação sem custo | F3–F4 |
+| RC20 | Trava em "Separação e compra" | Trilho | F3 |
 
 ---
 
-## 8. Fases de entrega
+## 14. Entrega da F1 — Insumo (05/10/2026)
 
-| Fase | Entrega | Pronto quando | Esforço |
-|---|---|---|---|
-| **F0** | Este plano lido pelo dono; D0 e §11 respondidas; modo fábrica decidido | Respostas por escrito | conversa |
-| **F1 — Insumo** | Unidade de consumo, consumo por unidade e "sofre perda" no produto; cálculo puro com os exemplos do resumo | Testes do cálculo passam; produto comum não muda | 2–3 dias |
-| **F2 — Projeto e orçamento** | Projeto PRJ, orçamento em árvore com versões, lista de material por móvel, impressão do orçamento; **aprovar gera a OS** com perda e custo congelado | Aprovar um orçamento de cozinha gera a OS certa e as Necessidades já pedem as chapas | 1,5–2 semanas |
-| **F3 — Trilho** | Modo fábrica; 11 etapas com travas e log; sinal libera a compra (com liberação antecipada); `data_instalacao` na fila e no alerta | A OS não sai de "Separação e compra" com item faltando, e o botão diz por quê | 1 semana |
-| **F4 — Separação e margem** | Tela de separação bipada (desktop e celular); baixa na separação; custo real; margem orçada × real na Visão Geral | Separar todos os itens libera a produção; a margem real aparece | 1 semana |
-| **F5 — Terceirizados** | Central de corte (pedido de serviço do móvel, status nas etapas); custo real × orçado; montador se DC6 pedir | Um móvel terceirizado anda pelas etapas com o pedido de serviço | 3–5 dias |
-| **F6 — Depois do piloto** | Cotação, estoque mínimo de alto giro (fita, dobradiça — já existe em Compras), relatório de margem por projeto, retrabalho | Pedido da loja piloto | — |
+**Banco:** `produtos.unidade_consumo`, `consumo_por_unidade`, `sofre_perda`
+(migration `f1c7a2d9e3b4`, `ADD COLUMN` coluna a coluna pela ausência; sem
+`batch_alter_table`, porque `produtos` é alvo de FK e o batch recria a tabela).
 
-Cada fase: testes, prova de que **os outros segmentos não mudaram**,
-`build:sidecar`, loja canário com backup.
+**Rota própria, fora do cadastro do produto:** `GET/PUT
+/fabrica/produtos/{id}/insumo` (`endpoints/fabrica.py`,
+`services/fabrica/insumo.py`). O router inteiro responde 403
+`SEGMENTO_SEM_FABRICA` fora da marcenaria; cada rota pede a permissão
+`produto`. `unidade_consumo` nulo desliga e limpa rendimento e perda. O
+`ProdutoRead` não ganhou campo: o payload de `/produtos` é o mesmo para todos.
 
----
+**Cálculo puro** (`services/fabrica/calculo.py`): `consumo_com_perda`,
+`quantidade_de_compra`, `custo_do_material`, `quantidades_por_insumo` (soma
+antes de arredondar). Só inteiros. Os exemplos da §5 são os testes.
 
-## 9. O que NÃO entra
+**Tela:** seção "Insumo da fábrica" no modal do produto (só com
+`isMarcenaria`, carregada sob demanda — chunk próprio no build): tipo (chapa
+m², fita metro, ferragem unidade), medidas da chapa em mm (o front calcula a
+área), metros por rolo ou unidades por embalagem, "sofre perda". Pasta nova
+`frontend/src/modules/order-service/fabrica/`.
 
-- **Projeto 3D / importar do Promob** — outro produto (plano do segmento §6).
-- **Plano de corte otimizado** (encaixar peças na chapa) — é o que o Promob Cut
-  e o Corte Certo fazem; aqui a perda é o **fator %**.
-- **Kanban de produção / PCP de máquinas** — a etapa é por OS, não por peça.
-- **Offline no celular** (RNC02) — o app não tem sincronização; a separação
-  funciona no celular **na rede da loja**.
-- **Orçamento por m² automático para a marcenaria de bairro** — continua pelo
-  catálogo (decisão de 16/09).
-
----
-
-## 10. Riscos
-
-- **Código compartilhado da OS.** A OS é a mesma de três segmentos em produção.
-  Tudo da fábrica entra por **colunas nulas** e **modo ligado por loja**; a
-  prova "antes × depois" dos outros segmentos é obrigatória em cada fase.
-- **Baixa em dois lugares.** No modo fábrica a baixa passa para a separação; o
-  fechamento não pode baixar de novo. Teste de "separou e finalizou = uma
-  baixa só" antes de qualquer loja.
-- **Status derivado.** Se a derivação errar, a OS some do filtro certo na lista
-  e no dashboard. Tabela da §6 vira teste.
-- **Conversão m² → chapa.** Erro aqui compra a menos ou a mais em silêncio.
-  Cálculo puro, com os exemplos do resumo como teste (RNC04).
-- **Sidecar e PyArmor** — como em todo o resto.
-
----
-
-## 11. Perguntas para o dono da fábrica (piloto)
-
-1. **D0:** quer **travar** as etapas ou só **ver** onde cada móvel está?
-2. Qual o **prazo típico** do fornecedor de chapa? (Define se a compra
-   antecipada — DC1 — vai ser exceção ou rotina.)
-3. Compra o mesmo insumo de **mais de um fornecedor**? (Compras já suporta;
-   é para saber o que mostrar primeiro.)
-4. O pedido à **central de corte** é feito pelo software de corte ou por
-   e-mail/WhatsApp? (Define o que o pedido de serviço precisa guardar.)
-5. Alguém **confere a nota** na chegada do material? (Compras já liga XML ×
-   pedido; é para saber se vai usar.)
-6. **Sobra de chapa** é reaproveitada em outros projetos? (Confirma DC7.)
-7. **Montador:** funcionário ou contratado por instalação? (DC6 / RC17.)
-8. O **sinal** padrão é 50%? Muda por cliente?
-9. Quem **mede** e quem **orça** são pessoas diferentes? (Perfis e etapas.)
-10. A lista de **ambientes** (Cozinha, Dormitório, Closet, Banheiro, Sala,
-    Escritório, Área de serviço, Outro) está certa?
+**Verificado:** 11 testes do cálculo, 15 da rota (trava por segmento em 5
+segmentos, permissão, gravar, desligar, 422 de dado inválido, 404, cadastro
+do produto idêntico antes × depois e PUT do produto não apaga o insumo), 2 da
+migration (com `PRAGMA foreign_keys=ON`, idempotente, base sem produtos);
+front: 4 testes das conversões, `vue-tsc` limpo, `vite build`.
+**Não verificado:** a seção num app rodando; sidecar não regerado.
 
 ---
 
@@ -368,5 +578,11 @@ Cada fase: testes, prova de que **os outros segmentos não mudaram**,
   Requisitos" (RC01–RC20, RNC01–RNC05, DC1–DC7).
 - `docs/segmento-marcenaria-plano.md` (16/09/2026) — fluxo e decisões do dono.
 - `docs/compras-plano.md` — módulo de Compras, fases 1–6 (§12–§17).
+- Código conferido em 05/10: `core/segmentos/definicoes/marcenaria.py`,
+  `db/models/ordem_servico*.py`, `db/models/objeto_servico.py`,
+  `db/models/configuracao_os.py`, `services/ordem_servico.py`
+  (`_itens_de_produto`, `_movimentar_estoque_os`, `finalizar_ordem_servico`,
+  `update_ordem_servico`), `services/compras/demanda_os.py`,
+  `services/compras/necessidades.py`.
 - Mercado (pesquisa de 16/09): Calcme, GestorMarceneiro, Planejados Pro,
   WoodOrça+, Promob (ERP/MRP, Cut Pro), Corte Certo.
