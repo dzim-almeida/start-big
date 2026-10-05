@@ -321,6 +321,10 @@ export interface ComprasDaOS {
   aberta: boolean;
   data_previsao: string | null;
   itens: CompraDaOSItem[];
+  /** Marcenaria-fábrica: a instalação manda no aviso de atraso. */
+  data_instalacao?: string | null;
+  /** Fábrica sem sinal: o material está reservado, mas ainda não entra nas Necessidades. */
+  compra_bloqueada?: boolean;
 }
 
 export interface RelatorioFornecedor {

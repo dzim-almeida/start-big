@@ -3,8 +3,8 @@
 # DESCRICAO: Modelo SQLAlchemy para a tabela 'ordens_servico'.
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
-from sqlalchemy import Integer, String, Boolean, DateTime, Text, Enum as SqlAlchemyEnum, ForeignKey, JSON, func
+from datetime import date, datetime
+from sqlalchemy import Date, Integer, String, Boolean, DateTime, Text, Enum as SqlAlchemyEnum, ForeignKey, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
@@ -110,6 +110,19 @@ class OrdemServico(Base):
 
     # --- Status ---
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Status ativo (soft delete)")
+
+    # Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md, D5/§6). Nulo em
+    # toda OS que não nasceu no modo fábrica — é a ÚNICA porta: sem ela, nada
+    # da fábrica alcança a OS.
+    fase_fabrica: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, doc="Etapa da fábrica (MEDICAO, ELABORACAO...). Nulo = OS comum"
+    )
+    # F3: a fila de Compras atende primeiro quem INSTALA primeiro (RC12/DC2).
+    data_instalacao: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data marcada para instalar")
+    # F3: compra antes do sinal só com liberação do gestor, com motivo (RC04/DC1).
+    compra_liberada_em: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    compra_liberada_por: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    compra_liberada_motivo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # --- Relacionamentos ---
     funcionario: Mapped[Optional["Funcionario"]] = relationship(

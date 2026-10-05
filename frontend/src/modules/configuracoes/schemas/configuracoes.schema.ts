@@ -141,6 +141,11 @@ export const ConfiguracaoOSSchema = z.object({
   comprovante_entrega_folha: z.enum(FOLHA_OPTIONS).catch('A4'),
   comprovante_entrega_densidade: z.enum(DENSIDADE_OPTIONS).catch('normal'),
 
+  // Marcenaria-fábrica (só tem efeito no segmento Marcenaria). `.catch` pelo
+  // mesmo motivo dos comprovantes: backend antigo sem o campo não derruba a config.
+  modo_fabrica: z.boolean().catch(false),
+  fabrica_travar_etapas: z.boolean().catch(false),
+
   data_atualizacao: z.string(),
 })
 

@@ -39,6 +39,8 @@ export const OrderServiceReadSchema = z.object({
   // Estados
   status: OsStatusEnum,
   situacao_equipamento: OsEquipSituacaoEnum.optional().nullable(),
+  // Marcenaria-fábrica: etapa do trilho. Nula em toda OS fora do modo fábrica.
+  fase_fabrica: z.string().optional().nullable(),
 
   // Financeiro
   valor_bruto: z.number().int(),

@@ -64,3 +64,69 @@ def chapa(db_session: Session) -> int:
     db_session.add(produto)
     db_session.commit()
     return produto.id
+
+
+# --- F2: OS no trilho da fábrica ------------------------------------------------
+
+CHAPA_MM2 = 2750 * 1850
+
+
+@pytest.fixture
+def modo_fabrica(db_session: Session, marcenaria):
+    """Liga (ou desliga) a chave da loja."""
+    from app.db.models.configuracao_os import ConfiguracaoOS
+
+    def _definir(ligado: bool = True):
+        empresa = db_session.query(Empresa).first()
+        config = db_session.query(ConfiguracaoOS).filter_by(empresa_id=empresa.id).first()
+        if config is None:
+            config = ConfiguracaoOS(empresa_id=empresa.id)
+            db_session.add(config)
+        config.modo_fabrica = ligado
+        db_session.commit()
+
+    _definir(True)
+    return _definir
+
+
+@pytest.fixture
+def cliente_id(client: TestClient, header_com_token) -> int:
+    r = client.post("/api/v1/clientes/cliente_pf", json={
+        "nome": "Dona Marta", "cpf": "52998224725", "tipo": "PF", "celular": "11987654321",
+        "endereco": [{"logradouro": "Rua das Flores", "numero": "100", "bairro": "Centro",
+                      "cidade": "Campinas", "estado": "SP", "cep": "13010-000"}],
+    }, headers=header_com_token)
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+@pytest.fixture
+def abrir_os(client: TestClient, header_com_token, cliente_id):
+    """Abre uma OS de marcenaria pela rota de sempre. `tipo=None` = o atendente não mexeu no seletor."""
+    def _abrir(tipo="planejados", nome="Cozinha apto 302"):
+        dados = {"tipo_trabalho": tipo} if tipo else {}
+        r = client.post("/api/v1/ordens-servico/", json={
+            "cliente_id": cliente_id, "prioridade": "NORMAL", "defeito_relatado": "Cozinha planejada",
+            "dados_adicionais": dados, "objeto": {"modelo": nome, "dados_adicionais": {}}, "itens": [],
+        }, headers=header_com_token)
+        assert r.status_code == 201, r.text
+        return r.json()
+    return _abrir
+
+
+@pytest.fixture
+def insumos(db_session: Session) -> dict:
+    """MDF (chapa em m², perde), fita (rolo de 50 m, perde) e dobradiça (unidade, não perde)."""
+    def novo(nome, codigo, unidade, consumo, sofre_perda, custo, unidade_consumo):
+        p = Produto(nome=nome, codigo_produto=codigo, unidade_medida=unidade, ativo=True,
+                    unidade_consumo=unidade_consumo, consumo_por_unidade=consumo, sofre_perda=sofre_perda)
+        p.estoque = Estoque(quantidade=0, valor_varejo=0, custo_medio=custo)
+        db_session.add(p)
+        return p
+
+    mdf = novo("MDF Branco 15mm", "MDF-15", "CH", CHAPA_MM2, True, 30000, "M2")
+    fita = novo("Fita de borda branca 22mm", "FITA-22", "RL", 50_000, True, 2000, "M")
+    dobradica = novo("Dobradiça 35mm", "DOB-35", "UN", 1, False, 500, "UN")
+    comum = novo("Cola branca 1kg", "COLA-1", "UN", None, False, 900, None)
+    db_session.commit()
+    return {"mdf": mdf.id, "fita": fita.id, "dobradica": dobradica.id, "comum": comum.id}

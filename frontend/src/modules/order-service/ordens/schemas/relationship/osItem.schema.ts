@@ -47,6 +47,10 @@ export const OsItemReadSchema = z.object({
   produto_id: z.number().int().positive().optional().nullable(),
   servico_id: z.number().int().positive().optional().nullable(),
   valor_total: z.number().int(),
+  // Marcenaria-fábrica: gerado pela aprovação do orçamento — muda só por uma
+  // nova versão, nunca pela OS (o backend responde 409).
+  fabrica_orcamento_id: z.number().int().positive().optional().nullable(),
+  fabrica_movel_id: z.number().int().positive().optional().nullable(),
 });
 
 export const OsItemUpdateSchema = z.object({

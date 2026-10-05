@@ -6,6 +6,10 @@ import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 import { useConfiguracoesOSQuery } from '@/modules/configuracoes/composables/queries/useConfiguracoesOSQuery'
 import { GARANTIA_OPTIONS } from '@/modules/configuracoes/schemas/configuracoes.schema'
 import type { ConfiguracaoOSUpdate } from '@/modules/configuracoes/schemas/configuracoes.schema'
+import { useSegmento } from '@/shared/composables/useSegmento'
+
+// Modo fábrica: só aparece (e só vale) no segmento Marcenaria.
+const { isMarcenaria } = useSegmento()
 
 const configStore = useConfiguracoesStore()
 const {
@@ -17,6 +21,8 @@ const {
   comprovanteEntradaDensidade,
   comprovanteEntregaFolha,
   comprovanteEntregaDensidade,
+  modoFabrica,
+  fabricaTravarEtapas,
 } = storeToRefs(configStore)
 
 useConfiguracoesOSQuery()
@@ -31,6 +37,8 @@ function valoresDoStore(): ConfiguracaoOSUpdate {
     comprovante_entrada_densidade: comprovanteEntradaDensidade.value,
     comprovante_entrega_folha: comprovanteEntregaFolha.value,
     comprovante_entrega_densidade: comprovanteEntregaDensidade.value,
+    modo_fabrica: modoFabrica.value,
+    fabrica_travar_etapas: fabricaTravarEtapas.value,
   }
 }
 
@@ -142,6 +150,33 @@ defineExpose({ form, isDirty, resetar })
           <BaseMoneyInput v-model="taxaReais" />
         </div>
       </div>
+    </div>
+
+    <!-- FÁBRICA (marcenaria) -->
+    <div v-if="isMarcenaria" class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Fábrica de planejados</p>
+      <label class="py-3 border-b border-zinc-100 flex items-start gap-3 cursor-pointer">
+        <input v-model="form.modo_fabrica" type="checkbox" class="mt-0.5 h-4 w-4 accent-brand-primary" />
+        <span>
+          <span class="text-xs font-medium text-zinc-600">Modo fábrica</span>
+          <span class="block text-[11px] text-zinc-400 mt-0.5">
+            Toda OS nova de <strong>Móveis planejados</strong> ganha a aba Orçamento: ambientes, móveis e lista de
+            material, com as chapas calculadas. Quando o cliente aprova, os itens vão para a OS e o material
+            entra nas compras. Reforma de móveis e as OS já abertas não mudam — e desligar depois não tira
+            do trilho as OS que já estão nele.
+          </span>
+        </span>
+      </label>
+      <label v-if="form.modo_fabrica" class="py-3 border-b border-zinc-100 flex items-start gap-3 cursor-pointer">
+        <input v-model="form.fabrica_travar_etapas" type="checkbox" class="mt-0.5 h-4 w-4 accent-brand-primary" />
+        <span>
+          <span class="text-xs font-medium text-zinc-600">Travar etapas</span>
+          <span class="block text-[11px] text-zinc-400 mt-0.5">
+            Ligado, a OS não passa de etapa com pendência (sem sinal, material faltando, sem data de instalação).
+            Desligado, o sistema só avisa: quem avança escreve o motivo, que fica no histórico da OS.
+          </span>
+        </span>
+      </label>
     </div>
 
     <!-- COMPROVANTES -->

@@ -65,6 +65,13 @@ function irParaNecessidades() {
       </button>
     </div>
 
+    <p
+      v-if="data?.aberta && data.compra_bloqueada"
+      class="mb-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2"
+    >
+      Aguardando o sinal: o material está reservado, mas só entra nas Necessidades quando o sinal for pago
+      ou o gestor liberar a compra no trilho da OS.
+    </p>
     <p v-if="isLoading" class="py-4 text-center text-xs text-slate-400">Conferindo o estoque…</p>
     <p v-else-if="isError" class="text-xs text-rose-600">Não foi possível conferir as compras desta OS.</p>
     <p v-else-if="data && !data.aberta" class="text-xs text-slate-500">

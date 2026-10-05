@@ -119,6 +119,10 @@ class OSItemRead(OSItemBase):
     produto_id: Optional[int] = Field(None, description="ID do produto no catálogo (se tipo=PRODUTO)")
     servico_id: Optional[int] = Field(None, description="ID do serviço no catálogo (se tipo=SERVICO)")
     valor_total: int = Field(..., description="Valor total do item (quantidade × valor_unitario) em centavos")
+    # Marcenaria-fábrica: o item foi gerado pela aprovação do orçamento e só
+    # muda por ele (nulo em todo item lançado à mão).
+    fabrica_orcamento_id: Optional[int] = Field(None, description="Versão do orçamento da fábrica que gerou o item")
+    fabrica_movel_id: Optional[int] = Field(None, description="Móvel do orçamento da fábrica (item do móvel)")
 
 
 class OSItemUpdate(BaseModel):
@@ -453,6 +457,7 @@ class OrdemServicoRead(OrdemServicoBase):
     # Estado
     status: OrdemServicoStatus = Field(..., description="Status atual da OS")
     situacao_equipamento: Optional[SituacaoEquipamento] = Field(None, description="Situação final do equipamento: REPARADO, SEM_REPARO ou CONDENADO")
+    fase_fabrica: Optional[str] = Field(None, description="Etapa da marcenaria-fábrica. Nulo = OS comum")
 
     # Financeiro
     valor_bruto: int = Field(..., description="Soma dos valores dos itens antes do desconto (centavos)")

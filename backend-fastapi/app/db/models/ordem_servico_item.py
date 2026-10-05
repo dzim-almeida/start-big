@@ -117,6 +117,18 @@ class OrdemServicoItem(Base):
     )
 
     # --- Relacionamentos ---
+    # Marcenaria-fábrica (plano, §2/D12): o item foi GERADO pela aprovação
+    # desta versão do orçamento — aprovar outra versão troca exatamente estes.
+    # Nulos em todo item lançado à mão.
+    fabrica_orcamento_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("fabrica_orcamentos.id", ondelete="SET NULL"), nullable=True,
+        doc="Versão do orçamento da fábrica que gerou o item",
+    )
+    fabrica_movel_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("fabrica_moveis.id", ondelete="SET NULL"), nullable=True,
+        doc="Móvel do orçamento (no item do móvel)",
+    )
+
     ordem_servico: Mapped["OrdemServico"] = relationship(back_populates="itens")
     produtos: Mapped[Optional["Produto"]] = relationship(doc="Produto do catalogo associado")
     servico: Mapped[Optional["Servico"]] = relationship(doc="Servico do catalogo associado")

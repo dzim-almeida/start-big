@@ -38,6 +38,7 @@ from app.db.models.pedido_compra import (
 )
 from app.db.models.produto import Produto
 from app.schemas.compras import CompraDaOSItem, ComprasDaOS, PedidoDaOS
+from app.services.fabrica.trilho import pode_comprar
 
 STATUS_QUE_JA_NAO_RESERVAM = (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA)
 
@@ -49,14 +50,27 @@ class DemandaOS:
     quantidade: float
     data_previsao: Optional[date]
     aberta_em: datetime
+    # Marcenaria-fábrica (F3). Nas outras OS: sem instalação e sempre compra.
+    data_instalacao: Optional[date] = None
+    # RC04: OS da fábrica sem sinal (nem liberação) RESERVA, mas não vira
+    # necessidade de compra.
+    pode_comprar: bool = True
+
+    @property
+    def na_fila(self) -> datetime:
+        """Quem é atendido primeiro: quem INSTALA primeiro; sem data, quem abriu primeiro."""
+        if self.data_instalacao is not None:
+            return datetime.combine(self.data_instalacao, datetime.min.time())
+        return self.aberta_em
 
 
 def demandas_por_produto(db: Session, produto_ids: Optional[list[int]] = None) -> dict[int, list[DemandaOS]]:
     """Por produto, as OS abertas que o usam — a mais ANTIGA primeiro.
 
     A ordem importa: o estoque e as compras atendem primeiro quem chegou
-    primeiro (a fila do balcão). A marcenaria vai querer "pela data de
-    instalação" (RC12) quando o segmento tiver essa data.
+    primeiro (a fila do balcão). Na OS da fábrica com data de instalação, é
+    ela que conta (RC12): quem instala antes pega primeiro. Sem data nenhuma
+    marcada, a ordem é a de sempre.
     """
     consulta = (
         select(
@@ -66,6 +80,9 @@ def demandas_por_produto(db: Session, produto_ids: Optional[list[int]] = None) -
             OrdemServico.numero_os,
             OrdemServico.data_previsao,
             OrdemServico.data_criacao,
+            OrdemServico.data_instalacao,
+            OrdemServico.fase_fabrica,
+            OrdemServico.compra_liberada_em,
         )
         .join(OrdemServico, OrdemServico.id == OrdemServicoItem.ordem_servico_id)
         .where(
@@ -83,24 +100,33 @@ def demandas_por_produto(db: Session, produto_ids: Optional[list[int]] = None) -
 
     # A mesma peça em duas linhas da mesma OS soma numa demanda só.
     acumulado: dict[tuple[int, int], dict] = {}
-    for produto_id, quantidade, os_id, numero, previsao, criada in db.execute(consulta):
+    for produto_id, quantidade, os_id, numero, previsao, criada, instalacao, fase, liberada in db.execute(consulta):
         chave = (produto_id, os_id)
         if chave not in acumulado:
             acumulado[chave] = {
                 "numero": numero, "qtd": 0.0, "previsao": previsao.date() if previsao else None, "criada": criada,
+                "instalacao": instalacao, "pode_comprar": pode_comprar(fase, liberada),
             }
         acumulado[chave]["qtd"] += float(quantidade or 0)
 
     saida: dict[int, list[DemandaOS]] = defaultdict(list)
     for (produto_id, os_id), d in acumulado.items():
-        saida[produto_id].append(DemandaOS(os_id, d["numero"], d["qtd"], d["previsao"], d["criada"]))
+        saida[produto_id].append(DemandaOS(
+            os_id, d["numero"], d["qtd"], d["previsao"], d["criada"],
+            data_instalacao=d["instalacao"], pode_comprar=d["pode_comprar"],
+        ))
     for lista in saida.values():
-        lista.sort(key=lambda d: (d.aberta_em, d.os_id))
+        lista.sort(key=lambda d: (d.na_fila, d.os_id))
     return dict(saida)
 
 
 def reservado(demandas: list[DemandaOS]) -> float:
     return round(sum(d.quantidade for d in demandas), 3)
+
+
+def que_compram(demandas: list[DemandaOS]) -> list[DemandaOS]:
+    """Só as OS que já podem gerar compra (RC04: fábrica com sinal ou liberação)."""
+    return [d for d in demandas if d.pode_comprar]
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +144,10 @@ def compras_da_os(db: Session, os_id: int) -> ComprasDaOS:
     if os_ is None or not os_.ativo:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Ordem de serviço não encontrada.")
     previsao_os = os_.data_previsao.date() if os_.data_previsao else None
+    # RC08: na fábrica, o pedido atrasa se chega depois da INSTALAÇÃO.
+    referencia = os_.data_instalacao or previsao_os
     aberta = os_.status not in STATUS_QUE_JA_NAO_RESERVAM
+    compra_bloqueada = not pode_comprar(os_.fase_fabrica, os_.compra_liberada_em)
     if not aberta:
         return ComprasDaOS(os_id=os_.id, numero_os=os_.numero_os, aberta=False, data_previsao=previsao_os, itens=[])
 
@@ -149,7 +178,7 @@ def compras_da_os(db: Session, os_id: int) -> ComprasDaOS:
             continue
         produto = db.get(Produto, produto_id)
         saldo = float(produto.estoque.quantidade or 0) if produto and produto.estoque else 0.0
-        antes = sum(d.quantidade for d in fila if (d.aberta_em, d.os_id) < (minha.aberta_em, minha.os_id))
+        antes = sum(d.quantidade for d in fila if (d.na_fila, d.os_id) < (minha.na_fila, minha.os_id))
         no_estoque = round(min(minha.quantidade, max(saldo - antes, 0.0)), 3)
 
         pedidos = []
@@ -168,7 +197,7 @@ def compras_da_os(db: Session, os_id: int) -> ComprasDaOS:
                 previsao_entrega=pedido.previsao_entrega,
                 quantidade=round(ainda, 3),
                 atrasa_os=bool(
-                    previsao_os and pedido.previsao_entrega and pedido.previsao_entrega > previsao_os
+                    referencia and pedido.previsao_entrega and pedido.previsao_entrega > referencia
                 ),
             ))
         em_pedido = round(em_pedido, 3)
@@ -190,4 +219,7 @@ def compras_da_os(db: Session, os_id: int) -> ComprasDaOS:
             situacao=situacao,
             pedidos=pedidos,
         ))
-    return ComprasDaOS(os_id=os_.id, numero_os=os_.numero_os, aberta=True, data_previsao=previsao_os, itens=itens)
+    return ComprasDaOS(
+        os_id=os_.id, numero_os=os_.numero_os, aberta=True, data_previsao=previsao_os, itens=itens,
+        data_instalacao=os_.data_instalacao, compra_bloqueada=compra_bloqueada,
+    )

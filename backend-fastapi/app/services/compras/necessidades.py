@@ -50,7 +50,7 @@ from app.schemas.compras import (
     PedidoResumo,
 )
 from app.services.compras import pedidos as pedidos_service
-from app.services.compras.demanda_os import demandas_por_produto, reservado
+from app.services.compras.demanda_os import demandas_por_produto, que_compram, reservado
 from app.services.compras.fornecedores_produto import TIPOS_QUE_VENDEM
 from app.services.compras.necessidade import (
     OfertaFornecedor,
@@ -225,7 +225,10 @@ def listar(
         # mas tem dono. As três regras olham o SALDO LIVRE.
         das_os = demandas.get(produto.id, [])
         reservado_os = reservado(das_os)
-        livre = (estoque.quantidade or 0) - reservado_os
+        # RC04: a OS da fábrica sem sinal reserva (aparece em `reservado_os`),
+        # mas não pesa na compra — nem pelo mínimo, senão compraria por tabela.
+        compram = que_compram(das_os)
+        livre = (estoque.quantidade or 0) - reservado(compram)
         pelo_minimo = sugerir_compra(
             saldo=livre,
             em_pedido=a_caminho,
@@ -245,7 +248,7 @@ def listar(
         ) if media > 0 else 0
         # A OS: o que ela precisa e o estoque livre + o que está a caminho não
         # cobrem. "Mínimo zero" na mesma conta pura dá exatamente isso.
-        pela_os = sugerir_compra(saldo=livre, em_pedido=a_caminho, minimo=0, ideal=None, fator=fator) if das_os else 0
+        pela_os = sugerir_compra(saldo=livre, em_pedido=a_caminho, minimo=0, ideal=None, fator=fator) if compram else 0
         # Vale a MAIOR das três: a venda pede mais que o mínimo quando gira
         # rápido; o mínimo manda quando gira pouco; a OS, quando tem cliente
         # esperando uma peça que não está aqui.
@@ -310,7 +313,8 @@ def listar(
             reservado_os=reservado_os,
             ordens=[
                 DemandaOSRead(os_id=d.os_id, numero_os=d.numero_os, quantidade=d.quantidade,
-                              data_previsao=d.data_previsao)
+                              data_previsao=d.data_previsao, data_instalacao=d.data_instalacao,
+                              aguardando_sinal=not d.pode_comprar)
                 for d in das_os
             ],
         )
@@ -412,8 +416,9 @@ def _ligar_as_os(db: Session, pedido: PedidoCompra) -> None:
     sobra é reposição (não se grava origem). Em unidades do produto.
     """
     produto_ids = [i.produto_id for i in pedido.itens if i.produto_id is not None]
-    demandas = demandas_por_produto(db, produto_ids)
-    if not demandas:
+    # RC04: o pedido não vai para OS da fábrica que ainda espera o sinal.
+    demandas = {pid: que_compram(lista) for pid, lista in demandas_por_produto(db, produto_ids).items()}
+    if not any(demandas.values()):
         return
     ja_pedido = _ja_pedido_por_os(db, produto_ids)
     for item in pedido.itens:

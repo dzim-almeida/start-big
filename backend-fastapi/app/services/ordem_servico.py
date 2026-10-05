@@ -50,6 +50,8 @@ from app.services.segmentos import (
 from app.core import segmentos as reg
 from app.core.busca import compactar
 from app.services import movimentacao_estoque as mov_service
+from app.services.fabrica.modo import fase_inicial as fase_inicial_fabrica
+from app.services.fabrica import trilho as trilho_fabrica
 
 from app.core.enum import (
     OrdemServicoItemTipo,
@@ -191,6 +193,21 @@ def _assert_item_coerente(item: OSItemModel) -> None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Item cobrado do cliente precisa de valor maior que zero",
+        )
+
+
+def _assert_item_nao_gerado_pela_fabrica(item: OSItemModel) -> None:
+    """409 no item que a aprovação do orçamento da fábrica gerou.
+
+    Ele é a cópia congelada de uma versão aprovada: mexer aqui faria a OS
+    divergir do orçamento que o cliente aceitou. Muda-se por uma nova versão
+    (docs/marcenaria-fabrica-plano.md, D12). Item lançado à mão — o de toda OS
+    fora da fábrica — tem `fabrica_orcamento_id` nulo e passa direto.
+    """
+    if item.fabrica_orcamento_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este item veio do orçamento aprovado da fábrica. Para mudá-lo, faça uma nova versão do orçamento.",
         )
 
 
@@ -440,6 +457,9 @@ def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSMod
 
     os_to_db = OSModel(
         **os_data,
+        # Marcenaria-fábrica: nulo em toda OS que não for Planejados com o
+        # modo fábrica ligado (services/fabrica/modo.py).
+        fase_fabrica=fase_inicial_fabrica(db, dados_adicionais),
         status=OrdemServicoStatus.ABERTA,
         valor_total=valor_total_os,
         valor_bruto=valor_bruto_os,
@@ -574,6 +594,9 @@ def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) 
     new_status = update_data.get("status")
     if new_status in (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA):
         raise status_invalido_exce
+    # Marcenaria-fábrica: o status vem da etapa (no-op nas outras OS).
+    if new_status is not None and new_status != os_in_db.status:
+        trilho_fabrica.assert_status_manual(os_in_db)
 
     if "forma_pagamento_entrada_id" in update_data:
         _assert_forma_pagamento_entrada(db, update_data["forma_pagamento_entrada_id"])
@@ -928,6 +951,7 @@ def update_item_os(db: Session, numero_os: str, item_id: int, data: OSItemUpdate
     item_in_db = os_crud.get_os_item_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.ordem_servico_id != os_in_db.id:
         raise item_not_found_exce
+    _assert_item_nao_gerado_pela_fabrica(item_in_db)
 
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -964,6 +988,7 @@ def remove_item_from_os(db: Session, numero_os: str, item_id: int) -> None:
     item_in_db = os_crud.get_os_item_by_id(db, item_id=item_id)
     if not item_in_db or item_in_db.ordem_servico_id != os_in_db.id:
         raise item_not_found_exce
+    _assert_item_nao_gerado_pela_fabrica(item_in_db)
 
     os_crud.delete_os_item(db, item_to_delete=item_in_db)
     db.refresh(os_in_db)
@@ -1053,6 +1078,8 @@ def finalizar_ordem_servico(
     os_in_db = _get_os_or_raise(db, numero_os)
     _assert_os_editavel(os_in_db)
     _assert_sem_itens_pendentes(os_in_db)
+    # Marcenaria-fábrica com etapas travadas: só entrega depois da vistoria.
+    trilho_fabrica.assert_pode_finalizar(db, os_in_db)
 
     # Aplica campos financeiros se informados
     if data.desconto is not None:
@@ -1167,6 +1194,7 @@ def finalizar_ordem_servico(
     # do relatório — e desde que o faturamento passou a ancorar em
     # data_finalizacao, isso virou dinheiro no dia errado.
     os_in_db.data_finalizacao = datetime.utcnow()
+    trilho_fabrica.ao_finalizar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema")
 
     if data.observacoes:
         os_in_db.observacoes = data.observacoes
@@ -1223,6 +1251,7 @@ def cancelar_ordem_servico(
     )
 
     os_in_db.status = OrdemServicoStatus.CANCELADA
+    trilho_fabrica.ao_cancelar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema", data.motivo)
 
     if data.motivo:
         obs_atual = os_in_db.observacoes or ""
@@ -1346,6 +1375,8 @@ def reabrir_ordem_servico(
     os_in_db.forma_pagamento_entrada_id = None
     os_in_db.status = OrdemServicoStatus.EM_ANDAMENTO
     os_in_db.data_finalizacao = None
+    # Fábrica: volta para a etapa (e o status dela). No-op nas outras OS.
+    trilho_fabrica.ao_reabrir(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema")
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 

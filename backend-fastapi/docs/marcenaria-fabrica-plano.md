@@ -572,6 +572,128 @@ front: 4 testes das conversões, `vue-tsc` limpo, `vite build`.
 
 ---
 
+## 15. Entrega da F2 — Orçamento que gera a OS (05/10/2026)
+
+**Banco** (migration `a2d8b3e5f107`): tabelas `fabrica_orcamentos`,
+`fabrica_ambientes`, `fabrica_moveis` (já com `pedido_compra_id` para a F5),
+`fabrica_materiais`; colunas `configuracoes_os.modo_fabrica`,
+`ordens_servico.fase_fabrica`, `ordem_servico_itens.fabrica_orcamento_id` e
+`fabrica_movel_id`. As FKs do item entram como INTEGER simples na migration
+(o SQLite não acrescenta constraint a tabela existente); valem em banco novo.
+
+**Quem entra no trilho** (`services/fabrica/modo.py`): marcenaria + chave
+ligada + tipo Planejados. Achado: a tela só grava `tipo_trabalho` quando o
+atendente MEXE no seletor — OS sem o campo vale o primeiro tipo do segmento,
+como a tela mostra. Desligar a chave não tira ninguém do trilho.
+
+**Rotas** (`/fabrica`): `GET /insumos` (busca só o que é insumo),
+`GET|POST /os/{n}/orcamentos`, `GET|PUT /orcamentos/{id}`,
+`POST /orcamentos/{id}/enviar|aprovar|recusar`. Permissão: a da OS
+(`servico`). Config: `modo_fabrica` no PUT de configurações de OS que já existia.
+
+**Aprovar** (`services/fabrica/orcamentos.py`): item SERVIÇO por móvel
+(preço, visível) + item PRODUTO por insumo somado (chapas inteiras, valor 0,
+invisível, custo congelado); troca só os itens com `fabrica_orcamento_id`;
+recalcula o total da OS; a outra versão aprovada/enviada vira RECUSADO com
+o motivo. O item do móvel só leva custo quando é terceirizado — o material já
+entra no custo pela baixa do estoque, e contaria duas vezes.
+
+**OS:** item gerado não se edita nem se apaga pela OS (409; cadeado na aba
+Serviços e Peças). Item lançado à mão continua livre.
+
+**Tela:** aba **Orçamento** na OS (só com `fase_fabrica`, sob demanda):
+versões, ambientes (sugestões da lista do segmento), móveis com medidas,
+material pelo seletor de insumo, terceirizado, preço com sugestão
+(custo + margem padrão de Produtos), totais/margem/sinal em prévia
+(`utils/calculo.ts` espelha o backend, com os mesmos exemplos nos testes),
+"material que vai para a OS", enviar/aprovar (com confirmação)/recusar (com
+motivo), **proposta A4** sem material e sem custo. Chave "Modo fábrica" em
+Configurações › Ordens de Serviço (só marcenaria).
+
+**Decidido na implementação (rever na F3):**
+- Criar a primeira versão move MEDICAO → ELABORACAO sem trava (a trava da
+  foto vem com o trilho).
+- O **status** da OS ainda não é derivado da fase — é a F3. Até lá, fase e
+  status andam separados.
+- Custo e margem aparecem para quem tem a permissão da OS; esconder do
+  marceneiro/almoxarife vem com a linha "Fábrica" em Cargos (F3).
+
+**Verificado:** 22 testes do orçamento (quem entra no trilho em 4 casos,
+desligar depois, 403 fora da marcenaria, versões, custos e chapas, produto
+que não é insumo, custo copiado × de hoje, cópia de versão, enviar, aprovar
+escreve itens e reserva para Compras, re-aprovação troca sem duplicar e
+mantém o item manual, item gerado travado, vencido, recusar, busca de
+insumo, OS comum continua editando) + 2 da migration. Suíte do backend:
+2119 passaram + 1 que só falhou por eu ter rodado sem o plugin de log (passa
+normal). Front: 153 testes, `vue-tsc` limpo, `vite build` (aba em chunk
+próprio).
+**Não verificado:** as telas num app rodando; impressão real da proposta;
+sidecar não regerado.
+
+---
+
+## 16. Entrega da F3 — Trilho (05/10/2026)
+
+**Banco** (migration `b4e9c1a7d2f3`): `ordens_servico.data_instalacao`,
+`compra_liberada_em/_por/_motivo`; `configuracoes_os.fabrica_travar_etapas`;
+tabela `fabrica_fases_log` (só INSERT).
+
+**Trilho** (`services/fabrica/trilho.py`): a tabela da §6 como dado
+(`ROTULOS`, `STATUS_DA_FASE`, `AVANCO_POR_ACAO`). `mudar_fase` é a única
+porta: muda a fase, **deriva o status** e grava o log. Travas para SAIR:
+- Medição: ao menos uma foto;
+- Aguardando sinal: recebido (a soma da finalização) ≥ sinal da versão
+  aprovada, ou compra liberada pelo gestor;
+- Separação e compra: **todo o material no estoque para esta OS** (a fila do
+  painel "Compras desta OS"). A F4 troca por "tudo separado/bipado";
+- Pronto para expedição: data de instalação marcada.
+Enviar, aprovar e finalizar não passam pelo "Avançar" (409 com a instrução).
+Com a trava desligada (padrão), pendência devolve 422 `MOTIVO_OBRIGATORIO`;
+com motivo, avança e o log guarda `AVISO_IGNORADO`. Ligada, 409
+`TRAVA_PENDENTE`. Voltar exige motivo e, com orçamento aprovado, não passa
+de "Aguardando sinal" (mudar o aprovado = nova versão).
+
+**OS de sempre** (`services/ordem_servico.py`, só ganchos, no-op fora da
+fábrica): status manual recusado (409) na OS da fábrica; finalizar com a
+trava ligada só a partir da Vistoria final; finalizar leva a ENTREGUE;
+cancelar grava no log; reabrir volta para a etapa (ENTREGUE → Vistoria
+final) com o status dela. O orçamento (F2) agora move a fase pelo trilho
+(log de AVANCO/APROVACAO/RETROCESSO); com a trava ligada e sem foto, criar a
+versão não tira a OS da Medição e enviar é recusado.
+
+**Compras:** `DemandaOS` ganhou `data_instalacao` e `pode_comprar`.
+- RC04: OS da fábrica antes do sinal (sem liberação) **reserva** (aparece em
+  `reservado_os`, marcada `aguardando_sinal`) mas **não pesa na compra** —
+  nem pelo mínimo — e o pedido gerado não é ligado a ela; o painel da OS
+  avisa (`compra_bloqueada`).
+- RC12: a fila ordena por instalação; sem data, pela abertura (OS comum:
+  igual a antes).
+- RC08: o aviso de atraso do painel compara com a instalação quando houver.
+
+**Cargos:** linha **Fábrica** (só marcenaria, fora da conta do nível):
+Visualizar = ver custo e margem; Gerenciar = orçar, enviar, responder pelo
+cliente, liberar compra. Avançar/voltar/instalação = permissão de Serviços.
+Sem a permissão de custo, o orçamento e a busca de insumo vêm com custo
+nulo e a tela esconde custo, margem e preço sugerido.
+
+**Rotas:** `GET /fabrica/os/{n}/trilho`, `POST .../avancar`, `.../voltar`,
+`.../liberar-compra`, `PUT .../instalacao`. Config: `fabrica_travar_etapas`.
+
+**Tela:** trilho no topo da OS (etapas, o que falta, sinal, instalação,
+Avançar com motivo quando há pendência, Liberar compra, Voltar com motivo,
+histórico); seletor de status travado na OS da fábrica; "Travar etapas" em
+Configurações › Ordens de Serviço; aviso de sinal no painel de Compras.
+
+**Verificado:** 15 testes do trilho (status acompanha o orçamento, status
+manual 409 × OS comum livre, aviso com motivo, trava, sinal pago, avanço
+por ação, instalação, foto, voltar, finalizar/reabrir, sem sinal não compra
+e liberar compra, fila por instalação, Cargos sem custo e com custo) + 1 da
+migration. Suíte do backend: **2137 passaram**, 1 pulado. Front: 156 testes
+(+3 da linha de Cargos), `vue-tsc` limpo, `vite build`.
+**Não verificado:** as telas num app rodando; sidecar não regerado.
+
+---
+
 ## Fontes
 
 - Resumo do Alan: "Módulo de Compras para Marcenaria — Especificação de

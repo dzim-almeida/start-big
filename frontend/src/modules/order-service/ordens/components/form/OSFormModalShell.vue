@@ -59,6 +59,7 @@ watch(
         :errors="view.formErrors.value"
         :can-select-tecnico="canSelectTecnico"
         :is-locked="view.isStructureLocked.value"
+        :status-da-etapa="!!view.currentOSData.value?.fase_fabrica"
         @update:status="view.handleStatusUpdate"
         @update:funcionario-id="view.handleFuncionarioIdUpdate"
         @update:prioridade="view.handlePrioridadeUpdate"

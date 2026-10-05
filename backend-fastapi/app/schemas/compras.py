@@ -281,6 +281,8 @@ class DemandaOSRead(BaseModel):
     numero_os: str
     quantidade: float = Field(..., description="Unidades do produto que a OS precisa")
     data_previsao: Optional[date] = None
+    data_instalacao: Optional[date] = None
+    aguardando_sinal: bool = Field(False, description="Fábrica sem sinal: reserva, mas não entra na compra")
 
 
 class NecessidadeItem(BaseModel):
@@ -442,3 +444,7 @@ class ComprasDaOS(BaseModel):
     aberta: bool = Field(..., description="Falso para OS finalizada/cancelada: as peças já saíram ou não vão sair")
     data_previsao: Optional[date] = None
     itens: list[CompraDaOSItem]
+    # Marcenaria-fábrica (F3): instalação manda no aviso de atraso, e sem
+    # sinal o material fica reservado mas fora das Necessidades.
+    data_instalacao: Optional[date] = None
+    compra_bloqueada: bool = Field(False, description="OS da fábrica aguardando o sinal: não gera compra ainda")

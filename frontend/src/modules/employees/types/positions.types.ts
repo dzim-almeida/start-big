@@ -59,6 +59,11 @@ export interface PermissionMatrixItem {
    * módulo novo rebaixaria o "Gestor" de toda loja que já existia.
    */
   modulo?: string;
+  /**
+   * Só neste segmento (ex.: a linha "Fábrica" da marcenaria). Como as de
+   * módulo, fica fora da conta do nível do cargo.
+   */
+  segmento?: string;
 }
 
 export interface PositionCardTheme {
