@@ -395,7 +395,15 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
         },
         "itens": itens_preview,
         "formas_pagamento": formas_preview,
+        "avisos": _avisos(empresa, venda.cliente),
     }
+
+
+def _avisos(empresa, cliente) -> list[str]:
+    # Import local: mantém o bytecode deste arquivo (teto do PyArmor) sem a
+    # lógica dos avisos, que mora em `avisos.py`.
+    from app.services.fiscal.avisos import avisos_da_emissao
+    return avisos_da_emissao(empresa, cliente)
 
 
 def preview_nfce_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
@@ -1210,6 +1218,7 @@ def preview_nfe_os(db: Session, numero_os: str, empresa_id: int) -> dict:
         "totais": payload.get("totais", {}),
         "formas_pagamento": payload.get("formas_pagamento", []),
         "destinatario": payload.get("destinatario", {}),
+        "avisos": _avisos(empresa, getattr(os_como_venda, "cliente", None)),
     }
 
 

@@ -305,6 +305,9 @@ class EmissaoPreviewResponse(BaseModel):
     totais: EmissaoPreviewTotais
     itens: list[EmissaoPreviewItem]
     formas_pagamento: list[EmissaoPreviewPagamento] = []
+    # O que está esquisito no cadastro e NÃO trava a nota (MEI × regime, PJ sem
+    # IE). Ver `services/fiscal/avisos.py`.
+    avisos: list[str] = []
 
 
 # --- Batch ---

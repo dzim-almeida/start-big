@@ -405,6 +405,9 @@ function handleActionDiagnostico(tipo?: string) {
   if (tipo === 'CONFIG_FISCAL') {
     router.push({ name: 'enterprise' });
     close();
+  } else if (tipo === 'CENTRO_FISCAL') {
+    router.push({ name: 'fiscal' });
+    close();
   } else if (tipo === 'EDITAR_VENDA') {
     showEditarVendaModal.value = true;
   } else if (tipo === 'RESOLVER_PRODUTOS') {
@@ -704,7 +707,7 @@ function formatarData(iso?: string | null): string {
                           class="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-zinc-800 transition-all cursor-pointer"
                         >
                           <Edit3 v-if="diagnostico.acaoPrincipal.tipo === 'EDITAR_VENDA'" class="h-3.5 w-3.5" />
-                          <Settings v-else-if="diagnostico.acaoPrincipal.tipo === 'CONFIG_FISCAL'" class="h-3.5 w-3.5" />
+                          <Settings v-else-if="diagnostico.acaoPrincipal.tipo === 'CONFIG_FISCAL' || diagnostico.acaoPrincipal.tipo === 'CENTRO_FISCAL'" class="h-3.5 w-3.5" />
                           <Package v-else-if="diagnostico.acaoPrincipal.tipo === 'RESOLVER_PRODUTOS'" class="h-3.5 w-3.5" />
                           <RotateCcw v-else class="h-3.5 w-3.5" />
                           <span>{{ diagnostico.acaoPrincipal.label }}</span>

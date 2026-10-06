@@ -355,6 +355,8 @@ export interface EmissaoPreviewResponse {
   totais: EmissaoPreviewTotais;
   itens: EmissaoPreviewItem[];
   formas_pagamento: EmissaoPreviewPagamento[];
+  /** Cadastro esquisito que não trava a nota (MEI × regime, PJ sem IE). Backend antigo não manda. */
+  avisos?: string[];
 }
 
 // --- Error Detail (409 Conflict) ---

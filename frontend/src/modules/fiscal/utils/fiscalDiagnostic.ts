@@ -1,5 +1,6 @@
 import type { DocumentoFiscalRead } from '../types/fiscal.types';
 import { formatDataHora } from '@/shared/utils/date.utils';
+import { diagnosticoPorCodigo } from './fiscalDiagnosticCodigos';
 
 export type DiagnosticCategory =
   | 'CONFIGURACAO'
@@ -11,7 +12,8 @@ export type DiagnosticCategory =
   | 'GENERICO';
 
 export type ActionType =
-  | 'CONFIG_FISCAL'
+  | 'CONFIG_FISCAL' // Dados da Empresa (regime, IE, CNPJ)
+  | 'CENTRO_FISCAL' // Centro Fiscal › Configurações (certificado, numeração)
   | 'EDITAR_VENDA'
   | 'RESOLVER_PRODUTOS'
   | 'REEMITIR'
@@ -68,12 +70,23 @@ export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null 
   const motivo = (documento.motivo_rejeicao || '').toLowerCase();
   const textoCompleto = `${msg} ${motivo}`;
 
+  // 0. Código conhecido da SEFAZ: decide sozinho (ver fiscalDiagnosticCodigos.ts).
+  const porCodigo = diagnosticoPorCodigo(documento);
+  if (porCodigo) return porCodigo;
+
   // 1. Configuração Fiscal Interna / Certificado
+  //
+  // Só quando NÃO há cStat: com código, a nota chegou à SEFAZ — então
+  // certificado e configuração funcionaram, e "emitente" na mensagem é só a
+  // SEFAZ descrevendo a regra (foi assim que a 481 virou "cadastre o
+  // certificado" em 06/10/2026).
   if (
-    textoCompleto.includes('configuração fiscal') ||
-    textoCompleto.includes('certificado') ||
-    textoCompleto.includes('emitente') ||
-    textoCompleto.includes('empresa não possui')
+    !cStat && (
+      textoCompleto.includes('configuração fiscal') ||
+      textoCompleto.includes('certificado') ||
+      textoCompleto.includes('emitente') ||
+      textoCompleto.includes('empresa não possui')
+    )
   ) {
     return {
       categoria: 'CONFIGURACAO',
@@ -91,13 +104,13 @@ export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null 
     };
   }
 
-  // 2. Erros de Inscrição Estadual e Cliente (cStat 232, 233, 234, 696, 778)
+  // 2. Erros de Inscrição Estadual e Cliente (cStat 232, 233, 234, 696)
+  //    (o 778 saiu daqui: no MOC é "NCM inexistente" — foi para o bloco 4)
   if (
     cStat === 696 ||
     cStat === 234 ||
     cStat === 232 ||
     cStat === 233 ||
-    cStat === 778 ||
     textoCompleto.includes('inscrição estadual') ||
     textoCompleto.includes('destinatário não vinculada') ||
     textoCompleto.includes('indicador de ie')
@@ -141,10 +154,11 @@ export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null 
     };
   }
 
-  // 4. Produto sem NCM ou NCM Inválido (cStat 703, 777)
+  // 4. Produto sem NCM ou NCM Inválido (cStat 703, 777, 778)
   if (
     cStat === 703 ||
     cStat === 777 ||
+    cStat === 778 ||
     textoCompleto.includes('ncm') ||
     textoCompleto.includes('nomenclatura comum')
   ) {
@@ -163,10 +177,10 @@ export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null 
   }
 
   // 5. Inconsistência de Regra Fiscal e CSOSN (cStat 508, 528)
+  //    (a 539 saiu daqui: é número já usado, não tributação — tabela por código)
   if (
     cStat === 508 ||
     cStat === 528 ||
-    cStat === 539 ||
     textoCompleto.includes('csosn') ||
     textoCompleto.includes('cfop') ||
     textoCompleto.includes('alíquota')

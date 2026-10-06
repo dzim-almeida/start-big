@@ -111,4 +111,12 @@ def _avisos_do_emitente(db, empresa_id: int) -> list[str]:
             f"Inscrição Estadual ({empresa.inscricao_estadual}). Quem tem IE e vende "
             f"mercadoria é '1 - Contribuinte ICMS'. Não impede a emissão."
         )
+
+    # Natureza MEI × regime: custou três números ao primeiro cliente em produção
+    # (Rejeição 481, 06/10/2026). Aviso e não pendência — ver `fiscal/avisos.py`.
+    from app.services.fiscal.avisos import aviso_regime_mei
+
+    aviso_mei = aviso_regime_mei(empresa)
+    if aviso_mei:
+        avisos.append(aviso_mei)
     return avisos

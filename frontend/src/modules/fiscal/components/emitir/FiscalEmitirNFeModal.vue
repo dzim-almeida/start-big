@@ -775,6 +775,17 @@ function formatDocumento(doc: string): string {
     <template v-if="step === 2 && !modoLote && previewData">
       <div class="space-y-5">
 
+        <!-- Avisos da prévia: aparecem ANTES de gastar um número, não travam -->
+        <div
+          v-if="previewData.avisos?.length"
+          class="flex items-start gap-2.5 rounded-lg bg-amber-50 border border-amber-200 px-3.5 py-2.5"
+        >
+          <AlertCircle :size="16" class="text-amber-500 mt-0.5 shrink-0" />
+          <ul class="text-xs text-amber-800 leading-relaxed space-y-1">
+            <li v-for="(aviso, i) in previewData.avisos" :key="i">{{ aviso }}</li>
+          </ul>
+        </div>
+
         <!-- Destinatário -->
         <div class="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <div class="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 border-b border-zinc-100">
