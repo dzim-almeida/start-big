@@ -484,6 +484,92 @@ class FiscalClientStartBig:
             "valido_ate": dados.get("valido_ate") or dados.get("certificado_valido_ate"),
         }
 
+    def ativar_emissao(
+        self, emitente: dict, email: Optional[str], telefone: Optional[str],
+        arquivo_base64: str, senha: str,
+    ) -> EnvioCertificadoResultado:
+        """
+        Ativa a emissão num passo só (`POST /erp/fiscal/ativacao`, 06/10/2026).
+
+        A plataforma acha ou CRIA a empresa na emissora com o `emitente` (o mesmo
+        bloco das notas), grava o certificado e guarda os tokens. Antes disto o
+        primeiro cliente em produção precisou cadastrar a empresa à mão no
+        painel da Focus.
+
+        Plataforma antiga, sem a rota: 404/405 SEM `codigo` (o 404 de rota do
+        Nest não traz código) → cai no `enviar_certificado`, o caminho de antes.
+        404/501 COM `codigo` é a plataforma nova explicando o que falta.
+        5xx é indisponível, nunca recusa: o lojista não deve mexer no
+        certificado por causa de uma instabilidade do outro lado.
+        """
+        url = f"{self.base_url}/erp/fiscal/ativacao"
+        corpo = {
+            "emitente": emitente,
+            "email": email,
+            "telefone": telefone,
+            "arquivo_base64": arquivo_base64,
+            "senha": senha,
+        }
+
+        try:
+            with httpx.Client(timeout=60.0) as client:
+                resposta = client.post(url, json=corpo, headers=self.headers)
+        except Exception as exc:
+            logger.warning("[FISCAL] Sem resposta ao ativar a emissao: %s", exc)
+            return {
+                "aceito": False,
+                "indisponivel": True,
+                "mensagem": "Não foi possível falar com a plataforma de emissão. O certificado foi conferido neste computador; tente de novo em instantes.",
+            }
+
+        codigo = _codigo_do_corpo(resposta) if resposta.status_code >= 400 else None
+
+        if resposta.status_code in (404, 405) and not codigo:
+            logger.info("[FISCAL] Plataforma sem /ativacao (HTTP %s): usando a rota antiga de certificado.", resposta.status_code)
+            return self.enviar_certificado(arquivo_base64, senha)
+
+        if resposta.status_code in (404, 405, 501) or resposta.status_code >= 500:
+            logger.info("[FISCAL] Ativacao nao concluida (HTTP %s, codigo %s).", resposta.status_code, codigo or "-")
+            return {
+                "aceito": False,
+                "indisponivel": True,
+                "mensagem": _MOTIVO_NAO_ENVIADO.get(codigo, _MOTIVO_NAO_ENVIADO[None]),
+            }
+
+        if resposta.status_code >= 400:
+            # Recusa com frase da plataforma: dados incompletos, CNPJ divergente,
+            # senha recusada pela emissora... É o que o lojista precisa ler.
+            logger.error(
+                "[FISCAL] Ativacao recusada: %s - %s",
+                resposta.status_code, _resposta_para_log(resposta),
+            )
+            detalhe = None
+            try:
+                corpo_erro = resposta.json() or {}
+                detalhe = corpo_erro.get("mensagem") or corpo_erro.get("message")
+                if isinstance(detalhe, dict):
+                    detalhe = detalhe.get("mensagem")
+            except Exception:
+                pass
+            return {
+                "aceito": False,
+                "indisponivel": False,
+                "mensagem": detalhe or f"A plataforma recusou a ativação (HTTP {resposta.status_code}).",
+            }
+
+        try:
+            dados = resposta.json() or {}
+        except Exception:
+            dados = {}
+        return {
+            "aceito": True,
+            "indisponivel": False,
+            "mensagem": dados.get("mensagem"),
+            "cnpj": dados.get("cnpj"),
+            "valido_ate": dados.get("valido_ate"),
+            "empresa": dados.get("empresa"),
+        }
+
     def enviar_csc(self, csc_id: str, csc_token: str) -> EnvioCertificadoResultado:
         """
         Entrega o CSC à plataforma, que o cadastra na ficha da empresa na Focus.

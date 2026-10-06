@@ -487,12 +487,23 @@ def upload_certificado_focus(
     from app.services.fiscal.http import get_fiscal_client
     from app.db.crud import fiscal as fiscal_crud
 
+    from app.services.fiscal.ativacao import contato_da_empresa, montar_emitente_para_ativacao
+
     settings_fiscais = get_or_create_fiscal_settings(db, empresa_id)
 
+    # Ativação, e não só o certificado (06/10/2026): junto vai o emitente, para
+    # a plataforma criar a empresa na emissora quando ela ainda não existe.
+    # Plataforma antiga cai sozinha na rota antiga (ver `ativar_emissao`).
+    email, telefone = contato_da_empresa(empresa_in_db)
     resultado = get_fiscal_client(
         settings_fiscais.ambiente_emissao or 2,
         fiscal_crud.get_licenca_token(db),
-    ).enviar_certificado(
+    ).ativar_emissao(
+        montar_emitente_para_ativacao(
+            empresa_in_db, fiscal_crud.get_endereco_empresa(db, empresa_id), settings_fiscais,
+        ),
+        email,
+        telefone,
         base64.b64encode(file_content).decode("ascii"),
         senha,
     )

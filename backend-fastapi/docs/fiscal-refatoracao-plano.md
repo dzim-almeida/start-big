@@ -254,6 +254,31 @@ de teste.
 verdade em produção. As fichas que já emitem só passam pela ativação se alguém
 clicar. Nada migra sozinho.
 
+**Entrega (06/10/2026)** — `dry_run` feito antes na VPS: **422** (conta pode
+criar empresa; a Focus recusou só os dados do teste — "Município inválido").
+
+| Item | Onde | O que ficou |
+|---|---|---|
+| F2.1 | plataforma `d2b9a46` | `POST /erp/fiscal/ativacao` (`ativarEmissao`). Recebe o MESMO `emitente{}` das notas + contato + certificado |
+| F2.2 | plataforma | Acha a empresa pelo id da ficha ou pelo CNPJ; se não existe, **cria** (`criarEmpresa`, `POST /v2/empresas`). **Sem `dry_run`** antes: um POST recusado por validação não cria nada, então o `dry_run` só dobraria a chamada. Antes de criar, `camposFaltandoParaCriar` devolve a lista inteira do que falta (a Focus recusa um campo por vez) |
+| F2.3 | plataforma | Guarda `focusTokenProducao` e `focusTokenHomologacao`. Trocar o ambiente na ficha passa a bastar |
+| F2.4 | plataforma | Cifra AES-256-GCM com `FISCAL_TOKENS_KEY` (`common/cripto/segredo-fiscal.ts`). **Sem a chave, grava em texto como antes** — não derruba ninguém. Precedência na emissão: o token colado à mão (`focusEmpresaToken`) vence; sem ele, o cifrado do ambiente. Fichas antigas não mudam |
+| F2.5 | plataforma | **Mudou:** a ficha só nasce sozinha se a licença trouxer NFE/NFCE **explícito** na claim. Motivo: criar empresa na Focus pode custar, e a claim vazia (licença antiga, `ENTITLEMENTS_ENFORCE` desligado) liberaria qualquer ERP. Sem isso, o admin cria a ficha com o CNPJ — o resto é automático |
+| ERP | ERP | O upload do certificado chama `ativar_emissao` com o emitente (`services/fiscal/ativacao.py`). Plataforma antiga (404 sem `codigo`) → cai sozinho na rota antiga de certificado |
+| F2.6, F2.7 | — | **Não feitos.** F2.6 (sincronizar ao salvar Dados da Empresa) fica para depois: a nota já leva o emitente inteiro, então o cadastro da Focus envelhecido só importa para o certificado. F2.7 é tela do admin |
+
+Travas testadas (91 testes na plataforma): CNPJ do ERP ≠ ficha → 422; CNPJ de
+outro cliente → 409; 401/403 da Focus → 501 (nosso token, nunca "certificado
+recusado"); recusa de validação da Focus → 422 com as mensagens dela, sem ecoar
+senha; resposta ao ERP sem token nenhum.
+
+**Para subir:** (1) na VPS, gerar a chave e pôr no `.env`:
+`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` →
+`FISCAL_TOKENS_KEY=...` em `apps/server/.env`; (2) `npm run deploy` (o
+`db:push` só acrescenta duas colunas nulas); (3) ERP: sidecar + instalador.
+Ordem livre: ERP novo com plataforma antiga usa a rota antiga; plataforma nova
+com ERP antigo continua recebendo `/certificado`.
+
 ### F3 — Numeração (2–3 dias)
 
 | # | O quê | Detalhe |

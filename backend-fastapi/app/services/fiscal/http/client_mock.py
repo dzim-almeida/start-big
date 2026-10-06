@@ -162,6 +162,18 @@ class FiscalClientMock:
         logger.info("[FISCAL MOCK] enviar_csc (id=%s)", csc_id)
         return {"aceito": True, "indisponivel": False, "mensagem": "CSC aceito (mock)."}
 
+    def ativar_emissao(self, emitente, email, telefone, arquivo_base64: str, senha: str) -> dict:
+        """No mock a ativação sempre dá certo, como o certificado."""
+        logger.info("[FISCAL MOCK] ativar_emissao (CNPJ %s)", (emitente or {}).get("cnpj"))
+        return {
+            "aceito": True,
+            "indisponivel": False,
+            "mensagem": "Emissão ativada (mock).",
+            "cnpj": (emitente or {}).get("cnpj"),
+            "valido_ate": None,
+            "empresa": "ATUALIZADA",
+        }
+
     def enviar_certificado(self, arquivo_base64: str, senha: str) -> dict:
         """No mock o envio sempre dá certo -- senão o modo de teste barraria a si mesmo."""
         logger.info("[FISCAL MOCK] enviar_certificado (%d bytes)", len(arquivo_base64 or ""))

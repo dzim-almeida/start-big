@@ -332,6 +332,12 @@ class _ClienteCertificado:
         self.recebeu = (arquivo_base64, senha)
         return self._resultado
 
+    # Desde 06/10/2026 o upload vai pela ativação (emitente + certificado).
+    # O fingimento responde igual: o que estes testes provam é o que se grava.
+    def ativar_emissao(self, emitente, email, telefone, arquivo_base64, senha):
+        self.emitente = emitente
+        return self.enviar_certificado(arquivo_base64, senha)
+
     def consultar_config(self):
         return {}
 
@@ -646,3 +652,106 @@ def test_cliente_le_o_codigo_da_plataforma(monkeypatch, status_code, corpo, trec
     assert resultado["indisponivel"] is True
     assert resultado["aceito"] is False
     assert trecho in resultado["mensagem"]
+
+
+# ---------------------------------------------------------------------------
+# F2 — ativação da emissão (06/10/2026): o certificado vai junto do emitente,
+# para a plataforma criar a empresa na emissora quando ela ainda não existe.
+# ---------------------------------------------------------------------------
+
+def test_upload_leva_o_emitente_junto(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    fake = _fingir_envio(monkeypatch, {"aceito": True, "indisponivel": False,
+                                       "mensagem": "Empresa cadastrada na emissora e certificado enviado. A emissão está ativa."})
+    corpo = _subir_certificado(client, header_with_token).json()
+
+    assert corpo["enviado"] is True
+    assert "cadastrada na emissora" in corpo["message"]
+    assert fake.emitente["cnpj"] and fake.emitente["cnpj"].isdigit()
+    assert fake.emitente["codigo_regime_tributario"] in (1, 2, 3, 4)
+
+
+def _cliente_com_respostas(monkeypatch, respostas):
+    """FiscalClientStartBig com o httpx trocado por respostas roteirizadas."""
+    import httpx
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    fila = list(respostas)
+    chamadas = []
+
+    class _HttpxFalso:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, url, json=None, headers=None):
+            chamadas.append((url, json))
+            r = fila.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return _RespostaFalsa(*r)
+
+    monkeypatch.setattr(httpx, "Client", _HttpxFalso)
+    return FiscalClientStartBig(ambiente=1, token="t"), chamadas
+
+
+EMITENTE = {"cnpj": "58348941000109", "razao_social": "X", "codigo_regime_tributario": 4}
+
+
+def test_ativacao_aceita(monkeypatch):
+    cliente, chamadas = _cliente_com_respostas(monkeypatch, [
+        (201, {"status": "ATIVO", "empresa": "CRIADA", "mensagem": "ok", "valido_ate": "2027-09-08T18:40:00.000Z"}),
+    ])
+    r = cliente.ativar_emissao(EMITENTE, "a@b.com", None, "AAA", "senha")
+    assert r["aceito"] is True and r["empresa"] == "CRIADA"
+    url, corpo = chamadas[0]
+    assert url.endswith("/erp/fiscal/ativacao")
+    assert corpo["emitente"]["cnpj"] == "58348941000109"
+
+
+def test_plataforma_antiga_sem_rota_cai_no_envio_de_certificado(monkeypatch):
+    cliente, chamadas = _cliente_com_respostas(monkeypatch, [
+        (404, {"statusCode": 404, "message": "Cannot POST /erp/fiscal/ativacao"}),
+        (200, {"status": "ATIVO", "mensagem": "Certificado cadastrado na emissora."}),
+    ])
+    r = cliente.ativar_emissao(EMITENTE, None, None, "AAA", "senha")
+    assert r["aceito"] is True
+    assert chamadas[1][0].endswith("/erp/fiscal/certificado")
+
+
+def test_ativacao_sem_ficha_explica_e_nao_cai_na_rota_antiga(monkeypatch):
+    cliente, chamadas = _cliente_com_respostas(monkeypatch, [
+        (404, {"statusCode": 404, "message": "...", "codigo": "SEM_CONFIGURACAO_FISCAL"}),
+    ])
+    r = cliente.ativar_emissao(EMITENTE, None, None, "AAA", "senha")
+    assert r["indisponivel"] is True and "configuração fiscal" in r["mensagem"]
+    assert len(chamadas) == 1
+
+
+def test_ativacao_recusada_traz_a_frase_da_plataforma(monkeypatch):
+    cliente, _ = _cliente_com_respostas(monkeypatch, [
+        (422, {"statusCode": 422, "message": "Para cadastrar a empresa na emissora, preencha em Dados da Empresa: CEP.",
+               "codigo": "DADOS_INCOMPLETOS"}),
+    ])
+    r = cliente.ativar_emissao(EMITENTE, None, None, "AAA", "senha")
+    assert r["aceito"] is False and r["indisponivel"] is False
+    assert "CEP" in r["mensagem"]
+
+
+def test_instabilidade_da_plataforma_nao_vira_recusa(monkeypatch):
+    cliente, _ = _cliente_com_respostas(monkeypatch, [(502, {"statusCode": 502, "message": "x"})])
+    assert cliente.ativar_emissao(EMITENTE, None, None, "AAA", "senha")["indisponivel"] is True
+
+    cliente, _ = _cliente_com_respostas(monkeypatch, [RuntimeError("rede caiu")])
+    assert cliente.ativar_emissao(EMITENTE, None, None, "AAA", "senha")["indisponivel"] is True
+
+
+def test_emitente_sem_endereco_vai_sem_o_bloco():
+    from app.db.models.empresa import Empresa
+    from app.services.fiscal.ativacao import montar_emitente_para_ativacao
+
+    empresa = Empresa(id=1, documento="58.348.941/0001-09", razao_social="X", regime_tributario="MEI", crt=4)
+    emitente = montar_emitente_para_ativacao(empresa, None, None)
+    assert emitente["cnpj"] == "58348941000109"
+    assert emitente["codigo_regime_tributario"] == 4
+    assert "endereco" not in emitente

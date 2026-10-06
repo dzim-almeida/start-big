@@ -1258,7 +1258,8 @@ def upload_certificado_focus_endpoint(
     # cliente em produção leu em 06/10/2026, antes de a primeira nota falhar.
     if resultado.get("aceito"):
         return {
-            "message": "Certificado enviado à emissora.",
+            # A ativação diz se a empresa foi CRIADA ou atualizada na emissora.
+            "message": resultado.get("mensagem") or "Certificado enviado à emissora.",
             "enviado": True,
             "certificado_status": resultado.get("certificado_status"),
         }

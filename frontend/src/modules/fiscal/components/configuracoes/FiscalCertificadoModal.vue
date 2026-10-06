@@ -27,6 +27,8 @@ const success = ref(false);
  * nota recusada.
  */
 const naoEnviado = ref('');
+/** O que a plataforma disse no sucesso: "empresa cadastrada…" ou "atualizada…". */
+const mensagemSucesso = ref('');
 
 function close() {
   emit('update:isOpen', false);
@@ -80,10 +82,11 @@ async function uploadCertificate() {
       naoEnviado.value = data.message;
       return; // fica aberto: o lojista precisa ler o motivo
     }
+    mensagemSucesso.value = data?.message || 'Certificado enviado à emissora!';
     success.value = true;
     setTimeout(() => {
       close();
-    }, 2000);
+    }, 2500);
   } catch (err: any) {
     error.value = err.response?.data?.detail || 'Erro ao enviar o certificado. Verifique a senha e o arquivo.';
   } finally {
@@ -109,7 +112,7 @@ async function uploadCertificate() {
         <svg class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        <p class="text-sm text-emerald-700">Certificado enviado à emissora!</p>
+        <p class="text-sm text-emerald-700">{{ mensagemSucesso }}</p>
       </div>
 
       <div v-if="naoEnviado" class="p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-3">

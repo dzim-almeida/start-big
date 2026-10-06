@@ -97,6 +97,9 @@ class EnvioCertificadoResultado(TypedDict):
     mensagem: Optional[str]
     cnpj: NotRequired[Optional[str]]
     valido_ate: NotRequired[Optional[str]]
+    # Só na ativação: "CRIADA" ou "ATUALIZADA" — o que aconteceu com a empresa
+    # no cadastro da emissora.
+    empresa: NotRequired[Optional[str]]
 
 
 class FiscalClientProtocol(Protocol):
@@ -110,6 +113,19 @@ class FiscalClientProtocol(Protocol):
 
         NUNCA levanta por indisponibilidade: quem chama precisa distinguir
         "ainda não dá" de "recusado", e uma exceção apaga essa diferença.
+        """
+        ...
+
+    def ativar_emissao(
+        self, emitente: dict, email: Optional[str], telefone: Optional[str],
+        arquivo_base64: str, senha: str,
+    ) -> "EnvioCertificadoResultado":
+        """
+        Ativa a emissão num passo só: a plataforma cria (ou atualiza) a empresa
+        na emissora com o `emitente` das notas, grava o certificado e guarda os
+        tokens. Plataforma antiga, sem a rota, cai no `enviar_certificado`.
+
+        Mesmo contrato: NUNCA levanta por indisponibilidade.
         """
         ...
 
