@@ -16,6 +16,7 @@ import { useFiscalConfiguracaoQuery } from '../composables/useFiscalConfiguracao
 import { useTributacaoPadrao } from '../composables/useTributacaoPadrao';
 import { useFiscalPlataformaQuery } from '../composables/useFiscalPlataformaQuery';
 import { fiscalKeys } from '../constants/fiscal.constants';
+import { api } from '@/api/axios';
 
 const showCertificadoModal = ref(false);
 const showEstadualModal = ref(false);
@@ -110,6 +111,28 @@ function openEstadualModal() {
 function aoEnviarCertificado() {
   queryClient.invalidateQueries({ queryKey: fiscalKeys.configuracao() });
 }
+
+/**
+ * "Validado, não enviado" sem caminho de volta: se o certificado chegou à
+ * emissora por outro caminho (reenvio, suporte), o cadastro local continuava
+ * dizendo que a emissão não ia funcionar. Pergunta à plataforma e, se ela
+ * confirmar certificado ativo e token, o status local acompanha.
+ */
+const reconferindo = ref(false);
+const resultadoReconferir = ref('');
+async function reconferirCertificado() {
+  reconferindo.value = true;
+  resultadoReconferir.value = '';
+  try {
+    const { data } = await api.post<{ mensagem: string }>('/fiscal/certificado/reconferir');
+    resultadoReconferir.value = data.mensagem;
+    queryClient.invalidateQueries({ queryKey: fiscalKeys.configuracao() });
+  } catch {
+    resultadoReconferir.value = 'Não foi possível conferir agora. Tente de novo em instantes.';
+  } finally {
+    reconferindo.value = false;
+  }
+}
 </script>
 
 <template>
@@ -201,9 +224,20 @@ function aoEnviarCertificado() {
             class="mb-6 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-relaxed"
           >
             O certificado foi conferido neste computador (senha e validade estão certas),
-            mas <strong>ainda não chegou à emissora</strong> — a plataforma de emissão
-            ainda não recebe certificado. Enquanto isso, a emissão não vai funcionar.
-            Fale com o suporte.
+            mas <strong>ainda não chegou à emissora</strong>. Enquanto isso, a emissão
+            não vai funcionar. Se o suporte já concluiu o cadastro, confira de novo;
+            senão, envie o certificado outra vez.
+            <div class="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                class="font-semibold underline hover:no-underline disabled:opacity-50"
+                :disabled="reconferindo"
+                @click="reconferirCertificado"
+              >
+                {{ reconferindo ? 'Conferindo…' : 'Conferir de novo' }}
+              </button>
+              <span v-if="resultadoReconferir">{{ resultadoReconferir }}</span>
+            </div>
           </div>
 
           <div

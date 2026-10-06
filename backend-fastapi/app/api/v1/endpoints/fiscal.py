@@ -1250,8 +1250,41 @@ def upload_certificado_focus_endpoint(
     # sessao morria sem `commit`. O lojista via "Certificado enviado com
     # sucesso!", reabria o Centro Fiscal e lia "Nao configurado" -- porque de
     # fato nada tinha sido gravado.
-    _handle_db_transaction(db, upload_certificado_focus, empresa_id, file, senha)
-    return {"message": "Certificado enviado e configurado com sucesso."}
+    resultado: dict = {}
+    _handle_db_transaction(db, upload_certificado_focus, empresa_id, file, senha, resultado)
+
+    # Respondia "enviado e configurado com sucesso" SEMPRE — inclusive quando o
+    # certificado ficava só validado neste computador. Foi o que o primeiro
+    # cliente em produção leu em 06/10/2026, antes de a primeira nota falhar.
+    if resultado.get("aceito"):
+        return {
+            "message": "Certificado enviado à emissora.",
+            "enviado": True,
+            "certificado_status": resultado.get("certificado_status"),
+        }
+    return {
+        "message": resultado.get("mensagem") or "O certificado foi conferido neste computador, mas não chegou à emissora.",
+        "enviado": False,
+        "certificado_status": resultado.get("certificado_status"),
+    }
+
+
+@router.post(
+    "/certificado/reconferir",
+    summary="Reconferir o certificado na plataforma",
+    description=(
+        "Pergunta à plataforma se o certificado já está na emissora e, se estiver, "
+        "tira o cadastro local de 'Validado, não enviado'."
+    ),
+)
+def reconferir_certificado_endpoint(
+    user_token: dict = Depends(requer_configuracao_fiscal),
+    *,
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.certificado import reconferir_certificado
+
+    return _handle_db_transaction(db, reconferir_certificado, user_token["empresa_id"])
 
 
 # ===========================================================================

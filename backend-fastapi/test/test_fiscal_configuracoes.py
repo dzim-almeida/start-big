@@ -523,3 +523,126 @@ def test_mascara_do_csc_nao_e_reenviada_a_plataforma(
     assert r.status_code == 200, r.text
     assert fake.enviados == []
     assert r.json()["csc_plataforma"] is None
+
+
+# ---------------------------------------------------------------------------
+# F1.5 / F1.6 do plano de refatoração do fiscal (06/10/2026)
+#
+# O primeiro cliente em produção enviou o certificado antes de a ficha fiscal
+# existir na plataforma: leu "Certificado enviado e configurado com sucesso",
+# ficou VALIDADO_LOCAL, e a tela continuou dizendo "a emissão não vai
+# funcionar" mesmo depois de o certificado chegar à emissora por outro caminho.
+# ---------------------------------------------------------------------------
+
+def test_upload_nao_enviado_diz_o_motivo_e_nao_fala_em_sucesso(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    _fingir_envio(monkeypatch, {
+        "aceito": False, "indisponivel": True,
+        "mensagem": "a plataforma ainda não tem a configuração fiscal desta empresa",
+    })
+
+    resposta = _subir_certificado(client, header_with_token)
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert corpo["enviado"] is False
+    assert "configuração fiscal" in corpo["message"]
+    assert "sucesso" not in corpo["message"].lower()
+    assert corpo["certificado_status"] == "VALIDADO_LOCAL"
+
+
+def test_upload_aceito_responde_enviado(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    _fingir_envio(monkeypatch, {"aceito": True, "indisponivel": False, "mensagem": None})
+    corpo = _subir_certificado(client, header_with_token).json()
+    assert corpo["enviado"] is True
+    assert corpo["certificado_status"] == "CONECTADO_NUVEM"
+
+
+class _ClienteReconferir(_ClienteCertificado):
+    def __init__(self, resultado_envio, config):
+        super().__init__(resultado_envio)
+        self._config = config
+
+    def consultar_config(self):
+        return self._config
+
+
+def _deixar_validado_local(client, header_with_token, monkeypatch, config_depois):
+    """Sobe o certificado com a plataforma sem ficha e troca a resposta do /config."""
+    from app.services.fiscal import http as http_mod
+
+    fake = _ClienteReconferir({"aceito": False, "indisponivel": True, "mensagem": "x"}, config_depois)
+    monkeypatch.setattr(http_mod, "get_fiscal_client", lambda ambiente, token="": fake)
+    assert _subir_certificado(client, header_with_token).status_code == 200
+    status = client.get("/api/v1/fiscal/configuracao", headers=header_with_token).json()["certificado_status"]
+    assert status == "VALIDADO_LOCAL"
+
+
+def test_reconferir_promove_quando_a_plataforma_confirma(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch
+):
+    _deixar_validado_local(client, header_with_token, monkeypatch, {
+        "configurado": True, "certificadoStatus": "ATIVO", "tokenConfigurado": True, "pendencias": [],
+    })
+
+    corpo = client.post("/api/v1/fiscal/certificado/reconferir", headers=header_with_token).json()
+    assert corpo["alterado"] is True
+    assert corpo["certificado_status"] == "CONECTADO_NUVEM"
+
+    # Sobrevive à requisição (commit).
+    dados = client.get("/api/v1/fiscal/configuracao", headers=header_with_token).json()
+    assert dados["certificado_status"] == "CONECTADO_NUVEM"
+    assert dados["certificado_configurado"] is True
+
+
+@pytest.mark.parametrize("config", [
+    {},                                                                     # plataforma muda
+    {"configurado": False},                                                 # sem ficha
+    {"configurado": True, "certificadoStatus": "AUSENTE", "tokenConfigurado": True},
+    {"configurado": True, "certificadoStatus": "ATIVO", "tokenConfigurado": False},
+])
+def test_reconferir_nao_promove_sem_confirmacao(
+    client: TestClient, header_with_token: dict, setup_fiscal_settings, monkeypatch, config
+):
+    _deixar_validado_local(client, header_with_token, monkeypatch, config)
+
+    corpo = client.post("/api/v1/fiscal/certificado/reconferir", headers=header_with_token).json()
+    assert corpo["alterado"] is False
+    assert corpo["mensagem"]
+    dados = client.get("/api/v1/fiscal/configuracao", headers=header_with_token).json()
+    assert dados["certificado_status"] == "VALIDADO_LOCAL", "'não sei' virou 'conectado'"
+
+
+class _RespostaFalsa:
+    def __init__(self, status_code, corpo):
+        self.status_code = status_code
+        self._corpo = corpo
+        self.content = b"x"
+
+    def json(self):
+        return self._corpo
+
+
+@pytest.mark.parametrize("status_code,corpo,trecho", [
+    (404, {"statusCode": 404, "message": "Nenhuma...", "codigo": "SEM_CONFIGURACAO_FISCAL"}, "configuração fiscal"),
+    (501, {"statusCode": 501, "message": "...", "codigo": "EMPRESA_SEM_CADASTRO_NA_EMISSORA"}, "cadastrada na emissora"),
+    (501, {"statusCode": 501, "message": "...", "codigo": "PLATAFORMA_SEM_TOKEN_DA_CONTA"}, "não é o seu certificado"),
+    (404, {"statusCode": 404, "message": "Cannot POST"}, "não chegou à emissora"),
+])
+def test_cliente_le_o_codigo_da_plataforma(monkeypatch, status_code, corpo, trecho):
+    import httpx
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    class _HttpxFalso:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def post(self, *a, **k): return _RespostaFalsa(status_code, corpo)
+
+    monkeypatch.setattr(httpx, "Client", _HttpxFalso)
+    resultado = FiscalClientStartBig(ambiente=1, token="t").enviar_certificado("AAA", "senha")
+    assert resultado["indisponivel"] is True
+    assert resultado["aceito"] is False
+    assert trecho in resultado["mensagem"]

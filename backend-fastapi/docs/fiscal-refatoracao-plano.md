@@ -185,6 +185,29 @@ Cada item é pequeno e teria evitado parte do dia de hoje.
 mostra a trava MEI antes de emitir, e cada rejeição de hoje aparece com a causa
 certa.
 
+**Entrega (06/10/2026)** — branch `feat/fiscal-ativacao` nos dois repositórios:
+
+| Item | Onde | O que ficou |
+|---|---|---|
+| F1.1 | plataforma `18bc936` | `ambiente @default(1)`; painel abre a ficha nova em Produção e rotula Homologação "teste — sem valor fiscal". Fichas existentes intactas |
+| F1.2 | ERP `bd533fc` | `fiscalDiagnosticCodigos.ts`: tabela por cStat **antes** das palavras-chave (204, 207, 208, 209, 213, 237, 280–286, 301, 302, 305, 481, 539). A 539 lê a chave e diz "nº 4 da série 2, emitido em 09/2026". Achados no caminho: 207/209 eram tratados como erro do cliente (são do emitente) e 778 como IE (é NCM). "Emitente" na mensagem só vira configuração quando **não** há cStat. Ação nova `CENTRO_FISCAL` |
+| F1.3 | ERP `bd533fc` | **Virou aviso, não trava** — ver abaixo. `services/fiscal/avisos.py`; aparece em Dados Fiscais (na hora), no painel do Centro Fiscal e no modal de emissão |
+| F1.4 | ERP `bd533fc` | PJ sem IE: aviso na prévia da NF-e (`avisos` novo em `EmissaoPreviewResponse`, opcional) |
+| F1.5 | plataforma `18bc936` + ERP | Plataforma loga o 404 sem ficha. ERP lê o `codigo` (`SEM_CONFIGURACAO_FISCAL`, `EMPRESA_SEM_CADASTRO_NA_EMISSORA`, `PLATAFORMA_SEM_TOKEN_DA_CONTA`) e diz o motivo certo. **Achado:** o endpoint de upload respondia "enviado e configurado com sucesso" SEMPRE, e o modal ficava verde mesmo com o certificado parado aqui — agora devolve `enviado` e o modal mostra o motivo em amarelo |
+| F1.6 | ERP | `POST /fiscal/certificado/reconferir` + botão "Conferir de novo" no aviso de "Validado, não enviado". Só promove a `CONECTADO_NUVEM` quando a plataforma afirma certificado ATIVO **e** token; "não sei" nunca muda nada |
+
+**Por que a trava MEI virou aviso:** a contradição tem um caso legítimo — a
+empresa **deixou** de ser MEI e o cadastro ficou com a natureza antiga. Aí o
+regime (que é o que vai na nota) está certo e a nota sai; travar pararia uma
+loja que emite bem, contra o R8. O aviso aparece em três lugares, inclusive no
+modal de emissão, antes de gastar número.
+
+**Para chegar às lojas:** deploy da plataforma (`npm run deploy` na VPS — o
+`db:push` só troca o DEFAULT da coluna) e, no ERP, `npm run build:sidecar` +
+instalador desta branch. Os dois lados funcionam um sem o outro (ERP antigo
+ignora o `codigo`; plataforma antiga não manda `codigo` e o ERP novo cai na
+frase genérica).
+
 ### F2 — "Ativar emissão" num botão (4–5 dias) ← o coração do plano
 
 **Hoje:** criar na Focus → ficha no admin → certificado no ERP → (às vezes)

@@ -405,7 +405,8 @@ def upload_certificado_focus(
     db: Session,
     empresa_id: int,
     file: UploadFile,
-    senha: str
+    senha: str,
+    resultado_envio: Optional[dict] = None,
 ) -> EmpresaModel:
     """
     Valida um certificado A1 (PKCS#12) destinado a emissao pela API na nuvem.
@@ -518,6 +519,16 @@ def upload_certificado_focus(
     )
     if cert_cnpj:
         settings_fiscais.certificado_cnpj = cert_cnpj
+
+    # Quem chamou quer saber o que a plataforma disse (a tela mostra o motivo
+    # quando o certificado não chegou à emissora). Opcional para não mudar a
+    # assinatura de quem já chama.
+    if resultado_envio is not None:
+        resultado_envio.update(
+            aceito=resultado["aceito"],
+            mensagem=resultado.get("mensagem"),
+            certificado_status=settings_fiscais.certificado_status,
+        )
 
     db.flush()
     db.refresh(empresa_in_db)

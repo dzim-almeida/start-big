@@ -110,6 +110,47 @@ def _resposta_para_log(response) -> str:
         return f"<corpo nao-JSON, {len(response.content or b'')} bytes>"
 
 
+def _codigo_do_corpo(response) -> Optional[str]:
+    """`codigo` que a plataforma põe no corpo do erro (no topo ou em `message`)."""
+    try:
+        corpo = response.json() or {}
+    except Exception:
+        return None
+    if not isinstance(corpo, dict):
+        return None
+    interno = corpo.get("message") if isinstance(corpo.get("message"), dict) else {}
+    return corpo.get("codigo") or interno.get("codigo")
+
+
+# Por que o certificado NÃO chegou à emissora, pelo `codigo` da plataforma.
+#
+# Até 06/10/2026 os três casos viravam a mesma frase — "a plataforma ainda não
+# recebe certificado" —, que era verdade em setembro e virou mentira quando a
+# rota subiu. O primeiro cliente em produção caiu no primeiro caso (certificado
+# enviado antes da ficha fiscal existir) e ninguém tinha como saber.
+_MOTIVO_NAO_ENVIADO = {
+    "SEM_CONFIGURACAO_FISCAL": (
+        "O certificado foi conferido neste computador, mas a plataforma ainda não "
+        "tem a configuração fiscal desta empresa. Peça ao suporte StartBig para "
+        "liberar a emissão e envie o certificado de novo."
+    ),
+    "EMPRESA_SEM_CADASTRO_NA_EMISSORA": (
+        "O certificado foi conferido neste computador, mas a empresa ainda não "
+        "está cadastrada na emissora. Peça ao suporte StartBig para concluir o "
+        "cadastro e envie o certificado de novo."
+    ),
+    "PLATAFORMA_SEM_TOKEN_DA_CONTA": (
+        "O certificado foi conferido neste computador, mas a plataforma de emissão "
+        "está com um problema de configuração do nosso lado. Fale com o suporte "
+        "StartBig — não é o seu certificado."
+    ),
+    None: (
+        "O certificado foi conferido neste computador, mas não chegou à emissora. "
+        "Fale com o suporte StartBig."
+    ),
+}
+
+
 class FiscalClientStartBig:
     """
     Client que se comunica com a API Online StartBig para emissão fiscal.
@@ -400,17 +441,15 @@ class FiscalClientStartBig:
             }
 
         if resposta.status_code in (404, 405, 501):
+            codigo = _codigo_do_corpo(resposta)
             logger.info(
-                "[FISCAL] A plataforma ainda nao recebe certificado (HTTP %s).",
-                resposta.status_code,
+                "[FISCAL] Certificado nao chegou a emissora (HTTP %s, codigo %s).",
+                resposta.status_code, codigo or "-",
             )
             return {
                 "aceito": False,
                 "indisponivel": True,
-                "mensagem": (
-                    "A plataforma de emissão ainda não recebe o certificado. "
-                    "Ele ficou validado neste computador."
-                ),
+                "mensagem": _MOTIVO_NAO_ENVIADO.get(codigo, _MOTIVO_NAO_ENVIADO[None]),
             }
 
         if resposta.status_code >= 400:
