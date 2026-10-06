@@ -4,7 +4,8 @@
  * @description Form section for PJ (company) customer data
  */
 
-import { Building2 } from 'lucide-vue-next';
+import { computed, watch } from 'vue';
+import { Building2, Search } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -38,7 +39,26 @@ const {
   responsavel,
   errors,
   submitCount,
+  isConsultingCNPJ,
+  consultarReceita,
+  isCreateMode,
 } = useCustomerForm();
+
+// =============================================
+// Busca na Receita pelo CNPJ
+// =============================================
+
+const cnpjDigitos = computed(() => (cnpj.value ?? '').replace(/\D/g, ''));
+
+/**
+ * No cadastro NOVO, buscar sozinho quando o CNPJ fica completo — como em Dados
+ * da Empresa. Na edição, só pelo botão: abrir um cliente salvo não pode
+ * sobrescrever o que alguém já corrigiu à mão.
+ */
+watch(cnpjDigitos, (digitos, anterior) => {
+  if (!isCreateMode.value || digitos.length !== 14 || digitos === anterior) return;
+  consultarReceita(digitos);
+});
 </script>
 
 <template>
@@ -85,8 +105,23 @@ const {
           mask="##.###.###/####-##"
           :required="configStore.exigirCnpjPj"
           :error="submitCount > 0 ? errors.cnpj : ''"
-          :disabled="disabled"
+          :disabled="disabled || isConsultingCNPJ"
         />
+        <div
+          v-if="isConsultingCNPJ"
+          class="mt-1.5 text-xs text-brand-primary animate-pulse"
+        >
+          Consultando Receita Federal...
+        </div>
+        <button
+          v-else-if="cnpjDigitos.length === 14 && !disabled"
+          type="button"
+          class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+          @click="consultarReceita(cnpjDigitos)"
+        >
+          <Search :size="11" />
+          Buscar dados na Receita
+        </button>
       </div>
       <div class="col-span-12 md:col-span-6">
         <BaseInput
