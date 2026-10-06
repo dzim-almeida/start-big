@@ -291,6 +291,25 @@ com ERP antigo continua recebendo `/certificado`.
 **Risco:** numeração errada gera nota duplicada ou buraco. Tudo aqui passa por
 teste com SEFAZ de homologação antes do canário.
 
+**Entrega (06/10/2026)** — ERP, branch `feat/fiscal-ativacao`:
+
+| Item | O que ficou |
+|---|---|
+| F3.1 | A trava `numeracao_confirmada` **já existia**, com um texto de orientação que dava para ignorar (campos chegam com Série 1 / Último 0 e salvar libera). Agora, na **primeira** confirmação, a tela pergunta "esta empresa já emitiu nota antes?" e não salva sem resposta; "já emitia" com tudo zerado também não salva. Quem já confirmou não vê a pergunta |
+| F3.2 | `services/fiscal/numeracao.py` + `POST /fiscal/numeracao/ajustar-duplicidade`. No detalhe da nota com 539 aparece "qual foi o último número do sistema anterior?" (já preenchido com o número que a SEFAZ acusou) e **"Ajustar numeração e reemitir"**. Nunca pula sozinho (decisão 7.1-3), nunca anda para trás, nunca troca a série |
+| F3.3 | **Não feito — precisa de SEFAZ de homologação.** Roteiro abaixo |
+| F3.4 | Sugestão de inutilização corrigida. **Achado:** listava todo número de 1 até o contador — para quem veio de outro sistema, os números USADOS lá (a SEFAZ recusa inutilizar). Agora existe o **piso** (`numeracao_piso_nfe`, migration `d7a3e9c2f418`): o último número informado à mão. Abaixo dele só aparece o que uma nota do StartBig usou. Números com 204/539 nunca aparecem e inutilizá-los é recusado (409 `NUMERO_USADO_FORA`). **Piso 0 (padrão, todo banco existente) = regra antiga idêntica** |
+| extra | O contador não volta para trás de uma nota do próprio StartBig na mesma série (422) — voltar repetiria o número |
+
+**Roteiro da F3.3 (homologação, ~15 min):** numa ficha em homologação, emitir
+uma NF-e com erro de cadastro proposital (ex.: CRT errado → 481); anotar o nº N;
+corrigir o cadastro; pôr o contador de volta em N−1 **direto no banco** (a tela
+agora recusa, de propósito); emitir de novo. Se autorizar com o nº N, rejeição
+de validação **não** consome número e a reemissão pode reusar o número (some
+quase toda inutilização). Se voltar 204/539, o comentário de `reemissao.py`
+estava certo e fica como está.
+
+
 ### F4 — Painel de saúde fiscal no admin (2 dias, só leitura)
 
 Na ficha do cliente, um quadro com o que o `GET /v2/empresas/{id}` e o nosso

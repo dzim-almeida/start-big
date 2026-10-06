@@ -155,8 +155,7 @@ const TABELA: Record<number, Montador> = {
       badge: { label: 'cStat 539 · Número já usado', ...BADGE.numeracao },
       titulo: 'Número Já Usado por Outra Nota',
       explicacao: `${qual} já foi emitido${quando} com outra chave — quase sempre por outro sistema que a empresa usava antes do StartBig.`,
-      comoResolver: 'Pergunte ao contador qual foi a última nota emitida em cada série no sistema antigo e ajuste a numeração em Centro Fiscal › Configurações. Não inutilize os números para trás: eles podem ter sido usados de verdade.',
-      acaoPrincipal: { tipo: 'CENTRO_FISCAL', label: 'Abrir Centro Fiscal' },
+      comoResolver: 'Pergunte ao contador qual foi a última nota emitida nesta série pelo sistema antigo, informe abaixo e reemita. Não inutilize os números para trás: eles podem ter sido usados de verdade.',
     };
   },
 };

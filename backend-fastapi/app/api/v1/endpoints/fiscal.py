@@ -37,6 +37,7 @@ from app.schemas.emissao_fiscal import (
     DiagnosticoPlataforma,
     GapNumeracao,
     InutilizacaoRead,
+    AjusteNumeracaoRequest,
     InutilizacaoRequest,
     CancelamentoRequest,
     EmissaoBatchResponse,
@@ -1325,6 +1326,28 @@ def listar_inutilizacoes(
     from app.services.fiscal.inutilizacao import listar_inutilizacoes as _listar
 
     return _listar(db, user_token["empresa_id"])
+
+
+@router.post(
+    "/numeracao/ajustar-duplicidade",
+    summary="Ajustar numeração depois de uma Rejeição 539",
+    description=(
+        "A SEFAZ disse que o número já existe (emitido por outro sistema). Leva o "
+        "contador da série da nota para o último número informado, nunca para trás."
+    ),
+)
+def ajustar_numeracao_duplicidade(
+    user_token: dict = Depends(requer_configuracao_fiscal),
+    *,
+    db: Session = Depends(get_db),
+    payload: AjusteNumeracaoRequest = Body(...),
+):
+    from app.services.fiscal.numeracao import ajustar_numeracao_por_duplicidade
+
+    return _handle_db_transaction(
+        db, ajustar_numeracao_por_duplicidade,
+        user_token["empresa_id"], payload.documento_id, payload.ultimo_numero,
+    )
 
 
 @router.post(

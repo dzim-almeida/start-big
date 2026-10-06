@@ -23,13 +23,13 @@ describe('diagnóstico pelo cStat', () => {
     expect(d.acaoPrincipal?.tipo).toBe('CONFIG_FISCAL');
   });
 
-  it('539 diz qual número já foi usado e quando, e manda ao Centro Fiscal', () => {
+  it('539 diz qual número já foi usado e quando, e pede o último número ali mesmo', () => {
     const d = analisarDiagnosticoFiscal(doc(539, MSG_539));
     expect(d.categoria).toBe('DUPLICIDADE');
     expect(d.explicacao).toContain('nº 4 da série 2');
     expect(d.explicacao).toContain('09/2026');
     expect(d.comoResolver).not.toMatch(/CSOSN/);
-    expect(d.acaoPrincipal?.tipo).toBe('CENTRO_FISCAL');
+    expect(d.comoResolver).toMatch(/informe abaixo/);
   });
 
   it('305 diz que o cliente está bloqueado, não "revise os dados da venda"', () => {

@@ -63,10 +63,22 @@ def listar_gaps_numeracao(db: Session, empresa_id: int) -> list[dict]:
     Lista as faixas de numeração que precisam ser inutilizadas.
 
     Um número entra na lista quando:
-      - está abaixo do contador (já foi reservado), e
+      - está abaixo do contador e ACIMA do piso (`numeracao_piso_nfe`, o último
+        número informado à mão) — ou, abaixo do piso, uma nota DESTE sistema o
+        usou —, e
       - nenhum documento vivo o ocupa, e
+      - a SEFAZ não disse que ele já existe (rejeições 204/539), e
       - ainda não há inutilização registrada cobrindo ele.
+
+    Até 06/10/2026 o piso não existia ("todo número de 1 até o contador"). Para
+    quem veio de outro sistema e informou "último = 37", isso listava 1..36 —
+    números USADOS pelo sistema antigo, que a SEFAZ recusa inutilizar. E a 539
+    marcava como buraco justamente o número que ela acabou de dizer que existe.
+    Piso 0 (o padrão) é exatamente a regra antiga: número reservado e perdido
+    numa falha, sem nota nenhuma, continua aparecendo.
     """
+    from app.services.fiscal.numeracao import numeros_reservados_pelo_startbig, numeros_usados_fora
+
     fs = crud.get_fiscal_settings(db, empresa_id)
     if not fs or fs.ultimo_numero_nfe < 1:
         return []
@@ -92,9 +104,13 @@ def listar_gaps_numeracao(db: Session, empresa_id: int) -> list[dict]:
     ).all():
         ja_tratados.update(range(inut.numero_inicial, inut.numero_final + 1))
 
+    piso = getattr(fs, "numeracao_piso_nfe", 0) or 0
+    reservados = numeros_reservados_pelo_startbig(db, "NFE", serie)
+    usados_fora = numeros_usados_fora(db, "NFE", serie)
     buracos = [
         n for n in range(1, ultimo + 1)
-        if n not in ocupados and n not in ja_tratados
+        if (n > piso or n in reservados)
+        and n not in ocupados and n not in ja_tratados and n not in usados_fora
     ]
 
     return [
@@ -142,6 +158,21 @@ def _validar_faixa(
         DocumentoFiscal.numero_documento <= final,
         DocumentoFiscal.status.in_(_STATUS_QUE_CONSOMEM_NUMERO),
     ).first()
+
+    from app.services.fiscal.numeracao import numeros_usados_fora
+
+    usado_fora = sorted(n for n in numeros_usados_fora(db, "NFE", serie) if inicial <= n <= final)
+    if usado_fora:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "codigo": "NUMERO_USADO_FORA",
+                "mensagem": (
+                    f"A SEFAZ informou que o número {usado_fora[0]} desta série já existe "
+                    f"(emitido por outro sistema). Número usado não se inutiliza."
+                ),
+            },
+        )
 
     if conflito:
         raise HTTPException(

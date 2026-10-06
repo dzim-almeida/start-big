@@ -349,6 +349,12 @@ class GapNumeracao(BaseModel):
     quantidade: int
 
 
+class AjusteNumeracaoRequest(BaseModel):
+    """Depois de uma Rejeição 539: o último número que o outro sistema usou."""
+    documento_id: int
+    ultimo_numero: int = Field(..., ge=1, le=999_999_999)
+
+
 class InutilizacaoRequest(BaseModel):
     """Pedido de inutilização de uma faixa de numeração."""
 

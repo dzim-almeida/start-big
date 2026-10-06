@@ -292,6 +292,31 @@ def update_fiscal_settings(
         else:
             update_dict["csc_token"] = cifrar_csc_token(update_dict["csc_token"])
 
+    # Voltar o contador para trás de uma nota deste sistema repetiria o número
+    # (Rejeição 204/539, número gasto). Confere com a série que vai valer.
+    if update_dict.keys() & CAMPOS_QUE_CONFIRMAM_NUMERACAO:
+        from app.services.fiscal.numeracao import validar_novo_ultimo_numero
+
+        for tipo, campo_serie, campo_ultimo in (
+            ("NFE", "serie_nfe", "ultimo_numero_nfe"),
+            ("NFCE", "serie_nfce", "ultimo_numero_nfce"),
+        ):
+            if campo_serie in update_dict or campo_ultimo in update_dict:
+                validar_novo_ultimo_numero(
+                    db, tipo,
+                    update_dict.get(campo_serie, getattr(settings, campo_serie)),
+                    update_dict.get(campo_ultimo, getattr(settings, campo_ultimo)),
+                )
+
+        # Número informado À MÃO vira o piso: abaixo dele, o que não tem nota é
+        # do sistema anterior (ver `numeracao_piso_nfe`). Só quando muda — a
+        # tela reenvia o valor de sempre, e isso não pode esconder buraco que o
+        # próprio StartBig abriu.
+        nova_serie = update_dict.get("serie_nfe", settings.serie_nfe)
+        novo_ultimo = update_dict.get("ultimo_numero_nfe", settings.ultimo_numero_nfe)
+        if nova_serie != settings.serie_nfe or novo_ultimo != settings.ultimo_numero_nfe:
+            settings.numeracao_piso_nfe = novo_ultimo
+
     for field, value in update_dict.items():
         setattr(settings, field, value)
 

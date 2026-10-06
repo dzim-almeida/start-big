@@ -57,6 +57,7 @@ import {
   formatarDiagnosticoParaSuporte,
   nomeAmbienteDocumento,
 } from '../../utils/fiscalDiagnostic';
+import { lerChaveDaMensagem } from '../../utils/fiscalDiagnosticCodigos';
 import FiscalEditarVendaModal from './FiscalEditarVendaModal.vue';
 import FiscalEmitirDevolucaoModal from './FiscalEmitirDevolucaoModal.vue';
 import { prazoCancelamentoExpirado, totalmenteDevolvida } from '../../composables/useDevolucaoItens';
@@ -177,6 +178,38 @@ const handleReemitir = async () => {
     // A mutação já mostrou o erro no toast.
   }
 };
+
+// --- Rejeição 539: número já usado por outro sistema (F3) ---
+//
+// O primeiro cliente em produção caiu nisto: começou do 1 e o nº 4 da série 2
+// já existia (sistema antigo, 09/2026). Aqui o lojista informa o último número
+// que o sistema anterior usou (perguntado ao contador) — o campo já vem com o
+// número que a SEFAZ acusou — e o sistema ajusta e reemite. Nunca pula sozinho.
+const numeroAcusado539 = computed(() =>
+  documento.value?.codigo_status_sefaz === 539
+    ? lerChaveDaMensagem(documento.value.mensagem_sefaz)?.numero ?? documento.value.numero_documento ?? null
+    : null,
+);
+const ultimoNumeroInformado = ref<number | null>(null);
+const ajustandoNumeracao = ref(false);
+async function ajustarNumeracaoEReemitir() {
+  if (!documento.value) return;
+  const ultimo = Number(ultimoNumeroInformado.value ?? numeroAcusado539.value);
+  if (!Number.isInteger(ultimo) || ultimo < 1) {
+    toast.error('Informe o último número usado pelo sistema anterior.');
+    return;
+  }
+  ajustandoNumeracao.value = true;
+  try {
+    const r = await fiscalService.ajustarNumeracaoDuplicidade({ documento_id: documento.value.id, ultimo_numero: ultimo });
+    toast.success(r.mensagem);
+    await handleReemitir();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Não foi possível ajustar a numeração.');
+  } finally {
+    ajustandoNumeracao.value = false;
+  }
+}
 
 // Só REJEITADA volta à SEFAZ. DENEGADA é decisão sobre o contribuinte:
 // reenviar volta denegada e queima outro número (o backend recusa com 422).
@@ -696,6 +729,36 @@ function formatarData(iso?: string | null): string {
                           <strong class="font-bold text-amber-900">Como resolver:</strong>
                           {{ diagnostico.comoResolver }}
                         </p>
+                      </div>
+
+                      <!-- 539: ajustar a numeração e reemitir, sempre com confirmação do lojista -->
+                      <div
+                        v-if="numeroAcusado539 !== null && podeReemitir"
+                        class="mt-3.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 space-y-2.5"
+                        data-testid="ajuste-numeracao-539"
+                      >
+                        <p class="text-xs text-blue-950 leading-relaxed">
+                          Qual foi o <strong>último número</strong> que o sistema anterior emitiu na
+                          série {{ documento.serie }}? Pergunte ao contador. A próxima nota sairá com o
+                          número seguinte.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <input
+                            v-model.number="ultimoNumeroInformado"
+                            type="number"
+                            :min="numeroAcusado539 ?? 1"
+                            :placeholder="String(numeroAcusado539 ?? '')"
+                            class="w-28 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs"
+                          />
+                          <button
+                            type="button"
+                            :disabled="ajustandoNumeracao || reemitirMutation.isPending.value"
+                            class="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50"
+                            @click="ajustarNumeracaoEReemitir"
+                          >
+                            {{ ajustandoNumeracao || reemitirMutation.isPending.value ? 'Ajustando…' : 'Ajustar numeração e reemitir' }}
+                          </button>
+                        </div>
                       </div>
 
                       <!-- Botões de Ação Contextuais -->
