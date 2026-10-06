@@ -1,0 +1,95 @@
+{
+  "consumidor_final": 1,
+  "destinatario": {
+    "cpf": "52998224725",
+    "endereco": {
+      "bairro": "Centro",
+      "cep": "30160011",
+      "cidade": "Belo Horizonte",
+      "complemento": "",
+      "logradouro": "Rua da Bahia",
+      "numero": "1000",
+      "uf": "MG"
+    },
+    "indicador_ie": "9",
+    "nome": "Compradora Teste"
+  },
+  "emitente": {
+    "cnpj": "11222333000181",
+    "codigo_regime_tributario": 4,
+    "endereco": {
+      "bairro": "Centro",
+      "cep": "01001000",
+      "cidade": "Sao Paulo",
+      "complemento": "Sala 2",
+      "logradouro": "Rua das Flores",
+      "numero": "100",
+      "uf": "SP"
+    },
+    "inscricao_estadual": "110042490114",
+    "inscricao_municipal": "12345",
+    "nome_fantasia": "Loja Teste",
+    "razao_social": "Loja Teste Comercio LTDA",
+    "regime_tributario": "MEI"
+  },
+  "finalidade_emissao": 1,
+  "formas_pagamento": [
+    {
+      "forma_pagamento": "17",
+      "valor_pagamento": 100.0
+    }
+  ],
+  "items": [
+    {
+      "cfop": "6108",
+      "codigo_barras_comercial": "7891234567895",
+      "codigo_barras_tributavel": "7891234567895",
+      "codigo_produto": "P0001",
+      "cofins_aliquota_porcentual": 3.0,
+      "cofins_base_calculo": 100.0,
+      "cofins_situacao_tributaria": "01",
+      "cofins_valor": 3.0,
+      "descricao": "Camiseta Algodao",
+      "icms_aliquota": 0.0,
+      "icms_base_calculo": 0.0,
+      "icms_modalidade_base_calculo": 0,
+      "icms_origem": 0,
+      "icms_situacao_tributaria": "102",
+      "icms_valor": 0.0,
+      "ncm": "84716052",
+      "numero_item": 1,
+      "pis_aliquota_porcentual": 0.65,
+      "pis_base_calculo": 100.0,
+      "pis_situacao_tributaria": "01",
+      "pis_valor": 0.65,
+      "quantidade_comercial": 2.0,
+      "unidade_comercial": "UN",
+      "unidade_tributavel": "UN",
+      "valor_bruto": 100.0,
+      "valor_desconto": 0.0,
+      "valor_frete": 0.0,
+      "valor_outras_despesas_acessorias": 0.0,
+      "valor_seguro": 0.0,
+      "valor_unitario_comercial": 50.0
+    }
+  ],
+  "local_destino": 2,
+  "modalidade_frete": 9,
+  "modelo": 55,
+  "natureza_operacao": "Venda de Mercadoria",
+  "numero": 43,
+  "presenca_comprador": 1,
+  "serie": 1,
+  "tipo_documento": 1,
+  "totais": {
+    "icms_base_calculo": 0.0,
+    "icms_valor_total": 0.0,
+    "valor_desconto": 0.0,
+    "valor_frete": 0.0,
+    "valor_outras_despesas": 0.0,
+    "valor_produtos": 100.0,
+    "valor_seguro": 0.0,
+    "valor_total": 100.0
+  },
+  "valor_troco": 0.0
+}
