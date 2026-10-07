@@ -368,8 +368,8 @@ O arquivo antigo virou porta de entrada que reexporta tudo, então nenhum
 | ERP `payload_builder.py` | `303c567`: `payload_comum`, `payload_emitente`, `payload_destinatario`, `payload_itens`, `payload_totais`; o builder fica com os 4 `montar_payload_*`. 36/36 idênticos, fotografias passando |
 | ERP `endpoints/fiscal.py` | `e7a4431`: `fiscal_documentos`, `fiscal_emissao`, `fiscal_eventos`, `fiscal_config`, incluídos sem prefixo. Mesmo conjunto de 331 rotas, nenhum par reordenado capaz de casar a mesma URL, as 42 rotas com a trava NFE. 45/45 idênticos |
 | Código morto | `3c2f31e`: `uf_do_cliente`, `is_simples_nacional` (DEPRECADO) e um import que sobrou. Plataforma: nada morto achado |
-| **Achado** | `reconciliacao.reconciliar_no_startup` **nunca foi ligado ao lifespan** (desde `e2d93f8`), embora o comentário diga que é. Nota presa em PROCESSANDO/INDETERMINADA depois de fechar o app só sai pela tela. Não é morto: falta ligar — e ligar faz rede no boot (até 50 consultas). **Decisão do Alan** |
-| cStat no backend | **Não feito.** A tabela do front (`fiscalDiagnosticCodigos.ts`) é texto de tela com rótulo, cor e ação; levar ao backend é funcionalidade nova, não reorganização. Fica para quando o relatório de diagnóstico precisar dela |
+| **Achado → ligado** | `reconciliacao.reconciliar_no_startup` **nunca tinha sido ligado ao lifespan** (desde `e2d93f8`, 08/09). `46f44b6`: roda uma vez por boot, 60 s depois, numa thread; commit por documento (SQLite da loja não fica travado durante as consultas) |
+| cStat no backend | `461f66c`: `services/fiscal/diagnostico_sefaz.py` (tabela + palavras-chave, mesmos textos) e campo `diagnostico` no documento (REJEITADA/DENEGADA). O front usa o do backend e pinta pela categoria; sem o campo (servidor de loja antigo) cai na análise local — **apagar a local quando todas as lojas atualizarem** |
 
 Falta, para fechar a fase: **uma nota real no canário** com um instalador desta
 branch.
