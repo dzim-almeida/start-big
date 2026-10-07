@@ -676,7 +676,7 @@ function formatarData(iso?: string | null): string {
                     <!-- Banner de Diagnóstico Inteligente (Moderno, Clean e Integrado) -->
                     <div
                       v-if="documento.status === 'REJEITADA' || documento.status === 'DENEGADA'"
-                      class="relative overflow-hidden rounded-2xl border border-rose-200/90 bg-gradient-to-b from-rose-50/40 via-white to-rose-50/20 p-5 shadow-xs transition-all"
+                      class="relative overflow-hidden rounded-2xl border border-rose-200/90 bg-linear-to-b from-rose-50/40 via-white to-rose-50/20 p-5 shadow-xs transition-all"
                     >
                       <!-- Top Accent Line -->
                       <div class="absolute top-0 left-0 right-0 h-1.5 bg-rose-500" />
@@ -1313,7 +1313,7 @@ function formatarData(iso?: string | null): string {
                         <!-- Linha vertical conectora -->
                         <div
                           v-if="index !== historicoData.tentativas.length - 1"
-                          class="absolute left-[11px] top-6 bottom-0 w-px bg-zinc-200"
+                          class="absolute left-2.75 top-6 bottom-0 w-px bg-zinc-200"
                         />
                         <!-- Ponto visual de status -->
                         <div
