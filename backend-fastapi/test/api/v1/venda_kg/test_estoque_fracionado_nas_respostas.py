@@ -74,3 +74,18 @@ def test_relatorio_de_estoque(client, header_com_token, sacola):
     corpo = r.json()
     repor = next(i for i in corpo["abaixo_minimo"] if i["produto_id"] == sacola.id)
     assert (repor["quantidade"], repor["quantidade_minima"], repor["quantidade_ideal"]) == (1.5, 2.5, 10.5)
+
+
+def test_relatorio_de_estoque_com_custo_que_da_centavo_quebrado(client, header_com_token, sacola, db_session):
+    """
+    1,5 kg × custo R$ 10,01 = 1501,5 centavos de valor imobilizado. O relatório
+    responde em centavo inteiro, e até 08/10/2026 caía com erro 500.
+    """
+    est = db_session.get(Estoque, sacola.id)
+    est.custo_medio = 1001
+    est.valor_varejo = 3001
+    db_session.commit()
+    hoje = date.today().isoformat()
+    r = client.get("/api/v1/relatorios/estoque", params={"inicio": hoje, "fim": hoje}, headers=header_com_token)
+    assert r.status_code == 200, r.text
+    assert (r.json()["valor_custo_total"], r.json()["valor_venda_total"]) == (1502, 4502)
