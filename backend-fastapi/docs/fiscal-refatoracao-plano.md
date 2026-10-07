@@ -328,6 +328,19 @@ banco dizem:
 E um botão **"Rodar conferência"**, que refaz tudo sem emitir nada. É o que o
 suporte abre quando o lojista liga. Reaproveita o censo da F0.2.
 
+**Entrega (07/10/2026)** — só plataforma, branch `feat/fiscal-ativacao`; o ERP não muda:
+
+| Item | O que ficou |
+|---|---|
+| Achado | **A consulta não gravava o desfecho na `EmissaoLog`.** NF-e na Focus é assíncrona: a emissão responde "processando" e a autorização ou rejeição chega pela consulta, que só escrevia no log do processo. Para NF-e, "última autorizada" e "rejeições" do censo saíam vazias. Agora a consulta grava `autorizado`/`erro` uma vez por ref (reconsulta não duplica) |
+| cStat | Coluna nova `EmissaoLog.codigoSefaz` (nula, aditiva — sobe pelo `db:push` do deploy). Emissão, consulta, cancelamento, carta e inutilização gravam |
+| Painel | `GET /fiscal/clientes/:id/saude` (`fiscal-saude.service.ts`) + quadro "Saúde fiscal" no perfil do cliente, abaixo da Configuração Fiscal, com **Rodar conferência**. Itens: empresa na Focus (id e CNPJ conferem; sem id, acha pelo CNPJ e avisa), certificado (vencido / < 30 dias / outro CNPJ — mesma raiz aceita), habilitação NF-e (e NFC-e só com o módulo), token do ambiente (diz quando é a `FISCAL_TOKENS_KEY` que falta), CSC (só com NFC-e), ambiente, última autorizada, rejeições de 7 dias por cStat. Focus fora do ar ou sem token de parceiro: o quadro abre com os dados locais |
+| Só leitura | Na Focus, só `GET /v2/empresas` (busca e consulta). Nada grava. Nenhum token/CSC sai na resposta (teste confere) |
+| Censo | Contava "processando" como recusa; agora só `erro`, e agrupa pelo cStat |
+| Fora | O botão "Ativar emissão" pelo admin (decisão 7.1-2) **não** entrou: a ativação precisa do certificado e do bloco `emitente{}`, que só o ERP tem. Fica para quando houver upload de certificado no admin |
+
+Testes da plataforma: 91 → 111.
+
 ### F5 — Reorganizar sem mudar comportamento (4–6 dias)
 
 Só depois das fases anteriores e **guiada pelas fotografias da F0.3**.
