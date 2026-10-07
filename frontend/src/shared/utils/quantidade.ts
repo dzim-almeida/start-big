@@ -65,6 +65,15 @@ export function formatarNumeroQuantidade(quantidade: number | null | undefined, 
 }
 
 /**
+ * O número como veio, em português: "3,5" ou "3". Para onde a unidade não
+ * chega — o item da nota no drawer fiscal. Inteiro sai igual ao de sempre.
+ */
+export function formatarQuantidadeSemUnidade(quantidade: number | null | undefined): string {
+  const valor = Number(quantidade ?? 0);
+  return String(normalizarQuantidade(Number.isFinite(valor) ? valor : 0)).replace('.', ',');
+}
+
+/**
  * Formata a quantidade com a unidade do cadastro.
  *
  * Casas decimais seguem a unidade, e não o valor: "2,5 kg" descreve o mundo,

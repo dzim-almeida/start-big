@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatarNumeroQuantidade,
   formatarQuantidade,
+  formatarQuantidadeSemUnidade,
   normalizarQuantidade,
   unidadeEhFracionada,
 } from '../quantidade';
@@ -27,5 +28,12 @@ describe('quantidade fracionada (venda fracionada)', () => {
     expect(formatarNumeroQuantidade(1234.5, 'KG')).toBe('1234,5');
     expect(formatarNumeroQuantidade(1000, 'UN')).toBe('1000');
     expect(formatarQuantidade(3.5, 'KG')).toBe('3,5 kg');
+  });
+
+  it('sem unidade (item da nota): vírgula no quebrado, inteiro igual ao de sempre', () => {
+    expect(formatarQuantidadeSemUnidade(3.5)).toBe('3,5');
+    expect(formatarQuantidadeSemUnidade(3)).toBe('3');
+    expect(formatarQuantidadeSemUnidade(1000)).toBe('1000');
+    expect(formatarQuantidadeSemUnidade(null)).toBe('0');
   });
 });

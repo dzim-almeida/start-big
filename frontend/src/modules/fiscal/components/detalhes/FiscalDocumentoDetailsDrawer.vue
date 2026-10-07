@@ -50,6 +50,7 @@ import {
 import { useFiscalReemitirMutation } from '../../composables/useFiscalReemitirMutation';
 import { useNfceReimpressao } from '../../composables/useNfceReimpressao';
 import { formatCurrency } from '@/shared/utils/finance';
+import { formatarQuantidadeSemUnidade } from '@/shared/utils/quantidade';
 import { formatCPF, formatCNPJ } from '@/shared/utils/document.utils';
 import { formatDataHora } from '@/shared/utils/date.utils';
 import {
@@ -1274,7 +1275,7 @@ function formatarData(iso?: string | null): string {
                               {{ item.cfop || '-' }}
                             </td>
                             <td class="py-2.5 px-2 text-right font-medium text-zinc-700">
-                              {{ item.quantidade }}
+                              {{ formatarQuantidadeSemUnidade(item.quantidade) }}
                             </td>
                             <td class="py-2.5 px-2 text-right text-zinc-600">
                               {{ formatCurrency(item.valor_unitario) }}
