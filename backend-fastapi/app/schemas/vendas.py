@@ -134,7 +134,9 @@ class ProdutoVendaRead(BaseModel):
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto, preenchido automaticamente com base no tipo do produto e suas referências")
     unidade_medida: Optional[str] = Field(None, description="Unidade de medida do produto (ex: UN, KG, CX)")
-    estoque_disponivel: Optional[int] = Field(None, description="Estoque atual do produto no momento da consulta")
+    # float: o estoque é fracionado desde f97d3c1 (kg quebrado). Como int, um
+    # produto com 1,5 kg derrubava esta resposta com erro 500.
+    estoque_disponivel: Optional[float] = Field(None, description="Estoque atual do produto no momento da consulta")
     embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
     fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
     sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")

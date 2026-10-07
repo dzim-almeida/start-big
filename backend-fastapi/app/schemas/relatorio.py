@@ -137,9 +137,11 @@ class EstoqueReposicaoItem(BaseModel):
     produto_id: int
     nome: str
     sku: Optional[str] = None
-    quantidade: int = Field(..., description="Quantidade atual em estoque")
-    quantidade_minima: Optional[int] = Field(None, description="Mínimo configurado")
-    quantidade_ideal: Optional[int] = Field(None, description="Quantidade ideal configurada")
+    # float: o estoque é fracionado desde f97d3c1 (kg quebrado). Como int, um
+    # produto com 1,5 kg derrubava esta resposta com erro 500.
+    quantidade: float = Field(..., description="Quantidade atual em estoque")
+    quantidade_minima: Optional[float] = Field(None, description="Mínimo configurado")
+    quantidade_ideal: Optional[float] = Field(None, description="Quantidade ideal configurada")
 
 
 class EstoqueParadoItem(BaseModel):
@@ -147,7 +149,9 @@ class EstoqueParadoItem(BaseModel):
     produto_id: int
     nome: str
     sku: Optional[str] = None
-    quantidade: int = Field(..., description="Quantidade parada em estoque")
+    # float: o estoque é fracionado desde f97d3c1 (kg quebrado). Como int, um
+    # produto com 1,5 kg derrubava esta resposta com erro 500.
+    quantidade: float = Field(..., description="Quantidade parada em estoque")
     valor_custo: int = Field(..., description="Capital imobilizado a custo (quantidade × custo, centavos)")
 
 
