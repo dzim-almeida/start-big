@@ -147,6 +147,11 @@ def registrar_movimentacao(
     estoque = produto.estoque
     anterior = estoque.quantidade or 0
 
+    # 3 casas, como a quantidade da venda (app/schemas/quantidade.py): 1,5 − 0,1
+    # em ponto flutuante dá 1,4000000000000001, e esse resto ficaria no saldo
+    # para sempre. Inteiro passa intacto (round(97, 3) == 97).
+    quantidade = round(quantidade, 3) if quantidade is not None else quantidade
+
     if tipo == MovimentacaoTipo.ENTRADA:
         posterior = anterior + quantidade
         movimentada = quantidade
@@ -163,6 +168,8 @@ def registrar_movimentacao(
         movimentada = 0
     else:
         raise ValueError(f"registrar_movimentacao não trata o tipo {tipo}")
+    posterior = round(posterior, 3)
+    movimentada = round(movimentada, 3)
 
     custo_movimento = _resolver_custo(
         estoque=estoque,

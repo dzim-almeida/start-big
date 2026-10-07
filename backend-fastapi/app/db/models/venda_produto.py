@@ -4,7 +4,7 @@
 #            Tabela pivo do carrinho. Congela precos e aceita itens avulsos.
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import Integer, String, ForeignKey, CheckConstraint, Enum as SqlAlchemyEnum
+from sqlalchemy import Float, Integer, String, ForeignKey, CheckConstraint, Enum as SqlAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, TYPE_CHECKING
 from app.core.enum import TipoProdutoVenda
@@ -75,7 +75,10 @@ class ProdutoVenda(Base):
         nullable=True,
         doc="Descricao obrigatoria se produto_id for nulo"
     )
-    quantidade: Mapped[int] = mapped_column(Integer, nullable=False, doc="Quantidade do item vendido")
+    # Float desde 07/10/2026 (venda fracionada: 3,5 kg), SEM migration — mesma
+    # decisão de estoque.py: o SQLite guarda 3.5 numa coluna INTEGER sem perda
+    # (test/db/test_quantidade_fracionada_venda_schema_antigo.py).
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False, doc="Quantidade do item vendido")
     valor_unitario: Mapped[int] = mapped_column(Integer, nullable=False, doc="Preco unitario congelado no ato da inclusao (centavos)")
     # Custo declarado a mao, so faz sentido em item AVULSO. Produto CADASTRADO
     # da baixa no estoque e tem o custo congelado no livro (movimentacoes_estoque);
@@ -136,7 +139,7 @@ class ProdutoVenda(Base):
     )
 
     @property
-    def quantidade_base(self) -> int:
+    def quantidade_base(self) -> float:
         """Quantas unidades do produto a linha representa (2 FD de 12 = 24)."""
         return (self.quantidade or 0) * (self.fator_embalagem or 1)
 

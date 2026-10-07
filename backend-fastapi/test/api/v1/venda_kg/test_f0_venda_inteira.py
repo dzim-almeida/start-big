@@ -93,13 +93,17 @@ def test_venda_inteira_de_ponta_a_ponta(client, db_session, header_com_token, lo
     assert _estoque(db_session, loja["produto_id"]) == 100
 
 
-def test_unidade_quebrada_hoje_e_recusada_sem_erro_500(client, header_com_token, loja):
-    """Hoje 1,5 em qualquer produto é 422. Depois da F1, UN segue recusando (D3)."""
+def test_unidade_quebrada_e_recusada_com_mensagem(client, header_com_token, loja):
+    """
+    Em 07/10 (F0) era 422 genérico do schema. Desde a F1 a recusa vem do
+    serviço, que conhece o produto e diz por quê (D3).
+    """
     v = client.post("/api/v1/vendas/", json={"funcionario_id": loja["funcionario_id"]}, headers=header_com_token)
     r = client.post(f"/api/v1/vendas/{v.json()['id']}/itens",
                     json={"tipo_produto": "CADASTRADO", "produto_id": loja["produto_id"], "quantidade": 1.5},
                     headers=header_com_token)
-    assert r.status_code == 422, r.text
+    assert r.status_code == 400, r.text
+    assert "unidade inteira (UN)" in r.json()["detail"]
 
 
 def test_orcamento_inteiro_vira_venda_inteira(client, db_session, header_com_token, loja):
