@@ -79,3 +79,13 @@ describe('regraDaLinha', () => {
     expect(descontosRegraDaVenda({ descontos_regra: 1750 })).toBe(1750);
   });
 });
+
+describe('linha a granel (venda fracionada)', () => {
+  it('3,5 kg sai com vírgula e unidade; UN segue como sempre', () => {
+    expect(quantidadeDaLinha({ quantidade: 3.5, unidade_medida: 'KG' })).toBe('3,5 kg');
+    expect(multiplicadorDaLinha({ quantidade: 3.5, unidade_medida: 'KG' })).toBe('3,5 kg x');
+    expect(quantidadeDaLinha({ quantidade: 3, unidade_medida: 'UN' })).toBe('3');
+    expect(multiplicadorDaLinha({ quantidade: 3, unidade_medida: 'UN' })).toBe('3x');
+    expect(quantidadeDaLinha({ quantidade: 2, sigla_embalagem: 'FD', fator_embalagem: 12, unidade_medida: 'KG' })).toBe('2 FD');
+  });
+});

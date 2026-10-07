@@ -8,7 +8,9 @@ export const ProductSaleBaseSchema = z.object({
   // custo no livro de estoque. Campo INTERNO: nenhum template de impressão o
   // exibe, por decisão explícita.
   custo_unitario: z.number().min(0).nullable().optional(),
-  quantidade: z.number({ required_error: 'Quantidade é obrigatória' }).min(1),
+  // > 0 e não ≥ 1: produto a granel vende 0,5 kg (venda fracionada). Quem
+  // aceita ou recusa a fração pela unidade é o servidor.
+  quantidade: z.number({ required_error: 'Quantidade é obrigatória' }).positive('A quantidade deve ser maior que zero'),
   valor_unitario: z
     .number()
     .min(0)

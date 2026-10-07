@@ -12,8 +12,21 @@
  * justamente para contar mercadoria.
  */
 
-/** Unidades vendidas a granel, em que a fração É o normal. */
-const UNIDADES_FRACIONADAS = new Set(['KG', 'G', 'L', 'ML', 'M', 'CM']);
+/**
+ * Unidades vendidas a granel, em que a fração É o normal.
+ *
+ * ⚠️ ESPELHO de `UNIDADES_FRACIONAVEIS` em
+ * backend-fastapi/app/services/quantidade_venda.py: é o servidor que aceita ou
+ * recusa 3,5 numa venda. Divergir faz a tela oferecer o que o servidor nega.
+ */
+export const UNIDADES_FRACIONADAS = new Set(['KG', 'G', 'L', 'ML', 'M', 'CM', 'M2', 'M3']);
+
+/** Casas da quantidade quebrada — as mesmas do backend (`app/schemas/quantidade.py`). */
+export const CASAS_QUANTIDADE = 3;
+
+function siglaNormalizada(unidade?: string | null): string {
+  return (unidade ?? UNIDADE_PADRAO).trim().toUpperCase().replace('²', '2').replace('³', '3');
+}
 
 /** Fallback: sem unidade cadastrada, é peça — o caso de informática e oficina. */
 const UNIDADE_PADRAO = 'UN';
@@ -27,7 +40,28 @@ export function siglaUnidade(unidade?: string | null): string {
 }
 
 export function unidadeEhFracionada(unidade?: string | null): boolean {
-  return UNIDADES_FRACIONADAS.has((unidade ?? UNIDADE_PADRAO).trim().toUpperCase());
+  return UNIDADES_FRACIONADAS.has(siglaNormalizada(unidade));
+}
+
+/**
+ * 3 casas, como o servidor guarda: 1,1 + 1 em ponto flutuante dá
+ * 2,1000000000000001, e esse resto iria na requisição.
+ */
+export function normalizarQuantidade(quantidade: number): number {
+  return Math.round(quantidade * 10 ** CASAS_QUANTIDADE) / 10 ** CASAS_QUANTIDADE;
+}
+
+/**
+ * Só o número, para o CAMPO de quantidade: "3,5" (fracionada) ou "3" (inteira).
+ *
+ * Sem separador de milhar, de propósito: o campo relê o que mostra, e "1.234,5"
+ * não volta a ser número. É também o que a linha em UN sempre exibiu ("1000").
+ */
+export function formatarNumeroQuantidade(quantidade: number | null | undefined, unidade?: string | null): string {
+  const valor = Number(quantidade ?? 0);
+  const seguro = Number.isFinite(valor) ? valor : 0;
+  if (!unidadeEhFracionada(unidade)) return String(Math.round(seguro));
+  return String(normalizarQuantidade(seguro)).replace('.', ',');
 }
 
 /**
