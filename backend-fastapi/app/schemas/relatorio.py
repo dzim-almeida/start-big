@@ -126,7 +126,8 @@ class EstoqueAbcItem(BaseModel):
     sku: Optional[str] = Field(None, description="Codigo do produto (SKU)")
     categoria: Optional[str] = None
     faturamento: int = Field(..., description="Receita líquida gerada no período (centavos)")
-    quantidade: int = Field(..., description="Unidades vendidas no período")
+    # float: venda fracionada (3,5 kg) — `int` derrubava a curva ABC.
+    quantidade: float = Field(..., description="Unidades vendidas no período")
     participacao_pct: float = Field(..., description="% do faturamento total do período")
     acumulado_pct: float = Field(..., description="% acumulado (base da classificação ABC)")
     classe: str = Field(..., description="Classe ABC: 'A' | 'B' | 'C'")
@@ -179,7 +180,7 @@ class RegraPrecoResumo(BaseModel):
     """Total de uma regra (R1, R2 ou R3) no período."""
     regra: str = Field(..., description="R1, R2 ou R3")
     qtd_vendas: int = Field(..., description="Vendas finalizadas com esta regra em alguma linha")
-    unidades: int = Field(..., description="Unidades vendidas com a regra (na unidade base)")
+    unidades: float = Field(..., description="Unidades vendidas com a regra (na unidade base; fracionado em KG)")
     faturamento: int = Field(..., description="O que entrou nessas linhas (centavos)")
     abatimento: int = Field(..., description="O que a regra deixou de cobrar (centavos)")
 
@@ -191,7 +192,7 @@ class RegraPrecoProdutoItem(BaseModel):
     nome: str
     sku: Optional[str] = None
     qtd_vendas: int
-    unidades: int
+    unidades: float
     faturamento: int = Field(..., description="Centavos")
     abatimento: int = Field(..., description="Centavos")
 

@@ -64,9 +64,11 @@ from app.core.enum import (
 
 def _custo_movimentado():
     """Σ (quantidade × custo congelado) e quantas linhas ficaram sem custo."""
+    # ROUND: quantidade é fracionada (OS desde 10/08, venda desde 07/10) e
+    # 3,5 kg × R$ 10,01 dá 3503,5 centavos — o relatório espera centavo inteiro.
     return (
         func.coalesce(
-            func.sum(MovimentacaoEstoque.quantidade * MovimentacaoEstoque.custo_unitario), 0
+            func.round(func.sum(MovimentacaoEstoque.quantidade * MovimentacaoEstoque.custo_unitario)), 0
         ).label("total"),
         func.count(MovimentacaoEstoque.id)
         .filter(MovimentacaoEstoque.custo_unitario.is_(None))
@@ -154,7 +156,8 @@ def get_custo_manual_os(
     stmt = (
         select(
             func.coalesce(
-                func.sum(OrdemServicoItem.quantidade * OrdemServicoItem.custo_unitario), 0
+                # ROUND: item de OS é fracionado desde 10/08 (2,5 kg × custo).
+                func.round(func.sum(OrdemServicoItem.quantidade * OrdemServicoItem.custo_unitario)), 0
             )
         )
         .join(OSModel, OSModel.id == OrdemServicoItem.ordem_servico_id)

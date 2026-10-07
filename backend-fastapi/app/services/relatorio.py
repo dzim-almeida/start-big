@@ -383,8 +383,11 @@ def get_estoque(db: Session, inicio: date, fim: date, empresa_id: int) -> Relato
         # digitado no cadastro. A média só assume quando existe; até lá o
         # comportamento é o de antes.
         custo = p.custo_medio if p.custo_medio is not None else (p.valor_entrada or 0)
-        valor_custo_total += qtd * custo
-        valor_venda_total += qtd * (p.valor_varejo or 0)
+        # round: estoque fracionado (6,5 kg × R$ 10,01) dá centavo quebrado, e
+        # a resposta é em centavo inteiro. Até 07/10/2026 isto derrubava o
+        # relatório de estoque de qualquer loja com produto em KG.
+        valor_custo_total += round(qtd * custo)
+        valor_venda_total += round(qtd * (p.valor_varejo or 0))
 
         # Abaixo do mínimo: zerado, ou com mínimo definido e atingido.
         if qtd == 0 or (p.quantidade_minima is not None and qtd <= p.quantidade_minima):
@@ -407,7 +410,7 @@ def get_estoque(db: Session, inicio: date, fim: date, empresa_id: int) -> Relato
                     nome=p.nome,
                     sku=p.sku,
                     quantidade=qtd,
-                    valor_custo=qtd * custo,
+                    valor_custo=round(qtd * custo),
                 )
             )
 

@@ -11,6 +11,11 @@ errado no caixa ou faz a SEFAZ rejeitar nota.
 
 **Nada começa a ser codado antes de as decisões da §3 estarem aceitas.**
 
+> **Execução (branch `feat/venda-fracionada`, 07/10/2026):** decisões D1–D8
+> aceitas pelo Alan; a branch saiu antes do canário do fiscal (D9), mas o
+> instalador do canário continua saindo da `feat/fiscal-ativacao`. F0–F4
+> feitas (§7). Falta: homologação da NF-e/NFC-e de 3,5 kg e o canário (F5).
+
 ---
 
 ## 0. O que "pronto" significa
@@ -121,3 +126,23 @@ Q9 é a mais importante.
 - **Compras e Fábrica fracionadas** (decisão própria daqueles planos).
 - **Unidade de venda diferente da de estoque** (vender em g e estocar em kg):
   o estoque e a venda ficam na mesma unidade do cadastro.
+
+---
+
+## 7. Entrega (07/10/2026)
+
+| Fase | Commit | O que ficou |
+|---|---|---|
+| F0 | `bdc025a` | DDL antigo de `produtos_venda`/`orcamentos_produtos` congelado (3,5 e 0,5 sobrevivem como `real`, 3.0 volta `integer`); fotografia da venda e do orçamento em UN, com o JSON em `3` |
+| F1 | `67002b6` | Float sem migration; tipo `Quantidade` (3 casas, > 0, inteiro volta inteiro); `services/quantidade_venda.py` (D1/D3/D5); centavo meio-para-cima; faixa vale, fardo e leve-pague não; saldo do estoque em 3 casas; orçamento traz `unidade_medida`. A fotografia pegou uma regressão no caminho ("Preço de 1.0 FD") |
+| F2 | `7dae3b0` | PDV: campo "3,5" (teclado decimal), +/− mantêm a fração, aviso em UN; impressão A4, cupom e DANFE NFC-e com "3,5 kg" |
+| F3 | `cd16c16` | Fotografias NF-e e NFC-e de 3,5 kg (rejeição 629 conferida); drawer da nota mostrava 4 em vez de 3,5 e o `int` derrubava a nota |
+| F4 | (este) | Somas de custo com `ROUND` no banco (CMV, custo por funcionário/venda, custo da OS); curva ABC e regras em float. **Achado:** o relatório de estoque já quebrava em produção com qualquer estoque fracionado (valor imobilizado com centavo quebrado) |
+
+**Unidades fracionáveis:** KG, G, L, ML, M, CM, M2, M3 — a mesma lista no
+backend e no front, com teste que falha se as duas divergirem (CM entrou para
+casar com o que o front já exibia como fracionado).
+
+**Fora, por enquanto:** o drawer da nota mostra a quantidade sem vírgula
+("3.5"): o arquivo tem alteração local do Alan fora dos commits, e não foi
+tocado.

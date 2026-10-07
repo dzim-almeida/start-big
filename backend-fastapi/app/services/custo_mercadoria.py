@@ -63,4 +63,5 @@ def calcular_cmv(
     cmv += custo_crud.get_custo_manual_os(db, dt_inicio, dt_fim, empresa_id)
     cmv += custo_crud.get_custo_manual_vendas(db, dt_inicio, dt_fim, empresa_id)
 
-    return max(0, cmv), saidas_sem_custo
+    # Centavo inteiro: as somas vêm arredondadas do banco, mas chegam como REAL.
+    return max(0, int(round(cmv))), saidas_sem_custo
