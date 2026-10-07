@@ -99,7 +99,7 @@ def _arquivar_xml(doc: DocumentoFiscal, client) -> Optional[str]:
     viram log, e o arquivo se recupera depois pelo mesmo caminho que o ZIP do
     contador usa.
     """
-    from app.services.fiscal.arquivos import guardar_pdf, guardar_xml, ler_xml
+    from app.services.fiscal.arquivos import guardar_xml, ler_xml
 
     _arquivar_danfe(doc, client)
 

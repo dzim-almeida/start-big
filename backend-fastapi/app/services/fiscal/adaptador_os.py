@@ -16,8 +16,6 @@
 # gate — o adaptador não inventa recorte, ele obedece o que o gate valida.
 # ---------------------------------------------------------------------------
 
-from typing import Optional
-
 from app.core.enum import OrdemServicoItemAprovacao, OrdemServicoItemTipo
 from app.db.models.ordem_servico import OrdemServico
 
@@ -195,13 +193,3 @@ def _pagamentos_proporcionais(os_obj: OrdemServico, total_nota: int) -> list:
 def adaptar(os_obj: OrdemServico) -> OSComoVenda:
     """Ponto de entrada — a OS vista como venda, para o motor fiscal."""
     return OSComoVenda(os_obj)
-
-
-def uf_do_cliente(os_obj: OrdemServico) -> Optional[str]:
-    """UF do primeiro endereço do cliente da OS, se houver."""
-    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
-    enderecos = getattr(cliente, "endereco", None) if cliente else None
-    if not enderecos:
-        return None
-    estado = enderecos[0].estado
-    return str(estado.value) if hasattr(estado, "value") else (str(estado) or None)
