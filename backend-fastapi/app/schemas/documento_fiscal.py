@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from app.schemas.quantidade import QuantidadeLida
+
 
 class DocumentoItemResumo(BaseModel):
     """Resumo de item da nota/venda para conferência fiscal."""
@@ -15,7 +17,8 @@ class DocumentoItemResumo(BaseModel):
     produto_id: Optional[int] = None
     nome: str
     codigo_barras: Optional[str] = None
-    quantidade: int
+    # Nota de 3,5 kg (venda fracionada): `int` derrubava o drawer com erro 500.
+    quantidade: QuantidadeLida
     valor_unitario: int
     subtotal: int
     desconto: int = 0

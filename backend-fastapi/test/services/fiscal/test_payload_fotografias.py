@@ -147,3 +147,53 @@ def test_fotografia_nfce_com_cpf():
 def test_fotografia_nfce_consumidor_nao_identificado():
     payload = _montar_nfce(_venda_simples(total=1990), fiscal_settings=_fiscal_settings_nfce(), numero=43)
     _fotografar("nfce-consumidor-nao-identificado.json", payload)
+
+
+# ── Venda fracionada (docs/venda-fracionada-plano.md, F3) ───────────────────
+
+def _produto_kg():
+    produto = _produto(1, "Sacola Kraft")
+    produto.unidade_medida = "KG"
+    produto.fiscal.unidade_tributavel = "KG"
+    return produto
+
+
+def _item_tres_e_meio_kg():
+    """3,5 kg a R$ 30,01/kg = R$ 105,035 → R$ 105,04 (meio-para-cima, como o PDV)."""
+    from app.services.quantidade_venda import subtotal_da_linha
+
+    iv = _item_venda(1, _produto_kg(), quantidade=3.5, valor_unitario=3001)
+    iv.subtotal = subtotal_da_linha(3.5, 3001)
+    assert iv.subtotal == 10504
+    return iv
+
+
+def _confere_629(item):
+    """Rejeição 629: vProd tem de bater com qCom × vUnCom em até R$ 0,01."""
+    assert abs(item["quantidade_comercial"] * float(item["valor_unitario_comercial"]) - float(item["valor_bruto"])) <= 0.01
+
+
+def test_fotografia_nfe_tres_e_meio_kg():
+    cliente = ClientePF(id=14, nome="Compradora Teste", cpf="52998224725")
+    cliente.endereco = [_endereco_empresa()]
+    iv = _item_tres_e_meio_kg()
+    venda = _venda([iv], [_pagamento(10504)], cliente=cliente)
+
+    payload = _montar_nfe(venda, [_item_entrada(iv, "5102", csosn="102")], _empresa("Simples Nacional"))
+
+    [item] = payload["items"]
+    assert (item["quantidade_comercial"], item["unidade_comercial"], float(item["valor_bruto"])) == (3.5, "KG", 105.04)
+    _confere_629(item)
+    _fotografar("nfe-tres-e-meio-kg.json", payload)
+
+
+def test_fotografia_nfce_tres_e_meio_kg():
+    iv = _item_tres_e_meio_kg()
+    venda = _venda([iv], [_pagamento(10504)])
+
+    payload = _montar_nfce(venda, numero=44)
+
+    [item] = payload["items"]
+    assert (item["quantidade_comercial"], item["unidade_comercial"]) == (3.5, "KG")
+    _confere_629(item)
+    _fotografar("nfce-tres-e-meio-kg.json", payload)
