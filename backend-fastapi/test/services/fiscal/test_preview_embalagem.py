@@ -11,7 +11,7 @@ from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.schemas.emissao_fiscal import EmissaoPreviewResponse
-from app.services.fiscal import emissao
+from app.services.fiscal import emissao, emissao_nfe_venda
 
 
 def _venda():
@@ -29,7 +29,8 @@ def _venda():
 
 def test_previa_leva_sigla_e_fator_da_embalagem(monkeypatch):
     venda = _venda()
-    monkeypatch.setattr(emissao, "_preparar_dados_emissao", lambda db, vid, eid: (None, None, venda, True, None))
+    # O patch vai onde o preview mora (emissao_nfe_venda, desde a F5).
+    monkeypatch.setattr(emissao_nfe_venda, "_preparar_dados_emissao", lambda db, vid, eid: (None, None, venda, True, None))
 
     previa = EmissaoPreviewResponse(**emissao.preview_nfe_venda(None, 1, 1))
     fardo, lata = previa.itens

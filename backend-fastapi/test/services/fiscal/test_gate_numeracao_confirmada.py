@@ -109,11 +109,11 @@ def test_sem_configuracao_fiscal_nao_duplica_a_pendencia(db):
 def test_emissao_barrada_nao_consome_numero_nem_chama_a_emissora(
     db, empresa_completa, monkeypatch
 ):
-    from app.services.fiscal import emissao as emissao_mod
+    from app.services.fiscal import emissao as emissao_mod, emissao_teste
 
     chamadas = []
     monkeypatch.setattr(
-        emissao_mod, "get_fiscal_client",
+        emissao_teste, "get_fiscal_client",
         lambda *a, **k: chamadas.append(("client", a)) or None,
     )
     monkeypatch.setattr(emissao_mod.crud, "get_licenca_token", lambda _db: "tok")
