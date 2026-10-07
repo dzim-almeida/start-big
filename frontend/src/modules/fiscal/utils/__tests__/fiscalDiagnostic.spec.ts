@@ -75,3 +75,38 @@ describe('lerChaveDaMensagem', () => {
     expect(lerChaveDaMensagem(null)).toBeNull();
   });
 });
+
+describe('diagnóstico vindo do backend', () => {
+  const doBackend = (diagnostico: unknown) =>
+    ({ ...doc(481, MSG_481), diagnostico } as unknown as DocumentoFiscalRead);
+
+  it('quando o backend manda, a tela usa o dele e pinta pela categoria', () => {
+    const d = analisarDiagnosticoFiscal(doBackend({
+      categoria: 'CLIENTE', cstat: 305, rotulo: 'cStat 305 · Cliente bloqueado',
+      titulo: 'Título do backend', explicacao: 'e', como_resolver: 'c',
+      acao: { tipo: 'EDITAR_VENDA', label: 'Trocar Cliente da Venda' },
+    }));
+    expect(d.titulo).toBe('Título do backend');
+    expect(d.comoResolver).toBe('c');
+    expect(d.badge).toMatchObject({ label: 'cStat 305 · Cliente bloqueado', bg: 'bg-amber-50' });
+    expect(d.acaoPrincipal).toEqual({ tipo: 'EDITAR_VENDA', label: 'Trocar Cliente da Venda' });
+  });
+
+  it('sem ação no backend, sem botão na tela', () => {
+    const d = analisarDiagnosticoFiscal(doBackend({
+      categoria: 'CONFIGURACAO', cstat: 301, rotulo: 'r', titulo: 't', explicacao: 'e', como_resolver: 'c', acao: null,
+    }));
+    expect(d.acaoPrincipal).toBeUndefined();
+  });
+
+  it('categoria desconhecida não quebra a tela', () => {
+    const d = analisarDiagnosticoFiscal(doBackend({
+      categoria: 'NOVA', cstat: 1, rotulo: 'r', titulo: 't', explicacao: 'e', como_resolver: 'c', acao: null,
+    }));
+    expect(d.categoria).toBe('GENERICO');
+  });
+
+  it('servidor antigo (sem o campo): continua a análise local', () => {
+    expect(analisarDiagnosticoFiscal(doc(481, MSG_481)).titulo).toMatch(/Regime Tributário/);
+  });
+});

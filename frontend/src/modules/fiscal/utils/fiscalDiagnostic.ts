@@ -54,7 +54,41 @@ export function nomeAmbienteDocumento(
   return 'Não confirmado pela SEFAZ';
 }
 
+/**
+ * Cor do selo por categoria. As mesmas que os ramos abaixo usam: o diagnóstico
+ * do backend chega sem cor (é decisão de tela), e trocar de origem não pode
+ * trocar a aparência.
+ */
+const COR_POR_CATEGORIA: Record<DiagnosticCategory, Omit<FiscalDiagnostic['badge'], 'label'>> = {
+  CONFIGURACAO:       { bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-200' },
+  CLIENTE:            { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200' },
+  PRODUTO:            { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  TRIBUTACAO:         { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+  SEFAZ_INDISPONIVEL: { bg: 'bg-zinc-100',  text: 'text-zinc-700',   border: 'border-zinc-200' },
+  DUPLICIDADE:        { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200' },
+  GENERICO:           { bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-200' },
+};
+
+/** O diagnóstico que o backend calculou, no formato da tela. */
+function doBackend(api: NonNullable<DocumentoFiscalRead['diagnostico']>): FiscalDiagnostic {
+  const categoria = (api.categoria in COR_POR_CATEGORIA ? api.categoria : 'GENERICO') as DiagnosticCategory;
+  return {
+    categoria,
+    cStat: api.cstat,
+    badge: { label: api.rotulo, ...COR_POR_CATEGORIA[categoria] },
+    titulo: api.titulo,
+    explicacao: api.explicacao,
+    comoResolver: api.como_resolver,
+    ...(api.acao ? { acaoPrincipal: { tipo: api.acao.tipo as ActionType, label: api.acao.label } } : {}),
+  };
+}
+
 export function analisarDiagnosticoFiscal(documento: DocumentoFiscalRead | null | undefined): FiscalDiagnostic {
+  // Fonte da verdade é o backend (services/fiscal/diagnostico_sefaz.py). O
+  // resto desta função é a análise LOCAL, que só vale para servidor de loja
+  // anterior a 07/10/2026, sem o campo — apagar quando todas atualizarem.
+  if (documento?.diagnostico) return doBackend(documento.diagnostico);
+
   if (!documento) {
     return {
       categoria: 'GENERICO',
