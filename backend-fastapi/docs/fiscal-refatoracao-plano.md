@@ -355,6 +355,25 @@ Só depois das fases anteriores e **guiada pelas fotografias da F0.3**.
 **Pronto quando:** fotografias e suítes iguais antes e depois, sidecar gerado
 sem estourar o PyArmor, e uma nota real no canário.
 
+**Entrega (07/10/2026)** — branch `feat/fiscal-ativacao` nos dois repositórios.
+Método em todos os arquivos: o código foi **movido por script, nunca
+reescrito**, e conferido nó a nó pela árvore sintática (AST) antes e depois.
+O arquivo antigo virou porta de entrada que reexporta tudo, então nenhum
+`import` de fora mudou.
+
+| Item | O que ficou |
+|---|---|
+| Plataforma | `20a2da8`: `fiscal.service.ts` → `fiscal-onboarding`, `fiscal-emissao`, `fiscal-cota` + `fiscal-comum.ts`. 20/20 métodos idênticos. Injeção conferida montando o `AppModule` compilado. 111 testes |
+| ERP `emissao.py` | `cdd525a`: `emissao_nucleo`, `emissao_nfe_venda`, `emissao_nfce`, `emissao_nfe_os`, `emissao_eventos`, `emissao_teste`. 33/33 idênticos. Nos testes só mudou o **alvo do monkeypatch** (o patch vai onde a função mora) |
+| ERP `payload_builder.py` | `303c567`: `payload_comum`, `payload_emitente`, `payload_destinatario`, `payload_itens`, `payload_totais`; o builder fica com os 4 `montar_payload_*`. 36/36 idênticos, fotografias passando |
+| ERP `endpoints/fiscal.py` | `e7a4431`: `fiscal_documentos`, `fiscal_emissao`, `fiscal_eventos`, `fiscal_config`, incluídos sem prefixo. Mesmo conjunto de 331 rotas, nenhum par reordenado capaz de casar a mesma URL, as 42 rotas com a trava NFE. 45/45 idênticos |
+| Código morto | `3c2f31e`: `uf_do_cliente`, `is_simples_nacional` (DEPRECADO) e um import que sobrou. Plataforma: nada morto achado |
+| **Achado** | `reconciliacao.reconciliar_no_startup` **nunca foi ligado ao lifespan** (desde `e2d93f8`), embora o comentário diga que é. Nota presa em PROCESSANDO/INDETERMINADA depois de fechar o app só sai pela tela. Não é morto: falta ligar — e ligar faz rede no boot (até 50 consultas). **Decisão do Alan** |
+| cStat no backend | **Não feito.** A tabela do front (`fiscalDiagnosticCodigos.ts`) é texto de tela com rótulo, cor e ação; levar ao backend é funcionalidade nova, não reorganização. Fica para quando o relatório de diagnóstico precisar dela |
+
+Falta, para fechar a fase: **uma nota real no canário** com um instalador desta
+branch.
+
 ---
 
 ## 5. Ordem, custo e deploy
