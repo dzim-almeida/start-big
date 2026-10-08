@@ -2,7 +2,7 @@
 
 | Campo      | Valor                                                                             |
 |------------|-----------------------------------------------------------------------------------|
-| Status     | Specs ajustadas ao código da branch (Revisão 15) — aguardando revisão do usuário para começar o código |
+| Status     | Specs aprovadas pelo usuário (Revisão 16, 08/10/2026) — implementação a partir do Marco 1 |
 | Data       | 08/10/2026                                                                        |
 | Branch     | `feat/segmento-marcenaria` @ `53e5d81`                                            |
 | Documentos | `SPEC-00` (decisões) + 24 specs de implementação nesta pasta + `docs/pendencias-sistema.md` |
@@ -220,19 +220,9 @@ As linhas novas da matriz de cargos usam `segmento: 'marcenaria'`: só aparecem 
 | PEND-002 | Comissão da OS ignora o desconto da OS | Média | `pendencias-sistema.md` |
 | PEND-003 | Conta do recebimento de Compras nasce sem categoria e o material sai do lucro duas vezes | Média | `pendencias-sistema.md` |
 
-### 8.2. Decisões ainda marcadas 🟡 na SPEC-00
+### 8.2. Decisões da SPEC-00
 
-Já implementadas nas specs com o texto proposto; precisam do "ok" explícito:
-
-| Código | Decisão | Usada em |
-|--------|---------|----------|
-| C3a | O markup incide sobre a instalação | 05 |
-| I1 | Montador não usa o sistema na obra; termo A4 por ambiente, registrado na fábrica com foto | 13A, 13B |
-| I2 | Checklist padrão copiado para cada ambiente e editável | 13A |
-| I3 | Pendência aberta avisa na finalização, mas não trava | 13A, 13B |
-| I6 | Termo por ambiente; a OS finaliza uma vez; sem cobrança por ambiente | 13A |
-| F2b | Insumos entram na OS como peças embutidas | 08A, 09A, 10A |
-| E5a / E6b | Modo sem o módulo Compras (faltas por OS; terceirizado marcado à mão) | 10A, 10B, 11A, 11B |
+Nenhuma decisão em aberto: as que estavam 🟡 (C3a, C5c, C8, I1, I2, I3, I6, F2b, E5a, E6b) foram aprovadas na Revisão 16 (08/10/2026).
 
 ### 8.3. Observações registradas nas specs, sem pendência aberta
 
@@ -257,7 +247,7 @@ Já implementadas nas specs com o texto proposto; precisam do "ok" explícito:
 - [ ] Instalador testado sobre um banco existente (atualização, não instalação nova).
 
 **Na fábrica piloto**
-- [ ] Definir se a loja terá o módulo **Compras** (com ele: Necessidades e pedido à central; sem ele: faltas por OS e terceirizado marcado à mão).
+- [x] A fábrica piloto **tem o módulo Compras** (Revisão 16): o piloto usa as Necessidades e o pedido de serviço à central. Conferir na licença dela que o módulo COMPRAS está liberado e que os cargos têm a linha Compras.
 - [ ] Configurações › Marcenaria: markup, perda, **custo/hora** (padrão R$ 0,00), **RT padrão** (padrão 0%), modo do RT, prazo do RT, validade, prazo de entrega, etapas e checklist.
 - [ ] Produtos: chapas e fitas com **"Sofre perda"** marcado; localização no estoque preenchida (ordena a separação); código de barras nos produtos (ou nas embalagens) que serão lidos; último preço de compra (ou custo médio) em todos os insumos.
 - [ ] Fornecedores: centrais parceiras e arquitetos (tipo "Arquiteto / Designer", com PIX).
@@ -270,7 +260,7 @@ Já implementadas nas specs com o texto proposto; precisam do "ok" explícito:
 1. Cliente PJ com consulta de CNPJ; arquiteto indicador.
 2. Orçamento de 2 ou 3 ambientes, com um móvel terceirizado e instalação; desconto; proposta enviada.
 3. Nova versão com ajuste do cliente; aprovação parcial; sinal registrado.
-4. Separação com leitor; faltas (ou Necessidades, com Compras); terceirizado pedido e conferido.
+4. Separação com leitor; Necessidades do Compras com a chapa que falta; terceirizado pedido à central pelo Compras, recebido (com a conta) e conferido.
 5. Etapas marcadas; etiquetas; status pela pergunta do sistema.
 6. Agendamento; termos; entrega com uma ressalva; pendência resolvida.
 7. Finalização com pagamento; conta do RT criada; resultado do mês conferido à mão (material, RT, terceirizado uma vez cada; ver PEND-003 se a chapa foi comprada pelo Compras).

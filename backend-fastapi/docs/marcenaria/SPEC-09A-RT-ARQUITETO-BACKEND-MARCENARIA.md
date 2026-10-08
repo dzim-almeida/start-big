@@ -70,7 +70,7 @@ backend-fastapi/
 | D3 | Mudanças na OS depois da aprovação (desconto final, frete, item manual) **não** mudam o RT. Quando o total da OS na finalização for diferente do total aprovado, o evento registra os dois números e a conta leva na observação: "Total aprovado R$ 7.360,36; OS finalizada com R$ 7.200,00. RT calculado sobre o aprovado." | O RT é o combinado com o arquiteto sobre a venda que ele indicou. O dono ajusta o valor da conta, se quiser, na tela de Contas a Pagar (a alteração de valor já é auditada) |
 | D4 | **Descrição:** "RT arquiteto — Studio Renascer — OS-2026-000512 (ORC-2026-000084)". `fornecedor_id` = arquiteto | Quem lê a lista de contas sabe de onde veio sem abrir nada |
 | D5 | **Categoria:** "Comissão de arquitetos (RT)", tipo `DESPESA`, criada na primeira vez que for necessária (busca pelo nome; não sendo achada, cria com `padrao = false`). O dono pode renomear: a busca usa o **id** guardado em `configuracoes_marcenaria.rt_plano_conta_id` depois da primeira criação | RT é despesa de venda, não custo de mercadoria. Guardar o id evita criar outra categoria quando o dono renomear a primeira |
-| D6 | **Vencimento:** data da finalização + `rt_vencimento_dias` (configuração nova, padrão **30**, de 0 a 180) | É comum pagar o arquiteto no fechamento do mês. Configurável porque cada marcenaria combina diferente ⚠️ padrão a confirmar |
+| D6 | **Vencimento:** data da finalização + `rt_vencimento_dias` (configuração nova, padrão **30**, de 0 a 180) | É comum pagar o arquiteto no fechamento do mês. Configurável porque cada marcenaria combina diferente Padrão aprovado em C5e (Revisão 10) |
 | D7 | A conta é criada **com ou sem** o módulo Financeiro contratado | Mesmo padrão das contas a receber da OS (`registrar_promessas_de_os`): o dado nasce sempre; o módulo decide quem vê. Se a loja contratar depois, o RT devido já está lá |
 
 ### 4.2. Reabrir e cancelar
@@ -82,7 +82,7 @@ backend-fastapi/
 | D10 | **Cancelar** OS finalizada: pendentes são canceladas; pagas ficam, com evento "RT já pago ao arquiteto Studio Renascer (R$ 588,82). Combine a devolução por fora." | A loja precisa saber que há dinheiro com o arquiteto de uma obra cancelada; o sistema não inventa estorno |
 | D11 | Cada linha de `marcenaria_orcamento_rt` guarda o `conta_pagar_id` da conta **atual** (a última criada) | O vínculo fica do lado da marcenaria (mesma razão da 08A D7) |
 
-### 4.3. Custo no resultado do mês (F2a) ⚠️ a confirmar
+### 4.3. Custo no resultado do mês (F2a, aprovada na Revisão 10 da SPEC-00)
 
 | # | Decisão | Motivo |
 |---|---------|--------|

@@ -99,7 +99,7 @@ backend-fastapi/
 | D13 | Pode aprovar a partir de `RASCUNHO`, `ENVIADO` ou `VENCIDO`. De `RASCUNHO`, valem as exigências do envio (cliente, projeto, um móvel; 06A D13) e o envio é registrado junto (data de envio = agora, evento de envio). De `VENCIDO`, aprova normalmente (a tela pede confirmação) | O cliente que fecha na loja, na hora, não precisa de "enviar" antes. O que volta dois dias depois da validade também não deveria travar a venda |
 | D14 | Só **uma versão** de um código pode estar `APROVADO` (O2). Como versões antigas ficam `SUBSTITUIDO`, a regra é conferida no serviço (consulta por código) e garante o caso raro de corrida | O2 |
 
-### 4.3. Sinal (revisão de O7) ⚠️ a confirmar
+### 4.3. Sinal (revisão de O7, aprovada: O7a, Revisão 9 da SPEC-00)
 
 | # | Decisão | Motivo |
 |---|---------|--------|

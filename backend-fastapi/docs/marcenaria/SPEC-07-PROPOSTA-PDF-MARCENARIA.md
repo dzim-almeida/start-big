@@ -63,7 +63,7 @@ Nenhum arquivo compartilhado muda. Reaproveitados sem alteração: `PrintCompany
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D1 | A proposta é um **template HTML A4** impresso com `window.print()`, como OS e vendas. O PDF sai pelo destino **"Salvar como PDF"** do diálogo de impressão do Windows | PR3: é o caminho que o sistema já tem, com cabeçalho da empresa, regra de preto e branco (`check:print-bw`) e quebras de página testadas. Um gerador de PDF próprio (no backend com `fpdf2`, ou no frontend com uma biblioteca nova) duplicaria o layout e o cabeçalho da empresa, e o arquivo cairia numa pasta escondida do app (`salvarArquivo` grava em `AppLocalData`), longe de onde o vendedor anexa no WhatsApp. ⚠️ Decisão a confirmar (§9) |
+| D1 | A proposta é um **template HTML A4** impresso com `window.print()`, como OS e vendas. O PDF sai pelo destino **"Salvar como PDF"** do diálogo de impressão do Windows | PR3: é o caminho que o sistema já tem, com cabeçalho da empresa, regra de preto e branco (`check:print-bw`) e quebras de página testadas. Um gerador de PDF próprio (no backend com `fpdf2`, ou no frontend com uma biblioteca nova) duplicaria o layout e o cabeçalho da empresa, e o arquivo cairia numa pasta escondida do app (`salvarArquivo` grava em `AppLocalData`), longe de onde o vendedor anexa no WhatsApp. Decidido: SPEC-00 T5a (Revisão 8) |
 | D2 | **Sempre A4, folha inteira**, sem o modal de formato, sem cupom e sem meia folha. Não usa o perfil de comprovante (`usePerfilComprovante`) | A proposta tem várias páginas e é documento de venda, não comprovante de balcão. O perfil foi feito para OS e venda |
 | D3 | O template recebe **só** `DadosProposta` (06B §7.13), nunca o detalhe. O tipo `DadosProposta` não tem campo de custo, margem, insumo, parâmetro nem preço por móvel; um teste compara as chaves (caso 01) | P4 e T5 por construção: mesmo quem vê os custos não consegue imprimi-los por engano. É a mesma fonte da visão do cliente (T3f) |
 | D4 | Antes de imprimir, a **fila de escrita é esvaziada** (06B D7). Se houver conflito ou erro de gravação, a impressão não acontece e a mensagem diz por quê | O PDF tem que mostrar o que está gravado. Uma proposta com um desconto que não foi salvo seria um documento falso |
@@ -311,7 +311,7 @@ Nenhum arquivo compartilhado muda. Conferir só:
 
 ---
 
-## 9. Ponto para decidir
+## 9. Decisão registrada (T5a, Revisão 8 da SPEC-00)
 
 **D1 — PDF pelo diálogo de impressão ou gerado pelo sistema?**
 
@@ -323,7 +323,7 @@ Nenhum arquivo compartilhado muda. Conferir só:
 | Cópia guardada | Não (o evento guarda os valores) | Pode guardar a cópia exata do que foi enviado |
 | Esforço | Uma tela e um template | Gerador, fontes, quebras de página, teste do PyArmor (PR7) |
 
-Recomendação: **diálogo de impressão** agora. A cópia exata guardada é o único ganho real do outro caminho, e o evento de envio com os valores cobre a necessidade da fase 1.
+Decidido em 06/10/2026 (T5a): **diálogo de impressão**. A cópia exata guardada é o único ganho real do outro caminho, e o evento de envio com os valores cobre a necessidade da fase 1.
 
 ---
 
