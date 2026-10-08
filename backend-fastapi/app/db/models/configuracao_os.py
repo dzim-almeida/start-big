@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING
-from sqlalchemy import Integer, String, DateTime, ForeignKey
+from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -53,6 +53,14 @@ class ConfiguracaoOS(Base):
     comprovante_entrada_densidade: Mapped[str] = mapped_column(String(10), default="normal", nullable=False)
     comprovante_entrega_folha: Mapped[str] = mapped_column(String(2), default="A4", nullable=False)
     comprovante_entrega_densidade: Mapped[str] = mapped_column(String(10), default="normal", nullable=False)
+
+    # Marcenaria-fábrica (plano, D0): ligado, toda OS NOVA de Planejados nasce
+    # no trilho da fábrica (orçamento por móvel). Só vale no segmento
+    # Marcenaria; desligado, nada muda — nem para as OS que já estão no trilho.
+    modo_fabrica: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    # D0b: ligado, a etapa não avança com trava pendente; desligado (padrão),
+    # a trava vira aviso e quem avança confirma com um motivo (vai para o log).
+    fabrica_travar_etapas: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
 
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,

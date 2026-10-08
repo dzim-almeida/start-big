@@ -68,10 +68,22 @@ watch(
       error.value = '';
       success.value = false;
       cscPlataforma.value = null;
+      historico.value = '';
     }
   },
   { immediate: true }
 );
+
+/**
+ * "Esta empresa já emitiu nota antes?" — só na PRIMEIRA confirmação.
+ *
+ * O texto de orientação existia e não bastou: os campos chegam com Série 1 /
+ * Último 0, salvar libera a emissão, e o primeiro cliente em produção (que já
+ * emitia por outro sistema) tomou a Rejeição 539 no nº 4 da série 2. A pergunta
+ * obriga a escolher; "já emitia" com tudo zerado não salva.
+ */
+const historico = ref<'' | 'nova' | 'migrando'>('');
+const precisaResponder = computed(() => !props.configuracao?.numeracao_confirmada);
 
 function close() {
   emit('update:isOpen', false);
@@ -81,6 +93,19 @@ async function handleSave() {
   error.value = '';
   success.value = false;
   cscPlataforma.value = null;
+
+  if (precisaResponder.value) {
+    if (!historico.value) {
+      error.value = 'Responda primeiro: esta empresa já emitiu nota fiscal antes?';
+      return;
+    }
+    if (historico.value === 'migrando' && !Number(ultimoNumeroNfe.value) && !Number(ultimoNumeroNfce.value)) {
+      error.value =
+        'Informe o último número que o sistema anterior emitiu (pergunte ao contador). ' +
+        'Se a empresa nunca emitiu nota, escolha a outra opção.';
+      return;
+    }
+  }
 
   try {
     const salvo = await salvarConfig({
@@ -219,9 +244,31 @@ async function handleSave() {
         </p>
       </div>
 
+      <!-- Pergunta obrigatória na primeira confirmação (F3, 06/10/2026) -->
+      <div
+        v-if="precisaResponder"
+        data-testid="pergunta-historico-numeracao"
+        class="border border-amber-200 bg-amber-50/60 rounded-lg p-3.5 space-y-2.5 text-xs text-zinc-800"
+      >
+        <p class="font-semibold">Esta empresa já emitiu nota fiscal antes (outro sistema, emissor da SEFAZ ou do Sebrae)?</p>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input v-model="historico" type="radio" value="nova" class="mt-0.5" :disabled="isPending || success" />
+          <span><strong>Não, esta será a primeira nota.</strong> Mantenha Série 1 e Último Número 0.</span>
+        </label>
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input v-model="historico" type="radio" value="migrando" class="mt-0.5" :disabled="isPending || success" />
+          <span>
+            <strong>Sim, já emitia.</strong> Pergunte ao contador a <strong>série</strong> e o
+            <strong>último número</strong> usados e preencha abaixo. Sem isso a SEFAZ recusa por
+            duplicidade (Rejeição 539) e o número é perdido.
+          </span>
+        </label>
+      </div>
+
       <!-- Orientação de preenchimento: empresa nova × migração de outro ERP.
            Salvar esta tela confirma a sequência e destrava a emissão. -->
       <div
+        v-else
         data-testid="banner-orientacao-numeracao"
         class="bg-blue-50/50 border border-blue-200 rounded-lg p-3 text-xs text-zinc-700 flex items-start gap-3"
       >

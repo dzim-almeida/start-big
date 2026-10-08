@@ -239,6 +239,26 @@ async def _loop_renovacao_licenca():
         await asyncio.sleep(INTERVALO_RENOVACAO_SEGUNDOS)
 
 
+# Espera antes de reconsultar as notas presas: o boot termina, a janela abre e
+# o caixa já pode vender antes de a primeira consulta sair para a rede.
+ESPERA_RECONCILIACAO_FISCAL_SEGUNDOS = 60
+
+
+async def _reconciliar_fiscal_apos_boot():
+    """
+    Reconsulta, UMA vez por boot, as notas que ficaram sem desfecho
+    (PROCESSANDO/INDETERMINADA) porque o app fechou no meio do polling.
+
+    Roda numa thread e depois da espera: são consultas de rede (até 50), e nem
+    o boot nem o caixa podem esperar por elas. Loja sem nota pendente não faz
+    chamada nenhuma. Nunca levanta — `reconciliar_no_startup` engole e loga.
+    """
+    from app.services.fiscal.reconciliacao import reconciliar_no_startup
+
+    await asyncio.sleep(ESPERA_RECONCILIACAO_FISCAL_SEGUNDOS)
+    await asyncio.to_thread(reconciliar_no_startup)
+
+
 # Nome da forma de pagamento -> código `tPag` do layout da NF-e.
 #
 # POR QUE ISTO EXISTE
@@ -396,6 +416,9 @@ async def lifespan(app: FastAPI):
     print("Iniciando tarefa de renovação de licença...")
     tarefa_renovacao = asyncio.create_task(_loop_renovacao_licenca())
 
+    print("Agendando reconciliação fiscal das notas sem desfecho...")
+    tarefa_reconciliacao_fiscal = asyncio.create_task(_reconciliar_fiscal_apos_boot())
+
     host = os.getenv("STARTBIG_HOST", "0.0.0.0")
     port = int(os.getenv("STARTBIG_PORT", "8080"))
     
@@ -417,13 +440,14 @@ async def lifespan(app: FastAPI):
     tarefa_cloud_sync.cancel()
     tarefa_heartbeat.cancel()
     tarefa_renovacao.cancel()
+    tarefa_reconciliacao_fiscal.cancel()
     # União das duas linhagens: as tarefas desta branch (backup, sincronização
     # com a nuvem, baixa automática) MAIS a `tarefa_mdns`, que veio junto do
     # conserto de IP — sem ela o anúncio na rede fica rodando depois do
     # shutdown.
     for tarefa in (tarefa_baixa_automatica, tarefa_limpeza, tarefa_backup,
                    tarefa_cloud_sync, tarefa_heartbeat, tarefa_renovacao,
-                   tarefa_mdns):
+                   tarefa_reconciliacao_fiscal, tarefa_mdns):
         try:
             await tarefa
         except asyncio.CancelledError:

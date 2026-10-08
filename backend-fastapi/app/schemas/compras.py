@@ -274,6 +274,17 @@ class OpcaoFornecedor(BaseModel):
     prazo_dias: Optional[int] = None
 
 
+class DemandaOSRead(BaseModel):
+    """Uma OS aberta que usa o produto (fase 6)."""
+
+    os_id: int
+    numero_os: str
+    quantidade: float = Field(..., description="Unidades do produto que a OS precisa")
+    data_previsao: Optional[date] = None
+    data_instalacao: Optional[date] = None
+    aguardando_sinal: bool = Field(False, description="Fábrica sem sinal: reserva, mas não entra na compra")
+
+
 class NecessidadeItem(BaseModel):
     produto_id: int
     produto_nome: str
@@ -295,9 +306,12 @@ class NecessidadeItem(BaseModel):
     alternativa: Optional[AlternativaMaisBarata] = None
     opcoes: list[OpcaoFornecedor] = Field(default_factory=list, description="Outros fornecedores do produto")
     # Fase 5: de onde veio a sugestão, e o giro do produto quando a base é VENDAS.
-    origem: str = Field("MINIMO", description="MINIMO (estoque mínimo) ou VENDAS (média de venda)")
+    origem: str = Field("MINIMO", description="MINIMO, VENDAS ou OS (peça de OS aberta que falta)")
     media_diaria: Optional[float] = Field(None, description="Vendido por dia na janela (unidade do produto)")
     dura_dias: Optional[float] = Field(None, description="Para quantos dias o estoque de hoje dá, nesse ritmo")
+    # Fase 6: o que as OS abertas já comprometeram (reserva CALCULADA).
+    reservado_os: float = Field(0, description="Unidades comprometidas com OS abertas; o saldo livre é saldo − isto")
+    ordens: list[DemandaOSRead] = Field(default_factory=list, description="As OS que usam o produto, a mais antiga 1º")
 
 
 class NecessidadeGrupo(BaseModel):
@@ -395,3 +409,42 @@ class RelatorioCompras(BaseModel):
     valor_recebido: int
     por_fornecedor: list[RelatorioFornecedor]
     variacao_precos: list[VariacaoPreco]
+
+
+
+# ---------------------------------------------------------------------------
+# Fase 6 — compras de uma OS
+# ---------------------------------------------------------------------------
+
+
+class PedidoDaOS(BaseModel):
+    pedido_id: int
+    codigo: str
+    situacao: str
+    previsao_entrega: Optional[date] = None
+    quantidade: float = Field(..., description="Unidades deste pedido que são desta OS")
+    atrasa_os: bool = Field(False, description="A entrega prevista é depois da previsão da OS (RC08)")
+
+
+class CompraDaOSItem(BaseModel):
+    produto_id: int
+    descricao: str
+    unidade: str
+    necessario: float
+    no_estoque: float = Field(..., description="Quanto do estoque livre fica para esta OS (fila: a OS mais antiga 1º)")
+    em_pedido: float = Field(..., description="Em pedidos ainda não recebidos, ligados a esta OS")
+    falta: float = Field(..., description="O que ninguém cobre ainda: precisa comprar")
+    situacao: str = Field(..., description="NO_ESTOQUE, EM_PEDIDO ou FALTA")
+    pedidos: list[PedidoDaOS] = Field(default_factory=list)
+
+
+class ComprasDaOS(BaseModel):
+    os_id: int
+    numero_os: str
+    aberta: bool = Field(..., description="Falso para OS finalizada/cancelada: as peças já saíram ou não vão sair")
+    data_previsao: Optional[date] = None
+    itens: list[CompraDaOSItem]
+    # Marcenaria-fábrica (F3): instalação manda no aviso de atraso, e sem
+    # sinal o material fica reservado mas fora das Necessidades.
+    data_instalacao: Optional[date] = None
+    compra_bloqueada: bool = Field(False, description="OS da fábrica aguardando o sinal: não gera compra ainda")

@@ -4,6 +4,8 @@
  * Ver docs/produto-embalagens-plano.md (D5, D14, A4, D21).
  */
 
+import { formatarQuantidade, unidadeEhFracionada } from './quantidade';
+
 interface EmbalagemPreco {
   fator: number;
   preco: number | null;
@@ -51,13 +53,24 @@ interface LinhaComEmbalagem {
   quantidade: number;
   sigla_embalagem?: string | null;
   fator_embalagem?: number | null;
+  unidade_medida?: string | null;
 }
 
-/** "2 FD" na linha de embalagem; só "2" na de unidade (impressões, G4). */
+/**
+ * "3,5 kg" quando a linha é a granel (KG, L, M…); nulo no resto, para quem
+ * chama manter o texto de sempre. Venda fracionada (docs/venda-fracionada-plano.md).
+ */
+export function textoQuantidadeAGranel(item: LinhaComEmbalagem): string | null {
+  if ((item.fator_embalagem ?? 1) > 1 || !unidadeEhFracionada(item.unidade_medida)) return null;
+  return formatarQuantidade(item.quantidade, item.unidade_medida);
+}
+
+/** "2 FD" na linha de embalagem; "3,5 kg" na a granel; só "2" na de unidade (impressões, G4). */
 export function quantidadeDaLinha(item: LinhaComEmbalagem): string {
-  return item.sigla_embalagem && (item.fator_embalagem ?? 1) > 1
-    ? `${item.quantidade} ${item.sigla_embalagem}`
-    : `${item.quantidade}`;
+  if (item.sigla_embalagem && (item.fator_embalagem ?? 1) > 1) {
+    return `${item.quantidade} ${item.sigla_embalagem}`;
+  }
+  return textoQuantidadeAGranel(item) ?? `${item.quantidade}`;
 }
 
 /** "(24 un)" embaixo da linha de embalagem; nulo na de unidade (G4). */

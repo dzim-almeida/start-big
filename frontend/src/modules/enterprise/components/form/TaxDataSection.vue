@@ -5,6 +5,7 @@
  * Refatorado para usar inject pattern
  */
 
+import { computed } from 'vue';
 import { Landmark } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -38,6 +39,27 @@ const {
   errors,
   submitCount,
 } = useEmpresaForm();
+
+/**
+ * Natureza MEI × regime diferente de MEI (ou o contrário).
+ *
+ * Na nota vai o REGIME (CRT), não a natureza. O primeiro cliente em produção
+ * tinha natureza MEI e regime "1 - Simples" e gastou três números com a
+ * Rejeição 481 antes de alguém olhar este formulário. Avisa, não trava: se a
+ * empresa deixou de ser MEI, o regime está certo e a natureza é que envelheceu.
+ */
+const avisoMei = computed(() => {
+  const natureza = natureza_juridica.value;
+  const regime = regime_tributario.value;
+  if (!natureza || !regime) return '';
+  if (natureza === 'MEI' && regime !== 'MEI') {
+    return 'A Natureza Jurídica é MEI, mas o Regime Tributário não. É o regime que vai na nota: se a empresa é MEI, escolha "4 - MEI", senão a SEFAZ recusa (Rejeição 481). Se ela deixou de ser MEI, corrija a Natureza Jurídica.';
+  }
+  if (regime === 'MEI' && natureza !== 'MEI') {
+    return 'O Regime Tributário é MEI, mas a Natureza Jurídica não. Confira com o contador qual dos dois está certo — regime errado faz a SEFAZ recusar a nota (Rejeição 481).';
+  }
+  return '';
+});
 </script>
 
 <template>
@@ -93,6 +115,12 @@ const {
           :disabled="disabled"
           :error="submitCount > 0 ? errors.regime_tributario : ''"
         />
+        <p
+          v-if="avisoMei"
+          class="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed"
+        >
+          {{ avisoMei }}
+        </p>
       </div>
 
       <!-- Indicador de IE -->

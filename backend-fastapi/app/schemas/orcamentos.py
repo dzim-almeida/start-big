@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, Sequence
 
 from app.core.enum import TipoProdutoVenda
+from app.schemas.quantidade import Quantidade, QuantidadeLida
 from app.schemas.cargo import CargoBase
 
 
@@ -11,7 +12,7 @@ from app.schemas.cargo import CargoBase
 class OrcamentoProdutoCreate(BaseModel):
     tipo_produto: TipoProdutoVenda = Field(..., description="Tipo do produto, obrigatorio")
     produto_id: Optional[int] = Field(None, description="ID do produto, obrigatorio se nao for avulso")
-    quantidade: int = Field(0, gt=0, description="Quantidade do produto, obrigatorio")
+    quantidade: Quantidade = Field(0, description="Quantidade (3 casas; quebrada so em KG, G, L, ML, M, M2, M3)")
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descricao do produto avulso")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitario do produto")
     desconto: int = Field(0, ge=0, description="Desconto do produto")
@@ -53,7 +54,7 @@ class OrcamentoCreate(BaseModel):
 # --- Schemas para atualizacao ---
 
 class OrcamentoProdutoUpdate(BaseModel):
-    quantidade: Optional[int] = Field(None, gt=0, description="Quantidade do produto")
+    quantidade: Optional[Quantidade] = Field(None, description="Quantidade (3 casas; quebrada so em KG, G, L, ML, M, M2, M3)")
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descricao do produto avulso")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitario do produto")
     desconto: Optional[int] = Field(None, ge=0, description="Desconto do produto")
@@ -84,12 +85,13 @@ class OrcamentoProdutoRead(BaseModel):
     produto_id: Optional[int] = Field(None, description="ID do produto")
     sku: Optional[str] = Field(None, description="SKU do produto")
     nome: str = Field(..., description="Nome do produto")
-    quantidade: int = Field(0, gt=0, description="Quantidade do produto")
+    quantidade: QuantidadeLida = Field(0, description="Quantidade do produto (inteira volta inteira)")
     valor_unitario: int = Field(0, ge=0, description="Valor unitario do produto")
     desconto: int = Field(0, ge=0, description="Desconto do produto")
     subtotal: int = Field(0, ge=0, description="Subtotal do produto")
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto")
+    unidade_medida: Optional[str] = Field(None, description="Unidade do produto (KG aceita 3,5; UN só inteiro)")
     embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
     fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
     sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")

@@ -76,6 +76,18 @@ class EmpresaFiscalSettings(Base):
         doc="Último número de NFCe emitida"
     )
 
+    # Piso da numeração da NF-e: o último número informado À MÃO (configuração
+    # ou ajuste depois de uma Rejeição 539). Abaixo dele, número sem nota é do
+    # sistema anterior, não buraco — a SEFAZ recusa inutilizar número usado.
+    # 0 = a regra de sempre. Ver `services/fiscal/numeracao.py`.
+    numeracao_piso_nfe: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default=text("0"),
+        nullable=False,
+        doc="Último número NF-e informado à mão; abaixo dele a sequência é do sistema anterior",
+    )
+
     # Trava contra a Rejeição 204 (duplicidade). Uma loja que vem de outro ERP
     # entra com "último número 0" por padrão e emitiria a nota 1 de novo. Fica
     # False até alguém confirmar série e último número na tela de Emissão

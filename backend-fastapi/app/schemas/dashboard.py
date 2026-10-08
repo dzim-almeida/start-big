@@ -78,8 +78,10 @@ class OSVencendoResponse(BaseModel):
 class EstoqueBaixoItem(BaseModel):
     produto_id: int = Field(..., description="ID do produto")
     nome: str = Field(..., description="Nome do produto")
-    quantidade: int = Field(..., description="Quantidade atual em estoque")
-    quantidade_minima: Optional[int] = Field(None, description="Quantidade minima configurada")
+    # float: o estoque é fracionado desde f97d3c1 (kg quebrado). Como int, um
+    # produto com 1,5 kg derrubava esta resposta com erro 500.
+    quantidade: float = Field(..., description="Quantidade atual em estoque")
+    quantidade_minima: Optional[float] = Field(None, description="Quantidade minima configurada")
     status: Literal["zerado", "baixo"] = Field(..., description="Status do estoque")
 
 

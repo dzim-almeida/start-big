@@ -110,8 +110,10 @@ class ProdutoSimpleRead(BaseModel):
     # "veio um resultado só" é fraco demais para mexer no carrinho sem confirmação.
     codigo_barras: Optional[str] = Field(None, max_length=100, description="Código de barras (EAN/UPC).")
     preco: int = Field(..., validation_alias=AliasPath("estoque", "valor_varejo"), ge=0, description="Preço atual do produto em centavos.")
-    estoque: int = Field(..., validation_alias=AliasPath("estoque", "quantidade"), ge=0, description="Quantidade atual em estoque.")
-    quantidade_minima: Optional[int] = Field(None, validation_alias=AliasPath("estoque", "quantidade_minima"), description="Quantidade mínima de estoque.")
+    # float: o estoque é fracionado desde f97d3c1 (kg quebrado). Como int, um
+    # produto com 1,5 kg derrubava esta resposta com erro 500.
+    estoque: float = Field(..., validation_alias=AliasPath("estoque", "quantidade"), ge=0, description="Quantidade atual em estoque.")
+    quantidade_minima: Optional[float] = Field(None, validation_alias=AliasPath("estoque", "quantidade_minima"), description="Quantidade mínima de estoque.")
     imagem_url: Optional[str] = Field(None, description="URL da imagem principal do produto.")
     # Só preenchido com `usar_embalagens` ligado (o serviço de busca pendura
     # `embalagens_pdv` no produto). Desligado, vem vazio: o PDV nem sabe que

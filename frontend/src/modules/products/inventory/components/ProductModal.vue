@@ -21,6 +21,7 @@ import RegrasPrecoSection from './form/RegrasPrecoSection.vue';
 import { storeToRefs } from 'pinia';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
+import { useSegmento } from '@/shared/composables/useSegmento';
 
 const nfeDisponivel = recursoDisponivel('nfe');
 
@@ -29,6 +30,13 @@ const nfeDisponivel = recursoDisponivel('nfe');
 const { podeVer: comprasDisponivel } = useAcessoCompras();
 const FornecedoresProdutoSection = defineAsyncComponent(
   () => import('@/modules/compras/fornecedores-produto/components/FornecedoresProdutoSection.vue'),
+);
+
+// Insumo da fábrica (chapa em m², fita em metro): só na marcenaria. Sob
+// demanda, como os fornecedores — os outros segmentos nem baixam o código.
+const { isMarcenaria } = useSegmento();
+const InsumoProdutoSection = defineAsyncComponent(
+  () => import('@/modules/order-service/fabrica/components/InsumoProdutoSection.vue'),
 );
 
 // =============================================
@@ -252,6 +260,25 @@ watch(isOpen, (open) => {
                   :produto="isCreateMode ? null : selectedProduct"
                   :disabled="isViewMode"
                   @principal-alterado="aoTrocarPrincipal"
+                />
+              </template>
+
+              <!-- Insumo da fábrica (marcenaria): como o orçamento por móvel
+                   consome o produto. Fora do <form>, "Salvar" próprio. -->
+              <template v-if="isMarcenaria">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Insumo da fábrica
+                    </span>
+                  </div>
+                </div>
+                <InsumoProdutoSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
                 />
               </template>
 

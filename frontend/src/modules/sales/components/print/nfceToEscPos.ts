@@ -19,6 +19,7 @@
 
 import { EscPosBuilder } from '@/shared/services/escpos'
 import { formatCurrency } from '@/shared/utils/finance'
+import { textoQuantidadeAGranel } from '@/shared/utils/embalagem'
 import { formatCPF, formatCNPJ } from '@/shared/utils/document.utils'
 import type { Bobina, RasterImage } from '@/shared/services/escpos'
 import type { CompanyPrintInfo } from '@/shared/components/print/print.types'
@@ -170,7 +171,8 @@ export function nfceToEscPos(
 
     b.linha(`${numero} ${codigo} ${encurtar(item.nome, b.colunas - 11)}`)
     b.parLados(
-      `    ${item.quantidade} x ${formatCurrency(item.valor_unitario)}`,
+      // A granel sai "3,5 kg x"; a linha em unidade segue "2 x", como sempre.
+      `    ${textoQuantidadeAGranel(item) ?? item.quantidade} x ${formatCurrency(item.valor_unitario)}`,
       formatCurrency(item.total),
     )
     if (item.desconto > 0) {

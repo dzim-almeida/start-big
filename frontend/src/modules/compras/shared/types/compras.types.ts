@@ -270,8 +270,12 @@ export interface NecessidadeItem {
   ultimo_preco: number | null;
   alternativa: AlternativaMaisBarata | null;
   opcoes: OpcaoFornecedor[];
-  /** De onde veio a sugestão (fase 5). */
-  origem: 'MINIMO' | 'VENDAS';
+  /** De onde veio a sugestão (fase 5; OS na fase 6). */
+  origem: 'MINIMO' | 'VENDAS' | 'OS';
+  /** Unidades comprometidas com OS abertas; o saldo livre é saldo − isto. */
+  reservado_os: number;
+  /** As OS abertas que usam o produto, a mais antiga primeiro. */
+  ordens: DemandaOSRead[];
   /** Vendido por dia nos últimos 90 dias (base VENDAS). */
   media_diaria: number | null;
   /** Para quantos dias o estoque de hoje dá, nesse ritmo. */
@@ -279,6 +283,49 @@ export interface NecessidadeItem {
 }
 
 export type BaseNecessidade = 'MINIMO' | 'VENDAS';
+
+/** Uma OS aberta que usa o produto (fase 6). */
+export interface DemandaOSRead {
+  os_id: number;
+  numero_os: string;
+  quantidade: number;
+  data_previsao: string | null;
+}
+
+export interface PedidoDaOS {
+  pedido_id: number;
+  codigo: string;
+  situacao: SituacaoPedido;
+  previsao_entrega: string | null;
+  /** Unidades deste pedido que são desta OS (ainda não chegadas). */
+  quantidade: number;
+  /** A entrega prevista é depois da previsão da OS. */
+  atrasa_os: boolean;
+}
+
+export interface CompraDaOSItem {
+  produto_id: number;
+  descricao: string;
+  unidade: string;
+  necessario: number;
+  no_estoque: number;
+  em_pedido: number;
+  falta: number;
+  situacao: 'NO_ESTOQUE' | 'EM_PEDIDO' | 'FALTA';
+  pedidos: PedidoDaOS[];
+}
+
+export interface ComprasDaOS {
+  os_id: number;
+  numero_os: string;
+  aberta: boolean;
+  data_previsao: string | null;
+  itens: CompraDaOSItem[];
+  /** Marcenaria-fábrica: a instalação manda no aviso de atraso. */
+  data_instalacao?: string | null;
+  /** Fábrica sem sinal: o material está reservado, mas ainda não entra nas Necessidades. */
+  compra_bloqueada?: boolean;
+}
 
 export interface RelatorioFornecedor {
   fornecedor_id: number | null;

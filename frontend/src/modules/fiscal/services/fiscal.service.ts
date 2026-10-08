@@ -403,4 +403,19 @@ export const fiscalService = {
     );
     return data;
   },
+
+  /**
+   * Depois de uma Rejeição 539 (número já usado por outro sistema): leva o
+   * contador da série para o último número que o sistema anterior usou.
+   * Nunca anda para trás — o backend recusa.
+   */
+  async ajustarNumeracaoDuplicidade(payload: { documento_id: number; ultimo_numero: number }): Promise<{
+    serie: number;
+    ultimo_numero: number;
+    proximo_numero: number;
+    mensagem: string;
+  }> {
+    const { data } = await api.post(`${FISCAL_ENDPOINT}/numeracao/ajustar-duplicidade`, payload);
+    return data;
+  },
 };

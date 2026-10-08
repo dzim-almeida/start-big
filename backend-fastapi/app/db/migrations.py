@@ -14,6 +14,7 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.sql.functions import FunctionElement
 
 from app.core.config import settings
 from app.db.base import Base
@@ -143,7 +144,24 @@ def _ddl_da_coluna(coluna) -> str | None:
     padrao = None
     if coluna.server_default is not None:
         texto = getattr(coluna.server_default, "arg", None)
-        padrao = str(getattr(texto, "text", texto)) if texto is not None else None
+        if isinstance(texto, str):
+            # `server_default="R1,R2,R3"` é um LITERAL, e o SQLAlchemy o põe
+            # entre aspas no CREATE TABLE. Sem as aspas aqui o ALTER saía
+            # `DEFAULT R1,R2,R3` -- erro de sintaxe, coluna pulada a cada boot.
+            # Foi o `no such column: configuracoes_vendas.regra_ordem` que
+            # derrubou as vendas da serigrafia em 06/10/2026.
+            padrao = "'{}'".format(texto.replace("'", "''"))
+        elif isinstance(texto, FunctionElement):
+            # `func.now()` e afins: o SQLite recusa default NÃO constante em
+            # ADD COLUMN ("DEFAULT now()" é erro de sintaxe). A coluna entra
+            # sem default -- vazia nas linhas antigas, preenchida pelo app nas
+            # novas --, porque coluna faltando derruba a tela inteira e coluna
+            # vazia não. Antes, ficava faltando para sempre.
+            ddl_sem_default = '"{}" {}'.format(coluna.name, tipo)
+            return ddl_sem_default
+        elif texto is not None:
+            # `text(...)`: SQL cru, vai como está.
+            padrao = str(getattr(texto, "text", texto))
     elif coluna.default is not None and getattr(coluna.default, "is_scalar", False):
         valor = coluna.default.arg
         if isinstance(valor, bool):

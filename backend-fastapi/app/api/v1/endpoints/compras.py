@@ -39,6 +39,7 @@ from app.schemas.compras import (
     PedidoResumo,
     RecebimentoEscrita,
     RelatorioCompras,
+    ComprasDaOS,
     ProdutoParaPedido,
     SimularParcelas,
 )
@@ -48,6 +49,7 @@ from app.services.compras import pedidos as pedidos_service
 from app.services.compras.parcelas import gerar_parcelas
 from app.services.compras import recebimentos as recebimentos_service
 from app.services.compras import relatorios as relatorios_service
+from app.services.compras import demanda_os as demanda_os_service
 from app.services.compras.permissoes import (
     permissao_custos,
     permissao_cancelar,
@@ -383,3 +385,25 @@ def relatorio_compras(
     if (fim - inicio).days > 366:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Período de no máximo um ano.")
     return relatorios_service.gerar(db, user_token, inicio, fim)
+
+
+# ---------------------------------------------------------------------------
+# Fase 6 — compras de uma OS
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/ordens-servico/{os_id}",
+    response_model=ComprasDaOS,
+    summary="Compras desta OS: o que o estoque cobre, o que está pedido, o que falta",
+    description=(
+        "Peças APROVADAS da OS. O estoque é repartido em fila (OS mais antiga primeiro); os pedidos são "
+        "os ligados a esta OS pelas Necessidades."
+    ),
+)
+def compras_da_os(
+    os_id: int = Path(..., ge=1),
+    user_token: dict = Depends(permissao_ver),
+    db: Session = Depends(get_db),
+):
+    return demanda_os_service.compras_da_os(db, os_id)

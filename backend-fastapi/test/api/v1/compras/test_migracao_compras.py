@@ -167,3 +167,23 @@ def test_fase4_acrescenta_a_coluna_e_e_idempotente():
             m.upgrade()
         colunas = {c["name"] for c in sa.inspect(conexao).get_columns("recebimentos_compra")}
         assert "nota_entrada_id" in colunas
+
+
+# --- fase 6: origem da demanda (e8a3c6d1f702) ---------------------------------------------
+
+def test_fase6_cria_a_tabela_de_origens_e_e_idempotente():
+    caminho = Path(__file__).parents[4] / "alembic" / "versions" / "e8a3c6d1f702_compras_origem_da_demanda.py"
+    spec = importlib.util.spec_from_file_location("migracao_compras_fase6", caminho)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.down_revision == "d5f1b2c8e604"
+
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conexao:
+        _base_fase2(conexao)
+        with Operations.context(MigrationContext.configure(conexao)):
+            _migracao_fase2().upgrade()
+            m.upgrade()
+            m.upgrade()
+        colunas = {c["name"] for c in sa.inspect(conexao).get_columns("pedido_compra_origens")}
+        assert {"pedido_item_id", "origem", "origem_id", "quantidade"} <= colunas

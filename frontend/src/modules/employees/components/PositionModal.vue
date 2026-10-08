@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useSegmento } from '@/shared/composables/useSegmento';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 /**
  * @component PositionModal
@@ -24,6 +25,7 @@ import {
 import { useModulosStore } from '@/shared/stores/modulos.store';
 
 const { usaOrdemServico } = useOrdemServico();
+const { segmento } = useSegmento();
 const modulosStore = useModulosStore();
 
 /**
@@ -37,6 +39,9 @@ const matrizVisivel = computed(() =>
   PERMISSION_MATRIX.filter((item) => item.id !== 'services' || usaOrdemServico.value).filter(
     // Modulo contratavel (ex.: Compras): so com ele na licenca.
     (item) => !item.modulo || modulosStore.temModulo(item.modulo),
+  ).filter(
+    // Linha de um segmento só (ex.: Fábrica, na marcenaria).
+    (item) => !item.segmento || item.segmento === segmento.value,
   ),
 );
 
@@ -47,7 +52,7 @@ const matrizVisivel = computed(() =>
 const chavesMarcarTudo = computed(() => [
   ...PERMISSION_KEYS,
   ...matrizVisivel.value
-    .filter((item) => item.modulo)
+    .filter((item) => item.modulo || item.segmento)
     .flatMap((item) => [item.viewKey, item.manageKey, item.deleteKey])
     .filter((key): key is string => Boolean(key)),
 ]);

@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enum import ContaPagarStatus, MovimentacaoOrigem, MovimentacaoTipo
 from app.db.models.conta_pagar import ContaPagar
-from app.db.models.pedido_compra import PedidoCompra, SituacaoPedido
+from app.db.models.pedido_compra import PedidoCompra, SituacaoPedido, TipoPedido
 from app.db.models.produto import Produto
 from app.db.models.recebimento_compra import RecebimentoCompra, RecebimentoCompraItem
 from app.schemas.compras import PedidoRead, RecebimentoEscrita
@@ -146,7 +146,8 @@ def receber(
                 f"'{item.descricao}': chegaram {d.quantidade} {item.unidade_compra}, mas faltam só "
                 f"{item.pendente}. Se o fornecedor mandou a mais, ajuste o pedido antes.",
             )
-        if d.quantidade and (item.produto_id is None or db.get(Produto, item.produto_id) is None):
+        servico = pedido.tipo == TipoPedido.SERVICO and item.produto_id is None
+        if d.quantidade and not servico and (item.produto_id is None or db.get(Produto, item.produto_id) is None):
             raise _erro(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 f"'{item.descricao}': o produto não existe mais no cadastro; não dá para dar entrada.",
@@ -173,10 +174,23 @@ def receber(
     valor_pedido_desta_chegada = 0
     for d in chegou:
         item = por_id[d.pedido_item_id]
-        produto = db.get(Produto, item.produto_id)
         custo_compra = d.custo_unitario if (ver_custos and d.custo_unitario is not None) else item.custo_unitario
         unidades = d.quantidade * item.fator
 
+        if item.produto_id is None:
+            # Serviço (central de corte, F5 da fábrica): não entra no estoque —
+            # só o recebimento, o valor e as contas a pagar.
+            recebimento.itens.append(RecebimentoCompraItem(
+                pedido_item_id=item.id, produto_id=None, descricao=item.descricao,
+                unidade_compra=item.unidade_compra, fator=item.fator, quantidade=d.quantidade,
+                unidades=float(unidades), custo_unitario=custo_compra, movimentacao_id=None,
+            ))
+            item.quantidade_recebida += d.quantidade
+            valor_itens += d.quantidade * custo_compra
+            valor_pedido_desta_chegada += d.quantidade * item.custo_unitario
+            continue
+
+        produto = db.get(Produto, item.produto_id)
         movimento = mov_service.registrar_movimentacao(
             db,
             produto=produto,

@@ -60,6 +60,9 @@ def reconciliar_documento(
     try:
         atualizado = consultar_documento(db, doc.id, empresa_id)
     except Exception as e:
+        # Desfaz o que a consulta tenha deixado pela metade neste documento,
+        # para o commit do próximo não levar junto um estado parcial.
+        db.rollback()
         logger.warning(
             "[FISCAL] Reconciliação falhou para documento %s (ref=%s): %s",
             doc.id, doc.ref_api, e,
@@ -97,8 +100,10 @@ def reconciliar_pendentes(db: Session) -> dict:
 
         if reconciliar_documento(db, doc, empresa_id):
             resolvidos += 1
-
-    db.commit()
+        # Commit POR documento, como o polling da emissão. O banco da loja é
+        # SQLite: segurar a escrita aberta durante até 50 consultas de rede
+        # travaria a venda no caixa ("database is locked").
+        db.commit()
 
     return {
         "verificados": len(pendentes),
@@ -123,8 +128,12 @@ def _empresa_do_documento(db: Session, doc: DocumentoFiscal) -> Optional[int]:
 
 def reconciliar_no_startup() -> None:
     """
-    Ponto de entrada chamado pelo lifespan. Abre a própria sessão e nunca
-    propaga exceção — falhar aqui não pode impedir o app de subir.
+    Ponto de entrada chamado pelo lifespan (`_reconciliar_fiscal_apos_boot`,
+    em app/core/tarefas.py). Abre a própria sessão e nunca propaga exceção —
+    falhar aqui não pode impedir o app de subir.
+
+    Ficou escrita e testada sem ninguém chamar de 08/09 a 07/10/2026: até então,
+    nota presa em PROCESSANDO depois de fechar o app só saía pela tela.
     """
     from app.db.session import SessionLocal
 

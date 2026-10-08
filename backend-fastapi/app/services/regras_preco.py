@@ -32,6 +32,8 @@ from app.core.enum import TipoProdutoVenda
 from app.db.models.produto import Produto
 from app.db.models.produto_regra_preco import ProdutoRegraPreco
 from app.schemas.produto_regra_preco import RegrasPrecoSalvar
+from app.schemas.quantidade import normalizar_quantidade
+from app.services.quantidade_venda import eh_fracionavel, subtotal_da_linha
 
 CAMPOS = ("tipo", "quantidade", "preco", "pague", "inicio", "fim", "ativo")
 MANUAL = "MANUAL"
@@ -99,7 +101,7 @@ def _limpar(linha) -> None:
     linha.regra_descricao = None
     linha.valor_unitario_tabela = None
     linha.desconto_regra = 0
-    linha.subtotal = (linha.quantidade or 0) * (linha.valor_unitario or 0)
+    linha.subtotal = subtotal_da_linha(linha.quantidade or 0, linha.valor_unitario or 0)
 
 
 def _participa(linha) -> bool:
@@ -176,13 +178,18 @@ def aplicar_na_venda(db: Session, venda, hoje: Optional[date] = None) -> set[int
                 grupos.setdefault((linha.produto_id, linha.valor_unitario or 0), []).append(linha)
 
         for (_, preco_unidade), linhas in grupos.items():
-            unidades = sum(l.quantidade or 0 for l in linhas)
+            # A coluna é Float desde a venda fracionada: 17 latas chegam 17.0, e
+            # a descrição sairia "Preço de 1.0 FD". Inteiro volta a ser inteiro.
+            unidades = normalizar_quantidade(sum(l.quantidade or 0 for l in linhas))
+            # Produto fracionado (3,5 kg) só entra na FAIXA "a partir de X":
+            # fardo e leve-pague contam unidades inteiras (venda fracionada D5).
+            fracionado = eh_fracionavel(linhas[0].produto)
             resultado = calc.calcular(
                 unidades,
                 preco_unidade,
                 conflito=config.regra_conflito,
                 ordem=ordem,
-                **_entradas(linhas[0].produto, r1, r2, r3, hoje),
+                **_entradas(linhas[0].produto, r1 and not fracionado, r2, r3 and not fracionado, hoje),
             )
             if resultado is None:
                 continue
@@ -192,7 +199,7 @@ def aplicar_na_venda(db: Session, venda, hoje: Optional[date] = None) -> set[int
                 if resultado.preco_unitario is not None:
                     linha.valor_unitario_tabela = linha.valor_unitario
                     linha.valor_unitario = resultado.preco_unitario
-                    linha.subtotal = (linha.quantidade or 0) * resultado.preco_unitario
+                    linha.subtotal = subtotal_da_linha(linha.quantidade or 0, resultado.preco_unitario)
                 else:
                     linha.desconto_regra = parte
 

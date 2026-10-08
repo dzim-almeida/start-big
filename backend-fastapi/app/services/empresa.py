@@ -292,6 +292,31 @@ def update_fiscal_settings(
         else:
             update_dict["csc_token"] = cifrar_csc_token(update_dict["csc_token"])
 
+    # Voltar o contador para trás de uma nota deste sistema repetiria o número
+    # (Rejeição 204/539, número gasto). Confere com a série que vai valer.
+    if update_dict.keys() & CAMPOS_QUE_CONFIRMAM_NUMERACAO:
+        from app.services.fiscal.numeracao import validar_novo_ultimo_numero
+
+        for tipo, campo_serie, campo_ultimo in (
+            ("NFE", "serie_nfe", "ultimo_numero_nfe"),
+            ("NFCE", "serie_nfce", "ultimo_numero_nfce"),
+        ):
+            if campo_serie in update_dict or campo_ultimo in update_dict:
+                validar_novo_ultimo_numero(
+                    db, tipo,
+                    update_dict.get(campo_serie, getattr(settings, campo_serie)),
+                    update_dict.get(campo_ultimo, getattr(settings, campo_ultimo)),
+                )
+
+        # Número informado À MÃO vira o piso: abaixo dele, o que não tem nota é
+        # do sistema anterior (ver `numeracao_piso_nfe`). Só quando muda — a
+        # tela reenvia o valor de sempre, e isso não pode esconder buraco que o
+        # próprio StartBig abriu.
+        nova_serie = update_dict.get("serie_nfe", settings.serie_nfe)
+        novo_ultimo = update_dict.get("ultimo_numero_nfe", settings.ultimo_numero_nfe)
+        if nova_serie != settings.serie_nfe or novo_ultimo != settings.ultimo_numero_nfe:
+            settings.numeracao_piso_nfe = novo_ultimo
+
     for field, value in update_dict.items():
         setattr(settings, field, value)
 
@@ -405,7 +430,8 @@ def upload_certificado_focus(
     db: Session,
     empresa_id: int,
     file: UploadFile,
-    senha: str
+    senha: str,
+    resultado_envio: Optional[dict] = None,
 ) -> EmpresaModel:
     """
     Valida um certificado A1 (PKCS#12) destinado a emissao pela API na nuvem.
@@ -486,12 +512,23 @@ def upload_certificado_focus(
     from app.services.fiscal.http import get_fiscal_client
     from app.db.crud import fiscal as fiscal_crud
 
+    from app.services.fiscal.ativacao import contato_da_empresa, montar_emitente_para_ativacao
+
     settings_fiscais = get_or_create_fiscal_settings(db, empresa_id)
 
+    # Ativação, e não só o certificado (06/10/2026): junto vai o emitente, para
+    # a plataforma criar a empresa na emissora quando ela ainda não existe.
+    # Plataforma antiga cai sozinha na rota antiga (ver `ativar_emissao`).
+    email, telefone = contato_da_empresa(empresa_in_db)
     resultado = get_fiscal_client(
         settings_fiscais.ambiente_emissao or 2,
         fiscal_crud.get_licenca_token(db),
-    ).enviar_certificado(
+    ).ativar_emissao(
+        montar_emitente_para_ativacao(
+            empresa_in_db, fiscal_crud.get_endereco_empresa(db, empresa_id), settings_fiscais,
+        ),
+        email,
+        telefone,
         base64.b64encode(file_content).decode("ascii"),
         senha,
     )
@@ -518,6 +555,16 @@ def upload_certificado_focus(
     )
     if cert_cnpj:
         settings_fiscais.certificado_cnpj = cert_cnpj
+
+    # Quem chamou quer saber o que a plataforma disse (a tela mostra o motivo
+    # quando o certificado não chegou à emissora). Opcional para não mudar a
+    # assinatura de quem já chama.
+    if resultado_envio is not None:
+        resultado_envio.update(
+            aceito=resultado["aceito"],
+            mensagem=resultado.get("mensagem"),
+            certificado_status=settings_fiscais.certificado_status,
+        )
 
     db.flush()
     db.refresh(empresa_in_db)

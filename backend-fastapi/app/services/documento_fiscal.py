@@ -13,6 +13,7 @@ from app.db.models.venda import Venda
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.crud import fiscal as fiscal_crud
 from app.services.fiscal.tributacao import fiscal_efetivo
+from app.schemas.quantidade import normalizar_quantidade
 from app.schemas.documento_fiscal import (
     DocumentoFiscalHistorico,
     DocumentoFiscalListRead,
@@ -30,9 +31,9 @@ def _itens_do_snapshot(doc: DocumentoFiscal) -> list[DocumentoItemResumo]:
             produto_id=item.produto_id,
             nome=item.descricao,
             codigo_barras=item.codigo_barras,
-            # O snapshot guarda a quantidade em milésimos; a tela mostra inteiro,
-            # como o resto do sistema.
-            quantidade=round(item.quantidade_milesimos / 1000),
+            # O snapshot guarda a quantidade em milésimos. Até 07/10/2026 a tela
+            # arredondava para inteiro — e uma nota de 3,5 kg aparecia com 4.
+            quantidade=normalizar_quantidade(item.quantidade_milesimos / 1000),
             valor_unitario=item.valor_unitario,
             subtotal=item.valor_bruto,
             desconto=item.valor_desconto,

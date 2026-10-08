@@ -34,6 +34,17 @@ export interface DocumentoItemResumo {
   quantidade_devolvida_acumulada?: number | null;
 }
 
+/** `diagnostico` do documento, como o backend devolve (services/fiscal/diagnostico_sefaz.py). */
+export interface DiagnosticoSefazApi {
+  categoria: string;
+  cstat: number | null;
+  rotulo: string;
+  titulo: string;
+  explicacao: string;
+  como_resolver: string;
+  acao: { tipo: string; label: string } | null;
+}
+
 export interface DocumentoFiscalRead {
   id: number;
   tipo_documento: DocumentoFiscalTipo;
@@ -76,6 +87,12 @@ export interface DocumentoFiscalRead {
   /** Status cru da emissora ('autorizado', 'denegado', 'erro_autorizacao'). */
   status_focus?: string | null;
   motivo_rejeicao: string | null;
+  /**
+   * Explicação da rejeição calculada pelo backend (desde 07/10/2026), só em
+   * REJEITADA/DENEGADA. Ausente quando o servidor da loja ainda é anterior a
+   * isso — aí a tela usa a análise local (`fiscalDiagnostic.ts`).
+   */
+  diagnostico?: DiagnosticoSefazApi | null;
   valor_total: number | null;
   /** Texto do QR Code do DANFE NFC-e, montado pelo provedor com o CSC. */
   qrcode: string | null;
@@ -355,6 +372,8 @@ export interface EmissaoPreviewResponse {
   totais: EmissaoPreviewTotais;
   itens: EmissaoPreviewItem[];
   formas_pagamento: EmissaoPreviewPagamento[];
+  /** Cadastro esquisito que não trava a nota (MEI × regime, PJ sem IE). Backend antigo não manda. */
+  avisos?: string[];
 }
 
 // --- Error Detail (409 Conflict) ---

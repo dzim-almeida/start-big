@@ -41,6 +41,11 @@ const emit = defineEmits<{
   removeItem: [index: number];
 }>();
 
+/** Item gerado pelo orçamento da fábrica: muda por uma nova versão, não aqui. */
+function veioDoOrcamento(item: OsItem): boolean {
+  return 'fabrica_orcamento_id' in item && item.fabrica_orcamento_id != null;
+}
+
 function getItemIcon(item: OsItem) {
   return item.tipo === 'SERVICO' ? Wrench : ShoppingBag;
 }
@@ -174,7 +179,14 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
               <p class="text-sm font-black text-slate-800">{{ formatCurrency(getItemTotal(item)) }}</p>
             </div>
 
-            <div v-if="!isLocked" class="flex items-center gap-1 pl-2 border-l border-slate-100">
+            <div
+              v-if="!isLocked && veioDoOrcamento(item)"
+              class="flex items-center gap-1 pl-2 border-l border-slate-100 text-slate-300"
+              title="Veio do orçamento aprovado. Para mudar, faça uma nova versão na aba Orçamento."
+            >
+              <Lock :size="14" />
+            </div>
+            <div v-else-if="!isLocked" class="flex items-center gap-1 pl-2 border-l border-slate-100">
               <BaseButton variant="ghost" size="sm" class="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-primary-light" @click="emit('editItem', index)">
                 <Pencil :size="14" />
               </BaseButton>

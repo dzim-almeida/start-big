@@ -46,6 +46,10 @@ export interface CustomerFormContext {
   apiError: Ref<string | null>;
   isPending: ComputedRef<boolean>;
 
+  // Busca do CNPJ na Receita (só PJ)
+  isConsultingCNPJ: Ref<boolean>;
+  consultarReceita: (cnpjDigitos: string) => Promise<void>;
+  isCreateMode: Ref<boolean> | ComputedRef<boolean>;
   // Ações
   onSubmit: (e?: Event) => void;
   resetForm: () => void;

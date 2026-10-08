@@ -50,6 +50,7 @@ import {
 import { useFiscalReemitirMutation } from '../../composables/useFiscalReemitirMutation';
 import { useNfceReimpressao } from '../../composables/useNfceReimpressao';
 import { formatCurrency } from '@/shared/utils/finance';
+import { formatarQuantidadeSemUnidade } from '@/shared/utils/quantidade';
 import { formatCPF, formatCNPJ } from '@/shared/utils/document.utils';
 import { formatDataHora } from '@/shared/utils/date.utils';
 import {
@@ -57,6 +58,7 @@ import {
   formatarDiagnosticoParaSuporte,
   nomeAmbienteDocumento,
 } from '../../utils/fiscalDiagnostic';
+import { lerChaveDaMensagem } from '../../utils/fiscalDiagnosticCodigos';
 import FiscalEditarVendaModal from './FiscalEditarVendaModal.vue';
 import FiscalEmitirDevolucaoModal from './FiscalEmitirDevolucaoModal.vue';
 import { prazoCancelamentoExpirado, totalmenteDevolvida } from '../../composables/useDevolucaoItens';
@@ -177,6 +179,38 @@ const handleReemitir = async () => {
     // A mutação já mostrou o erro no toast.
   }
 };
+
+// --- Rejeição 539: número já usado por outro sistema (F3) ---
+//
+// O primeiro cliente em produção caiu nisto: começou do 1 e o nº 4 da série 2
+// já existia (sistema antigo, 09/2026). Aqui o lojista informa o último número
+// que o sistema anterior usou (perguntado ao contador) — o campo já vem com o
+// número que a SEFAZ acusou — e o sistema ajusta e reemite. Nunca pula sozinho.
+const numeroAcusado539 = computed(() =>
+  documento.value?.codigo_status_sefaz === 539
+    ? lerChaveDaMensagem(documento.value.mensagem_sefaz)?.numero ?? documento.value.numero_documento ?? null
+    : null,
+);
+const ultimoNumeroInformado = ref<number | null>(null);
+const ajustandoNumeracao = ref(false);
+async function ajustarNumeracaoEReemitir() {
+  if (!documento.value) return;
+  const ultimo = Number(ultimoNumeroInformado.value ?? numeroAcusado539.value);
+  if (!Number.isInteger(ultimo) || ultimo < 1) {
+    toast.error('Informe o último número usado pelo sistema anterior.');
+    return;
+  }
+  ajustandoNumeracao.value = true;
+  try {
+    const r = await fiscalService.ajustarNumeracaoDuplicidade({ documento_id: documento.value.id, ultimo_numero: ultimo });
+    toast.success(r.mensagem);
+    await handleReemitir();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || 'Não foi possível ajustar a numeração.');
+  } finally {
+    ajustandoNumeracao.value = false;
+  }
+}
 
 // Só REJEITADA volta à SEFAZ. DENEGADA é decisão sobre o contribuinte:
 // reenviar volta denegada e queima outro número (o backend recusa com 422).
@@ -404,6 +438,9 @@ function handleActionDiagnostico(tipo?: string) {
   if (!tipo) return;
   if (tipo === 'CONFIG_FISCAL') {
     router.push({ name: 'enterprise' });
+    close();
+  } else if (tipo === 'CENTRO_FISCAL') {
+    router.push({ name: 'fiscal' });
     close();
   } else if (tipo === 'EDITAR_VENDA') {
     showEditarVendaModal.value = true;
@@ -640,7 +677,7 @@ function formatarData(iso?: string | null): string {
                     <!-- Banner de Diagnóstico Inteligente (Moderno, Clean e Integrado) -->
                     <div
                       v-if="documento.status === 'REJEITADA' || documento.status === 'DENEGADA'"
-                      class="relative overflow-hidden rounded-2xl border border-rose-200/90 bg-gradient-to-b from-rose-50/40 via-white to-rose-50/20 p-5 shadow-xs transition-all"
+                      class="relative overflow-hidden rounded-2xl border border-rose-200/90 bg-linear-to-b from-rose-50/40 via-white to-rose-50/20 p-5 shadow-xs transition-all"
                     >
                       <!-- Top Accent Line -->
                       <div class="absolute top-0 left-0 right-0 h-1.5 bg-rose-500" />
@@ -695,6 +732,36 @@ function formatarData(iso?: string | null): string {
                         </p>
                       </div>
 
+                      <!-- 539: ajustar a numeração e reemitir, sempre com confirmação do lojista -->
+                      <div
+                        v-if="numeroAcusado539 !== null && podeReemitir"
+                        class="mt-3.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 space-y-2.5"
+                        data-testid="ajuste-numeracao-539"
+                      >
+                        <p class="text-xs text-blue-950 leading-relaxed">
+                          Qual foi o <strong>último número</strong> que o sistema anterior emitiu na
+                          série {{ documento.serie }}? Pergunte ao contador. A próxima nota sairá com o
+                          número seguinte.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <input
+                            v-model.number="ultimoNumeroInformado"
+                            type="number"
+                            :min="numeroAcusado539 ?? 1"
+                            :placeholder="String(numeroAcusado539 ?? '')"
+                            class="w-28 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs"
+                          />
+                          <button
+                            type="button"
+                            :disabled="ajustandoNumeracao || reemitirMutation.isPending.value"
+                            class="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50"
+                            @click="ajustarNumeracaoEReemitir"
+                          >
+                            {{ ajustandoNumeracao || reemitirMutation.isPending.value ? 'Ajustando…' : 'Ajustar numeração e reemitir' }}
+                          </button>
+                        </div>
+                      </div>
+
                       <!-- Botões de Ação Contextuais -->
                       <div class="mt-4 flex flex-wrap items-center gap-2.5 pt-1">
                         <button
@@ -704,7 +771,7 @@ function formatarData(iso?: string | null): string {
                           class="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-zinc-800 transition-all cursor-pointer"
                         >
                           <Edit3 v-if="diagnostico.acaoPrincipal.tipo === 'EDITAR_VENDA'" class="h-3.5 w-3.5" />
-                          <Settings v-else-if="diagnostico.acaoPrincipal.tipo === 'CONFIG_FISCAL'" class="h-3.5 w-3.5" />
+                          <Settings v-else-if="diagnostico.acaoPrincipal.tipo === 'CONFIG_FISCAL' || diagnostico.acaoPrincipal.tipo === 'CENTRO_FISCAL'" class="h-3.5 w-3.5" />
                           <Package v-else-if="diagnostico.acaoPrincipal.tipo === 'RESOLVER_PRODUTOS'" class="h-3.5 w-3.5" />
                           <RotateCcw v-else class="h-3.5 w-3.5" />
                           <span>{{ diagnostico.acaoPrincipal.label }}</span>
@@ -1208,7 +1275,7 @@ function formatarData(iso?: string | null): string {
                               {{ item.cfop || '-' }}
                             </td>
                             <td class="py-2.5 px-2 text-right font-medium text-zinc-700">
-                              {{ item.quantidade }}
+                              {{ formatarQuantidadeSemUnidade(item.quantidade) }}
                             </td>
                             <td class="py-2.5 px-2 text-right text-zinc-600">
                               {{ formatCurrency(item.valor_unitario) }}
@@ -1247,7 +1314,7 @@ function formatarData(iso?: string | null): string {
                         <!-- Linha vertical conectora -->
                         <div
                           v-if="index !== historicoData.tentativas.length - 1"
-                          class="absolute left-[11px] top-6 bottom-0 w-px bg-zinc-200"
+                          class="absolute left-2.75 top-6 bottom-0 w-px bg-zinc-200"
                         />
                         <!-- Ponto visual de status -->
                         <div

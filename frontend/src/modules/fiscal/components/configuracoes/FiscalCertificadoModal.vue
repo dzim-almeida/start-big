@@ -21,6 +21,14 @@ const password = ref('');
 const loading = ref(false);
 const error = ref('');
 const success = ref(false);
+/**
+ * Conferido aqui, mas NÃO chegou à emissora. Até 06/10/2026 esse caso mostrava
+ * o mesmo "enviado com sucesso" do verde, e o lojista só descobria na primeira
+ * nota recusada.
+ */
+const naoEnviado = ref('');
+/** O que a plataforma disse no sucesso: "empresa cadastrada…" ou "atualizada…". */
+const mensagemSucesso = ref('');
 
 function close() {
   emit('update:isOpen', false);
@@ -30,6 +38,7 @@ function close() {
     password.value = '';
     error.value = '';
     success.value = false;
+    naoEnviado.value = '';
   }, 300);
 }
 
@@ -50,6 +59,7 @@ async function uploadCertificate() {
   loading.value = true;
   error.value = '';
   success.value = false;
+  naoEnviado.value = '';
 
   try {
     const formData = new FormData();
@@ -60,17 +70,23 @@ async function uploadCertificate() {
 
     // O baseURL do axios JÁ é .../api/v1: repetir o prefixo aqui gerava
     // .../api/v1/api/v1/fiscal/... e um 404 silencioso.
-    await api.post('/fiscal/certificado/upload-focus', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    const { data } = await api.post<{ message: string; enviado?: boolean }>(
+      '/fiscal/certificado/upload-focus',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
 
-    success.value = true;
     emit('uploaded');
+    // `enviado` ausente = backend antigo, que só respondia em caso de sucesso.
+    if (data?.enviado === false) {
+      naoEnviado.value = data.message;
+      return; // fica aberto: o lojista precisa ler o motivo
+    }
+    mensagemSucesso.value = data?.message || 'Certificado enviado à emissora!';
+    success.value = true;
     setTimeout(() => {
       close();
-    }, 2000);
+    }, 2500);
   } catch (err: any) {
     error.value = err.response?.data?.detail || 'Erro ao enviar o certificado. Verifique a senha e o arquivo.';
   } finally {
@@ -96,7 +112,12 @@ async function uploadCertificate() {
         <svg class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        <p class="text-sm text-emerald-700">Certificado enviado com sucesso!</p>
+        <p class="text-sm text-emerald-700">{{ mensagemSucesso }}</p>
+      </div>
+
+      <div v-if="naoEnviado" class="p-4 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-3">
+        <LucideIcon :icon="AlertCircle" class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+        <p class="text-sm text-amber-800">{{ naoEnviado }}</p>
       </div>
 
       <!-- File Upload Area -->

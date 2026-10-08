@@ -21,10 +21,13 @@ export function useSegmento() {
 
   const isOficinaMecanica = computed(() => segmento.value === 'oficina_mecanica');
   const isAssistenciaTecnica = computed(() => segmento.value === 'assistencia_tecnica');
+  /** A marcenaria-fábrica (insumo, orçamento por móvel) só existe aqui. */
+  const isMarcenaria = computed(() => segmento.value === 'marcenaria');
 
   return {
     segmento,
     isOficinaMecanica,
     isAssistenciaTecnica,
+    isMarcenaria,
   };
 }

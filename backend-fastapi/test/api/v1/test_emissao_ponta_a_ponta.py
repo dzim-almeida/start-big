@@ -89,14 +89,23 @@ REJEITADA_539 = {
 
 @pytest.fixture
 def plataforma(monkeypatch):
-    """Instala a plataforma falsa onde `emissao.py` a procura."""
-    from app.services.fiscal import emissao as emissao_mod
+    """Instala a plataforma falsa onde a emissão a procura.
+
+    Desde a F5 a emissão mora em um módulo por documento (`emissao_nfe_venda`,
+    `emissao_nfce`, ...), e cada um tem a sua referência a `get_fiscal_client`:
+    o patch vai em todos, senão a NFC-e ou o cancelamento falariam com a
+    plataforma de verdade.
+    """
+    from app.services.fiscal import (
+        emissao_eventos, emissao_nfce, emissao_nfe_os, emissao_nfe_venda, emissao_teste,
+    )
 
     caixa = {}
 
     def instalar(*respostas):
         caixa["falsa"] = PlataformaFalsa(respostas)
-        monkeypatch.setattr(emissao_mod, "get_fiscal_client", lambda *a, **k: caixa["falsa"])
+        for mod in (emissao_nfe_venda, emissao_nfce, emissao_nfe_os, emissao_eventos, emissao_teste):
+            monkeypatch.setattr(mod, "get_fiscal_client", lambda *a, **k: caixa["falsa"])
         return caixa["falsa"]
 
     return instalar

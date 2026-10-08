@@ -18,6 +18,7 @@ import {
   Printer,
   ClipboardList,
   PackageCheck,
+  Ruler,
 } from 'lucide-vue-next';
 
 import { MODULOS } from '@/shared/constants/modulos.constants';
@@ -169,6 +170,18 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     modulo: MODULOS.COMPRAS,
   },
   {
+    id: 'fabrica',
+    label: 'Fabrica',
+    description: 'Orcamento por movel, custos e liberacao de compra',
+    icon: Ruler,
+    // So na marcenaria. Visualizar = ver CUSTO e margem do orcamento;
+    // Gerenciar = orcar, enviar, registrar a resposta do cliente, liberar
+    // compra antes do sinal. Avancar etapa e da permissao de Servicos.
+    viewKey: 'view_fabrica',
+    manageKey: 'manage_fabrica',
+    segmento: 'marcenaria',
+  },
+  {
     id: 'reports',
     label: 'Relatorios',
     description: 'Faturamento, ranking e comissoes',
@@ -235,7 +248,7 @@ function chavesDe(itens: PermissionMatrixItem[]): string[] {
  * fora de proposito -- contar Compras rebaixaria o nivel de todo cargo ja
  * cadastrado no dia da atualizacao, numa loja que nem contratou o modulo.
  */
-export const PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX.filter((item) => !item.modulo));
+export const PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX.filter((item) => !item.modulo && !item.segmento));
 
 /** Todas as caixas, inclusive as dos modulos contrataveis. */
 export const ALL_PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX);
@@ -250,6 +263,7 @@ export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], s
   // Chave PROPRIA, nao `compra`: duas linhas gravando a mesma chave fariam a
   // segunda sobrescrever a primeira em `applyEndpointPermissions`.
   purchase_receiving: PERMISSIONS.receiving,
+  fabrica: 'fabrica',
   enterprise: PERMISSIONS.enterprise,
   employees: PERMISSIONS.employees,
   roles: PERMISSIONS.positions,

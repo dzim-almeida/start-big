@@ -192,17 +192,6 @@ def pis_cofins_por_fora(crt: int) -> bool:
     return crt in (CRT_SIMPLES_NACIONAL, CRT_MEI)
 
 
-def is_simples_nacional(regime: Optional[str]) -> bool:
-    """
-    DEPRECADO — mantido só para não quebrar chamadas antigas.
-
-    O nome engana: `"simples" in regime` também casa com "Simples Nacional
-    (Excesso de Sublimite)", que é CRT 2 e usa CST, não CSOSN. Use
-    `obter_crt(empresa)` + `usa_csosn(crt)`.
-    """
-    return usa_csosn(crt_do_rotulo(regime) or CRT_PADRAO)
-
-
 def criar_pendencia(categoria: str, campo: str, mensagem: str,
                     referencia_id: int = None, referencia_nome: str = None) -> PendenciaFiscal:
     return PendenciaFiscal(

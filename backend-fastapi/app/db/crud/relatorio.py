@@ -255,8 +255,10 @@ def get_comissao_base(
     venda_custo_estoque_sub = (
         select(
             Venda.funcionario_id.label("fid"),
+            # ROUND: quantidade fracionada (3,5 kg) dá centavo quebrado, e a
+            # resposta espera centavo inteiro.
             func.coalesce(
-                func.sum(
+                func.round(func.sum(
                     case(
                         (
                             MovimentacaoEstoque.tipo == MovimentacaoTipo.SAIDA,
@@ -266,7 +268,7 @@ def get_comissao_base(
                         else_=-MovimentacaoEstoque.quantidade
                         * func.coalesce(MovimentacaoEstoque.custo_unitario, 0),
                     )
-                ),
+                )),
                 0,
             ).label("custo"),
         )
@@ -922,8 +924,10 @@ def get_vendas_do_funcionario(
     custo_estoque = (
         select(
             MovimentacaoEstoque.venda_id.label("venda_id"),
+            # ROUND: quantidade fracionada (3,5 kg) dá centavo quebrado, e a
+            # resposta espera centavo inteiro.
             func.coalesce(
-                func.sum(
+                func.round(func.sum(
                     case(
                         (
                             MovimentacaoEstoque.tipo == MovimentacaoTipo.SAIDA,
@@ -933,7 +937,7 @@ def get_vendas_do_funcionario(
                         else_=-MovimentacaoEstoque.quantidade
                         * func.coalesce(MovimentacaoEstoque.custo_unitario, 0),
                     )
-                ),
+                )),
                 0,
             ).label("custo"),
         )

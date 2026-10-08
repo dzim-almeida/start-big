@@ -58,6 +58,13 @@ export const PERMISSIONS = {
   receivePurchases: 'receive_purchases',
   /** Qualquer uma das duas linhas: decide se o grupo "Compras" do menu aparece. */
   purchasesAny: 'compras_ou_recebimento',
+  /**
+   * Linha "Fábrica" de Cargos (só marcenaria). Visualizar = ver custo e margem
+   * do orçamento; Gerenciar = orçar, enviar, registrar a resposta do cliente e
+   * liberar compra antes do sinal.
+   */
+  viewFabricaCustos: 'view_fabrica',
+  manageFabrica: 'manage_fabrica',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -98,6 +105,8 @@ export const PERMISSION_ALIASES: Partial<Record<PermissionKey, string[]>> = {
   [PERMISSIONS.cancelPurchases]: ['delete_purchases'],
   [PERMISSIONS.receiving]: ['view_receiving', 'receive_purchases'],
   [PERMISSIONS.receivePurchases]: ['receive_purchases', 'manage_purchases'],
+  [PERMISSIONS.viewFabricaCustos]: ['view_fabrica', 'manage_fabrica'],
+  [PERMISSIONS.manageFabrica]: ['manage_fabrica'],
   [PERMISSIONS.purchasesAny]: [
     'compra', 'view_purchases', 'manage_purchases', 'delete_purchases',
     'recebimento_compra', 'view_receiving', 'receive_purchases',

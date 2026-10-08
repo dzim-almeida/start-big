@@ -237,12 +237,34 @@ def test_token_novo_substitui_e_fica_cifrado(monkeypatch):
 class _FiscalSettingsFake:
     """Stub de EmpresaFiscalSettings — aceita qualquer atributo, como o ORM."""
 
+    # A numeração passou a ser conferida ao salvar (F3, 06/10/2026: o contador
+    # não volta para trás de uma nota do próprio sistema) — o stub precisa ter
+    # os campos que um EmpresaFiscalSettings real tem.
+    _PADRAO = {
+        "serie_nfe": 1, "ultimo_numero_nfe": 0,
+        "serie_nfce": 1, "ultimo_numero_nfce": 0,
+        "numeracao_piso_nfe": 0, "numeracao_confirmada": False,
+    }
+
     def __init__(self, **campos):
-        for chave, valor in campos.items():
+        for chave, valor in {**self._PADRAO, **campos}.items():
             setattr(self, chave, valor)
 
 
+class _ConsultaVazia:
+    """`db.query(...).filter(...).scalar()` de um banco sem notas."""
+
+    def filter(self, *_a, **_k):
+        return self
+
+    def scalar(self):
+        return None
+
+
 class _DbFake:
+    def query(self, *_a, **_k):
+        return _ConsultaVazia()
+
     def flush(self):
         pass
 

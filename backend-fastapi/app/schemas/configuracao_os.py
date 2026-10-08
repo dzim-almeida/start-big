@@ -21,6 +21,10 @@ class ConfiguracaoOSBase(BaseModel):
     comprovante_entrega_folha: TamanhoFolha = Field("A4", description="Papel da via de entrega")
     comprovante_entrega_densidade: DensidadeComprovante = Field("normal", description="Densidade do layout da via de entrega")
 
+    # Marcenaria-fábrica (D0): só tem efeito no segmento Marcenaria.
+    modo_fabrica: bool = Field(False, description="OS nova de Planejados nasce no trilho da fábrica (orçamento por móvel)")
+    fabrica_travar_etapas: bool = Field(False, description="Pendência na etapa bloqueia (True) ou só avisa com motivo (False)")
+
 
 class ConfiguracaoOSRead(ConfiguracaoOSBase):
     id: int
@@ -39,5 +43,8 @@ class ConfiguracaoOSUpdate(BaseModel):
     comprovante_entrada_densidade: Optional[DensidadeComprovante] = None
     comprovante_entrega_folha: Optional[TamanhoFolha] = None
     comprovante_entrega_densidade: Optional[DensidadeComprovante] = None
+
+    modo_fabrica: Optional[bool] = None
+    fabrica_travar_etapas: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)

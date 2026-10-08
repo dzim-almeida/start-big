@@ -90,6 +90,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const comprovanteEntradaDensidade = computed(() => configOS.value?.comprovante_entrada_densidade ?? 'normal')
   const comprovanteEntregaFolha = computed(() => configOS.value?.comprovante_entrega_folha ?? 'A4')
   const comprovanteEntregaDensidade = computed(() => configOS.value?.comprovante_entrega_densidade ?? 'normal')
+  const modoFabrica = computed(() => configOS.value?.modo_fabrica ?? false)
+  const fabricaTravarEtapas = computed(() => configOS.value?.fabrica_travar_etapas ?? false)
 
   // ── Vendas: regras ──
   const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
@@ -179,6 +181,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     comprovanteEntradaDensidade,
     comprovanteEntregaFolha,
     comprovanteEntregaDensidade,
+    modoFabrica,
+    fabricaTravarEtapas,
 
     permitirDesconto,
     descontoMaximoPercent,

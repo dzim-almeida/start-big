@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, type Component } from 'vue';
-import { ClipboardCheck, ClipboardList, Image as ImageIcon, Package } from 'lucide-vue-next';
+import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
+import { ClipboardCheck, ClipboardList, Image as ImageIcon, Package, Ruler } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -12,8 +12,31 @@ import { useOSFormView } from '../../context/useOSFormView.context';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
+import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
 
-type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos';
+// Módulo Compras (fase 6): "Compras desta OS" na aba de peças. Só com o módulo
+// e a permissão, e carregado sob demanda — quem não tem Compras nem baixa.
+const { podeVer: comprasDisponivel } = useAcessoCompras();
+const ComprasDaOSPanel = defineAsyncComponent(
+  () => import('@/modules/compras/ordens-servico/components/ComprasDaOSPanel.vue'),
+);
+const osSalvaId = computed(() => view.currentOSData.value?.id ?? null);
+
+// Marcenaria-fábrica: a aba Orçamento só existe na OS que nasceu no trilho
+// (`fase_fabrica` preenchida). Sob demanda — os outros segmentos nem baixam.
+const OrcamentoFabricaTab = defineAsyncComponent(
+  () => import('@/modules/order-service/fabrica/components/OrcamentoFabricaTab.vue'),
+);
+const ehDaFabrica = computed(() => !!view.currentOSData.value?.fase_fabrica);
+const TrilhoFabrica = defineAsyncComponent(
+  () => import('@/modules/order-service/fabrica/components/TrilhoFabrica.vue'),
+);
+const clienteDaOS = computed(() => {
+  const cliente = view.currentOSData.value?.cliente as { nome?: string; razao_social?: string; nome_fantasia?: string } | undefined;
+  return cliente?.nome ?? cliente?.nome_fantasia ?? cliente?.razao_social ?? '';
+});
+
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'orcamento';
 
 const view = useOSFormView();
 
@@ -51,6 +74,9 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
       : { id: 'diagnostico', label: 'Imagens', icon: ImageIcon },
     { id: 'servicos', label: 'Serviços e Peças', icon: Package },
   );
+  if (ehDaFabrica.value) {
+    tabs.push({ id: 'orcamento', label: 'Orçamento', icon: Ruler });
+  }
   return tabs;
 });
 
@@ -78,6 +104,14 @@ const objetoModel = computed<ObjetoFormData>({
 
 <template>
   <div>
+    <TrilhoFabrica
+      v-if="ehDaFabrica && view.currentOSData.value"
+      :numero-os="view.currentOSData.value.numero_os"
+      :fase="view.currentOSData.value.fase_fabrica ?? ''"
+      :atualizado-em="view.currentOSData.value.data_atualizacao"
+      class="mb-4"
+      @os-alterada="view.refreshCurrentOSData"
+    />
     <div class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
       <button
         v-for="tab in visibleTabs"
@@ -154,6 +188,22 @@ const objetoModel = computed<ObjetoFormData>({
           @remove-item="view.handleRemoveItem"
         />
       </fieldset>
+
+      <!-- Fora do fieldset: o painel só lê, e não pode travar junto da OS. -->
+      <ComprasDaOSPanel
+        v-if="activeTab === 'servicos' && comprasDisponivel && osSalvaId"
+        :os-id="osSalvaId"
+      />
+
+      <!-- Fora do fieldset: tem as próprias ações e travas (só o rascunho se edita). -->
+      <OrcamentoFabricaTab
+        v-if="activeTab === 'orcamento' && ehDaFabrica && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :cliente="clienteDaOS"
+        :projeto="view.currentOSData.value.objeto?.modelo ?? ''"
+        :travada="view.isFinalizada.value || view.isCancelada.value"
+        @os-alterada="view.refreshCurrentOSData"
+      />
 
       <OSDiagnosticoTab
         v-if="activeTab === 'diagnostico'"

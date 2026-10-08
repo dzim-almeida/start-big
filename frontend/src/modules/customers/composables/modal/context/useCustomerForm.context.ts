@@ -17,7 +17,9 @@ import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/
 import type { CustomerFormContext } from '../types/context.type';
 import { useCustomerPFForm } from '../form/useCustomerPF.form';
 import { useCustomerPJForm } from '../form/useCustomerPJ.form';
-import { DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
+import { DEFAULT_ADDRESS, DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
+import { buscarDadosCNPJ } from '@/shared/services/cnpj.service';
+import { formatCEP, formatTelefone } from '@/shared/utils/document.utils';
 import {
   transformPFToCreateRequest,
   transformPJToCreateRequest,
@@ -313,6 +315,52 @@ export function useCustomerFormProvider(): CustomerFormContext {
       updateMutation.isPending.value,
   );
 
+  // ── Busca do CNPJ na Receita (cliente PJ) ──────────────────
+  //
+  // Mesma consulta de Dados da Empresa. Preenche razão social, fantasia,
+  // regime (MEI/Simples, quando a Receita afirma), o PRIMEIRO endereço e o
+  // contato vazio. A Inscrição Estadual não vem: é cadastro do estado, não da
+  // Receita — continua digitada (e a prévia da NF-e avisa se faltar).
+  const isConsultingCNPJ = ref(false);
+
+  async function consultarReceita(cnpjDigitos: string) {
+    if (isConsultingCNPJ.value) return;
+    isConsultingCNPJ.value = true;
+    try {
+      const dados = await buscarDadosCNPJ(cnpjDigitos);
+      const atual = pjForm.values;
+      const [primeiro, ...demais] = (atual.enderecos?.length ? atual.enderecos : [{ ...DEFAULT_ADDRESS }]) as AddressFormData[];
+
+      pjForm.setValues({
+        razao_social: dados.razao_social || atual.razao_social,
+        // Fantasia é obrigatória no formulário; muita empresa não tem na Receita.
+        nome_fantasia: dados.nome_fantasia || atual.nome_fantasia || dados.razao_social,
+        regime_tributario: dados.regime_tributario || atual.regime_tributario,
+        email: atual.email || dados.email,
+        telefone: atual.telefone || (dados.telefone ? formatTelefone(dados.telefone) : ''),
+        enderecos: [
+          {
+            ...primeiro,
+            cep: dados.cep ? formatCEP(dados.cep) : primeiro.cep,
+            logradouro: dados.logradouro || primeiro.logradouro,
+            numero: dados.numero || primeiro.numero,
+            complemento: dados.complemento || primeiro.complemento,
+            bairro: dados.bairro || primeiro.bairro,
+            cidade: dados.cidade || primeiro.cidade,
+            estado: dados.estado || primeiro.estado,
+          },
+          ...demais,
+        ],
+      }, false);
+
+      toast.success('Dados da Receita Federal preenchidos. Confira e informe a Inscrição Estadual, se o cliente tiver.');
+    } catch {
+      toast.error('CNPJ não encontrado na Receita Federal.');
+    } finally {
+      isConsultingCNPJ.value = false;
+    }
+  }
+
   function resetForm() {
     pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
     pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
@@ -358,6 +406,11 @@ export function useCustomerFormProvider(): CustomerFormContext {
     submitCount: submitCount as unknown as Ref<number>,
     apiError,
     isPending,
+
+    // Busca na Receita (PJ)
+    isConsultingCNPJ,
+    consultarReceita,
+    isCreateMode,
 
     // Ações
     onSubmit,

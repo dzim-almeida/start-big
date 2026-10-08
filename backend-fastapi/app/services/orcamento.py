@@ -15,6 +15,7 @@ from app.services.cliente import cliente_exists
 from app.services.funcionario import funcionario_exists
 from app.services import produto as produto_service
 from app.services import produto_embalagem as embalagem_service
+from app.services import quantidade_venda
 
 from app.db.crud import orcamento as orcamento_crud
 from app.db.crud import venda as venda_crud
@@ -117,16 +118,20 @@ def add_item_to_orcamento(db: Session, orcamento_id: int, item_data: OrcamentoPr
         valor_unitario = embalagem_service.aplicar_embalagem_na_linha(
             db, product_data, product_in_db, item_data.embalagem_id, orcamento_in_db.funcionario.empresa_id
         )
+        quantidade_venda.exigir_quantidade_permitida(quantidade, product_in_db, product_data.fator_embalagem)
         if product_data.quantidade_base > product_in_db.estoque.quantidade:
             raise BadRequestException(detail=f"Quantidade em estoque insuficiente para o produto {product_in_db.nome}")
 
     if item_data.tipo_produto == TipoProdutoVenda.AVULSO and item_data.descricao_avulsa is None:
         raise BadRequestException(detail="Um produto avulso deve ter descricao")
+    if item_data.tipo_produto == TipoProdutoVenda.AVULSO:
+        quantidade_venda.exigir_quantidade_permitida(quantidade, None)
 
-    if desconto > quantidade * valor_unitario:
+    bruto = quantidade_venda.subtotal_da_linha(quantidade, valor_unitario)
+    if desconto > bruto:
         raise BadRequestException(detail="O desconto nao pode ser maior que o total do produto")
 
-    subtotal = quantidade * valor_unitario - desconto
+    subtotal = bruto - desconto
 
     product_data.valor_unitario = valor_unitario
     product_data.subtotal = subtotal
@@ -154,6 +159,12 @@ def update_item_in_orcamento(db: Session, orcamento_id: int, item_id: int, item_
             raise BadRequestException(detail="Um produto cadastrado nao pode ter valor unitario definido manualmente")
 
     quantidade = item_update.quantidade or (item_in_db.quantidade or 0)
+    if item_update.quantidade is not None:
+        quantidade_venda.exigir_quantidade_permitida(
+            quantidade,
+            item_in_db.produto if item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO else None,
+            item_in_db.fator_embalagem,
+        )
 
     if item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO and item_in_db.produto:
         if item_in_db.produto.estoque.quantidade < quantidade * (item_in_db.fator_embalagem or 1):
@@ -165,7 +176,7 @@ def update_item_in_orcamento(db: Session, orcamento_id: int, item_id: int, item_
     if item_update.desconto is not None:
         desconto = item_update.desconto
 
-    subtotal = quantidade * preco_unitario
+    subtotal = quantidade_venda.subtotal_da_linha(quantidade, preco_unitario)
 
     if subtotal < desconto:
         raise BadRequestException(detail="O desconto nao pode ser maior que o valor total do produto")

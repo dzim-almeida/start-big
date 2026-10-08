@@ -17,6 +17,8 @@ const props = defineProps<{
   confirmLabel: string;
   carregando?: boolean;
   perigo?: boolean;
+  /** Exemplo no campo. O padrão é o de Compras. */
+  placeholder?: string;
 }>();
 const emit = defineEmits<{ fechar: []; confirmar: [motivo: string] }>();
 
@@ -30,7 +32,7 @@ const valido = computed(() => motivo.value.trim().length >= 3);
   <BaseModal :is-open="aberto" :title="titulo" size="sm" overlay @close="emit('fechar')">
     <div class="flex flex-col gap-3">
       <p class="text-sm text-zinc-600">{{ descricao }}</p>
-      <BaseTextarea v-model="motivo" label="Motivo" placeholder="Ex.: fornecedor sem estoque" :rows="3" required />
+      <BaseTextarea v-model="motivo" label="Motivo" :placeholder="placeholder ?? 'Ex.: fornecedor sem estoque'" :rows="3" required />
     </div>
     <template #footer>
       <div class="flex w-full justify-end gap-2">

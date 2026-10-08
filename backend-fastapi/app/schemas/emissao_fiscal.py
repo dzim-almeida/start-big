@@ -305,6 +305,9 @@ class EmissaoPreviewResponse(BaseModel):
     totais: EmissaoPreviewTotais
     itens: list[EmissaoPreviewItem]
     formas_pagamento: list[EmissaoPreviewPagamento] = []
+    # O que está esquisito no cadastro e NÃO trava a nota (MEI × regime, PJ sem
+    # IE). Ver `services/fiscal/avisos.py`.
+    avisos: list[str] = []
 
 
 # --- Batch ---
@@ -344,6 +347,12 @@ class GapNumeracao(BaseModel):
     numero_inicial: int
     numero_final: int
     quantidade: int
+
+
+class AjusteNumeracaoRequest(BaseModel):
+    """Depois de uma Rejeição 539: o último número que o outro sistema usou."""
+    documento_id: int
+    ultimo_numero: int = Field(..., ge=1, le=999_999_999)
 
 
 class InutilizacaoRequest(BaseModel):

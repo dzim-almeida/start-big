@@ -3,6 +3,7 @@ import { computed, nextTick, onUnmounted, ref } from 'vue';
 import { Trash2, Minus, Plus, PackagePlus } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import { formatarNumeroQuantidade, normalizarQuantidade, unidadeEhFracionada } from '@/shared/utils/quantidade';
 import AvisoEstoqueNegativoModal from './AvisoEstoqueNegativoModal.vue';
 
 import {
@@ -16,6 +17,7 @@ import {
 
 import { useItemModal } from '../../composables/flows/useItemModal';
 import { focarBuscaDeProduto } from '../../focarBusca.util';
+import { useToast } from '@/shared/composables/useToast';
 
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
@@ -30,6 +32,7 @@ const props = defineProps<{
 }>();
 
 const { openEditItemModal } = useItemModal();
+const toast = useToast();
 
 const avisoEstoqueOpen = ref(false);
 const pendingItem = ref<SaleOrOrcamento['produtos'][number] | null>(null);
@@ -103,6 +106,23 @@ function quantidadeVisivel(item: SaleOrOrcamento['produtos'][number]) {
   return quantidadesLocais.value[item.id] ?? item.quantidade;
 }
 
+/**
+ * Produto vendido a granel (KG, L, M…): aceita 3,5. Venda fracionada, D1 — a
+ * unidade do cadastro decide, e o servidor confere de novo. Avulso e
+ * embalagem são sempre inteiros (D5).
+ */
+function ehFracionada(item: SaleOrOrcamento['produtos'][number]) {
+  if (item.tipo_produto === 'AVULSO') return false;
+  if ('fator_embalagem' in item && (item.fator_embalagem ?? 1) > 1) return false;
+  return 'unidade_medida' in item && unidadeEhFracionada(item.unidade_medida);
+}
+
+/** "3,5" no fracionado, "3" no inteiro — é o que o campo e o texto mostram. */
+function quantidadeExibida(item: SaleOrOrcamento['produtos'][number]) {
+  const unidade = ehFracionada(item) ? ('unidade_medida' in item ? item.unidade_medida : null) : 'UN';
+  return formatarNumeroQuantidade(quantidadeVisivel(item), unidade);
+}
+
 function agendarGravacao(item: SaleOrOrcamento['produtos'][number]) {
   const anterior = gravacoesAgendadas.get(item.id);
   if (anterior) clearTimeout(anterior);
@@ -154,7 +174,15 @@ function aplicarQuantidade(
 ) {
   if (props.readonly) return;
   if (!props.sale?.id) return;
-  if (nova < 1) return;
+  // Inteiro: mínimo 1, como sempre. Fracionado: qualquer coisa acima de zero
+  // (0,5 kg), em 3 casas. Quebrado num produto em UN nem sai daqui — o servidor
+  // recusaria com a mesma explicação, mas a tela não oferece o que não vale.
+  nova = normalizarQuantidade(nova);
+  if (!ehFracionada(item) && !Number.isInteger(nova)) {
+    toast.error('Este item é vendido em unidade inteira. Quantidade quebrada só em KG, G, L, ML, M, CM, M² e M³.');
+    return;
+  }
+  if (ehFracionada(item) ? nova <= 0 : nova < 1) return;
 
   const atual = quantidadeVisivel(item);
   const estoque = item.estoque_disponivel;
@@ -176,6 +204,7 @@ function aplicarQuantidade(
 
 function decreaseQuantity(item: SaleOrOrcamento['produtos'][number]) {
   const atual = quantidadeVisivel(item);
+  // − nunca passa de zero (D4): 1,5 kg vai a 0,5; 1 kg não desce mais.
   if (atual <= 1) return;
   aplicarQuantidade(item, atual - 1);
 }
@@ -215,7 +244,7 @@ const valorEditado = ref('');
 function iniciarEdicao(item: SaleOrOrcamento['produtos'][number]) {
   if (props.readonly) return;
   editandoId.value = item.id;
-  valorEditado.value = String(quantidadeVisivel(item));
+  valorEditado.value = quantidadeExibida(item);
 }
 
 function cancelarEdicao() {
@@ -394,8 +423,8 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                 <input
                   v-if="!readonly"
                   type="text"
-                  inputmode="numeric"
-                  :value="editandoId === item.id ? valorEditado : quantidadeVisivel(item)"
+                  :inputmode="ehFracionada(item) ? 'decimal' : 'numeric'"
+                  :value="editandoId === item.id ? valorEditado : quantidadeExibida(item)"
                   :data-qtd-ultimo="index === items.length - 1 ? '' : undefined"
                   class="min-w-6 w-12 text-center text-sm font-semibold text-zinc-800 bg-transparent outline-none z-99"
                   @click.stop
@@ -407,7 +436,7 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                   @blur="confirmarEdicao(item)"
                 />
                 <span v-else class="min-w-6 text-center text-sm font-semibold text-zinc-800 select-none z-99">
-                  {{ quantidadeVisivel(item) }}
+                  {{ quantidadeExibida(item) }}
                 </span>
 
                 <button

@@ -24,7 +24,7 @@ PRO. Quem não contrata não vê nada mudar.
 > (D8, pesquisado); divergência **só avisa**; sem cotação, mas com **aviso de
 > fornecedor mais barato** (D18). Prazo: no nosso ritmo. Liberado para a fase 1.
 
-> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14); fase 4 em 04/10/2026 (§15); fase 5 em 04/10/2026 (§16). O NÚCLEO (fases 1–5) está completo; a fase 6 depende do plano do segmento marcenaria.
+> **Execução (branch `feat/compras`):** fase 1 em 03/10/2026 (§12); fase 2 em 03/10/2026 (§13); fase 3 em 03/10/2026 (§14); fase 4 em 04/10/2026 (§15); fase 5 em 04/10/2026 (§16). O NÚCLEO (fases 1–5) está completo; fase 6 GENÉRICA (OS como origem) em 04/10/2026 (§17). A parte de fábrica da marcenaria depende de plano próprio.
 
 ---
 
@@ -654,6 +654,54 @@ previsão no fluxo com e sem Compras, só o que falta chegar, relatório com pra
 pontualidade e +10%, 403 para quem só recebe). Suíte do backend: 2059
 passaram, 1 pulado. Frontend: 138, `vue-tsc` limpo, `vite build`.
 **Não verificado:** as telas num app rodando.
+
+---
+
+## 17. Entrega da fase 6 (genérica) — a OS como origem de compra (04/10/2026)
+
+Decisão do Alan (04/10): fazer agora a parte que serve a TODO segmento com OS
+(oficina, assistência, marcenaria); a parte de fábrica da marcenaria vira plano
+próprio.
+
+**Reserva CALCULADA, sem tabela nem lançamento** (`services/compras/demanda_os.py`):
+peça de PRODUTO, APROVADA, em OS ativa que não fechou — a MESMA regra da baixa
+da OS (`_itens_de_produto`), para as duas nunca divergirem. OS finalizada já
+baixou; cancelada não vai consumir. Nada muda no PDV nem no livro de estoque.
+
+**Necessidades:** as três regras (mínimo, venda, OS) olham o SALDO LIVRE (saldo
+− reservado). A OS entra sempre, qualquer que seja a base: é demanda com
+cliente. Origem nova `OS`; cada linha traz `reservado_os` e `ordens` (a mais
+antiga primeiro).
+
+**Pedido ligado à OS (RC06):** `pedido_compra_origens` (migration
+`e8a3c6d1f702`). Ao gerar pelas Necessidades, o pedido é repartido em FILA: o
+estoque de hoje cobre primeiro as OS mais antigas; o que ainda falta a cada
+uma, menos o que outros pedidos vivos já levam para ela, é o que este pedido
+atende. Gerar de novo não pede duas vezes para a mesma OS.
+- Achado ao revisar: a 1ª versão repartia pela necessidade BRUTA (a OS mais
+  antiga ficava com o pedido mesmo já coberta pelo estoque). Corrigido antes
+  dos testes, que agora provam o caso.
+
+**"Compras desta OS"** (`GET /compras/ordens-servico/{id}`; painel na aba
+"Serviços e Peças" da OS, só com o módulo, carregado sob demanda): por peça —
+quanto o estoque cobre (fila), quanto está em pedido ligado (só o que ainda
+não chegou; rascunho aparece mas não cobre), quanto falta, e o aviso "chega
+depois da previsão da OS" (RC08). Botão "Comprar nas Necessidades".
+
+**Do resumo da marcenaria, entrou:** RC03 (necessidade = reservado − livre −
+em pedido, por OS), RC06 (pedido × OS), RC08 (previsão × OS), em versão geral.
+**Continua fora (plano do segmento):** insumo/BOM com perda (RC01), trava do
+sinal (RC04), alocação por data de instalação (RC12 — hoje a fila é por
+abertura da OS), margem orçada × real (RC14), central de corte (RC15/16),
+montador (RC17), 11 etapas com trava (RC20).
+
+**Verificado:** 9 testes (OS vira origem sem mínimo; mínimo pelo saldo livre;
+estoque que cobre não gera compra; finalizada/cancelada/pendente não reservam;
+pedido vai à OS a que FALTA; não pede duas vezes; painel com estoque, rascunho,
+enviado e atraso; OS fechada; 404/403; nada mexe no estoque) + migration.
+Suíte do backend: 2069 passaram, 1 pulado. Frontend: 138, `vue-tsc` limpo,
+`vite build`.
+**Não verificado:** o painel numa OS real, com o app rodando.
 
 ---
 

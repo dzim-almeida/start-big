@@ -5,7 +5,9 @@
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
+
+from app.schemas.quantidade import QuantidadeLida
 
 
 class DocumentoItemResumo(BaseModel):
@@ -15,7 +17,8 @@ class DocumentoItemResumo(BaseModel):
     produto_id: Optional[int] = None
     nome: str
     codigo_barras: Optional[str] = None
-    quantidade: int
+    # Nota de 3,5 kg (venda fracionada): `int` derrubava o drawer com erro 500.
+    quantidade: QuantidadeLida
     valor_unitario: int
     subtotal: int
     desconto: int = 0
@@ -28,6 +31,23 @@ class DocumentoItemResumo(BaseModel):
     quantidade_devolvida_acumulada: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AcaoDiagnostico(BaseModel):
+    tipo: str
+    label: str
+
+
+class DiagnosticoSefaz(BaseModel):
+    """O que a rejeição quer dizer e o que fazer (ver services/fiscal/diagnostico_sefaz.py)."""
+
+    categoria: str
+    cstat: Optional[int] = None
+    rotulo: str
+    titulo: str
+    explicacao: str
+    como_resolver: str
+    acao: Optional[AcaoDiagnostico] = None
 
 
 class DocumentoFiscalRead(BaseModel):
@@ -94,6 +114,20 @@ class DocumentoFiscalRead(BaseModel):
     itens_resumo: Optional[List[DocumentoItemResumo]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def diagnostico(self) -> Optional[DiagnosticoSefaz]:
+        """
+        Explicação da rejeição, calculada AQUI desde 07/10/2026 (antes só o
+        front sabia). Só para REJEITADA/DENEGADA — nos outros status não há o
+        que explicar. Campo novo: terminal com front antigo simplesmente ignora.
+        """
+        from app.services.fiscal.diagnostico_sefaz import STATUS_COM_DIAGNOSTICO, diagnosticar
+
+        if self.status not in STATUS_COM_DIAGNOSTICO:
+            return None
+        return DiagnosticoSefaz(**diagnosticar(self.codigo_status_sefaz, self.mensagem_sefaz, self.motivo_rejeicao))
 
 
 class DocumentoFiscalListRead(BaseModel):

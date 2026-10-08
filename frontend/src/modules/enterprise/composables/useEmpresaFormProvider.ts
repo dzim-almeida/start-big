@@ -438,6 +438,10 @@ export function useEmpresaFormProvider() {
       cnae_principal.value = dados.cnae_principal || cnae_principal.value;
       cnaes_secundarios.value = dados.cnaes_secundarios || cnaes_secundarios.value;
       if (dados.natureza_juridica) natureza_juridica.value = dados.natureza_juridica;
+      // MEI ou Simples, quando a Receita afirma. É o que vai na nota como CRT:
+      // deixar para escolher à mão custou três Rejeições 481 ao primeiro
+      // cliente em produção. Quem não é nenhum dos dois fica como estava.
+      if (dados.regime_tributario) regime_tributario.value = dados.regime_tributario;
       data_abertura.value = dados.data_abertura || data_abertura.value;
 
       // Contato: preenche só se vazio
