@@ -6,6 +6,7 @@ Registro de problemas e lacunas encontrados durante outros trabalhos, que **não
 |----|--------|-----------|-----------|--------|
 | PEND-001 | CNPJ alfanumérico não é aceito em nenhum cadastro | Alta | Spec 02 da marcenaria (06/10/2026) | Aberta |
 | PEND-002 | Comissão da OS ignora o desconto da OS | Média | Spec 08A da marcenaria (06/10/2026) | Aberta |
+| PEND-003 | Conta do recebimento de Compras nasce sem categoria e o material sai do lucro duas vezes | Média | Revisão 15 da SPEC-00 da marcenaria (08/10/2026) | Aberta |
 
 **Gravidade:** Alta = impede uma operação real da loja · Média = obriga contorno manual · Baixa = incômodo.
 
@@ -94,3 +95,44 @@ Exemplo: OS com serviço de R$ 1.000,00 (custo R$ 400,00) e desconto de R$ 100,0
 ### Por que não entra na marcenaria
 
 Muda um número que três lojas em produção já usam para pagar funcionário (PR1). Precisa de decisão do dono e de comunicação, não de um ajuste escondido dentro de outra spec.
+
+
+---
+
+## PEND-003 — Conta do recebimento de Compras nasce sem categoria e o material sai do lucro duas vezes
+
+| Campo | Valor |
+|-------|-------|
+| Gravidade | **Média** |
+| Status | Aberta |
+| Achado em | `docs/marcenaria/SPEC-00-DECISOES-MARCENARIA.md`, Revisão 15 (08/10/2026) |
+| Afeta | Toda loja que usar o módulo Compras para comprar mercadoria (qualquer segmento) |
+
+### O problema
+
+O resultado do mês é `receita − CMV − despesas pagas` (`services/financeiro_analise.py` e `financeiro_visao.py`). As despesas pagas vêm de `crud/financeiro._total_pago`, que conta como **despesa** toda conta paga cuja categoria não é do tipo `CUSTO` — **inclusive a conta sem categoria** (decisão de 02/09/2026: "o lado seguro do erro").
+
+O recebimento de um pedido de compra (`services/compras/recebimentos.lancar_contas`) cria as contas a pagar **sem `plano_conta_id`**. Para mercadoria, isso desconta a mesma chapa duas vezes:
+
+1. quando a conta do fornecedor é paga (despesa sem categoria);
+2. quando a chapa sai do estoque (CMV, pelo livro de estoque).
+
+Exemplo: 10 chapas de R$ 300,00 compradas pelo Compras, conta paga em outubro, chapas usadas em OS finalizadas em outubro. O resultado de outubro cai R$ 6.000,00, quando o custo real foi R$ 3.000,00.
+
+Para pedido de **serviço** (`tipo = SERVICO`, central de corte), a conta sem categoria está **certa**: serviço não passa pelo estoque, então só a despesa o leva ao resultado.
+
+### Impacto
+
+- O lucro do mês aparece menor do que é, na proporção do que foi comprado pelo Compras e pago no período.
+- Contorno de hoje: o dono reclassifica a conta para "Fornecedores / Mercadoria" (tipo `CUSTO`) em Contas a Pagar.
+
+### Proposta inicial (para a spec própria)
+
+1. No recebimento de pedido `MATERIAL`, lançar as contas na categoria padrão de tipo `CUSTO` ("Fornecedores / Mercadoria", achada pelo tipo, não pelo nome); pedido `SERVICO` continua sem categoria (ou numa categoria `DESPESA`).
+2. Permitir escolher a categoria no recebimento, com esse padrão.
+3. Prova: resultado do mês antes × depois numa loja com compras recebidas; só mudam os meses com contas de compra pagas.
+
+### Por que não entra na marcenaria
+
+É regra do módulo Compras, que prevalece sobre as specs da marcenaria (SPEC-00, FB2), e afeta todos os segmentos. A marcenaria só a registra.
+

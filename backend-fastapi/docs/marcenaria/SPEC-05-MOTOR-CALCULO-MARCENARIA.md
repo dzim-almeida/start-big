@@ -8,6 +8,8 @@
 | Bloqueia     | Spec 06A, Spec 08A, Spec 09A                                                  |
 | Referência   | SPEC-00: C1–C8, C3a, C5a–C5d, O3a, O4, C9 (Revisão 6) · PR4, PR6              |
 
+> **Revisão 1 (08/10/2026) — pedidos da Spec 06B e da SPEC-00 Revisão 15.** (1) Duas saídas novas, **só para exibição**: `desconto_bp_efetivo` e `sinal_bp_efetivo` (o percentual equivalente quando o usuário digita em R$; 06B D18 mostra "≈ 5%" sem calcular em TypeScript, C8). Nenhum número existente muda; os cenários da §11 continuam idênticos (conferidos de novo em 08/10). (2) `app/services/marcenaria/__init__.py` passa a nascer na Spec 04A (onde ficam as permissões); aqui só se confere.
+
 ---
 
 ## 1. Objetivo
@@ -39,7 +41,7 @@ Ao final desta spec, os casos de teste da §11, com valores conferidos à mão e
 ```
 backend-fastapi/
 ├── app/services/marcenaria/
-│   ├── __init__.py                     # CRIAR (vazio)
+│   ├── __init__.py                     # CONFERIR — criado na Spec 04A (Revisão 1)
 │   └── calculo.py                      # CRIAR — o motor
 └── test/services/marcenaria/
     ├── __init__.py                     # CRIAR (vazio)
@@ -171,6 +173,8 @@ class OrcamentoResultado:
     margem_liquida_bp: int           # D14
     sinal_centavos: int
     saldo_centavos: int              # total − sinal
+    desconto_bp_efetivo: int         # Revisão 1: arred(desconto / bruto × 10000); 0 se bruto = 0. Só exibição
+    sinal_bp_efetivo: int            # Revisão 1: arred(sinal / total × 10000); 0 se total = 0. Só exibição
     avisos: tuple[str, ...]          # códigos da §6.7
 ```
 
@@ -235,7 +239,11 @@ margem_liquida_bp = arred(margem_liquida / total × 10000)   (0 se total = 0)
 sinal             = PERCENTUAL: arred(total × bp/10000)
                     VALOR:      valor             (erro se valor > total)
 saldo             = total − sinal
+desconto_bp_efetivo = arred(desconto / bruto × 10000)    (0 se bruto = 0)   -- Revisão 1, só exibição
+sinal_bp_efetivo    = arred(sinal / total × 10000)       (0 se total = 0)   -- Revisão 1, só exibição
 ```
+
+Os dois percentuais "efetivos" **não** entram em conta nenhuma: servem para a tela mostrar o equivalente do valor digitado (no modo `PERCENTUAL`, devolvem o próprio percentual ou o mais próximo dele, por causa do arredondamento em centavos).
 
 ### 6.5. Passo 5 — repartir o RT pelas linhas (maior resto)
 
@@ -449,6 +457,9 @@ Os dois móveis no ambiente "Cozinha Gourmet".
 | 15 | Móvel com `quantidade = 0`; insumo com quantidade 0; valor negativo | `ValueError` com as mensagens da §6.6 |
 | 16 | RT 30% (limite) no modo PRECO | Calcula sem erro (fator = (1+m)/0,7) |
 | 17 | Móvel sem insumos, só terceirizado | Custo = terceirizado; preço = arred(custo × fator) |
+| 17a | Revisão 1: cenário B | `desconto_bp_efetivo = 500`; `sinal_bp_efetivo = 4000` |
+| 17b | Revisão 1: cenário A com desconto em VALOR R$ 1.000,00 | `desconto_bp_efetivo = arred(100000 / 972515 × 10000) = 1028` |
+| 17c | Revisão 1: orçamento vazio | Os dois efetivos = 0 (sem divisão por zero) |
 
 ### 11.4. Propriedades (geradas aleatoriamente, 500 orçamentos por execução, semente fixa)
 

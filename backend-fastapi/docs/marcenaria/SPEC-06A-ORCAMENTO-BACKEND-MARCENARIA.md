@@ -6,7 +6,7 @@
 | Camada       | Backend (FastAPI)                                                                  |
 | Dependências | Specs 04A (parâmetros, permissões, capacidade) e 05 (motor)                        |
 | Bloqueia     | Specs 06B, 07, 08A                                                                 |
-| Revisões     | 1 (06/10/2026): pedidos da Spec 06B · 2 (06/10/2026): pedidos da Spec 07 — ver o fim do documento |
+| Revisões     | 1 (06/10/2026): pedidos da Spec 06B · 2 (06/10/2026): pedidos da Spec 07 · 3 (08/10/2026): pedidos da Spec 09B e SPEC-00 Revisão 15 — ver o fim do documento |
 | Referência   | SPEC-00: F1, F5, O1, O2, O3, O3a, O5, O6, C3, C4, C5a, C7, C9, T3c, T3d, T7, P4 · PR3, PR4, PR6, PR8 |
 
 ---
@@ -42,10 +42,9 @@ Ao final desta spec, pela API, é possível: criar um orçamento, montar ambient
 ```
 backend-fastapi/
 ├── alembic/versions/
-│   └── z9a0b1c2d3e4_orcamento_marcenaria.py        # CRIAR — tabelas novas (filha da 04A)
+│   └── 683ff38df873_orcamento_marcenaria.py        # CRIAR — tabelas novas (filha da 04A, 608dc99a8616; Revisão 3)
 ├── app/
 │   ├── core/
-│   │   ├── permissoes.py                           # ALTERAR — chaves de orçamento
 │   │   └── imagem.py                               # ALTERAR — contexto "orcamento_anexo" + salvar PDF
 │   ├── db/
 │   │   ├── models/marcenaria/
@@ -62,6 +61,7 @@ backend-fastapi/
 │   │   ├── __init__.py                             # CRIAR
 │   │   └── orcamento.py                            # CRIAR — entrada e saída
 │   ├── services/marcenaria/
+│   │   ├── permissoes.py                           # ALTERAR — chaves de orçamento (criado na 04A; Revisão 3)
 │   │   ├── orcamento.py                            # CRIAR — regras, status, versões
 │   │   ├── orcamento_calculo.py                    # CRIAR — tradução banco ↔ motor (Spec 05)
 │   │   ├── orcamento_precos.py                     # CRIAR — custo do produto (O3a) e atualização
@@ -159,6 +159,7 @@ CREATE TABLE marcenaria_orcamentos (
   markup_bp                INTEGER NOT NULL,
   perda_bp                 INTEGER NOT NULL,
   custo_hora_centavos      INTEGER NOT NULL,
+  rt_padrao_bp             INTEGER NOT NULL DEFAULT 0,                     -- Revisão 3: % do arquiteto escolhido sem %
   rt_modo                  VARCHAR(10) NOT NULL,                           -- MARGEM|PRECO
   validade_dias            INTEGER NOT NULL,
   prazo_entrega_dias       INTEGER NOT NULL,
@@ -293,7 +294,7 @@ Prefixo: `/api/v1/marcenaria/orcamentos`. Todas as rotas exigem a capacidade (D2
 | `POST /` | manage | Cria em `RASCUNHO`, com os parâmetros copiados (D4); corpo opcional `{cliente_id, objeto_id, projeto_nome, endereco_obra, funcionario_id}`. Sem `funcionario_id`, usa o funcionário ligado ao usuário logado, se houver (Revisão 1) |
 | `GET /{id}` | view | Detalhe com cálculo (§6.2) |
 | `PATCH /{id}` | manage | Cabeçalho: cliente, vendedor, projeto, medição, parâmetros, instalação, desconto, sinal, observações |
-| `PUT /{id}/rt` | manage + view_custos | Lista de arquitetos `[{fornecedor_id, rt_bp}]` (substitui a lista) |
+| `PUT /{id}/rt` | manage (enviar `rt_bp` exige view_custos; Revisão 3) | Lista de arquitetos `[{fornecedor_id, rt_bp?}]` (substitui a lista) |
 | `POST /{id}/ambientes` | manage | `{nome}`; entra no fim |
 | `PATCH /{id}/ambientes/{aid}` | manage | `{nome}` |
 | `DELETE /{id}/ambientes/{aid}` | manage | Remove com os móveis |
@@ -333,12 +334,13 @@ As rotas estáticas (`/contagens`, `/projetos`) são declaradas **antes** de `/{
   "medicao_observacoes": "Pé-direito 2,70 m. Ponto de água a 60 cm do canto.",
   "parametros": { "markup_bp": 9000, "perda_bp": 1000, "custo_hora_centavos": 4500, "rt_modo": "MARGEM",
                   "validade_dias": 15, "prazo_entrega_dias": 30 },        // sem view_custos: só validade e prazo
-  "arquitetos": [ { "fornecedor_id": 7, "nome": "Studio Renascer", "rt_bp": 800 } ], // sem view_custos: só nomes
+  "arquitetos": [ { "fornecedor_id": 7, "nome": "Studio Renascer", "rt_bp": 800,
+                   "valor_previsto_centavos": 73911 } ],                 // sem view_custos: só nomes (Revisão 3)
   "instalacao_custo_centavos": 75000,                                       // sem view_custos: ausente
   "desconto": { "modo": "PERCENTUAL", "valor": 500 },
   "sinal": { "modo": "PERCENTUAL", "valor": 4000 },
   "ambientes": [
-    { "id": 1, "nome": "Cozinha Gourmet", "ordem": 1, "subtotal_centavos": 830015, "custo_centavos": 444350,
+    { "id": 1, "nome": "Cozinha Gourmet", "ordem": 1, "subtotal_centavos": 830015, "custo_centavos": 436850,
       "moveis": [
         { "id": 10, "nome": "Torre Quente", "descricao": "...", "largura_mm": 700, "altura_mm": 2200,
           "profundidade_mm": 600, "quantidade": 1, "tipo_producao": "TERCEIRIZADA",
@@ -356,6 +358,7 @@ As rotas estáticas (`/contagens`, `/projetos`) são declaradas **antes** de `/{
                "custo_total_centavos": 511850, "margem_bruta_centavos": 412039, "rt_total_centavos": 73911,
                "margem_liquida_centavos": 338128, "margem_liquida_bp": 3660,
                "sinal_centavos": 369556, "saldo_centavos": 554333,
+               "desconto_bp_efetivo": 500, "sinal_bp_efetivo": 4000,               // Revisão 3 (Spec 05 Revisão 1)
                "instalacao": { "custo_centavos": 75000, "preco_centavos": 142500 } },
   "avisos": ["INSUMO_SEM_CUSTO"],
   "datas": { "criacao": "...", "envio": null, "validade": null, "recusa": null, "aprovacao": null },
@@ -594,7 +597,7 @@ PERMISSOES_VER_ORCAMENTOS = [VER_ORCAMENTOS_MARCENARIA, GERIR_ORCAMENTOS_MARCENA
 
 ### 7.8. Migração
 
-`z9a0b1c2d3e4_orcamento_marcenaria.py`, filha da migração da 04A. Só **cria tabelas que faltam** (o `create_all()` do startup costuma criá-las antes; PR8). `downgrade` remove as tabelas na ordem inversa.
+`683ff38df873_orcamento_marcenaria.py`, filha da migração da 04A (`608dc99a8616`; Revisão 3, R15-MIG). Só **cria tabelas que faltam** (o `create_all()` do startup costuma criá-las antes; PR8). `downgrade` remove as tabelas na ordem inversa.
 
 ---
 
@@ -713,3 +716,23 @@ Escrever a 06B mostrou o que faltava para a tela funcionar bem:
 |---|---------|--------------------|
 | 43 | Detalhe sem `view_custos` | `cliente.telefone`, `email`, `endereco` e `vendedor.telefone` presentes |
 | 44 | Enviar, voltar a editar, mudar o desconto, enviar de novo | Dois eventos de envio, cada um com o total daquele momento |
+
+
+## Revisão 3 (08/10/2026) — pedidos da Spec 09B e da SPEC-00 Revisão 15
+
+1. **RT padrão no orçamento.** O cabeçalho ganha `rt_padrao_bp` (D4 já mandava copiar o RT padrão da configuração, mas não havia onde guardar): copiado de `configuracoes_marcenaria.rt_padrao_bp` na criação, editável por quem tem `view_custos` (pelo `PATCH`, como os outros parâmetros). Nova versão copia o valor. Sem `view_custos`, o campo **não** sai no detalhe (é custo, D23).
+2. **`PUT /{id}/rt` sem percentual.** Cada linha é `{fornecedor_id, rt_bp?}`. Sem `rt_bp`: se o fornecedor já estava na lista, **mantém** o percentual gravado; se é novo, recebe `rt_padrao_bp` do orçamento. Mesma regra da D24a (ausente mantém). Permissão: `manage` basta para trocar **quem** é o arquiteto; enviar `rt_bp` exige `view_custos` (`403`, D24). Lista vazia remove o arquiteto. Fornecedor inexistente ou inativo: `422` "Arquiteto não encontrado."
+3. **Valor previsto por arquiteto.** Com `view_custos`, cada linha de `arquitetos` no detalhe traz `valor_previsto_centavos`: o RT total do orçamento (Spec 05, `rt_total_centavos`) repartido entre os arquitetos pelo **maior resto**, com peso = `rt_bp` de cada um (a mesma conta que a 09A faz na finalização sobre o aprovado).
+4. **Percentual equivalente do desconto e do sinal.** `calculo` ganha `desconto_bp_efetivo` e `sinal_bp_efetivo` (Spec 05, Revisão 1), para a tela mostrar "R$ 486,26 ≈ 5%" sem calcular (06B D18, C8). Não são custo: saem para todos.
+5. **Convergência com a branch (SPEC-00 Revisão 15).** Migração `683ff38df873`, filha de `608dc99a8616` (R15-MIG). As chaves de orçamento vão para `app/services/marcenaria/permissoes.py` (criado na 04A). No exemplo do detalhe (§6.2), o custo da Cozinha Gourmet é **R$ 4.368,50** (222.250 + 2 × 107.300), e não 4.443,50.
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 45 | Criar orçamento com `rt_padrao_bp = 800` na configuração | Cabeçalho com `rt_padrao_bp = 800` |
+| 46 | Cargo sem `view_custos`, `PUT /rt` com `[{fornecedor_id: 7}]` | `200`; arquiteto com `rt_bp = 800` (padrão do orçamento) |
+| 47 | Mesmo cargo, `PUT /rt` com `rt_bp` | `403` |
+| 48 | Arquiteto com `rt_bp = 600` gravado; `PUT /rt` com `[{fornecedor_id: 7}]` | `rt_bp` continua 600 |
+| 49 | Dois arquitetos (500 e 300 bp), cenário B | `valor_previsto_centavos` somam 73.911 (maior resto) |
+| 50 | Detalhe do cenário B | `desconto_bp_efetivo = 500`, `sinal_bp_efetivo = 4000`; `ambientes[0].custo_centavos = 436850` |
+| 51 | Detalhe sem `view_custos` | Sem `rt_padrao_bp`, `rt_bp`, `valor_previsto_centavos`; com `desconto_bp_efetivo` e `sinal_bp_efetivo` |
+

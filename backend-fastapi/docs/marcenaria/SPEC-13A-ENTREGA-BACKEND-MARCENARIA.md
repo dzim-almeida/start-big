@@ -6,7 +6,9 @@
 | Camada       | Backend (FastAPI)                                                                        |
 | Dependências | Specs 04A (`checklist_vistoria`), 08A (aprovação, bloqueios), 12A (padrão de cópia na aprovação) |
 | Bloqueia     | Specs 13B, 14                                                                            |
-| Referência   | SPEC-00: I1, I2, I3, I4, I5, I5a, I6, T7, T8, T8a, P3, P4, O8 · PR1, PR6, PR7, PR8 |
+| Referência   | SPEC-00: I1, I2, I3, I4, I5, I5a, I5b, I6, T7, T8, T8a, P3, P4, O8, R15-MIG · PR1, PR6, PR7, PR8 |
+
+> **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) Migração `2c4df92b1412`, filha de `072437088f6c` (12A). (2) **I5b:** a OS guarda em `ordens_servico.data_instalacao` a data do próximo agendamento com ambiente ainda não entregue (D20). A coluna já existe (fábrica F3) e só o Compras a lê, para a fila de material atender primeiro quem instala primeiro (`demanda_os.DemandaOS.na_fila`). A Lista de OS continua igual (T8a).
 
 ---
 
@@ -40,7 +42,7 @@ Fechar a obra:
 
 ```
 backend-fastapi/
-├── alembic/versions/f5a6b7c8d9e0_entrega_marcenaria.py    # CRIAR — filha da 12A
+├── alembic/versions/2c4df92b1412_entrega_marcenaria.py    # CRIAR — filha da 12A (072437088f6c; Revisão 1)
 ├── app/
 │   ├── db/models/marcenaria/entrega.py                     # CRIAR — entrega, pendência, foto, agendamento
 │   ├── db/crud/marcenaria/entrega.py                       # CRIAR
@@ -92,6 +94,7 @@ Nenhum arquivo compartilhado muda: as fotos usam `upload_foto_os`/`delete_foto_o
 | D17 | **Desfazer aprovação** (08A §7.6) bloqueado com alguma entrega registrada: "Já há entrega registrada (Cozinha Gourmet)." Agendamentos sem registro não bloqueiam e são apagados junto | O8 |
 | D18 | Permissão: **OS** (`servico`). Nenhum preço nas respostas (P4) | Montador e atendente lidam com a entrega |
 | D19 | Cada registro, correção, pendência, resolução e agendamento grava evento (06A D25) | T7 |
+| D20 | **Revisão 1 (I5b):** depois de criar, editar ou excluir um agendamento, e depois de registrar uma entrega, `ordens_servico.data_instalacao` recebe a **menor data** entre os agendamentos que ainda têm algum ambiente `PENDENTE` (ou nula, se não houver). A conta é da marcenaria (`agenda.sincronizar_data_instalacao(db, os_)`); a coluna é a que já existe | O Compras ordena a fila de material por essa data (RC12): a chapa da obra que instala amanhã sai antes da que instala no mês que vem. Nada na Lista de OS lê a coluna (T8a) |
 
 ---
 
@@ -144,7 +147,7 @@ CREATE INDEX ix_marcenaria_agendamentos_data ON marcenaria_agendamentos (data);
 ```
 
 - Montadores em JSON com o nome copiado: a lista é curta, não é filtrada pelo banco por pessoa em volume (o filtro por montador da lista de instalações é feito em Python sobre os agendamentos do período, que são poucos) e o nome sobrevive à troca de nome.
-- Migração `f5a6b7c8d9e0`, filha de `e4f5a6b7c8d9` (12A): só cria o que faltar (PR8).
+- Migração `2c4df92b1412`, filha de `072437088f6c` (12A): só cria o que faltar (PR8; Revisão 1).
 
 ---
 
@@ -288,3 +291,14 @@ def registrar(db, numero_os, entrega_id, dados: RegistroEntrega, usuario) -> Ent
 | 17 | Editar agendamento com entrega registrada | `409` |
 | 18 | Desfazer aprovação com uma entrega registrada / só com agendamento | Bloqueado / permitido (agendamento apagado) |
 | 19 | `GET /instalacoes?montador_id=4` | Só agendamentos com Carlos |
+
+### Revisão 1 — casos de teste
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 20 | Agendar a cozinha para 03/11 e o closet para 10/11 | `data_instalacao` = 03/11 |
+| 21 | Registrar a entrega da cozinha | `data_instalacao` = 10/11 |
+| 22 | Excluir o agendamento do closet | `data_instalacao` nula |
+| 23 | Duas OS precisando da mesma chapa, a mais nova instala antes | Em `demanda_os.demandas_por_produto`, a mais nova vem primeiro na fila |
+| 24 | Lista de OS (informática e marcenaria) | Igual a antes (nenhuma coluna nova) |
+

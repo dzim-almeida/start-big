@@ -6,7 +6,8 @@
 | Camada       | Backend (FastAPI) ⚠️ código compartilhado (finalização de OS, custo do resultado do mês) |
 | Dependências | Specs 04A (configuração), 05 (motor), 06A (tabela de RT), 08A (aprovação, `origem`)     |
 | Bloqueia     | Specs 09B, 10A (regra de baixa), 11A (regra de categoria)                               |
-| Referência   | SPEC-00: C5a, C5b, C5c, C5d, C5d+, C5e, C9, F2, F2a, F4a · PR1, PR4, PR6, PR7, PR8 |
+| Referência   | SPEC-00: C5a, C5b, C5c, C5d, C5d+, C5e, C9, F2, F2a, F2b, F4a, E6b, R15-MIG · PR1, PR4, PR6, PR7, PR8 |
+| Revisões     | 1 (08/10/2026): pedidos da Spec 09B e convergência com a branch — ver o fim do documento |
 
 ---
 
@@ -36,7 +37,7 @@
 ```
 backend-fastapi/
 ├── alembic/versions/
-│   └── b1c2d3e4f5a6_rt_arquiteto_marcenaria.py          # CRIAR — filha da 08A
+│   └── 195109da93f7_rt_arquiteto_marcenaria.py          # CRIAR — filha da 08A (971eb6cc5a33; Revisão 1)
 ├── app/
 │   ├── services/
 │   │   ├── ordem_servico_ganchos.py                     # CRIAR ⚠️ — registro genérico de ganchos
@@ -46,10 +47,10 @@ backend-fastapi/
 │   │       └── __init__.py                              # ALTERAR — registra os ganchos
 │   ├── db/
 │   │   ├── crud/relatorio_custo.py                      # ALTERAR ⚠️ — CMV ignora item com origem (F2a)
-│   │   └── models/marcenaria/
-│   │       ├── orcamento.py                             # ALTERAR — conta_pagar_id em marcenaria_orcamento_rt
-│   │       └── configuracao.py                          # ALTERAR — rt_vencimento_dias
-│   └── schemas/marcenaria/configuracao.py               # ALTERAR — campo novo no GET/PUT (04A)
+│   │   └── models/
+│   │       ├── marcenaria/orcamento.py                  # ALTERAR — conta_pagar_id em marcenaria_orcamento_rt
+│   │       └── configuracao_marcenaria.py               # ALTERAR — rt_vencimento_dias, rt_plano_conta_id (arquivo da 04A)
+│   └── schemas/configuracao_marcenaria.py               # ALTERAR — campo novo no GET/PUT (arquivo da 04A)
 └── test/
     ├── services/marcenaria/test_rt.py                   # CRIAR
     ├── services/test_os_ganchos.py                      # CRIAR — sem gancho, nada muda
@@ -87,7 +88,7 @@ backend-fastapi/
 |---|---------|--------|
 | D12 | O CMV (`get_custo_manual_os`) passa a **ignorar** itens de OS com `origem` preenchida. O `custo_unitario` desses itens continua servindo à **comissão** (C5, C5d), que não muda | O custo do item da marcenaria é custo direto + RT (C5d). Sem esta regra, o resultado do mês contaria **duas vezes**: o RT (no CMV e na conta paga, que é despesa), a mão de obra própria (no CMV e nos salários pagos) e o material (no CMV e na baixa de estoque da OS, Spec 10A) |
 | D13 | Com D12, cada custo da marcenaria entra no resultado **uma vez, pelo registro real**: material pela baixa de estoque ligada à OS (Spec 10A); RT pela conta paga (esta spec); mão de obra pelos salários; terceirizado pela conta da central (Spec 11A) | O resultado mostra o que aconteceu, inclusive a perda real de chapa, e não a estimativa do orçamento |
-| D14 | **Regras para as specs seguintes**, registradas aqui para não se perderem: a 10A grava a baixa de material com `origem = ORDEM_SERVICO` e o `ordem_servico_id` (é o que o CMV de OS já lê); a 11A lança a conta da central numa categoria de tipo `DESPESA` ("Produção terceirizada"), nunca em "Fornecedores / Mercadoria" (`CUSTO`), que fica fora do resultado | Sem estas duas regras, material sairia do resultado ou o terceirizado não entraria |
+| D14 | **Regras para as specs seguintes** (Revisão 1, com F2b e E6b): o material chega ao CMV pelo livro de estoque, com `origem = ORDEM_SERVICO` e o `ordem_servico_id`, seja na retirada da separação (10A) seja na finalização, que baixa as peças embutidas que sobraram (regra de hoje). As peças embutidas já ficam fora de `get_custo_manual_os` (têm `produto_id`). A conta da central: com o Compras, o recebimento a lança **sem categoria**, e conta sem categoria já conta como despesa (`crud/financeiro._total_pago`); sem o Compras, o usuário a lança em Contas a Pagar numa categoria de tipo `DESPESA` (nunca `CUSTO`, que fica fora do resultado) | Sem estas regras, material sairia do resultado ou o terceirizado não entraria. O material **comprado** pelo Compras tem um problema próprio do Compras (PEND-003), fora da marcenaria |
 | D15 | Para as lojas atuais nada muda: nenhum item delas tem `origem` | PR1 (§7) |
 
 ---
@@ -100,7 +101,7 @@ ALTER TABLE configuracoes_marcenaria ADD COLUMN rt_vencimento_dias INTEGER NOT N
 ALTER TABLE configuracoes_marcenaria ADD COLUMN rt_plano_conta_id INTEGER REFERENCES planos_conta(id); -- D5
 ```
 
-Migração `b1c2d3e4f5a6`, filha de `a0b1c2d3e4f5` (08A), mesma regra da 08A §5.1: `ADD COLUMN` só se a coluna não existir, sem `batch`.
+Migração `195109da93f7`, filha de `971eb6cc5a33` (08A), mesma regra da 08A §5.1: `ADD COLUMN` só se a coluna não existir, sem `batch` (Revisão 1, R15-MIG).
 
 O `GET /configuracoes/marcenaria` (04A) passa a trazer `rt_vencimento_dias` **no bloco de custos** (só com `inclui_custos`); o `PUT` aceita o campo com `manage_custos_marcenaria`, de 0 a 180, mensagem "O prazo do RT deve ficar entre 0 e 180 dias."
 
@@ -118,20 +119,22 @@ reabertura, ou o cancelamento) inteira é desfeita. Lista vazia = comportamento 
 """
 from typing import Callable
 
-GanchoOS = Callable[["Session", "OSModel", dict | None], None]   # (db, os, usuario_token)
+# (db, os, usuario_token, contexto). `contexto` leva o que só o chamador sabe;
+# hoje, no cancelamento, {"status_anterior": "FINALIZADA"} (Revisão 1).
+GanchoOS = Callable[["Session", "OSModel", dict | None, dict], None]
 
 ao_finalizar: list[GanchoOS] = []      # depois de a OS virar FINALIZADA
 ao_reabrir: list[GanchoOS] = []        # depois de a OS sair de FINALIZADA/CANCELADA
-ao_cancelar: list[GanchoOS] = []       # depois de a OS virar CANCELADA (guarda o status anterior em os._status_anterior)
+ao_cancelar: list[GanchoOS] = []       # depois de a OS virar CANCELADA (contexto["status_anterior"])
 
 
-def disparar(ganchos: list[GanchoOS], db, os_, usuario_token) -> None:
-    """Chama cada gancho na ordem em que foi registrado."""
+def disparar(ganchos: list[GanchoOS], db, os_, usuario_token, contexto: dict | None = None) -> None:
+    """Chama cada gancho na ordem em que foi registrado; `contexto` vazio por padrão."""
     for gancho in ganchos:
-        gancho(db, os_, usuario_token)
+        gancho(db, os_, usuario_token, contexto or {})
 ```
 
-No `ordem_servico.py`, três linhas, cada uma **antes** do `update_ordem_servico` final de `finalizar_ordem_servico`, `reabrir_ordem_servico` e `cancelar_ordem_servico`. O cancelamento guarda o status anterior numa variável local e o passa (o RT só importa se a OS estava finalizada).
+No `ordem_servico.py`, três linhas, cada uma **antes** do `update_ordem_servico` final de `finalizar_ordem_servico`, `reabrir_ordem_servico` e `cancelar_ordem_servico`, ao lado das chamadas da fábrica que já estão lá (`trilho_fabrica.ao_finalizar` etc., inertes, FB1). O cancelamento guarda o status anterior numa variável local **antes** de trocar o status e o passa em `contexto={"status_anterior": ...}` (o RT só importa se a OS estava finalizada).
 
 A marcenaria registra os seus em `services/marcenaria/__init__.py`, importado pelo `api.py` junto com as rotas da marcenaria:
 
@@ -146,7 +149,7 @@ Cada função da marcenaria começa por `orc = crud.orcamento_por_os(db, os_.id)
 ### 6.2. Criar as contas — `services/marcenaria/rt.py`
 
 ```python
-def criar_contas_ao_finalizar(db: Session, os_: OSModel, usuario: dict | None) -> None:
+def criar_contas_ao_finalizar(db: Session, os_: OSModel, usuario: dict | None, contexto: dict | None = None) -> None:
     """Uma conta a pagar por arquiteto, na finalização da OS (D1–D7, D9)."""
     orc = crud.orcamento_por_os(db, os_.id)
     if orc is None or not orc.rts:                                   # OS sem orçamento ou sem arquiteto
@@ -184,16 +187,19 @@ def criar_contas_ao_finalizar(db: Session, os_: OSModel, usuario: dict | None) -
 ### 6.3. Reabrir e cancelar
 
 ```python
-def cancelar_pendentes_ao_reabrir(db, os_, usuario) -> None:
+def cancelar_pendentes_ao_reabrir(db, os_, usuario, contexto: dict | None = None) -> None:
     """D8: a obra voltou a estar aberta; o RT pendente sai e volta na próxima finalização."""
     for rt in _rts_com_conta(db, os_):
         if rt.conta_pagar.status == "PENDENTE":
             financeiro_service.cancelar_conta_pagar(db, _empresa_da_os(os_), rt.conta_pagar_id, usuario or {})
 
 
-def tratar_cancelamento(db, os_, usuario, status_anterior: str) -> None:
+def tratar_cancelamento(db, os_, usuario, contexto: dict) -> None:
     """D10: só importa se a OS estava finalizada (só aí existe conta de RT)."""
-    if status_anterior != "FINALIZADA":
+    if contexto.get("status_anterior") != "FINALIZADA":           # Revisão 1: vem no contexto
+        return
+    orc = crud.orcamento_por_os(db, os_.id)                          # Revisão 1: faltava no trecho
+    if orc is None:                                                  # OS que não veio de orçamento
         return
     cancelar_pendentes_ao_reabrir(db, os_, usuario)                 # mesma regra para as pendentes
     pagas = [rt for rt in _rts_com_conta(db, os_) if rt.conta_pagar.status == "PAGA"]
@@ -231,25 +237,25 @@ Corrigir também a docstring de `get_custo_manual_os` com a terceira exclusão.
 
 ## 8. Efeito no resultado do mês da marcenaria
 
-Exemplo ilustrativo com um móvel (material e mão de obra da Torre Quente, RT do cenário B), com a OS finalizada, o RT pago no mês e o material baixado pela 10A:
+Exemplo ilustrativo com um móvel (material e mão de obra da Torre Quente, **supondo-a produzida na fábrica**, e a parte dela no RT do cenário B), com a OS finalizada, o RT pago no mês e o material baixado (separação ou finalização):
 
 | Parcela | Sem D12 | Com D12 |
 |---------|---------|---------|
-| Material (baixa da OS) | 1.460,00 | 1.460,00 |
-| Material (custo declarado no item) | 1.460,00 | — |
-| RT (custo declarado no item) | 739,11 | — |
-| RT (conta paga, despesa) | 739,11 | 739,11 |
+| Material (baixa da OS, peças embutidas) | 1.460,00 | 1.460,00 |
+| Material (custo declarado no item do móvel) | 1.460,00 | — |
+| RT (parte da linha, declarada no item) | 320,93 | — |
+| RT (parte da linha na conta paga, despesa) | 320,93 | 320,93 |
 | Mão de obra (custo declarado no item) | 300,00 | — |
 | Salários (despesa) | (já no mês) | (já no mês) |
 
-Sem D12, o mesmo móvel tiraria do lucro 2.499,11 a mais do que custou.
+Sem D12, o mesmo móvel tiraria do lucro 2.080,93 a mais do que custou (Revisão 1: a versão anterior misturava a parte da Torre no material com o RT do orçamento inteiro, 739,11).
 
 ## 9. Limitações conhecidas
 
 - **RT antecipado** ao arquiteto (antes da finalização): não previsto; quem pagar adiantado lança uma conta à mão e, na finalização, cancela a conta duplicada que o sistema criar.
 - **Retenções e nota do arquiteto** (RPA, ISS): fora; o valor é bruto.
 - **Divergência de total** (D3): o sistema avisa, mas não recalcula o RT.
-- **Até a Spec 10A existir**, o material da marcenaria não entra no resultado do mês (D12 tira o custo declarado e a baixa ainda não existe). Como nenhuma loja usa a marcenaria antes da fase 1 completa, não afeta ninguém; mas a 10A não pode ficar para depois do primeiro piloto.
+- **Sem a Spec 10A**, o material entra no resultado mesmo assim: a finalização baixa as peças embutidas (F2b, regra de hoje da OS). A 10A muda **quando** ele sai do estoque (na separação), não **se** ele entra no resultado (Revisão 1).
 
 ## 10. Entrega (PR7)
 
@@ -290,3 +296,25 @@ Sem D12, o mesmo móvel tiraria do lucro 2.499,11 a mais do que custou.
 | 16 | CMV num banco de loja real, antes × depois | Idêntico |
 | 17 | `PUT /configuracoes/marcenaria` com `rt_vencimento_dias = 200` | `422` com a mensagem |
 | 18 | Loja sem o módulo Financeiro | Conta criada igual |
+
+
+---
+
+## Revisão 1 (08/10/2026) — pedidos da Spec 09B e convergência com a branch
+
+1. **Conta de RT no detalhe do orçamento.** Com `view_custos`, cada linha de `arquitetos` no detalhe (06A §6.2) ganha `conta`: `{ "id", "status", "valor_centavos", "vencimento" }` da conta **atual** (`conta_pagar_id`, D11), ou `null` antes da finalização. No orçamento `APROVADO`, `valor_previsto_centavos` (06A Revisão 3) passa a ser calculado sobre o **aprovado** (`so_aprovados=True`), o mesmo número da conta que a finalização criará. Sem `view_custos`, nenhum dos dois sai.
+2. **Gancho com contexto.** `GanchoOS` recebe um quarto argumento, `contexto` (dict). No cancelamento, `{"status_anterior": ...}`. Corrige a versão anterior, em que o tipo tinha 3 argumentos e `tratar_cancelamento` esperava 4, e em que `orc` não era definido.
+3. **Caminhos.** O model e o schema da configuração são os da 04A: `app/db/models/configuracao_marcenaria.py` e `app/schemas/configuracao_marcenaria.py`.
+4. **Migração** `195109da93f7`, filha de `971eb6cc5a33` (R15-MIG).
+5. **CMV com peças embutidas (F2b).** A regra da D12 (`origem IS NULL` em `get_custo_manual_os`) tira do CMV o custo declarado dos itens de **serviço** do orçamento; as **peças embutidas** já ficavam de fora pelo filtro `produto_id IS NULL` e chegam ao CMV pelo livro de estoque. Nada mais muda na D12.
+6. **Terceirizado (E6b).** D14 reescrita: com o Compras, a conta do recebimento sai sem categoria (= despesa); sem ele, a conta manual vai numa categoria `DESPESA`.
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 19 | Detalhe de orçamento aprovado, antes de finalizar, com `view_custos` | `arquitetos[0].conta = null`; `valor_previsto_centavos` sobre o aprovado |
+| 20 | Depois de finalizar | `conta` com id, `PENDENTE`, valor e vencimento |
+| 21 | Detalhe sem `view_custos` | Sem `conta` e sem `valor_previsto_centavos` |
+| 22 | Cancelar OS finalizada: o gancho recebe `contexto["status_anterior"] == "FINALIZADA"` | D10 aplicada |
+| 23 | Cancelar OS aberta | `contexto["status_anterior"] == "ABERTA"`; nada acontece com RT |
+| 24 | CMV de uma OS aprovada com peças embutidas, finalizada sem separação | Material pelo livro (baixa na finalização); custo declarado dos móveis fora; peças embutidas fora de `get_custo_manual_os` |
+

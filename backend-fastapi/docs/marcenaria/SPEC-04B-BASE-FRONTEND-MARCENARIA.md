@@ -6,7 +6,9 @@
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                    |
 | Dependências | Spec 04A                                                                 |
 | Bloqueia     | Spec 06B                                                                 |
-| Referência   | SPEC-00: F6, P4, T6 · PR1, PR4, PR6 · SPEC-04A                           |
+| Referência   | SPEC-00: F6, P4, T6 · SPEC-00 (Revisão 15): FB1 · PR1, PR4, PR6 · SPEC-04A |
+
+> **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) **Cargos:** a matriz já tem o campo `segmento` nas linhas (a linha "Fábrica" usava `segmento: 'marcenaria'`), e o código de hoje já tira essas linhas do nível de acesso (`PERMISSION_KEYS` filtra `!item.modulo && !item.segmento`) e só as mostra no segmento certo (`PositionModal.matrizVisivel`). A linha nova usa esse mecanismo: **saem** o campo `capacidade` em `positions.types.ts`, a função `chavesConsideradas` e as mudanças em `PositionModal.vue` e `PositionsPanel.vue` (D16, D17 reescritas; §6.8 e §8). (2) **Produto:** a seção "Insumo da fábrica" sai na Spec 03B; o "Sofre perda" vira a caixa simples desta spec. Menos código compartilhado mexido.
 
 ---
 
@@ -24,7 +26,7 @@ Levar para as telas as três peças da Spec 04A. Tudo aparece **só onde o segme
 - Capacidade `orcamento_tecnico` no tipo do contrato e no `useCapacidades` (com fallback).
 - Campo `sofre_perda` no formulário, no schema e no envio do produto.
 - Seção `marcenaria` em Configurações: query, mutation, formulário, editor de listas, integração com o salvar do modal.
-- Chaves `view_custos_marcenaria` e `manage_custos_marcenaria` em `PERMISSIONS`, na matriz de cargos e no cálculo do nível de acesso.
+- Chaves `view_custos_marcenaria` e `manage_custos_marcenaria` em `PERMISSIONS` e na matriz de cargos (linha com `segmento`, mecanismo existente).
 - Testes e roteiro manual.
 
 **Fora do escopo**
@@ -60,10 +62,7 @@ frontend/src/
 │   │       ├── ListaTextosEditavel.vue                # CRIAR — editor de etapas/checklist
 │   │       └── __tests__/…                            # CRIAR
 │   └── employees/
-│       ├── types/positions.types.ts                   # ALTERAR — `capacidade?` na linha da matriz
-│       ├── constants/positions.constants.ts           # ALTERAR ⚠️ — linha nova; stats por chaves visíveis
-│       ├── components/PositionModal.vue               # ALTERAR ⚠️ — filtro e contagem
-│       └── components/PositionsPanel.vue              # ALTERAR ⚠️ — nível de acesso com as mesmas chaves
+│       └── constants/positions.constants.ts           # ALTERAR ⚠️ — linha nova com `segmento: 'marcenaria'` (Revisão 1)
 ```
 
 | Arquivo | Faz | Não faz |
@@ -71,7 +70,7 @@ frontend/src/
 | `Marcenaria.vue` | Formulário: mostra, converte % e R$, expõe `form`/`isDirty`/`resetar` | Salvar (é o modal, como nas outras seções) |
 | `ListaTextosEditavel.vue` | Adicionar, editar, remover, subir/descer itens | Saber o que é etapa ou checklist |
 | `configuracaoMarcenaria.schema.ts` | Validar a resposta da API e o formulário (zod) | — |
-| `positions.constants.ts` | Dizer quais chaves contam para o nível de acesso | Ler o segmento (recebe a lista pronta) |
+| `positions.constants.ts` | Declarar a linha nova (dado) | Lógica: o filtro por segmento e a conta do nível já existem |
 
 ---
 
@@ -94,8 +93,8 @@ frontend/src/
 | D13 | Modo do RT em dois botões de opção com explicação: **"Sai da margem"** (padrão: o preço não muda; a marcenaria paga o arquiteto com o próprio lucro) e **"Embutido no preço"** (o preço sobe para cobrir o RT) | C5c. Rótulo técnico sozinho ("MARGEM"/"PRECO") não diz o efeito |
 | D14 | Editor de listas: adicionar no fim, editar no lugar, remover, subir e descer. Não deixa remover o **último** item. Recusa item vazio, longo demais e repetido, com a mesma regra do backend (04A §6.4) | Mesmas regras dos dois lados: o erro aparece ao digitar, não ao salvar |
 | D15 | Aviso fixo no topo das listas: "Mudanças valem para os próximos orçamentos e OS. As que já existem mantêm as etapas e o checklist que receberam." | D7 da 04A: cada OS copia a lista. Sem o aviso, o dono espera que a mudança apareça nas OS abertas |
-| D16 | Matriz de cargos: linha **"Custos da Marcenaria"** (Ver / Gerenciar, sem Excluir), marcada com `capacidade: 'orcamento_tecnico'` e escondida sem ela. Marcar **Gerenciar** marca **Ver** junto | P4; `manage` implica `view` (04A, D8) |
-| D17 | O **nível de acesso** do cargo e o "Selecionar tudo" passam a contar **só as chaves visíveis por capacidade**: as linhas sem `capacidade` contam como hoje (inclusive Serviços no PDV), e as linhas com `capacidade` só contam onde a capacidade existe | Hoje o nível é a proporção de chaves marcadas sobre **todas** as chaves. Acrescentar 2 chaves faria um cargo "Administrador" da informática virar "Gestor" sem ninguém mexer nele (§8) |
+| D16 | Matriz de cargos: linha **"Custos da Marcenaria"** (Ver / Gerenciar, sem Excluir), declarada com **`segmento: 'marcenaria'`** (Revisão 1), como a linha "Fábrica" fazia. Marcar **Gerenciar** marca **Ver** junto | P4; `manage` implica `view` (04A, D8). O campo `segmento` é dado da matriz, não `if` em componente (mesmo caso dos mapas de fallback) |
+| D17 | O **nível de acesso** e o "Selecionar tudo" **não mudam de código**: `PERMISSION_KEYS` já exclui as linhas com `segmento`/`modulo`, e `chavesMarcarTudo` já soma as linhas visíveis (Revisão 1) | O risco que a D17 original tratava (um cargo "Administrador" da informática virar "Gestor" ao somar 2 chaves) já está resolvido no código de 08/10 (§8) |
 
 ---
 
@@ -279,45 +278,25 @@ defineProps<{
 - `secoesFuncionais`: incluir `'marcenaria'` **só** quando `comp.podeGerir` for verdadeiro (senão o rodapé mostraria "Salvar" numa seção somente leitura; D9).
 - `salvar()`: novo `case 'marcenaria'` chamando a mutation com `comp.paraApi(comp.form)` e o mesmo `fecharAposSalvar` dos outros casos. A mutation invalida a query da seção e mostra o toast de sucesso; erro `422` mostra a mensagem do backend.
 
-### 6.8. Cargos — matriz e nível de acesso
+### 6.8. Cargos — linha nova (Revisão 1)
 
 ```ts
-// positions.types.ts
-export interface PermissionMatrixItem {
-  // ...campos de hoje
-  /** Linha que só existe onde o segmento declara esta capacidade (Spec 04B, D16/D17). */
-  capacidade?: SegmentCapability;
-}
-
 // positions.constants.ts — linha nova, no fim da matriz:
   {
-    id: 'marcenaria_custos',
+    id: 'marcenaria_custos',                 // identificador da linha na tela
     label: 'Custos da Marcenaria',
     description: 'Ver custos e margens; alterar markup, perda e RT',
     icon: Calculator,
-    viewKey: 'view_custos_marcenaria',
+    viewKey: 'view_custos_marcenaria',       // a MESMA chave que o backend confere (04A D8)
     manageKey: 'manage_custos_marcenaria',
-    capacidade: 'orcamento_tecnico',
+    // Só na marcenaria, e fora do nível de acesso dos outros segmentos:
+    // mecanismo que a matriz já tem (PERMISSION_KEYS e PositionModal.matrizVisivel).
+    segmento: 'marcenaria',
   },
-
-/** Chaves que contam para o nível de acesso e o "Selecionar tudo" (D17). */
-export function chavesConsideradas(capacidades: readonly string[]): string[] {
-  return unicas(
-    PERMISSION_MATRIX
-      .filter((linha) => !linha.capacidade || capacidades.includes(linha.capacidade))  // sem capacidade = como hoje
-      .flatMap((linha) => [linha.viewKey, linha.manageKey, linha.deleteKey].filter(Boolean) as string[]),
-  );
-}
-
-// getPermissionStats(permissoes, chaves = PERMISSION_KEYS_BASE) e
-// getAccessLevel(permissoes, chaves = PERMISSION_KEYS_BASE):
-// passam a receber a lista; o padrão é a lista de HOJE (linhas sem capacidade).
 ```
 
-- `PERMISSION_KEYS` continua existindo com **as mesmas chaves de hoje** (renomear para `PERMISSION_KEYS_BASE` ou manter o nome, desde que **não** inclua as linhas com `capacidade`). `buildPermissionDefaults` também usa só a base. Assim, um cargo novo nos outros segmentos é criado com o mesmo JSON de hoje.
-- `PositionModal.vue`: `matrizVisivel` filtra também por `capacidade` (além da regra atual de Serviços); `totalPermissions`, `permissionStats`, `accessLevel`, `isAllSelected` e "Selecionar tudo" usam `chavesConsideradas(capacidades)`.
-- `PositionsPanel.vue`: `getAccessLevel(position.permissoes, chavesConsideradas(capacidades))`.
-- Marcar **Gerenciar** de "Custos da Marcenaria" marca **Ver** junto; desmarcar **Ver** desmarca **Gerenciar** (D16). Conferir se a matriz já tem essa regra para as outras linhas e reaproveitar.
+- `PERMISSION_KEYS`, `buildPermissionDefaults`, `PositionModal.vue` e `PositionsPanel.vue` **não mudam**: a linha com `segmento` já fica fora da base e só aparece no segmento certo. Um cargo novo nos outros segmentos é criado com o mesmo JSON de hoje.
+- Marcar **Gerenciar** de "Custos da Marcenaria" marca **Ver** junto; desmarcar **Ver** desmarca **Gerenciar** (D16). Conferir como a matriz faz isso nas outras linhas e reaproveitar; se a regra não existir, ela entra só para as linhas com `segmento` (para não mudar as outras).
 - `MODULE_PERMISSION_MAP`: **não** recebe a linha nova (as chaves são iguais no backend; 04A §8).
 
 ---
@@ -327,12 +306,12 @@ export function chavesConsideradas(capacidades: readonly string[]): string[] {
 1. `npm run test` e `npx vue-tsc --noEmit` sem erros.
 2. **Produto:** em informática, oficina, serigrafia e PDV, criar e editar produto. O payload enviado é **idêntico** ao de antes (comparar no DevTools); a tela não mostra a caixa nova.
 3. **Configurações:** nos outros segmentos, a lista de seções é a mesma, na mesma ordem; nenhuma chamada a `/configuracoes/marcenaria` no DevTools.
-4. **Cargos:** nos outros segmentos, a matriz tem as mesmas linhas; o **nível de acesso** de cada cargo existente é o mesmo de antes (snapshot de `getAccessLevel` para cargos de exemplo: tudo marcado, metade, nada, `all`); "Selecionar tudo" marca as mesmas chaves de hoje.
+4. **Cargos:** nos outros segmentos, a matriz tem as mesmas linhas; `PERMISSION_KEYS` é igual ao de antes (snapshot); o **nível de acesso** de cada cargo existente é o mesmo (snapshot de `getAccessLevel` para cargos de exemplo: tudo marcado, metade, nada, `all`); "Selecionar tudo" marca as mesmas chaves de hoje.
 5. **PDV:** a regra atual de Serviços (escondida, mas contada) continua igual.
 
-## 8. Por que D17 é necessário
+## 8. Por que a D17 não precisa de código (Revisão 1)
 
-`getPermissionStats` divide as chaves marcadas pelo total de `PERMISSION_KEYS`, e o nível sai da proporção (Administrador a partir de 85%, Gestor a partir de 55%). Hoje são **31 chaves** (contadas em `positions.constants.ts` em 06/10/2026). Com as 2 da marcenaria somadas a todos, um cargo da informática com 28 chaves marcadas passaria de 28/31 = 90,3% (**Administrador**) para 28/33 = 84,8% (**Gestor**), sem ninguém mexer no cargo. Além disso, "Selecionar tudo" nunca ficaria marcado lá, porque as 2 chaves estão escondidas. Contar só as linhas visíveis por capacidade evita as duas coisas e mantém os outros segmentos idênticos.
+`getPermissionStats` divide as chaves marcadas pelo total de `PERMISSION_KEYS`, e o nível sai da proporção (Administrador a partir de 85%, Gestor a partir de 55%). Se as 2 chaves da marcenaria entrassem em `PERMISSION_KEYS`, um cargo da informática com 28 de 31 chaves (90,3%, **Administrador**) passaria a 28 de 33 (84,8%, **Gestor**) sem ninguém mexer nele. O código de 08/10 já evita isso: `PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX.filter((item) => !item.modulo && !item.segmento))`, e `chavesMarcarTudo` só soma as linhas com `modulo`/`segmento` que estão visíveis. Declarar a linha com `segmento: 'marcenaria'` basta; o teste 07 confere que `PERMISSION_KEYS` não mudou.
 
 ## 9. Limitações conhecidas
 
@@ -368,9 +347,9 @@ export function chavesConsideradas(capacidades: readonly string[]): string[] {
 | 04 | `paraTela` com `inclui_custos = false` | Sem nenhum campo de custo |
 | 05 | `paraApi` de um formulário sem custos | Corpo sem nenhuma chave de custo |
 | 06 | Schema zod da resposta com `inclui_custos = true` sem `markup_padrao_bp` | Rejeitada |
-| 07 | `chavesConsideradas([])` | Igual ao `PERMISSION_KEYS` de antes |
-| 08 | `chavesConsideradas(['orcamento_tecnico'])` | Base + as 2 chaves da marcenaria |
-| 09 | `getAccessLevel` para 4 cargos de exemplo, sem capacidade | Mesmo nível de antes (snapshot) |
+| 07 | `PERMISSION_KEYS` | Igual ao de antes (snapshot); sem `view_custos_marcenaria` nem `manage_custos_marcenaria` |
+| 08 | Linha `marcenaria_custos` | `segmento = 'marcenaria'`; chaves em `ALL_PERMISSION_KEYS` |
+| 09 | `getAccessLevel` para 4 cargos de exemplo | Mesmo nível de antes (snapshot) |
 | 10 | `useCapacidades`, carregando, segmento marcenaria | `temOrcamentoTecnico = true` |
 
 ### `ListaTextosEditavel`

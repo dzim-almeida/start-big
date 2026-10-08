@@ -6,8 +6,8 @@
 | Camada       | Backend (FastAPI) ⚠️ código compartilhado (serviço e itens da OS)                        |
 | Dependências | Specs 03A (`origem_orcamento`), 05 (motor), 06A (orçamento, Revisões 1 e 2)              |
 | Bloqueia     | Specs 08B, 09A, 10A, 11A, 12A, 13A, 14                                                   |
-| Revisões     | 1 (06/10/2026): pedidos da Spec 08B — ver o fim do documento |
-| Referência   | SPEC-00: F2, F3, F4, F4a, O2, O4, O4a, O5, O7, O7a, O8, O8a, C3, C5, C5d, C5d+, C7, C9, E0a · PR1, PR2, PR4, PR6, PR7, PR8 |
+| Revisões     | 1 (06/10/2026): pedidos da Spec 08B · 2 (08/10/2026): insumos como peças embutidas e convergência com a branch (SPEC-00 Revisão 15) — ver o fim do documento |
+| Referência   | SPEC-00: F2, F2b, F3, F4, F4a, O2, O4, O4a, O5, O7, O7a, O8, O8a, C3, C5, C5d, C5d+, C7, C9, E0a, E3b, FB1, R15-MIG · PR1, PR2, PR4, PR6, PR7, PR8 |
 
 ---
 
@@ -16,7 +16,7 @@
 Transformar um orçamento aceito pelo cliente em **ordem de serviço**, sem digitar nada de novo:
 
 1. O usuário escolhe **quais móveis** o cliente aprovou (O4) e se a instalação entra.
-2. O sistema cria a OS com um **item de serviço por móvel** (F2), a instalação como item próprio (C3), o desconto (C9), o responsável (O7), a previsão de entrega (O7) e o projeto (O5).
+2. O sistema cria a OS com um **item de serviço por móvel** (F2), a instalação como item próprio (C3), os **insumos como peças embutidas** (F2b, Revisão 2), o desconto (C9), o responsável (O7), a previsão de entrega (O7) e o projeto (O5).
 3. O sinal entra na OS **só se foi recebido** (§4.3, revisão de O7).
 4. O orçamento fica **somente leitura** (F3), e os itens que vieram dele ficam **travados** na OS (F4).
 5. Uma aprovação feita por engano pode ser **desfeita** enquanto a OS estiver aberta (O8).
@@ -43,7 +43,7 @@ Transformar um orçamento aceito pelo cliente em **ordem de serviço**, sem digi
 ```
 backend-fastapi/
 ├── alembic/versions/
-│   └── a0b1c2d3e4f5_aprovacao_orcamento_marcenaria.py   # CRIAR — filha da 06A (z9a0b1c2d3e4)
+│   └── 971eb6cc5a33_aprovacao_orcamento_marcenaria.py   # CRIAR — filha da 06A (683ff38df873; Revisão 2)
 ├── app/
 │   ├── db/models/
 │   │   ├── ordem_servico_item.py                        # ALTERAR ⚠️ — coluna `origem` (nula)
@@ -57,6 +57,7 @@ backend-fastapi/
 │   │   ├── ordem_servico.py                             # ALTERAR ⚠️ — trava de item com origem
 │   │   └── marcenaria/
 │   │       ├── aprovacao.py                             # CRIAR — simular, aprovar, desfazer
+│   │       ├── insumos_os.py                            # CRIAR — insumos aprovados → peças embutidas (Revisão 2)
 │   │       └── orcamento_calculo.py                     # ALTERAR — instalação aprovada no `so_aprovados`
 │   └── api/v1/endpoints/marcenaria_orcamento.py         # ALTERAR — 3 rotas
 └── test/
@@ -140,7 +141,7 @@ CREATE INDEX ix_marcenaria_orcamentos_os ON marcenaria_orcamentos (os_id);
 
 ### 5.1. Migração (PR8)
 
-`a0b1c2d3e4f5_aprovacao_orcamento_marcenaria.py`, filha de `z9a0b1c2d3e4`:
+`971eb6cc5a33_aprovacao_orcamento_marcenaria.py`, filha de `683ff38df873` (Revisão 2, R15-MIG):
 
 - Para **cada** coluna: `ADD COLUMN` **só se a coluna não existir** (inspeção do schema), porque o `create_all()` do startup não altera tabela existente, mas pode ter criado as tabelas da marcenaria já com as colunas novas numa instalação nova.
 - `ADD COLUMN` direto (SQLite aceita coluna nula sem valor padrão), sem `batch_alter_table`: a tabela de itens da OS é grande nas lojas antigas, e o `batch` a recriaria inteira.
@@ -187,7 +188,7 @@ Prefixo `/api/v1/marcenaria/orcamentos`. Todas com a capacidade (06A D26), permi
   "previsao_entrega": "2026-11-05",                // hoje + prazo (D5)
   "avisos": ["MOVEL_SEM_PRECO"],                   // D4, além dos avisos do motor
   // só com view_custos (06A D23):
-  "custo_total_centavos": 444350, "rt_total_centavos": 63081, "margem_liquida_centavos": 281083, "margem_liquida_bp": 3565
+  "custo_total_centavos": 436850, "rt_total_centavos": 63081, "margem_liquida_centavos": 288583, "margem_liquida_bp": 3660
 }
 ```
 
@@ -513,3 +514,73 @@ def motivos_que_impedem_desfazer(db, orc) -> list[str]:
 | 31 | `por-os` de uma OS da aprovação, cargo só com `servico` | `200`, sem nenhuma chave de custo |
 | 32 | `por-os` de uma OS sem orçamento | `404` |
 | 33 | Lançar o adiantamento na OS depois | `por-os` mostra o novo `sinal_recebido_centavos` |
+
+
+---
+
+## Revisão 2 (08/10/2026) — insumos como peças embutidas e convergência com a branch
+
+Motivo: SPEC-00 Revisão 15 (F2b, E3b, FB1, FB2, R15-MIG). O Compras (reserva, Necessidades, "Compras desta OS") enxerga material pelos **itens de produto** da OS; a OS já tem a forma de **peça embutida** (item `PRODUTO`, `valor_unitario = 0`, `visivel_cliente = false`, aceita por `OSItemBase`); e a finalização já baixa só `quantidade − quantidade_separada`. Então os insumos aprovados passam a entrar na OS assim, e a separação (10A) trabalha sobre eles.
+
+### R2.1. Peças embutidas na aprovação (D1a, novo)
+
+| # | Decisão | Motivo |
+|---|---------|--------|
+| D1a | Além dos itens de serviço (D1, D2), a aprovação cria **um item `PRODUTO` por produto** usado pelos insumos dos móveis **aprovados** de produção **`INTERNA`**: `produto_id`; `nome` = a descrição copiada do primeiro insumo desse produto (até 255); `unidade_medida` = a do produto convertida para o enum (`UnidadeMedida(...)`; texto fora do enum vira `OUTROS`, como o `_unidade_do_item` da fábrica fazia); `quantidade` = o **sugerido** (abaixo); `valor_unitario = 0`; `visivel_cliente = false`; `custo_unitario` = média dos custos copiados desse produto, ponderada pelo planejado de cada insumo (centavos, `ROUND_HALF_UP`); `status_aprovacao = APROVADO`. Depois do `create_ordem_servico`, recebe `origem = "ORCAMENTO_MARCENARIA"` como os demais (D19) | F2b. O cliente não vê nem paga (o motivo de F2); o total e a comissão não mudam (comissão só conta serviço); o Compras e a finalização passam a enxergar o material sem código novo |
+| D1b | **Planejado** de um produto = Σ (`quantidade_milesimos` do insumo × `quantidade` do móvel × (10000 + `perda_bp`, só se `sofre_perda` copiado) ÷ 10000), em milésimos, `ROUND_HALF_UP` uma vez no total do produto. **Sugerido** = o planejado arredondado **para cima** até a unidade inteira, exceto nas unidades de `UNIDADES_FRACIONAVEIS` (`app/services/quantidade_venda.py`: KG, G, L, ML, M, CM, M2, M3), em que o sugerido é o próprio planejado | E3a/E3b: arredondar **uma vez** por produto (1,4 + 1,2 + 0,6 chapa → 4, e não 5). A lista de unidades é a que o sistema já usa na venda fracionada |
+| D1c | Insumo sem `produto_id` (o produto foi excluído depois da cópia) **não** vira item: não há estoque para baixar. A separação o mostra como linha informativa (10A) | Item de produto sem produto não baixa nada e confundiria o Compras |
+| D1d | Móvel `TERCEIRIZADA`: seus insumos **não** viram peças embutidas | O material é da central (10A D4, E6) |
+| D1e | Ordem dos itens na OS: os móveis (por ambiente e ordem), a instalação, e por fim as peças embutidas (por localização do produto, depois nome) | A tela da OS mostra primeiro o que o cliente comprou |
+
+O cálculo de D1b fica numa função pura em `services/marcenaria/insumos_os.py`, usada aqui e pela 10A (o "reabrir" da separação volta a `quantidade` ao sugerido):
+
+```python
+@dataclass(frozen=True)
+class InsumoDaOS:
+    produto_id: int
+    nome: str                     # descrição copiada do primeiro insumo do produto
+    unidade: str                  # unidade do produto, como texto (UN, CH, M, M2...)
+    planejado_milesimos: int      # D1b, já com a perda
+    sugerido_milesimos: int       # D1b, arredondado para cima nas unidades inteiras
+    custo_unitario_centavos: int  # média ponderada dos custos copiados
+    moveis: tuple[tuple[str, str, int], ...]   # (móvel, ambiente, planejado em milésimos) — para a 10A
+
+
+def insumos_da_os(orc: OrcamentoModel, unidades: dict[int, str]) -> list[InsumoDaOS]:
+    """Um por produto: só móveis APROVADOS e INTERNA; perda só onde `sofre_perda` (D1a–D1d).
+
+    `unidades` = {produto_id: unidade_medida} lido do cadastro (uma consulta só).
+    Inteiros e Decimal; nenhum float (PR4).
+    """
+    ...
+```
+
+`quantidade` do item da OS = `sugerido_milesimos / 1000` (o item da OS é `Float`, como o estoque).
+
+### R2.2. Trava e desfazer
+
+- **Trava de item (D18):** a verificação de `origem` entra **ao lado** da trava que já existe para a fábrica (`_assert_item_nao_gerado_pela_fabrica`, chamada em `update_item_os` e `remove_item_from_os`), nas mesmas duas chamadas. A da fábrica fica como está (inerte, FB1).
+- **Desfazer (§7.6):** a Spec 10A acrescenta o bloqueio "Já há material retirado do estoque para esta OS." quando alguma peça embutida tem `quantidade_separada > 0`. Sem retirada, o cancelamento da OS não mexe em estoque (a OS aberta nunca baixou nada; e a devolução automática da fábrica só vale para OS com `fase_fabrica`, Spec 03A D15).
+- **Ganchos da fábrica:** a OS criada aqui tem `fase_fabrica` nula (03A D13), então nenhuma regra do trilho se aplica a ela.
+
+### R2.3. Correções
+
+- Migração `971eb6cc5a33`, filha de `683ff38df873` (R15-MIG).
+- Exemplo da §6.3: o custo da Cozinha Gourmet é **R$ 4.368,50** (222.250 + 2 × 107.300); com ele, margem líquida **R$ 2.885,83** (3.660 bp). O exemplo antigo usava 4.443,50.
+
+### R2.4. Casos de teste
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 34 | Cenário B, todos os móveis (Torre terceirizada, 2 Balcões internos) | Peças embutidas só dos Balcões: MDF Branco TX (planejado 2.200, sugerido 3.000 → `quantidade` 3) e Corrediça Tandem (planejado 6.000, sugerido 6.000) |
+| 35 | Os mesmos itens | `valor_unitario = 0`, `visivel_cliente = false`, `origem = "ORCAMENTO_MARCENARIA"`, `status_aprovacao = APROVADO` |
+| 36 | `valor_bruto` e `valor_total` da OS | Iguais aos do caso 01 (as peças embutidas somam zero) |
+| 37 | MDF em 3 móveis internos (1,4 / 1,2 / 0,6, sem perda) | Uma peça embutida, `quantidade` 4 (e não 5) |
+| 38 | Fita de borda em `M`, 26,35 m | `quantidade` 26,35 (sem arredondar) |
+| 39 | Produto de unidade `CH` (fora do enum) | `unidade_medida = OUTROS`; quantidade arredondada para cima |
+| 40 | Insumo cujo produto foi excluído | Nenhum item para ele; aprovação segue |
+| 41 | `compras.demanda_os.demandas_por_produto` depois de aprovar | O MDF aparece com a quantidade da peça embutida, `pode_comprar = True` |
+| 42 | `update_item_os` numa peça embutida | `409` (D18) |
+| 43 | Finalizar a OS sem separar nada | O livro de estoque baixa as peças embutidas (regra de hoje); o CMV do mês as conta |
+| 44 | Desfazer sem retirada | OS cancelada; nenhuma movimentação de estoque |
+

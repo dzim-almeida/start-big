@@ -6,7 +6,9 @@
 | Camada       | Backend (FastAPI)                                                                     |
 | Dependências | Specs 04A (`etapas_producao`), 08A (aprovação), 09A (ganchos), 11A (terceirizado conferido) |
 | Bloqueia     | Spec 12B                                                                              |
-| Referência   | SPEC-00: P1, P1a, P2, P2a, P2b, P3, P4, E6a, O8, T7 · PR1, PR6, PR7, PR8 |
+| Referência   | SPEC-00: P1, P1a, P2, P2a, P2b, P3, P4, E6a, E6b, O8, T7, FB1, R15-MIG · PR1, PR6, PR7, PR8 |
+
+> **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) Migração `072437088f6c`, filha de `642b2e8f79fa` (11A). (2) **Trilho da fábrica aposentado (FB1):** ele recusava troca manual de status em OS com `fase_fabrica`; as OS da marcenaria nascem sem fase (03A D13), então a troca de status depois da pergunta (D16, 12B D13) passa pelo `PUT` de OS de sempre, sem bloqueio. (3) **Terceirizado pronto** = `CONFERIDO` pela função `_situacao` da 11A, nos dois modos (pedido do Compras ou manual).
 
 ---
 
@@ -38,7 +40,7 @@ Acompanhar a fabricação de cada móvel produzido na fábrica:
 
 ```
 backend-fastapi/
-├── alembic/versions/e4f5a6b7c8d9_producao_marcenaria.py   # CRIAR — filha da 11A
+├── alembic/versions/072437088f6c_producao_marcenaria.py   # CRIAR — filha da 11A (642b2e8f79fa; Revisão 1)
 ├── app/
 │   ├── db/models/marcenaria/etapa.py                       # CRIAR
 │   ├── db/crud/marcenaria/etapa.py                         # CRIAR
@@ -64,7 +66,7 @@ Nenhum arquivo compartilhado muda: a troca de status da OS continua pelo endpoin
 | D2 | Móvel com quantidade maior que 1 (3 aéreos iguais) tem **um** conjunto de etapas: a etapa vale para as 3 unidades | O marceneiro corta e monta os iguais juntos; etapas por unidade triplicariam o trabalho de marcar |
 | D3 | A lista de etapas do móvel é **editável** enquanto a OS estiver aberta: incluir (no fim ou depois de uma etapa), renomear, remover e reordenar. Etapa **concluída** não pode ser removida nem renomeada (só reaberta antes) | P1: um móvel com pintura ganha a etapa "Pintura"; um painel simples perde "Furação". O que já foi feito não some do histórico |
 | D4 | Limites: 1 a 20 etapas por móvel, nomes de 1 a 60 caracteres sem repetir no móvel (as mesmas regras da configuração, 04A) | Mesmas regras dos dois lados |
-| D5 | Móvel **terceirizado** não tem etapas: para a produção, está pronto quando `CONFERIDO` (11A) | E6: a fábrica não o produz |
+| D5 | Móvel **terceirizado** não tem etapas: para a produção, está pronto quando `CONFERIDO` (11A, `_situacao`, com pedido do Compras ou manual) | E6: a fábrica não o produz |
 | D6 | Móvel aprovado sem etapas (configuração vazia na época, ou removidas todas): a resposta marca `sem_etapas: true`, e `POST /aplicar-padrao` cria as etapas atuais da configuração | Nunca deixa o móvel sem caminho para ficar "pronto" |
 
 ### 4.2. Transições
@@ -120,7 +122,7 @@ CREATE INDEX ix_marcenaria_etapas_status ON marcenaria_etapas (status);
 
 A unicidade do nome no móvel é sem diferenciar maiúsculas na validação do serviço (o índice do SQLite diferencia; o serviço confere antes).
 
-Migração `e4f5a6b7c8d9`, filha de `d3e4f5a6b7c8` (11A): só cria a tabela se faltar (PR8).
+Migração `072437088f6c`, filha de `642b2e8f79fa` (11A): só cria a tabela se faltar (PR8; Revisão 1).
 
 ---
 

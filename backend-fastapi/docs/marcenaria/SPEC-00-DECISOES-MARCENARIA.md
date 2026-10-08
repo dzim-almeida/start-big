@@ -7,8 +7,10 @@
 | Dependências | Nenhuma                                                               |
 | Bloqueia     | Todas as specs da marcenaria (01 a 14)                                |
 | Referência   | Conversa de 05–06/10/2026; Figma (7 telas); PDF "Módulo Marcenaria: Plano de Implementação"; `docs/segmento-marcenaria-plano.md` (16/09) |
-| Branch       | `feat/segmento-marcenaria` @ `f040e8d`                                |
+| Branch       | `feat/segmento-marcenaria` @ `f040e8d` (Revisões 1–14) · @ `53e5d81` (Revisão 15) |
 
+> **Revisão 15 (08/10/2026) — Convergência com o código da branch, aprovada pelo usuário.** As Revisões 1–14 foram escritas sobre `f040e8d`. Em 08/10, às 18:30, a branch recebeu os merges de `feat/compras`, `etiquetas`, `embalagens`, `feat/venda-fracionada` e `feat/fiscal-ativacao`, que trouxeram o **módulo de Compras**, o **motor de etiquetas** e uma primeira implementação da marcenaria chamada **"fábrica"** (`docs/marcenaria-fabrica-plano.md`, fases F1–F5). Regras do usuário para esta revisão: (1) seguir as specs com o menor risco para os módulos em produção; (2) **Compras e etiquetas já implementados prevalecem** sobre o que as specs tinham planejado para esses assuntos; (3) a fábrica é **aposentada** (nenhuma loja usa a marcenaria, confirmado em 08/10). Decisões novas: **FB1** (fábrica aposentada), **FB2** (Compras e etiquetas prevalecem), **F2b** (insumos entram na OS como peças embutidas), **E3b** (separação sobre os itens da OS), **E1b**, **E5a**, **E6b**, **I5b**, **R15-CNPJ**, **R15-MIG**. Revisam F2, E1, E2a, E3a, E5, E6a e T8a. Detalhes na §6.7.
+>
 > **Revisão 14 (08/10/2026) — Spec 13A (entrega), aprovada pelo usuário:** **T8a** (a agenda de instalações vira uma **aba própria** em Serviços, e não coluna e filtro na Lista de OS compartilhada) e **I5a** (vários agendamentos por OS, cada um com ambientes e montadores; aviso, sem trava, de montador em duas obras no mesmo dia). Também: checklist das marcações do papel é opcional; registro sem foto do termo avisa; pendências podem ser criadas e resolvidas depois da finalização.
 >
 > **Revisão 13 (08/10/2026) — Spec 12A (produção), aprovada pelo usuário:** **P1a** (etapas por móvel, não por unidade; ordem não imposta; ações em lote e "concluir em todos"; concluir sem ter iniciado) e **P2b** (além do "Aguardando Entrega" no fim, o sistema sugere "Em Produção" quando a primeira etapa é marcada numa OS aberta; sempre pergunta, nunca muda sozinho).
@@ -76,7 +78,22 @@ O PDF de requisitos e o Figma foram usados **só como inspiração**. Onde eles 
 | Contas a pagar | `db/models/conta_pagar.py` | RT do arquiteto, terceirizados (C5, E6) |
 | Permissões por cargo (JSON) | `db/models/cargo.py` | "Ver custos" (P4) |
 | `produto.localizacao_estoque`, `produto.fornecedor_id`, `produto.codigo_barras` | `db/models/produto.py` | Endereço no almoxarifado, lista de compras, leitor |
-| Consulta de CNPJ (BrasilAPI, só frontend) | `modules/enterprise/composables/useConsultaCNPJ.ts` | Levada ao cadastro de cliente (Spec 02) |
+| Consulta de CNPJ (BrasilAPI, só frontend) | `shared/services/cnpj.service.ts` (o arquivo da empresa só reexporta; Revisão 15) | Já usada no cadastro de cliente PJ desde `011dff7` (06/10); a Spec 02 completa o que falta |
+
+**O que chegou com os merges de 08/10** (Revisão 15) e passa a ser a base:
+
+| Peça | Onde | Uso nesta fase |
+|------|------|----------------|
+| Módulo **fábrica** (orçamento dentro da OS, trilho de 10 fases, separação bipada, central de corte) | `app/services/fabrica/`, `modules/order-service/fabrica/`, chave `configuracoes_os.modo_fabrica` | **Aposentado** (FB1). Tabelas e colunas ficam no banco; o código fica inerte e sai numa limpeza depois do piloto |
+| `produtos.sofre_perda` (+ `unidade_consumo`, `consumo_por_unidade`) | migração `f1c7a2d9e3b4` (fábrica F1) | `sofre_perda` é a coluna de F6: a Spec 04A **não** cria coluna. As outras duas ficam sem uso |
+| `ordem_servico_itens.quantidade_separada` e `custo_real` | migração `c6f2d8a4b915` (fábrica F4) | Base da separação (E3b): a finalização já baixa só `quantidade − quantidade_separada` e o Compras já reserva essa diferença |
+| **Peça embutida**: item `PRODUTO` com `valor_unitario = 0` e `visivel_cliente = false` | `schemas/ordem_servico.py` (`OSItemBase`), migração `c8d9e0f1a2b3` | Forma dos insumos na OS (F2b): o cliente não vê nem paga, o estoque baixa |
+| Trava "item veio do orçamento" na OS | `services/ordem_servico.py` (`_assert_item_nao_gerado_pela_fabrica`), `OSServicesTab.vue` (`veioDoOrcamento`) | A Spec 08A estende a mesma trava à coluna genérica `origem` |
+| **Módulo Compras**: reserva calculada das OS abertas, Necessidades, pedidos `MATERIAL`/`SERVICO`, recebimento que lança contas a pagar, painel "Compras desta OS" | `app/services/compras/` (`demanda_os.py`, `necessidades.py`, `pedidos.py`, `recebimentos.py`) | Prevalece (FB2): reserva, lista de compras e central parceira (E1b, E5a, E6b) |
+| `ordens_servico.data_instalacao` | migração `b4e9c1a7d2f3` (fábrica F3) | Só o Compras lê (fila "quem instala primeiro"); a Spec 13A passa a preenchê-la (I5b) |
+| **Motor de etiquetas** (modelo neutro em mm, folhas Pimaco/Avery, "pular posições", calibração, térmica nativa, etiqueta de volume) | `frontend/src/shared/etiquetas/` | Prevalece (FB2): a Spec 14 só acrescenta os campos do móvel e um modelo pronto |
+| Unidades fracionáveis (`KG, G, L, ML, M, CM, M2, M3`) | `app/services/quantidade_venda.py` (`UNIDADES_FRACIONAVEIS`) e `shared/utils/quantidade.ts` | Regra única do "arredonda para cima nas unidades inteiras" (E3b). Nenhuma lista nova |
+| Linhas da matriz de cargos por `segmento` ou `modulo` (ficam fora do nível de acesso dos outros) | `employees/constants/positions.constants.ts`, `PositionModal.vue` | As linhas novas da marcenaria usam `segmento: 'marcenaria'` (04B, 06B); nenhuma mudança no cálculo do nível |
 
 **O que mudou desde 16/09:**
 
@@ -136,7 +153,7 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 assumida (recom
 | # | Decisão | Motivo | Status |
 |---|---------|--------|--------|
 | F1 | Todas as tabelas novas com prefixo `marcenaria_` (`marcenaria_orcamento`, `marcenaria_ambiente`, `marcenaria_movel`, `marcenaria_movel_insumo`…). Nenhuma tabela existente é alterada, exceto as colunas citadas em F6 | Já existe `orcamento` (PDV). Prefixo evita colisão e deixa claro de quem é a tabela | ✅ |
-| F2 | Na aprovação, **cada móvel vira um item de serviço da OS**: `nome` = nome do móvel, `valor_unitario` = preço de venda, `custo_unitario` = custo direto (+ parte do RT, C5d). Os insumos **não** viram itens da OS | Se os insumos virassem itens, entrariam no total e o cliente pagaria duas vezes | ✅ |
+| F2 | Na aprovação, **cada móvel vira um item de serviço da OS**: `nome` = nome do móvel, `valor_unitario` = preço de venda, `custo_unitario` = custo direto (+ parte do RT, C5d). Os insumos **não** viram itens da OS **Revista por F2b (Revisão 15):** os insumos passam a entrar na OS como peças embutidas. | Se os insumos virassem itens, entrariam no total e o cliente pagaria duas vezes | ✅ |
 | F2a | **Revisão 10:** o `custo_unitario` dos itens da OS que vieram do orçamento continua servindo à **comissão** (C5d), mas o **CMV ignora** itens com `origem`. Material entra pela baixa de estoque da OS (10A), RT pela conta paga (09A), mão de obra pelos salários e terceirizado pela conta da central (11A, categoria de despesa) | Sem isso o resultado do mês contaria RT, mão de obra e material duas vezes | ✅ |
 | F3 | O "congelamento" é o **orçamento aprovado ficar somente leitura**. Os preços já estão gravados nos itens da OS. Mudança = nova versão (O2) | Evita duplicar 4 tabelas em `os_*` como o PDF propunha | ✅ |
 | F4 | Itens da OS que vieram do orçamento ficam **travados** na OS, com o aviso "altere pelo orçamento". Itens adicionados à mão na OS continuam editáveis | Se o preço do móvel mudasse só na OS, OS e orçamento passariam a discordar e o dono perderia a confiança nos números | ✅ |
@@ -191,16 +208,16 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 assumida (recom
 | E0a | Toda OS da marcenaria **nasce da aprovação de um orçamento**. O tipo declara `criacao_manual=False` no registry; o backend recusa a criação manual e a troca de tipo | As abas de Separação, Produção e Entrega dependem dos móveis do orçamento | ✅ |
 | E0b | Planejados fica só com **nome do projeto** e **endereço da obra**. Saem ambiente, módulos, material, acabamento, ferragens, montagem incluída e etapa (Revisão 3) | Repetiriam o orçamento (que tem vários ambientes) e chegariam vazios ou divergentes | ✅ |
 | E0c | Regra genérica: num segmento **sem nenhum tipo criável à mão**, os botões "Criar OS" (atalho do menu principal e tela de OS) **somem**; a partir da Spec 06B viram **"Novo orçamento"** (Revisão 4) | Um botão que abre um formulário sem tipo possível seria um beco sem saída | ✅ |
-| E1 | **Reserva calculada**, sem tabela nova: `disponível = estoque − insumos de OS de marcenaria abertas ainda não separados` | Nenhuma tabela de estoque muda | ✅ |
-| E1a | Desempenho medido em 06/10: SQLite com ~5 anos de dados (6.000 OS, 288.000 linhas de insumo) — **11 ms** sem índices, **3,6 ms** com índices. Regras: (1) índices nas FKs da árvore e em `separado`; (2) **uma** consulta agrupada por produto, nunca uma por produto em laço; (3) calcular só nas telas de separação, lista de compras e inclusão de insumo — **nunca** na lista geral de produtos nem no PDV | Pedido do usuário: verificar lentidão | ✅ |
+| E1 | **Reserva calculada**, sem tabela nova: `disponível = estoque − insumos de OS de marcenaria abertas ainda não separados` **Revista por E1b (Revisão 15):** a reserva vem do Compras (`demanda_os`). | Nenhuma tabela de estoque muda | ✅ |
+| E1a | Desempenho medido em 06/10: SQLite com ~5 anos de dados (6.000 OS, 288.000 linhas de insumo) — **11 ms** sem índices, **3,6 ms** com índices. Regras: (1) índices nas FKs da árvore e em `separado`; (2) **uma** consulta agrupada por produto, nunca uma por produto em laço; (3) calcular só nas telas de separação, lista de compras e inclusão de insumo — **nunca** na lista geral de produtos nem no PDV **Revista por E1b (Revisão 15):** as regras de desempenho passam a ser do Compras. | Pedido do usuário: verificar lentidão | ✅ |
 | E2 | A baixa de estoque acontece na **separação**, via `registrar_movimentacao` com origem `ORDEM_SERVICO` e o número da OS | Mecanismo existente; sem código novo no estoque | ✅ |
-| E2a | Retirada sem saldo **acontece** (estoque negativo, com aviso para conferir a contagem), como na OS de hoje. Sobra pode ser **devolvida** ao estoque. Cancelar a OS **não** devolve material sozinho (chapa cortada não volta); o sistema avisa o que ficou fora. Desfazer aprovação exige devolver antes (Revisão 11) | Travar a retirada pararia a fábrica por um cadastro desatualizado | ✅ |
-| E3 | Na separação, "Qtd retirada" vem com o planejado **arredondado para cima** nas unidades inteiras (chapa, unidade, par, barra) e é editável. A baixa usa a quantidade **real**. O gestor vê orçado × real por móvel | Ninguém retira 0,4 chapa; baixar 1,4 deixaria estoque fantasma. A diferença mostra se a perda de 10% está certa | ✅ |
-| E3a | **Revisão de E3 (Revisão 11):** a separação é por **OS e produto** (todos os móveis que usam o mesmo produto viram uma linha), e o sugerido é arredondado para cima **uma vez**, no total do produto. O orçado × real fica por produto, não por móvel; cada linha mostra os móveis que usam o produto | 1,4 + 1,2 + 0,6 chapa arredondados por móvel dariam 5 chapas; arredondados juntos, 4 | ✅ |
+| E2a | Retirada sem saldo **acontece** (estoque negativo, com aviso para conferir a contagem), como na OS de hoje. Sobra pode ser **devolvida** ao estoque. Cancelar a OS **não** devolve material sozinho (chapa cortada não volta); o sistema avisa o que ficou fora. Desfazer aprovação exige devolver antes (Revisão 11) **Ajustada por E3b (Revisão 15):** a mecânica passa a ser a dos itens da OS; o "cancelar não devolve" continua. | Travar a retirada pararia a fábrica por um cadastro desatualizado | ✅ |
+| E3 | Na separação, "Qtd retirada" vem com o planejado **arredondado para cima** nas unidades inteiras (chapa, unidade, par, barra) e é editável. A baixa usa a quantidade **real**. O gestor vê orçado × real por móvel **Revista por E3a e E3b.** | Ninguém retira 0,4 chapa; baixar 1,4 deixaria estoque fantasma. A diferença mostra se a perda de 10% está certa | ✅ |
+| E3a | **Revisão de E3 (Revisão 11):** a separação é por **OS e produto** (todos os móveis que usam o mesmo produto viram uma linha), e o sugerido é arredondado para cima **uma vez**, no total do produto. O orçado × real fica por produto, não por móvel; cada linha mostra os móveis que usam o produto **Revista por E3b (Revisão 15):** o produto da OS é um item de peça embutida. | 1,4 + 1,2 + 0,6 chapa arredondados por móvel dariam 5 chapas; arredondados juntos, 4 | ✅ |
 | E4 | Conferência por checkbox **e** por leitor de código de barras (campo opcional; leitores comuns funcionam como teclado; usa `produto.codigo_barras`) | A fábrica vai usar leitor | ✅ |
-| E5 | Lista de compras: consulta dos itens "sem saldo", agrupada pelo **fornecedor principal** do produto, com impressão. **Não** gera pedido de compra | O módulo de compras não está nesta branch | ✅ |
-| E6 | Móvel terceirizado: a central é um **Fornecedor**; o móvel guarda nº do pedido externo e status `ENVIADO → RECEBIDO → CONFERIDO`. Ao marcar "Recebido", o sistema **oferece** lançar a conta a pagar (não lança sozinho) | O valor da nota às vezes muda | ✅ |
-| E6a | **Revisão 12:** situação **A pedir → Pedido enviado → Recebido → Conferido**, com "registrar problema" (fica Recebido, com o texto) e "voltar um passo". Vários móveis da mesma central num pedido. No recebimento, o sistema **oferece** uma conta por pedido (valor sugerido = orçado, só para quem vê custos; editável; parcelável), categoria "Produção terceirizada" (`DESPESA`). Lançar exige o módulo Financeiro e a permissão de gerir o financeiro. Lista geral de atrasados | Completa E6 com o passo inicial, o caso do móvel com defeito e as regras de dinheiro | ✅ |
+| E5 | Lista de compras: consulta dos itens "sem saldo", agrupada pelo **fornecedor principal** do produto, com impressão. **Não** gera pedido de compra **Revista por E5a (Revisão 15):** a lista é a tela Necessidades do Compras. | O módulo de compras não está nesta branch | ✅ |
+| E6 | Móvel terceirizado: a central é um **Fornecedor**; o móvel guarda nº do pedido externo e status `ENVIADO → RECEBIDO → CONFERIDO`. Ao marcar "Recebido", o sistema **oferece** lançar a conta a pagar (não lança sozinho) **Revista por E6b (Revisão 15).** | O valor da nota às vezes muda | ✅ |
+| E6a | **Revisão 12:** situação **A pedir → Pedido enviado → Recebido → Conferido**, com "registrar problema" (fica Recebido, com o texto) e "voltar um passo". Vários móveis da mesma central num pedido. No recebimento, o sistema **oferece** uma conta por pedido (valor sugerido = orçado, só para quem vê custos; editável; parcelável), categoria "Produção terceirizada" (`DESPESA`). Lançar exige o módulo Financeiro e a permissão de gerir o financeiro. Lista geral de atrasados **Revista por E6b (Revisão 15):** com o Compras, pedido `SERVICO` e contas do recebimento. | Completa E6 com o passo inicial, o caso do móvel com defeito e as regras de dinheiro | ✅ |
 | P1 | Modelos de etapas nos Parâmetros, por tipo de produção (interna: Corte → Borda → Furação → Montagem → Embalagem). Cada móvel recebe uma **cópia editável**. Etapa: Pendente / Em execução / Concluída, com responsável (funcionário) e data. **Nenhum preço** na tela | Atende oficina pequena e fábrica com CNC | ✅ |
 | P1a | **Revisão 13:** um conjunto de etapas por **móvel** (3 aéreos iguais = uma lista), criado na aprovação. A ordem **não** é imposta (a tela indica a próxima). Etapa pode ser concluída sem ter sido iniciada. Ações em **lote** e "concluir a etapa X em todos os móveis". Concluir de novo não muda nada | O corte de uma obra inteira acontece de uma vez; marcar móvel por móvel faria a fábrica abandonar o sistema | ✅ |
 | P2 | O status da OS **não muda sozinho**. Com todos os móveis concluídos, o sistema pergunta "Produção concluída: mover a OS para o próximo status?" | Decisão sempre do usuário | ✅ |
@@ -217,7 +234,7 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 assumida (recom
 | I2 | Checklist de vistoria padrão nos Parâmetros, copiado para cada ambiente e editável ali | Mesmo padrão de P1 | 🟡 |
 | I3 | Pendência aberta **avisa** ao finalizar a OS, mas **não trava** | Caso real: cliente pagou e aceitou com ressalva | 🟡 |
 | I4 | Montador é sempre **funcionário** nesta fase. Sem conta a pagar por instalação | Resposta do usuário ("é sempre montador por agora") | ✅ |
-| I5 | Agenda = campos na OS (data/hora da instalação + montadores). A Lista de OS filtra e ordena por essa data. Tela de agenda semanal fica para a fase 2 | Com um computador, a lista ordenada resolve "quem instala onde amanhã" | ✅ |
+| I5 | Agenda = campos na OS (data/hora da instalação + montadores). A Lista de OS filtra e ordena por essa data. Tela de agenda semanal fica para a fase 2 **Revista por I5a e T8a (Revisão 14) e I5b (Revisão 15):** agendamentos da marcenaria, aba Instalações, `data_instalacao` para o Compras. | Com um computador, a lista ordenada resolve "quem instala onde amanhã" | ✅ |
 | I5a | **Revisão 14:** uma OS pode ter **vários agendamentos** (data, hora, ambientes, montadores, observação). Montador em dois agendamentos no mesmo dia: **aviso**, sem trava. Agendamento com data passada e ambiente não entregue aparece como atrasado | I6 já previa entregar a cozinha antes do closet; cada entrega tem a sua data e a sua equipe | ✅ |
 | I6 | Termo **por ambiente** (dá para entregar a cozinha antes do closet), mas a OS **finaliza uma vez**, com tudo entregue. Cobrança parcial por ambiente fica fora | Simplicidade financeira na fase 1 | 🟡 |
 | I7 | Etiqueta **por móvel** (código PRJ, nº da OS, cliente, ambiente, móvel, dimensões) para os volumes embalados. Etiqueta por peça só com importação 3D | Sem plano de corte, não há peças individuais | ✅ |
@@ -243,8 +260,25 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 assumida (recom
 | T5a | O PDF da proposta sai pelo destino **"Salvar como PDF"** do diálogo de impressão (template A4, mesmo motor das vias de OS e venda). O sistema não guarda o arquivo; o evento de envio guarda total, sinal e validade (Revisão 8) | Reaproveita cabeçalho, regra de preto e branco e quebras de página; o arquivo fica onde o vendedor escolher, pronto para anexar | ✅ |
 | T6 | Seção **"Marcenaria"** em Configurações: markup, perda, validade, prazo de entrega, custo/hora, RT padrão e modo do RT, modelos de etapas, checklist de vistoria | Padrões editáveis pelo dono | ✅ |
 | T7 | **Histórico** só de inclusão (nada é apagado): mudanças de status do orçamento, etapas, separação e termos, com quem fez e quando. A Spec 06A verifica se algum histórico existente da OS pode ser reaproveitado | Auditoria barata desde o primeiro projeto | ✅ |
-| T8 | **Lista de OS** atual, com coluna e filtro novos de data de instalação (I5) | Sem tela nova | ✅ |
+| T8 | **Lista de OS** atual, com coluna e filtro novos de data de instalação (I5) **Revista por T8a (Revisão 14).** | Sem tela nova | ✅ |
 | T8a | **Revisão de T8 (Revisão 14):** a agenda fica numa aba **"Instalações"** na tela de Serviços (só marcenaria), com filtro por período, montador e atrasadas. A Lista de OS compartilhada **não** muda | A coluna na lista compartilhada exigiria mexer na tela mais usada das 3 lojas em produção por uma informação que só a marcenaria tem (PR1) | ✅ |
+
+### 6.7. Convergência com o código da branch (Revisão 15)
+
+| # | Decisão | Motivo | Status |
+|---|---------|--------|--------|
+| FB1 | **Fábrica aposentada.** `modo_fabrica_ligado()` passa a responder sempre `False`: nenhuma OS nova entra no trilho de 10 fases. Saem das telas: a chave "Modo fábrica" (Configurações › OS), a linha "Fábrica" dos cargos, a seção "Insumo da fábrica" do produto (o "sofre perda" vai para a 04B), a rota `/fabrica/separacao` e as abas Orçamento/Trilho da fábrica no modal de OS. O **banco não muda**: as 4 migrações da fábrica estão na cadeia (a fiscal `d7a3e9c2f418` vem depois delas) e podem já estar aplicadas nas lojas, então tabelas e colunas ficam, vazias. O código backend da fábrica fica **inerte** (só age em OS com `fase_fabrica`, que nenhuma OS tem) e sai numa spec de limpeza depois do piloto. O "devolver tudo ao cancelar" da fábrica passa a valer só para OS com `fase_fabrica` (senão anularia E2a). Specs 03A e 03B | Dois desenhos para o mesmo negócio na mesma branch. A 03A (OS só nasce do orçamento) quebraria a fábrica, e o trilho (status travado) quebraria a P2b. Nenhuma loja usa a marcenaria (usuário, 08/10) | ✅ |
+| FB2 | **Compras e etiquetas prevalecem.** Onde as specs tinham planejado peça própria e o sistema já tem módulo, usa-se o módulo como ele é. Mudança nesses módulos só **aditiva** e só se indispensável (os campos do móvel no motor de etiquetas, Spec 14) | Decisão do usuário (08/10). Os módulos já foram testados e podem estar nas lojas; duas versões da mesma regra acabariam discordando | ✅ |
+| F2b | **Revisão de F2:** na aprovação, os insumos dos móveis **internos** aprovados entram na OS como **peças embutidas**: um item `PRODUTO` por produto (a soma de todos os móveis, com a perda), `quantidade` = o sugerido de E3b, `valor_unitario = 0`, `visivel_cliente = false`, `custo_unitario` = custo copiado do orçamento, `origem = ORCAMENTO_MARCENARIA`. Móveis e instalação continuam itens de serviço (F2) | O Compras (reserva, Necessidades, "Compras desta OS") enxerga material pelos itens de produto da OS. A peça embutida não aparece para o cliente nem soma no total (o motivo original de F2: o cliente não paga duas vezes), e a comissão não muda (só conta item de serviço, `get_comissao_base`). E, se a separação não for usada, a finalização baixa o material (regra de hoje) e o CMV o conta | 🟡 (recomendação do plano de 08/10) |
+| E1b | **Revisão de E1/E1a:** reserva e disponível vêm de `services/compras/demanda_os` (já somam `quantidade − quantidade_separada` dos itens de produto das OS abertas, de todos os segmentos). Nenhuma consulta própria da marcenaria; vale com ou sem o módulo COMPRAS contratado (é função do backend, não tela) | FB2. Com F2b, a chave da marcenaria e a peça da oficina disputam a mesma prateleira na mesma conta | ✅ |
+| E3b | **Revisão de E2a/E3/E3a:** a separação opera sobre os itens de insumo da OS (um por produto, já somados, E3a). Retirar = SAÍDA no livro + `quantidade_separada`; devolver = ENTRADA − `quantidade_separada`; concluir com menos = a `quantidade` do item passa a ser o retirado (a finalização não baixa a sobra e a reserva solta); retirar mais que o sugerido é permitido com aviso (a `quantidade` acompanha). O "arredonda para cima" usa `UNIDADES_FRACIONAVEIS`. Cancelar a OS **não** devolve sozinho (E2a mantida). A tabela `marcenaria_separacao` sai | Reaproveita as colunas que a finalização e o Compras já entendem; uma regra só para baixa, reserva e finalização | ✅ |
+| E5a | **Revisão de E5:** a lista de compras é a tela **Necessidades** do Compras (módulo COMPRAS), que já agrupa por fornecedor e gera o pedido. Sem o módulo, a aba Separação mostra e imprime as faltas **daquela OS**. A aba "Lista de compras" planejada em Produtos sai | FB2 | 🟡 (o modo sem Compras) |
+| E6b | **Revisão de E6/E6a:** com o módulo COMPRAS, "Pedir à central" cria um **pedido de compra `SERVICO`** (o mesmo caminho da fábrica F5), e o recebimento no Compras lança as contas a pagar. A oferta de conta própria e a categoria "Produção terceirizada" da 11A saem: conta sem categoria já conta como despesa no resultado (`crud/financeiro._total_pago`). Sem o módulo, a situação é marcada à mão (A pedir → Pedido enviado → Recebido → Conferido, com o nº do pedido em texto) e a conta é lançada em Contas a Pagar. "Conferido" e "registrar problema" são da marcenaria nos dois casos | FB2 | 🟡 (o modo sem Compras) |
+| I5b | **Complemento de I5a:** a OS guarda em `ordens_servico.data_instalacao` a data do próximo agendamento ainda não entregue | A coluna existe (fábrica F3) e só o Compras a lê: a fila de material atende primeiro quem instala primeiro (RC12). Nada muda na Lista de OS (T8a) | ✅ |
+| R15-CNPJ | A consulta de CNPJ no cliente **já existe** (`011dff7`). O preenchimento de hoje prevalece (sobrescreve razão social e endereço com a Receita; preenche o regime MEI/Simples). A Spec 02 fica com o que falta: erro "sem internet" × "não encontrado", tempo limite, dígito verificador antes da consulta automática e aviso de cliente duplicado | O código já está na linha de produção e o preenchimento do regime resolveu uma rejeição real da SEFAZ (06/10) | ✅ |
+| R15-MIG | **Códigos de migração novos** (os planejados colidiam com 7 migrações existentes), em cadeia a partir de `d7a3e9c2f418`: 04A `608dc99a8616` → 06A `683ff38df873` → 08A `971eb6cc5a33` → 09A `195109da93f7` → 11A `642b2e8f79fa` → 12A `072437088f6c` → 13A `2c4df92b1412`. A 10A não tem migração (E3b). Antes de cada uma, `alembic heads`: se outra branch tiver acrescentado migração, o `down_revision` acompanha | Dois arquivos com o mesmo código quebram a atualização do banco das lojas | ✅ |
+
+**Achado registrado (não é da marcenaria):** o Compras lança a conta do recebimento **sem categoria**, e conta sem categoria conta como despesa; o material comprado sai do lucro no pagamento **e** de novo no CMV quando baixa. Afeta todo segmento que usar o Compras. Registrado como **PEND-003** em `docs/pendencias-sistema.md`; a marcenaria não o corrige (FB2).
 
 ---
 
@@ -256,13 +290,14 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 assumida (recom
 | Importação de projeto 3D (Promob, CorteCloud, Dinabox, UpMob) | Fase 2 | Depende de arquivos reais da fábrica |
 | Aditivos após aprovação | Fase 2 | Hoje: nova versão antes de aprovar, ou cancelar e refazer |
 | Kanban de produção com cronômetro | Fase 2 | Usa o histórico de etapas (T7) |
-| Agenda semanal de instalação | Fase 2 | Hoje: campos na OS + filtro (I5) |
+| Agenda semanal de instalação | Fase 2 | Hoje: agendamentos da marcenaria e a aba Instalações em Serviços (I5a, T8a) |
 | Vários comissionados na mesma tela | Fase 2 | O modelo de dados já aceita N |
 | Versão celular/tablet | Futuro | P3 |
 | Etiqueta por peça / plano de corte | Futuro | Depende da importação 3D |
 | Contrato em PDF, assinatura digital, WhatsApp | Futuro | — |
 | Cobrança parcial por ambiente | Futuro | I6 |
-| Pedido de compra gerado pela lista de compras | Futuro | Módulo de compras fora desta branch |
+| Pedido de compra gerado pela lista de compras | — | **Resolvido pelo Compras** (E5a): a tela Necessidades gera o pedido |
+| Limpeza do código da fábrica aposentada | Depois do piloto | FB1: o código inerte sai; tabelas e colunas ficam |
 
 
 ### 7.1. Referência: Reforma de móveis (para a volta)
@@ -295,28 +330,28 @@ O cliente traz o móvel (ou a loja busca) e a loja restaura, pinta ou troca peç
 | 00 | Documento | Registro de decisões | — | Todas |
 | 01A ⚠️ | Backend | Rótulos de status por segmento (registry) | 00 | P2a |
 | 01B ⚠️ | Frontend | Rótulos de status por segmento (telas, filtros e dashboard) | 01A | P2a |
-| 02 ⚠️ | Frontend | Consulta de CNPJ no cadastro de cliente | 00 | O6 |
-| 03A | Backend | Ajuste do segmento marcenaria (só Planejados, trava de criação, sem aprovação por item) | 01A | O4, E0, E0a, E0b |
-| 03B ⚠️ | Frontend | Ajuste do segmento marcenaria (botão Criar OS, tipo travado, textos, fallback) | 03A | O4, E0, E0a, E0b, E0c |
-| 04A ⚠️ | Backend | Base: `sofre_perda`, Parâmetros, permissão "ver custos" | 03A | F6, T6, P4 |
+| 02 ⚠️ | Frontend | Consulta de CNPJ no cliente: o que falta (erro tipado, tempo limite, duplicidade) | 00 | O6, R15-CNPJ |
+| 03A ⚠️ | Backend | Ajuste do segmento (só Planejados, trava de criação, sem aprovação por item) e **aposentadoria da fábrica** | 01A | O4, E0, E0a, E0b, FB1 |
+| 03B ⚠️ | Frontend | Ajuste do segmento (botão Criar OS, tipo travado, textos, fallback) e **retirada das telas da fábrica** | 03A | O4, E0, E0a, E0b, E0c, FB1 |
+| 04A ⚠️ | Backend | Base: `sofre_perda` no contrato do produto, Parâmetros, permissão "ver custos" | 03A | F6, T6, P4, R15-MIG |
 | 04B ⚠️ | Frontend | Base: campo no produto, seção Marcenaria em Configurações, permissão no cargo | 04A | F6, T6, P4 |
 | 05 | Backend | Motor de cálculo (funções puras + testes) | 04A | C1–C9, O3a |
 | 06A | Backend | Orçamento: modelo de dados, API, versões, validade, autosave, histórico | 05 | F1, O1–O3, T7 |
-| 06B | Frontend | Orçamento: lista, menu, editor, modal Adicionar Móvel | 06A | T2–T4 |
+| 06B ⚠️ | Frontend | Orçamento: lista, menu, editor, modal Adicionar Móvel | 06A | T2–T4 |
 | 07 | Frontend | Proposta comercial em PDF | 06B | T5 |
-| 08A | Backend | Aprovação → OS (parcial, itens travados, desfazer) | 06A | F2–F4, O4, O5, O7, O8 |
+| 08A ⚠️ | Backend | Aprovação → OS (parcial, itens travados, insumos como peças embutidas, desfazer) | 06A | F2–F4, F2b, O4, O5, O7, O8 |
 | 08B ⚠️ | Frontend | Aprovação → OS (modal de aprovação, aba Orçamento, itens travados) | 08A, 06B | F4, T1 |
-| 09A | Backend | RT do arquiteto (conta a pagar na finalização) | 08A | C5a–C5d |
-| 09B | Frontend | RT do arquiteto (campo no orçamento) | 09A, 06B | C5a, C5c |
-| 10A | Backend | Separação, reserva calculada, baixa, lista de compras | 08A | E1–E5 |
-| 10B | Frontend | Aba Separação (leitor), tela Lista de compras | 10A | E3–E5 |
-| 11A | Backend | Terceirizados (status do pedido, oferta de conta a pagar) | 08A | E6 |
-| 11B | Frontend | Terceirizados (na aba Separação/Produção) | 11A, 10B | E6 |
-| 12A | Backend | Produção: etapas por móvel | 08A | P1, P2 |
-| 12B | Frontend | Aba Produção e aviso de mudança de status | 12A | P1, P2 |
-| 13A | Backend | Entrega: termos, pendências, fotos, data de instalação | 08A | I1–I6, T8 |
-| 13B ⚠️ | Frontend | Aba Entrega, Termo A4, filtro de instalação na Lista de OS | 13A | I1–I6, T8 |
-| 14 | Frontend | Etiquetas por móvel | 08A | I7 |
+| 09A ⚠️ | Backend | RT do arquiteto (conta a pagar na finalização) e CMV sem dupla contagem | 08A | C5a–C5e, F2a |
+| 09B ⚠️ | Frontend | RT do arquiteto (campo no orçamento, tipo de fornecedor) | 09A, 06B | C5a, C5c, C5e |
+| 10A | Backend | Separação sobre os itens da OS, disponível pelo Compras, leitor, faltas da OS | 08A | E1b, E2, E3b, E4, E5a |
+| 10B ⚠️ | Frontend | Aba Separação (leitor), faltas da OS, disponível na busca de insumo | 10A | E3b, E4, E5a |
+| 11A | Backend | Terceirizados (situação, pedido `SERVICO` do Compras, modo manual sem Compras) | 08A, 09A | E6b |
+| 11B ⚠️ | Frontend | Terceirizados (na aba Separação; aba Terceirizados em Serviços) | 11A, 10B | E6b |
+| 12A | Backend | Produção: etapas por móvel | 08A, 11A | P1, P1a, P2, P2b |
+| 12B ⚠️ | Frontend | Aba Produção, pergunta de status, quadro da fábrica | 12A | P1, P1a, P2, P2b |
+| 13A | Backend | Entrega: termos, pendências, fotos, agendamentos | 08A, 12A | I1–I6, I5a, I5b, T8a |
+| 13B ⚠️ | Frontend | Aba Entrega, Termo A4, aba Instalações em Serviços, aviso na finalização | 13A | I1–I6, I5a, T8a |
+| 14 | Frontend | Etiquetas por volume do móvel, sobre o motor `shared/etiquetas` | 12B, 13A | I7, FB2 |
 
 **Ordem de implementação:** 00 → 01A/01B → 02 → 03A/03B → 04A/04B → 05 → 06A/06B → 07 → 08A/08B → 09 → 10 → 11 → 12 → 13 → 14. A Spec 02 não depende de nada além desta e pode andar em paralelo.
 
@@ -334,6 +369,9 @@ O cliente traz o móvel (ou a loja busca) e a loja restaura, pinta ou troca peç
 | Preço de insumo mudando em orçamento já enviado | O3: aviso, nunca atualização silenciosa |
 | Teto de bytecode do PyArmor com módulos grandes | Medir antes de cada instalador (PR7) |
 | Uso real achar o que teste não acha | Cada spec B termina com roteiro de teste no app em dev |
+| Duas implementações do mesmo negócio (specs × fábrica) | FB1: a fábrica é aposentada antes de qualquer código novo da marcenaria (Specs 03A/03B) |
+| Regra duplicada com Compras ou etiquetas | FB2: reserva, lista de compras, central parceira e etiquetas usam os módulos como são |
+| Código de migração repetido | R15-MIG: códigos gerados e conferidos contra a pasta `alembic/versions` |
 
 ---
 

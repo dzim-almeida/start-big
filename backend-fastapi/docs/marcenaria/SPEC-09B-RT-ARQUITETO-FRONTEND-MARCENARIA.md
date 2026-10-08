@@ -8,6 +8,8 @@
 | Bloqueia     | —                                                                                          |
 | Referência   | SPEC-00: C5a, C5b, C5c, C5d, C5e, P4 · PR1, PR3, PR6                                       |
 
+> **Revisão 1 (08/10/2026) — dependências escritas.** A versão anterior citava a "06A Revisão 3" e a "09A Revisão 1", que não existiam. As duas foram escritas em 08/10: a **06A Revisão 3** traz o `rt_padrao_bp` no orçamento, o `PUT /rt` sem percentual (mantém o gravado ou usa o padrão; só `manage` para trocar o arquiteto, `view_custos` para mandar `rt_bp`) e o `valor_previsto_centavos`; a **09A Revisão 1** traz a `conta` de cada arquiteto no detalhe. Também: a ordem das decisões (D11 e D12 estavam trocadas) e dos casos de teste foi acertada; nada mudou no conteúdo.
+
 ---
 
 ## 1. Objetivo
@@ -68,8 +70,8 @@ frontend/src/modules/
 | D8 | Fora de `RASCUNHO`, o bloco é somente leitura. Sem `view_custos`, o vendedor vê só o nome do arquiteto | 06A D11, P4 |
 | D9 | No **painel de custos**, a linha "RT arquiteto" passa a mostrar o nome e o percentual: "RT — Studio Renascer (8%)  R$ 739,11" | O número já aparecia (06B); faltava de quem é |
 | D10 | Orçamento **aprovado**, com `view_custos`: a faixa (08B D12) ganha a linha da conta de RT: "RT de Studio Renascer: previsto R$ 739,11 · conta criada na finalização da OS" ou, depois de finalizada, "Conta a pagar de R$ 739,11, vence 05/12/2026 (Pendente)", com link **"Ver em Contas a Pagar"** quando a loja tem o módulo Financeiro | C5e: o dono sabe se o arquiteto já foi pago sem procurar |
-| D12 | **Arquiteto com 0%** (o RT padrão da configuração nasce em 0%, 04A): com `view_custos`, aviso âmbar no bloco: "Studio Renascer está sem percentual de RT. Informe o % ou defina um padrão em Configurações › Marcenaria." Também aparece no modal de envio entre os avisos (06B D36) | Sem o aviso, o vendedor escolhe o arquiteto, o % fica 0 e o RT é esquecido até o arquiteto cobrar |
 | D11 | **Configurações › Marcenaria**, bloco "Preço e custos" (só com custos, 04B D8): "Prazo para pagar o RT (dias após finalizar a OS)", padrão 30, de 0 a 180, com a ajuda "A conta a pagar do arquiteto nasce quando a OS é finalizada e vence depois deste prazo." | C5e |
+| D12 | **Arquiteto com 0%** (o RT padrão da configuração nasce em 0%, 04A): com `view_custos`, aviso âmbar no bloco: "Studio Renascer está sem percentual de RT. Informe o % ou defina um padrão em Configurações › Marcenaria." Também aparece no modal de envio entre os avisos (06B D36) | Sem o aviso, o vendedor escolhe o arquiteto, o % fica 0 e o RT é esquecido até o arquiteto cobrar |
 
 ---
 
@@ -173,8 +175,8 @@ function escolher(fornecedorId: number | null) {
 | 07 | `openCreateModalWithCallback('arquiteto', cb)` | Modal no formulário do arquiteto (sem o seletor); `cb` chamado com o fornecedor criado |
 | 08 | Faixa do aprovado com `conta: null` / com conta pendente | Textos do D10 |
 | 09 | Faixa sem o módulo Financeiro | Sem o link |
-| 11 | Arquiteto com `rt_bp = 0`, com custos | Aviso do D12 no bloco e no modal de envio |
 | 10 | Configurações: prazo 200 | Erro "O prazo do RT deve ficar entre 0 e 180 dias." |
+| 11 | Arquiteto com `rt_bp = 0`, com custos | Aviso do D12 no bloco e no modal de envio |
 
 ### Roteiro manual (dev)
 

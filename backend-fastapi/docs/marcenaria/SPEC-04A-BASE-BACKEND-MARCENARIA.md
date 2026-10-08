@@ -6,7 +6,9 @@
 | Camada       | Backend (FastAPI) ⚠️ toca `produtos` (tabela compartilhada)               |
 | Dependências | Spec 03A                                                                  |
 | Bloqueia     | Spec 04B, Spec 05, Spec 06A                                               |
-| Referência   | SPEC-00: F5, F6, C4, C5c, P1, P4, I2, O3, O7, T6 · PR1, PR4, PR6, PR7, PR8 |
+| Referência   | SPEC-00: F5, F6, C4, C5c, P1, P4, I2, O3, O7, T6 · SPEC-00 (Revisão 15): FB1, R15-MIG · PR1, PR4, PR6, PR7, PR8 |
+
+> **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) A coluna **`produtos.sofre_perda` já existe** (migração `f1c7a2d9e3b4` da fábrica F1, `Boolean NOT NULL DEFAULT 0`, mesma definição que esta spec pedia): o model não muda e a migração desta spec **não** cria coluna; o que falta é o campo nos schemas do produto e o rótulo no histórico. (2) A migração passa a ser `608dc99a8616`, filha de `d7a3e9c2f418` (R15-MIG). (3) As chaves de permissão ficam em `app/services/marcenaria/permissoes.py`, no padrão de `services/compras/permissoes.py` e `services/fabrica/permissoes.py` (não existe `app/core/permissoes.py`). (4) A lista de unidades fracionáveis é `UNIDADES_FRACIONAVEIS` (`app/services/quantidade_venda.py`). As chaves `view_fabrica`/`manage_fabrica` da fábrica aposentada **não** são reaproveitadas: significavam outra coisa (orçar e liberar compra).
 
 ---
 
@@ -14,7 +16,7 @@
 
 Criar as três peças que o orçamento de marcenaria vai usar, sem nenhuma tela de orçamento ainda:
 
-1. **`produto.sofre_perda`**: marca quais insumos recebem o fator de perda (MDF e fita sim; ferragem não).
+1. **`produto.sofre_perda`** no contrato do produto: marca quais insumos recebem o fator de perda (MDF e fita sim; ferragem não). A coluna já existe no banco (Revisão 1).
 2. **Parâmetros da marcenaria**: os valores padrão que todo orçamento novo copia (markup, perda, validade, prazo de entrega, custo/hora, RT) e as listas padrão de **etapas de produção** e de **checklist de vistoria**.
 3. **Permissões** `view_custos_marcenaria` (ver custos e margens) e `manage_custos_marcenaria` (alterar os parâmetros).
 
@@ -24,7 +26,7 @@ E uma capacidade nova, **`orcamento_tecnico`**, que a marcenaria declara e que l
 
 **Dentro do escopo**
 - Capacidade `orcamento_tecnico` e a função `segmento_tem_capacidade()` (a primeira consulta de capacidade no backend).
-- Coluna `produtos.sofre_perda`, nos schemas e no log de edição do produto.
+- Campo `sofre_perda` nos schemas e no log de edição do produto (a coluna `produtos.sofre_perda` já existe; Revisão 1).
 - Tabela `configuracoes_marcenaria` (1:1 com a empresa), CRUD, serviço e endpoints `GET`/`PUT /configuracoes/marcenaria`.
 - Duas chaves de permissão e o recorte do `GET` para quem não vê custos.
 - Migração Alembic que segue a regra do CLAUDE.md (PR8).
@@ -43,10 +45,9 @@ E uma capacidade nova, **`orcamento_tecnico`**, que a marcenaria declara e que l
 ```
 backend-fastapi/
 ├── alembic/versions/
-│   └── y8z9a0b1c2d3_base_marcenaria.py          # CRIAR — coluna + tabela (filha de x7y8z9a0b1c2; conferir com `alembic heads`)
+│   └── 608dc99a8616_base_marcenaria.py          # CRIAR — só a tabela (filha de d7a3e9c2f418; conferir com `alembic heads`)
 ├── app/
 │   ├── core/
-│   │   ├── permissoes.py                        # CRIAR (ou ALTERAR, se já houver um lugar para chaves) — chaves da marcenaria
 │   │   └── segmentos/
 │   │       ├── capacidades.py                   # ALTERAR — CAP_ORCAMENTO_TECNICO
 │   │       ├── __init__.py                      # ALTERAR — exportar o novo
@@ -55,7 +56,7 @@ backend-fastapi/
 │   │           └── marcenaria.py                # ALTERAR — declara orcamento_tecnico
 │   ├── db/
 │   │   ├── models/
-│   │   │   ├── produto.py                       # ALTERAR ⚠️ — sofre_perda
+│   │   │   ├── produto.py                       # CONFERIR — sofre_perda já existe (fábrica F1)
 │   │   │   ├── configuracao_marcenaria.py       # CRIAR
 │   │   │   ├── empresa.py                       # ALTERAR — relacionamento config_marcenaria
 │   │   │   └── __init__.py                      # ALTERAR — registrar o model
@@ -65,7 +66,10 @@ backend-fastapi/
 │   │   └── configuracao_marcenaria.py           # CRIAR
 │   ├── services/
 │   │   ├── produto.py                           # ALTERAR ⚠️ — rótulo "Sofre perda" no log de edição
-│   │   └── configuracao_marcenaria.py           # CRIAR
+│   │   ├── configuracao_marcenaria.py           # CRIAR
+│   │   └── marcenaria/
+│   │       ├── __init__.py                      # CRIAR (vazio; a Spec 05 põe o motor aqui)
+│   │       └── permissoes.py                    # CRIAR — chaves da marcenaria (padrão de compras/permissoes.py)
 │   └── api/v1/endpoints/configuracao.py         # ALTERAR — GET/PUT /configuracoes/marcenaria
 └── test/
     ├── core/test_registry_segmentos.py          # ALTERAR — capacidade nova
@@ -89,7 +93,7 @@ backend-fastapi/
 |---|---------|--------|
 | D1 | Capacidade nova **`orcamento_tecnico`**, declarada só pela marcenaria. Os endpoints de parâmetros respondem **404** em segmento sem ela | Regra do registry: nada de `if segmento == "marcenaria"`. A mesma capacidade liga, nas próximas specs, o campo no produto, a seção em Configurações e o menu Orçamentos |
 | D2 | Função `segmento_tem_capacidade(segmento, cap)` no registry | Hoje só o frontend consulta capacidades; o backend passa a precisar (D1) |
-| D3 | `produtos.sofre_perda`: `Boolean NOT NULL DEFAULT false` | F6. Coluna na tabela compartilhada, mas **aditiva**: nenhum segmento precisa enviá-la, e o padrão mantém o comportamento de todos |
+| D3 | `produtos.sofre_perda`: `Boolean NOT NULL DEFAULT false` — **já existe** (Revisão 1); esta spec só a expõe no contrato | F6. Coluna na tabela compartilhada, mas **aditiva**: nenhum segmento precisa enviá-la, e o padrão mantém o comportamento de todos |
 | D4 | O schema do produto **aceita** `sofre_perda` em qualquer segmento; só a tela da marcenaria mostra (04B) | Validar por segmento aqui seria regra sem benefício: o valor só é lido pelo motor da marcenaria |
 | D5 | Parâmetros numa tabela própria `configuracoes_marcenaria`, **1:1 com a empresa**, no mesmo padrão de `configuracoes_os` (get-or-create, `PUT` parcial) | Mesmo padrão das 6 configurações existentes |
 | D6 | Percentuais em **basis points** (`int`, 9000 = 90,00%); dinheiro em **centavos** (PR4) | Igual a `cargo.comissao_*` |
@@ -200,7 +204,7 @@ def segmento_tem_capacidade(segmento: Optional[str], capacidade: str) -> bool:
 
 `marcenaria.py`: `"capacidades": [CAP_IMAGEM_NA_ENTRADA, CAP_GARANTIA_PRAZO, CAP_ORCAMENTO_TECNICO]`.
 
-### 6.2. Chaves de permissão — `app/core/permissoes.py`
+### 6.2. Chaves de permissão — `app/services/marcenaria/permissoes.py`
 
 ```python
 # Chaves de permissao da marcenaria. SAO AS MESMAS da matriz de cargos do
@@ -224,7 +228,7 @@ def pode_ver_custos_marcenaria(usuario_token: dict) -> bool:
     return any(permissoes.get(p) is True for p in PERMISSOES_VER_CUSTOS)
 ```
 
-Se já existir no projeto um módulo de constantes de permissão no backend, colocar lá em vez de criar `permissoes.py`.
+Mesmo padrão de `services/compras/permissoes.py`: as listas de chaves e o `pode_ver_*` sem levantar erro, ao lado do módulo que as usa.
 
 ### 6.3. Model — `configuracao_marcenaria.py`
 
@@ -375,45 +379,34 @@ def update_configuracao_marcenaria(
 
 ### 6.7. Produto
 
-- `models/produto.py`:
+- `models/produto.py`: **não muda** (Revisão 1). A coluna já está declarada assim:
 
 ```python
-    # Insumo que recebe o fator de perda no orcamento de marcenaria (chapa, fita).
-    # Ferragem e perfil nao: compra-se a quantidade exata (SPEC-00, F6).
     sofre_perda: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default=sa.false(), nullable=False,
-        doc="Recebe o fator de perda no orçamento técnico (marcenaria)",
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="A perda do orçamento (%) entra na quantidade deste insumo (MDF e fita sim, ferragem não)",
     )
 ```
 
 - `schemas/produto.py`: `sofre_perda: bool = False` em `ProdutoCreate` (logo `ProdutoRead` herda); `sofre_perda: Optional[bool] = None` em `ProdutoUpdate`.
 - `services/produto.py`: `"sofre_perda": "Sofre perda"` em `_CAMPO_LEGIVEL`, para o histórico do produto dizer o que mudou. Conferir se a criação copia o campo para o model (se o serviço monta o `ProdutoModel` campo a campo, acrescentar).
 
-### 6.8. Migração — `y8z9a0b1c2d3_base_marcenaria.py`
+### 6.8. Migração — `608dc99a8616_base_marcenaria.py`
 
-Segue a `x7y8z9a0b1c2` e a regra do CLAUDE.md (decidir pelo schema **antigo**; o `create_all()` do startup já pode ter criado a tabela nova):
+`down_revision = "d7a3e9c2f418"` (a head de 08/10; R15-MIG) e a regra do CLAUDE.md (decidir pelo schema **antigo**; o `create_all()` do startup já pode ter criado a tabela nova). A coluna `produtos.sofre_perda` **não** entra: a `f1c7a2d9e3b4` já a cria, decidindo pela ausência dela.
 
 ```python
 def upgrade() -> None:
-    conn = op.get_bind()
-    insp = sa.inspect(conn)
-
-    # 1) Coluna nova em tabela que ja existe: so adiciona se faltar.
-    #    ADD COLUMN direto (nao batch_alter_table): com PRAGMA foreign_keys=ON o
-    #    batch recria a tabela e o DROP falha pelas FKs que apontam para produtos.
-    if insp.has_table("produtos") and not _tem_coluna(insp, "produtos", "sofre_perda"):
-        op.add_column("produtos", sa.Column("sofre_perda", sa.Boolean(), nullable=False,
-                                            server_default=sa.false()))
-
-    # 2) Tabela nova: o create_all() do startup costuma cria-la antes; so cria se faltar.
+    insp = sa.inspect(op.get_bind())                   # o que o banco tem AGORA
+    # Tabela nova: o create_all() do startup costuma cria-la antes; so cria se faltar.
     if not insp.has_table("configuracoes_marcenaria"):
         op.create_table("configuracoes_marcenaria", ...)  # mesmas colunas do model
 
 
 def downgrade() -> None:
-    # SQLite antigo nao remove coluna sem recriar a tabela; manter a coluna e
-    # remover so a tabela nova (mesma escolha das migracoes recentes do projeto).
-    op.drop_table("configuracoes_marcenaria")
+    insp = sa.inspect(op.get_bind())
+    if insp.has_table("configuracoes_marcenaria"):     # nao falha num banco sem a tabela
+        op.drop_table("configuracoes_marcenaria")
 ```
 
 Conferir com `alembic heads` qual é a head atual antes de fixar `down_revision`, e seguir o padrão de nome das migrações recentes.
@@ -424,7 +417,7 @@ Conferir com `alembic heads` qual é a head atual antes de fixar `down_revision`
 
 1. `pytest test/` inteiro antes e depois.
 2. **Produto em todos os segmentos:** criar e editar produto sem enviar `sofre_perda` → resposta igual à de hoje, mais `"sofre_perda": false`. O frontend atual ignora a chave nova.
-3. **Migração em banco antigo:** copiar um banco de desenvolvimento de antes desta spec, subir o backend (startup roda `create_all()` + `upgrade head`): produtos existentes com `sofre_perda = false`, tabela nova criada, nenhum dado alterado.
+3. **Migração em banco antigo:** copiar um banco de desenvolvimento de antes desta spec, subir o backend (startup roda `create_all()` + `upgrade head`): tabela nova criada, nenhum dado alterado, `produtos.sofre_perda` com os valores que já tinha.
 4. **Migração em banco novo:** banco vazio → `create_all()` cria tudo → `upgrade head` não falha (nada a fazer).
 5. Endpoints de configuração existentes (`/clientes`, `/produtos`, `/os`, `/vendas`, `/seguranca`) iguais.
 
@@ -432,7 +425,8 @@ Conferir com `alembic heads` qual é a head atual antes de fixar `down_revision`
 
 - **Chaves antigas × chaves da matriz (conferido):** alguns endpoints conferem chaves antigas (`"produto"`, `"servico"`, `"cargo"`), enquanto a matriz de cargos usa `view_products`, `manage_services` etc. A tela de cargos traduz ao salvar (`applyEndpointPermissions` + `MODULE_PERMISSION_MAP` em `positions.constants.ts`). As chaves da marcenaria são **iguais** nos dois lados, como as do financeiro, e **não** entram no `MODULE_PERMISSION_MAP`.
 - **Custo do insumo no orçamento:** qual custo do produto é copiado para o BOM (`estoque.valor_entrada`, o último preço de compra, ou `estoque.custo_medio`)? A decisão fica para a Spec 06A, que é onde o custo é copiado (O3). Recomendação prévia: último preço de compra (é o que o dono vai pagar na próxima chapa).
-- **Retirada fracionada (E3):** a Spec 10A decide "arredonda para cima" pela `unidade_medida` do produto (M, CM, KG, G, L, ML, M2, M3 aceitam fração; o resto, como UN, não). **Não** é preciso coluna nova para isso.
+- **Retirada fracionada (E3b):** a Spec 10A decide "arredonda para cima" pela `unidade_medida` do produto, com a lista que já existe, `UNIDADES_FRACIONAVEIS` (`app/services/quantidade_venda.py`: KG, G, L, ML, M, CM, M2, M3 aceitam fração; o resto, como UN, não). **Não** é preciso coluna nova para isso.
+- **Colunas da fábrica no produto:** `unidade_consumo` e `consumo_por_unidade` ficam no banco sem uso (FB1); o motor da Spec 05 trabalha na unidade do estoque.
 
 ## 9. Entrega (PR7)
 
@@ -495,5 +489,6 @@ Conferir com `alembic heads` qual é a head atual antes de fixar `down_revision`
 
 | # | Cenário | Resultado esperado |
 |---|---------|--------------------|
-| 21 | Banco com `produtos` sem a coluna e com 2 produtos; `upgrade()` | Coluna criada; os 2 com `sofre_perda = false`; tabela de configuração criada |
-| 22 | Banco já com a coluna e a tabela (criadas pelo `create_all`); `upgrade()` | Nada muda, sem erro |
+| 21 | Banco na `d7a3e9c2f418` sem a tabela; `upgrade()` | Tabela de configuração criada; `produtos` intacta |
+| 22 | Banco já com a tabela (criada pelo `create_all`); `upgrade()` | Nada muda, sem erro |
+| 22a | `downgrade()` e `upgrade()` de novo | Tabela removida e recriada, sem erro |

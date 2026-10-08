@@ -4,9 +4,11 @@
 |--------------|---------------------------------------------------------------------------------------|
 | Status       | Rascunho — aguardando aprovação                                                       |
 | Camada       | Backend (FastAPI)                                                                     |
-| Dependências | Specs 06A (móvel `TERCEIRIZADA`, central), 08A (aprovação, bloqueios do desfazer), 09A (ganchos, F2a, regra D14) |
+| Dependências | Specs 06A (móvel `TERCEIRIZADA`, central), 08A (aprovação, bloqueios do desfazer), 09A (ganchos, F2a) · módulo Compras (`services/compras/pedidos.py`, usado como é) |
 | Bloqueia     | Specs 11B, 12A (o terceirizado conta como pronto quando conferido)                    |
-| Referência   | SPEC-00: E6, E6a, F2a, C5a, P4, O8, T7 · PR1, PR4, PR6, PR7, PR8 |
+| Referência   | SPEC-00: E6, E6a, E6b, F2a, C5a, P4, O8, T7, FB2, R15-MIG · PR1, PR4, PR6, PR7, PR8 |
+
+> **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15, E6b).** O Compras já tem pedido de compra de **serviço** (`tipo = SERVICO`, o caminho que a fábrica F5 usava para a central de corte), com envio, recebimento e lançamento das contas a pagar no recebimento. Com o módulo COMPRAS, o pedido à central passa a ser esse pedido, e a situação do móvel **acompanha** o pedido; saem a oferta de conta própria e a categoria "Produção terceirizada" (a conta do recebimento sai sem categoria, e conta sem categoria já conta como despesa no resultado). Sem o módulo, a situação é marcada à mão, como na versão anterior, e a conta é lançada em Contas a Pagar. "Conferido" e "registrar problema" são da marcenaria nos dois casos. Migração `642b2e8f79fa`.
 
 ---
 
@@ -14,23 +16,24 @@
 
 Acompanhar o móvel que a marcenaria **não produz**: ela compra pronto de uma **central parceira** (um fornecedor, E6) e só instala.
 
-1. Registrar o **pedido** à central (número, data, previsão de chegada), para um ou vários móveis de uma vez.
-2. Marcar o **recebimento** e a **conferência**, com o registro de problema quando o móvel chega com defeito.
-3. **Oferecer** o lançamento da conta a pagar da central no recebimento, com o valor editável (E6: a nota às vezes muda) e na categoria certa (09A D14).
-4. Mostrar os pedidos **atrasados** de todas as OS.
+1. Pedir à central (um ou vários móveis de uma vez): **com o Compras**, criando o pedido de serviço lá; **sem o Compras**, anotando o número e a previsão.
+2. Acompanhar o recebimento e marcar a **conferência**, com o registro de problema quando o móvel chega com defeito.
+3. Mostrar os pedidos **atrasados** de todas as OS.
 
 ## 2. Escopo
 
 **Dentro do escopo**
-- Situação do terceirizado por móvel e as transições.
-- Conta a pagar da central (por pedido, não por móvel).
+- Situação do terceirizado por móvel (derivada do pedido do Compras, ou manual sem ele).
+- "Pedir à central" pelo Compras (pedido `SERVICO`).
+- Conferir, registrar problema, voltar um passo.
 - Lista geral de terceirizados em aberto.
 - Bloqueio do "desfazer aprovação" e aviso no cancelamento.
 
 **Fora do escopo**
 - Telas (11B).
-- Cotação entre centrais, pedido de compra formal.
-- Integração com o sistema da central.
+- Enviar, receber, cancelar o pedido e lançar a conta: são do **Compras**, como ele é (FB2).
+- Cotação entre centrais; integração com o sistema da central.
+- Qualquer mudança no módulo Compras.
 
 ---
 
@@ -38,10 +41,9 @@ Acompanhar o móvel que a marcenaria **não produz**: ela compra pronto de uma *
 
 ```
 backend-fastapi/
-├── alembic/versions/d3e4f5a6b7c8_terceirizados_marcenaria.py    # CRIAR — filha da 10A
+├── alembic/versions/642b2e8f79fa_terceirizados_marcenaria.py    # CRIAR — filha da 09A (195109da93f7)
 ├── app/
 │   ├── db/models/marcenaria/ambiente.py                          # ALTERAR — colunas do terceirizado no móvel
-│   ├── db/models/marcenaria/configuracao.py                      # ALTERAR — terceirizado_plano_conta_id
 │   ├── schemas/marcenaria/terceirizado.py                        # CRIAR
 │   ├── services/marcenaria/terceirizado.py                       # CRIAR
 │   ├── services/marcenaria/__init__.py                           # ALTERAR — bloqueio do desfazer + gancho de cancelamento
@@ -49,7 +51,7 @@ backend-fastapi/
 └── test/services/marcenaria/test_terceirizado.py                 # CRIAR
 ```
 
-Nenhum arquivo compartilhado muda: a conta usa `criar_conta_pagar` como ele é.
+**Nenhum arquivo compartilhado muda.** Usados como são: `services/compras/pedidos` (`validar_fornecedor`, `novo_rascunho`, `_recalcular`, `_definir_parcelas`, `registrar_log`), os modelos `PedidoCompra`/`PedidoCompraItem`, `core/modulos.requer_modulo("COMPRAS")` na rota de pedir, e `services/licenca.modulos_da_licenca` para o `modo_compras` da leitura, com a **mesma regra** do `requer_modulo` para o Compras: lista vazia ou sem resposta = **não** contratado (o Compras está em `MODULOS_NEGADOS_SEM_RESPOSTA`, ao contrário do Financeiro).
 
 ---
 
@@ -59,55 +61,52 @@ Nenhum arquivo compartilhado muda: a conta usa `criar_conta_pagar` como ele é.
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D1 | Cada móvel `TERCEIRIZADA` aprovado tem uma situação: **A pedir** → **Pedido enviado** → **Recebido** → **Conferido** (`A_PEDIR`, `ENVIADO`, `RECEBIDO`, `CONFERIDO`). Nasce `A_PEDIR` na aprovação (preenchido pela regra "aprovado e terceirizado sem situação = A_PEDIR", sem mexer na 08A) | E6, com o passo inicial que faltava: entre aprovar e pedir há dias, e o dono precisa ver o que ainda não foi pedido |
-| D2 | **Enviar pedido** recebe uma lista de móveis **da mesma central**, o número do pedido externo (até 60 caracteres, opcional) e a **previsão de chegada** (data, opcional). Todos ficam com o mesmo pedido | Um pedido à central costuma cobrir vários móveis da obra |
-| D3 | **Receber** recebe a lista de móveis e a data (padrão hoje). **Conferir** marca como conferido; **Registrar problema** mantém `RECEBIDO` com o texto do problema (até 500) e a data | O móvel que chega riscado não está pronto para instalar; o problema fica escrito para cobrar a central |
-| D4 | **Voltar um passo** (para corrigir clique errado): `CONFERIDO → RECEBIDO → ENVIADO → A_PEDIR`. Voltar de `ENVIADO` para `A_PEDIR` limpa pedido e previsão. Bloqueado se o móvel tem conta a pagar **paga** | Erro de clique não pode exigir suporte; dinheiro pago não volta por um clique |
-| D5 | Toda transição grava evento (06A D25) com quem, quando e o número do pedido | T7 |
-| D6 | Só com a OS aberta (como a separação, 10A D13) | A OS fechada não tem mais o que acompanhar |
-| D7 | **Atrasado:** `ENVIADO` com previsão antes de hoje. Calculado na leitura (sem coluna) | A previsão é o compromisso da central; a cobrança começa no dia seguinte |
+| D1 | Cada móvel `TERCEIRIZADA` aprovado tem uma situação: **A pedir** → **Pedido enviado** → **Recebido** → **Conferido** (`A_PEDIR`, `ENVIADO`, `RECEBIDO`, `CONFERIDO`) | E6a |
+| D2 | **Com pedido do Compras** (`pedido_compra_id` preenchido e o pedido não cancelado), a situação é **derivada** do pedido: `RASCUNHO` → `A_PEDIR` (com o selo "pedido em rascunho" e o código); `ENVIADO`/`PARCIAL` → `ENVIADO` (previsão = `previsao_entrega` do pedido); `RECEBIDO` → `RECEBIDO`. `CONFERIDO` é da marcenaria (`terc_conferido_em`) e só vale com o pedido `RECEBIDO` | Uma fonte só para cada fato: o Compras sabe se o pedido saiu e se chegou; a fábrica sabe se o móvel está bom |
+| D3 | **Sem pedido do Compras**, a situação é **gravada** no móvel (`terc_situacao`) e muda pelas ações manuais: enviar (nº do pedido em texto até 60, previsão opcional), receber (data, padrão hoje) | E6b, modo sem o módulo |
+| D4 | **Registrar problema** (texto até 500): o móvel fica `RECEBIDO`, com o texto e a data, nos dois modos. **Conferir** limpa o problema | O móvel riscado não está pronto para instalar; o texto fica para cobrar a central |
+| D5 | **Voltar um passo:** `CONFERIDO → RECEBIDO` nos dois modos. No modo manual, também `RECEBIDO → ENVIADO → A_PEDIR` (voltar para `A_PEDIR` limpa pedido e previsão). No modo Compras, os outros passos voltam pelo Compras (cancelar o pedido devolve o móvel a `A_PEDIR`) | Erro de clique sem suporte; e o pedido no Compras não muda por baixo dele |
+| D6 | Toda ação grava evento (06A D25) com quem, quando e o pedido | T7 |
+| D7 | Só com a OS aberta (como a separação, 10A D14) | A OS fechada não tem mais o que acompanhar |
+| D8 | **Atrasado:** `ENVIADO` com previsão antes de hoje (a do pedido do Compras, ou a anotada). Calculado na leitura | A previsão é o compromisso da central |
 
-### 4.2. Conta a pagar da central (E6)
+### 4.2. Pedir à central pelo Compras (E6b)
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D8 | **Oferecida, não automática:** a resposta do **receber** traz `oferta_conta` com a central, os móveis recebidos juntos e o **valor sugerido** = Σ (valor da central × quantidade) desses móveis, copiado do orçamento. Só com `view_custos` o valor sugerido aparece; sem, vem vazio | E6: o valor da nota às vezes muda. P4: o valor do orçamento é custo |
-| D9 | `POST /terceirizados/conta` cria **uma** conta para um grupo de móveis da mesma central: valor (obrigatório), vencimento (obrigatório; padrão hoje + 30), parcelas (opcional, o parcelamento que o Contas a Pagar já tem) e descrição sugerida "Madeiranit — pedido 4521 — OS-2026-000512 (Torre Quente, Painel TV)" | Uma nota = uma conta; o parcelamento existente cobre o "3x no boleto" |
-| D10 | Categoria **"Produção terceirizada"**, tipo **`DESPESA`**, achada ou criada na primeira vez e guardada pelo id em `configuracoes_marcenaria.terceirizado_plano_conta_id` (mesma regra da 09A D5) | 09A D14 (F2a): em `CUSTO` ("Fornecedores / Mercadoria") o gasto ficaria fora do resultado do mês |
-| D11 | Cada móvel guarda o `conta_pagar_id`. Móvel que já tem conta **ativa** (pendente ou paga) não entra em outra: `409` "O móvel Torre Quente já tem conta lançada." | Evita pagar a mesma nota duas vezes |
-| D12 | Lançar a conta exige o módulo **Financeiro** e `manage_financeiro` (as mesmas travas das rotas do Contas a Pagar). A conta pode ser lançada **depois**, a qualquer momento depois do recebimento, enquanto a OS estiver aberta ou finalizada | Lançar conta é ato financeiro. Quem recebe o móvel na fábrica nem sempre é quem lança a conta |
-| D13 | Diferença entre o valor lançado e o orçado vai para o evento ("Nota de R$ 3.950,00; orçado R$ 3.800,00; +3,9%") | O dono vê quanto a central cobrou a mais sem refazer conta |
+| D9 | `POST /os/{n}/terceirizados/pedir` recebe móveis **da mesma central** em `A_PEDIR` e cria **um** pedido de compra pelo serviço do Compras: `novo_rascunho(db, token, central)`, `tipo = SERVICO`, um item **sem produto** por móvel (`descricao` = "Serviço: {ambiente} — {móvel} ({medidas}) · {OS}", `unidade_compra = "SV"`, `fator = 1`, `quantidade` = quantidade do móvel, `custo_unitario` = `terceirizado_centavos` copiado do orçamento), `previsao_entrega` e `observacao` opcionais. O pedido nasce **rascunho**; enviar, receber e cancelar são feitos no Compras | Mesmo caminho da fábrica F5, agora com vários móveis num pedido (E6a). O Compras cuida do WhatsApp, do recebimento parcial e das parcelas |
+| D10 | Exige o módulo **COMPRAS** contratado e a permissão `manage_purchases` (a do Compras para criar pedido), além de `servico` | A trava comercial e a interna do Compras continuam as dele |
+| D11 | Cada móvel guarda o `pedido_compra_id`. Móvel com pedido não cancelado não entra em outro: `409` "O móvel Torre Quente já está no pedido PC-…" | Evita pedir duas vezes |
+| D12 | **Conta a pagar:** é lançada pelo **recebimento** do pedido no Compras (`recebimentos.lancar_contas`, sem categoria = despesa no resultado). A marcenaria não lança conta | FB2. F2a: o terceirizado entra no resultado uma vez, pela conta paga (09A D14) |
+| D13 | O valor do pedido segue a regra de custo do Compras (quem não vê custo de compra não vê preço do pedido). A resposta da marcenaria traz `valor_orcado_centavos` só com `view_custos_marcenaria` | P4 dos dois lados |
 
 ### 4.3. Permissões e outras regras
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D14 | Situação (enviar, receber, conferir, problema, voltar): permissão de **OS** (`servico`), como a separação | A aba fica na OS (T1) |
-| D15 | Nenhum valor nas respostas de situação sem `view_custos` (P4). Com `view_custos`, `valor_orcado_centavos` por móvel | P4 |
-| D16 | **Desfazer aprovação** (08A §7.6) bloqueado com algum móvel `ENVIADO` ou além: "Já há pedido enviado à central Madeiranit (pedido 4521). Cancele com a central e volte o móvel para 'A pedir' antes de desfazer." | O8: desfazer com pedido feito deixaria a central produzindo sem OS |
-| D17 | **Cancelar a OS** (gancho da 09A) com móvel `ENVIADO`/`RECEBIDO`/`CONFERIDO`: evento "Há móveis terceirizados pedidos à central para esta OS: Torre Quente (pedido 4521, Recebido). Combine com a central." Contas pendentes da central **não** são canceladas sozinhas | O móvel existe e foi pedido; a dívida com a central não some porque o cliente desistiu |
-| D18 | Lista geral: `GET /marcenaria/terceirizados?situacao=&central_id=&atrasados=` com OS, cliente, móvel, central, pedido, previsão e situação, das OS abertas | O dono liga para a central uma vez por dia com a lista dos atrasados |
+| D14 | Leitura, conferir, problema, voltar e o modo manual: permissão de **OS** (`servico`) | A seção fica na aba da OS (T1) |
+| D15 | **Desfazer aprovação** (08A §7.6) bloqueado com algum móvel com pedido do Compras não cancelado, ou `ENVIADO` ou além no modo manual: "Já há pedido à central Madeiranit (PC-000123). Cancele o pedido no Compras e volte o móvel para 'A pedir' antes de desfazer." | O8: desfazer com pedido feito deixaria a central produzindo sem OS |
+| D16 | **Cancelar a OS** (gancho da 09A) com móvel pedido: evento "Há móveis pedidos à central para esta OS: Torre Quente (PC-000123, Recebido). Combine com a central." O pedido e as contas **não** são cancelados sozinhos | O móvel existe e foi pedido; a dívida com a central não some porque o cliente desistiu |
+| D17 | Lista geral: `GET /marcenaria/terceirizados?situacao=&central_id=&atrasados=` com OS, cliente, móvel, central, pedido, previsão e situação, das OS abertas | O dono liga para a central uma vez por dia com a lista dos atrasados |
 
 ---
 
 ## 5. Modelo de dados
 
 ```sql
-ALTER TABLE marcenaria_moveis ADD COLUMN terc_situacao VARCHAR(10);          -- NULL = A_PEDIR quando aprovado e terceirizado
-ALTER TABLE marcenaria_moveis ADD COLUMN terc_pedido VARCHAR(60);
+ALTER TABLE marcenaria_moveis ADD COLUMN pedido_compra_id INTEGER REFERENCES pedidos_compra(id) ON DELETE SET NULL; -- D9
+ALTER TABLE marcenaria_moveis ADD COLUMN terc_situacao VARCHAR(10);    -- modo manual (D3); NULL = A_PEDIR
+ALTER TABLE marcenaria_moveis ADD COLUMN terc_pedido VARCHAR(60);      -- nº anotado no modo manual
 ALTER TABLE marcenaria_moveis ADD COLUMN terc_enviado_em DATE;
 ALTER TABLE marcenaria_moveis ADD COLUMN terc_previsao DATE;
 ALTER TABLE marcenaria_moveis ADD COLUMN terc_recebido_em DATE;
-ALTER TABLE marcenaria_moveis ADD COLUMN terc_conferido_em DATE;
-ALTER TABLE marcenaria_moveis ADD COLUMN terc_problema VARCHAR(500);
-ALTER TABLE marcenaria_moveis ADD COLUMN terc_conta_pagar_id INTEGER REFERENCES contas_pagar(id);
-ALTER TABLE configuracoes_marcenaria ADD COLUMN terceirizado_plano_conta_id INTEGER REFERENCES planos_conta(id);
+ALTER TABLE marcenaria_moveis ADD COLUMN terc_conferido_em DATE;       -- os dois modos (D2)
+ALTER TABLE marcenaria_moveis ADD COLUMN terc_problema VARCHAR(500);   -- os dois modos (D4)
+CREATE INDEX ix_marcenaria_moveis_pedido ON marcenaria_moveis (pedido_compra_id);
 CREATE INDEX ix_marcenaria_moveis_terc ON marcenaria_moveis (terc_situacao, terc_previsao);
 ```
 
-Migração `d3e4f5a6b7c8`, filha de `c2d3e4f5a6b7` (10A), com a regra da 08A §5.1 (só se a coluna faltar, sem `batch`).
-
-Colunas no próprio móvel, e não tabela de pedidos, porque o pedido aqui é só um número e uma data repetidos nos móveis do grupo; uma tabela de pedidos só se pagaria com cotação e itens de pedido, que estão fora.
+Migração `642b2e8f79fa`, filha de `195109da93f7` (09A), com a regra da 08A §5.1 (só se a coluna faltar, sem `batch`). Tabela da marcenaria: nenhuma tabela compartilhada muda.
 
 ---
 
@@ -117,14 +116,14 @@ Prefixo `/api/v1/marcenaria`.
 
 | Método e rota | Permissão | O que faz |
 |---------------|-----------|-----------|
-| `GET /os/{numero_os}/terceirizados` | servico | Móveis terceirizados da OS (§6.1) |
-| `POST /os/{numero_os}/terceirizados/enviar` | servico | `{movel_ids, pedido?, previsao?}` (D2) |
-| `POST /os/{numero_os}/terceirizados/receber` | servico | `{movel_ids, data?}` → móveis + `oferta_conta` (D8) |
+| `GET /os/{numero_os}/terceirizados` | servico | Móveis terceirizados da OS (§6.1) e `modo_compras` (se o módulo está ativo) |
+| `POST /os/{numero_os}/terceirizados/pedir` | servico + COMPRAS + manage_purchases | `{movel_ids, previsao_entrega?, observacao?}` → o pedido criado (D9) |
+| `POST /os/{numero_os}/terceirizados/enviar-manual` | servico | `{movel_ids, pedido?, previsao?}` — só sem pedido do Compras (D3) |
+| `POST /os/{numero_os}/terceirizados/receber-manual` | servico | `{movel_ids, data?}` — só sem pedido do Compras (D3) |
 | `POST /os/{numero_os}/terceirizados/conferir` | servico | `{movel_ids}` |
-| `POST /os/{numero_os}/terceirizados/{movel_id}/problema` | servico | `{texto}` (D3) |
-| `POST /os/{numero_os}/terceirizados/{movel_id}/voltar` | servico | D4 |
-| `POST /os/{numero_os}/terceirizados/conta` | módulo FINANCEIRO + manage_financeiro | `{movel_ids, valor_centavos, vencimento, parcelas?, descricao?}` (D9) |
-| `GET /terceirizados?situacao=&central_id=&atrasados=` | servico | D18 |
+| `POST /os/{numero_os}/terceirizados/{movel_id}/problema` | servico | `{texto}` (D4) |
+| `POST /os/{numero_os}/terceirizados/{movel_id}/voltar` | servico | D5 |
+| `GET /terceirizados?situacao=&central_id=&atrasados=` | servico | D17 |
 
 ### 6.1. Móvel terceirizado
 
@@ -133,86 +132,70 @@ Prefixo `/api/v1/marcenaria`.
   "movel_id": 10, "nome": "Torre Quente", "ambiente": "Cozinha Gourmet", "quantidade": 1,
   "medidas": { "largura_mm": 700, "altura_mm": 2200, "profundidade_mm": 600 },
   "central": { "id": 9, "nome": "Madeiranit", "telefone": "8533…" },
-  "situacao": "ENVIADO", "pedido": "4521", "enviado_em": "2026-10-08", "previsao": "2026-10-20",
-  "atrasado": false, "recebido_em": null, "conferido_em": null, "problema": null,
-  "conta": null,                                  // { id, status, valor_centavos, vencimento } quando lançada
-  "valor_orcado_centavos": 380000                 // só com view_custos (D15)
+  "situacao": "ENVIADO", "atrasado": false, "previsao": "2026-10-20",
+  "pedido": { "origem": "COMPRAS", "id": 123, "codigo": "PC-000123", "situacao": "ENVIADO" },  // ou {"origem": "MANUAL", "numero": "4521"} ou null
+  "enviado_em": "2026-10-08", "recebido_em": null, "conferido_em": null, "problema": null,
+  "valor_orcado_centavos": 380000                 // só com view_custos_marcenaria (D13)
 }
 ```
 
-### 6.2. Oferta de conta (resposta do receber)
-
-```jsonc
-"oferta_conta": {
-  "central": { "id": 9, "nome": "Madeiranit" },
-  "movel_ids": [10, 12],
-  "valor_sugerido_centavos": 760000,              // null sem view_custos (D8)
-  "descricao_sugerida": "Madeiranit — pedido 4521 — OS-2026-000512 (Torre Quente, Painel TV)",
-  "vencimento_sugerido": "2026-11-07"
-}
-// null quando todos os móveis recebidos já têm conta (D11)
-```
-
-### 6.3. Erros
+### 6.2. Erros
 
 | Status | `detail` | Quando |
 |--------|----------|--------|
-| `422` | "Os móveis do mesmo pedido precisam ser da mesma central." | D2, D9 |
+| `422` | "Os móveis do mesmo pedido precisam ser da mesma central." | D9, D3 |
 | `422` | "Este móvel não é terceirizado." | Móvel `INTERNA` |
 | `409` | "Ação não permitida: o móvel Torre Quente está {situação}." | Transição fora de ordem |
-| `409` | "O móvel Torre Quente já tem conta lançada." | D11 |
-| `409` | "Não é possível voltar: a conta da central já foi paga." | D4 |
-| `409` | `{codigo: "OS_FECHADA"}` | D6 |
-| `403` | `MODULO_NAO_CONTRATADO` / permissão | D12 |
+| `409` | "O móvel Torre Quente já está no pedido PC-000123." | D11 |
+| `409` | "Este móvel tem pedido no Compras: envie e receba por lá." | Ação manual num móvel com pedido do Compras |
+| `409` | `{codigo: "OS_FECHADA"}` | D7 |
+| `403` | `MODULO_NAO_CONTRATADO` / permissão do Compras | D10 |
 
 ---
 
 ## 7. Especificação técnica
 
 ```python
-def receber(db, numero_os, movel_ids, data, usuario) -> RecebimentoResposta:
-    os_, orc = _os_editavel(db, numero_os)                              # D6
-    moveis = _terceirizados_da_os(orc, movel_ids)                       # 422 se algum não for terceirizado
-    for movel in moveis:
-        _exigir_situacao(movel, "ENVIADO")                              # 409 fora de ordem
-        movel.terc_situacao, movel.terc_recebido_em = "RECEBIDO", data or hoje_local()
-    registrar_evento(db, orc, "TERCEIRIZADO_RECEBIDO", _frase(moveis), os_id=os_.id, usuario=usuario)
-    return RecebimentoResposta(
-        moveis=[_montar(m, usuario) for m in moveis],
-        oferta_conta=_oferta(moveis, os_, usuario),                     # D8: None se todos já têm conta
-    )
-
-
-def lancar_conta(db, numero_os, dados: ContaTerceirizadoEntrada, usuario) -> dict:
-    os_, orc = _os_com_orcamento(db, numero_os)                         # aberta ou finalizada (D12)
-    moveis = _terceirizados_da_os(orc, dados.movel_ids)
+def pedir(db, numero_os, dados: PedidoCentralEntrada, usuario) -> PedidoServicoRead:
+    os_, orc = _os_editavel(db, numero_os)                              # D7
+    moveis = _terceirizados_da_os(orc, dados.movel_ids)                 # 422 se algum não for terceirizado
     _exigir_mesma_central(moveis)                                       # D9
-    _exigir_sem_conta_ativa(moveis)                                     # D11
-    conta = financeiro_service.criar_conta_pagar(                       # o caminho de sempre
-        db, empresa_id=_empresa(os_),
-        dados=ContaPagarCreate(
-            descricao=dados.descricao or _descricao_sugerida(moveis, os_),
-            valor=dados.valor_centavos, vencimento=dados.vencimento, parcelas=dados.parcelas or 1,
-            plano_conta_id=_plano_terceirizado(db),                     # D10: DESPESA
-            fornecedor_id=moveis[0].central_fornecedor_id,
-        ),
-        usuario_token=usuario,
-    )
     for movel in moveis:
-        movel.terc_conta_pagar_id = conta["id"]                         # parcelado: a 1ª parcela (id do grupo)
-    registrar_evento(db, orc, "TERCEIRIZADO_CONTA_LANCADA", _frase_diferenca(moveis, dados), os_id=os_.id)
-    return conta
+        _exigir_situacao(movel, "A_PEDIR")                              # inclui "sem pedido ativo" (D11)
+    central = pedidos_service.validar_fornecedor(db, moveis[0].central_fornecedor_id)
+    pedido = pedidos_service.novo_rascunho(db, usuario, central)        # o Compras numera e registra
+    pedido.tipo = TipoPedido.SERVICO                                    # serviço não entra no estoque
+    pedido.previsao_entrega = dados.previsao_entrega
+    pedido.observacao = (dados.observacao or "").strip() or None
+    for movel in moveis:
+        pedido.itens.append(PedidoCompraItem(
+            produto_id=None,                                            # serviço: sem produto
+            descricao=_descricao_servico(movel, os_)[:255],
+            unidade_compra="SV", fator=1,
+            quantidade=movel.quantidade,
+            custo_unitario=movel.terceirizado_centavos,                 # o orçado, copiado (06A)
+        ))
+    pedidos_service._recalcular(pedido)                                 # totais do pedido, como o Compras faz
+    pedidos_service._definir_parcelas(pedido, None)                     # parcelas padrão do Compras
+    db.flush()
+    pedidos_service.registrar_log(db, usuario, pedido, "CRIADO", None, SituacaoPedido.RASCUNHO,
+                                  f"Central parceira da OS {os_.numero_os}")
+    for movel in moveis:
+        movel.pedido_compra_id = pedido.id                              # D11
+    registrar_evento(db, orc, "TERCEIRIZADO_PEDIDO", ..., os_id=os_.id, usuario=usuario)   # D6
+    return _pedido_read(pedido)
 ```
 
-- "Conta ativa" (D11) olha o **grupo** do parcelamento: se qualquer parcela estiver paga ou pendente, está ativa; se todas foram canceladas, o móvel pode receber outra conta.
-- Os bloqueios (D16) e o aviso de cancelamento (D17) entram nas listas `BLOQUEIOS_DESFAZER` (08A §7.6) e `ganchos.ao_cancelar` (09A §6.1).
+- É o mesmo uso de `pedidos_service` que `services/fabrica/terceiros.criar_pedido` fazia (código conferido em 08/10), com vários itens. As funções com `_` do Compras são usadas pelo próprio pacote e pela fábrica; se o Compras ganhar uma função pública equivalente, trocar por ela.
+- `_situacao(movel, pedido)` implementa D2/D3 numa função só, usada pela leitura, pela lista geral (D17) e pela Spec 12A (pronto = `CONFERIDO`).
+- Os bloqueios (D15) e o aviso de cancelamento (D16) entram nas listas `BLOQUEIOS_DESFAZER` (08A §7.6) e `ganchos.ao_cancelar` (09A §6.1).
 
 ---
 
 ## 8. Limitações conhecidas
 
-- Sem cotação entre centrais nem pedido formal (fora da fase 1).
-- Um pedido = um número repetido nos móveis; se a central dividir a entrega, cada móvel é recebido na sua data, mas o pedido continua o mesmo.
+- Sem cotação entre centrais (fora da fase 1).
+- Sem o módulo Compras, a conta da central é lançada à mão em Contas a Pagar, numa categoria de despesa (09A D14).
 - O móvel terceirizado **não** tem etapas de produção (12A): para a produção, ele está pronto quando `CONFERIDO`.
 
 ## 9. Entrega (PR7)
@@ -223,31 +206,33 @@ def lancar_conta(db, numero_os, dados: ContaTerceirizadoEntrada, usuario) -> dic
 
 ## 10. Critérios de aceite
 
-- [ ] Móvel terceirizado aprovado aparece "A pedir"; enviar vários juntos com pedido e previsão; receber; conferir; registrar problema; voltar um passo.
-- [ ] Receber oferece a conta com o valor do orçamento (só com custos), a descrição e o vencimento sugeridos; lançar cria a conta na categoria "Produção terceirizada" (despesa), com o fornecedor da central, parcelável.
-- [ ] Móvel com conta ativa não entra em outra conta.
-- [ ] Atrasados aparecem na lista geral.
-- [ ] Desfazer aprovação bloqueado com pedido enviado; cancelamento registra o aviso.
-- [ ] Nenhum valor sem `view_custos`. Código comentado (PR6).
+- [ ] Móvel terceirizado aprovado aparece "A pedir".
+- [ ] Com o Compras: pedir vários móveis da mesma central cria **um** pedido `SERVICO` em rascunho, com um item por móvel; a situação acompanha o pedido (enviado, recebido) e o recebimento no Compras lança a conta.
+- [ ] Sem o Compras: enviar (com nº e previsão) e receber à mão.
+- [ ] Conferir, registrar problema e voltar um passo nos dois modos.
+- [ ] Atrasados na lista geral.
+- [ ] Desfazer aprovação bloqueado com pedido; cancelamento registra o aviso.
+- [ ] Nenhum valor sem `view_custos_marcenaria`; o Compras sem mudança. Código comentado (PR6).
 
 ## 11. Casos de teste
 
 | # | Cenário | Resultado esperado |
 |---|---------|--------------------|
-| 01 | Aprovar orçamento com 2 terceirizados | Os dois `A_PEDIR` |
-| 02 | Enviar os dois, pedido 4521, previsão +12 dias | `ENVIADO`; evento com o pedido |
-| 03 | Enviar móveis de centrais diferentes juntos | `422` |
-| 04 | Receber um deles | `RECEBIDO`; `oferta_conta` só com ele; valor = valor da central × quantidade |
-| 05 | Receber sem `view_custos` | `valor_sugerido_centavos: null` |
-| 06 | Lançar conta de R$ 3.950 sobre orçado R$ 3.800, 3x | 3 parcelas; categoria "Produção terceirizada" (`DESPESA`); fornecedor da central; evento com +3,9% |
-| 07 | Lançar de novo para o mesmo móvel | `409` |
-| 08 | Cancelar as 3 parcelas e lançar de novo | Aceita |
-| 09 | Conferir sem ter recebido | `409` |
-| 10 | Registrar problema | Continua `RECEBIDO`, com o texto |
-| 11 | Voltar de `ENVIADO` | `A_PEDIR`; pedido e previsão limpos |
-| 12 | Voltar de `RECEBIDO` com conta paga | `409` |
-| 13 | `ENVIADO` com previsão ontem | `atrasado: true`; aparece em `?atrasados=true` |
-| 14 | Desfazer aprovação com um móvel `ENVIADO` | Motivo do D16 |
-| 15 | Cancelar OS com móvel `RECEBIDO` | Evento do D17; conta pendente intacta |
-| 16 | Lançar conta numa loja sem o módulo Financeiro | `403 MODULO_NAO_CONTRATADO` |
-| 17 | Resultado do mês com a conta paga | Valor nas despesas (categoria `DESPESA`), não no CMV (F2a) |
+| 01 | Aprovar orçamento com 2 terceirizados | Os dois `A_PEDIR`, sem pedido |
+| 02 | Com o Compras: pedir os dois (mesma central) | Um `PedidoCompra` `SERVICO` em `RASCUNHO`, 2 itens sem produto, `custo_unitario` = orçado; os dois móveis com o `pedido_compra_id`; situação `A_PEDIR` com "pedido em rascunho" |
+| 03 | Pedir móveis de centrais diferentes juntos | `422` |
+| 04 | Pedir de novo um móvel com pedido não cancelado | `409` (D11) |
+| 05 | Enviar o pedido pelo Compras (`pedidos.enviar`) | Situação `ENVIADO`, previsão do pedido |
+| 06 | Receber pelo Compras | Situação `RECEBIDO`; contas a pagar lançadas pelo Compras |
+| 07 | Conferir | `CONFERIDO`; `terc_conferido_em` hoje |
+| 08 | Cancelar o pedido no Compras | Os móveis voltam a `A_PEDIR` (derivado) e podem ser pedidos de novo |
+| 09 | Sem o Compras: `pedir` | `403 MODULO_NAO_CONTRATADO` |
+| 10 | Sem o Compras: enviar-manual (nº 4521, previsão ontem) | `ENVIADO`; `atrasado: true` |
+| 11 | Receber-manual e conferir | `RECEBIDO`, depois `CONFERIDO` |
+| 12 | Registrar problema | Fica `RECEBIDO`, com o texto; conferir limpa |
+| 13 | Voltar de `CONFERIDO` | `RECEBIDO` |
+| 14 | Ação manual num móvel com pedido do Compras | `409` |
+| 15 | Desfazer aprovação com pedido em rascunho | Motivo do D15 |
+| 16 | Cancelar OS com móvel `RECEBIDO` | Evento do D16; pedido e contas intactos |
+| 17 | Resultado do mês com a conta do recebimento paga | Valor nas despesas (conta sem categoria), não no CMV (F2a) |
+| 18 | Leitura sem `view_custos_marcenaria` | Sem `valor_orcado_centavos` |

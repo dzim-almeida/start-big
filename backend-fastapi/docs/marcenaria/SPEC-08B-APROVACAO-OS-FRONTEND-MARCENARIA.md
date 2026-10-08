@@ -6,7 +6,9 @@
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (abas e itens do modal de OS)     |
 | Dependências | Specs 06B (editor), 07 (proposta), 08A (API, com a Revisão 1)                           |
 | Bloqueia     | Specs 10B, 11B, 12B, 13B (novas abas da OS seguem o mesmo padrão)                        |
-| Referência   | SPEC-00: F3, F4, F4a, O4, O4a, O7a, O8, O8a, T1, T3f, T5 · PR1, PR3, PR6                |
+| Referência   | SPEC-00: F3, F4, F4a, F2b, O4, O4a, O7a, O8, O8a, T1, T3f, T5, FB1 · PR1, PR3, PR6      |
+
+> **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) **Cadeado:** a aba "Serviços e Peças" já tem o cadeado de "item que veio do orçamento" para a fábrica (`OSServicesTab.veioDoOrcamento`, que olha `fabrica_orcamento_id`). A D24 passa a **estender essa função** para olhar também `origem`, com o mesmo ícone e um texto que serve aos dois; nada de selo novo. (2) **Peças embutidas** (08A Revisão 2): os insumos aprovados chegam como itens de produto de valor zero; eles ficam agrupados e recolhidos no fim da lista ("Material do orçamento (N)"), D24a. (3) **Fábrica aposentada (FB1):** ao criar a aba `'orcamento'`, saem de `OSFormTabsContent.vue` o trilho e a aba Orçamento da fábrica (dependiam de `fase_fabrica`, que nenhuma OS nova recebe) e, de `OSFormModalShell.vue`, a trava do status por etapa (`status-da-etapa`), D19a.
 
 ---
 
@@ -38,8 +40,9 @@
 ```
 frontend/src/modules/
 ├── order-service/ordens/
-│   ├── components/form/OSFormTabsContent.vue           # ALTERAR ⚠️ — aba 'orcamento' por capacidade
-│   ├── components/form/OSServicesTab.vue               # ALTERAR ⚠️ — cadeado em item com origem
+│   ├── components/form/OSFormTabsContent.vue           # ALTERAR ⚠️ — aba 'orcamento' por capacidade; saem trilho e aba da fábrica (FB1)
+│   ├── components/form/OSFormModalShell.vue            # ALTERAR ⚠️ — sai a trava de status por etapa da fábrica (FB1)
+│   ├── components/form/OSServicesTab.vue               # ALTERAR ⚠️ — cadeado também por `origem`; grupo das peças embutidas
 │   └── schemas/relationship/osItem.schema.ts           # ALTERAR ⚠️ — `origem` opcional na leitura
 └── marcenaria/orcamentos/
     ├── services/aprovacao.service.ts                   # CRIAR — simular, aprovar, desfazer, por-os
@@ -113,11 +116,13 @@ frontend/src/modules/
 | # | Decisão | Motivo |
 |---|---------|--------|
 | D19 | Aba **"Orçamento"** no modal de OS, depois de "Serviços e Peças", **só** com `temOrcamentoTecnico` e fora do modo de criação. Os outros segmentos não têm a capacidade: a lista de abas deles é a mesma de hoje | T1: mesmo mecanismo da Vistoria (capacidade) |
+| D19a | **Revisão 1 (FB1):** no mesmo arquivo saem o `TrilhoFabrica`, a aba `orcamento` da fábrica (`OrcamentoFabricaTab`, `ehDaFabrica`) e, no `OSFormModalShell`, o `:status-da-etapa` | Só apareciam em OS com `fase_fabrica`, que nenhuma OS nova recebe (03A D13). Tirar agora evita duas abas com o mesmo id `orcamento` |
 | D20 | Conteúdo: código e versão (link **"Abrir orçamento"**, que fecha o modal e vai para `/orcamentos/:id`), data e quem aprovou, projeto, móveis aprovados (nome, ambiente, medidas, quantidade), "4 móveis não aprovados", instalação, total aprovado, sinal combinado × recebido | O marceneiro e o atendente precisam ver o que foi vendido sem abrir outro módulo. **Nenhum custo** (08A Revisão 1) |
 | D21 | Sinal combinado maior que o recebido: aviso "Sinal combinado R$ 3.695,56 — recebido R$ 0,00." com o botão **"Preencher adiantamento"**, que coloca o valor que falta no campo Adiantamento do resumo da OS (sem salvar; o usuário escolhe a forma e salva como hoje) | O7a: o lugar de lançar o sinal é o adiantamento da OS. O botão evita redigitar o valor, sem criar um caminho novo de dinheiro |
 | D22 | Total atual da OS diferente do total aprovado (desconto mudado, item manual, frete): linha "Total aprovado no orçamento: R$ 7.885,14 · total atual da OS: R$ 8.035,14" | 08A §9: os dois podem divergir de propósito; a tela mostra, não esconde |
 | D23 | OS sem orçamento (resposta `404`): a aba mostra "Esta OS não foi gerada por um orçamento." | Caso de desenvolvimento e de OS antiga; não pode quebrar a aba |
-| D24 | **Cadeado nos itens (F4):** item com `origem` não mostra os botões de editar e remover; no lugar, um selo **"Do orçamento"** com cadeado e o `title` "Para mudar, desfaça a aprovação ou crie uma nova versão do orçamento." Itens sem origem (todos os de hoje) continuam exatamente iguais | F4a. A regra olha só o campo `origem`, nunca o segmento |
+| D24 | **Cadeado nos itens (F4), Revisão 1:** a função que já existe, `veioDoOrcamento(item)`, passa a responder `true` também para `item.origem` preenchida. O resto é o de hoje: no lugar de editar/remover, o cadeado; `title` "Veio do orçamento aprovado. Para mudar, desfaça a aprovação ou crie uma nova versão do orçamento." Itens sem `origem` e sem `fabrica_orcamento_id` (todos os de hoje) continuam exatamente iguais | F4a. A regra olha só os campos do item, nunca o segmento; reaproveita o cadeado existente |
+| D24a | **Peças embutidas do orçamento (Revisão 1):** itens com `origem` **e** `tipo = PRODUTO` ficam no fim da lista, num grupo recolhido "Material do orçamento (N itens)" que abre com um clique. Mostram nome, quantidade e unidade; valor R$ 0,00 como qualquer peça embutida | Uma cozinha traz 20 linhas de chapa, fita e ferragem; abertas por padrão, empurrariam os móveis para fora da tela. Item sem `origem` nunca entra no grupo |
 
 ### 4.6. Proposta aprovada
 
@@ -223,25 +228,25 @@ const { temVistoria, temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } =
 - `view.preencherAdiantamento(centavos)` e `view.fecharEIr(rota)`: duas funções novas no contexto `useOSFormView`, pequenas — a primeira coloca o valor no mesmo estado que o campo Adiantamento do resumo usa; a segunda fecha o modal (com a pergunta de alterações não salvas que já existe) e navega.
 - `useOrcamentoDaOS(numeroOs)` só faz a chamada quando a aba é aberta (`enabled` pela aba ativa): as OS dos outros segmentos nunca chamam `/marcenaria/...`.
 
-### 7.2. Cadeado — `OSServicesTab.vue` ⚠️
+### 7.2. Cadeado — `OSServicesTab.vue` ⚠️ (Revisão 1)
 
-```vue
-<!-- Item que veio de outro documento (ex.: orçamento): não se edita aqui (F4a). -->
-<span
-  v-if="item.origem"
-  class="flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
-  title="Para mudar, desfaça a aprovação ou crie uma nova versão do orçamento."
->
-  <Lock :size="10" /> Do orçamento
-</span>
+```ts
+/** Item gerado por um orçamento (fábrica antiga ou marcenaria): muda pelo orçamento, não aqui (F4a). */
+function veioDoOrcamento(item: OsItem): boolean {
+  const daFabrica = 'fabrica_orcamento_id' in item && item.fabrica_orcamento_id != null; // regra de hoje
+  const comOrigem = 'origem' in item && !!item.origem;                                    // 08A: coluna genérica
+  return daFabrica || comOrigem;
+}
 
-<!-- Botões de hoje: agora também somem para item com origem. -->
-<div v-if="!isLocked && !item.origem" class="flex items-center gap-1 pl-2 border-l border-slate-100">
-  <!-- ...editar e remover, sem mudança... -->
-</div>
+/** Peças embutidas que vieram do orçamento: vão para o grupo recolhido do fim (D24a). */
+const materialDoOrcamento = computed(() =>
+  displayItems.value.filter((item) => veioDoOrcamento(item) && item.tipo === 'PRODUTO'),
+);
 ```
 
-`displayItems` mistura itens salvos e itens novos ainda em memória (sem `origem`): o `item.origem` dos novos é `undefined`, então eles continuam editáveis.
+- O template de hoje (cadeado no lugar de editar/remover quando `veioDoOrcamento`) **não muda**; muda só o `title`, que passa a servir aos dois casos.
+- O laço principal pula os itens de `materialDoOrcamento`; eles aparecem no grupo "Material do orçamento ({{ n }} itens)", recolhido por padrão.
+- `displayItems` mistura itens salvos e itens novos ainda em memória (sem `origem`): o `item.origem` dos novos é `undefined`, então eles continuam editáveis.
 
 ### 7.3. Aprovar — `useAprovacao.ts`
 
@@ -336,8 +341,11 @@ Coluna **OS** (depois de Status): o `os_numero` como link que abre a OS (`getUni
 | 01 | `OSFormTabsContent`, informática | Abas iguais às de hoje (snapshot) |
 | 02 | `OSFormTabsContent`, marcenaria, OS existente | Aba "Orçamento" depois de "Serviços e Peças" |
 | 03 | Mesmo, modo criação | Sem a aba |
-| 04 | `OSServicesTab` com item `origem: 'ORCAMENTO_MARCENARIA'` | Selo "Do orçamento"; sem editar/remover |
+| 04 | `OSServicesTab` com item de serviço `origem: 'ORCAMENTO_MARCENARIA'` | Cadeado; sem editar/remover |
 | 05 | Mesmo componente com item `origem: null` e item novo sem o campo | Botões de hoje |
+| 05a | Item com `fabrica_orcamento_id` (regra de hoje) | Cadeado, como antes |
+| 05b | 3 peças embutidas com `origem` | Fora da lista principal; grupo "Material do orçamento (3 itens)" recolhido |
+| 05c | `OSFormTabsContent` e `OSFormModalShell` | Sem `TrilhoFabrica`, sem `OrcamentoFabricaTab`, sem `status-da-etapa` |
 | 06 | `AprovarModal`: desmarcar todos | Botão desabilitado; mensagem "Escolha pelo menos um móvel." |
 | 07 | `AprovarModal`: sem responder o sinal | Botão desabilitado |
 | 08 | `AprovarModal`: "Sim" sem forma e sem crédito | Erro na forma |

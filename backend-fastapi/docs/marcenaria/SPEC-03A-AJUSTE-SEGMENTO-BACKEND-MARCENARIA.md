@@ -6,8 +6,10 @@
 | Camada       | Backend (FastAPI) · toca `services/ordem_servico.py` (compartilhado) ⚠️  |
 | Dependências | Spec 01A                                                                 |
 | Bloqueia     | Spec 03B, Spec 08A                                                       |
-| Referência   | SPEC-00 (Revisão 4): O4, E0, E0a, E0b · PR1, PR6, PR7                    |
+| Referência   | SPEC-00 (Revisão 4): O4, E0, E0a, E0b · SPEC-00 (Revisão 15): FB1 · PR1, PR6, PR7 |
 
+> **Revisão 3 (08/10/2026) — FB1, aposentadoria da fábrica.** A branch recebeu em 08/10 o módulo "fábrica" (`docs/marcenaria-fabrica-plano.md`, F1–F5), que liga um trilho de 10 fases nas OS de Planejados quando a chave `configuracoes_os.modo_fabrica` está ligada. A trava desta spec (OS só nasce do orçamento) e o trilho (status travado) não convivem. Esta spec passa a **aposentar a fábrica no backend** antes de qualquer código novo da marcenaria: nenhuma OS nova entra no trilho, o cancelamento deixa de devolver a separação fora do trilho, e os testes que exigiam o trilho ligado dão lugar a um teste que prova que ele ficou inerte. O banco não muda. Novas seções: D13–D18, §6.5, casos 20–28.
+>
 > **Revisão 2 (06/10/2026) — Reforma de móveis fora da fase 1 (decisão do usuário):** spec reescrita. A marcenaria fica com **um tipo só** (Planejados), toda OS nasce do orçamento, e `aprovacao_itens` sai do segmento (O4 original). A Revisão 1 (manter a aprovação por causa da Reforma) perdeu o objeto. A referência da Reforma, para a volta, está na SPEC-00 §7.1.
 
 ---
@@ -20,6 +22,7 @@ Adaptar a definição do segmento marcenaria ao orçamento técnico (opção 3 d
 2. **Toda OS da marcenaria nasce da aprovação de um orçamento.** O caminho comum de criação (`POST /ordens-servico/`) recusa a criação, e a OS não pode trocar de tipo depois.
 3. A **Reforma de móveis** sai do registry (fica para uma fase seguinte).
 4. A capacidade **`aprovacao_itens`** sai da marcenaria: os móveis são aprovados no orçamento.
+5. **A fábrica é aposentada** (Revisão 3, FB1): nenhuma OS nova entra no trilho de 10 fases, e o cancelamento só devolve separação de OS do trilho antigo.
 
 ## 2. Escopo
 
@@ -29,12 +32,15 @@ Adaptar a definição do segmento marcenaria ao orçamento técnico (opção 3 d
 - Funções de registry `tipo_permite_criacao_manual()` e `label_do_tipo()`.
 - Trava em `create_ordem_servico` e `update_ordem_servico`, com o parâmetro `origem_orcamento` reservado para a Spec 08A.
 - Testes de registry, de serviço e de API.
+- **Aposentadoria da fábrica no backend** (Revisão 3): `modo_fabrica_ligado()` sempre `False`; `devolver_tudo` no cancelamento só para OS com `fase_fabrica`; testes da fábrica que exigiam o trilho ligado trocados por um teste de inércia.
 
 **Fora do escopo**
 - Frontend: botão "Criar OS", tipo travado, textos de impressão, fallback de capacidades (Spec 03B).
 - A criação da OS pela aprovação do orçamento (Spec 08A, que usa `origem_orcamento=True`).
 - Novas capacidades das abas Orçamento, Separação, Produção e Entrega: cada uma entra na spec que a implementa (08B, 10A, 12A, 13A). Declarar antes criaria uma aba vazia.
 - Reforma de móveis (SPEC-00 §7.1).
+- Telas da fábrica (Spec 03B, Revisão 3) e remoção do código inerte da fábrica (spec de limpeza, depois do piloto).
+- Qualquer mudança no banco: tabelas e colunas da fábrica ficam (FB1).
 
 ---
 
@@ -50,12 +56,21 @@ backend-fastapi/
 │   │       ├── __init__.py                    # ALTERAR — tipo_permite_criacao_manual(), label_do_tipo()
 │   │       └── marcenaria.py                  # ALTERAR — só Planejados; sem Reforma; sem aprovacao_itens
 │   └── services/
-│       └── ordem_servico.py                   # ALTERAR ⚠️ — trava na criação e na edição
+│       ├── ordem_servico.py                   # ALTERAR ⚠️ — trava na criação e na edição; cancelamento (FB1)
+│       └── fabrica/modo.py                    # ALTERAR — modo_fabrica_ligado() sempre False (FB1)
 └── test/
     ├── core/test_registry_segmentos.py        # ALTERAR — guardas novos; remove os testes da Reforma
     ├── api/v1/
     │   ├── test_os_identificador_gerado.py    # ALTERAR — caso PRJ passa a criar pelo serviço
-    │   └── test_os_tipo_criacao_manual.py     # CRIAR — trava de criação e edição
+    │   ├── test_os_tipo_criacao_manual.py     # CRIAR — trava de criação e edição
+    │   └── fabrica/
+    │       ├── test_orcamento_api.py          # REMOVER — exige o trilho ligado (FB1, D17)
+    │       ├── test_trilho_api.py             # REMOVER — idem
+    │       ├── test_separacao_api.py          # REMOVER — idem
+    │       ├── test_insumo_api.py             # MANTER — a rota de insumo continua (sem tela)
+    │       ├── test_migracao_fabrica.py       # MANTER — as migrações ficam na cadeia
+    │       └── test_fabrica_aposentada.py     # CRIAR — a fábrica ficou inerte (D17)
+    └── services/fabrica/test_calculo.py       # MANTER — funções puras que continuam no código
 ```
 
 **Regra que não pode ser quebrada:** a trava lê a **marcação do tipo** no registry, nunca o nome "marcenaria" ou "planejados".
@@ -78,6 +93,17 @@ backend-fastapi/
 | D10 | `aprovacao_itens` **sai** das capacidades da marcenaria. Ficam `imagem_na_entrada` e `garantia_prazo` | O4: os móveis são aprovados no orçamento. A capacidade só ficaria por causa da Reforma, que saiu |
 | D11 | As listas `AMBIENTES`, `ETAPAS_PLANEJADOS` e `ETAPAS_REFORMA` saem do arquivo | Sem uso. Se a Spec 06B quiser sugerir nomes de ambiente, ela decide onde a lista mora |
 | D12 | Sem migração de dados | Nenhuma loja usa a marcenaria (SPEC-00 §3). Em bancos de desenvolvimento, OS antigas de Reforma ficam com o tipo gravado e os campos em `dados_adicionais`, sem quebrar nada |
+
+### 4.1. Aposentadoria da fábrica (Revisão 3, FB1)
+
+| # | Decisão | Motivo |
+|---|---------|--------|
+| D13 | `services/fabrica/modo.modo_fabrica_ligado()` passa a devolver **sempre `False`**, com um comentário que aponta para a SPEC-00 FB1. Com isso `fase_inicial()` devolve `None` e nenhuma OS nova recebe `fase_fabrica` | Um ponto só desliga tudo: todo o resto da fábrica pergunta pela **fase** da OS (`modo.py`, docstring) |
+| D14 | A chave `configuracoes_os.modo_fabrica` (e `fabrica_travar_etapas`) **continua** no schema e no banco; o valor gravado é ignorado | Mudar o contrato de Configurações de OS mexeria numa tela de todos os segmentos (PR1). A tela da chave sai na 03B |
+| D15 | No `cancelar_ordem_servico`, `separacao_fabrica.devolver_tudo(...)` só é chamado quando `os_in_db.fase_fabrica` não é nulo | Hoje ele é "no-op fora da fábrica" só porque nenhuma outra OS separa. A Spec 10A faz a OS da marcenaria separar pela mesma coluna, e a regra dela é **não** devolver sozinho (E2a). Para os outros segmentos nada muda (nenhum item deles tem `quantidade_separada`) |
+| D16 | O resto do código da fábrica (rotas `/fabrica`, trilho, separação, central de corte) **fica**, inerte: todas as funções que ele expõe à OS (`assert_status_manual`, `assert_pode_finalizar`, `ao_finalizar`, `ao_cancelar`, `ao_reabrir`) saem cedo sem `fase_fabrica` (conferido em 08/10). O Compras chama `pode_comprar(None, …)`, que responde `True` | Remover código que o serviço da OS e o Compras importam é uma mudança maior do que esta spec. Inerte, ele não muda comportamento; sai numa spec de limpeza depois do piloto |
+| D17 | Testes: `test_orcamento_api.py`, `test_trilho_api.py` e `test_separacao_api.py` (pasta `test/api/v1/fabrica/`) **saem**, porque montam o cenário ligando o modo fábrica e criando a OS pelo `POST`, que esta spec recusa. Entra `test_fabrica_aposentada.py`, que prova a inércia (casos 20–26). `test_migracao_fabrica.py`, `test_insumo_api.py` e `test/services/fabrica/test_calculo.py` **ficam** | Teste de comportamento que não existe mais não protege nada; o que importa agora é provar que o trilho não liga e que a OS e o Compras seguem iguais. A saída fica registrada aqui, com o motivo (nenhum teste é apagado em silêncio) |
+| D18 | A base de testes de referência (08/10/2026, `53e5d81`): **2.334 passando, 1 pulado**. Depois desta spec: 2.334 − 50 (removidos, D17) + os casos novos, todos passando | Prova de que a saída dos testes é só a da D17 |
 
 ---
 
@@ -250,6 +276,42 @@ Em `update_ordem_servico`, **antes** de mesclar `dados_adicionais`:
 
 `get_segmento_atual(db)` roda uma vez na criação e só quando o tipo muda na edição.
 
+### 6.5. Aposentadoria da fábrica (Revisão 3, FB1)
+
+**`services/fabrica/modo.py`** (D13):
+
+```python
+def modo_fabrica_ligado(db: Session) -> bool:
+    """Sempre False: a fábrica foi APOSENTADA (SPEC-00 da marcenaria, Revisão 15, FB1).
+
+    A marcenaria segue as specs de docs/marcenaria/ (orçamento técnico). A chave
+    `configuracoes_os.modo_fabrica` continua no banco e no contrato, mas não liga
+    mais nada: nenhuma OS nova entra no trilho. O código da fábrica fica inerte
+    (tudo pergunta pela `fase_fabrica` da OS, que nenhuma OS nova recebe) e sai
+    numa limpeza depois do piloto.
+    """
+    return False  # `db` fica na assinatura: quem chama não muda
+```
+
+**`services/ordem_servico.py`, `cancelar_ordem_servico`** (D15):
+
+```python
+    os_in_db.status = OrdemServicoStatus.CANCELADA
+    # Fábrica APOSENTADA (SPEC-00 FB1): só a OS que ainda está no trilho antigo
+    # devolve sozinha a separação ao cancelar. A OS da marcenaria nova também
+    # separa (Spec 10A), mas a regra dela é a contrária: chapa cortada não volta
+    # à prateleira por um clique (E2a). Nos outros segmentos nada muda: nenhum
+    # item deles tem `quantidade_separada`.
+    if os_in_db.fase_fabrica is not None:
+        from app.services.fabrica import separacao as separacao_fabrica
+        separacao_fabrica.devolver_tudo(db, os_in_db, usuario_token or {})
+    trilho_fabrica.ao_cancelar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema", data.motivo)
+```
+
+Nada mais muda no serviço da OS: as outras chamadas à fábrica (criação, edição, finalização, reabertura) já saem cedo sem `fase_fabrica` (D16).
+
+**Testes (D17).** Remover os três arquivos da D17 no mesmo commit da mudança, com a mensagem de commit citando a SPEC-00 FB1 e esta D17. O arquivo novo segue o padrão de `test/api/v1/fabrica/conftest.py`: `TestClient(app)` **sem** `with` (com `with`, o lifespan roda `create_all()` e as migrações no banco real da máquina).
+
 ---
 
 ## 7. Prova de não regressão (⚠️ PR1)
@@ -258,6 +320,9 @@ Em `update_ordem_servico`, **antes** de mesclar `dados_adicionais`:
 2. **Serigrafia:** criar OS de camisa, de sacola **e sem tipo**; editar trocando camisa ↔ sacola. Tudo como hoje (D5: a serigrafia tem tipos criáveis à mão).
 3. **Informática e oficina** (sem tipos): criação e edição iguais.
 4. `/definicao-campos` da serigrafia: a única diferença é `"criacao_manual": true` em cada tipo.
+5. **Cancelamento de OS** em informática, oficina e serigrafia: mesmo resultado de antes, inclusive o estoque (nenhuma devolução nova).
+6. **Compras:** `demanda_os` e o painel "Compras desta OS" iguais para OS de qualquer segmento (`pode_comprar` continua `True` para OS sem fase).
+7. Contagem da suíte: referência de 08/10 (2.334 passando, 1 pulado) menos os 50 da D17, mais os casos novos, todos passando (D18).
 
 ## 8. Limitações conhecidas
 
@@ -279,6 +344,9 @@ Em `update_ordem_servico`, **antes** de mesclar `dados_adicionais`:
 - [ ] `PUT` trocando o tipo de uma OS de Planejados responde `422`; reenviar o mesmo tipo funciona.
 - [ ] Serigrafia cria e troca de tipo como hoje; informática e oficina iguais.
 - [ ] Nenhum `if` com o nome do segmento ou do tipo.
+- [ ] Com `configuracoes_os.modo_fabrica = true` gravado no banco, uma OS nova de Planejados (criada pelo serviço) nasce com `fase_fabrica` nula.
+- [ ] Cancelar uma OS sem `fase_fabrica` não registra nenhuma entrada de estoque nova; com `fase_fabrica`, devolve a separação como antes.
+- [ ] Os 50 testes da D17 removidos, `test_fabrica_aposentada.py` criado, e o restante da suíte igual à referência de 08/10.
 - [ ] Suíte inteira verde; código novo comentado (PR6).
 
 ## 11. Casos de teste
@@ -318,3 +386,17 @@ Mesmo setup de `test_os_identificador_gerado.py` (`_autenticar_e_criar_empresa`,
 | # | Cenário | Resultado esperado |
 |---|---------|--------------------|
 | 19 | `test_marcenaria_abre_os_de_planejados_sem_o_usuario_informar_codigo`: hoje cria por `POST`. Passa a criar pelo **serviço** com `origem_orcamento=True` (o `POST` agora é recusado) | Código `PRJ-…` gerado como antes |
+
+### Fábrica aposentada — `test/api/v1/fabrica/test_fabrica_aposentada.py` (Revisão 3)
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 20 | `modo_fabrica_ligado(db)` com a chave gravada como `true` na marcenaria | `False` |
+| 21 | Marcenaria, chave `true`, OS de Planejados criada pelo serviço (`origem_orcamento=True`) | `fase_fabrica` nula |
+| 22 | Mesma OS: `PUT` trocando o status | `200` (o trilho não trava o status) |
+| 23 | Mesma OS com um item de produto com `quantidade_separada` preenchida, cancelada | Nenhuma movimentação de entrada criada; `quantidade_separada` intacta |
+| 24 | OS com `fase_fabrica` gravada à mão no teste (cenário do trilho antigo), cancelada | `devolver_tudo` devolve como antes (entrada no livro) |
+| 25 | `compras.demanda_os.demandas_por_produto` com a OS do caso 21 | `pode_comprar = True` |
+| 26 | Informática: criar, finalizar e cancelar OS com item de produto | Mesmo estoque e mesmo livro de antes (comparação com a OS equivalente sem a mudança) |
+| 27 | `test_migracao_fabrica.py`, `test_insumo_api.py`, `test_calculo.py` | Continuam passando sem mudança |
+| 28 | Contagem da suíte | Referência − 50 + novos (D18) |

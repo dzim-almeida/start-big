@@ -8,6 +8,8 @@
 | Bloqueia     | Spec 08B (a proposta aprovada reaproveita o template)                          |
 | Referência   | SPEC-00: T5, T3f, C6, C7, C9, C3, O3, O7, P4 · PR1, PR3, PR6                   |
 
+> **Revisão 1 (08/10/2026) — correção do exemplo.** O desenho da §6.2 tinha um ambiente "Dormitório casal" de R$ 1.425,00 que fazia a soma dos ambientes com a instalação (R$ 11.150,15) não bater com o subtotal (R$ 9.725,15), contrariando a D10. O desenho passa a ser o cenário B da Spec 05: Cozinha Gourmet (Torre Quente e 2 Balcões) + instalação.
+
 ---
 
 ## 1. Objetivo
@@ -174,10 +176,8 @@ export function montarDadosProposta(detalhe: OrcamentoDetalhe, hoje: Date): Dado
 │  Torre Quente c/ Nicho p/ Forno e Micro-ondas                            │
 │    MDF Branco TX e Freijó, corrediças com amortecedor                    │
 │    L 700 × A 2200 × P 600 mm                                             │
-│  Armário aéreo                                                   3 un.   │
+│  Balcão                                                          2 un.   │
 │    …                                                                     │
-│ DORMITÓRIO CASAL                                          R$ 1.425,00    │
-│  …                                                                       │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                   Instalação e montagem     R$ 1.425,00  │
 │                                   Subtotal                  R$ 9.725,15  │

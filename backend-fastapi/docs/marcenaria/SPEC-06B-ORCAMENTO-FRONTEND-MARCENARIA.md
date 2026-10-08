@@ -8,6 +8,8 @@
 | Bloqueia     | Specs 07 (proposta), 08B (aprovação), 09B (RT do arquiteto)                                |
 | Referência   | SPEC-00: C4, C7, C8, C9, E0c, F5, O1, O1a, O2, O3, O3a, O5, O6, P4, T2, T3, T3a–T3g, T4, T4a, T4b, T5 · PR1, PR3, PR4, PR6 |
 
+> **Revisão 1 (08/10/2026) — correções e convergência com a branch (SPEC-00 Revisão 15).** (1) O "≈" do desconto e do sinal (D18) lê `calculo.desconto_bp_efetivo` e `calculo.sinal_bp_efetivo` (Spec 05 Revisão 1, 06A Revisão 3) quando o modo é `VALOR`, e `calculo.desconto_centavos`/`sinal_centavos` quando é `PERCENTUAL`: nenhuma conta em TypeScript. (2) A linha "Orçamentos de Marcenaria" dos cargos usa `segmento: 'marcenaria'` (mecanismo existente; 04B Revisão 1), e não `capacidade`. (3) O prazo de entrega aceita de 1 a **365** dias, como a 04A (a versão anterior dizia 730). (4) O desenho do editor (§6.2) tinha um ambiente "Dormitório casal" que não fechava com o bruto; ficou só o cenário B da Spec 05 (Cozinha Gourmet + instalação = R$ 9.725,15).
+
 ---
 
 ## 1. Objetivo
@@ -147,7 +149,7 @@ frontend/src/
 | D15 | **Painel de custos** só com `inclui_custos`; **recolhível**, aberto por padrão. A preferência aberto/fechado fica no navegador (por usuário, com `try/catch`; sem armazenamento, fica aberto) | T3a. É conveniência de quem usa, não dado do orçamento |
 | D16 | Sem `view_custos_marcenaria`: some o painel de custos; no modal do móvel somem **custo do insumo, mão de obra e valor da central**, com a frase "Mão de obra, valor da central e custos são preenchidos por quem vê os custos."; na instalação, aparece só o **preço** (sem o custo) | P4 e 06A D23–D24. O vendedor ainda monta o móvel (medidas e insumos); o dono completa |
 | D17 | Avisos do motor viram frases (§6.6). `MARGEM_NEGATIVA` aparece **para todos**, mas sem números para quem não vê custos: "O desconto deixou o orçamento abaixo do custo. Fale com o responsável antes de enviar." | Esconder o aviso deixaria o vendedor vender no prejuízo sem saber. A frase avisa sem revelar a margem |
-| D18 | **Desconto e sinal** (C7, C9): cada um com dois campos lado a lado, **%** e **R$**. O campo digitado define o modo (`PERCENTUAL` ou `VALOR`) e é o que vai para a API; o outro mostra o valor **equivalente**, calculado pela API, em cinza, com "≈" | "Digitar em um preenche o outro" (C7) sem cálculo em TS (C8): o equivalente vem da resposta |
+| D18 | **Desconto e sinal** (C7, C9): cada um com dois campos lado a lado, **%** e **R$**. O campo digitado define o modo (`PERCENTUAL` ou `VALOR`) e é o que vai para a API; o outro mostra o valor **equivalente**, calculado pela API, em cinza, com "≈": em R$, `calculo.desconto_centavos`/`sinal_centavos`; em %, `calculo.desconto_bp_efetivo`/`sinal_bp_efetivo` (Revisão 1) | "Digitar em um preenche o outro" (C7) sem cálculo em TS (C8): o equivalente vem da resposta |
 | D19 | **Ambientes:** nome com **sugestões** (lista local: Cozinha, Sala de estar, Sala de jantar, Dormitório casal, Dormitório solteiro, Closet, Banheiro, Lavabo, Área de serviço, Home office, Varanda gourmet) e texto livre. Cada ambiente é um cartão recolhível com subtotal | 03A D11 deixou a lista para a 06B. Sugestão acelera; texto livre atende o caso raro |
 | D20 | **Ordenar** ambientes e móveis com botões **subir/descer** (não arrastar), com `aria-label` | Mesmo padrão do editor de listas da 04B; arrastar é difícil de acertar no mouse e impossível no teclado |
 | D21 | **Projeto (O5):** depois de escolher o cliente, o bloco mostra os projetos que ele já tem (06A Revisão 1, `GET /projetos`) para escolher, ou "Novo projeto" (nome + endereço da obra). **Trocar o cliente limpa o projeto escolhido** (o nome digitado fica) | O cliente que volta para fazer o quarto encontra o apartamento já cadastrado; um projeto de outro cliente nunca fica preso ao orçamento |
@@ -205,7 +207,7 @@ frontend/src/
 | D48 | Lista com **chips de status e contagem** ("Rascunho 3", "Enviado 5", "Vence em 3 dias 2", "Vencido 1", "Recusado", "Aprovado"), busca (código, projeto, cliente), vendedor e "Mostrar versões antigas". Contagens vêm de `GET /contagens` (06A Revisão 1) | T2. "Vence em 3 dias" é a pergunta que o vendedor faz toda manhã |
 | D49 | Colunas: Código (com "v2"), Cliente, Projeto, Vendedor, Móveis, Total, **Margem** (só com `view_custos`), Validade ("vence em 2 dias" em âmbar; vencido em vermelho), Status, Atualizado. Linha inteira clicável | P4; padrão das tabelas do sistema |
 | D50 | Lista vazia: "Nenhum orçamento ainda." com o botão "Novo orçamento" (se puder gerir). Filtro sem resultado: "Nenhum orçamento com estes filtros." com "Limpar filtros" | Os dois vazios pedem ações diferentes |
-| D51 | Matriz de cargos: linha **"Orçamentos de Marcenaria"** (Ver / Gerenciar / Excluir) com `capacidade: 'orcamento_tecnico'`, pelo mecanismo da 04B (D16–D17). Marcar Gerenciar ou Excluir marca Ver | 06A D22. Os outros segmentos não veem a linha, e o nível de acesso deles não muda |
+| D51 | Matriz de cargos: linha **"Orçamentos de Marcenaria"** (Ver / Gerenciar / Excluir) com `segmento: 'marcenaria'`, pelo mecanismo que a matriz já tem (04B Revisão 1). Marcar Gerenciar ou Excluir marca Ver | 06A D22. Os outros segmentos não veem a linha, e o nível de acesso deles não muda |
 
 ---
 
@@ -287,9 +289,9 @@ ORC-2026-000084 v2 Studio Arquitet…  Res. Alpha Ville 802  Alan      7      R$
 │  ▾ Cozinha Gourmet                  Subtotal 8.300,15 ⋯  │  Instalação incluída    │
 │     Torre Quente   700 × 2200 × 600 mm  1×  Terceirizada │─────────────────────────│
 │                               R$ 4.222,75   ✎ ⧉ ↑ ↓ 🗑    │ Custos ▾ (D15)          │
-│     [+ Adicionar móvel]                                  │  Material   …           │
-│  ▸ Dormitório casal                 Subtotal 1.425,00 ⋯  │  Perda      …           │
-│                                                          │  Mão de obra …          │
+│     Balcão         …                    2×               │  Material   …           │
+│                               R$ 4.077,40   ✎ ⧉ ↑ ↓ 🗑    │  Perda      …           │
+│     [+ Adicionar móvel]                                  │  Mão de obra …          │
 │ Instalação  [x] Cobrar instalação  Custo R$ 750,00       │  Terceirizados …        │
 │             Preço R$ 1.425,00                            │  Custo total 5.118,50   │
 │                                                          │  Margem bruta 4.120,39  │
@@ -651,7 +653,7 @@ Em `OrdemServicoView.vue`, na aba Ordens, quando `mostrarBotaoAdicionar` (03B) f
     viewKey: 'view_orcamentos_marcenaria',
     manageKey: 'manage_orcamentos_marcenaria',
     deleteKey: 'delete_orcamentos_marcenaria',
-    capacidade: 'orcamento_tecnico',          // só aparece e só conta onde o segmento declara (04B D17)
+    segmento: 'marcenaria',                   // só aparece na marcenaria e fica fora do nível de acesso (04B Revisão 1)
   },
 ```
 
@@ -661,7 +663,7 @@ Fica **antes** de "Custos da Marcenaria" (04B). `MODULE_PERMISSION_MAP` não mud
 
 - **Foco:** ao abrir o editor novo, o foco vai para "Cliente"; ao adicionar ambiente, para o nome dele; ao abrir o modal do móvel, para "Nome".
 - **Teclado:** `Esc` fecha modais (com a pergunta de descarte quando há mudança); `Enter` na busca de insumo escolhe o primeiro resultado.
-- **Números:** dinheiro com `BaseMoneyInput`; percentuais com 2 casas; dias inteiros de 1 a 365 (validade) e 1 a 730 (prazo), as mesmas regras da 04A.
+- **Números:** dinheiro com `BaseMoneyInput`; percentuais com 2 casas; dias inteiros de 1 a 365 (validade e prazo), as mesmas regras da 04A (Revisão 1).
 - **Datas:** "vence em 2 dias", "vence hoje", "venceu há 3 dias", calculadas pela data local, como o resto do sistema (`date.utils.ts`).
 
 ### 7.13. O que o cliente vê — `utils/dadosProposta.ts`
@@ -744,7 +746,7 @@ Função pura que recebe o detalhe e devolve **só** o que pode chegar ao client
 | 22 | `InsumoRapidoModal`, preço de venda vazio | `valor_varejo` = custo no `POST /produtos` |
 | 23 | `EditorFaixaStatus` em cada status | Texto e botões da §6.3, filtrados por `acoes` |
 | 24 | `EnviarModal` sem cliente e sem móvel | Lista as duas pendências, sem a terceira |
-| 25 | `CampoPercentualOuValor`: digitar R$ | Modo `VALOR`; o % mostra o equivalente da resposta com "≈" |
+| 25 | `CampoPercentualOuValor`: digitar R$ | Modo `VALOR`; o % mostra `desconto_bp_efetivo` da resposta com "≈" (Revisão 1) |
 | 26 | `VisaoClienteView` | Nenhum texto de custo, insumo ou preço por móvel |
 | 27 | `PositionModal`, informática | Sem a linha nova; "Selecionar tudo" igual a antes |
 | 28 | `montarDadosProposta` com detalhe **com** custos | Saída sem nenhuma chave de custo, margem, insumo, parâmetro ou preço por móvel (comparação das chaves, recursiva) |

@@ -1,12 +1,14 @@
-# Spec 10A — Separação de Material, Reserva e Lista de Compras (Backend)
+# Spec 10A — Separação de Material (Backend)
 
 | Campo        | Valor                                                                                   |
 |--------------|-----------------------------------------------------------------------------------------|
 | Status       | Rascunho — aguardando aprovação                                                         |
 | Camada       | Backend (FastAPI)                                                                       |
-| Dependências | Specs 04A (`sofre_perda`), 06A (insumos), 08A (aprovação, ponto de extensão do desfazer), 09A (ganchos da OS, F2a) |
+| Dependências | Specs 04A (`sofre_perda`), 06A (insumos), 08A (peças embutidas, `insumos_os`, ponto de extensão do desfazer), 09A (ganchos da OS, F2a), 03A (cancelamento sem devolução, FB1) · módulo Compras (`services/compras/demanda_os.py`, usado como é) |
 | Bloqueia     | Spec 10B                                                                                |
-| Referência   | SPEC-00: E1, E1a, E2, E2a, E3, E3a, E4, E5, F2a, F5, P4, O8 · PR1, PR4, PR6, PR7, PR8 |
+| Referência   | SPEC-00: E1b, E2, E2a, E3b, E4, E5a, F2a, F2b, F5, P4, O8, FB1, FB2 · PR1, PR4, PR6, PR7, PR8 |
+
+> **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15).** A versão de 06/10 tinha uma tabela própria (`marcenaria_separacao`), uma reserva calculada própria e uma lista de compras própria. Com a Revisão 15: (1) os insumos aprovados **já estão na OS** como peças embutidas (08A Revisão 2, F2b), então a separação trabalha sobre esses itens, com as colunas que a finalização e o Compras já entendem (`quantidade_separada`, `custo_real`; E3b); (2) a reserva e o "quanto o estoque cobre" vêm do **Compras** (`demanda_os.demandas_por_produto` e `compras_da_os`, E1b, FB2); (3) a lista de compras entre OS é a tela **Necessidades** do Compras, e esta spec só entrega as **faltas da OS** (E5a). **Não há migração.** As decisões de comportamento aprovadas em 06/10 (E2a: retirada sem saldo acontece; sobra pode ser devolvida; cancelar não devolve sozinho) continuam.
 
 ---
 
@@ -14,25 +16,26 @@
 
 Levar o material do orçamento aprovado para a fábrica:
 
-1. **Separação por OS:** o que precisa sair do estoque para aquela OS, produto a produto, com a quantidade **sugerida** (arredondada para cima nas unidades inteiras) e a **retirada de verdade**, que dá baixa no estoque (E2, E3).
-2. **Reserva calculada** (E1): o que já está comprometido com OS abertas e ainda não saiu, para ninguém prometer a mesma chapa duas vezes.
-3. **Lista de compras** (E5): o que falta para atender as OS abertas, agrupado por fornecedor.
-4. **Leitor de código de barras** (E4): achar o item da separação pelo código.
+1. **Separação por OS e produto:** o que precisa sair do estoque para aquela OS, com a quantidade **sugerida** e a **retirada de verdade**, que dá baixa no estoque (E2, E3b).
+2. **Disponível e faltas:** quanto o estoque cobre para esta OS, descontado o que as OS anteriores na fila já comprometeram, e o que falta (E1b, E5a).
+3. **Leitor de código de barras** (E4): achar o item da separação pelo código do produto ou da embalagem.
 
 ## 2. Escopo
 
 **Dentro do escopo**
-- Linhas de separação por OS e produto, retirar, devolver, concluir.
-- Reserva calculada e "disponível" por produto.
-- Lista de compras.
+- Leitura da separação de uma OS (uma linha por peça embutida do orçamento).
+- Retirar, devolver, concluir, reabrir.
+- Leitor (código de barras, código do produto, código de embalagem).
+- Faltas da OS.
+- Disponível por produto para a busca de insumo do orçamento (06B).
 - Bloqueio do "desfazer aprovação" e aviso no cancelamento da OS.
-- Migração e testes, com a medição de desempenho de E1a.
 
 **Fora do escopo**
 - Telas (10B).
-- Pedido de compra (E5: não existe módulo de compras nesta branch).
-- Móveis terceirizados (11A): eles **não** têm material a separar (§4.1, D4).
+- Lista de compras entre OS e pedido de compra: são do **Compras** (Necessidades, pedidos), módulo COMPRAS (E5a).
+- Móveis terceirizados (11A): não têm material a separar (08A D1d).
 - Plano de corte e peças (fase 2).
+- Qualquer mudança no módulo Compras, na finalização ou no livro de estoque (FB2).
 
 ---
 
@@ -40,22 +43,24 @@ Levar o material do orçamento aprovado para a fábrica:
 
 ```
 backend-fastapi/
-├── alembic/versions/c2d3e4f5a6b7_separacao_marcenaria.py   # CRIAR — filha da 09A
 ├── app/
-│   ├── db/models/marcenaria/separacao.py                    # CRIAR
-│   ├── db/crud/marcenaria/separacao.py                      # CRIAR — consultas agrupadas (E1a)
 │   ├── schemas/marcenaria/separacao.py                      # CRIAR
 │   ├── services/marcenaria/
-│   │   ├── separacao.py                                     # CRIAR — linhas, retirar, devolver, concluir, leitor
-│   │   ├── reserva.py                                       # CRIAR — reserva e disponível
-│   │   ├── lista_compras.py                                 # CRIAR
-│   │   ├── unidades.py                                      # CRIAR — unidade inteira × fracionada
+│   │   ├── separacao.py                                     # CRIAR — ler, retirar, devolver, concluir, reabrir
+│   │   ├── leitor.py                                        # CRIAR — código → item (produto, embalagem com fator)
+│   │   ├── insumos_os.py                                    # CONFERIR — planejado/sugerido (08A Revisão 2)
 │   │   └── __init__.py                                      # ALTERAR — bloqueio do desfazer + gancho de cancelamento
 │   └── api/v1/endpoints/marcenaria_separacao.py             # CRIAR
-└── test/services/marcenaria/test_separacao*.py, test_reserva.py, test_lista_compras.py   # CRIAR
+└── test/services/marcenaria/test_separacao.py, test_leitor.py, test/api/v1/marcenaria/test_separacao_api.py   # CRIAR
 ```
 
-Nenhum arquivo compartilhado muda: a baixa usa `registrar_movimentacao` como ele é (E2).
+**Nenhum arquivo compartilhado muda.** Usados como são: `services/movimentacao_estoque.registrar_movimentacao` e `custo_atual` (livro de estoque), `services/compras/demanda_os` (`demandas_por_produto`, `compras_da_os`), `app/services/quantidade_venda.UNIDADES_FRACIONAVEIS`.
+
+| Camada | Faz | Não faz |
+|--------|-----|---------|
+| `endpoints/marcenaria_separacao.py` | Token, permissão, capacidade | Regra |
+| `services/marcenaria/separacao.py` | Regras das ações, eventos, montagem da resposta | SQL de reserva (é do Compras) |
+| `services/marcenaria/leitor.py` | Achar o item pelo código | Mexer em estoque |
 
 ---
 
@@ -65,75 +70,63 @@ Nenhum arquivo compartilhado muda: a baixa usa `registrar_movimentacao` como ele
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D1 | A separação é por **OS e produto**: todos os insumos aprovados que usam o mesmo produto viram **uma linha** | ⚠️ **Revisão de E3:** chapa se corta para vários móveis de uma vez. Separar por móvel arredondaria cada um para cima (1,4 + 1,2 + 0,6 → 2 + 2 + 1 = **5** chapas) quando a fábrica precisa de **4** (3,2 arredondado uma vez) |
-| D2 | **Planejado** de um produto na OS = Σ (quantidade do insumo × quantidade do móvel × (1 + perda), a perda só se o insumo `sofre_perda`), sobre os móveis **aprovados**, com os números copiados do orçamento | É o que o orçamento cobrou (C1, C2). O orçamento aprovado não muda, então o planejado também não |
-| D3 | **Sugerido** = planejado arredondado **para cima** nas unidades inteiras (todas, menos KG, G, L, ML, M, CM — mesma regra de `quantidade.ts` do frontend); nas fracionadas, o próprio planejado | E3: ninguém retira 0,4 chapa; fita de borda sai em metros quebrados |
-| D4 | Móvel **terceirizado** não entra na separação (o material é da central) | E6: o que a fábrica separa é o que ela produz |
-| D5 | Insumo sem produto (o produto foi excluído depois da cópia, `produto_id` nulo) aparece como linha **informativa**, "Sem cadastro — não baixa estoque", agrupada pela descrição | Não some do que a fábrica precisa, e não inventa produto para dar baixa |
-| D6 | Ordem das linhas: **localização no estoque** (`produto.localizacao_estoque`), depois o nome; sem localização, no fim | Quem separa anda pelo depósito uma vez, na ordem das prateleiras |
-| D7 | Cada linha mostra também **quais móveis** usam o produto e quanto cada um planejou | O marceneiro sabe para onde vai cada chapa, mesmo com a baixa por produto |
+| D1 | Uma linha da separação = uma **peça embutida** da OS que veio do orçamento: item `PRODUTO` com `origem = "ORCAMENTO_MARCENARIA"` (08A D1a). Já é uma por produto, somando todos os móveis (E3a) | E3b. Nenhum dado novo: o item da OS é a fonte |
+| D2 | **Planejado** e **sugerido** de cada linha vêm de `insumos_os.insumos_da_os(orc)` (08A D1b), lidos do orçamento aprovado (somente leitura, F3). O sugerido é a `quantidade` com que o item nasceu | O orçamento aprovado não muda, então o planejado também não; o "reabrir" sabe para onde voltar |
+| D3 | Insumo do orçamento sem produto (excluído depois da cópia) aparece como linha **informativa**, "Sem cadastro — não baixa estoque", agrupada pela descrição, sem ações | Não some do que a fábrica precisa, e não inventa produto para dar baixa (08A D1c) |
+| D4 | Ordem: **localização no estoque** (`produto.localizacao_estoque`), depois nome; sem localização, no fim | Quem separa anda pelo depósito uma vez |
+| D5 | Cada linha mostra **quais móveis** usam o produto e quanto cada um planejou (`InsumoDaOS.moveis`) | O marceneiro sabe para onde vai cada chapa |
 
-### 4.2. Retirar, devolver, concluir
+### 4.2. Retirar, devolver, concluir, reabrir
 
-| # | Decisão | Motivo |
-|---|---------|--------|
-| D8 | **Retirar** registra uma quantidade **real** (padrão: sugerido − já retirado; editável; maior que zero) e dá baixa com `registrar_movimentacao(SAIDA, origem=ORDEM_SERVICO, ordem_servico_id=…)` (E2). Pode ser feito várias vezes (retiradas parciais) | E2, E3. A baixa ligada à OS é o que leva o material ao resultado do mês na finalização (F2a) |
-| D9 | Sem saldo, a retirada **acontece** (`permitir_negativo=True`) e a linha mostra "O estoque ficou negativo: confira a contagem." | Mesmo critério da OS de hoje: a chapa está na mão do marceneiro; travar o sistema não a faz voltar, só para a fábrica. O negativo é o sinal de que o cadastro está errado |
-| D10 | **Devolver** (sobrou chapa inteira, ferragem não usada): `ENTRADA` com origem `ORDEM_SERVICO` e a mesma OS, até o total já retirado. O CMV desconta sozinho (a entrada subtrai, regra de hoje) | Sem devolução, a sobra ficaria fora do estoque e dentro do custo da OS |
-| D11 | **Concluir** marca a linha como separada mesmo com retirado menor que o sugerido ("usou menos"); retirado igual ou maior que o sugerido conclui sozinho. Concluída, a linha sai da reserva. **Reabrir** volta a pendente | A reserva não pode prender material que não vai ser usado |
-| D12 | Toda retirada, devolução e conclusão grava evento no histórico da marcenaria (06A D25) com quem e quanto | T7. O livro do estoque já guarda o movimento; o evento conta a história na OS |
-| D13 | Só com a OS **aberta** (qualquer status menos `FINALIZADA` e `CANCELADA`). Fora disso, só leitura | A separação é trabalho da produção |
-| D14 | **Orçado × real** por produto: planejado, retirado e a diferença em % ("+12% sobre o orçado"). É o número que diz se a perda de 10% está certa | E3. ⚠️ Por móvel não dá (D1): a chapa é dividida entre móveis |
-
-### 4.3. Reserva e disponível (E1)
+Vocabulário: **falta** = `quantidade − quantidade_separada` do item; **concluída** = falta zero (ou o item marcado como não usado, D11).
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D15 | **Reserva** de um produto = Σ, sobre as OS **abertas** com orçamento aprovado, de max(0, sugerido − retirado) das linhas **não concluídas** | E1: sem tabela de reserva; o número sai do que já existe |
-| D16 | **Disponível** = estoque − reserva. Na tela de separação de uma OS, o disponível **para ela** desconta só a reserva das **outras** OS | Senão a própria OS "competiria" com ela mesma |
-| D17 | Cálculo em **uma** consulta agrupada por (OS, produto), arredondamento em Python (o SQLite não tem `CEIL` garantido) e, por fim, soma por produto. Nunca uma consulta por produto | E1a (regra 2) |
-| D18 | Calculado **só** em: tela de separação, lista de compras e busca de insumo do orçamento (`GET /estoque/disponivel`). **Nunca** na lista de produtos nem no PDV | E1a (regra 3) |
+| D6 | **Retirar** registra a quantidade **real** (padrão: a falta; editável; maior que zero): `registrar_movimentacao(SAIDA, origem=ORDEM_SERVICO, ordem_servico_id=…, permitir_negativo=True)` e `quantidade_separada += q`. `custo_real` do item = custo médio do estoque no instante (`custo_atual`), ponderado pelas retiradas (a mesma conta que a fábrica F4 fazia) | E2, E3b. A baixa ligada à OS leva o material ao CMV (F2a). O `custo_real` fica gravado para um relatório de margem real futuro; não aparece em tela nenhuma desta fase (P4) |
+| D7 | Retirar **mais** que a falta é permitido: a `quantidade` do item sobe para o total retirado, com o aviso "Retirado acima do sugerido" na resposta | E2a/E3b: a chapa já saiu; a OS consome o que saiu |
+| D8 | Sem saldo, a retirada **acontece** (estoque negativo) e a linha mostra "O estoque ficou negativo: confira a contagem." | E2a. Travar não devolve a chapa; o negativo aponta o cadastro errado |
+| D9 | **Devolver** (sobra, ferragem não usada): `registrar_movimentacao(ENTRADA, ORDEM_SERVICO, mesma OS)`, até o total retirado; `quantidade_separada −= q` **e** `quantidade −= q`. Se a `quantidade` chegaria a zero, o item é marcado como **não usado** (D11) | "Devolver" quer dizer "isto não vai ser usado": a OS deixa de precisar e a finalização não baixa de novo o que voltou. O CMV desconta sozinho (a entrada subtrai) |
+| D10 | **Concluir** com retirado menor que a quantidade ("usou menos"): `quantidade := quantidade_separada`. A reserva solta e a finalização não baixa a diferença | A reserva não pode prender material que não vai ser usado (E3b) |
+| D11 | **Concluir sem ter retirado nada** (o produto não foi usado): o item fica `status_aprovacao = REPROVADO`, com a `quantidade` intacta | A coluna exige `quantidade > 0` (`ck_os_item_quantidade_positiva`). Item `REPROVADO` já fica fora da baixa (`_itens_de_produto`), da reserva do Compras (`demanda_os`) e do CMV, sem regra nova. A marcenaria não tem aprovação por item na tela (03A D10), então a palavra não aparece para o usuário: a tela diz "não usado" |
+| D12 | **Reabrir**: `status_aprovacao = APROVADO` e `quantidade := max(sugerido, quantidade_separada)` | Corrige um "concluir" por engano sem perder o que já saiu |
+| D13 | Toda ação grava evento no histórico da marcenaria (06A D25) com quem, o quê e quanto | T7. O livro do estoque guarda o movimento; o evento conta a história na OS |
+| D14 | Só com a OS **aberta** (fora de `FINALIZADA` e `CANCELADA`). Fora disso, só leitura | A separação é trabalho da produção |
+| D15 | **Orçado × real** por produto: planejado (D2), retirado líquido e a diferença em % ("+12% sobre o orçado") | E3: é o número que diz se a perda configurada está certa. Por móvel não dá (a chapa é dividida) |
+| D16 | **Concorrência:** cada escrita manda `separada_esperada` (a `quantidade_separada` que a tela tinha). Diferente da gravada → `409 REVISAO_DESATUALIZADA` e nada muda | Dois marceneiros na mesma OS retirariam o "padrão" duas vezes. Sem tabela nova: o próprio valor serve de revisão |
 
-### 4.4. Leitor e lista de compras
+### 4.3. Disponível e faltas (E1b, E5a)
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D19 | **Leitor:** `GET /separacao/ler?codigo=` procura o produto pelo `codigo_barras` e, não achando, pelo `codigo_produto`, **só entre as linhas desta OS**. Respostas: a linha; "Este produto não faz parte desta OS." (`404`); ou a linha com `ja_concluida: true` | E4. Leitor comum é um teclado que digita o código e Enter; a tela decide o que fazer com a linha |
-| D20 | **Lista de compras:** produtos com reserva maior que zero e **disponível** (estoque − reserva) negativo; comprar = reserva − estoque. Com `repor_minimo`, entram também os produtos com reserva cujo disponível fica abaixo do `quantidade_minima`, e comprar = reserva + mínimo − estoque. Sempre arredondado para cima nas unidades inteiras. Produtos sem nenhuma reserva de marcenaria **não** entram (a lista é da produção, não do estoque inteiro da loja) | E5. O mínimo é configuração que o lojista já usa no estoque |
-| D21 | Agrupada pelo **fornecedor principal** (`produto.fornecedor_id`), com o grupo "Sem fornecedor" no fim; cada item diz **quais OS** precisam dele e a localização. Com `view_custos`, o último preço de compra e o total estimado por fornecedor | E5. O preço ajuda a conferir a cotação; é custo, então segue P4 |
+| D17 | **Cada linha** traz, de `compras.demanda_os.compras_da_os(db, os_id)` (chamada uma vez por leitura): `no_estoque` (quanto o estoque cobre para esta OS, na fila das OS abertas, D16 do Compras), `em_pedido` e `falta` | É exatamente a conta "Compras desta OS" que o Compras já faz e já testa; chamar a função não exige o módulo contratado (é serviço, não rota). FB2 |
+| D18 | **Faltas da OS:** a lista das linhas com `falta > 0`, com produto, quantidade, unidade, localização e fornecedor principal (`produto.fornecedor_id`), para imprimir. Com o módulo COMPRAS, a tela leva às Necessidades (10B); a rota de faltas responde igual com ou sem o módulo | E5a. A lista entre OS (e o pedido) é do Compras |
+| D19 | **Disponível para a busca de insumo** (06B): `GET /marcenaria/estoque/disponivel?produto_ids=` devolve `{produto_id: {estoque, reservado, disponivel}}` com `reservado = demanda_os.reservado(...)` de **todas** as OS abertas | E1b. A conta é a do Compras; só a forma da resposta é da marcenaria |
 
-### 4.5. Permissões e outras regras
+### 4.4. Leitor, permissões e outras regras
 
 | # | Decisão | Motivo |
 |---|---------|--------|
-| D22 | Separação: permissão de **OS** (`servico`), a mesma de quem trabalha no modal de OS. Lista de compras: permissão de **produtos** (`produto`). Disponível: de orçamentos (`view_orcamentos_marcenaria`) | A separação é uma aba da OS (T1). Comprar é tarefa de quem cuida do estoque. Nenhuma chave nova na matriz de cargos |
-| D23 | A separação **nunca** traz preço, custo nem valor (P4), qualquer que seja a permissão | P4: o marceneiro vê o material, não o preço |
-| D24 | **Desfazer aprovação** (08A §7.6) fica bloqueado se alguma linha tiver retirado > 0: "Já há material retirado do estoque para esta OS. Devolva o material ao estoque antes de desfazer a aprovação." | O8. Desfazer com chapa já cortada deixaria o estoque e o custo sem dono |
-| D25 | **Cancelar a OS** (gancho `ao_cancelar` da 09A) **não** devolve material sozinho; se houver retirado sem devolução, grava o evento "Material retirado para esta OS continua fora do estoque: 3 chapas MDF Branco TX 18mm, …" | Chapa cortada não volta à prateleira. Quem sabe o que voltou inteiro devolve antes, pela tela |
-| D26 | Toda escrita leva a **revisão da linha** (inteiro, como no orçamento): retirada feita em outro computador depois de a tela carregar responde `409` e a tela recarrega | Dois marceneiros na mesma OS poderiam retirar o "padrão" duas vezes |
+| D20 | **Leitor:** `GET /separacao/ler?codigo=` procura, **só entre as linhas desta OS**, pelo `codigo_barras` do produto, depois pelo `codigo_produto`, depois pelo código de barras de uma **embalagem** ativa do produto (`ProdutoEmbalagem`), devolvendo o `fator` (caixa de 10 = 10 unidades). Respostas: a linha (com `fator`); "Este produto não faz parte desta OS." (`404`); ou a linha com `concluida: true` | E4. É a mesma busca que a separação da fábrica fazia (`fabrica/separacao._achar`), copiada para a marcenaria (a da fábrica sai na limpeza, FB1) |
+| D21 | Permissão: **OS** (`servico`) para tudo (é uma aba da OS); o disponível da busca de insumo: `view_orcamentos_marcenaria` | Nenhuma chave nova |
+| D22 | A separação **nunca** traz preço, custo nem valor (P4), qualquer que seja a permissão | P4 |
+| D23 | **Desfazer aprovação** (08A §7.6) bloqueado se alguma peça embutida tiver `quantidade_separada > 0`: "Já há material retirado do estoque para esta OS. Devolva o material ao estoque antes de desfazer a aprovação." | O8: desfazer com chapa cortada deixaria estoque e custo sem dono |
+| D24 | **Cancelar a OS** não devolve material sozinho (03A D15); o gancho `ao_cancelar` (09A) grava o evento "Material retirado para esta OS continua fora do estoque: 3 un MDF Branco TX 18mm, …" quando houver retirado | E2a: chapa cortada não volta à prateleira |
 
 ---
 
 ## 5. Modelo de dados
 
-```sql
-CREATE TABLE marcenaria_separacao (
-  id INTEGER PRIMARY KEY,
-  os_id        INTEGER NOT NULL REFERENCES ordens_servico(id),
-  produto_id   INTEGER NOT NULL REFERENCES produtos(id),
-  retirado_milesimos INTEGER NOT NULL DEFAULT 0,   -- líquido: retiradas − devoluções
-  concluida    BOOLEAN NOT NULL DEFAULT 0,          -- D11
-  revisao      INTEGER NOT NULL DEFAULT 1,          -- D26
-  atualizado_por_nome VARCHAR(150),
-  atualizado_em DATETIME NOT NULL,
-  CONSTRAINT uq_marcenaria_separacao_os_produto UNIQUE (os_id, produto_id)
-);
-CREATE INDEX ix_marcenaria_separacao_produto ON marcenaria_separacao (produto_id, concluida);
-```
+**Nenhuma tabela nova e nenhuma migração.** A separação usa colunas que já existem em `ordem_servico_itens` (fábrica F4, migração `c6f2d8a4b915`):
 
-- A linha da tabela nasce na **primeira** ação sobre o produto (retirar ou concluir). Antes disso, a linha da tela é só o planejado calculado (D2): nada é gravado ao abrir a aba.
-- O planejado não é guardado: vem dos insumos aprovados (somente leitura depois da aprovação, F3).
-- Unidades: milésimos, como os insumos (PR4). Na chamada a `registrar_movimentacao`, `quantidade = milesimos / 1000` (o estoque é `Float` desde antes).
+| Coluna | Uso aqui | Quem mais lê |
+|--------|----------|--------------|
+| `quantidade` | O que a OS vai consumir no total (nasce = sugerido) | Finalização (baixa), Compras (reserva) |
+| `quantidade_separada` | Retirado líquido (retiradas − devoluções); nula = nada retirado | Finalização (baixa só `quantidade − separada`), Compras (reserva `quantidade − separada`) |
+| `custo_real` | Custo médio no instante das retiradas (D6) | Ninguém nesta fase |
+| `status_aprovacao` | `REPROVADO` = não usado (D11) | Finalização, Compras, CMV (já ignoram `REPROVADO`) |
+| `origem` | Identifica a peça embutida do orçamento (08A) | Trava de edição (08A) |
+
+Unidades: o item da OS é `Float` (como o estoque). A API recebe e devolve **milésimos** (`int`, PR4) e converte na borda: `quantidade = milesimos / 1000`, `milesimos = round(quantidade * 1000)`.
 
 ---
 
@@ -141,53 +134,54 @@ CREATE INDEX ix_marcenaria_separacao_produto ON marcenaria_separacao (produto_id
 
 ### 6.1. Rotas
 
+Prefixo `/api/v1/marcenaria`. Tudo `404` sem a capacidade `orcamento_tecnico` ou numa OS sem orçamento aprovado.
+
 | Método e rota | Permissão | O que faz |
 |---------------|-----------|-----------|
-| `GET /api/v1/marcenaria/os/{numero_os}/separacao` | servico | Linhas (§6.2) |
-| `POST …/separacao/{produto_id}/retirar` | servico | `{quantidade_milesimos, revisao}` (D8, D26) |
-| `POST …/separacao/{produto_id}/devolver` | servico | `{quantidade_milesimos, revisao}` (D10) |
-| `POST …/separacao/{produto_id}/concluir` · `/reabrir` | servico | D11 |
-| `GET …/separacao/ler?codigo=` | servico | D19 |
-| `GET /api/v1/marcenaria/lista-compras?repor_minimo=false` | produto | D20, D21 |
-| `GET /api/v1/marcenaria/estoque/disponivel?produto_ids=1,2,3` | view_orcamentos | `{produto_id: {estoque, reservado, disponivel}}` (D18) |
+| `GET /os/{numero_os}/separacao` | servico | Linhas (§6.2) |
+| `POST /os/{numero_os}/separacao/{item_id}/retirar` | servico | `{quantidade_milesimos, separada_esperada_milesimos}` (D6, D7, D16) |
+| `POST /os/{numero_os}/separacao/{item_id}/devolver` | servico | Idem (D9) |
+| `POST /os/{numero_os}/separacao/{item_id}/concluir` · `/reabrir` | servico | `{separada_esperada_milesimos}` (D10–D12) |
+| `GET /os/{numero_os}/separacao/ler?codigo=` | servico | D20 |
+| `GET /os/{numero_os}/separacao/faltas` | servico | D18 |
+| `GET /estoque/disponivel?produto_ids=1,2,3` | view_orcamentos | D19 |
 
-Toda escrita responde a **linha atualizada** (com estoque e disponível novos). Tudo `404` sem a capacidade `orcamento_tecnico` ou numa OS sem orçamento aprovado.
+Toda escrita responde a **separação inteira** atualizada (§6.2), para a tela ver o disponível e o progresso novos.
 
-### 6.2. Linha da separação
+### 6.2. Separação da OS
 
 ```jsonc
 {
   "os": { "numero_os": "OS-2026-000512", "status": "EM_ANDAMENTO", "editavel": true },
   "linhas": [
     {
-      "produto_id": 55, "descricao": "MDF Branco TX 18mm", "codigo": "MDF-BR-18", "codigo_barras": "789…",
+      "item_id": 3307, "produto_id": 55, "descricao": "MDF Branco TX 18mm", "codigo": "MDF-BR-18",
       "unidade": "UN", "localizacao": "Corredor A · Prateleira 2",
-      "planejado_milesimos": 3520, "sugerido_milesimos": 4000,
-      "retirado_milesimos": 0, "concluida": false, "revisao": 1,
-      "estoque_milesimos": 6000, "disponivel_para_esta_os_milesimos": 5000,   // D16
-      "diferenca_bp": null,                                                    // D14, depois de retirar
-      "moveis": [ { "nome": "Torre Quente", "ambiente": "Cozinha Gourmet", "planejado_milesimos": 1540 } ],
-      "alertas": []                       // "SEM_SALDO" | "ESTOQUE_NEGATIVO" | "SEM_CADASTRO"
+      "planejado_milesimos": 2200, "sugerido_milesimos": 3000,
+      "quantidade_milesimos": 3000, "separada_milesimos": 0, "falta_milesimos": 3000,
+      "concluida": false, "nao_usado": false,
+      "no_estoque_milesimos": 3000, "em_pedido_milesimos": 0, "sem_cobertura_milesimos": 0,   // D17 (Compras)
+      "estoque_milesimos": 6000,
+      "diferenca_bp": null,                                                 // D15, depois de retirar
+      "moveis": [ { "nome": "Balcão", "ambiente": "Cozinha Gourmet", "planejado_milesimos": 2200 } ],
+      "alertas": []                       // "SEM_COBERTURA" | "ESTOQUE_NEGATIVO" | "ACIMA_DO_SUGERIDO"
     }
   ],
-  "resumo": { "linhas": 12, "concluidas": 3, "com_falta": 1 }
+  "sem_cadastro": [ { "descricao": "Puxador perfil antigo", "planejado_milesimos": 2000 } ],   // D3
+  "resumo": { "linhas": 2, "concluidas": 0, "com_falta": 0 }
 }
 ```
 
-`SEM_SALDO`: o disponível para esta OS é menor que o que falta retirar. Nenhum campo de preço (D23).
+`sem_cobertura_milesimos` é o `falta` do Compras (o que nem o estoque nem pedido cobre). `SEM_COBERTURA` aparece quando ele é maior que zero. Nenhum campo de preço (D22).
 
-### 6.3. Lista de compras
+### 6.3. Faltas da OS
 
 ```jsonc
 {
-  "grupos": [
-    { "fornecedor": { "id": 4, "nome": "Madeireira Central", "telefone": "8533…" },
-      "itens": [ { "produto_id": 55, "descricao": "MDF Branco TX 18mm", "unidade": "UN",
-                   "estoque_milesimos": 2000, "reservado_milesimos": 9000, "comprar_milesimos": 7000,
-                   "os": ["OS-2026-000512", "OS-2026-000515"], "localizacao": "Corredor A",
-                   "ultimo_preco_centavos": 31500 } ],                  // só com view_custos (D21)
-      "total_estimado_centavos": 220500 }                               // só com view_custos
-  ],
+  "numero_os": "OS-2026-000512", "cliente": "Studio Arquitetura & Interiores Ltda",
+  "itens": [ { "produto_id": 55, "descricao": "MDF Branco TX 18mm", "unidade": "UN",
+               "faltam_milesimos": 2000, "localizacao": "Corredor A",
+               "fornecedor": { "id": 4, "nome": "Madeireira Central", "telefone": "8533…" } } ],
   "gerado_em": "2026-10-08T14:00:00"
 }
 ```
@@ -197,135 +191,135 @@ Toda escrita responde a **linha atualizada** (com estoque e disponível novos). 
 | Status | `detail` | Quando |
 |--------|----------|--------|
 | `404` | "Esta OS não tem separação de material." | OS sem orçamento aprovado, ou sem a capacidade |
-| `404` | "Este produto não faz parte desta OS." | Produto sem linha nesta OS (inclusive no leitor) |
-| `409` | `{codigo: "OS_FECHADA"}` · "A OS está finalizada ou cancelada; a separação não pode mais ser alterada." | D13 |
-| `409` | `{codigo: "REVISAO_DESATUALIZADA"}` | D26 |
+| `404` | "Este produto não faz parte desta OS." | Item de outra OS, ou código que não casa (leitor) |
+| `409` | `{codigo: "OS_FECHADA"}` · "A OS está finalizada ou cancelada; a separação não pode mais ser alterada." | D14 |
+| `409` | `{codigo: "REVISAO_DESATUALIZADA"}` · "Outra pessoa alterou este item. A lista foi atualizada." | D16 |
 | `422` | "A quantidade deve ser maior que zero." | Retirar ou devolver com 0 |
-| `422` | "Não é possível devolver mais do que foi retirado ({n})." | D10 |
+| `422` | "Não é possível devolver mais do que foi retirado ({n})." | D9 |
 
 ---
 
 ## 7. Especificação técnica
 
-### 7.1. Planejado e sugerido
+### 7.1. Linhas — leitura
 
 ```python
-UNIDADES_FRACIONADAS = {"KG", "G", "L", "ML", "M", "CM"}   # mesma lista de shared/utils/quantidade.ts
-
-
-def sugerido(planejado_milesimos: int, unidade: str | None) -> int:
-    """Arredonda para cima até a unidade inteira, menos nas fracionadas (D3). Entra e sai em milésimos."""
-    if (unidade or "UN").strip().upper() in UNIDADES_FRACIONADAS:
-        return planejado_milesimos                       # 26,350 m de fita saem como 26,350 m
-    return -(-planejado_milesimos // 1000) * 1000        # teto inteiro: 3520 -> 4000 (sem float)
-
-
-def planejado_por_produto(orc: OrcamentoModel) -> dict[int | str, int]:
-    """Σ qtd × qtd do móvel × (1 + perda) por produto, só móveis aprovados e não terceirizados (D2, D4)."""
-    ...
-    # perda em basis points; arredondamento HALF_UP em milésimos, como o motor (Spec 05)
+def ler(db: Session, numero_os: str) -> SeparacaoRead:
+    os_, orc = _os_com_orcamento_aprovado(db, numero_os)              # 404 sem orçamento (§6.4)
+    itens = [i for i in os_.itens                                      # as peças embutidas do orçamento (D1)
+             if i.origem == ORIGEM_ORCAMENTO and i.tipo == OrdemServicoItemTipo.PRODUTO]
+    planejados = {p.produto_id: p for p in insumos_da_os(orc, _unidades(db, itens))}   # D2
+    cobertura = {c.produto_id: c for c in demanda_os.compras_da_os(db, os_.id).itens}  # D17, uma chamada
+    linhas = [_montar_linha(i, planejados.get(i.produto_id), cobertura.get(i.produto_id)) for i in itens]
+    linhas.sort(key=_ordem_do_deposito)                                # D4
+    return SeparacaoRead(os=..., linhas=linhas, sem_cadastro=_sem_cadastro(orc), resumo=_resumo(linhas))
 ```
 
-### 7.2. Reserva — uma consulta (D17)
+- `compras_da_os` só lista produtos com item `APROVADO` e falta maior que zero: linhas concluídas ou não usadas aparecem sem cobertura (zeros), o que está certo.
+- `_unidades` lê `unidade_medida` dos produtos numa consulta só.
+
+### 7.2. Retirar
 
 ```python
-def reservas_por_produto(db: Session, produto_ids: list[int] | None = None,
-                         excluir_os_id: int | None = None) -> dict[int, int]:
-    """Reserva em milésimos por produto, para as OS abertas com orçamento aprovado (D15)."""
-    linhas = crud.planejado_agrupado(db, produto_ids, excluir_os_id)   # 1 SELECT agrupado por (os_id, produto_id),
-                                                                       # já com a unidade e o retirado/concluída
-    reservas: dict[int, int] = defaultdict(int)
-    for linha in linhas:                                               # o laço é em memória, não no banco
-        if linha.concluida:
-            continue
-        falta = sugerido(linha.planejado_milesimos, linha.unidade) - linha.retirado_milesimos
-        reservas[linha.produto_id] += max(0, falta)
-    return reservas
-```
-
-A consulta junta `marcenaria_movel_insumos → marcenaria_moveis (aprovado, INTERNA) → marcenaria_ambientes → marcenaria_orcamentos (APROVADO) → ordens_servico (status aberto)` com `LEFT JOIN marcenaria_separacao`. A perda do insumo é aplicada no `SUM` (`quantidade × qtd_movel × (10000 + perda_bp)` quando `sofre_perda`), dividida por 10000 em Python com HALF_UP.
-
-### 7.3. Retirar
-
-```python
-def retirar(db, numero_os, produto_id, quantidade_milesimos, revisao, usuario) -> LinhaSeparacao:
-    os_, orc = _os_editavel(db, numero_os)                          # D13
-    linha = _linha_ou_404(db, os_, orc, produto_id)                 # só produtos planejados nesta OS
-    _conferir_revisao(linha, revisao)                               # D26
-    produto = produto_crud.get(db, produto_id)
-    movimentacao_service.registrar_movimentacao(                   # E2: o livro de sempre
-        db, produto=produto, tipo=MovimentacaoTipo.SAIDA,
-        quantidade=quantidade_milesimos / 1000,                     # o estoque é Float
+def retirar(db, numero_os, item_id, quantidade_milesimos, separada_esperada, usuario) -> SeparacaoRead:
+    os_, orc = _os_editavel(db, numero_os)                            # D14
+    item = _item_da_os(os_, item_id)                                   # 404 se não for peça embutida desta OS
+    _conferir_separada(item, separada_esperada)                        # D16
+    q = quantidade_milesimos / 1000                                    # o livro e o item são Float
+    produto = db.get(Produto, item.produto_id)
+    custo_agora = movimentacao_estoque.custo_atual(produto.estoque) or 0   # D6: custo médio do instante
+    movimentacao_estoque.registrar_movimentacao(                       # E2: o livro de sempre
+        db, produto=produto, tipo=MovimentacaoTipo.SAIDA, quantidade=q,
         origem=MovimentacaoOrigem.ORDEM_SERVICO, ordem_servico_id=os_.id,
-        usuario_id=usuario.get("id"), usuario_nome=_nome(usuario),
+        usuario_id=_id(usuario), usuario_nome=_nome(usuario),
         observacao=f"Separação marcenaria {orc.codigo}",
-        permitir_negativo=True,                                     # D9
+        permitir_negativo=True,                                        # D8
     )
-    linha.retirado_milesimos += quantidade_milesimos
-    linha.concluida = linha.concluida or linha.retirado_milesimos >= linha.sugerido   # D11
-    linha.revisao += 1
-    registrar_evento(db, orc, "MATERIAL_RETIRADO", ..., os_id=os_.id, usuario=usuario)   # D12
-    return _montar_linha(db, os_, orc, produto_id)
+    antes = item.quantidade_separada or 0
+    depois = round(antes + q, 3)                                       # 3 casas, como o estoque
+    item.custo_real = round(((item.custo_real or 0) * antes + custo_agora * q) / depois)   # ponderado (D6)
+    item.quantidade_separada = depois
+    if depois > item.quantidade:                                       # D7: retirou mais que o sugerido
+        item.quantidade = depois
+    registrar_evento(db, orc, "MATERIAL_RETIRADO", ..., os_id=os_.id, usuario=usuario)   # D13
+    db.flush()
+    return ler(db, numero_os)
+```
+
+### 7.3. Devolver, concluir, reabrir
+
+```python
+def devolver(...):            # D9
+    # ENTRADA no livro; separada -= q; quantidade -= q.
+    # Se a quantidade chegaria a <= 0: status_aprovacao = REPROVADO (não usado) e quantidade intacta (D11).
+    ...
+
+def concluir(...):            # D10, D11
+    # separada > 0: quantidade = separada. separada == 0: status_aprovacao = REPROVADO.
+    ...
+
+def reabrir(...):             # D12
+    # status_aprovacao = APROVADO; quantidade = max(sugerido, separada).
+    ...
 ```
 
 ### 7.4. Ganchos
 
-- `services/marcenaria/__init__.py` acrescenta `_bloqueio_material_retirado` à lista `BLOQUEIOS_DESFAZER` (08A §7.6) e `separacao.avisar_material_no_cancelamento` a `ganchos.ao_cancelar` (09A §6.1).
-
-### 7.5. Desempenho (E1a)
-
-Teste de desempenho no CI (marcado, roda à parte): banco sintético com 6.000 OS e 288.000 insumos (o mesmo cenário medido em 06/10). `reservas_por_produto` sem filtro: **menos de 50 ms**; com 30 produtos: **menos de 10 ms**. O índice `ix_marcenaria_movel_insumos_produto` (06A) e os da árvore já existem; esta spec acrescenta `ix_marcenaria_separacao_produto`.
+`services/marcenaria/__init__.py` acrescenta `_bloqueio_material_retirado` à lista `BLOQUEIOS_DESFAZER` (08A §7.6) e `separacao.avisar_material_no_cancelamento` a `ganchos.ao_cancelar` (09A §6.1, assinatura com `contexto`).
 
 ---
 
 ## 8. Limitações conhecidas
 
-- **Orçado × real só por produto** (D1, D14), não por móvel.
-- **OS cancelada com material retirado:** o material fica fora do estoque e o custo **não** entra no resultado do mês (o CMV de OS só olha OS finalizadas, regra de hoje). A perda existe e não aparece; a tela da OS avisa (D25). Registrar como pendência se o dono quiser essa perda no resultado.
-- **Leitor por produto**, não por peça (peças só com plano de corte, fase 2).
-- **Sem pedido de compra** (E5).
+- **Orçado × real só por produto** (D15), não por móvel.
+- **OS cancelada com material retirado:** o material fica fora do estoque e o custo **não** entra no resultado do mês (o CMV de OS só olha OS finalizadas, regra de hoje). A tela da OS avisa (D24). Registrar como pendência se o dono quiser essa perda no resultado.
+- **Leitor por produto ou embalagem**, não por peça (peças só com plano de corte, fase 2).
+- **Sem lista de compras entre OS sem o módulo Compras** (E5a): sem ele, cada OS imprime as próprias faltas.
+- **Material comprado pelo Compras** sai do lucro duas vezes enquanto a PEND-003 estiver aberta (problema do Compras, fora daqui).
 
 ## 9. Entrega (PR7)
 
-`npm run build:sidecar`.
+`npm run build:sidecar`. Sem migração.
 
 ---
 
 ## 10. Critérios de aceite
 
-- [ ] A aba de separação de uma OS aprovada lista um produto por linha, com planejado (com perda), sugerido (arredondado nas unidades inteiras), localização e os móveis que usam.
-- [ ] Retirar dá baixa no estoque com origem OS; retirar sem saldo funciona e avisa; devolver dá entrada; concluir libera a reserva.
-- [ ] A reserva de uma chapa usada por duas OS abertas soma as duas; concluir ou retirar tudo libera.
-- [ ] Lista de compras mostra só o que falta, por fornecedor, com as OS de cada item; preço só com custos.
-- [ ] Leitor acha o produto da OS pelo código de barras ou pelo código; produto de fora responde a mensagem certa.
-- [ ] Desfazer aprovação bloqueado com material retirado; cancelamento registra o aviso.
-- [ ] Nenhum preço na separação, para ninguém.
-- [ ] Finalizar a OS leva o material retirado (menos o devolvido) para o CMV do mês (F2a).
-- [ ] Desempenho dentro dos limites da §7.5. Código comentado (PR6).
+- [ ] A separação de uma OS aprovada lista uma linha por peça embutida, com planejado (com perda), sugerido, localização, os móveis que usam e a cobertura do estoque (Compras).
+- [ ] Retirar dá baixa no estoque com origem OS e soma em `quantidade_separada`; retirar sem saldo funciona e avisa; retirar acima do sugerido sobe a quantidade e avisa.
+- [ ] Devolver dá entrada e reduz a necessidade; concluir com menos ajusta a quantidade; concluir sem retirar marca "não usado"; reabrir volta ao sugerido.
+- [ ] A reserva do Compras e o painel "Compras desta OS" refletem cada ação, sem mudança no Compras.
+- [ ] Finalizar a OS baixa só o que não foi separado (regra de hoje) e o CMV conta as retiradas menos as devoluções.
+- [ ] Leitor acha o item pelo código de barras, pelo código do produto ou pela embalagem (com o fator); produto de fora responde a mensagem certa.
+- [ ] Faltas da OS com fornecedor principal, com ou sem o módulo Compras.
+- [ ] Desfazer aprovação bloqueado com material retirado; cancelamento não devolve e registra o aviso.
+- [ ] Nenhum preço na separação, para ninguém. Código comentado (PR6).
 
 ## 11. Casos de teste
 
 | # | Cenário | Resultado esperado |
 |---|---------|--------------------|
-| 01 | MDF em 3 móveis (1,4 / 1,2 / 0,6 chapa, sem perda) | Uma linha; planejado 3200; sugerido 4000 |
-| 02 | Mesmo, com perda 10% e `sofre_perda` | Planejado 3520; sugerido 4000 |
-| 03 | Fita de borda em metros (26,35 m) | Sugerido 26350 (sem arredondar) |
-| 04 | Móvel terceirizado | Insumos dele fora da separação |
-| 05 | Móvel não aprovado | Fora da separação e da reserva |
-| 06 | Insumo de produto excluído | Linha `SEM_CADASTRO`; retirar responde `404` |
-| 07 | Retirar 4 chapas com estoque 6 | Estoque 2; movimento `SAIDA`, origem OS, `ordem_servico_id`; linha concluída |
-| 08 | Retirar 4 com estoque 1 | Estoque −3; alerta `ESTOQUE_NEGATIVO` |
-| 09 | Devolver 1 depois de retirar 4 | Estoque +1; retirado 3000; movimento `ENTRADA` |
-| 10 | Devolver 5 depois de retirar 4 | `422` |
-| 11 | Concluir com 3 de 4 retiradas | Concluída; reserva do produto cai a 0 para esta OS |
-| 12 | Duas OS abertas precisando de 4 e 3 chapas, estoque 5 | Reserva 7; disponível −2; lista de compras: comprar 2 |
-| 13 | Mesmo cenário, `repor_minimo` com mínimo 10 | Comprar 7 + 10 − 5 = 12 |
-| 14 | OS finalizada | Escritas `409 OS_FECHADA`; reserva ignora a OS |
-| 15 | Retirar com revisão velha | `409 REVISAO_DESATUALIZADA`; estoque intacto |
-| 16 | Leitor com código de barras / com `codigo_produto` / produto de outra OS | Linha / linha / `404` |
-| 17 | Desfazer aprovação com retirado > 0 | Motivo do D24 na lista de bloqueios |
-| 18 | Cancelar OS com material retirado | Evento do D25; estoque não muda |
-| 19 | Finalizar a OS e ler o CMV do mês | Inclui o custo das saídas menos as devoluções; não inclui o custo declarado nos itens (F2a) |
-| 20 | Separação sem `view_custos` e com | Nenhum campo de preço nas duas |
-| 21 | Lista de compras com e sem `view_custos` | Preço e total só com |
-| 22 | Desempenho (§7.5) | Dentro dos limites |
+| 01 | OS do cenário B aprovada | Duas linhas (MDF, corrediça), sem a Torre terceirizada; MDF planejado 2.200, sugerido 3.000 |
+| 02 | MDF em 3 móveis (1,4 / 1,2 / 0,6, sem perda) | Uma linha; sugerido 4.000 |
+| 03 | Fita de borda em `M` (26,35 m) | Sugerido 26.350 (sem arredondar) |
+| 04 | Insumo de produto excluído | Em `sem_cadastro`; nenhuma ação |
+| 05 | Retirar 3 com estoque 6 | Estoque 3; movimento `SAIDA`, origem OS, `ordem_servico_id`; `quantidade_separada` 3; linha concluída |
+| 06 | Retirar 3 com estoque 1 | Estoque −2; alerta `ESTOQUE_NEGATIVO` |
+| 07 | Retirar 4 com sugerido 3 | `quantidade` 4; alerta `ACIMA_DO_SUGERIDO` |
+| 08 | Devolver 1 depois de retirar 3 | Estoque +1; `quantidade_separada` 2; `quantidade` 2; concluída |
+| 09 | Devolver 4 depois de retirar 3 | `422` |
+| 10 | Concluir com 2 de 3 retiradas | `quantidade` 2; a reserva do Compras para esta OS cai a 0 |
+| 11 | Concluir sem retirar nada | `status_aprovacao = REPROVADO`; fora de `demandas_por_produto`; finalização não baixa |
+| 12 | Reabrir o caso 11 | `APROVADO`; `quantidade` = sugerido |
+| 13 | Retirar com `separada_esperada` velha | `409 REVISAO_DESATUALIZADA`; estoque intacto |
+| 14 | OS finalizada | Escritas `409 OS_FECHADA` |
+| 15 | Leitor com código de barras / `codigo_produto` / embalagem de 10 / produto de outra OS | Linha (fator 1) / linha (fator 1) / linha (fator 10) / `404` |
+| 16 | Duas OS abertas precisando de 4 e 3 chapas, estoque 5 | Na segunda (mais nova), `no_estoque` 1 e `sem_cobertura` 2 (fila do Compras) |
+| 17 | `GET /estoque/disponivel` no mesmo cenário | Reservado 7; disponível −2 |
+| 18 | Faltas da OS do caso 16 (segunda OS) | MDF, faltam 2, com o fornecedor principal |
+| 19 | Desfazer aprovação com retirado > 0 | Motivo do D23 na lista de bloqueios |
+| 20 | Cancelar OS com material retirado | Evento do D24; estoque não muda (03A D15) |
+| 21 | Finalizar com 2 de 3 retiradas e a linha **não** concluída | A finalização baixa 1 (regra de hoje); CMV = 3 chapas |
+| 22 | Finalizar com 2 de 3 e a linha concluída | A finalização não baixa nada desse produto; CMV = 2 chapas |
+| 23 | Separação sem `view_custos` e com | Nenhum campo de preço nas duas |
+| 24 | Informática: criar, finalizar e cancelar OS com peça | Igual a antes (nenhum arquivo compartilhado mudou) |

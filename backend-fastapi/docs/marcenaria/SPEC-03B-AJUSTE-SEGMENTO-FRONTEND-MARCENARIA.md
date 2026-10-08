@@ -6,8 +6,10 @@
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                   |
 | Dependências | Spec 03A (contrato com `criacao_manual`, só Planejados)                 |
 | Bloqueia     | Spec 06B, Spec 08B                                                      |
-| Referência   | SPEC-00 (Revisão 4): O4, E0, E0a, E0b, E0c · PR1, PR6 · SPEC-03A        |
+| Referência   | SPEC-00 (Revisão 4): O4, E0, E0a, E0b, E0c · SPEC-00 (Revisão 15): FB1 · PR1, PR6 · SPEC-03A |
 
+> **Revisão 3 (08/10/2026) — FB1, telas da fábrica retiradas.** A aposentadoria da fábrica (SPEC-00 FB1, Spec 03A Revisão 3) chega às telas: saem a chave "Modo fábrica" de Configurações › OS, a linha "Fábrica" dos cargos, a seção "Insumo da fábrica" do produto e a rota `/fabrica/separacao`. As partes da fábrica **dentro** do modal de OS (trilho, aba Orçamento da fábrica, trava do status) já não aparecem (dependem de `fase_fabrica`, que nenhuma OS nova recebe) e saem na Spec 08B, que reorganiza essas abas. A pasta `modules/order-service/fabrica/` fica (inerte) até a limpeza depois do piloto. Novas seções: D11–D15, §6.9, casos 19–24.
+>
 > **Revisão 2 (06/10/2026) — Reforma de móveis fora da fase 1 (decisão do usuário):** spec reescrita. Saem o seletor com Reforma e a gravação do tipo padrão (a pergunta da §8 da versão anterior perdeu o objeto: a serigrafia **não muda**). Entra a regra do botão "Criar OS" (E0c). A referência da Reforma está na SPEC-00 §7.1.
 
 ---
@@ -20,6 +22,7 @@ Levar para as telas o que a Spec 03A mudou no registry:
 2. **Numa OS de Planejados, o tipo aparece travado**, com o motivo.
 3. **A aprovação por item some da marcenaria** já no carregamento (fallback de capacidades sem `aprovacao_itens`).
 4. **Textos** que citavam campos que saíram (impressão de Planejados, dica do onboarding) passam a falar do orçamento.
+5. **As portas de entrada da fábrica saem das telas** (Revisão 3, FB1).
 
 ## 2. Escopo
 
@@ -31,6 +34,7 @@ Levar para as telas o que a Spec 03A mudou no registry:
 - `useCapacidades.ts`: fallback da marcenaria sem `aprovacao_itens`.
 - `textosImpressaoOS.ts`: pacote `planejados`.
 - `sign-in/constants/segments.ts`: dica do card Marcenaria.
+- Telas da fábrica (Revisão 3): bloco "Fábrica de planejados" em Configurações › OS, linha "Fábrica" da matriz de cargos, seção "Insumo da fábrica" do produto, rota `/fabrica/separacao`.
 - Testes e roteiro manual.
 
 **Fora do escopo**
@@ -59,7 +63,13 @@ frontend/src/modules/
 │       ├── OSObjetoDinamicoTab.vue             # ALTERAR — tipo travado com o motivo
 │       └── __tests__/OSObjetoDinamicoTab.spec.ts  # CRIAR
 ├── mainLayout/views/MainLayout.vue             # ALTERAR ⚠️ — atalho "Criar OS"
-└── sign-in/constants/segments.ts               # ALTERAR — dica da marcenaria
+├── mainLayout/routes.ts                        # ALTERAR — sai a rota /fabrica/separacao (FB1)
+├── sign-in/constants/segments.ts               # ALTERAR — dica da marcenaria
+├── configuracoes/components/sections/ordens-de-servico/components/OrdensDeServico.vue
+│                                               # ALTERAR — sai o bloco "Fábrica de planejados" (FB1)
+├── employees/constants/positions.constants.ts  # ALTERAR — sai a linha "Fábrica" (FB1)
+├── products/inventory/components/ProductModal.vue  # ALTERAR — sai a seção "Insumo da fábrica" (FB1)
+└── order-service/fabrica/__tests__/cargos.spec.ts  # REMOVER — testava a linha que sai (D15)
 ```
 
 | Arquivo | Faz | Não faz |
@@ -84,6 +94,16 @@ frontend/src/modules/
 | D8 | Pacote de impressão `planejados`: tirar "descritos nesta OS" e "montagem externa"; usar "orçamento aprovado" e "instalação". Título "Entrega e Montagem" → "Entrega e Instalação" | Os campos saíram da OS (03A). A via diria que algo está "descrito nesta OS" quando não está |
 | D9 | O pacote **base** `MARCENARIA` (textos da Reforma) **fica no código, sem mudança** | É a referência da Reforma (SPEC-00 §7.1). Toda OS da fase 1 tem o tipo `planejados` gravado pela Spec 08A, então o base não é usado |
 | D10 | Dica do onboarding passa a citar a tela Orçamentos | O texto atual manda montar o orçamento na OS e cadastrar "metro linear" em Serviços (modelo de 16/09) |
+
+### 4.1. Telas da fábrica (Revisão 3, FB1)
+
+| # | Decisão | Motivo |
+|---|---------|--------|
+| D11 | Configurações › OS: sai o bloco **"Fábrica de planejados"** (as duas caixas, `modo_fabrica` e `fabrica_travar_etapas`). Os campos **continuam** no formulário, no store e no schema, e o corpo do `PUT` sai igual ao de hoje (com o valor que veio do backend) | Mexer no contrato de Configurações de OS tocaria uma tela de todos os segmentos (PR1). Uma caixa que não liga nada não pode continuar na tela (03A D13) |
+| D12 | Cargos: sai a linha **"Fábrica"** (`id: 'fabrica'`, chaves `view_fabrica`/`manage_fabrica`) de `PERMISSION_MATRIX`. As constantes `PERMISSIONS.viewFabricaCustos`/`manageFabrica` e o mapa `fabrica` do `MODULE_PERMISSION_MAP` ficam (o código inerte da fábrica ainda os importa) | A linha era da marcenaria e não contava no nível de acesso (`segmento: 'marcenaria'`), então o nível dos cargos de todos os segmentos não muda. Cargos que já gravaram essas chaves ficam com elas, sem efeito |
+| D13 | Produto: sai a seção **"Insumo da fábrica"** (`InsumoProdutoSection`) do `ProductModal`. O "Sofre perda" volta na Spec 04B, como caixa simples em Dados do Produto | A seção editava `unidade_consumo` e `consumo_por_unidade`, que o motor da Spec 05 não usa; deixá-la ensinaria o dono a preencher campos sem efeito |
+| D14 | Rotas: sai `/fabrica/separacao/:numeroOs` (`fabrica-separacao`) | Separação da fábrica só abria OS do trilho, que não existe mais. A separação da marcenaria é a aba da Spec 10B |
+| D15 | Testes: `order-service/fabrica/__tests__/cargos.spec.ts` sai (testava a linha D12); entra um caso que confere que a linha não existe (caso 20). `calculo.spec.ts`, `editor.spec.ts` e `insumo.spec.ts` **ficam** (testam funções que continuam na pasta inerte). Referência de 08/10: 188 testes; depois desta spec, 188 − 3 (os do `cargos.spec.ts`) + os casos novos | Nenhum teste sai em silêncio; a contagem prova que só saiu o que a D15 diz |
 
 ---
 
@@ -228,6 +248,28 @@ O pacote **base** `MARCENARIA` não muda (D9).
     + 'chapas, fitas e ferragens cadastradas em Produtos, e a aprovação do cliente gera a OS.',
 ```
 
+### 6.9. Telas da fábrica (Revisão 3)
+
+```vue
+<!-- OrdensDeServico.vue: o bloco inteiro "FÁBRICA (marcenaria)" sai.
+     Os campos modo_fabrica e fabrica_travar_etapas continuam no `form`
+     (vêm do backend e voltam iguais no PUT), mas não têm mais tela (D11). -->
+```
+
+```ts
+// positions.constants.ts — sai o item { id: 'fabrica', ... segmento: 'marcenaria' } (D12).
+// Nada mais muda na matriz: PERMISSION_KEYS já não contava essa linha.
+
+// mainLayout/routes.ts — sai a rota 'fabrica-separacao' (D14).
+```
+
+```vue
+<!-- ProductModal.vue: saem o defineAsyncComponent de InsumoProdutoSection e o
+     bloco <template v-if="isMarcenaria"> "Insumo da fábrica" (D13). -->
+```
+
+Conferir com uma busca que nada mais importa `InsumoProdutoSection.vue` nem `SeparacaoView.vue` fora da própria pasta `fabrica/` (eles ficam no repositório, sem uso, até a limpeza).
+
 ---
 
 ## 7. Prova de não regressão (⚠️ PR1)
@@ -236,6 +278,8 @@ O pacote **base** `MARCENARIA` não muda (D9).
 2. **Informática, oficina e serigrafia:** botão "Nova OS" e atalho "Criar OS" presentes, na mesma posição e com o mesmo texto; fluxo de criação igual. Serigrafia continua com o seletor Camisa/Sacola.
 3. Atalhos do menu rápido: mesma ordem e mesmos textos nos três segmentos.
 4. Impressão de oficina, assistência e serigrafia igual (snapshot dos pacotes).
+5. **Configurações › OS** em informática, oficina e serigrafia: mesma tela e o mesmo corpo de `PUT` (comparar no DevTools). O bloco que saiu só aparecia na marcenaria.
+6. **Cargos** em todos os segmentos: mesmas linhas e mesmo nível de acesso (snapshot de `getAccessLevel` para cargos de exemplo).
 
 ## 8. Limitações conhecidas
 
@@ -254,6 +298,9 @@ O pacote **base** `MARCENARIA` não muda (D9).
 - [ ] Dica do onboarding da marcenaria cita Orçamentos.
 - [ ] Informática, oficina e serigrafia sem nenhuma mudança (§7).
 - [ ] Contrato sem `criacao_manual`: tudo como hoje.
+- [ ] Marcenaria: sem "Modo fábrica" em Configurações › OS, sem linha "Fábrica" nos cargos, sem "Insumo da fábrica" no produto; a rota `/fabrica/separacao` não existe mais.
+- [ ] Corpo do `PUT` de Configurações › OS igual ao de antes em todos os segmentos.
+- [ ] Contagem dos testes conforme a D15.
 - [ ] Nenhum `if` com nome de segmento ou de tipo fora dos mapas de fallback; código novo comentado (PR6).
 
 ## 10. Casos de teste
@@ -290,6 +337,17 @@ O pacote **base** `MARCENARIA` não muda (D9).
 | 16 | `aplicarTipoTrabalho(MARCENARIA, 'planejados')` | Nenhum texto com "nesta OS" nem "montagem externa"; título "Entrega e Instalação" |
 | 17 | Pacote base `MARCENARIA` | Igual ao de antes (snapshot) |
 | 18 | Pacotes de oficina, assistência e serigrafia | Iguais aos de antes (snapshot) |
+
+### Telas da fábrica (Revisão 3)
+
+| # | Cenário | Resultado esperado |
+|---|---------|--------------------|
+| 19 | `OrdensDeServico.vue` na marcenaria | Sem as caixas "Modo fábrica" e "Travar etapas" |
+| 20 | `PERMISSION_MATRIX` | Nenhum item com `id: 'fabrica'`; `PERMISSION_KEYS` igual ao de antes |
+| 21 | `ProductModal` na marcenaria, produto salvo | Sem a seção "Insumo da fábrica" |
+| 22 | Router | Sem a rota `fabrica-separacao` |
+| 23 | Salvar Configurações › OS (qualquer segmento) | Corpo do `PUT` igual ao de antes (inclusive `modo_fabrica` com o valor que veio) |
+| 24 | Contagem da suíte | 188 − 3 + novos (D15) |
 
 ### Roteiro manual (dev)
 
