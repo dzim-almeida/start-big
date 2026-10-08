@@ -35,12 +35,15 @@ export const productSchema = z.object({
     .min(0.01, 'Valor de varejo deve ser maior que zero'),
   valor_atacado: z.number().optional().or(z.literal(0)),
 
-  // Zero e valido: cadastrar o catalogo antes de comprar a mercadoria e caso
-  // real, e quem nao quer vender sem estoque tem a configuracao de produtos.
-  // O minimo de 1 impedia ate o cadastro de produto que ainda vai chegar.
-  quantidade: z
-  .number({ required_error: 'Quantidade e obrigatoria' })
-  .min(0, 'Quantidade nao pode ser negativa'),
+  quantidade: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z
+      .number({
+        required_error: 'Quantidade inicial é obrigatória',
+        invalid_type_error: 'Quantidade inicial é obrigatória',
+      })
+      .min(0, 'Quantidade não pode ser negativa'),
+  ),
   quantidade_minima: z
   .number()
   .optional(),

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
+import { descontosRegraDaVenda, multiplicadorDaLinha, regraDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
 import {
   useCompanyPrintInfo,
   getClienteNome,
@@ -112,8 +113,13 @@ const pix = computed(() =>
       >
         <div>{{ item.nome }}</div>
         <div class="flex justify-between">
-          <span>{{ item.quantidade }}x {{ formatCurrency(item.valor_unitario) }}</span>
+          <span>{{ multiplicadorDaLinha(item) }} {{ formatCurrency(item.valor_unitario) }}</span>
           <span class="font-bold">{{ formatCurrency(item.total) }}</span>
+        </div>
+        <div v-if="unidadesDaLinha(item)" class="text-[10px]">{{ unidadesDaLinha(item) }}</div>
+        <div v-if="regraDaLinha(item)" class="flex justify-between">
+          <span>{{ regraDaLinha(item)!.texto }}</span>
+          <span v-if="regraDaLinha(item)!.desconto > 0">-{{ formatCurrency(regraDaLinha(item)!.desconto) }}</span>
         </div>
         <div v-if="item.desconto > 0" class="flex justify-between">
           <span>Desc:</span>
@@ -147,6 +153,10 @@ const pix = computed(() =>
       <div class="flex justify-between">
         <span>Subtotal:</span>
         <span>{{ formatCurrency(sale.subtotal) }}</span>
+      </div>
+      <div v-if="descontosRegraDaVenda(sale) > 0" class="flex justify-between">
+        <span>Preço por qtd.:</span>
+        <span>-{{ formatCurrency(descontosRegraDaVenda(sale)) }}</span>
       </div>
       <div v-if="sale.descontos > 0" class="flex justify-between">
         <span>Desconto:</span>

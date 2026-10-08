@@ -128,7 +128,8 @@ def get_produto_simple_by_search(
         db,
         produto_service.get_produto_simple_by_search,
         search,
-        limite
+        limite,
+        user_token.get("empresa_id"),
 )
 
 # ===========================================================================

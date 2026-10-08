@@ -15,6 +15,13 @@ class OrcamentoProdutoCreate(BaseModel):
     descricao_avulsa: Optional[str] = Field(None, max_length=100, description="Descricao do produto avulso")
     valor_unitario: Optional[int] = Field(None, ge=0, description="Valor unitario do produto")
     desconto: int = Field(0, ge=0, description="Desconto do produto")
+    embalagem_id: Optional[int] = Field(
+        None,
+        description=(
+            "Vende a EMBALAGEM (fardo/caixa): a quantidade é de embalagens e o preço é o dela; "
+            "o estoque baixa quantidade × fator. Só com `usar_embalagens` ligado."
+        ),
+    )
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'OrcamentoProdutoCreate':
@@ -83,6 +90,9 @@ class OrcamentoProdutoRead(BaseModel):
     subtotal: int = Field(0, ge=0, description="Subtotal do produto")
     total: int = Field(0, ge=0, description="Total do produto (subtotal - desconto)")
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto")
+    embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
+    fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
+    sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")
 
 
 class FuncionarioOrcamentoRead(BaseModel):

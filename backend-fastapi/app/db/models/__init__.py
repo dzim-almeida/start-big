@@ -67,3 +67,10 @@ from app.db.models.regra_perfil_tributario import RegraPerfilTributario  # noqa:
 
 # --- Central de Etiquetas ---
 from app.db.models.modelo_etiqueta import ModeloEtiqueta  # noqa: F401
+
+# --- Embalagens do produto (fardo/caixa) ---
+from app.db.models.produto_embalagem import ProdutoEmbalagem  # noqa: F401
+# --- Regras de preço por quantidade (R2/R3) ---
+from app.db.models.produto_regra_preco import ProdutoRegraPreco  # noqa: F401
+from app.db.models.nota_entrada import NotaEntrada  # noqa: F401
+from app.db.models.produto_codigo_fornecedor import ProdutoCodigoFornecedor  # noqa: F401

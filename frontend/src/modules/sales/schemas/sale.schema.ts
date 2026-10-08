@@ -88,6 +88,8 @@ export type SaleSimpleRead = z.infer<typeof SaleSimpleReadSchema>;
 export const SaleReadSchema = SaleSimpleReadSchema.extend({
   entrega: z.number(),
   descontos: z.number(),
+  // R1/R3 (§6.1), fora do desconto do operador. Backend antigo não manda.
+  descontos_regra: z.number().optional().default(0),
   subtotal: z.number(),
   acrescimo: z.number(),
   troco: z.number(),

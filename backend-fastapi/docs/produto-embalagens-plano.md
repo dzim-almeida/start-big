@@ -19,6 +19,10 @@ rejeitar nota.
 > (§6.1). Princípio que ele deixou claro: **quem define a regra de venda é o
 > dono da loja** — o sistema oferece as opções, a loja liga as que usa.
 
+> **Execução (branch `embalagens`):** fases 1 e 2 em 27/09 (§13), 3 e 4 em
+> 27/09 (§14), 5 em 28/09 (§15), **6 e as pendências em 01/10 (§16)**. O
+> código do plano está completo. Sobem juntas, com homologação e loja canário.
+
 ---
 
 ## 0. O que "pronto" significa
@@ -238,6 +242,9 @@ vira discussão no balcão.
   desconto (`vDesc`) — é preço praticado. O "leve 3 pague 2" é a exceção: o item
   gratuito sai como **desconto** na linha, que é o jeito aceito pela SEFAZ de
   dizer "levou 3, pagou 2".
+  **Revisto em 28/09 (decisão do Alan, §15):** a R1 também sai como desconto
+  (`vDesc`). O preço guardado é em centavos inteiros, e "fardo de 15 por
+  R$ 50,00 + 2 latas" dá R$ 3,4706 a lata, que não existe. Só a R2 muda o preço.
 - **Comissão e relatórios** usam o valor efetivamente cobrado.
 
 ---
@@ -421,6 +428,200 @@ cálculo que use a quantidade sem citar esses nomes (uma soma montada em SQL
 bruto, por exemplo) escaparia. Por isso cada fase fecha com um **teste de
 ponta a ponta com fardo** — vender, cancelar, devolver, emitir — e não só com
 os testes da parte alterada.
+
+---
+
+## 13. Entrega das fases 1 e 2 (27/09/2026)
+
+Tudo atrás da chave **"Vender e receber em fardo, caixa ou pack"**
+(Configurações › Produtos e Estoque), **desligada por padrão**. Desligada, o
+sistema fica exatamente como antes — cadastro, card, estoque e etiquetas.
+
+**Fase 1 — cadastro e etiqueta**
+- Tabela `produto_embalagens` e `GET/PUT /produtos/{id}/embalagens`
+  (replace-all, permissão de Produtos); as embalagens voltam na leitura do produto.
+- Código **único no sistema inteiro** (produto, SKU, outras embalagens); o
+  produto também não pode usar o código de uma embalagem.
+- **Código interno** para fardo sem código: EAN-13 com prefixo **29** (faixa
+  restrita GS1), pelo id — o "29" fica longe do "2" + código que as balanças
+  usam (§11.3).
+- Seção **Embalagens** no produto (só em edição), componente independente do
+  formulário, fora do `<form>` (Enter num campo dela não salva o produto).
+- Card do estoque com **"= 10 FD"** discreto.
+- Central de Etiquetas: cada linha escolhe **Unidade / FD / CX**; etiqueta do
+  fardo com código, preço e nome dele; **fardo sem código nunca imprime o
+  código da unidade**.
+
+**Fase 2 — entrada e inventário**
+- Entrada em embalagem: "3 CX a R$ 120,00" → **72 un a R$ 5,00** no registro
+  central, que continua recebendo unidade (custo médio e CMV intactos — G6).
+  A movimentação guarda sigla, fator e quantidade de embalagens, congelados.
+- Ajuste de inventário contando **"10 FD + 3 un"**.
+- Histórico mostra "(3 CX de 24)"; Entradas recentes das etiquetas oferecem a
+  etiqueta da embalagem (padrão continua unidade).
+
+**Migrations:** `a0b1c2d3e4f5` (tabela + chave) e `e7b2c9d41f60` (colunas da
+movimentação), só criam o que falta; nada existente é reescrito. (A segunda
+nasceu com um id que já existia — `b1c2d3e4f5a6`, da cor do tema — e o Alembic
+acusou ciclo; renomeada antes do commit.)
+
+**Regressão:** a suíte INTEIRA do backend rodou num banco temporário
+(`DATABASE_URL` apontado para a pasta de rascunho — a fixture padrão sobe o app
+contra o banco real): **1792 passam; 17 falham, e as mesmas 17 já falhavam no
+código de antes das etiquetas** (`test_emissao_ponta_a_ponta.py` — pendência
+"numeração confirmada" — e `test_inutilizacao_recusa_local.py`). Nenhuma
+regressão das embalagens. Frontend: 121 testes, `vue-tsc` e build limpos.
+(As 17 foram corrigidas depois, em `74841b3`: 16 eram fixture desatualizada e 1
+era bug real — o `fileConfig` do Alembic calava os logs do app no startup.)
+
+---
+
+## 14. Entrega das fases 3 e 4 (27/09/2026)
+
+Continuam atrás da mesma chave, **desligada por padrão**. Desligada: a busca do
+PDV não acha o código do fardo nem devolve embalagens, a venda recusa
+`embalagem_id`, a trava "só fechada" não morde, e toda linha nasce com fator 1 —
+baixa, estorno, relatório e nota **idênticos aos de antes** (testado).
+
+**Fase 3 — venda e orçamento**
+- Linha da venda e do orçamento congela `embalagem_id`, `fator_embalagem`
+  (padrão 1) e `sigla_embalagem` (D6). `quantidade` e `valor_unitario` são da
+  embalagem ("2 FD a R$ 48,00"); o preço vem do backend (próprio, desconto ou soma).
+- **Baixa e estorno = quantidade × fator congelado** (finalizar e cancelar). Mudar
+  o fator no cadastro depois não muda o estorno de ontem (testado).
+- Estoque do PDV compara **quantidade × fator** com o saldo (G2) — ao lançar, ao
+  mudar a quantidade na linha e no aviso de estoque negativo.
+- CMV e comissão **não mudaram**: o custo do cadastrado já vinha do livro de
+  estoque, em unidade (G6 resolvido por construção). Relatório de quantidade
+  vendida soma na unidade base (D12, adiantado da fase 6).
+- PDV: o **leitor acha o fardo pelo código** (a busca inclui o código exato da
+  embalagem); a lista mostra chips **"FD 12 · R$ 48,00"** clicáveis e o saldo
+  "= 10 FD"; unidade e fardo são **linhas diferentes** (D7). Código adicional de
+  fator 1 lança a unidade (D3).
+- Modal "Adicionar Produto": **Vender em Unidade / FD / CX** com o preço de cada (G1).
+- Orçamento lança por embalagem e a **conversão em venda copia os três campos** (G3).
+- Impressões (cupom, A4, ESC/POS): **"2 FD x R$ 48,00" e "(24 un)"** embaixo (G4);
+  linha de unidade sai exatamente como antes ("3x R$ 4,50").
+- **Só vende embalagem fechada** (A3): opção na seção Embalagens do produto; o
+  caixa recusa a unidade avulsa (backend e aviso no PDV).
+
+**Fase 4 — NF-e e NFC-e**
+- Linha de embalagem: `uCom` = sigla, `qCom` = embalagens, `vUnCom` = preço dela;
+  `uTrib` = unidade do produto, `qTrib` = qCom × fator, `vUnTrib` = vProd ÷ qTrib
+  com 10 casas (D8). **629/630 conferidas antes de mandar** (linha que não fecha
+  não sai). Linha de unidade: payload **idêntico** ao de antes (não manda qTrib).
+- GTIN **tudo-ou-nada** (D9): se o fardo ou a unidade não tiver GTIN público,
+  os dois vão "SEM GTIN". Código interno (prefixo 2, D18) nunca vai como GTIN;
+  GTIN-14 nunca vai no `cEANTrib`.
+- Snapshot da nota congela fator, unidade e GTIN tributáveis. **Devolução** de
+  1 FD sai com qTrib 12 e **devolve 12 un ao estoque**.
+- Correção fiscal da venda não mexe em itens (G8 já atendido).
+
+**Migrations:** `f3a8d15c6b92` (linha da venda/orçamento + `so_embalagem_fechada`)
+e `c6e4f0a9d217` (snapshot da nota). Só colunas, decididas pela ausência; o
+`DEFAULT 1` preenche as linhas existentes — nada é reescrito.
+
+**Ainda falta antes de ligar na adega:** homologação testando 629/630/885/886/894
+de propósito; confirmar ICMS-ST com o contador (G7 — o motor não tem pauta por
+unidade); loja canário com backup (§7).
+
+---
+
+## 15. Entrega da fase 5 — regras de preço (28/09/2026)
+
+**Decisão (Alan, 28/09):** como cada regra entra na venda.
+
+| Regra | Na venda | Na nota |
+|---|---|---|
+| R1 — preço de fardo nas avulsas | `desconto_regra`, campo **próprio** da linha | `vDesc` |
+| R2 — "a partir de N" | muda `valor_unitario`; o cheio fica em `valor_unitario_tabela` | `vUnCom` |
+| R3 — leve X, pague Y | `desconto_regra` | `vDesc` |
+
+**Por que um campo próprio:** o `desconto` da linha é do operador. O rateio do
+desconto da venda o sobrescreve, a finalização o **zera** acima do limite da
+loja, e a tela o devolve no PATCH (o modal do item e o resumo da venda
+preenchem com ele). Guardar a regra ali faria ela sumir no checkout ou contar
+duas vezes. `total` da linha = `subtotal − desconto − desconto_regra`;
+`Venda.descontos` continua só o do operador e `descontos_regra` vem à parte.
+
+**O que foi feito**
+- **Configurações › Regras de Vendas › Preço por quantidade:** uma chave por
+  regra, "quando mais de uma serve" (menor preço, padrão, ou ordem com ↑↓) e
+  "item com regra não aceita desconto manual" (trava do TOTVS). Tudo desligado.
+- **Produto:** "Avulsas que completam N cobram o preço do FD" na embalagem (R1);
+  seção **Preço por quantidade** com faixas (R2) e leve-pague com vigência (R3),
+  só com a chave ligada. `GET/PUT /produtos/{id}/regras-preco` (replace-all,
+  permissão de Produtos).
+- **Motor:** `core/regras_preco.py` (conta pura) + `services/regras_preco.py`.
+  Recalcula o carrinho inteiro a cada mudança (`_recalc_total_sale`) e na
+  conversão do orçamento; **não** na finalização (o caixa cobra o que viu). Só
+  linhas de unidade (fator 1) de produto cadastrado; fardo vendido como fardo,
+  avulso e linha com preço trocado pelo gerente (`MANUAL`) ficam de fora. Uma
+  regra por produto, nunca somam. Linhas do mesmo produto e preço somam as
+  unidades (17 latas em duas linhas = 1 fardo + 2).
+- **Desconto do operador vem depois da regra:** o rateio e o limite (%) usam o
+  que sobra depois dela; o zeramento (finalização e mudança de limite) só mexe
+  no do operador.
+- **PDV:** a linha mostra a regra ("Preço de 1 FD (15 un)"), o preço cheio
+  riscado (R2) e "−R$ 17,50 regra"; o resumo mostra "preço por qtd.". A resposta
+  de adicionar/editar traz `itens_alterados` (as outras linhas que a regra mudou).
+- **Impressões** (cupom, A4, ESC/POS): a regra embaixo da linha e "Preço por
+  qtd." nos totais. Linha sem regra sai igual a antes.
+- **Nota:** `vDesc` = operador + regra (com e sem motor de impostos); a prévia
+  de conferência também soma os dois. Faturamento por produto (curva ABC) desconta a regra.
+
+**Migration:** `d2f8b61e9a47` — tabela `produto_regras_preco` + colunas; só cria
+o que falta, tudo nasce desligado/0/nulo. Testada numa cópia do banco local
+(cadeia inteira desde `d1a2b3c4e5f6`).
+
+**Testes:** conta pura (12), ponta a ponta pela API (13 — desligado não muda
+nada, R1/R2/R3, vigência, conflito, limite do operador, zeramento, trava,
+orçamento convertido) e payload fiscal (3). Frontend: 131 testes, `vue-tsc` e
+build limpos.
+
+**Fica para a fase 6:** relatório "vendas por regra de preço" (a linha já
+guarda `regra_preco`, `regra_descricao` e `desconto_regra`).
+
+---
+
+## 16. Entrega da fase 6 e das pendências (01/10/2026)
+
+**Fase 6 — vendas por regra de preço**
+- `GET /relatorios/regras-preco?inicio&fim` (só o dono, como a Curva ABC).
+  Lê o que ficou congelado na linha; `MANUAL` não é regra e fica de fora.
+- **Abatimento** = o que a regra deixou de cobrar, nas duas formas dela:
+  `desconto_regra` (R1/R3) + `(valor_unitario_tabela − valor_unitario) ×
+  quantidade` (R2). **Faturamento** = subtotal − os dois descontos, o mesmo da
+  Curva ABC, para os dois relatórios baterem.
+- Venda com linhas de duas regras conta **uma vez** no topo (contagem própria,
+  não a soma dos grupos).
+- Tela: Relatórios › "Vendas por regra de preço" — KPIs, um cartão por regra e
+  a tabela por produto, com exportação CSV. Aparece só para o dono **e** com
+  alguma regra ligada (B8).
+
+**Prévia da emissão (NF-e/NFC-e):** a conferência mostra "2 FD" e "24 un"
+embaixo, em vez de "2". `sigla_embalagem`/`fator_embalagem` opcionais na
+resposta; linha de unidade sai como antes.
+
+**A5 — peso da embalagem**
+- `produto_embalagens.peso_gramas` (opcional, **gramas inteiras** — mesma régua
+  dos centavos; o §5 falava em `peso_kg` Decimal). Na tela, "Peso (kg)".
+- A etiqueta de envio da venda recebe `volumes_embalagens`,
+  `peso_embalagens_gramas` e `peso_completo`. Só com **toda** linha sendo
+  embalagem com peso a tela preenche volumes e peso sozinha (editáveis). Com
+  latas avulsas ou embalagem sem peso, mostra o parcial como dica — uma soma
+  que esquece itens é peso errado na etiqueta.
+- O peso **não** é congelado na linha: não mexe em valor, estoque nem nota.
+
+**Migration:** `e4a7c1b93f20` — só a coluna, decide pela ausência dela.
+Testada numa cópia do banco local (cadeia desde `d1a2b3c4e5f6`).
+
+**Testes:** relatório (2: vazio; R1+R2 com venda de duas regras, venda sem
+regra, rascunho e período fora), prévia (1) e peso/etiqueta (3).
+
+**Fica fora do código (precisa do Alan):** homologar NF-e/NFC-e
+(629/630/885/886/894), ICMS-ST com o contador, `npm run build:sidecar`, loja
+canário com backup; impressora real da branch `etiquetas`.
 
 ---
 

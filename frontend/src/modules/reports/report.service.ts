@@ -15,6 +15,11 @@ import {
   RelatorioExtratoFuncionarioSchema,
   type RelatorioExtratoFuncionario,
 } from './schemas/extratoFuncionario.schema';
+import {
+  RelatorioRegrasPrecoSchema,
+  type RelatorioRegrasPreco,
+} from './schemas/regrasPreco.schema';
+import { RelatorioContadorSchema, type RelatorioContador } from './schemas/contador.schema';
 
 /**
  * Faturamento (vendas + OS finalizadas) no intervalo [inicio, fim].
@@ -50,6 +55,18 @@ export async function getOSPerformance(
 ): Promise<RelatorioOSPerformance> {
   const { data } = await api.get('/relatorios/os-performance', { params: { inicio, fim } });
   return safeParseResponse(RelatorioOSPerformanceSchema, data, 'getOSPerformance');
+}
+
+/** Vendas com regra de preço por quantidade (R1/R2/R3): o que venderam e o que abateram. */
+export async function getRegrasPreco(inicio: string, fim: string): Promise<RelatorioRegrasPreco> {
+  const { data } = await api.get('/relatorios/regras-preco', { params: { inicio, fim } });
+  return safeParseResponse(RelatorioRegrasPrecoSchema, data, 'getRegrasPreco');
+}
+
+/** Receita do período separada como o contador declara no PGDAS-D. */
+export async function getContador(inicio: string, fim: string): Promise<RelatorioContador> {
+  const { data } = await api.get('/relatorios/contador', { params: { inicio, fim } });
+  return safeParseResponse(RelatorioContadorSchema, data, 'getContador');
 }
 
 /**

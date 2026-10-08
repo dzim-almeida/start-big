@@ -67,6 +67,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   // ── Produtos: preços e exibição ──
   const margemLucroPadrao = computed(() => configProdutos.value?.margem_lucro_padrao ?? 0)
   const utilizarPrecoAtacado = computed(() => configProdutos.value?.utilizar_preco_atacado ?? true)
+  // Embalagens (fardo/caixa): desligado, nem a seção do cadastro aparece.
+  const usarEmbalagens = computed(() => configProdutos.value?.usar_embalagens ?? false)
 
   // ── Produtos: controle de estoque ──
   // O padrão acompanha o do banco (`configuracao_produtos.permitir_venda_estoque_zerado`,
@@ -111,6 +113,14 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   // so responde nao a segunda.
   const usarFilaDoCaixa = computed(() => configVendas.value?.usar_fila_do_caixa ?? false)
 
+  // Regras de preço por quantidade (§6.1) — todas desligadas por padrão.
+  const regraEmbalagemAvulsas = computed(() => configVendas.value?.regra_embalagem_avulsas ?? false)
+  const regraFaixasQuantidade = computed(() => configVendas.value?.regra_faixas_quantidade ?? false)
+  const regraLevePague = computed(() => configVendas.value?.regra_leve_pague ?? false)
+  const regraConflito = computed(() => configVendas.value?.regra_conflito ?? 'MENOR_PRECO')
+  const regraOrdem = computed(() => configVendas.value?.regra_ordem ?? 'R1,R2,R3')
+  const bloquearDescontoComRegra = computed(() => configVendas.value?.bloquear_desconto_com_regra ?? false)
+
   // ── Segurança: PINs ──
   const requerPinDescontoVenda = computed(() => configSeguranca.value?.requer_pin_desconto_venda ?? false)
   const requerPinAlterarPreco = computed(() => configSeguranca.value?.requer_pin_alterar_preco_venda ?? false)
@@ -154,6 +164,7 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
 
     margemLucroPadrao,
     utilizarPrecoAtacado,
+    usarEmbalagens,
 
     permitirVendaEstoqueZerado,
     quantidadeMinimaPadrao,
@@ -180,6 +191,12 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     fechamentoCego,
     requerPinAbrirCaixa,
     usarFilaDoCaixa,
+    regraEmbalagemAvulsas,
+    regraFaixasQuantidade,
+    regraLevePague,
+    regraConflito,
+    regraOrdem,
+    bloquearDescontoComRegra,
 
     requerPinDescontoVenda,
     requerPinAlterarPreco,

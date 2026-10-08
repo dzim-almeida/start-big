@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING
-from sqlalchemy import Boolean, DateTime, Integer, ForeignKey
+from sqlalchemy import Boolean, DateTime, Integer, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -84,6 +84,39 @@ class ConfiguracaoVendas(Base):
     # Padrao False, como todas as outras: loja que atualiza e nao mexe em nada
     # nao ve o botao, nem o selo na lista, nem o filtro.
     usar_fila_do_caixa: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+
+    # =======================================================================
+    # REGRAS DE PRECO POR QUANTIDADE (plano de embalagens, §6.1, fase 5)
+    # =======================================================================
+    # "Quem dita a regra de venda é quem está vendendo" (D16): o sistema oferece
+    # as três, o dono liga as que usa. Todas nascem desligadas -- loja que
+    # atualiza e não mexe continua cobrando exatamente como antes (B8).
+    #
+    # R1: avulsas que completam um fardo cobram o preço do fardo (precisa também
+    # de `usar_embalagens` e da embalagem com "aplicar às avulsas").
+    regra_embalagem_avulsas: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    # R2: "a partir de N un, cada uma sai por X" (faixas no produto).
+    regra_faixas_quantidade: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    # R3: "leve X, pague Y", com vigência (promoção no produto).
+    regra_leve_pague: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    # Quando mais de uma serve (D17): MENOR_PRECO (padrão) ou ORDEM, seguindo
+    # `regra_ordem` ("R2,R1,R3"). Nunca somam: uma regra por produto.
+    regra_conflito: Mapped[str] = mapped_column(
+        String(12), default="MENOR_PRECO", server_default="MENOR_PRECO", nullable=False
+    )
+    regra_ordem: Mapped[str] = mapped_column(
+        String(20), default="R1,R2,R3", server_default="R1,R2,R3", nullable=False
+    )
+    # Trava do TOTVS: item com regra de preço não aceita desconto manual.
+    bloquear_desconto_com_regra: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", nullable=False
     )
 

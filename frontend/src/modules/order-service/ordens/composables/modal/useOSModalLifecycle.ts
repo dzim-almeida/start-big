@@ -117,6 +117,10 @@ export function useOSModalLifecycle({
       newStatus === 'EM_ANDAMENTO'
     ) {
       form.atualizarGeral.status.value = 'EM_ANDAMENTO';
+      // A reabertura "não pagou" zera o desconto no banco. O formulário de
+      // edição devolve o `desconto` ao salvar; com o valor velho, qualquer
+      // "Salvar" depois de reabrir com o modal aberto traria o desconto de volta.
+      form.atualizarGeral.desconto.value = currentOSData.value?.desconto ?? undefined;
     }
   });
 

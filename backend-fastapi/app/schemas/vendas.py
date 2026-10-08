@@ -26,6 +26,13 @@ class ProdutoVendaCreate(BaseModel):
         )
     )
     desconto: int = Field(0, ge=0, description="Desconto do produto, obrigatório")
+    embalagem_id: Optional[int] = Field(
+        None,
+        description=(
+            "Vende a EMBALAGEM (fardo/caixa): a quantidade é de embalagens e o preço é o dela; "
+            "o estoque baixa quantidade × fator. Só com `usar_embalagens` ligado."
+        ),
+    )
 
     @model_validator(mode='after')
     def check_produto_references(self) -> 'ProdutoVendaCreate':
@@ -128,6 +135,15 @@ class ProdutoVendaRead(BaseModel):
     imagem_url: Optional[str] = Field(None, description="URL da imagem do produto, preenchido automaticamente com base no tipo do produto e suas referências")
     unidade_medida: Optional[str] = Field(None, description="Unidade de medida do produto (ex: UN, KG, CX)")
     estoque_disponivel: Optional[int] = Field(None, description="Estoque atual do produto no momento da consulta")
+    embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
+    fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
+    sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")
+    # Regra de preço por quantidade aplicada (§6.1). `desconto` continua sendo
+    # só o do operador; `total` já desconta os dois.
+    desconto_regra: int = Field(0, ge=0, description="Desconto da regra de preço R1/R3 (centavos)")
+    regra_preco: Optional[str] = Field(None, description="R1, R2, R3 ou MANUAL (preço trocado pelo gerente)")
+    regra_descricao: Optional[str] = Field(None, description="O que a linha mostra ('Leve 3, pague 2: 1 grátis')")
+    valor_unitario_tabela: Optional[int] = Field(None, description="R2: preço cheio da unidade, mostrado riscado")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")
@@ -168,7 +184,8 @@ class VendaSimpleRead(BaseModel):
 class VendaRead(VendaSimpleRead):
     entrega: int = Field(0, ge=0, description="Valor da entrega")
     subtotal: int = Field(0, ge=0, description="Subtotal da venda")
-    descontos: int = Field(0, ge=0, description="Desconto da venda")
+    descontos: int = Field(0, ge=0, description="Desconto da venda (só o do operador)")
+    descontos_regra: int = Field(0, ge=0, description="Soma dos descontos das regras de preço (R1/R3)")
     acrescimo: int = Field(0, ge=0, description="Acréscimo de juros/cartão aplicado no checkout")
     troco: int = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
@@ -180,6 +197,7 @@ class VendaRead(VendaSimpleRead):
 class VendaFinanceSummary(BaseModel):
     subtotal: int = Field(0, ge=0, description="Subtotal atualizado da venda após alteração dos produtos")
     descontos: int = Field(0, ge=0, description="Desconto atualizado da venda após alteração dos produtos")
+    descontos_regra: int = Field(0, ge=0, description="Descontos das regras de preço (R1/R3) após a alteração")
     entrega: int = Field(0, ge=0, description="Valor da entrega atualizado da venda após alteração dos produtos")
     total: int = Field(0, ge=0, description="Total atualizado da venda após alteração dos produtos")
 
@@ -195,6 +213,9 @@ class ProdutosAlterSummary(BaseModel):
 
     produto_adicionado: ProdutoVendaRead
     financeiro_atualizado: VendaFinanceSummary
+    # As OUTRAS linhas que a regra de preço mudou (§6.1): a tela troca essas
+    # também, senão mostraria o preço velho até recarregar. Vazio sem regra.
+    itens_alterados: list[ProdutoVendaRead] = Field(default_factory=list)
 
 class FinalizarVendaPayload(BaseModel):
     pagamentos: list[PagamentoVendaCreate] = Field(..., min_length=1, description="Lista de pagamentos para finalizar a venda")

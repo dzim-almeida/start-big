@@ -79,6 +79,16 @@ def montar_itens_snapshot(payload: dict, venda=None) -> list[DocumentoFiscalItem
         if 0 < numero_item <= len(itens_venda):
             produto_id = getattr(itens_venda[numero_item - 1], "produto_id", None)
 
+        # Linha de embalagem: o payload levou qTrib = qCom × fator (D8).
+        fator = 1
+        q_com = item.get("quantidade_comercial")
+        q_trib = item.get("quantidade_tributavel")
+        try:
+            if q_com and q_trib:
+                fator = max(1, int(round(float(q_trib) / float(q_com))))
+        except (TypeError, ValueError, ZeroDivisionError):
+            fator = 1
+
         snapshot.append(
             DocumentoFiscalItem(
                 numero_item=numero_item,
@@ -101,6 +111,9 @@ def montar_itens_snapshot(payload: dict, venda=None) -> list[DocumentoFiscalItem
                 aliquota_icms_centesimos=int(
                     round(float(item.get("icms_aliquota") or 0) * 100)
                 ),
+                fator_embalagem=fator,
+                unidade_tributavel=_texto(item.get("unidade_tributavel"), 6) if fator > 1 else None,
+                codigo_barras_tributavel=_texto(item.get("codigo_barras_tributavel"), 20) if fator > 1 else None,
             )
         )
 

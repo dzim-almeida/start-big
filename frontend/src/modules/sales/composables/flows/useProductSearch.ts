@@ -10,7 +10,7 @@ import { useToast } from '@/shared/composables/useToast';
 import { productService } from '../../api.service';
 import { resolverPorCodigoExato } from '../../leitorCodigoBarras.util';
 
-import type { ProductSaleCreate, ProductSaleRead, ProductSaleListItem } from '../../schemas/productSale.schema';
+import type { EmbalagemPdv, ProductSaleCreate, ProductSaleRead, ProductSaleListItem } from '../../schemas/productSale.schema';
 
 /** Quanto tempo a busca espera o dedo parar, para quem digita nome. */
 const ESPERA_BUSCA_MS = 300;
@@ -88,6 +88,12 @@ export function useProductSearch(
   const quantity = ref(1);
   const desconto = ref(0);
   const selectedProduct = ref<ProductSaleListItem[number] | null>(null);
+  /** Na modal Adicionar Produto: vender em unidade (null) ou numa embalagem. */
+  const embalagemSelecionadaId = ref<number | null>(null);
+  const embalagemSelecionada = computed<EmbalagemPdv | null>(
+    () => selectedProduct.value?.embalagens?.find((e) => e.id === embalagemSelecionadaId.value) ?? null,
+  );
+  const precoSelecionado = computed(() => embalagemSelecionada.value?.preco ?? selectedProduct.value?.preco ?? 0);
 
   /**
    * O item destacado na lista. Nasce em 0 — o primeiro resultado.
@@ -124,7 +130,7 @@ export function useProductSearch(
 
   const totalItem = computed(() => {
     if (!selectedProduct.value) return 0;
-    const subtotal = selectedProduct.value.preco * quantity.value;
+    const subtotal = precoSelecionado.value * quantity.value;
     return Math.max(0, subtotal - desconto.value);
   });
 
@@ -147,6 +153,14 @@ export function useProductSearch(
     desconto.value = 0;
     highlightedIndex.value = 0;
     selectedProduct.value = sortedProducts.value.find((p) => p.id === productId) ?? null;
+    // Produto que só vende fechado já abre na menor embalagem.
+    embalagemSelecionadaId.value = selectedProduct.value?.so_embalagem_fechada
+      ? (menorEmbalagem(selectedProduct.value)?.id ?? null)
+      : null;
+  }
+
+  function menorEmbalagem(produto: ProductSaleListItem[number]): EmbalagemPdv | null {
+    return [...(produto.embalagens ?? [])].filter((e) => e.fator > 1).sort((a, b) => a.fator - b.fator)[0] ?? null;
   }
 
   function increaseQuantity() {
@@ -165,6 +179,7 @@ export function useProductSearch(
     selectedProductName.value = null;
     selectedProductId.value = null;
     selectedProduct.value = null;
+    embalagemSelecionadaId.value = null;
     quantity.value = 1;
     desconto.value = 0;
     inputOnFocus.value = false;
@@ -237,14 +252,18 @@ export function useProductSearch(
    *
    * Se o produto já está na venda, soma na linha existente em vez de criar uma
    * segunda — é o que faz bipar a mesma garrafa três vezes virar "3 un.".
+   *
+   * Unidade e fardo do mesmo produto são linhas DIFERENTES (plano de
+   * embalagens, D7): "3 UN + 1 FD" numa linha só esconderia o que o cliente levou.
    */
   async function executarAdicao(
     saleId: number,
     produtoId: number,
     quantidade: number,
     descontoItem: number,
+    embalagemId: number | null = null,
   ): Promise<boolean> {
-    const existingItem = currentItems?.value?.find((item) => item.produto_id === produtoId);
+    const existingItem = linhaDoProduto(produtoId, embalagemId);
 
     try {
       if (existingItem && !isOrcamento) {
@@ -262,6 +281,7 @@ export function useProductSearch(
           quantidade,
           produto_id: produtoId,
           ...(descontoItem > 0 && { desconto: descontoItem }),
+          ...(embalagemId !== null && { embalagem_id: embalagemId }),
         };
 
         if (isOrcamento) {
@@ -298,11 +318,14 @@ export function useProductSearch(
     termo?: string;
     quantidade?: number;
     desconto?: number;
+    /** Vender a embalagem (fardo/caixa) em vez da unidade. */
+    embalagem?: EmbalagemPdv | null;
   }): Promise<ResultadoAdicao> {
     const { saleId } = entrada;
     if (!saleId) return { tipo: 'error' };
 
     let produto = entrada.produto;
+    let embalagem = entrada.embalagem ?? null;
 
     // ── Resolver o código, quando veio termo em vez de produto ──────────────
     if (!produto && entrada.termo) {
@@ -330,9 +353,20 @@ export function useProductSearch(
         return { tipo: 'ambiguous', termo, quantos: resolvido.quantos };
       }
       produto = resolvido.produto;
+      embalagem = resolvido.embalagem ?? null;
     }
 
     if (!produto) return { tipo: 'error' };
+
+    // A3: produto que só vende fechado recusa a unidade — avisar aqui poupa a
+    // ida ao servidor, que recusaria do mesmo jeito.
+    if (!embalagem && produto.so_embalagem_fechada && produto.embalagens?.length) {
+      toast.warning(
+        `${produto.nome} só é vendido em embalagem fechada`,
+        `Bipe o código do ${produto.embalagens.map((e) => e.sigla).join(' / ')} ou escolha a embalagem na lista.`,
+      );
+      return { tipo: 'blocked', nome: produto.nome };
+    }
 
     // ── Estoque: a regra é a da empresa, lida da configuração ───────────────
     //
@@ -342,8 +376,10 @@ export function useProductSearch(
     // servidor ia recusar.
     const quantidade = entrada.quantidade ?? 1;
     const descontoItem = entrada.desconto ?? 0;
-    const jaNaVenda = currentItems?.value?.find((item) => item.produto_id === produto!.id);
-    const quantidadeTotal = (jaNaVenda?.quantidade ?? 0) + quantidade;
+    const embalagemId = embalagem?.id ?? null;
+    const jaNaVenda = linhaDoProduto(produto.id, embalagemId);
+    // O estoque é em unidade: a linha "3 FD" de 12 pede 36 (G2).
+    const quantidadeTotal = ((jaNaVenda?.quantidade ?? 0) + quantidade) * (embalagem?.fator ?? 1);
 
     if (quantidadeTotal > produto.estoque) {
       // ORÇAMENTO É DIFERENTE, e é o backend que decide isso.
@@ -380,8 +416,15 @@ export function useProductSearch(
       if (!continuar) return { tipo: 'cancelled' };
     }
 
-    const ok = await executarAdicao(saleId, produto.id, quantidade, descontoItem);
+    const ok = await executarAdicao(saleId, produto.id, quantidade, descontoItem, embalagemId);
     return ok ? { tipo: 'added' } : { tipo: 'error' };
+  }
+
+  /** A linha do carrinho deste produto NESTA embalagem (null = unidade). */
+  function linhaDoProduto(produtoId: number, embalagemId: number | null) {
+    return currentItems?.value?.find(
+      (item) => item.produto_id === produtoId && (item.embalagem_id ?? null) === embalagemId,
+    );
   }
 
   /**
@@ -463,7 +506,8 @@ export function useProductSearch(
 
   function scrollToHighlighted() {
     nextTick(() => {
-      const el = document.querySelector(`[data-product-index="${highlightedIndex.value}"]`);
+      const root = searchContainerRef.value ?? document;
+      const el = root.querySelector(`[data-product-index="${highlightedIndex.value}"]`);
       el?.scrollIntoView({ block: 'nearest' });
     });
   }
@@ -483,6 +527,7 @@ export function useProductSearch(
    */
   watch(sortedProducts, () => {
     highlightedIndex.value = 0;
+    scrollToHighlighted();
   });
 
   watch(searchTerm, (term) => {
@@ -510,6 +555,9 @@ export function useProductSearch(
     quantity,
     desconto,
     totalItem,
+    embalagemSelecionadaId,
+    embalagemSelecionada,
+    precoSelecionado,
     searchContainerRef,
     highlightedIndex,
 

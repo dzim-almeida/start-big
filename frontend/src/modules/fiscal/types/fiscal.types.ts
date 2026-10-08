@@ -324,6 +324,9 @@ export interface EmissaoPreviewItem {
   produto_id: number | null;
   nome: string;
   quantidade: number;
+  /** FD, CX… Ausente (backend antigo) ou nulo = unidade. */
+  sigla_embalagem?: string | null;
+  fator_embalagem?: number;
   valor_unitario: number;
   valor_total: number;
   cfop: string;

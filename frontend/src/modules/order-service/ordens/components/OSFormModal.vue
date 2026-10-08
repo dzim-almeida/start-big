@@ -217,6 +217,7 @@ const {
   updateValorEntrada: form.atualizarGeral.valor_entrada,
   createFormaPagamentoEntrada: form.criar.forma_pagamento_entrada_id,
   updateFormaPagamentoEntrada: form.atualizarGeral.forma_pagamento_entrada_id,
+  createTaxaEntrega: form.criar.taxa_entrega,
   updateTaxaEntrega: form.atualizarGeral.taxa_entrega,
 });
 const {

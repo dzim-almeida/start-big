@@ -323,3 +323,70 @@ def test_extrato_mostra_a_mao_de_obra_que_a_comissao_paga(client, db_session):
 
     # A amarração que importa: o extrato e a comissão falam do mesmo número.
     assert body["total_mao_de_obra"] == _comissao(client, header, func_id)["faturamento_os"]
+
+
+def _vender(client, header, func_id, fp_id, produto_id, quantidade, cliente_id=None):
+    payload = {"funcionario_id": func_id}
+    if cliente_id is not None:
+        payload["cliente_id"] = cliente_id
+    cv = client.post("/api/v1/vendas/", json=payload, headers=header)
+    assert cv.status_code == 201, cv.text
+    venda_id = cv.json()["id"]
+    add = client.post(f"/api/v1/vendas/{venda_id}/itens", json={
+        "tipo_produto": "CADASTRADO", "produto_id": produto_id, "quantidade": quantidade,
+    }, headers=header)
+    assert add.status_code == 201, add.text
+    total = add.json()["financeiro_atualizado"]["total"]
+    fin = client.post(f"/api/v1/vendas/{venda_id}/finalizar", json={
+        "acrescimo": 0,
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": total, "parcelado": False, "qtd_parcelas": None}],
+    }, headers=header)
+    assert fin.status_code == 200, fin.text
+    return venda_id
+
+
+def test_extrato_de_comissao_traz_as_vendas_e_bate_com_a_folha(client, db_session):
+    """O extrato virou extrato de COMISSÃO: vendas e serviços, cada linha com a
+    sua parte, e o total igual ao da folha — centavo por centavo."""
+    _seed_contador_venda(db_session)
+    header = _auth(client)
+    cargo_id = _cargo(client, header, venda_bp=500, servico_bp=500)
+    func_id = _funcionario(client, header, cargo_id)
+    cliente_id = _cliente(client, header)
+    fp_id = _forma_pagamento(client, header)
+
+    p = client.post("/api/v1/produtos/", json={
+        "nome": "Cabo HDMI", "codigo_produto": "CABO-1", "unidade_medida": "UN",
+        "estoque": {"valor_varejo": 10000, "valor_entrada": 6000, "quantidade": 10},
+    }, headers=header)
+    assert p.status_code == 201, p.text
+    produto_id = p.json()["id"]
+
+    _vender(client, header, func_id, fp_id, produto_id, 1, cliente_id=cliente_id)  # margem 40,00
+    _vender(client, header, func_id, fp_id, produto_id, 2)  # margem 80,00
+    _os_servico(client, header, cliente_id, fp_id, "SN-EXTRATO", valor=24000, custo=16500, func_id=func_id)
+
+    hoje = date.today().isoformat()
+    r = client.get(
+        f"/api/v1/relatorios/extrato-funcionario?funcionario_id={func_id}&inicio={hoje}&fim={hoje}",
+        headers=header,
+    )
+    assert r.status_code == status.HTTP_200_OK, r.text
+    body = r.json()
+    folha = _comissao(client, header, func_id)
+
+    assert (body["qtd_vendas"], body["total_vendas"]) == (2, 30000)
+    assert [(v["valor_total"], v["base"], v["comissao"]) for v in body["vendas"]] == [
+        (10000, 4000, 200), (20000, 8000, 400)]
+    assert body["vendas"][0]["cliente"] == "Wilton Cliente"
+    assert body["vendas"][1]["cliente"] is None
+
+    [servico] = body["itens"]
+    assert (servico["mao_de_obra"], servico["comissao"]) == (7500, 375)
+
+    # Tudo amarrado à folha.
+    assert (body["base_vendas"], body["base_servicos"]) == (folha["faturamento_vendas"], folha["faturamento_os"])
+    assert (body["comissao_vendas"], body["comissao_servico"], body["comissao_total"]) == (
+        folha["comissao_vendas"], folha["comissao_servico"], folha["comissao_total"]) == (600, 375, 975)
+    assert sum(v["comissao"] for v in body["vendas"]) + servico["comissao"] == body["comissao_total"]
+    assert (body["percentual_venda"], body["percentual_servico"]) == (500, 500)

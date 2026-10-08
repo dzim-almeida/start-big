@@ -17,6 +17,8 @@ from typing import List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from .log_produto import LogProduto
     from .produto_fiscal import ProdutoFiscal
+    from .produto_embalagem import ProdutoEmbalagem
+    from .produto_regra_preco import ProdutoRegraPreco
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -46,6 +48,13 @@ class Produto(Base):
     fornecedor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fornecedores.id", ondelete="SET NULL"), nullable=True, doc="ID do fornecedor principal (FK)")
 
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o produto está ativo (True) ou desativado (False)")
+    # Plano de embalagens, A3: distribuidora que não abre fardo. Ligado, o caixa
+    # recusa a unidade avulsa — só vende as embalagens. Só vale com a chave
+    # `usar_embalagens` da empresa ligada.
+    so_embalagem_fechada: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Só vende em embalagem fechada (recusa a unidade avulsa no caixa)",
+    )
     
     # Relação Lado "Muitos" (Produto) para "Um" (Fornecedor)
     # Tipagem simplificada: Um produto tem UM fornecedor (ou None, devido à FK SET NULL)
@@ -89,6 +98,28 @@ class Produto(Base):
         cascade="all, delete-orphan",
         uselist=False,
         doc="Dados fiscais do produto (NCM, CFOP, CST etc.) — None para empresas sem módulo fiscal"
+    )
+
+    # Embalagens (fardo, caixa, pack) — o estoque continua na unidade deste
+    # produto; ver produto_embalagem.py. `selectin` porque a listagem de
+    # produtos devolve as embalagens junto, e lazy viraria uma consulta por produto.
+    embalagens: Mapped[List["ProdutoEmbalagem"]] = relationship(
+        "ProdutoEmbalagem",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProdutoEmbalagem.fator",
+        doc="Embalagens de venda/compra do produto",
+    )
+
+    # Regras de preço por quantidade (R2 faixas, R3 leve-pague) — plano de
+    # embalagens, §6.1. Só a venda lê; a listagem não precisa delas.
+    regras_preco: Mapped[List["ProdutoRegraPreco"]] = relationship(
+        "ProdutoRegraPreco",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        order_by="[ProdutoRegraPreco.tipo, ProdutoRegraPreco.quantidade]",
+        doc="Faixas 'a partir de N' e promoções 'leve X pague Y'",
     )
 
     # Restrições (Constraints)

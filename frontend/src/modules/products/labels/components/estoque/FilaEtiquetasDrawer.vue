@@ -31,8 +31,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  'update:quantidade': [produtoId: number, quantidade: number];
-  remover: [produtoId: number];
+  'update:quantidade': [chave: string, quantidade: number];
+  'update:embalagem': [chave: string, embalagemId: number | null];
+  remover: [chave: string];
   limpar: [];
   imprimir: [];
   imprimirTeste: [];
@@ -182,13 +183,25 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
             <div>
               <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Produtos na fila</h3>
               <div v-if="linhas.length" class="divide-y divide-zinc-100 border border-zinc-100 rounded-xl">
-                <div v-for="linha in linhas" :key="linha.produto.id" class="flex items-center gap-3 px-3 py-2">
+                <div v-for="linha in linhas" :key="linha.chave" class="flex items-center gap-3 px-3 py-2">
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-zinc-800 truncate">{{ linha.produto.nome }}</p>
                     <p class="text-xs text-zinc-400 font-mono truncate">
-                      {{ linha.produto.codigo_barras || linha.produto.codigo_produto || 'sem código' }}
+                      <template v-if="linha.embalagem">{{ linha.embalagem.codigo_barras || 'fardo sem código' }}</template>
+                      <template v-else>{{ linha.produto.codigo_barras || linha.produto.codigo_produto || 'sem código' }}</template>
                     </p>
                   </div>
+                  <!-- Unidade ou uma das embalagens (só aparece se o produto tiver fardo/caixa). -->
+                  <select
+                    v-if="linha.embalagensDisponiveis.length"
+                    :value="linha.embalagem?.id ?? ''"
+                    class="w-28 px-2 py-1.5 text-xs border border-zinc-200 rounded-lg bg-white focus:outline-none focus:border-brand-primary"
+                    title="Etiqueta da unidade ou da embalagem"
+                    @change="emit('update:embalagem', linha.chave, ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+                  >
+                    <option value="">Unidade</option>
+                    <option v-for="e in linha.embalagensDisponiveis" :key="e.id" :value="e.id">{{ e.sigla }} ({{ e.fator }})</option>
+                  </select>
                   <input
                     type="number"
                     min="1"
@@ -196,12 +209,12 @@ const semCodigo = computed(() => props.linhas.filter((l) => l.semCodigo));
                     :value="linha.quantidade"
                     class="w-20 px-2 py-1.5 text-sm text-right border border-zinc-200 rounded-lg focus:outline-none focus:border-brand-primary"
                     title="Quantidade de etiquetas"
-                    @change="emit('update:quantidade', linha.produto.id, Number(($event.target as HTMLInputElement).value))"
+                    @change="emit('update:quantidade', linha.chave, Number(($event.target as HTMLInputElement).value))"
                   />
                   <button
                     class="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
                     title="Tirar da fila"
-                    @click="emit('remover', linha.produto.id)"
+                    @click="emit('remover', linha.chave)"
                   >
                     <X :size="16" />
                   </button>

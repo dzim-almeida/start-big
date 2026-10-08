@@ -14,7 +14,9 @@ import { useImpressaoStore, type ConfigImpressao } from '@/shared/stores/impress
 import EtiquetasImpressao from '@/shared/etiquetas/components/EtiquetasImpressao.vue';
 import { useImpressaoEtiquetas } from '@/shared/etiquetas/useImpressaoEtiquetas';
 import { PRESET_PADRAO } from '@/shared/etiquetas/presets';
-import { valoresDoProduto, valorDoCodigo } from '@/shared/etiquetas/campos';
+import { valoresDaEmbalagem, valoresDoProduto, valorDoCodigo } from '@/shared/etiquetas/campos';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { expandir } from '@/shared/etiquetas/paginacao';
 import { definicaoDeTeste, etiquetasDeTeste } from '@/shared/etiquetas/teste';
 import type { ProdutoRead } from '@/modules/products/inventory/types/products.types';
@@ -26,7 +28,7 @@ import FilaEtiquetasDrawer from './estoque/FilaEtiquetasDrawer.vue';
 import EntradasRecentesModal from './estoque/EntradasRecentesModal.vue';
 import CalibracaoEtiquetaModal from './estoque/CalibracaoEtiquetaModal.vue';
 import ModelosEtiquetaModal from './modelo/ModelosEtiquetaModal.vue';
-import { useFilaEtiquetasStore } from '../store/filaEtiquetas.store';
+import { chaveDoItem, useFilaEtiquetasStore } from '../store/filaEtiquetas.store';
 import { useModelosEtiqueta } from '../composables/useModelosEtiqueta';
 import type { LinhaFila } from '../types/etiquetas.types';
 import type { ModeloEtiqueta } from '@/shared/etiquetas/modelo';
@@ -91,19 +93,35 @@ const produtosPorId = computed(() => new Map(props.produtos.map((p) => [p.id, p]
 const idsNaFila = computed(() => new Set(fila.itens.map((i) => i.produtoId)));
 const idsAtivos = computed(() => new Set(props.produtos.filter((p) => p.ativo).map((p) => p.id)));
 
+// Embalagens só entram na fila com a chave ligada em Configurações.
+const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
+
 const linhas = computed<LinhaFila[]>(() =>
-  fila.itens.flatMap(({ produtoId, quantidade }) => {
-    const produto = produtosPorId.value.get(produtoId);
+  fila.itens.flatMap((item) => {
+    const produto = produtosPorId.value.get(item.produtoId);
     if (!produto) return [];
-    const valores = valoresDoProduto(produto, { empresaNome: companyInfo.value.nome });
-    return [{ produto, quantidade, valores, semCodigo: !valorDoCodigo(valores, 'produto.codigo_barras') }];
+    const embalagensDisponiveis = usarEmbalagens.value
+      ? (produto.embalagens ?? []).filter((e) => e.ativo && e.fator >= 2)
+      : [];
+    const embalagem = embalagensDisponiveis.find((e) => e.id === item.embalagemId) ?? null;
+    const contexto = { empresaNome: companyInfo.value.nome };
+    const valores = embalagem ? valoresDaEmbalagem(produto, embalagem, contexto) : valoresDoProduto(produto, contexto);
+    return [{
+      chave: chaveDoItem(item),
+      produto,
+      embalagem,
+      embalagensDisponiveis,
+      quantidade: item.quantidade,
+      valores,
+      semCodigo: !valorDoCodigo(valores, 'produto.codigo_barras'),
+    }];
   }),
 );
 
 const totalEtiquetas = computed(() => linhas.value.reduce((soma, l) => soma + l.quantidade, 0));
 
-function adicionarEntradas(itens: { produtoId: number; quantidade: number }[]) {
-  itens.forEach((i) => fila.adicionar(i.produtoId, i.quantidade));
+function adicionarEntradas(itens: { produtoId: number; quantidade: number; embalagemId: number | null }[]) {
+  itens.forEach((i) => fila.adicionar(i.produtoId, i.quantidade, i.embalagemId));
   isEntradasOpen.value = false;
   fila.painelAberto = true;
 }
@@ -180,6 +198,7 @@ function imprimirTeste(config?: ConfigImpressao) {
       :total-etiquetas="totalEtiquetas"
       @close="fila.painelAberto = false"
       @update:quantidade="fila.definirQuantidade"
+      @update:embalagem="fila.trocarEmbalagem"
       @remover="fila.remover"
       @limpar="fila.limpar"
       @imprimir="imprimirFila"

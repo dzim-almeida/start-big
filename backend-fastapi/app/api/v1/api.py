@@ -34,6 +34,9 @@ from app.api.v1.endpoints import backup
 from app.api.v1.endpoints import fiscal
 from app.api.v1.endpoints import fiscal_produto
 from app.api.v1.endpoints import etiquetas
+from app.api.v1.endpoints import produto_embalagem
+from app.api.v1.endpoints import produto_regra_preco
+from app.api.v1.endpoints import nfe_entrada
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -71,6 +74,11 @@ router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Forneced
 # casar com {produto_id}, e o FastAPI tenta converter "movimentacoes" em int --
 # devolvendo 422 numa rota que funcionava.
 router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
+# Embalagens (fardo/caixa) — também antes de produto.router, pelo mesmo motivo.
+router.include_router(produto_embalagem.router, prefix="/produtos", tags=["Embalagens do Produto"])
+router.include_router(produto_regra_preco.router, prefix="/produtos", tags=["Regras de Preço do Produto"])
+# Entrada de mercadoria pela XML da NF-e do fornecedor.
+router.include_router(nfe_entrada.router, prefix="/estoque/nfe-entrada", tags=["Entrada por XML da NF-e"])
 
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
 

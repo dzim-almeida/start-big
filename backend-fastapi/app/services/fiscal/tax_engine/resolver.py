@@ -455,7 +455,11 @@ def resolver_aliquotas_venda(
             quantidade=Decimal(str(item_venda.quantidade)),
             valor_unitario=_centavos_para_reais(item_venda.valor_unitario),
             valor_bruto=_centavos_para_reais(item_venda.subtotal),
-            desconto_item=_centavos_para_reais(item_venda.desconto),
+            # Operador + regra de preço (R1/R3 vão no vDesc, §6.1). Item de OS
+            # (adaptador) não tem `desconto_regra`.
+            desconto_item=_centavos_para_reais(
+                (item_venda.desconto or 0) + (getattr(item_venda, "desconto_regra", 0) or 0)
+            ),
             ncm=fiscal.ncm if fiscal else None,
             cfop=inter.cfop if inter else (fiscal.cfop_padrao if fiscal else None),
             origem_mercadoria=fiscal.origem_mercadoria if fiscal and fiscal.origem_mercadoria is not None else 0,

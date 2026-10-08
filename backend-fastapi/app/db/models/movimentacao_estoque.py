@@ -135,6 +135,30 @@ class MovimentacaoEstoque(Base):
         doc="Observação/motivo da movimentação"
     )
 
+    # Entrada por embalagem ("3 CX de 24"). `quantidade` e `custo_unitario`
+    # continuam SEMPRE na unidade do produto (72 un a R$ 5,00) — é o que os
+    # relatórios de custo somam. Isto aqui é só o registro de COMO entrou,
+    # congelado (sigla e fator), para o histórico e a etiqueta: apagar ou
+    # mudar a embalagem depois não reescreve a movimentação.
+    embalagem_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("produto_embalagens.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="Embalagem usada na entrada (nulo = em unidade)",
+    )
+    embalagem_sigla: Mapped[Optional[str]] = mapped_column(String(6), nullable=True)
+    embalagem_fator: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    quantidade_embalagem: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="Quantas embalagens entraram (3 CX)"
+    )
+    # Entrada por XML: de que nota veio esta compra.
+    nota_entrada_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("notas_entrada.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="NF-e de compra importada que gerou esta entrada",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),

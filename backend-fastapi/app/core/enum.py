@@ -173,6 +173,8 @@ class MovimentacaoOrigem(str, enum.Enum):
     ORDEM_SERVICO = "ORDEM_SERVICO"
     # Mercadoria que voltou por NF-e de devolução autorizada (finalidade 4).
     DEVOLUCAO = "DEVOLUCAO"
+    # Compra importada pela XML da NF-e do fornecedor (entrada por XML).
+    NFE_ENTRADA = "NFE_ENTRADA"
 
 
 class JurosResponsavel(str, enum.Enum):

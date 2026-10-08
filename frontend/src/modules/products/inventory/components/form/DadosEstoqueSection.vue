@@ -5,13 +5,14 @@
  */
 
 import { computed, watch } from 'vue';
-import { TrendingUp, DollarSign } from 'lucide-vue-next';
+import { TrendingUp, DollarSign, Lock, Info } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { useProductForm } from '../../composables/useProductForm';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useToast } from '@/shared/composables/useToast';
 
 // =============================================
 // Props
@@ -67,6 +68,15 @@ watch(valor_entrada, (custo) => {
     }
   }
 });
+
+const toast = useToast();
+
+function handleTentativaEditarEstoque() {
+  toast.info(
+    'Estoque não pode ser alterado diretamente aqui',
+    'Para dar entrada ou ajustar a quantidade, utilize o botão de Entrada no card do produto ou acesse o Histórico de Transações.',
+  );
+}
 </script>
 
 <template>
@@ -143,16 +153,40 @@ watch(valor_entrada, (custo) => {
         <BaseInput
           v-model="quantidade"
           label="Quantidade Inicial"
-          placeholder="0"
+          placeholder="Ex: 10"
           type="number"
           :required="true"
           :error="submitCount > 0 ? errors.quantidade : ''"
           :disabled="disabled"
         >
           <template #hint>
-            <span class="text-xs text-zinc-500">Estoque inicial do produto</span>
+            <span class="text-xs text-zinc-500">Estoque inicial obrigatório</span>
           </template>
         </BaseInput>
+      </div>
+
+      <!-- Modo Edição: Quantidade Atual Bloqueada com Aviso Informativo -->
+      <div v-else class="col-span-12 md:col-span-4">
+        <div
+          class="relative cursor-pointer group"
+          title="Clique para ver instruções de entrada de estoque"
+          @click="handleTentativaEditarEstoque"
+        >
+          <BaseInput
+            :model-value="quantidade"
+            label="Estoque Atual"
+            type="number"
+            :disabled="true"
+            class="pointer-events-none"
+          >
+            <template #hint>
+              <span class="text-xs text-amber-700 font-medium flex items-center gap-1">
+                <Lock :size="12" />
+                Não editável diretamente aqui
+              </span>
+            </template>
+          </BaseInput>
+        </div>
       </div>
       <div class="col-span-12 md:col-span-4">
         <BaseInput
@@ -181,6 +215,23 @@ watch(valor_entrada, (custo) => {
             <span class="text-xs text-zinc-500">Estoque recomendado</span>
           </template>
         </BaseInput>
+      </div>
+    </div>
+
+    <!-- Aviso quando em modo edição sobre como dar entrada de estoque -->
+    <div
+      v-if="!isCreateMode"
+      class="mt-4 p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-xl flex items-start gap-3 text-xs text-amber-900"
+    >
+      <div class="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+        <Info :size="15" />
+      </div>
+      <div>
+        <h4 class="font-semibold text-amber-950 mb-0.5">Como alterar a quantidade em estoque?</h4>
+        <p class="text-amber-800 leading-relaxed">
+          Para garantir a rastreabilidade e integridade das movimentações, o estoque não pode ser alterado diretamente no cadastro.
+          Para dar entrada em novas mercadorias ou fazer ajustes, utilize o botão <strong>Entrada</strong> no card do produto ou acesse o <strong>Histórico de Transações</strong>.
+        </p>
       </div>
     </div>
 

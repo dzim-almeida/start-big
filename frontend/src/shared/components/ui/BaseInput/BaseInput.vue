@@ -185,5 +185,10 @@ function togglePasswordVisibility() {
     <p v-if="error" class="select-none mt-0.5 text-xs text-red-500">
       {{ error }}
     </p>
+    <!-- Dica embaixo do campo (`<template #hint>`). Some quando há erro: os
+         dois no mesmo lugar empilhavam e o erro perdia destaque. -->
+    <div v-else-if="$slots.hint" class="select-none mt-0.5">
+      <slot name="hint" />
+    </div>
   </div>
 </template>

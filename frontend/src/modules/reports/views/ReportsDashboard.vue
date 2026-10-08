@@ -16,9 +16,12 @@ import ComissaoSection from '../components/ComissaoSection.vue';
 import EstoqueSection from '../components/EstoqueSection.vue';
 import OSPerformanceSection from '../components/OSPerformanceSection.vue';
 import CaixaSection from '../components/CaixaSection.vue';
+import RegrasPrecoSection from '../components/RegrasPrecoSection.vue';
+import ContadorSection from '../components/ContadorSection.vue';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { useSessaoCaixaQuery } from '@/modules/sales/caixa/composables/queries/useSessaoCaixaQuery';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { storeToRefs } from 'pinia';
 
 const inicio = ref('');
@@ -48,6 +51,13 @@ const { caixaHabilitado } = useSessaoCaixaQuery();
 const authStore = useAuthStore();
 const { userData } = storeToRefs(authStore);
 const isMaster = computed(() => userData.value?.is_master === true);
+
+// Vendas por regra de preço: só para quem ligou alguma regra (§6.1). Quem não
+// usa não vê o bloco nem dispara a consulta.
+const { regraEmbalagemAvulsas, regraFaixasQuantidade, regraLevePague } = storeToRefs(useConfiguracoesStore());
+const usaRegrasPreco = computed(
+  () => regraEmbalagemAvulsas.value || regraFaixasQuantidade.value || regraLevePague.value,
+);
 
 /** Só mostra o bloco de juros quando houve juros — repassado ou absorvido. */
 const jurosTotal = computed(
@@ -306,6 +316,12 @@ async function imprimirFinanceiro() {
 
         <!-- Estoque e Curva ABC -->
         <EstoqueSection :inicio="inicio" :fim="fim" />
+
+        <!-- Receita separada para o PGDAS-D -->
+        <ContadorSection :inicio="inicio" :fim="fim" />
+
+        <!-- Vendas por regra de preço (R1/R2/R3) -->
+        <RegrasPrecoSection v-if="usaRegrasPreco" :inicio="inicio" :fim="fim" />
 
         <!-- Desempenho de OS. O v-if desmonta o componente, e com ele a
              useOSPerformanceQuery: numa loja de PDV a requisição nem sai. -->

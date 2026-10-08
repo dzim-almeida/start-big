@@ -13,7 +13,7 @@ import { useAddProductModal } from '../../composables/flows/useAddProductModal';
 import { SALE_SHORTCUTS, ORCAMENTO_SHORTCUTS } from '../../constants';
 import { pareceCodigoDeBarras } from '../../leitorCodigoBarras.util';
 
-import type { ProductSaleRead } from '../../schemas/productSale.schema';
+import type { EmbalagemPdv, ProductSaleRead } from '../../schemas/productSale.schema';
 
 const props = defineProps<{
   saleId: number | null;
@@ -57,6 +57,13 @@ async function handleAutoAdd(product: { id: number }) {
   const produto = products.value.find((p) => p.id === product.id);
   if (!produto) return;
   avisarResultado(await tentarAdicionarProduto({ saleId: props.saleId, produto }));
+}
+
+/** Clique no chip do fardo/caixa: lança 1 embalagem, pela mesma porta. */
+async function handleEmbalagem(product: { id: number }, embalagem: EmbalagemPdv) {
+  const produto = products.value.find((p) => p.id === product.id);
+  if (!produto) return;
+  avisarResultado(await tentarAdicionarProduto({ saleId: props.saleId, produto, embalagem }));
 }
 
 /**
@@ -189,12 +196,14 @@ async function handleKeydown(e: KeyboardEvent) {
           </p>
         </div>
 
-        <div class="w-full min-h-20 max-h-80 overflow-y-auto bg-white flex items-center justify-center">
+        <div class="w-full min-h-20 max-h-80 overflow-y-auto bg-white">
           <div
             v-if="isLoading"
-            class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary"
-          />
-          <div v-else-if="products?.length == 0" class="py-5 flex flex-col items-center">
+            class="py-8 flex items-center justify-center"
+          >
+            <div class="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-brand-primary" />
+          </div>
+          <div v-else-if="products?.length == 0" class="py-8 flex flex-col items-center justify-center">
             <ArchiveX :size="30" class="text-mid-gray" />
             <p class="mt-1 font-poppins font-semibold text-xs text-mid-gray">
               Nenhum produto encontrado
@@ -208,6 +217,7 @@ async function handleKeydown(e: KeyboardEvent) {
               :highlighted="highlightedIndex === index"
               :data-product-index="index"
               @click="handleAutoAdd(product)"
+              @embalagem="(e) => handleEmbalagem(product, e)"
               @select-for-quantity="handleSelectForQuantity(product)"
             />
           </div>

@@ -200,3 +200,26 @@ uma célula vazia obriga o leitor a subir para saber de qual OS aquilo é.
 Uma migration **não** é necessária: nada de novo é persistido, tudo sai de
 `ordens_servico` e `ordem_servico_itens`. Mesmo assim o deploy exige
 `npm run build:sidecar`, porque o backend ganha endpoint novo.
+
+---
+
+## Revisão de 01/10/2026 — virou extrato de COMISSÃO
+
+Pedido do Alan: o extrato só mostrava serviços, e quem vende não tinha papel
+para conferir. Agora é o extrato de comissão completo, como nos sistemas de
+mercado:
+
+- **Vendas** do período, uma por linha (data, número, cliente, valor, margem,
+  comissão). A margem é a mesma conta da folha (`get_comissao_base` aberta por
+  venda: total − juros − custo do livro − custo do avulso), em
+  `crud.get_vendas_do_funcionario`.
+- **Serviços** como antes, mais a coluna de comissão.
+- **A comissão vem da folha** (`get_comissao`) e é repartida pelas linhas na
+  proporção da base (`ratear`; linha com margem negativa não recebe parte).
+  A soma do papel é sempre igual à folha — teste
+  `test_extrato_de_comissao_traz_as_vendas_e_bate_com_a_folha`.
+- "Como foi calculado" na tela (percentual × base de cada lado), aviso de meta
+  não atingida, e no A4 o "Total a receber" com linha de assinatura
+  ("conferi e estou de acordo" / responsável pela loja).
+- Abre pelo Ranking **e** pela Comissão, e agora também em loja sem OS (a
+  restrição de §"Serviço só existe em OS" deixou de valer: venda tem extrato).

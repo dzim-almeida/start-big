@@ -4,6 +4,7 @@
  */
 
 import type { Component } from 'vue';
+import type { EmbalagemRead } from './embalagens.types';
 
 // =============================================
 // API TYPES (matching produto.py and estoque.py)
@@ -73,6 +74,10 @@ export interface ProdutoRead extends ProdutoBase {
   estoque: EstoqueRead;
   ativo: boolean;
   fotos?: ProdutoFotoRead[];
+  /** Fardo, caixa, pack. Vazio para quem não usa embalagens. */
+  embalagens?: EmbalagemRead[];
+  /** Só vende em embalagem fechada: o caixa recusa a unidade avulsa (A3). */
+  so_embalagem_fechada?: boolean;
 }
 
 export interface ProdutoUpdate extends Partial<ProdutoBase> {
@@ -180,6 +185,11 @@ export interface MovimentacaoRead {
   /** Custo unitário congelado nesta linha (centavos). `null` nas linhas antigas. */
   custo_unitario: number | null;
   observacao: string | null;
+  /** Entrada por embalagem, congelada ("3 CX de 24"). Nulo = em unidade. */
+  embalagem_id?: number | null;
+  embalagem_sigla?: string | null;
+  embalagem_fator?: number | null;
+  quantidade_embalagem?: number | null;
   created_at: string;
 }
 
@@ -194,6 +204,11 @@ export interface MovimentacaoCreate {
    */
   custo_unitario?: number;
   observacao?: string;
+  /**
+   * Só na ENTRADA: `quantidade` e `custo_unitario` vêm POR EMBALAGEM (3 caixas a
+   * R$ 120,00); o backend converte para a unidade (72 un a R$ 5,00).
+   */
+  embalagem_id?: number;
 }
 
 // =============================================

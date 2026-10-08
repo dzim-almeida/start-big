@@ -1257,7 +1257,8 @@ def reabrir_ordem_servico(
       - False: o pagamento não era real (ex.: OS reaberta na hora, antes de o
         cliente pagar). Apaga os pagamentos e zera o crédito, então a OS recobra
         o valor cheio. Só use quando tiver certeza de que o dinheiro NÃO entrou —
-        senão o registro do pagamento do cliente é perdido.
+        senão o registro do pagamento do cliente é perdido. O desconto e o
+        acréscimo (juros) daquele fechamento também são zerados: ver abaixo.
     """
     os_in_db = _get_os_or_raise(db, numero_os)
 
@@ -1329,6 +1330,17 @@ def reabrir_ordem_servico(
         os_in_db.credito_anterior = None
         # O dinheiro não era real -- nem o adiantado.
         os_in_db.adiantamentos_anteriores = None
+
+        # Desconto e acréscimo vão junto com o fechamento que não aconteceu.
+        # Os dois só nascem na finalização (a tela não edita nenhum fora dela)
+        # e ACUMULAM a cada uma: mantidos, o desconto antigo ficava travado na
+        # tela como "Desc. anterior" e somava com o novo, e o acréscimo -- que é
+        # o juros do cartão daqueles pagamentos, agora apagados -- cobrava o
+        # juros de um cartão que nunca passou. Na reabertura "pagou" os dois
+        # ficam: o pagamento foi real e o crédito foi calculado sobre eles.
+        os_in_db.desconto = 0
+        os_in_db.acrescimo = 0
+        _recalcular_valor_total_os(os_in_db)
 
     os_in_db.valor_entrada = 0
     os_in_db.forma_pagamento_entrada_id = None

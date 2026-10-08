@@ -344,6 +344,9 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
             "produto_id": item_venda.produto.id,
             "nome": item_venda.produto.nome,
             "quantidade": float(item_venda.quantidade),
+            # "2 FD" em vez de "2": a conferência mostra o que vai no uCom/qCom.
+            "sigla_embalagem": item_venda.sigla_embalagem,
+            "fator_embalagem": item_venda.fator_embalagem or 1,
             "valor_unitario": float(item_venda.valor_unitario),
             "valor_total": float(item_venda.total),
             # CFOP da operação (6xxx se interestadual), como vai na nota
@@ -385,7 +388,7 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
         },
         "totais": {
             "valor_produtos": float(sum(i.total for i in venda.itens)),
-            "descontos": float(venda.descontos or 0),
+            "descontos": float((venda.descontos or 0) + (venda.descontos_regra or 0)),
             "frete": float(venda.entrega or 0),
             "valor_nota": float(venda.total),
             "total_tributos": total_tributos_centavos

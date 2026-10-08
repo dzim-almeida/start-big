@@ -145,7 +145,7 @@ def _hidratar_documento_com_venda(db: Session, doc: DocumentoFiscal) -> Document
                         quantidade=item.quantidade,
                         valor_unitario=item.valor_unitario,
                         subtotal=item.subtotal,
-                        desconto=item.desconto or 0,
+                        desconto=(item.desconto or 0) + (getattr(item, "desconto_regra", 0) or 0),
                         ncm=ncm,
                         cfop=cfop,
                     )

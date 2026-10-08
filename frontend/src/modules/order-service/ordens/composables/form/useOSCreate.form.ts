@@ -30,6 +30,9 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
   const [desconto] = defineField('desconto');
   const [valor_entrada] = defineField('valor_entrada');
   const [forma_pagamento_entrada_id] = defineField('forma_pagamento_entrada_id');
+  // Deslocamento/frete já na abertura: o schema e o backend aceitavam, mas o
+  // campo não era registrado e o valor digitado no resumo se perdia.
+  const [taxa_entrega] = defineField('taxa_entrega');
   const [garantia] = defineField('garantia');
   const [data_previsao] = defineField('data_previsao');
   const [senha_aparelho] = defineField('senha_aparelho');
@@ -113,6 +116,7 @@ export function useOSCreateForm(opts?: { onSuccess?: (os: OrderServiceReadDataTy
     desconto,
     valor_entrada,
     forma_pagamento_entrada_id,
+    taxa_entrega,
     garantia,
     data_previsao,
     senha_aparelho,

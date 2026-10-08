@@ -19,6 +19,7 @@ from app.db.models.venda import Venda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.produto import Produto
+from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.estoque import Estoque
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.ordem_servico import OrdemServico as OSModel
@@ -367,7 +368,10 @@ def get_vendas_por_produto(
     pós-desconto do item). Itens avulsos (produto_id NULL) ficam de fora — não têm
     produto de estoque para classificar. Escopo por empresa via funcionário da venda.
     """
-    faturamento = func.coalesce(func.sum(ProdutoVenda.subtotal - ProdutoVenda.desconto), 0)
+    # Menos o desconto da regra de preço (R1/R3, §6.1) — é receita que não entrou.
+    faturamento = func.coalesce(
+        func.sum(ProdutoVenda.subtotal - ProdutoVenda.desconto - ProdutoVenda.desconto_regra), 0
+    )
     stmt = (
         select(
             Produto.id.label("produto_id"),
@@ -375,7 +379,8 @@ def get_vendas_por_produto(
             Produto.codigo_produto.label("sku"),
             Produto.categoria,
             faturamento.label("faturamento"),
-            func.coalesce(func.sum(ProdutoVenda.quantidade), 0).label("quantidade"),
+            # Na unidade base (D12 do plano de embalagens): "2 FD" de 12 conta 24.
+            func.coalesce(func.sum(ProdutoVenda.quantidade * ProdutoVenda.fator_embalagem), 0).label("quantidade"),
         )
         .join(Venda, Venda.id == ProdutoVenda.venda_id)
         .join(Funcionario, Funcionario.id == Venda.funcionario_id)
@@ -643,5 +648,337 @@ def get_juros_os_por_responsavel(
             )
         )
         .group_by(OrdemServicoPagamento.juros_responsavel)
+    )
+    return db.execute(stmt).all()
+
+
+def get_vendas_por_regra_preco(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> Sequence:
+    """Linhas vendidas com regra de preço (R1/R2/R3), por produto e regra.
+
+    Base do relatório "vendas por regra de preço" (fase 6 das embalagens). Só
+    vendas FINALIZADAS do período; `MANUAL` (preço trocado pelo gerente) não é
+    regra e fica de fora.
+
+    `abatimento` é o que a regra deixou de cobrar, nas duas formas que ela tem:
+    R1/R3 guardam em `desconto_regra`; a R2 muda o preço, então a diferença é
+    (cheio − praticado) × quantidade. `faturamento` é o mesmo da Curva ABC —
+    subtotal menos os dois descontos — para os dois relatórios baterem.
+    """
+    abatimento_r2 = case(
+        (
+            and_(ProdutoVenda.regra_preco == "R2", ProdutoVenda.valor_unitario_tabela.isnot(None)),
+            (ProdutoVenda.valor_unitario_tabela - ProdutoVenda.valor_unitario) * ProdutoVenda.quantidade,
+        ),
+        else_=0,
+    )
+    faturamento = func.coalesce(
+        func.sum(ProdutoVenda.subtotal - ProdutoVenda.desconto - ProdutoVenda.desconto_regra), 0
+    )
+    stmt = (
+        select(
+            ProdutoVenda.regra_preco.label("regra"),
+            Produto.id.label("produto_id"),
+            Produto.nome,
+            Produto.codigo_produto.label("sku"),
+            func.count(func.distinct(ProdutoVenda.venda_id)).label("qtd_vendas"),
+            func.coalesce(func.sum(ProdutoVenda.quantidade * ProdutoVenda.fator_embalagem), 0).label("unidades"),
+            faturamento.label("faturamento"),
+            func.coalesce(func.sum(ProdutoVenda.desconto_regra + abatimento_r2), 0).label("abatimento"),
+        )
+        .join(Venda, Venda.id == ProdutoVenda.venda_id)
+        .join(Funcionario, Funcionario.id == Venda.funcionario_id)
+        .join(Produto, Produto.id == ProdutoVenda.produto_id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Funcionario.empresa_id == empresa_id,
+                ProdutoVenda.regra_preco.in_(("R1", "R2", "R3")),
+            )
+        )
+        .group_by(ProdutoVenda.regra_preco, Produto.id, Produto.nome, Produto.codigo_produto)
+        .order_by(func.sum(ProdutoVenda.desconto_regra + abatimento_r2).desc())
+    )
+    return db.execute(stmt).all()
+
+
+def get_vendas_com_regra_count(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> int:
+    """Quantas vendas finalizadas do período tiveram ao menos uma linha com regra.
+
+    Separada da consulta por produto: uma venda com duas regras apareceria em
+    dois grupos, e somar `qtd_vendas` contaria a mesma venda duas vezes.
+    """
+    stmt = (
+        select(func.count(func.distinct(ProdutoVenda.venda_id)))
+        .join(Venda, Venda.id == ProdutoVenda.venda_id)
+        .join(Funcionario, Funcionario.id == Venda.funcionario_id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Funcionario.empresa_id == empresa_id,
+                ProdutoVenda.regra_preco.in_(("R1", "R2", "R3")),
+            )
+        )
+    )
+    return db.execute(stmt).scalar() or 0
+
+
+def get_vendas_com_regra_por_regra(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> dict[str, int]:
+    """Vendas distintas por regra: {"R1": 4, "R3": 1}. Mesma razão da contagem acima."""
+    stmt = (
+        select(ProdutoVenda.regra_preco, func.count(func.distinct(ProdutoVenda.venda_id)))
+        .join(Venda, Venda.id == ProdutoVenda.venda_id)
+        .join(Funcionario, Funcionario.id == Venda.funcionario_id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Funcionario.empresa_id == empresa_id,
+                ProdutoVenda.regra_preco.in_(("R1", "R2", "R3")),
+            )
+        )
+        .group_by(ProdutoVenda.regra_preco)
+    )
+    return {regra: qtd for regra, qtd in db.execute(stmt).all()}
+
+
+
+# ---------------------------------------------------------------------------
+# RECEITA PARA O CONTADOR (segregação do PGDAS-D)
+# ---------------------------------------------------------------------------
+
+def get_linhas_venda_fiscal(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> Sequence:
+    """Cada linha das vendas finalizadas do período, líquida, com o cadastro fiscal.
+
+    Mesmo filtro do faturamento (criado_em, FINALIZADA, empresa pelo
+    funcionário), para os totais baterem. Avulso e produto sem ficha fiscal
+    voltam com os códigos nulos.
+    """
+    stmt = (
+        select(
+            ProdutoVenda.produto_id,
+            func.coalesce(Produto.nome, ProdutoVenda.descricao_avulsa).label("nome"),
+            (ProdutoVenda.subtotal - ProdutoVenda.desconto - ProdutoVenda.desconto_regra).label("valor"),
+            ProdutoFiscal.csosn,
+            ProdutoFiscal.cst_icms,
+            ProdutoFiscal.cst_pis,
+            ProdutoFiscal.cst_cofins,
+        )
+        .join(Venda, Venda.id == ProdutoVenda.venda_id)
+        .join(Funcionario, Funcionario.id == Venda.funcionario_id)
+        .outerjoin(Produto, Produto.id == ProdutoVenda.produto_id)
+        .outerjoin(ProdutoFiscal, ProdutoFiscal.produto_id == ProdutoVenda.produto_id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Funcionario.empresa_id == empresa_id,
+            )
+        )
+    )
+    return db.execute(stmt).all()
+
+
+def get_extras_vendas(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+):
+    """Σ total, Σ frete e Σ acréscimo (juros) das vendas do mesmo recorte."""
+    stmt = (
+        select(
+            func.coalesce(func.sum(Venda.total), 0).label("total"),
+            func.coalesce(func.sum(Venda.entrega), 0).label("entrega"),
+            func.coalesce(func.sum(Venda.acrescimo), 0).label("acrescimo"),
+        )
+        .join(Funcionario, Funcionario.id == Venda.funcionario_id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Funcionario.empresa_id == empresa_id,
+            )
+        )
+    )
+    return db.execute(stmt).one()
+
+
+def get_itens_os_fiscal(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> Sequence:
+    """Itens das OS finalizadas no período (sem os REPROVADOS), com os valores
+    da OS para o rateio do desconto e o cadastro fiscal das peças.
+
+    Mesma âncora e mesmo escopo do faturamento de OS (data_finalizacao; OS sem
+    funcionário entra).
+    """
+    stmt = (
+        select(
+            OSModel.id.label("os_id"),
+            OSModel.valor_total.label("os_total"),
+            OSModel.valor_bruto.label("os_bruto"),
+            OSModel.desconto.label("os_desconto"),
+            OSModel.taxa_entrega.label("os_taxa"),
+            OSModel.acrescimo.label("os_acrescimo"),
+            OrdemServicoItem.tipo,
+            OrdemServicoItem.produto_id,
+            OrdemServicoItem.nome,
+            OrdemServicoItem.valor_total.label("valor"),
+            ProdutoFiscal.csosn,
+            ProdutoFiscal.cst_icms,
+            ProdutoFiscal.cst_pis,
+            ProdutoFiscal.cst_cofins,
+        )
+        .join(OrdemServicoItem, OrdemServicoItem.ordem_servico_id == OSModel.id)
+        .outerjoin(Funcionario, Funcionario.id == OSModel.funcionario_id)
+        .outerjoin(ProdutoFiscal, ProdutoFiscal.produto_id == OrdemServicoItem.produto_id)
+        .where(
+            and_(
+                OSModel.status == OrdemServicoStatus.FINALIZADA,
+                OSModel.data_finalizacao.isnot(None),
+                OSModel.data_finalizacao >= data_inicio,
+                OSModel.data_finalizacao <= data_fim,
+                or_(
+                    Funcionario.empresa_id == empresa_id,
+                    OSModel.funcionario_id.is_(None),
+                ),
+                OrdemServicoItem.status_aprovacao != OrdemServicoItemAprovacao.REPROVADO,
+            )
+        )
+        .order_by(OSModel.id, OrdemServicoItem.id)
+    )
+    return db.execute(stmt).all()
+
+
+def get_os_finalizadas_sem_itens_total(
+    db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int
+) -> int:
+    """Σ valor_total das OS finalizadas do período que não têm item que conte.
+
+    Raro (OS só com taxa de entrega, ou tudo reprovado), mas existe: sem isto o
+    total do relatório não bateria com o faturamento de OS.
+    """
+    conta = (
+        select(OrdemServicoItem.id)
+        .where(
+            and_(
+                OrdemServicoItem.ordem_servico_id == OSModel.id,
+                OrdemServicoItem.status_aprovacao != OrdemServicoItemAprovacao.REPROVADO,
+            )
+        )
+        .exists()
+    )
+    stmt = (
+        select(func.coalesce(func.sum(OSModel.valor_total), 0))
+        .outerjoin(Funcionario, Funcionario.id == OSModel.funcionario_id)
+        .where(
+            and_(
+                OSModel.status == OrdemServicoStatus.FINALIZADA,
+                OSModel.data_finalizacao.isnot(None),
+                OSModel.data_finalizacao >= data_inicio,
+                OSModel.data_finalizacao <= data_fim,
+                or_(
+                    Funcionario.empresa_id == empresa_id,
+                    OSModel.funcionario_id.is_(None),
+                ),
+                ~conta,
+            )
+        )
+    )
+    return db.execute(stmt).scalar() or 0
+
+
+def get_vendas_do_funcionario(
+    db: Session,
+    data_inicio: datetime,
+    data_fim: datetime,
+    funcionario_id: int,
+) -> Sequence:
+    """As vendas finalizadas de um funcionário no período, uma por linha, com a
+    MARGEM de cada uma — a base da comissão de venda.
+
+    É a conta do `get_comissao_base` aberta por venda, com as mesmas três
+    parcelas e os mesmos filtros (FINALIZADA, `criado_em`, vendedor da venda):
+      receita  Venda.total − acréscimo (o juros vai para a operadora)
+      custo 1  peça do catálogo, custo congelado no livro (SAÍDA soma, ENTRADA subtrai)
+      custo 2  item avulso, custo declarado à mão
+    Somar a margem destas linhas dá a base da folha (antes do piso em zero).
+    """
+    client_pf = aliased(ClientePF)
+    client_pj = aliased(ClientePJ)
+
+    custo_estoque = (
+        select(
+            MovimentacaoEstoque.venda_id.label("venda_id"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            MovimentacaoEstoque.tipo == MovimentacaoTipo.SAIDA,
+                            MovimentacaoEstoque.quantidade
+                            * func.coalesce(MovimentacaoEstoque.custo_unitario, 0),
+                        ),
+                        else_=-MovimentacaoEstoque.quantidade
+                        * func.coalesce(MovimentacaoEstoque.custo_unitario, 0),
+                    )
+                ),
+                0,
+            ).label("custo"),
+        )
+        .where(
+            and_(
+                MovimentacaoEstoque.origem == MovimentacaoOrigem.VENDA.value,
+                MovimentacaoEstoque.tipo.in_([MovimentacaoTipo.ENTRADA, MovimentacaoTipo.SAIDA]),
+            )
+        )
+        .group_by(MovimentacaoEstoque.venda_id)
+        .subquery()
+    )
+    custo_avulso = (
+        select(
+            ProdutoVenda.venda_id.label("venda_id"),
+            func.coalesce(func.sum(ProdutoVenda.quantidade * ProdutoVenda.custo_unitario), 0).label("custo"),
+        )
+        .where(and_(ProdutoVenda.custo_unitario.isnot(None), ProdutoVenda.produto_id.is_(None)))
+        .group_by(ProdutoVenda.venda_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Venda.id.label("venda_id"),
+            Venda.numero_venda,
+            Venda.criado_em,
+            func.coalesce(client_pf.nome, client_pj.razao_social).label("cliente_nome"),
+            Venda.total,
+            func.coalesce(Venda.acrescimo, 0).label("acrescimo"),
+            (func.coalesce(custo_estoque.c.custo, 0) + func.coalesce(custo_avulso.c.custo, 0)).label("custo"),
+        )
+        .outerjoin(custo_estoque, custo_estoque.c.venda_id == Venda.id)
+        .outerjoin(custo_avulso, custo_avulso.c.venda_id == Venda.id)
+        .outerjoin(Cliente, Cliente.id == Venda.cliente_id)
+        .outerjoin(client_pf, Cliente.id == client_pf.id)
+        .outerjoin(client_pj, Cliente.id == client_pj.id)
+        .where(
+            and_(
+                Venda.status == VendaStatus.FINALIZADA,
+                Venda.criado_em >= data_inicio,
+                Venda.criado_em <= data_fim,
+                Venda.funcionario_id == funcionario_id,
+            )
+        )
+        .order_by(Venda.criado_em.asc(), Venda.id.asc())
     )
     return db.execute(stmt).all()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, toRef } from 'vue';
-import { HandCoins, Download, Printer, Lock } from 'lucide-vue-next';
+import { HandCoins, Download, Printer, Lock, FileText } from 'lucide-vue-next';
 
 import { formatCurrency, formatCentsToInput } from '@/shared/utils/finance';
 import { saveCsv } from '@/shared/utils/csv';
@@ -9,6 +9,7 @@ import { useToast } from '@/shared/composables/useToast';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { useComissaoQuery } from '../composables/useComissaoQuery';
 import ComissaoFolhaPrint from './ComissaoFolhaPrint.vue';
+import ExtratoFuncionarioModal from './ExtratoFuncionarioModal.vue';
 
 const props = defineProps<{ inicio: string; fim: string }>();
 
@@ -16,6 +17,9 @@ const { data } = useComissaoQuery(toRef(props, 'inicio'), toRef(props, 'fim'));
 const itens = computed(() => data.value?.itens ?? []);
 const totalPagar = computed(() => data.value?.total_comissao ?? 0);
 const toast = useToast();
+
+/** Extrato de comissão de uma linha: o papel venda a venda, serviço a serviço. */
+const extratoDe = ref<number | null>(null);
 
 /**
  * Loja sem Ordem de Servico nao tem coluna de servico.
@@ -134,6 +138,7 @@ async function exportar() {
             <th v-if="usaOrdemServico" class="py-2 px-2 font-semibold text-right">% S</th>
             <th class="py-2 px-3 font-semibold text-right">Meta</th>
             <th class="py-2 pl-3 font-semibold text-right">Comissão</th>
+            <th class="py-2 pl-2 font-semibold text-right"><span class="sr-only">Extrato</span></th>
           </tr>
         </thead>
         <tbody>
@@ -163,6 +168,16 @@ async function exportar() {
             >
               {{ formatCurrency(i.comissao_total) }}
             </td>
+            <td class="py-2 pl-2 text-right">
+              <button
+                type="button"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-brand-primary hover:bg-slate-100 transition-colors cursor-pointer"
+                :title="`Extrato de comissão de ${i.nome}`"
+                @click="extratoDe = i.funcionario_id"
+              >
+                <FileText :size="15" />
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -171,5 +186,13 @@ async function exportar() {
     <div v-else class="py-8 text-center text-xs text-slate-400">
       Nenhuma comissão no período. Configure a % nos <strong>cargos</strong> e atribua vendas/OS aos funcionários.
     </div>
+
+    <ExtratoFuncionarioModal
+      :is-open="extratoDe !== null"
+      :funcionario-id="extratoDe"
+      :inicio="props.inicio"
+      :fim="props.fim"
+      @close="extratoDe = null"
+    />
   </div>
 </template>

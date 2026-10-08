@@ -7,7 +7,7 @@
 // ============================================================================
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid } from 'lucide-vue-next';
+import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid, FileUp } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
@@ -19,6 +19,7 @@ import ProductCard from '@/modules/products/inventory/components/ProductCard.vue
 import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
 import TransacoesEstoquePanel from '@/modules/products/inventory/components/TransacoesEstoquePanel.vue';
 import MovimentacaoModal from '@/modules/products/inventory/components/MovimentacaoModal.vue';
+import EntradaXmlModal from '@/modules/products/inventory/components/EntradaXmlModal.vue';
 import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
@@ -29,6 +30,9 @@ import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
 import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { saldoEmEmbalagem } from '@/shared/utils/embalagem';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
 import type { ProdutoRead } from '../inventory/types/products.types';
@@ -45,6 +49,7 @@ const {
 } = useFornecedorModal();
 
 import { getImageUrl } from '@/shared/utils/print.utils';
+import { recursoDisponivel } from '@/shared/config/planos';
 
 const activeTab = ref('product');
 const searchTerm = ref<string | null>('');
@@ -53,6 +58,11 @@ const selectedSort = ref<string | null>(null);
 const selectedCategory = ref<string | null>(null);
 const isGroupedByCategory = ref(false);
 const isTransacoesPanelOpen = ref(false);
+const isEntradaXmlOpen = ref(false);
+// "Importar XML" só para loja com módulo fiscal (NF-e ou NFC-e): no modo não
+// fiscal a loja não lida com nota, e o botão seria ruído. Mesma fonte que o
+// formulário de produto usa para mostrar os dados fiscais (a licença).
+const lojaFiscal = computed(() => recursoDisponivel('nfe') || recursoDisponivel('nfce'));
 const isMovimentacaoModalOpen = ref(false);
 const movimentacaoInitialProdutoId = ref<number | undefined>(undefined);
 const movimentacaoInitialTipo = ref<'ENTRADA' | 'SAIDA' | undefined>(undefined);
@@ -76,6 +86,11 @@ const { data: products } = useProductsQuery(searchTerm);
 const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
 const filaEtiquetas = useFilaEtiquetasStore();
 const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
+// Fardo discreto no card ("= 10 FD"), só com as embalagens ligadas.
+const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
+function saldoDoCard(produto: ProdutoRead): string | null {
+  return usarEmbalagens.value ? saldoEmEmbalagem(produto.estoque.quantidade || 0, produto.embalagens) : null;
+}
 // A aba Etiquetas só aparece para quem tem a linha "Etiquetas" no cargo.
 const abas = computed(() => TAB_OPTIONS.filter((aba) => aba.id !== 'labels' || podeVerEtiquetas.value));
 const toggleMutation = useToggleProductActiveMutation();
@@ -263,6 +278,16 @@ function handleAddClick() {
   }
 }
 
+// O que a nota acabou de dar entrada vai para a fila, uma etiqueta por unidade
+// (a fila limita por item). Fracionado (peso) não vira etiqueta.
+function handleEtiquetasDaNota(entradas: { produto_id: number; unidades: number }[]) {
+  for (const e of entradas) {
+    if (Number.isInteger(e.unidades) && e.unidades > 0) filaEtiquetas.adicionar(e.produto_id, e.unidades);
+  }
+  filaEtiquetas.painelAberto = true;
+  activeTab.value = 'labels';
+}
+
 function handleEtiqueta(id: number) {
   filaEtiquetas.adicionar(id);
   filaEtiquetas.painelAberto = true;
@@ -344,19 +369,35 @@ function handleEmptyAction() {
         :description="cabecalho.description"
       />
 
-      <div class="flex gap-5">
+      <div class="flex flex-wrap items-center gap-5">
         <BaseTab2 :options="abas" v-model="activeTab" />
-        <BaseButton
-          v-if="cabecalho.addLabel"
-          variant="primary"
-          size="md"
-          type="button"
-          class="flex gap-1"
-          @click="handleAddClick"
-        >
-          <Plus :size="20" />
-          {{ cabecalho.addLabel }}
-        </BaseButton>
+        <div class="flex gap-3">
+          <!-- Trazer produtos pela nota de compra: ação de "abastecer o estoque",
+               par do "Adicionar Produto" — fica ao lado dele, não na barra de busca. -->
+          <BaseButton
+            v-if="activeTab === 'product' && lojaFiscal"
+            variant="ghost"
+            size="md"
+            type="button"
+            class="flex gap-1.5"
+            title="Dar entrada na nota de compra pelo arquivo XML do fornecedor"
+            @click="isEntradaXmlOpen = true"
+          >
+            <FileUp :size="18" />
+            Importar XML
+          </BaseButton>
+          <BaseButton
+            v-if="cabecalho.addLabel"
+            variant="primary"
+            size="md"
+            type="button"
+            class="flex gap-1"
+            @click="handleAddClick"
+          >
+            <Plus :size="20" />
+            {{ cabecalho.addLabel }}
+          </BaseButton>
+        </div>
       </div>
     </div>
 
@@ -427,6 +468,7 @@ function handleEmptyAction() {
               @entrada="handleEntrada"
               @saida="handleSaida"
               :mostrar-etiqueta="podeVerEtiquetas"
+              :saldo-embalagem="saldoDoCard(product)"
               @etiqueta="handleEtiqueta"
             />
           </div>
@@ -452,6 +494,7 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          :saldo-embalagem="saldoDoCard(product)"
           :mostrar-etiqueta="podeVerEtiquetas"
           @etiqueta="handleEtiqueta"
         />
@@ -520,6 +563,14 @@ function handleEmptyAction() {
       :is-open="isTransacoesPanelOpen"
       :produtos="mergedProducts"
       @close="isTransacoesPanelOpen = false"
+    />
+
+    <EntradaXmlModal
+      v-if="lojaFiscal"
+      :is-open="isEntradaXmlOpen"
+      :produtos="mergedProducts"
+      @close="isEntradaXmlOpen = false"
+      @etiquetas="handleEtiquetasDaNota"
     />
 
     <MovimentacaoModal

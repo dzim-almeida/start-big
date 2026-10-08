@@ -572,6 +572,68 @@ def test_reabrir_ja_pagou_preserva_credito(client, db_session):
     assert rr.json().get("credito_anterior") == 14000, rr.json().get("credito_anterior")
 
 
+def _criar_e_finalizar_com_desconto(client, header, cliente_id, fp_id, numero_serie, valor, desconto):
+    itens = [_item("Serviço", valor)]
+    r = client.post("/api/v1/ordens-servico/", json=_os_payload(cliente_id, numero_serie, itens=itens), headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    numero = r.json()["numero_os"]
+    fin = {
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "desconto": desconto,
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": valor - desconto}],
+    }
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json=fin, headers=header)
+    assert rf.status_code == 200, rf.text
+    assert rf.json()["desconto"] == desconto
+    return numero
+
+
+def test_reabrir_nao_pagou_zera_o_desconto_e_refinaliza_sem_somar(client, db_session):
+    """O desconto nasceu no fechamento que não aconteceu: sai junto com ele.
+    Antes ficava travado como "Desc. anterior" e somava com o novo."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    fp_id = _criar_forma_pagamento(client, header)
+    numero = _criar_e_finalizar_com_desconto(client, header, cliente_id, fp_id, "SERIAL-DNP", 14000, 2000)
+
+    rr = client.put(f"/api/v1/ordens-servico/{numero}/reabrir", json={"cliente_pagou": False}, headers=header)
+    assert rr.status_code == 200, rr.text
+    body = rr.json()
+    assert (body["desconto"], body["valor_total"], body["pagamentos"]) == (0, 14000, [])
+
+    fin = {
+        "situacao_equipamento": "REPARADO", "garantia": "90 dias", "desconto": 1000,
+        "pagamentos": [{"forma_pagamento_id": fp_id, "valor": 13000}],
+    }
+    rf = client.put(f"/api/v1/ordens-servico/{numero}/finalizar", json=fin, headers=header)
+    assert rf.status_code == 200, rf.text
+    assert (rf.json()["desconto"], rf.json()["valor_total"]) == (1000, 13000)
+
+
+def test_reabrir_nao_pagou_zera_o_juros_do_cartao_que_nao_passou(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    fp_id = _criar_forma_pagamento(client, header)
+    body = _finalizar_com_juros(client, header, cliente_id, fp_id, "SERIAL-JNP", 10000, 500, "CLIENTE")
+    assert (body["acrescimo"], body["valor_total"]) == (500, 10500)
+
+    rr = client.put(f"/api/v1/ordens-servico/{body['numero_os']}/reabrir", json={"cliente_pagou": False}, headers=header)
+    assert rr.status_code == 200, rr.text
+    assert (rr.json()["acrescimo"], rr.json()["valor_total"]) == (0, 10000)
+
+
+def test_reabrir_ja_pagou_mantem_o_desconto(client, db_session):
+    """Pagamento real: o crédito foi calculado sobre o total COM desconto, que fica."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    fp_id = _criar_forma_pagamento(client, header)
+    numero = _criar_e_finalizar_com_desconto(client, header, cliente_id, fp_id, "SERIAL-DJP", 14000, 2000)
+
+    rr = client.put(f"/api/v1/ordens-servico/{numero}/reabrir", json={"cliente_pagou": True}, headers=header)
+    assert rr.status_code == 200, rr.text
+    body = rr.json()
+    assert (body["desconto"], body["valor_total"], body["credito_anterior"]) == (2000, 12000, 12000)
+
+
 # =========================
 # JUROS: repassado ao cliente x absorvido pela loja
 # =========================
@@ -971,3 +1033,14 @@ def test_pagamento_depois_da_reabertura_nao_e_engolido_pelo_adiantamento_antigo(
         "situacao_equipamento": "REPARADO", "garantia": "90 dias", "pagamentos": [],
     }, headers=header)
     assert rf.status_code == 200, f"cobrou de novo: {rf.text}"
+
+
+def test_os_criada_ja_com_deslocamento_soma_no_total(client, db_session):
+    """O deslocamento informado na abertura entra no total desde a criação."""
+    header = _autenticar_e_criar_empresa(client, "assistencia_tecnica")
+    cliente_id = _criar_cliente(client, header)
+    payload = _os_payload(cliente_id, "SERIAL-FRETE", itens=[_item("Visita técnica", 10000)])
+    payload["taxa_entrega"] = 1500
+    r = client.post("/api/v1/ordens-servico/", json=payload, headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    assert (r.json()["taxa_entrega"], r.json()["valor_total"]) == (1500, 11500)

@@ -11,6 +11,7 @@ const {
   exigirPrecoCusto,
   margemLucroPadrao,
   utilizarPrecoAtacado,
+  usarEmbalagens,
   permitirVendaEstoqueZerado,
   quantidadeMinimaPadrao,
   unidadeMedidaPadrao,
@@ -36,6 +37,7 @@ function valoresDoStore() {
     exigir_preco_custo: exigirPrecoCusto.value,
     margem_lucro_padrao: margemLucroPadrao.value,
     utilizar_preco_atacado: utilizarPrecoAtacado.value,
+    usar_embalagens: usarEmbalagens.value,
     permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
     quantidade_minima_padrao: quantidadeMinimaPadrao.value,
     unidade_medida_padrao: unidadeMedidaPadrao.value,
@@ -138,6 +140,27 @@ defineExpose({ form, isDirty, resetar })
           @click="form.utilizar_preco_atacado = !form.utilizar_preco_atacado"
         >
           <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.utilizar_preco_atacado ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Embalagens -->
+    <div class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Embalagens</p>
+
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+        <div>
+          <p class="text-sm font-medium text-zinc-800">Vender e receber em fardo, caixa ou pack</p>
+          <p class="text-xs text-zinc-500 mt-0.5">
+            Cada produto ganha embalagens com código de barras e preço próprios. O estoque continua contado em unidade
+          </p>
+        </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.usar_embalagens ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.usar_embalagens = !form.usar_embalagens"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.usar_embalagens ? 'translate-x-5' : 'translate-x-0.5']" />
         </button>
       </div>
     </div>
