@@ -22,10 +22,13 @@ import MovimentacaoModal from '@/modules/products/inventory/components/Movimenta
 import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
+import EtiquetasTab from '../labels/components/EtiquetasTab.vue';
+import { useFilaEtiquetasStore } from '../labels/store/filaEtiquetas.store';
 
 import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
 import type { ProdutoRead } from '../inventory/types/products.types';
@@ -68,6 +71,13 @@ const isFornecedorToggleModalOpen = ref(false);
 const fornecedorToToggle = ref<FornecedorReadType | null>(null);
 
 const { data: products } = useProductsQuery(searchTerm);
+// A aba de etiquetas lista o catálogo inteiro, com busca própria: não pode
+// herdar o filtro da busca da aba Estoque.
+const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
+const filaEtiquetas = useFilaEtiquetasStore();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
+// A aba Etiquetas só aparece para quem tem a linha "Etiquetas" no cargo.
+const abas = computed(() => TAB_OPTIONS.filter((aba) => aba.id !== 'labels' || podeVerEtiquetas.value));
 const toggleMutation = useToggleProductActiveMutation();
 
 const localOverrides = ref<Record<number, ProdutoRead>>({});
@@ -104,6 +114,21 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// Atalho "Etiqueta de envio" da lista de vendas: ?envio=venda:5 abre a aba
+// Etiquetas já na sub-aba Envio, com a venda escolhida.
+const envioInicial = ref<{ tipo: 'venda'; id: number } | null>(null);
+watch(
+  () => route.query.envio,
+  (valor) => {
+    const [tipo, id] = String(valor ?? '').split(':');
+    if (tipo !== 'venda' || !Number(id)) return;
+    envioInicial.value = { tipo, id: Number(id) };
+    activeTab.value = 'labels';
+    router.replace({ query: { ...route.query, envio: undefined } });
+  },
+  { immediate: true },
 );
 
 function normalizarCategoria(cat: string | null | undefined): string {
@@ -219,12 +244,29 @@ function getProductImage(product: ProdutoRead) {
   return product.fotos?.[0]?.url || '';
 }
 
+// Título, descrição e botão do topo por aba. Com três abas, o ternário de duas
+// opções que havia aqui já não servia.
+// `addLabel` nulo = aba sem botão de adicionar (na de Etiquetas ele não teria
+// relação com a tela, principalmente no Envio).
+const CABECALHO_POR_ABA: Record<string, { title: string; description: string; addLabel: string | null }> = {
+  product: { title: 'Estoque', description: 'Gerencia os produtos no seu estoque', addLabel: 'Adicionar Produto' },
+  supplier: { title: 'Fornecedores', description: 'Gerencie os fornecedores da sua empresa', addLabel: 'Adicionar Fornecedor' },
+  labels: { title: 'Etiquetas', description: 'Etiquetas de preço, código de barras e envio', addLabel: null },
+};
+const cabecalho = computed(() => CABECALHO_POR_ABA[activeTab.value] ?? CABECALHO_POR_ABA.product);
+
 function handleAddClick() {
-  if (activeTab.value === 'product') {
-    openCreateModal();
-  } else {
+  if (activeTab.value === 'supplier') {
     openCreateFornecedorModal();
+  } else {
+    openCreateModal();
   }
+}
+
+function handleEtiqueta(id: number) {
+  filaEtiquetas.adicionar(id);
+  filaEtiquetas.painelAberto = true;
+  activeTab.value = 'labels';
 }
 
 function handleToggleFornecedor(fornecedor: FornecedorReadType) {
@@ -298,13 +340,14 @@ function handleEmptyAction() {
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview
-        :title="activeTab === 'product' ? 'Estoque' : 'Fornecedores'"
-        :description="activeTab === 'product' ? 'Gerencia os produtos no seu estoque' : 'Gerencie os fornecedores da sua empresa'"
+        :title="cabecalho.title"
+        :description="cabecalho.description"
       />
 
       <div class="flex gap-5">
-        <BaseTab2 :options="TAB_OPTIONS" v-model="activeTab" />
+        <BaseTab2 :options="abas" v-model="activeTab" />
         <BaseButton
+          v-if="cabecalho.addLabel"
           variant="primary"
           size="md"
           type="button"
@@ -312,7 +355,7 @@ function handleEmptyAction() {
           @click="handleAddClick"
         >
           <Plus :size="20" />
-          {{ activeTab === 'product' ? 'Adicionar Produto' : 'Adicionar Fornecedor' }}
+          {{ cabecalho.addLabel }}
         </BaseButton>
       </div>
     </div>
@@ -383,6 +426,8 @@ function handleEmptyAction() {
               @toggle="handleToggleProduct"
               @entrada="handleEntrada"
               @saida="handleSaida"
+              :mostrar-etiqueta="podeVerEtiquetas"
+              @etiqueta="handleEtiqueta"
             />
           </div>
         </div>
@@ -407,6 +452,8 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          :mostrar-etiqueta="podeVerEtiquetas"
+          @etiqueta="handleEtiqueta"
         />
       </div>
 
@@ -434,6 +481,15 @@ function handleEmptyAction() {
           </BaseButton>
         </div>
       </div>
+    </template>
+
+    <!-- Etiquetas Tab -->
+    <template v-else-if="activeTab === 'labels' && podeVerEtiquetas">
+      <EtiquetasTab
+        :produtos="todosProdutos ?? []"
+        :is-loading="isTodosProdutosLoading"
+        :envio-inicial="envioInicial"
+      />
     </template>
 
     <!-- Fornecedores Tab -->

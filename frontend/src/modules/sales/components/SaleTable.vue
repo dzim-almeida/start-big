@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vue-next';
+import { Pencil, Eye, CheckCircle, XCircle, RotateCcw, Printer, Truck } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+import { rotaEtiquetaEnvio } from '@/shared/etiquetas/atalhoEnvio';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
@@ -24,6 +27,9 @@ const { usarFilaDoCaixa } = storeToRefs(useConfiguracoesStore());
 const filtrosDisponiveis = computed(() =>
   usarFilaDoCaixa.value ? SALE_FILTER_CONFIG_COM_CAIXA : SALE_FILTER_CONFIG,
 );
+
+const router = useRouter();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
 
 const emit = defineEmits<{
   (e: 'cancel', saleId: number): void;
@@ -190,6 +196,15 @@ const emit = defineEmits<{
                     @click.stop="emit('print', sale.id, sale.status)"
                   >
                     <Printer class="h-4 w-4" />
+                  </button>
+                  <button
+                    v-if="podeVerEtiquetas"
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-blue-50 hover:text-brand-primary"
+                    title="Etiqueta de envio (volumes e DANFE Simplificado)"
+                    @click.stop="router.push(rotaEtiquetaEnvio(sale.id))"
+                  >
+                    <Truck class="h-4 w-4" />
                   </button>
                 </template>
 

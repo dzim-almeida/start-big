@@ -11,6 +11,12 @@ import type { Bobina } from '@/shared/services/escpos'
 export type TipoConexaoImpressora = 'windows' | 'rede'
 export type ModoAutoImpressao = 'automatico' | 'perguntar' | 'nao'
 export type FormatoDocumento = 'cupom' | 'a4'
+/**
+ * Como a etiqueta sai: pelo diálogo do Windows (qualquer impressora com
+ * driver) ou direto na linguagem da térmica, sem diálogo (fase 4 do
+ * docs/etiquetas-plano.md). EPL cobre também o PPLB da Argox.
+ */
+export type SaidaEtiqueta = 'driver' | 'zpl' | 'tspl' | 'epl'
 
 export interface ConfigImpressao {
   tipo_conexao: TipoConexaoImpressora
@@ -29,6 +35,29 @@ export interface ConfigImpressao {
   compartilhar_impressora: boolean
   porta_compartilhamento: number
   nome_terminal: string
+  // Etiquetas (docs/etiquetas-plano.md §6). Calibração é por terminal: cada
+  // impressora puxa o papel com a sua folga.
+  etiqueta_deslocamento_x_mm: number
+  etiqueta_deslocamento_y_mm: number
+  /** Chave do último modelo usado na fila (`preset:...` ou `loja:<id>`). */
+  etiqueta_modelo: string | null
+  /** Idem, para a etiqueta de envio (volume ou DANFE) — papel diferente do estoque. */
+  etiqueta_modelo_envio: string | null
+  // Impressão direta da etiqueta (fase 4). A impressora de etiqueta é OUTRA
+  // que a térmica de cupom, com conexão própria.
+  etiqueta_saida: SaidaEtiqueta
+  etiqueta_conexao: TipoConexaoImpressora
+  etiqueta_impressora: string | null
+  etiqueta_ip: string | null
+  etiqueta_porta: number
+  etiqueta_dpi: 203 | 300
+  /** Espaço entre uma etiqueta e outra no rolo (o "gap" do sensor). */
+  etiqueta_gap_mm: number
+  /** Escuridão 0–15; nulo = a da impressora. */
+  etiqueta_escuridao: number | null
+  etiqueta_girar_180: boolean
+  /** Para impressora que entende o bit ao contrário (sai tudo preto). */
+  etiqueta_inverter: boolean
 }
 
 const STORAGE_KEY = 'startbig-impressao'
@@ -51,6 +80,20 @@ const CONFIG_PADRAO: ConfigImpressao = {
   compartilhar_impressora: false,
   porta_compartilhamento: 9100,
   nome_terminal: 'Caixa Principal',
+  etiqueta_deslocamento_x_mm: 0,
+  etiqueta_deslocamento_y_mm: 0,
+  etiqueta_modelo: null,
+  etiqueta_modelo_envio: null,
+  etiqueta_saida: 'driver',
+  etiqueta_conexao: 'windows',
+  etiqueta_impressora: null,
+  etiqueta_ip: null,
+  etiqueta_porta: 9100,
+  etiqueta_dpi: 203,
+  etiqueta_gap_mm: 2,
+  etiqueta_escuridao: null,
+  etiqueta_girar_180: false,
+  etiqueta_inverter: false,
 }
 
 export const useImpressaoStore = defineStore('impressao', () => {

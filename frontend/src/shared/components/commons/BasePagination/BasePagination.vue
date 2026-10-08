@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { janelaDePaginas } from './janelaDePaginas';
 
 interface Props {
   currentPage: number;
@@ -31,35 +32,10 @@ const itemLabel = computed(() => {
 const hasPrev = computed(() => props.currentPage > 1);
 const hasNext = computed(() => props.currentPage < props.totalPages);
 
-const visiblePages = computed<(number | 'ellipsis')[]>(() => {
-  const total = props.totalPages;
-  const current = props.currentPage;
-
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  const pages: (number | 'ellipsis')[] = [1];
-
-  if (current > 3) {
-    pages.push('ellipsis');
-  }
-
-  const start = Math.max(2, current - 1);
-  const end = Math.min(total - 1, current + 1);
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-
-  if (current < total - 2) {
-    pages.push('ellipsis');
-  }
-
-  pages.push(total);
-
-  return pages;
-});
+// No máximo 3 números: o anterior, o atual e o próximo. Nas pontas a janela
+// encosta (página 1 → 1 2 3; última → as três últimas). Com 10 páginas, mostrar
+// as 10 — ou 1 … 4 5 6 … 10 — ocupava a linha toda sem ajudar a navegar.
+const visiblePages = computed<number[]>(() => janelaDePaginas(props.currentPage, props.totalPages));
 
 // ===========================================================================
 // HANDLERS
@@ -98,15 +74,8 @@ function goToPage(page: number) {
       </button>
 
       <!-- Números de Página -->
-      <template v-for="(page, index) in visiblePages" :key="index">
-        <span
-          v-if="page === 'ellipsis'"
-          class="h-8 w-8 flex items-center justify-center text-xs text-zinc-300 select-none"
-        >
-          ...
-        </span>
+      <template v-for="page in visiblePages" :key="page">
         <button
-          v-else
           type="button"
           class="h-8 w-8 rounded-lg text-xs font-medium transition-colors cursor-pointer"
           :class="[

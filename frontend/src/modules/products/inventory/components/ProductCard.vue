@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, Pencil, Power, Box, AlertTriangle, Plus, Minus } from 'lucide-vue-next';
+import { Eye, Pencil, Power, Box, AlertTriangle, Plus, Minus, Tag } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 import { formatarQuantidade } from '@/shared/utils/quantidade';
@@ -15,15 +15,18 @@ interface Props {
   unidade?: string | null;
   image_url: string;
   status: boolean;
+  /** Botão "Imprimir etiqueta" — só para quem tem a permissão de etiquetas. */
+  mostrarEtiqueta?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { mostrarEtiqueta: true });
 const emit = defineEmits<{
   (e: 'view', id: number): void;
   (e: 'edit', id: number): void;
   (e: 'toggle', id: number): void;
   (e: 'entrada', id: number): void;
   (e: 'saida', id: number): void;
+  (e: 'etiqueta', id: number): void;
 }>();
 
 const stockStatus = computed(() => {
@@ -167,6 +170,15 @@ const isInactive = computed(() => !props.status);
           @click="emit('edit', id)"
         >
           <Pencil :size="16" />
+        </button>
+        <button
+          v-if="mostrarEtiqueta"
+          class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Imprimir etiqueta"
+          :disabled="isInactive"
+          @click="emit('etiqueta', id)"
+        >
+          <Tag :size="16" />
         </button>
         <button
           class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"
