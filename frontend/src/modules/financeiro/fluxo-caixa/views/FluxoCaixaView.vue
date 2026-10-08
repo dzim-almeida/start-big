@@ -219,7 +219,10 @@ function diaSemana(iso: string): string {
           <p class="mt-2 text-xl font-bold text-zinc-800">
             {{ formatCurrency(fluxo.total_saidas) }}
           </p>
-          <p class="mt-1 text-xs text-zinc-400">Contas a pagar no mesmo período</p>
+          <p class="mt-1 text-xs text-zinc-400">
+            Contas a pagar no mesmo período<template v-if="fluxo.previsto_compras">,
+              incluindo {{ formatCurrency(fluxo.previsto_compras) }} previstos de pedidos de compra</template>
+          </p>
         </div>
 
         <div
@@ -349,7 +352,7 @@ function diaSemana(iso: string): string {
             <ul class="mt-1.5 flex flex-col gap-0.5">
               <li
                 v-for="lancamento in dia.lancamentos"
-                :key="`${lancamento.tipo}-${lancamento.conta_id}`"
+                :key="`${lancamento.tipo}-${lancamento.conta_id}-${lancamento.pedido_compra_id ?? ''}-${lancamento.descricao}`"
                 class="flex items-baseline justify-between gap-3 text-xs text-zinc-500"
               >
                 <span class="flex min-w-0 items-baseline gap-2">
@@ -362,6 +365,14 @@ function diaSemana(iso: string): string {
                     class="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500"
                   >
                     repete todo mês
+                  </span>
+                  <!-- Pedido de compra enviado: ainda não é conta (nasce no
+                       recebimento), mas já é dinheiro comprometido. -->
+                  <span
+                    v-if="lancamento.previsao_compra"
+                    class="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                  >
+                    previsto · pedido
                   </span>
                 </span>
                 <span class="shrink-0 tabular-nums">

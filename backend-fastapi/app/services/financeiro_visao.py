@@ -626,6 +626,25 @@ def get_fluxo_caixa(db: Session, empresa_id: int, dias: int = 30) -> FluxoCaixa:
             )
         )
 
+    # Módulo Compras (docs/compras-plano.md, D8d): pedido enviado ainda não é
+    # conta a pagar — a conta nasce no recebimento —, mas já é dinheiro
+    # comprometido. Entra na régua MARCADO como previsão. Sem o módulo Compras
+    # a lista vem vazia e a projeção fica exatamente como era.
+    from app.services.compras.previsoes import previsoes_de_pagamento
+
+    previsto_compras = 0
+    for previsao in previsoes_de_pagamento(db, empresa_id, hoje, fim):
+        b = _bucket(previsao.data)
+        b["saidas"] += previsao.valor
+        previsto_compras += previsao.valor
+        b["lancamentos"].append(
+            FluxoLancamento(
+                conta_id=0, tipo=MovimentacaoFinanceiraTipo.SAIDA.value,
+                descricao=previsao.descricao, valor=previsao.valor,
+                previsao_compra=True, pedido_compra_id=previsao.pedido_id,
+            )
+        )
+
     saldo = saldo_inicial
     # O fundo do poço começa no próprio saldo de hoje: numa loja sem nada
     # agendado, o menor saldo do período é o que ela já tem.
@@ -692,6 +711,7 @@ def get_fluxo_caixa(db: Session, empresa_id: int, dias: int = 30) -> FluxoCaixa:
         menor_saldo_em=menor_saldo_em,
         atrasado_a_receber=atrasado_a_receber,
         atrasado_a_pagar=atrasado_a_pagar,
+        previsto_compras=previsto_compras,
         linha=linha,
     )
 

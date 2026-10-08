@@ -34,6 +34,11 @@ type Recursos = {
    * e cotas diferentes. Uma loja pode ter um sem o outro.
    */
   nfce: boolean;
+  /**
+   * Módulo de Compras (necessidades, pedido, recebimento). Contratável:
+   * plano Business e avulso. Nega sem resposta da licença, como a NF-e.
+   */
+  compras: boolean;
 };
 
 export type Recurso = keyof Recursos;
@@ -42,6 +47,7 @@ export type Recurso = keyof Recursos;
 const MODULO_DO_RECURSO: Record<Recurso, string> = {
   nfe: MODULOS.NFE,
   nfce: MODULOS.NFCE,
+  compras: MODULOS.COMPRAS,
 };
 
 /**

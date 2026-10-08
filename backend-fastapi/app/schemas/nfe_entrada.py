@@ -64,6 +64,19 @@ class ItemPrevia(BaseModel):
         ),
     )
     fiscal_sugerido: FiscalSugerido
+    # Módulo Compras (fase 4): conferência contra o pedido SUGERIDO. Vazio sem
+    # o módulo ou sem pedido aberto do fornecedor — e a tela segue como sempre.
+    pedido_avisos: list[str] = Field(default_factory=list, description="Divergências deste item com o pedido")
+
+
+class PedidoAbertoPrevia(BaseModel):
+    """Pedido enviado/parcial do fornecedor da nota (módulo Compras, fase 4)."""
+
+    id: int
+    codigo: str
+    situacao: str
+    previsao_entrega: Optional[date] = None
+    quantidade_itens: int
 
 
 class DuplicataPrevia(BaseModel):
@@ -85,6 +98,12 @@ class NotaPrevia(BaseModel):
     financeiro_disponivel: bool = Field(..., description="Módulo Financeiro liberado: dá para lançar as parcelas")
     ja_importada_em: Optional[datetime] = None
     avisos: list[str] = Field(default_factory=list)
+    # Módulo Compras (fase 4). Vazios sem o módulo ou sem pedido aberto.
+    pedidos_abertos: list[PedidoAbertoPrevia] = Field(default_factory=list)
+    pedido_sugerido_id: Optional[int] = Field(None, description="O mais recente enviado; a tela pode trocar ou não ligar")
+    pedido_avisos: list[str] = Field(
+        default_factory=list, description="Do pedido sugerido: o que ele esperava e não veio, itens fora dele"
+    )
 
 
 # ── Importação (POST /importar) ──────────────────────────────────────────────
@@ -121,6 +140,8 @@ class ImportarNota(BaseModel):
     xml: str = Field(..., min_length=1, description="O mesmo XML lido na prévia (D2)")
     itens: list[DecisaoItem]
     lancar_contas_pagar: bool = False
+    # Módulo Compras (fase 4): ligar a nota a um pedido aberto do fornecedor.
+    pedido_id: Optional[int] = Field(None, ge=1)
 
 
 class EntradaLancada(BaseModel):
@@ -141,6 +162,10 @@ class ResultadoImportacao(BaseModel):
     movimentacao_ids: list[int] = Field(default_factory=list)
     # Para a tela mandar à fila de etiquetas o que acabou de entrar.
     entradas: list[EntradaLancada] = Field(default_factory=list)
+    # Módulo Compras (fase 4): o pedido ligado e o que divergiu (só avisa, D11).
+    pedido_codigo: Optional[str] = None
+    pedido_situacao: Optional[str] = None
+    pedido_avisos: list[str] = Field(default_factory=list)
 
 
 class NotaEntradaRead(BaseModel):

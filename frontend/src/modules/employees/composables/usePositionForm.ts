@@ -64,7 +64,7 @@ export interface PositionFormContext {
 
   setPermission: (key: string, value: boolean) => void;
   togglePermission: (key: string) => void;
-  setAllPermissions: (value: boolean) => void;
+  setAllPermissions: (value: boolean, chaves?: string[]) => void;
 
   onSubmit: (e?: Event) => void;
   resetForm: () => void;
@@ -137,9 +137,9 @@ export function usePositionFormProvider() {
     setPermission(key, !currentValue);
   }
 
-  function setAllPermissions(value: boolean) {
+  function setAllPermissions(value: boolean, chaves: string[] = PERMISSION_KEYS) {
     const updated = { ...normalizePermissions(permissoes.value) };
-    PERMISSION_KEYS.forEach((key) => {
+    chaves.forEach((key) => {
       updated[key] = value;
     });
     setFieldValue('permissoes', updated);

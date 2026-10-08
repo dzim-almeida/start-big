@@ -14,10 +14,13 @@ import { MODULOS } from '@/shared/constants/modulos.constants';
  * há acesso a proteger. E errar para "tem" abriria emissão de documento
  * fiscal em nome da loja na SEFAZ — caro demais para ser o padrão.
  *
+ * Compras entra pelo mesmo motivo de ser novo: ninguém tem hoje, e é vendido
+ * à parte — liberar por falta de resposta daria de graça o que é pago.
+ *
  * O backend aplica a MESMA exceção em app/core/modulos.py. Mudar de ideia
  * exige mexer nos dois: aqui só se esconde o menu, lá é que se barra a rota.
  */
-const MODULOS_NEGADOS_SEM_RESPOSTA = new Set<string>([MODULOS.NFE, MODULOS.NFCE]);
+const MODULOS_NEGADOS_SEM_RESPOSTA = new Set<string>([MODULOS.NFE, MODULOS.NFCE, MODULOS.COMPRAS]);
 
 /**
  * Os módulos que esta licença tem contratados.

@@ -40,6 +40,17 @@ export interface ItemPrevia {
   /** Embalagem sem o fator dito em lugar nenhum: precisa informar ou confirmar 1. */
   fator_a_confirmar: boolean;
   fiscal_sugerido: FiscalSugerido;
+  /** Módulo Compras: divergências com o pedido sugerido. Ausente/vazio sem o módulo. */
+  pedido_avisos?: string[];
+}
+
+/** Pedido enviado/parcial do fornecedor da nota (módulo Compras). */
+export interface PedidoAbertoPrevia {
+  id: number;
+  codigo: string;
+  situacao: string;
+  previsao_entrega: string | null;
+  quantidade_itens: number;
 }
 
 export interface NotaPrevia {
@@ -55,6 +66,11 @@ export interface NotaPrevia {
   financeiro_disponivel: boolean;
   ja_importada_em: string | null;
   avisos: string[];
+  // Módulo Compras (opcionais: backend sem o módulo, ou antigo, não manda).
+  pedidos_abertos?: PedidoAbertoPrevia[];
+  pedido_sugerido_id?: number | null;
+  /** Do pedido sugerido: o que ele esperava e não veio. */
+  pedido_avisos?: string[];
 }
 
 export interface DecisaoItem {
@@ -85,4 +101,8 @@ export interface ResultadoImportacao {
   contas_pagar_lancadas: number;
   movimentacao_ids: number[];
   entradas: { produto_id: number; unidades: number }[];
+  // Módulo Compras: o pedido ligado e o que divergiu (só aviso).
+  pedido_codigo?: string | null;
+  pedido_situacao?: string | null;
+  pedido_avisos?: string[];
 }

@@ -33,6 +33,31 @@ export const PERMISSIONS = {
   manageLabels: 'manage_labels',
   /** Apagar modelos — some de todos os terminais da loja. */
   deleteLabels: 'delete_labels',
+  /**
+   * Compras: ver fornecedores do produto (e, nas próximas fases, pedidos).
+   * Qualquer caixa da linha "Compras" da tela de Cargos.
+   */
+  purchases: 'compra',
+  /** Cadastrar fornecedores do produto e fazer pedidos de compra. */
+  managePurchases: 'manage_purchases',
+  /**
+   * Ver PREÇO de compra. Não é o `purchases`: este aceita a chave genérica
+   * `compra`, que na fase 3 vai estar ligada também para quem só recebe
+   * mercadoria — e o almoxarife confere sem ver preço (plano de compras, D14).
+   */
+  viewPurchaseCosts: 'view_purchases',
+  /** Cancelar pedido de compra: desfaz um compromisso já mandado ao fornecedor. */
+  cancelPurchases: 'delete_purchases',
+  /**
+   * Linha "Recebimento" de Cargos (o almoxarife): ver os pedidos a receber,
+   * SEM preço. Chave própria, separada de `compra`, porque quem só recebe não
+   * pode herdar o que a linha Compras libera.
+   */
+  receiving: 'recebimento_compra',
+  /** Dar entrada no que chegou. Quem gerencia compras também pode. */
+  receivePurchases: 'receive_purchases',
+  /** Qualquer uma das duas linhas: decide se o grupo "Compras" do menu aparece. */
+  purchasesAny: 'compras_ou_recebimento',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -67,4 +92,14 @@ export const PERMISSION_ALIASES: Partial<Record<PermissionKey, string[]>> = {
   [PERMISSIONS.labels]: ['view_labels', 'manage_labels', 'delete_labels'],
   [PERMISSIONS.manageLabels]: ['manage_labels'],
   [PERMISSIONS.deleteLabels]: ['delete_labels'],
+  [PERMISSIONS.purchases]: ['view_purchases', 'manage_purchases', 'delete_purchases'],
+  [PERMISSIONS.managePurchases]: ['manage_purchases'],
+  [PERMISSIONS.viewPurchaseCosts]: ['view_purchases', 'manage_purchases', 'delete_purchases'],
+  [PERMISSIONS.cancelPurchases]: ['delete_purchases'],
+  [PERMISSIONS.receiving]: ['view_receiving', 'receive_purchases'],
+  [PERMISSIONS.receivePurchases]: ['receive_purchases', 'manage_purchases'],
+  [PERMISSIONS.purchasesAny]: [
+    'compra', 'view_purchases', 'manage_purchases', 'delete_purchases',
+    'recebimento_compra', 'view_receiving', 'receive_purchases',
+  ],
 };

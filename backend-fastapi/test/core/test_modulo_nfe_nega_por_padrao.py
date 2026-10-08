@@ -99,4 +99,6 @@ def test_a_lista_de_excecao_e_estreita():
     Só entra o que ainda não está em uso por ninguém -- por isso a lista é
     conferida por igualdade, e não por `in`.
     """
-    assert MODULOS_NEGADOS_SEM_RESPOSTA == frozenset({"NFE", "NFCE"})
+    # COMPRAS entrou em 03/10/2026 (docs/compras-plano.md, D2): módulo novo,
+    # ninguém em campo o usa, e é vendido à parte.
+    assert MODULOS_NEGADOS_SEM_RESPOSTA == frozenset({"NFE", "NFCE", "COMPRAS"})

@@ -37,6 +37,7 @@ from app.api.v1.endpoints import etiquetas
 from app.api.v1.endpoints import produto_embalagem
 from app.api.v1.endpoints import produto_regra_preco
 from app.api.v1.endpoints import nfe_entrada
+from app.api.v1.endpoints import compras
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -152,3 +153,6 @@ router.include_router(fiscal_produto.router, prefix="/fiscal", tags=["Fiscal"])
 # Central de Etiquetas: modelos de layout compartilhados pela loja. Imprimir é
 # papel do terminal (Tauri), não do backend -- ver docs/etiquetas-plano.md.
 router.include_router(etiquetas.router, prefix="/etiquetas", tags=["Etiquetas"])
+# Módulo de Compras (docs/compras-plano.md): o router inteiro exige o módulo
+# COMPRAS na licença; cada rota, a linha "Compras" da tela de Cargos.
+router.include_router(compras.router, prefix="/compras", tags=["Compras"])

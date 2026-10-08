@@ -50,6 +50,16 @@ export const MODULOS = {
    * Também NEGA por padrão. Ver `MODULOS_NEGADOS_SEM_RESPOSTA`.
    */
   NFCE: 'NFCE',
+
+  /**
+   * Módulo de Compras: fornecedores do produto, necessidades, pedido e
+   * recebimento (backend-fastapi/docs/compras-plano.md). Plano Business e
+   * avulso por cliente.
+   *
+   * Também NEGA por padrão: é recurso novo e pago à parte, então "não sei"
+   * não pode virar "tem". Ver `MODULOS_NEGADOS_SEM_RESPOSTA`.
+   */
+  COMPRAS: 'COMPRAS',
 } as const;
 
 export type Modulo = (typeof MODULOS)[keyof typeof MODULOS];

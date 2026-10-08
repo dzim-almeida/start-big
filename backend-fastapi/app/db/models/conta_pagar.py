@@ -194,6 +194,14 @@ class ContaPagar(Base):
         Integer, nullable=True, doc="10, em '3 de 10'"
     )
 
+    # Módulo Compras (fase 3): o recebimento de pedido que gerou esta conta.
+    # Sem FK de propósito, como `parcelamento_id`: o financeiro não depende do
+    # módulo de compras existir, e o elo serve só para rastrear a origem.
+    recebimento_compra_id: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, index=True,
+        doc="Recebimento de pedido de compra que gerou esta conta; NULL nas demais",
+    )
+
     observacao: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, doc="Anotação livre do lojista"
     )

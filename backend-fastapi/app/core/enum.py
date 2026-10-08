@@ -175,6 +175,8 @@ class MovimentacaoOrigem(str, enum.Enum):
     DEVOLUCAO = "DEVOLUCAO"
     # Compra importada pela XML da NF-e do fornecedor (entrada por XML).
     NFE_ENTRADA = "NFE_ENTRADA"
+    # Recebimento de um pedido de compra (módulo Compras, fase 3).
+    COMPRA = "COMPRA"
 
 
 class JurosResponsavel(str, enum.Enum):

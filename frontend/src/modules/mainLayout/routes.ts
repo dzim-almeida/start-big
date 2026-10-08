@@ -294,6 +294,67 @@ const homeRoutes: RouteRecordRaw[] = [
           },
         ],
       },
+      {
+        // Módulo de Compras (backend-fastapi/docs/compras-plano.md). Mesma casca
+        // do financeiro; o `exigeModulo` vai em cada filho, como lá.
+        path: '/compras',
+        component: () => import('@/modules/compras/views/ComprasLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            redirect: { name: 'purchases-needs' },
+          },
+          {
+            path: 'necessidades',
+            name: 'purchases-needs',
+            component: () => import('@/modules/compras/necessidades/views/NecessidadesView.vue'),
+            meta: {
+              title: 'Necessidades de Compra',
+              subtitle: 'O que está abaixo do estoque mínimo, já descontando o que está a caminho.',
+              tabId: 'purchases-needs',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'pedidos',
+            name: 'purchases-orders',
+            component: () => import('@/modules/compras/pedidos/views/PedidosView.vue'),
+            meta: {
+              title: 'Pedidos de Compra',
+              subtitle: 'O que foi pedido, a quem, e quando chega.',
+              tabId: 'purchases-orders',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'recebimento',
+            name: 'purchases-receiving',
+            component: () => import('@/modules/compras/recebimento/views/RecebimentoView.vue'),
+            meta: {
+              title: 'Recebimento',
+              subtitle: 'Confira o que chegou e dê entrada no estoque.',
+              tabId: 'purchases-receiving',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'relatorios',
+            name: 'purchases-reports',
+            component: () => import('@/modules/compras/relatorios/views/RelatoriosComprasView.vue'),
+            meta: {
+              title: 'Relatórios de Compras',
+              subtitle: 'Prazo e pontualidade dos fornecedores, e variação de preço.',
+              tabId: 'purchases-reports',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+        ],
+      },
     ],
   },
 ];

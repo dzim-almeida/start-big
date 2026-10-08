@@ -309,6 +309,10 @@ export const FluxoLancamentoSchema = z.object({
   // da BAIXA da anterior: quem paga a de setembro vê a de outubro aparecer na
   // régua na mesma hora, e sem a marca isso se lê como "não registrou".
   recorrente: z.boolean().default(false),
+  // Módulo Compras: parcela PREVISTA de um pedido enviado (ainda não é conta;
+  // vira conta no recebimento). Nestas linhas `conta_id` vem 0.
+  previsao_compra: z.boolean().default(false),
+  pedido_compra_id: z.number().nullable().optional(),
   conta_id: z.number(),
   tipo: z.string(),
   descricao: z.string(),
@@ -351,6 +355,8 @@ export const FluxoCaixaSchema = z.object({
   menor_saldo_em: z.string().nullable().optional(),
   atrasado_a_receber: z.number(),
   atrasado_a_pagar: z.number(),
+  // Módulo Compras: quanto de "Vai sair" é previsão de pedido de compra.
+  previsto_compras: z.number().default(0),
   // Só os dias COM movimento; a régua contínua é desenhada pela tela.
   linha: z.array(FluxoDiaSchema),
 });

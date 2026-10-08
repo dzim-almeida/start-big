@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import date, datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -222,6 +222,10 @@ class FluxoLancamento(BaseModel):
             "marca isso se lê como 'o pagamento não foi registrado'"
         ),
     )
+    # Módulo Compras: parcela PREVISTA de um pedido enviado (ainda não é conta;
+    # vira conta no recebimento). `conta_id` vem 0 nestas linhas.
+    previsao_compra: bool = False
+    pedido_compra_id: Optional[int] = None
 
 
 class FluxoDia(BaseModel):
@@ -317,6 +321,9 @@ class FluxoCaixa(BaseModel):
     )
     atrasado_a_pagar: int = Field(
         ..., description="Vencido e não pago, fora da régua (centavos)"
+    )
+    previsto_compras: int = Field(
+        0, description="Parcelas PREVISTAS de pedidos de compra em aberto, já dentro da régua (módulo Compras)"
     )
 
     linha: List[FluxoDia] = Field(

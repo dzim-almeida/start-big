@@ -25,6 +25,8 @@ export async function importarNotaXml(payload: {
   xml: string;
   itens: DecisaoItem[];
   lancar_contas_pagar: boolean;
+  /** Módulo Compras: liga a nota a um pedido aberto do fornecedor. */
+  pedido_id?: number;
 }): Promise<ResultadoImportacao> {
   const { data } = await api.post<ResultadoImportacao>(`${BASE_URL}/importar`, payload);
   return data;
