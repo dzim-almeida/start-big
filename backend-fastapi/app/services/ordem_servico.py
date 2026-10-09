@@ -52,6 +52,7 @@ from app.core.busca import compactar
 from app.services import movimentacao_estoque as mov_service
 from app.services.fabrica.modo import fase_inicial as fase_inicial_fabrica
 from app.services.fabrica import trilho as trilho_fabrica
+from app.services import ordem_servico_ganchos as ganchos_os   # Spec 09A: quem reage ao ciclo da OS
 
 from app.core.enum import (
     OrdemServicoItemTipo,
@@ -1281,6 +1282,9 @@ def finalizar_ordem_servico(
     # data_finalizacao, isso virou dinheiro no dia errado.
     os_in_db.data_finalizacao = datetime.utcnow()
     trilho_fabrica.ao_finalizar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema")
+    # Quem reage a finalizacao (ex.: conta do RT do arquiteto, Spec 09A da
+    # marcenaria). Lista vazia = nada muda. Falha aqui desfaz a finalizacao.
+    ganchos_os.disparar(ganchos_os.ao_finalizar, db, os_in_db, usuario_token)
 
     if data.observacoes:
         os_in_db.observacoes = data.observacoes
@@ -1336,6 +1340,7 @@ def cancelar_ordem_servico(
         ordem_servico_pagamentos=list(os_in_db.pagamentos or []),
     )
 
+    status_anterior = os_in_db.status.value if hasattr(os_in_db.status, "value") else os_in_db.status
     os_in_db.status = OrdemServicoStatus.CANCELADA
     # Fábrica APOSENTADA (SPEC-00 da marcenaria, Revisão 15, FB1; Spec 03A, D15):
     # só a OS que ainda está no trilho antigo devolve sozinha a separação ao
@@ -1347,6 +1352,9 @@ def cancelar_ordem_servico(
         from app.services.fabrica import separacao as separacao_fabrica
         separacao_fabrica.devolver_tudo(db, os_in_db, usuario_token or {})
     trilho_fabrica.ao_cancelar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema", data.motivo)
+    # Quem reage ao cancelamento (Spec 09A). O status anterior importa: so a OS
+    # que estava FINALIZADA tem, por exemplo, conta de RT a tratar.
+    ganchos_os.disparar(ganchos_os.ao_cancelar, db, os_in_db, usuario_token, {"status_anterior": status_anterior})
 
     if data.motivo:
         obs_atual = os_in_db.observacoes or ""
@@ -1472,6 +1480,8 @@ def reabrir_ordem_servico(
     os_in_db.data_finalizacao = None
     # Fábrica: volta para a etapa (e o status dela). No-op nas outras OS.
     trilho_fabrica.ao_reabrir(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema")
+    # Quem reage a reabertura (Spec 09A). Lista vazia = nada muda.
+    ganchos_os.disparar(ganchos_os.ao_reabrir, db, os_in_db, usuario_token)
 
     return os_crud.update_ordem_servico(db, os_to_update=os_in_db)
 

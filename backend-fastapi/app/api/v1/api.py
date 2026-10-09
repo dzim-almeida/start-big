@@ -40,6 +40,7 @@ from app.api.v1.endpoints import nfe_entrada
 from app.api.v1.endpoints import compras
 from app.api.v1.endpoints import fabrica
 from app.api.v1.endpoints import marcenaria_orcamento, marcenaria_orcamento_itens
+from app.services.marcenaria import ganchos as marcenaria_ganchos
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -165,3 +166,6 @@ router.include_router(fabrica.router, prefix="/fabrica", tags=["Marcenaria-fábr
 # de segmento com a capacidade `orcamento_tecnico`. Dois arquivos, um prefixo.
 router.include_router(marcenaria_orcamento.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
 router.include_router(marcenaria_orcamento_itens.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
+# Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
+# do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
+marcenaria_ganchos.registrar()

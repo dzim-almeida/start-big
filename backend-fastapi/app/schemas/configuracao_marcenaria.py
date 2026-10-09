@@ -57,6 +57,7 @@ class ConfiguracaoMarcenariaUpdate(BaseModel):
     custo_hora_centavos: Optional[int] = None
     rt_padrao_bp: Optional[int] = None
     rt_modo: Optional[RtModo] = None
+    rt_vencimento_dias: Optional[int] = None      # Spec 09A: prazo da conta do RT
     validade_dias: Optional[int] = None
     prazo_entrega_dias: Optional[int] = None
     etapas_producao: Optional[list[str]] = None
@@ -82,6 +83,11 @@ class ConfiguracaoMarcenariaUpdate(BaseModel):
     @classmethod
     def _rt(cls, v):
         return _entre(v, 0, 3_000, "O RT deve ficar entre 0% e 30%.")
+
+    @field_validator("rt_vencimento_dias")
+    @classmethod
+    def _rt_vencimento(cls, v):
+        return _entre(v, 0, 180, "O prazo do RT deve ficar entre 0 e 180 dias.")
 
     @field_validator("validade_dias")
     @classmethod
@@ -124,4 +130,5 @@ class ConfiguracaoMarcenariaCompleta(ConfiguracaoMarcenariaPublica):
     custo_hora_centavos: int
     rt_padrao_bp: int
     rt_modo: RtModo
+    rt_vencimento_dias: int = 30      # Spec 09A: dias ate o vencimento da conta do RT
     inclui_custos: bool = True

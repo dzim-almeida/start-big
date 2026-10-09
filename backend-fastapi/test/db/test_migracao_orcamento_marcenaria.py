@@ -28,6 +28,7 @@ COLUNAS_DE_SPECS_SEGUINTES = {
         "resumo_aprovado_sinal_centavos", "sinal_recebido_centavos",
     },
     "marcenaria_moveis": {"os_item_id"},    # 971eb6cc5a33 (Spec 08A)
+    "marcenaria_orcamento_rt": {"conta_pagar_id"},   # 195109da93f7 (Spec 09A)
 }
 TABELAS = (
     "marcenaria_orcamentos", "marcenaria_orcamento_rt", "marcenaria_ambientes", "marcenaria_moveis",

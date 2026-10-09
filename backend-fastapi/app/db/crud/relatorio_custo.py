@@ -144,11 +144,16 @@ def get_custo_manual_os(
     custo dela não passa pelo livro de estoque, então precisa de um lugar próprio
     — senão o lucro do mês sai maior do que foi.
 
-    Duas exclusões que evitam contar errado:
+    Três exclusões que evitam contar errado:
       - item COM `produto_id` fica de fora: esse saiu do estoque e já tem custo
         congelado no livro; somar os dois dobraria o CMV.
       - item REPROVADO fica de fora: o cliente recusou, o serviço não foi feito
         e o gasto não aconteceu.
+      - item COM `origem` (veio de outro documento, ex.: orçamento técnico da
+        marcenaria) fica de fora: cada parte do custo dele entra pelo registro
+        real -- material pela baixa de estoque, RT e terceirizado pelas contas
+        pagas, mão de obra pelos salários (Spec 09A, F2a). Nenhum item das
+        lojas de hoje tem origem.
 
     Ancorado em `data_finalizacao`, igual à receita da OS, para o custo cair no
     mesmo período do faturamento que ele produziu.
@@ -166,6 +171,12 @@ def get_custo_manual_os(
             and_(
                 OrdemServicoItem.custo_unitario.isnot(None),
                 OrdemServicoItem.produto_id.is_(None),
+                # Item que veio de outro documento (ex.: orcamento de marcenaria)
+                # tem o custo lancado pelos registros reais: baixa de estoque da
+                # OS, contas pagas (RT, terceirizado) e salarios. Somar o custo
+                # declarado aqui contaria tudo de novo (Spec 09A, F2a). O custo
+                # declarado continua valendo para a comissao (outro arquivo).
+                OrdemServicoItem.origem.is_(None),
                 OrdemServicoItem.status_aprovacao != OrdemServicoItemAprovacao.REPROVADO,
                 OSModel.status == OrdemServicoStatus.FINALIZADA,
                 OSModel.data_finalizacao >= data_inicio,
@@ -303,6 +314,12 @@ def get_detalhe_cmv(
             and_(
                 OrdemServicoItem.custo_unitario.isnot(None),
                 OrdemServicoItem.produto_id.is_(None),
+                # Item que veio de outro documento (ex.: orcamento de marcenaria)
+                # tem o custo lancado pelos registros reais: baixa de estoque da
+                # OS, contas pagas (RT, terceirizado) e salarios. Somar o custo
+                # declarado aqui contaria tudo de novo (Spec 09A, F2a). O custo
+                # declarado continua valendo para a comissao (outro arquivo).
+                OrdemServicoItem.origem.is_(None),
                 OrdemServicoItem.status_aprovacao != OrdemServicoItemAprovacao.REPROVADO,
                 OSModel.status == OrdemServicoStatus.FINALIZADA,
                 OSModel.data_finalizacao >= data_inicio,

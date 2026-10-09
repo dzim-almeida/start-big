@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime, UTC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -52,6 +52,13 @@ class ConfiguracaoMarcenaria(Base):
     custo_hora_centavos: Mapped[int] = mapped_column(Integer, default=0, nullable=False)      # R$ 0,00
     rt_padrao_bp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)             # 0%
     rt_modo: Mapped[str] = mapped_column(String(10), default="MARGEM", nullable=False)        # 'MARGEM' | 'PRECO'
+    # Conta a pagar do RT (Spec 09A): vence na finalizacao da OS + estes dias
+    # (D6), na categoria guardada aqui depois da primeira criacao (D5) -- assim o
+    # dono pode renomear a categoria sem o sistema criar outra.
+    rt_vencimento_dias: Mapped[int] = mapped_column(Integer, default=30, server_default="30", nullable=False)
+    rt_plano_conta_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("planos_conta.id", ondelete="SET NULL"), nullable=True,
+    )
 
     # --- Prazos e listas (qualquer usuario logado ve; D9) ------------------
     validade_dias: Mapped[int] = mapped_column(Integer, default=15, nullable=False)

@@ -2,12 +2,19 @@
 
 | Campo        | Valor                                                                                  |
 |--------------|----------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                        |
+| Status       | Implementada em 09/10/2026                                                             |
 | Camada       | Backend (FastAPI) ⚠️ código compartilhado (finalização de OS, custo do resultado do mês) |
 | Dependências | Specs 04A (configuração), 05 (motor), 06A (tabela de RT), 08A (aprovação, `origem`)     |
 | Bloqueia     | Specs 09B, 10A (regra de baixa), 11A (regra de categoria)                               |
 | Referência   | SPEC-00: C5a, C5b, C5c, C5d, C5d+, C5e, C9, F2, F2a, F2b, F4a, E6b, R15-MIG · PR1, PR4, PR6, PR7, PR8 |
 | Revisões     | 1 (08/10/2026): pedidos da Spec 09B e convergência com a branch — ver o fim do documento |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Registro dos ganchos explícito:** em vez de no `__init__` do pacote (que é importado por quem só quer as permissões, como Configurações), os ganchos são ligados por `services/marcenaria/ganchos.py::registrar()`, chamado uma vez no `api.py` junto das rotas da marcenaria. `ordem_servico_ganchos.registrar` não duplica.
+> (2) **Categoria e seed do Financeiro:** antes de criar "Comissão de arquitetos (RT)", o serviço semeia as categorias padrão da loja (o mesmo que a primeira listagem faria); sem isso, a categoria do RT faria a loja parecer "já configurada" e as padrão nunca nasceriam. "Apagar" categoria no sistema é **desativar** (o nome é único por empresa): desativada com o nome padrão, é **reativada**; renomeada e desativada, nasce uma nova (e o id novo fica guardado).
+> (3) **Configuração sem commit dentro da OS:** o gancho lê a configuração pelo CRUD (ela já existe desde a criação do orçamento) e, se faltar, cria só com `flush` — o `obter_configuracao` da 04A faz commit, o que gravaria a finalização pela metade.
+> (4) **Testes antigos ajustados:** `GET /configuracoes/marcenaria` traz `rt_vencimento_dias` no bloco de custos (04A), e a paridade de colunas da migração da 06A desconta `conta_pagar_id`.
+> (5) **Testes:** 19 do RT (01–12, 17–21 e bordas: cancelar com RT pendente, categorias padrão continuam nascendo, prazo configurado), 5 dos ganchos em informática (13, 14 com e sem ganchos dando o mesmo resultado, 22/23 contexto), 2 do CMV (15 com a comissão idêntica, 24 com as peças embutidas pelo livro) e 4 da migração; dez mutações conferidas.
 
 ---
 

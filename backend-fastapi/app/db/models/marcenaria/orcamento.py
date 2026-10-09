@@ -36,6 +36,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.cliente import Cliente
+    from app.db.models.conta_pagar import ContaPagar
     from app.db.models.fornecedor import Fornecedor
     from app.db.models.funcionario import Funcionario
     from app.db.models.marcenaria.ambiente import MarcenariaAmbiente
@@ -175,9 +176,13 @@ class MarcenariaOrcamentoRT(Base):
     )
     fornecedor_id: Mapped[int] = mapped_column(ForeignKey("fornecedores.id"), nullable=False)
     rt_bp: Mapped[int] = mapped_column(Integer, nullable=False)    # 0 a 3000 (30%)
+    # A conta a pagar ATUAL do RT deste arquiteto (Spec 09A, D11): nasce na
+    # finalizacao da OS. O vinculo fica do lado da marcenaria (mesma razao da 08A D7).
+    conta_pagar_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contas_pagar.id"), nullable=True)
 
     orcamento: Mapped["MarcenariaOrcamento"] = relationship("MarcenariaOrcamento", back_populates="rts")
     fornecedor: Mapped["Fornecedor"] = relationship("Fornecedor")
+    conta_pagar: Mapped[Optional["ContaPagar"]] = relationship("ContaPagar")
 
 
 class MarcenariaOrcamentoAnexo(Base):

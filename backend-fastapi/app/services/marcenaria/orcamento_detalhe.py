@@ -210,6 +210,15 @@ def _arquitetos(orc: MarcenariaOrcamento, resultado: OrcamentoResultado, custos:
         if custos:
             item["rt_bp"] = rt.rt_bp
             item["valor_previsto_centavos"] = previsto
+            # Spec 09A (Revisao 1): a conta a pagar ATUAL deste arquiteto, que
+            # nasce na finalizacao da OS. Antes disso, null.
+            conta = rt.conta_pagar
+            item["conta"] = None if conta is None else {
+                "id": conta.id,
+                "status": conta.status,
+                "valor_centavos": conta.valor,
+                "vencimento": conta.vencimento,
+            }
         lista.append(item)
     return lista
 
@@ -332,7 +341,9 @@ def montar_detalhe(
         "medicao_observacoes": orc.medicao_observacoes,
         "observacoes_proposta": orc.observacoes_proposta,
         "parametros": _parametros(orc, custos),
-        "arquitetos": _arquitetos(orc, resultado, custos),
+        # No APROVADO, o RT previsto e o do que virou OS (09A Revisao 1): o mesmo
+        # numero da conta que a finalizacao vai criar.
+        "arquitetos": _arquitetos(orc, resultado_aprovado or resultado, custos),
     }
     if custos:
         detalhe["instalacao_custo_centavos"] = orc.instalacao_custo_centavos

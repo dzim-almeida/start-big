@@ -23,10 +23,13 @@ TEST_USER_PASSWORD = "senhaSegura456"
 URL = "/api/v1/configuracoes/marcenaria"
 
 # Os campos de custo, que so quem tem view_custos_marcenaria ve (D9).
-CAMPOS_DE_CUSTO = {"markup_padrao_bp", "perda_padrao_bp", "custo_hora_centavos", "rt_padrao_bp", "rt_modo"}
+# `rt_vencimento_dias` entrou na Spec 09A (prazo da conta do RT), no bloco de custos.
+CAMPOS_DE_CUSTO = {"markup_padrao_bp", "perda_padrao_bp", "custo_hora_centavos", "rt_padrao_bp", "rt_modo",
+                   "rt_vencimento_dias"}
 
 # Os padroes da §4.1 da Spec 04A.
 PADROES = {
+    "rt_vencimento_dias": 30,          # Spec 09A: padrao aprovado em C5e
     "markup_padrao_bp": 9000,
     "perda_padrao_bp": 1000,
     "custo_hora_centavos": 0,
