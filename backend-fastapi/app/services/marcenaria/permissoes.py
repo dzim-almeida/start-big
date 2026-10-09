@@ -39,3 +39,36 @@ def pode_ver_custos_marcenaria(usuario_token: dict[str, Any]) -> bool:
     if permissoes.get("all") is True:                   # cargo com acesso total
         return True
     return any(permissoes.get(chave) is True for chave in PERMISSOES_VER_CUSTOS)
+
+
+# ---------------------------------------------------------------------------
+# Orcamento de marcenaria (Spec 06A, D22): linha "Orcamentos de Marcenaria" da
+# tela de Cargos (entra na Spec 06B). Mesmo padrao: as chaves sao as mesmas
+# dos dois lados.
+#   - view_orcamentos_marcenaria   -> ver a lista e o detalhe;
+#   - manage_orcamentos_marcenaria -> criar, editar, enviar, versoes, recusar,
+#                                     anexos (e aprovar, na Spec 08A);
+#   - delete_orcamentos_marcenaria -> excluir rascunho nunca enviado.
+# Gerir implica ver.
+# ---------------------------------------------------------------------------
+
+VER_ORCAMENTOS_MARCENARIA = "view_orcamentos_marcenaria"
+GERIR_ORCAMENTOS_MARCENARIA = "manage_orcamentos_marcenaria"
+EXCLUIR_ORCAMENTOS_MARCENARIA = "delete_orcamentos_marcenaria"
+
+PERMISSOES_VER_ORCAMENTOS = [VER_ORCAMENTOS_MARCENARIA, GERIR_ORCAMENTOS_MARCENARIA]   # gerir implica ver
+PERMISSOES_GERIR_ORCAMENTOS = [GERIR_ORCAMENTOS_MARCENARIA]
+PERMISSOES_EXCLUIR_ORCAMENTOS = [EXCLUIR_ORCAMENTOS_MARCENARIA]
+
+
+def tem_alguma(usuario_token: dict[str, Any], chaves: list[str]) -> bool:
+    """Mesma regra do check_permission, sem levantar erro: master, 'all' ou uma das chaves.
+
+    Usado para montar as `acoes` do detalhe (o que o usuario pode fazer agora).
+    """
+    if usuario_token.get("is_master") is True:          # dono da loja
+        return True
+    permissoes = usuario_token.get("permissoes") or {}
+    if permissoes.get("all") is True:                   # cargo com acesso total
+        return True
+    return any(permissoes.get(chave) is True for chave in chaves)

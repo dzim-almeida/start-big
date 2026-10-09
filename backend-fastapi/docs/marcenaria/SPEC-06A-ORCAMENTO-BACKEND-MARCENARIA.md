@@ -2,12 +2,23 @@
 
 | Campo        | Valor                                                                              |
 |--------------|------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                    |
+| Status       | Implementada em 09/10/2026                                                         |
 | Camada       | Backend (FastAPI)                                                                  |
 | Dependências | Specs 04A (parâmetros, permissões, capacidade) e 05 (motor)                        |
 | Bloqueia     | Specs 06B, 07, 08A                                                                 |
 | Revisões     | 1 (06/10/2026): pedidos da Spec 06B · 2 (06/10/2026): pedidos da Spec 07 · 3 (08/10/2026): pedidos da Spec 09B e SPEC-00 Revisão 15 — ver o fim do documento |
 | Referência   | SPEC-00: F1, F5, O1, O2, O3, O3a, O5, O6, C3, C4, C5a, C7, C9, T3c, T3d, T7, P4 · PR3, PR4, PR6, PR8 |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Arquivos a mais**, para nenhum passar do teto de bytecode do PyArmor (PR7): `services/marcenaria/erros.py` (os `404`/`409`/`422` da §6.9 num lugar só), `orcamento_comum.py` (carregar, trava, histórico, vencimento e o fecho de toda escrita), `orcamento_detalhe.py` (saídas e recorte, D23) e `orcamento_arvore.py` (ambientes, móveis, duplicar, simular). A API ficou em dois arquivos com o **mesmo** prefixo: `endpoints/marcenaria_orcamento.py` e `marcenaria_orcamento_itens.py`.
+> (2) **Excluir (D18) não apaga o histórico:** `marcenaria_eventos.orcamento_id` é `ON DELETE SET NULL`; os eventos ficam soltos, mais um `ORCAMENTO_EXCLUIDO` com o código em `dados`. Os anexos do código saem junto (ninguém mais chega a eles); os arquivos só são apagados depois do commit.
+> (3) **Ordem das conferências numa escrita:** revisão primeiro (`409 REVISAO_DESATUALIZADA`), status depois (`409 STATUS_NAO_EDITAVEL` / `TRANSICAO_INVALIDA`). Antes de toda leitura **e** escrita roda o vencimento preguiçoso (um `ENVIADO` vencido não aceita "voltar a editar"). **A trava (D20) também vale na corrida** (dois computadores que leram a mesma revisão ao mesmo tempo): `revisao` é a coluna de versão do SQLAlchemy (`version_id_col`, sem gerador: quem soma é o serviço), então todo `UPDATE`/`DELETE` do cabeçalho leva `WHERE revisao = <lida>`; e o fecho da escrita confere a revisão de novo depois de reler o banco (pega quem gravou enquanto esta escrita só mexia em ambientes e móveis). Os dois casos respondem o mesmo `409 REVISAO_DESATUALIZADA`.
+> (4) **Quem valida o quê:** o Pydantic recusa medidas (1 mm a 100 m), quantidade (1 a 9999), RT padrão (0 a 30%), validade e prazo (1 a 365 dias), motivo e legenda; markup, perda, custo/hora, desconto e sinal ficam com o **motor**, para o erro voltar como `CALCULO_INVALIDO` com o `campo` certo. Insumo novo sem `produto_id`: "Escolha o produto do insumo."; produto inexistente: "Produto do insumo não encontrado."; central inexistente ou inativa: "Central parceira não encontrada." (móvel `INTERNA` grava a central vazia).
+> (5) **Custo manual igual ao gravado não vira `MANUAL`:** a tela de quem vê custos reenvia o valor a cada salvamento automático; só um valor **diferente** troca a origem.
+> (6) **A mais no detalhe** (nada de custo): `observacoes_proposta`, `datas.atualizacao`, no móvel `ambiente_id`/`ordem`/`aprovado`, no insumo `codigo`, e `acoes.anexos` (D31: anexos em qualquer status menos `SUBSTITUIDO`/`APROVADO`). Com `view_custos`, o cálculo do móvel traz também `custo_total_centavos`. `MARGEM_NEGATIVA` sai dos avisos de quem não vê custos.
+> (7) **Eventos:** `ORCAMENTO_CRIADO`, `ORCAMENTO_ENVIADO`, `ORCAMENTO_VOLTOU_A_EDITAR`, `ORCAMENTO_RECUSADO`, `ORCAMENTO_RENOVADO`, `ORCAMENTO_VENCIDO` ("Sistema"), `NOVA_VERSAO` (nas duas versões), `PRECOS_ATUALIZADOS`, `ANEXO_INCLUIDO`, `ANEXO_REMOVIDO`, `ORCAMENTO_EXCLUIDO`. Mudar a legenda de um anexo é edição de campo: sem evento.
+> (8) **A 08A reaproveita** `exigir_completo_para_enviar(orc, verbo="aprovar")` e `registrar_envio()` (envio implícito, 08A D13), e `copiar_movel()`.
+> (9) **Testes:** 23 de serviço (01–17 e bordas), 50 de API (18–51, bordas e 3 corridas da D20), 3 da migração; doze mutações das regras principais conferidas (cada uma derruba um teste).
 
 ---
 

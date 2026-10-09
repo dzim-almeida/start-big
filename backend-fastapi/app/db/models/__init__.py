@@ -85,6 +85,11 @@ from app.db.models.recebimento_compra import RecebimentoCompra, RecebimentoCompr
 
 # --- Marcenaria: orçamento técnico (docs/marcenaria/, Spec 04A) ---
 from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria  # noqa: F401
+# Orçamento (Spec 06A): orçamento, RT, anexos, ambiente, móvel, insumo e histórico.
+from app.db.models.marcenaria import (  # noqa: F401
+    MarcenariaOrcamento, MarcenariaOrcamentoRT, MarcenariaOrcamentoAnexo,
+    MarcenariaAmbiente, MarcenariaMovel, MarcenariaMovelInsumo, MarcenariaEvento,
+)
 
 # --- Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md) ---
 from app.db.models.fabrica_orcamento import (  # noqa: F401

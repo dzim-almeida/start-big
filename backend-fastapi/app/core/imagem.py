@@ -45,7 +45,19 @@ CONTEXTO_IMAGEM = {
         "qualidade": 80,
         "diretorio_base": "static/uploads/ordens-servico",
     },
+    # Fotos da medicao do orcamento de marcenaria (Spec 06A, D27). A pasta e
+    # a do CODIGO do orcamento (todas as versoes veem os mesmos anexos, D30).
+    "orcamento_anexo": {
+        "max_dimensao": (1920, 1920),
+        "qualidade": 80,
+        "diretorio_base": "static/uploads/marcenaria/orcamentos",
+    },
 }
+
+# PDF do orcamento de marcenaria (planta, projeto do arquiteto): guardado como
+# veio, sem processamento (Spec 06A, D27).
+TAMANHO_MAXIMO_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
+ASSINATURA_PDF = b"%PDF"                     # todo PDF comeca com estes 4 bytes
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +202,35 @@ def salvar_imagem(arquivo: UploadFile, entidade_id: int, contexto: str) -> str:
 
     finally:
         arquivo.file.close()
+
+
+def salvar_pdf(conteudo: bytes, pasta: str, contexto: str = "orcamento_anexo") -> str:
+    """
+    Grava um PDF como veio (sem processamento) e devolve o caminho relativo.
+
+    Confere o inicio `%PDF` e o tamanho (10 MB): um `.exe` renomeado para
+    `.pdf` nao passa. Quem chama ja leu os bytes do upload.
+
+    Args:
+        conteudo: Bytes do arquivo enviado.
+        pasta: Subpasta dentro do diretorio do contexto (ex: o codigo do orcamento).
+        contexto: Chave do CONTEXTO_IMAGEM que da o diretorio base.
+
+    Raises:
+        ValueError: Se nao for PDF ou passar do tamanho (quem chama traduz a mensagem).
+    """
+    if len(conteudo) > TAMANHO_MAXIMO_PDF_BYTES:
+        raise ValueError("tamanho")
+    if not conteudo.startswith(ASSINATURA_PDF):
+        raise ValueError("formato")
+
+    config = CONTEXTO_IMAGEM[contexto]
+    nome_arquivo = f"{uuid.uuid4()}.pdf"                 # nome novo: nunca sobrescreve
+    diretorio = os.path.join(BASE_DIR, config["diretorio_base"], pasta)
+    os.makedirs(diretorio, exist_ok=True)
+    with open(os.path.join(diretorio, nome_arquivo), "wb") as f:
+        f.write(conteudo)
+    return f"{config['diretorio_base']}/{pasta}/{nome_arquivo}"
 
 
 # ---------------------------------------------------------------------------
