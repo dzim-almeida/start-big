@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, type RouteLocationRaw } from 'vue-router';
 import { ClipboardCheck, ClipboardList, FileSpreadsheet, Image as ImageIcon, Package, PackageCheck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
@@ -39,6 +39,12 @@ const router = useRouter();
 function verNecessidades() {
   view.handleClose();
   void router.push({ name: 'purchases-needs' });
+}
+
+/** Marcenaria (Spec 11B D4, D5): "Ver no Compras" e o pedido criado. Fecha o modal de OS e vai. */
+function navegar(destino: RouteLocationRaw) {
+  view.handleClose();
+  void router.push(destino);
 }
 
 /** "Abrir orçamento" (D20): fecha o modal de OS e vai para o orçamento. */
@@ -207,6 +213,7 @@ const objetoModel = computed<ObjetoFormData>({
         v-if="activeTab === 'separacao' && view.currentOSData.value"
         :numero-os="view.currentOSData.value.numero_os"
         @ver-necessidades="verNecessidades"
+        @navegar="navegar"
       />
 
       <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->

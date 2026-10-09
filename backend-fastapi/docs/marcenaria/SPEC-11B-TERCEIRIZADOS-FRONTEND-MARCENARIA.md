@@ -2,11 +2,20 @@
 
 | Campo        | Valor                                                                                 |
 |--------------|---------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                       |
+| Status       | Implementada em 09/10/2026                                                            |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (tela de Serviços)              |
 | Dependências | Specs 10B (aba Separação), 11A (API) · módulo Compras (rotas `purchases-orders` e `purchases-receiving`, usadas como são) |
 | Bloqueia     | Spec 12B (o terceirizado conferido aparece pronto na Produção)                        |
 | Referência   | SPEC-00: E6, E6a, E6b, P3, P4, T1, FB2 · PR1, PR3, PR6                                |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Navegação de dentro do modal de OS:** a seção não conhece o modal; emite `navegar` com o destino, a aba Separação repassa e o `OSFormTabsContent` fecha o modal e vai (como o "Ver nas Necessidades" da 10B). O toast "Abrir pedido PC-…" pode ser clicado depois de a aba fechar: aí o próprio roteador leva.
+> (2) **Destinos no Compras (telas usadas como são):** "Abrir pedido" e "Ver no Compras" fora de "Pedido enviado" levam a `purchases-orders` filtrada na situação do pedido (`?situacao=RASCUNHO`, o filtro que a tela de Pedidos já aceita); em "Pedido enviado", a `purchases-receiving?pedido={id}`. "Ver no Compras" só aparece para quem vê o Compras (`podeVer`).
+> (3) **"Receber" à mão também com o Compras** quando um móvel tem pedido ANOTADO à mão em "Pedido enviado" (anotado antes de a loja contratar o Compras): sem isso, esse móvel não teria como andar. Nos casos da spec, a regra do D6 vale como está.
+> (4) **Leitor de código:** com um modal da seção aberto, a aba pausa o leitor e a recarga (`v-model:ocupado`), como com os modais da 10B.
+> (5) **Sugestão de status (12A D16):** a seção emite `sugestaoStatus` com a resposta do conferir/voltar; quem abre o `SugestaoStatusModal` é a 12B.
+> (6) **Chaves do cache:** a seção usa `['marcenaria','terceirizados','os',numero]`; a lista geral, `['marcenaria','terceirizados','lista',…]`. Depois de cada ação, a lista e a Produção (`['marcenaria','producao']`) são invalidadas. A lista recarrega a cada 30 s (outro terminal pode ter recebido um móvel).
+> (7) **Datas:** "hoje" do Receber é a data do relógio da loja (`hojeIso`), não a de `toISOString()`, que está em UTC e depois das 21h já seria amanhã. A chegada no futuro é recusada no modal.
 
 > **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15, E6b).** Com o módulo Compras, "Pedir à central" cria o pedido de serviço **no Compras** (11A D9), e enviar, receber e lançar a conta são feitos lá: saem o passo 2 do "Receber" (oferta de conta) e o `LancarContaModal`. A seção da OS mostra a situação que vem do pedido e leva ao Compras com um clique. Sem o módulo, ficam as ações manuais (enviar com nº e previsão, receber). "Conferir", "registrar problema" e a aba "Terceirizados" em Serviços continuam como estavam.
 
@@ -176,13 +185,13 @@ Depois de cada ação: limpar a seleção, atualizar a seção e invalidar a lis
 
 ## 10. Critérios de aceite
 
-- [ ] Seção "Móveis da central" no topo da Separação, só com terceirizados, agrupada por central, com atraso em destaque.
-- [ ] Com o Compras: "Pedir à central" cria um pedido para vários móveis; a situação acompanha o pedido; "Ver no Compras" leva ao pedido ou ao recebimento.
-- [ ] Sem o Compras: enviar (nº e previsão) e receber à mão, com a dica da conta.
-- [ ] Conferir, registrar problema e voltar um passo, com confirmação.
-- [ ] Valor orçado só com custos.
-- [ ] Aba "Terceirizados" em Serviços com o filtro padrão "Pedido enviado" e "Só atrasados".
-- [ ] Prova de não regressão (§8); código comentado (PR6).
+- [x] Seção "Móveis da central" no topo da Separação, só com terceirizados, agrupada por central, com atraso em destaque.
+- [x] Com o Compras: "Pedir à central" cria um pedido para vários móveis; a situação acompanha o pedido; "Ver no Compras" leva ao pedido ou ao recebimento.
+- [x] Sem o Compras: enviar (nº e previsão) e receber à mão, com a dica da conta.
+- [x] Conferir, registrar problema e voltar um passo, com confirmação.
+- [x] Valor orçado só com custos.
+- [x] Aba "Terceirizados" em Serviços com o filtro padrão "Pedido enviado" e "Só atrasados".
+- [x] Prova de não regressão (§8); código comentado (PR6).
 
 ## 11. Casos de teste
 

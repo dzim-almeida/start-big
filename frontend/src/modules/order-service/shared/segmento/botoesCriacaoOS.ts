@@ -17,11 +17,13 @@ export const ATALHO_NOVA_OS = 'nova-os';
 /**
  * Botão do topo da tela de OS (OrdemServicoView).
  *   - aba Revisões: nunca teve botão (regra de antes);
+ *   - aba Terceirizados (marcenaria, Spec 11B D13): só lê, nada a criar daqui;
  *   - aba Ordens ("Nova OS"): só se o segmento deixa criar à mão (D3);
  *   - aba Serviços ("Novo Serviço"): sempre; o catálogo não depende do tipo da OS (D5).
  */
 export function mostrarBotaoAdicionar(aba: string, podeCriarOSManual: boolean): boolean {
   if (aba === 'revisoes') return false;               // regra de antes
+  if (aba === 'terceirizados') return false;          // 11B D13: só lê
   if (aba === 'ordens') return podeCriarOSManual;     // "Nova OS"
   return true;                                        // "Novo Serviço"
 }

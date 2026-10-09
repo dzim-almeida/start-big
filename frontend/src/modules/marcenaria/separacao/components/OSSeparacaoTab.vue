@@ -8,9 +8,14 @@
  * computador fixo da fábrica (P3): números grandes, poucos cliques, tudo pelo
  * teclado quando houver leitor. Nenhum preço (D9).
  *
- * Não conhece o modal de OS: avisa o pai por evento ("ver nas Necessidades").
+ * No topo, a seção "Móveis da central" (Spec 11B), que só aparece quando a
+ * OS tem móvel terceirizado.
+ *
+ * Não conhece o modal de OS: avisa o pai por evento ("ver nas Necessidades",
+ * ou `navegar` para outra tela, como o pedido no Compras).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue';
+import type { RouteLocationRaw } from 'vue-router';
 import { ScanBarcode } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -22,6 +27,7 @@ import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useR
 import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { mensagemDoErro, statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
 import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
+import SecaoTerceirizados from '@/modules/marcenaria/terceirizados/components/SecaoTerceirizados.vue';
 
 import { tocarSomDeErro, useLeitorCodigo } from '../composables/useLeitorCodigo';
 import { useSeparacao } from '../composables/useSeparacao';
@@ -35,7 +41,7 @@ import SeparacaoLinha from './SeparacaoLinha.vue';
 import SeparacaoResumo from './SeparacaoResumo.vue';
 
 const props = defineProps<{ numeroOs: string }>();
-const emit = defineEmits<{ verNecessidades: [] }>();
+const emit = defineEmits<{ verNecessidades: []; navegar: [destino: RouteLocationRaw] }>();
 
 // --- Modais da aba (enquanto um está aberto, a lista não recarrega e o leitor dorme) ---
 const retirarModal = ref<{ aberto: boolean; linha: LinhaSeparacao | null; quantidade: number | null }>({
@@ -44,8 +50,11 @@ const retirarModal = ref<{ aberto: boolean; linha: LinhaSeparacao | null; quanti
 const devolverModal = ref<{ aberto: boolean; linha: LinhaSeparacao | null }>({ aberto: false, linha: null });
 const faltasAberto = ref(false);
 const confirmacao = useConfirmacao();
+/** A seção "Móveis da central" (11B) avisa quando está com um modal aberto. */
+const terceirizadosOcupado = ref(false);
 const algumModalAberto = computed(
-  () => retirarModal.value.aberto || devolverModal.value.aberto || faltasAberto.value || confirmacao.isOpen.value,
+  () => retirarModal.value.aberto || devolverModal.value.aberto || faltasAberto.value || confirmacao.isOpen.value
+    || terceirizadosOcupado.value,
 );
 
 const {
@@ -186,6 +195,13 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
 
 <template>
   <div class="space-y-4" data-testid="aba-separacao">
+    <!-- 11B D1: os móveis da central vêm primeiro (o atraso deles atrasa a obra inteira) -->
+    <SecaoTerceirizados
+      v-model:ocupado="terceirizadosOcupado"
+      :numero-os="numeroOs"
+      @navegar="emit('navegar', $event)"
+    />
+
     <p v-if="isLoading" class="text-sm text-zinc-400">Carregando a separação…</p>
     <p v-else-if="semSeparacao" class="text-sm text-zinc-500" data-testid="sem-separacao">Esta OS não tem separação de material.</p>
     <p v-else-if="error" class="text-sm text-red-600">Não foi possível carregar a separação agora.</p>

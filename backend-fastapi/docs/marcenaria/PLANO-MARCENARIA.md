@@ -151,7 +151,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 10A | 09/10/2026 | `cc073be` | +40 (30 de API, 7 de serviço com a finalização e o CMV, 3 do leitor) | 2.556 passando, 1 pulado |
 | 11A | 09/10/2026 | `861f99e` | +26 (22 de API, com e sem o Compras; 4 da migração) | suítes vizinhas (marcenaria, Compras, fábrica, OS, migrações): 563 passando; a suíte inteira é medida com a 12A |
 | 12A | 09/10/2026 | `de41026` | +28 (25 de API, 3 da migração) | 2.610 passando, 1 pulado (com a 11A) |
-| 10B | 09/10/2026 | (commit da 10B) | +20 (vitest: schemas contra JSON reais da 10A, leitor, aba, modais, faltas, impressão, disponível na busca) | frontend: 466 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 10B | 09/10/2026 | `28965b1` | +20 (vitest: schemas contra JSON reais da 10A, leitor, aba, modais, faltas, impressão, disponível na busca) | frontend: 466 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 11B | 09/10/2026 | (commit da 11B) | +39 (vitest: 33 dos terceirizados — schemas contra JSON reais da 11A, regras da barra, seção com e sem o Compras, modais, aba em Serviços —, 2 da seção na Separação, 3 das abas de Serviços por segmento, 1 do botão do topo) | frontend: 505 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 
 ---
 

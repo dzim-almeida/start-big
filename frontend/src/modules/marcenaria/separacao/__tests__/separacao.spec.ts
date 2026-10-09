@@ -29,6 +29,11 @@ vi.mock('../services/separacao.service', async (original) => ({
   getFaltas: (...a: unknown[]) => getFaltas(...a),
   getDisponivel: (...a: unknown[]) => getDisponivel(...a),
 }));
+// A seção "Móveis da central" (11B) mora no topo da aba: a API dela também é simulada.
+const getTerceirizados = vi.fn();
+vi.mock('@/modules/marcenaria/terceirizados/services/terceirizado.service', () => ({
+  getTerceirizados: (...a: unknown[]) => getTerceirizados(...a),
+}));
 const toast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() };
 vi.mock('@/shared/composables/useToast', () => ({ useToast: () => toast }));
 // O módulo Compras (D19) e o texto do status da OS (01B) são simulados.
@@ -57,6 +62,7 @@ const fixtures = {
   faltasVazia: (await import('./fixtures/faltas-vazia.json')).default,
   disponivel: (await import('./fixtures/disponivel.json')).default,
 };
+const fixtureTerceirizados = (await import('@/modules/marcenaria/terceirizados/__tests__/fixtures/terceirizados-manual.json')).default;
 
 type Separacao = ReturnType<typeof schemas.separacaoSchema.parse>;
 const separacao = (): Separacao => schemas.separacaoSchema.parse(structuredClone(fixtures.separacao));
@@ -81,6 +87,9 @@ const el = (testid: string) => document.body.querySelector(`[data-testid="${test
 
 beforeEach(() => {
   for (const f of [getSeparacao, retirar, concluir, lerCodigo, getFaltas, getDisponivel, getProdutos, ...Object.values(toast)]) f.mockReset();
+  getTerceirizados.mockReset();
+  // Padrão: OS sem móvel terceirizado (a resposta real da 11A, com a lista vazia).
+  getTerceirizados.mockResolvedValue({ ...structuredClone(fixtureTerceirizados), moveis: [] });
   comCompras.value = false;
 });
 afterEach(() => {
@@ -162,6 +171,21 @@ describe('aba Separação', () => {
     await w.find('[data-testid="so-pendentes"]').setValue(false);
     expect(el('linha-concluida')!.textContent).toContain('Retirado 6 par');
     expect(corpo()).not.toMatch(/R\$/);                                     // D9: nenhum preço
+  });
+
+  it('11B/02 — OS sem móvel terceirizado: sem a seção "Móveis da central"', async () => {
+    await montarAba();
+    expect(getTerceirizados).toHaveBeenCalledWith('OS-2026-000001');
+    expect(el('secao-terceirizados')).toBeNull();
+  });
+
+  it('11B D1 — com móvel terceirizado: a seção vem ANTES da separação', async () => {
+    getTerceirizados.mockResolvedValue(structuredClone(fixtureTerceirizados));
+    await montarAba();
+    const secao = el('secao-terceirizados')!;
+    const titulo = [...document.body.querySelectorAll('h3')].find((h) => h.textContent === 'Separação de material')!;
+    // DOCUMENT_POSITION_FOLLOWING: o título da separação vem depois da seção.
+    expect(secao.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('06 — produto de fora: mensagem, som, campo limpo e focado', async () => {

@@ -35,6 +35,10 @@ describe('botão do topo da tela de OS', () => {
   it('aba Revisões nunca teve botão', () => {
     expect(mostrarBotaoAdicionar('revisoes', true)).toBe(false);
   });
+
+  it('aba Terceirizados (marcenaria, Spec 11B D13): sem botão, só lê', () => {
+    expect(mostrarBotaoAdicionar('terceirizados', false)).toBe(false);
+  });
 });
 
 describe('atalhos do menu rápido', () => {
