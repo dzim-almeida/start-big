@@ -2,11 +2,18 @@
 
 | Campo        | Valor                                                                                 |
 |--------------|---------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                       |
+| Status       | Implementada em 09/10/2026                                                            |
 | Camada       | Backend (FastAPI)                                                                     |
 | Dependências | Specs 04A (`etapas_producao`), 08A (aprovação), 09A (ganchos), 11A (terceirizado conferido) |
 | Bloqueia     | Spec 12B                                                                              |
 | Referência   | SPEC-00: P1, P1a, P2, P2a, P2b, P3, P4, E6a, E6b, O8, T7, FB1, R15-MIG · PR1, PR6, PR7, PR8 |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Sem `crud/marcenaria/etapa.py`:** as etapas são lidas da árvore do orçamento que a leitura já carrega; o quadro (D18) carrega árvore, etapas e pedidos de todas as OS de uma vez (`selectinload`), sem consulta por OS. O bloqueio do D20 fica em `aprovacao_bloqueios.py` (o detalhe do orçamento importa aquele arquivo, e ele não pode importar a produção); `rotulo_status_os` passou a ser público lá, para a sugestão e o quadro usarem o mesmo texto.
+> (2) **Sugestão (D16, D17):** se a produção termina de uma vez com a OS ainda `ABERTA`, a sugestão é direto "Aguardando Entrega". As respostas de **conferir** e **voltar** do terceirizado (11A) trazem `sugestao_status`, calculada pela mesma função.
+> (3) **Configuração vazia (D6):** aprovar deixa o móvel "sem etapas"; "aplicar o padrão" com a configuração ainda vazia usa as etapas padrão do sistema (Corte → Embalagem), para o móvel ter um caminho. Aplicar num móvel que já tem etapas responde `409 JA_TEM_ETAPAS`.
+> (4) **Casos que a spec não cobria:** iniciar uma etapa já em execução ou concluída não muda nada (como o D12); reabrir também limpa o responsável; "concluir em todos" com um nome que nenhum móvel tem responde 422; editar etapas de móvel terceirizado responde 422; responsável escolhido inexistente ou inativo responde 422. Sem funcionário ligado ao usuário (o dono), o responsável é o nome do usuário.
+> (5) **Quadro (D18):** cada OS traz também `rotulo_status`, `producao_concluida`, `moveis_atrasados` (móveis ainda não prontos com a previsão de entrega da OS vencida) e `proxima_etapa` como `{nome, moveis}`; ordenado pela previsão.
 
 > **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) Migração `072437088f6c`, filha de `642b2e8f79fa` (11A). (2) **Trilho da fábrica aposentado (FB1):** ele recusava troca manual de status em OS com `fase_fabrica`; as OS da marcenaria nascem sem fase (03A D13), então a troca de status depois da pergunta (D16, 12B D13) passa pelo `PUT` de OS de sempre, sem bloqueio. (3) **Terceirizado pronto** = `CONFERIDO` pela função `_situacao` da 11A, nos dois modos (pedido do Compras ou manual).
 
@@ -227,13 +234,13 @@ def concluir(db, numero_os, etapa_ids, responsavel_id, usuario) -> ProducaoRespo
 
 ## 10. Critérios de aceite
 
-- [ ] Aprovar cria as 5 etapas padrão em cada móvel interno; terceirizados sem etapas; mudar a configuração depois não altera a OS.
-- [ ] Editar as etapas de um móvel (incluir "Pintura", remover "Furação", reordenar); etapa concluída não pode ser removida.
-- [ ] Iniciar, concluir (direto de pendente), reabrir; lote e "concluir em todos"; concluir de novo não muda nada.
-- [ ] Progresso por móvel e OS; terceirizado conferido conta como pronto.
-- [ ] Sugestão "Em Produção" na primeira etapa de uma OS aberta e "Aguardando Entrega" quando tudo fica pronto; nunca muda o status sozinho.
-- [ ] Resumo de produção de todas as OS abertas.
-- [ ] Desfazer aprovação bloqueado com produção iniciada. Nenhum preço. Código comentado (PR6).
+- [x] Aprovar cria as 5 etapas padrão em cada móvel interno; terceirizados sem etapas; mudar a configuração depois não altera a OS.
+- [x] Editar as etapas de um móvel (incluir "Pintura", remover "Furação", reordenar); etapa concluída não pode ser removida.
+- [x] Iniciar, concluir (direto de pendente), reabrir; lote e "concluir em todos"; concluir de novo não muda nada.
+- [x] Progresso por móvel e OS; terceirizado conferido conta como pronto.
+- [x] Sugestão "Em Produção" na primeira etapa de uma OS aberta e "Aguardando Entrega" quando tudo fica pronto; nunca muda o status sozinho.
+- [x] Resumo de produção de todas as OS abertas.
+- [x] Desfazer aprovação bloqueado com produção iniciada. Nenhum preço. Código comentado (PR6).
 
 ## 11. Casos de teste
 

@@ -24,6 +24,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.fornecedor import Fornecedor
+    from app.db.models.marcenaria.etapa import MarcenariaEtapa
     from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
 
 
@@ -112,6 +113,14 @@ class MarcenariaMovel(Base):
         back_populates="movel",
         cascade="all, delete-orphan",
         order_by="(MarcenariaMovelInsumo.ordem, MarcenariaMovelInsumo.id)",
+    )
+    # Spec 12A: as etapas de producao (so do movel INTERNO aprovado). Sair da
+    # lista = apagar a etapa (delete-orphan), como os insumos.
+    etapas: Mapped[List["MarcenariaEtapa"]] = relationship(
+        "MarcenariaEtapa",
+        back_populates="movel",
+        cascade="all, delete-orphan",
+        order_by="(MarcenariaEtapa.ordem, MarcenariaEtapa.id)",
     )
 
 

@@ -43,7 +43,7 @@ from app.schemas.marcenaria.terceirizado import (
 from app.services import licenca as licenca_service
 from app.services.compras import pedidos as pedidos_service
 from app.services.compras.permissoes import pode_ver_custos as pode_ver_custos_compras
-from app.services.marcenaria import erros
+from app.services.marcenaria import erros, producao
 from app.services.marcenaria import terceirizado_situacao as sit
 from app.services.marcenaria.orcamento_comum import (
     exigir_orcamento_tecnico,
@@ -193,6 +193,14 @@ def _leitura(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento, usuario: 
 def ler(db: Session, numero_os: str, usuario: dict) -> dict[str, Any]:
     os_, orc = os_e_orcamento_aprovado(db, numero_os, MSG_SEM_ORCAMENTO)
     return _leitura(db, os_, orc, usuario)
+
+
+def _com_sugestao(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento, antes: str, usuario: dict) -> dict:
+    """Spec 12A §7: conferir/voltar o terceirizado tambem muda a prontidao. Se ele
+    for o ultimo movel a ficar pronto, a pergunta de status vem nesta resposta."""
+    resposta = _leitura(db, os_, orc, usuario)
+    resposta["sugestao_status"] = producao.sugestao(db, os_, antes, producao.montar_producao(db, os_, orc))
+    return resposta
 
 
 # ===========================================================================
@@ -356,6 +364,7 @@ def receber_manual(db: Session, numero_os: str, dados: ReceberManualEntrada, usu
 def conferir(db: Session, numero_os: str, dados: MoveisEntrada, usuario: dict) -> dict[str, Any]:
     """D1/D4: o movel chegou bom. Vale nos dois modos e limpa o problema."""
     os_, orc, pares = _preparar(db, numero_os, dados.movel_ids)
+    antes = producao.andamento(producao.montar_producao(db, os_, orc))      # 12A: para a sugestao
     pedidos = _pedidos(db, [m for _a, m in pares])
     for _a, movel in pares:
         _exigir_situacao(movel, _situacao(movel, pedidos), sit.RECEBIDO)
@@ -367,7 +376,7 @@ def conferir(db: Session, numero_os: str, dados: MoveisEntrada, usuario: dict) -
     registrar_evento(db, orc, "TERCEIRIZADO_CONFERIDO", f"Conferido: {_nomes(pares)}.",
                      usuario, {"movel_ids": dados.movel_ids}, os_id=os_.id)
     db.commit()
-    return _leitura(db, os_, orc, usuario)
+    return _com_sugestao(db, os_, orc, antes, usuario)
 
 
 def registrar_problema(db: Session, numero_os: str, movel_id: int, dados: ProblemaEntrada,
@@ -398,6 +407,7 @@ def voltar(db: Session, numero_os: str, movel_id: int, usuario: dict) -> dict[st
       devolve o movel a "A pedir"), nunca por baixo dele.
     """
     os_, orc, pares = _preparar(db, numero_os, [movel_id])
+    antes = producao.andamento(producao.montar_producao(db, os_, orc))      # 12A: para a sugestao
     (_a, movel), = pares
     situacao = _situacao(movel, _pedidos(db, [movel]))
     if situacao.situacao == sit.CONFERIDO:
@@ -420,7 +430,7 @@ def voltar(db: Session, numero_os: str, movel_id: int, usuario: dict) -> dict[st
                      f"{movel.nome} voltou de {ROTULO[situacao.situacao]} para {ROTULO[para]}.",
                      usuario, {"movel_id": movel.id}, os_id=os_.id)
     db.commit()
-    return _leitura(db, os_, orc, usuario)
+    return _com_sugestao(db, os_, orc, antes, usuario)
 
 
 # ===========================================================================

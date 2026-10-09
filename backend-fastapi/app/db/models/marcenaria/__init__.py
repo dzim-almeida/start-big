@@ -6,6 +6,7 @@
 # ---------------------------------------------------------------------------
 
 from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel, MarcenariaMovelInsumo
+from app.db.models.marcenaria.etapa import MarcenariaEtapa
 from app.db.models.marcenaria.evento import MarcenariaEvento
 from app.db.models.marcenaria.orcamento import (
     MarcenariaOrcamento,
@@ -21,4 +22,5 @@ __all__ = [
     "MarcenariaMovel",
     "MarcenariaMovelInsumo",
     "MarcenariaEvento",
+    "MarcenariaEtapa",          # Spec 12A
 ]

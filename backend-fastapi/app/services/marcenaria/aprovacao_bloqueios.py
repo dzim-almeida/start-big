@@ -8,12 +8,14 @@
 # que vai falhar). Assim nenhum dos dois importa o outro.
 # ---------------------------------------------------------------------------
 
+from collections import Counter
 from typing import Callable
 
 from sqlalchemy.orm import Session
 
 from app.core import segmentos as reg
 from app.core.enum import OrdemServicoStatus
+from app.db.models.marcenaria.etapa import StatusEtapa
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.pedido_compra import PedidoCompra
 from app.services.marcenaria import terceirizado_situacao as terceirizado
@@ -32,8 +34,11 @@ def _valor(status_os) -> str:
     return getattr(status_os, "value", status_os)
 
 
-def _rotulo_status_os(db: Session, status_os: str) -> str:
-    """'Em Produção' na marcenaria; o texto de sempre nos outros (Spec 01A)."""
+def rotulo_status_os(db: Session, status_os: str) -> str:
+    """'Em Produção' na marcenaria; o texto de sempre nos outros (Spec 01A).
+
+    Publica: a producao (12A) usa o mesmo texto na sugestao e no quadro.
+    """
     return reg.rotulo_status(get_segmento_atual(db), status_os) or _STATUS_OS.get(status_os, status_os)
 
 
@@ -41,7 +46,7 @@ def _bloqueio_status_da_os(db: Session, orc: MarcenariaOrcamento) -> list[str]:
     """So desfaz com a OS ainda ABERTA (nada comecou)."""
     valor = _valor(orc.os.status)
     if valor != OrdemServicoStatus.ABERTA.value:
-        return [f"A OS já não está aberta (status: {_rotulo_status_os(db, valor)})."]
+        return [f"A OS já não está aberta (status: {rotulo_status_os(db, valor)})."]
     return []
 
 
@@ -77,6 +82,27 @@ def _bloqueio_pedido_a_central(db: Session, orc: MarcenariaOrcamento) -> list[st
     return list(dict.fromkeys(motivos))              # um pedido com 2 moveis: uma frase so
 
 
+def _plural(n: int) -> str:
+    return f"{n} móvel" if n == 1 else f"{n} móveis"
+
+
+def _bloqueio_producao(db: Session, orc: MarcenariaOrcamento) -> list[str]:
+    """Spec 12A D20: com etapa iniciada ou concluida, a producao ja comecou."""
+    concluidas, em_execucao = Counter(), Counter()
+    for ambiente in orc.ambientes:
+        for movel in ambiente.moveis:
+            for etapa in movel.etapas:
+                if etapa.status == StatusEtapa.CONCLUIDA:
+                    concluidas[etapa.nome] += 1
+                elif etapa.status == StatusEtapa.EM_EXECUCAO:
+                    em_execucao[etapa.nome] += 1
+    if not concluidas and not em_execucao:
+        return []
+    partes = [f"{nome} concluída em {_plural(n)}" for nome, n in concluidas.most_common()]
+    partes += [f"{nome} em execução em {_plural(n)}" for nome, n in em_execucao.most_common()]
+    return [f"A produção já começou ({'; '.join(partes)})."]
+
+
 # Ponto de extensao: cada spec seguinte acrescenta a regra que ELA conhece
 # (10A: material retirado; 11A: pedido a central; 12A: producao; 13A: entrega).
 BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = [
@@ -84,6 +110,7 @@ BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = 
     _bloqueio_pagamentos_da_os,
     _bloqueio_material_retirado,          # 10A
     _bloqueio_pedido_a_central,           # 11A
+    _bloqueio_producao,                   # 12A
 ]
 
 

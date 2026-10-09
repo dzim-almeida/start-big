@@ -58,6 +58,7 @@ from app.services.marcenaria.orcamento_comum import (
     registrar_evento,
 )
 from app.services.marcenaria.permissoes import pode_ver_custos_marcenaria
+from app.services.marcenaria.producao import apagar_etapas_do_desfazer, criar_etapas_da_aprovacao
 
 ORIGEM = "ORCAMENTO_MARCENARIA"            # o que vai em `ordem_servico_itens.origem` (D18)
 NOME_INSTALACAO = "Instalação e montagem"   # o item da instalacao (D2)
@@ -357,6 +358,9 @@ def aprovar(db: Session, orcamento_id: int, revisao: int, dados: AprovacaoEntrad
     orc.resumo_aprovado_sinal_centavos = resultado.sinal_centavos
     orc.sinal_recebido_centavos = sinal.valor_entrada
 
+    # Spec 12A D1: a copia das etapas padrao em cada movel interno aprovado.
+    criar_etapas_da_aprovacao(db, orc)
+
     aprovados = [m.id for _a, m in _todos_os_moveis(orc) if m.aprovado]
     recusados = [m.id for _a, m in _todos_os_moveis(orc) if not m.aprovado]
     registrar_evento(
@@ -414,6 +418,7 @@ def desfazer_aprovacao(db: Session, orcamento_id: int, revisao: int, dados: Desf
         usuario_token=usuario_token,
     )
 
+    apagar_etapas_do_desfazer(orc)                              # 12A: todas pendentes (D20 garante)
     for _a, movel in _todos_os_moveis(orc):
         movel.aprovado, movel.os_item_id = None, None
     orc.os_id = None
