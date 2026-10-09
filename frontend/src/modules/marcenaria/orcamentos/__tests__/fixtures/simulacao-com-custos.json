@@ -1,0 +1,19 @@
+{
+  "calculo": {
+    "preco_unit_centavos": 203870,
+    "preco_total_centavos": 407740,
+    "material_centavos": 86500,
+    "perda_centavos": 2800,
+    "mao_obra_centavos": 18000,
+    "custo_unit_centavos": 107300
+  },
+  "insumos": [
+    {
+      "produto_id": 4,
+      "custo_unit_centavos": 19500,
+      "custo_origem": "ULTIMA_COMPRA",
+      "sofre_perda": false
+    }
+  ],
+  "avisos": []
+}

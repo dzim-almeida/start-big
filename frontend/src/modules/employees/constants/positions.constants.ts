@@ -19,6 +19,7 @@ import {
   ClipboardList,
   PackageCheck,
   Calculator,
+  PencilRuler,
 } from 'lucide-vue-next';
 
 import { MODULOS } from '@/shared/constants/modulos.constants';
@@ -221,6 +222,21 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     deleteKey: 'delete_positions',
   },
   {
+    // Spec 06B (marcenaria, D51): ver, montar, enviar e excluir orçamentos.
+    // Marcar Gerenciar ou Excluir marca Ver (chavesAoAlternar).
+    id: 'marcenaria_orcamentos',
+    label: 'Orçamentos de Marcenaria',
+    description: 'Ver, montar, enviar e excluir orçamentos',
+    icon: PencilRuler,
+    viewKey: 'view_orcamentos_marcenaria',
+    manageKey: 'manage_orcamentos_marcenaria',
+    deleteKey: 'delete_orcamentos_marcenaria',
+    // Só na marcenaria e fora do nível de acesso (mesmo mecanismo da linha
+    // de custos abaixo). As chaves são as que o backend confere
+    // (app/services/marcenaria/permissoes.py); fora do MODULE_PERMISSION_MAP.
+    segmento: 'marcenaria',
+  },
+  {
     // Spec 04B (marcenaria, D16): ver custos e margens do orçamento; alterar
     // markup, perda, custo/hora e RT. As chaves são as MESMAS que o backend
     // confere (app/services/marcenaria/permissoes.py), por isso a linha não
@@ -240,18 +256,24 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
 /**
  * Chaves que mudam JUNTO com a que foi clicada (Spec 04B, D16).
  *
- * Só nas linhas de um SEGMENTO (hoje, "Custos da Marcenaria"), onde gerenciar
- * sem ver não faz sentido: marcar Gerenciar marca Ver; desmarcar Ver desmarca
- * Gerenciar. Nas outras linhas devolve só a própria chave, que é a regra de
- * sempre (mudar o comportamento delas mexeria em cargos de todos os segmentos).
+ * Só nas linhas de um SEGMENTO ("Custos da Marcenaria", "Orçamentos de
+ * Marcenaria"), onde gerenciar ou excluir sem ver não faz sentido: marcar
+ * Gerenciar (ou Excluir, Spec 06B D51) marca Ver; desmarcar Ver desmarca
+ * Gerenciar e Excluir. Nas outras linhas devolve só a própria chave, que é a
+ * regra de sempre (mudar o comportamento delas mexeria em cargos de todos os
+ * segmentos).
  */
 export function chavesAoAlternar(chave: string, marcar: boolean): string[] {
   const linha = PERMISSION_MATRIX.find(
-    (item) => item.segmento && (item.viewKey === chave || item.manageKey === chave),
+    (item) => item.segmento && (item.viewKey === chave || item.manageKey === chave || item.deleteKey === chave),
   );
   if (!linha) return [chave];                                       // linha comum: só ela
-  if (marcar && chave === linha.manageKey) return [chave, linha.viewKey];   // gerenciar implica ver
-  if (!marcar && chave === linha.viewKey && linha.manageKey) return [chave, linha.manageKey]; // sem ver, sem gerenciar
+  // Gerenciar ou excluir implica ver.
+  if (marcar && (chave === linha.manageKey || chave === linha.deleteKey)) return [chave, linha.viewKey];
+  if (!marcar && chave === linha.viewKey) {
+    // Sem ver, sem gerenciar e sem excluir (só as caixas que a linha tem).
+    return [chave, ...[linha.manageKey, linha.deleteKey].filter((k): k is string => Boolean(k))];
+  }
   return [chave];
 }
 

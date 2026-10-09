@@ -16,11 +16,13 @@ import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
 import { useCapacidades } from '../shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
-import { mostrarBotaoAdicionar } from '../shared/segmento/botoesCriacaoOS';
+import { mostrarBotaoAdicionar, mostrarBotaoNovoOrcamento } from '../shared/segmento/botoesCriacaoOS';
+import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
+import { useRouter } from 'vue-router';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS } = useOSCreateFlow();
-const { temRevisoes } = useCapacidades();
+const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
 
@@ -47,6 +49,14 @@ const pageDescription = computed(() => {
 
 /** Botão do topo: "Nova OS" só onde dá para criar à mão; "Novo Serviço" sempre (Spec 03B, D3/D5). */
 const exibirBotaoAdicionar = computed(() => mostrarBotaoAdicionar(activeTab.value, podeCriarOSManual.value));
+
+/** Marcenaria: no lugar de "Nova OS", "Novo orçamento" (a OS nasce dele; Spec 06B, D4). */
+const router = useRouter();
+const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
+const exibirNovoOrcamento = computed(() =>
+  mostrarBotaoNovoOrcamento(activeTab.value, podeCriarOSManual.value, temOrcamentoTecnico.value && podeGerirOrcamentos.value),
+);
+const novoOrcamento = () => router.push({ name: 'marcenaria-orcamento-novo' });
 
 function handleAddClick() {
   if (activeTab.value === 'ordens') {
@@ -77,6 +87,18 @@ function handleAddClick() {
         >
           <Plus :size="20" />
           {{ activeTab === 'ordens' ? 'Nova OS' : 'Novo Serviço' }}
+        </BaseButton>
+        <BaseButton
+          v-else-if="exibirNovoOrcamento"
+          variant="primary"
+          size="md"
+          type="button"
+          class="flex gap-1"
+          data-testid="novo-orcamento-os"
+          @click="novoOrcamento"
+        >
+          <Plus :size="20" />
+          Novo orçamento
         </BaseButton>
       </div>
     </div>

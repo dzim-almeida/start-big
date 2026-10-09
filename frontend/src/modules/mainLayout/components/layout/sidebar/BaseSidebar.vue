@@ -17,6 +17,7 @@ import { computed, onMounted, onUnmounted } from 'vue';
 import { useCheckPermission } from '@/modules/mainLayout/composables/useCheckPermission';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { useModulosStore } from '@/shared/stores/modulos.store';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 const layoutStore = useLayoutStore();
 const { activeTab, isMobile, isMobileOpen } = storeToRefs(layoutStore);
@@ -27,6 +28,9 @@ const { userData, isLoading } = storeToRefs(authStore);
 const { hasPermission } = useCheckPermission();
 const { usaOrdemServico } = useOrdemServico();
 const modulosStore = useModulosStore();
+// Capacidades do segmento (contrato do backend). A query é a mesma que o
+// MainLayout já usa: o menu não faz chamada nova.
+const { tem: temCapacidade } = useCapacidades();
 
 /**
  * Sub-itens que este usuário deve enxergar, já resolvidos.
@@ -64,6 +68,8 @@ const filteredSidebar = computed(() => {
         // que fica com cadeado. Ver `featureFlag` em layout.types.ts para
         // quando usar cada um.
         if (opt.featureFlag && !opt.featureFlag()) return false;
+        // Item que depende do que o segmento FAZ (contrato), não do plano: some (Spec 06B D2).
+        if (opt.requiredCapacidade && !temCapacidade(opt.requiredCapacidade)) return false;
         return hasPermission(opt.requiredPermission);
       })
       .map((opt) => ({

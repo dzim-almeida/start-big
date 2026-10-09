@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Zap, ShoppingCart, FileText, Package, Wrench } from 'lucide-vue-next';
+import { Zap, ShoppingCart, FileText, Package, Wrench, PencilRuler } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia';
 
@@ -33,7 +33,9 @@ import RenovarAssinaturaModal from '@/modules/license/components/RenovarAssinatu
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
-import { filtrarAtalhos } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
+import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
+import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
+import { useRouter } from 'vue-router';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 import { getRevisoesPendentes } from '@/modules/order-service/revisoes/services/revisao.service';
@@ -45,7 +47,7 @@ const settingsStore = useSettingsStore();
 const configuracoesStore = useConfiguracoesStore();
 const impressaoStore = useImpressaoStore();
 const notificacoesStore = useNotificacoesStore();
-const { temRevisoes } = useCapacidades();
+const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, isRenovarAssinaturaOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
 const { data: osAbandonoData } = useQuery({
@@ -147,9 +149,23 @@ const TODOS_OS_ATALHOS: import('@/modules/home/types/dashboard.types').QuickActi
 ];
 
 // "Criar OS" só onde a OS pode ser criada à mão; na marcenaria ela nasce do
-// orçamento (Spec 03B, D3). Os outros atalhos ficam iguais.
+// orçamento (Spec 03B, D3), e o atalho vira "Novo orçamento" para quem pode
+// gerir orçamentos (Spec 06B, D4). Os outros atalhos ficam iguais.
+const router = useRouter();
 const { podeCriarOSManual } = useTiposDeTrabalho();
-const quickActions = computed(() => filtrarAtalhos(TODOS_OS_ATALHOS, podeCriarOSManual.value));
+const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
+const quickActions = computed(() => {
+  const novoOrcamento = temOrcamentoTecnico.value && podeGerirOrcamentos.value
+    ? {
+      id: ATALHO_NOVO_ORCAMENTO,
+      icon: PencilRuler,
+      label: 'Novo orçamento',
+      variant: 'primary' as const,
+      action: () => { void router.push({ name: 'marcenaria-orcamento-novo' }); },
+    }
+    : null;
+  return atalhosComOrcamento(TODOS_OS_ATALHOS, podeCriarOSManual.value, novoOrcamento);
+});
 
 const { Ctrl_K } = useMagicKeys();
 

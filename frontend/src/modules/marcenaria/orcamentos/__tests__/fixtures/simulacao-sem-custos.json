@@ -1,0 +1,13 @@
+{
+  "calculo": {
+    "preco_unit_centavos": 111150,
+    "preco_total_centavos": 222300
+  },
+  "insumos": [
+    {
+      "produto_id": 4,
+      "sofre_perda": false
+    }
+  ],
+  "avisos": []
+}

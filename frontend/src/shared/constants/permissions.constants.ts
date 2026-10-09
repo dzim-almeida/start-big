@@ -72,6 +72,15 @@ export const PERMISSIONS = {
   viewCustosMarcenaria: 'view_custos_marcenaria',
   /** Alterar os parâmetros de preço da marcenaria. Inclui o que `view` permite. */
   manageCustosMarcenaria: 'manage_custos_marcenaria',
+  /**
+   * Linha "Orçamentos de Marcenaria" de Cargos (Spec 06A D22 / 06B §7.3).
+   * Ver a lista e abrir orçamentos — a MESMA chave que o backend confere.
+   */
+  viewOrcamentosMarcenaria: 'view_orcamentos_marcenaria',
+  /** Criar, editar, enviar, recusar, versões e anexos. Inclui ver. */
+  manageOrcamentosMarcenaria: 'manage_orcamentos_marcenaria',
+  /** Excluir rascunho nunca enviado (06A D18). */
+  deleteOrcamentosMarcenaria: 'delete_orcamentos_marcenaria',
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -116,6 +125,8 @@ export const PERMISSION_ALIASES: Partial<Record<PermissionKey, string[]>> = {
   [PERMISSIONS.manageFabrica]: ['manage_fabrica'],
   // Quem gere os parâmetros da marcenaria também vê os custos (Spec 04A, D8).
   [PERMISSIONS.viewCustosMarcenaria]: ['manage_custos_marcenaria'],
+  // Quem gere ou exclui orçamentos também vê a lista (Spec 06B §7.3).
+  [PERMISSIONS.viewOrcamentosMarcenaria]: ['manage_orcamentos_marcenaria', 'delete_orcamentos_marcenaria'],
   [PERMISSIONS.purchasesAny]: [
     'compra', 'view_purchases', 'manage_purchases', 'delete_purchases',
     'recebimento_compra', 'view_receiving', 'receive_purchases',

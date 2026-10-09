@@ -33,3 +33,35 @@ export function mostrarBotaoAdicionar(aba: string, podeCriarOSManual: boolean): 
 export function filtrarAtalhos<T extends { id: string }>(atalhos: readonly T[], podeCriarOSManual: boolean): T[] {
   return atalhos.filter((atalho) => atalho.id !== ATALHO_NOVA_OS || podeCriarOSManual);
 }
+
+/** Id do atalho "Novo orçamento" (marcenaria, Spec 06B D4). */
+export const ATALHO_NOVO_ORCAMENTO = 'novo-orcamento';
+
+/**
+ * Atalhos do menu rápido com a alternativa da marcenaria (Spec 06B D4, §7.10).
+ *
+ * Onde a OS NÃO é criada à mão, mas o segmento orça (orçamento técnico) e o
+ * usuário pode gerir orçamentos, "Criar OS" vira `novoOrcamento`. Nos outros
+ * segmentos, `podeCriarOSManual` é true e NADA muda (mesma regra de
+ * `filtrarAtalhos`). Passe `novoOrcamento = null` quando não houver a
+ * alternativa: aí o atalho só some, como antes.
+ */
+export function atalhosComOrcamento<T extends { id: string }>(
+  atalhos: readonly T[],
+  podeCriarOSManual: boolean,
+  novoOrcamento: T | null,
+): T[] {
+  return atalhos.flatMap((atalho) => {
+    if (atalho.id !== ATALHO_NOVA_OS || podeCriarOSManual) return [atalho];   // hoje: igual
+    return novoOrcamento ? [novoOrcamento] : [];                              // marcenaria / sem nenhum
+  });
+}
+
+/**
+ * Botão "Novo orçamento" na aba Ordens da tela de OS (Spec 06B D4): aparece
+ * no lugar de "Nova OS" quando ela não pode ser criada à mão e o usuário pode
+ * criar orçamento.
+ */
+export function mostrarBotaoNovoOrcamento(aba: string, podeCriarOSManual: boolean, podeCriarOrcamento: boolean): boolean {
+  return aba === 'ordens' && !podeCriarOSManual && podeCriarOrcamento;
+}

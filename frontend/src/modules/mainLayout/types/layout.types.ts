@@ -1,6 +1,7 @@
 import type { Component } from "vue";
 
 import { Permissions } from "@/shared/types/auth.types";
+import type { SegmentCapability } from "@/modules/order-service/shared/segmento/segmentDefinition.type";
 
 //Opcoes de menu existente
 export type sidebarTitles =
@@ -21,6 +22,7 @@ export type SidebarLabelOptions =
     | 'Gestão Financeira'
     | 'Compras'
     | 'Centro Fiscal'
+    | 'Orçamentos'
 
 /**
  * Sub-item de um menu que agrupa (ex.: Contas a Pagar dentro de Gestão
@@ -89,6 +91,12 @@ export interface SidebarOption {
      * O backend não depende disto: /fiscal já responde 403 por conta própria.
      */
     featureFlag?: () => boolean;
+    /**
+     * Capacidade do segmento que este item exige (ex.: 'orcamento_tecnico').
+     * Sem ela, o item SOME: capacidade não é plano, então não há o que vender
+     * com cadeado (Spec 06B D2). Vem do contrato do segmento (backend).
+     */
+    requiredCapacidade?: SegmentCapability;
     /**
      * Sub-itens. Presente = o item vira grupo que expande e deixa de navegar
      * por conta própria; quem navega são os filhos.

@@ -10,6 +10,7 @@ import {
   Wallet,
   FileText,
   ClipboardList,
+  PencilRuler,
 } from 'lucide-vue-next';
 
 import { SidebarSection } from '../types/layout.types';
@@ -38,6 +39,14 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         icon: Wrench,
         label: 'Serviços',
         requiredPermission: PERMISSIONS.services,
+      },
+      {
+        // Orçamentos de marcenaria (Spec 06B D2). Nome da rota = id (navega direto).
+        id: 'marcenaria-orcamentos',
+        icon: PencilRuler,
+        label: 'Orçamentos',
+        requiredPermission: PERMISSIONS.viewOrcamentosMarcenaria,
+        requiredCapacidade: 'orcamento_tecnico',           // só no segmento com orçamento técnico
       },
       {
         id: 'customers',
