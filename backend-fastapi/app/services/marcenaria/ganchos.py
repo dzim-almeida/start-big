@@ -12,7 +12,7 @@
 # ---------------------------------------------------------------------------
 
 from app.services import ordem_servico_ganchos as ganchos_os
-from app.services.marcenaria import rt, separacao
+from app.services.marcenaria import rt, separacao, terceirizado
 
 
 def registrar() -> None:
@@ -23,3 +23,5 @@ def registrar() -> None:
     ganchos_os.registrar(ganchos_os.ao_cancelar, rt.tratar_cancelamento)
     # Spec 10A D24: o material retirado continua fora do estoque (so o aviso).
     ganchos_os.registrar(ganchos_os.ao_cancelar, separacao.avisar_material_no_cancelamento)
+    # Spec 11A D16: moveis pedidos a central (o pedido e as contas ficam).
+    ganchos_os.registrar(ganchos_os.ao_cancelar, terceirizado.avisar_no_cancelamento)

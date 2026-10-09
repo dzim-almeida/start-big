@@ -21,6 +21,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from app.core import segmentos as reg
 from app.core.tempo import hoje_local
+from app.db.crud import ordem_servico as os_crud
 from app.db.crud.marcenaria import evento as crud_evento
 from app.db.crud.marcenaria import orcamento as crud
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
@@ -44,6 +45,35 @@ def exigir_orcamento_tecnico(db: Session) -> None:
     """
     if not reg.segmento_tem_capacidade(get_segmento_atual(db), reg.CAP_ORCAMENTO_TECNICO):
         erros.nao_encontrado()
+
+
+# ===========================================================================
+# A OS QUE VEIO DE UM ORCAMENTO (abas da OS: separacao 10A, terceirizados 11A,
+# producao 12A)
+# ===========================================================================
+
+# Status em que a OS ja nao muda: as abas da marcenaria viram so leitura.
+STATUS_OS_FECHADOS = ("FINALIZADA", "CANCELADA")
+
+
+def os_e_orcamento_aprovado(db: Session, numero_os: str, mensagem_404: str) -> tuple:
+    """(OS, orcamento APROVADO que a gerou), ou 404 com a frase de cada aba.
+
+    Tambem 404 fora da marcenaria (capacidade `orcamento_tecnico`, lida no
+    registry): para os outros segmentos, estas abas nao existem.
+    """
+    if not reg.segmento_tem_capacidade(get_segmento_atual(db), reg.CAP_ORCAMENTO_TECNICO):
+        erros.nao_encontrado(mensagem_404)
+    os_ = os_crud.get_ordem_servico_by_numero_os(db, numero_os)
+    orc = crud.get_orcamento_por_os(db, os_.id) if os_ is not None and os_.ativo else None
+    if orc is None or orc.status != StatusOrcamento.APROVADO:
+        erros.nao_encontrado(mensagem_404)
+    return os_, orc
+
+
+def os_aberta(os_) -> bool:
+    """A OS ainda muda? (fora de FINALIZADA e CANCELADA; 10A D14, 11A D7, 12A D13)."""
+    return getattr(os_.status, "value", os_.status) not in STATUS_OS_FECHADOS
 
 
 def usuario_id(usuario_token: dict) -> Optional[int]:

@@ -33,7 +33,6 @@ from typing import Any, Optional
 from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
-from app.core import segmentos as reg
 from app.core.enum import (
     MovimentacaoOrigem,
     MovimentacaoTipo,
@@ -41,9 +40,8 @@ from app.core.enum import (
     OrdemServicoItemTipo,
 )
 from app.core.tempo import fuso_local
-from app.db.crud import ordem_servico as os_crud
 from app.db.crud.marcenaria import orcamento as crud
-from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
+from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.ordem_servico_item import OrdemServicoItem
 from app.db.models.produto import Produto
@@ -55,12 +53,13 @@ from app.services.marcenaria.aprovacao import ORIGEM
 from app.services.marcenaria.insumos_os import InsumoDaOS, insumos_da_os, insumos_sem_produto
 from app.services.marcenaria.orcamento_comum import (
     exigir_orcamento_tecnico,
+    os_aberta,
+    os_e_orcamento_aprovado,
     registrar_evento,
     usuario_id,
     usuario_nome,
 )
 from app.services.marcenaria.orcamento_detalhe import nome_do_cliente
-from app.services.segmentos import get_segmento_atual
 
 # --- Frases e codigos de erro (secao 6.4) --------------------------------------
 MSG_SEM_SEPARACAO = "Esta OS não tem separação de material."
@@ -72,9 +71,6 @@ MSG_NAO_USADO = "Este material foi marcado como não usado. Reabra a linha para 
 MSG_SEM_CODIGO = "Leia ou digite o código do material."
 OS_FECHADA = "OS_FECHADA"
 ITEM_NAO_USADO = "ITEM_NAO_USADO"
-
-# Status em que a OS ja nao muda (D14): a separacao vira so leitura.
-STATUS_FECHADOS = ("FINALIZADA", "CANCELADA")
 
 # Alertas de cada linha (secao 6.2): a tela traduz cada codigo numa frase.
 ALERTA_SEM_COBERTURA = "SEM_COBERTURA"          # nem estoque nem pedido cobrem
@@ -102,24 +98,9 @@ def _texto(milesimos: int) -> str:
     return texto.replace(".", ",")
 
 
-def _aberta(os_: OrdemServico) -> bool:
-    """D14: a separacao so muda com a OS fora de FINALIZADA e CANCELADA."""
-    return _valor(os_.status) not in STATUS_FECHADOS
-
-
 def _os_e_orcamento(db: Session, numero_os: str) -> tuple[OrdemServico, MarcenariaOrcamento]:
-    """A OS e o orcamento APROVADO que a gerou, ou 404 (secao 6.4).
-
-    Tambem 404 fora da marcenaria (capacidade `orcamento_tecnico`, lida no
-    registry): para os outros segmentos, a separacao nao existe.
-    """
-    if not reg.segmento_tem_capacidade(get_segmento_atual(db), reg.CAP_ORCAMENTO_TECNICO):
-        erros.nao_encontrado(MSG_SEM_SEPARACAO)
-    os_ = os_crud.get_ordem_servico_by_numero_os(db, numero_os)
-    orc = crud.get_orcamento_por_os(db, os_.id) if os_ is not None and os_.ativo else None
-    if orc is None or orc.status != StatusOrcamento.APROVADO:
-        erros.nao_encontrado(MSG_SEM_SEPARACAO)
-    return os_, orc
+    """A OS e o orcamento APROVADO que a gerou, ou 404 (secao 6.4, tambem fora da marcenaria)."""
+    return os_e_orcamento_aprovado(db, numero_os, MSG_SEM_SEPARACAO)
 
 
 def _itens(os_: OrdemServico) -> list[OrdemServicoItem]:
@@ -244,7 +225,7 @@ def _separacao(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento) -> dict
     ]
     linhas.sort(key=_ordem_do_deposito)
     return {
-        "os": {"numero_os": os_.numero_os, "status": _valor(os_.status), "editavel": _aberta(os_)},
+        "os": {"numero_os": os_.numero_os, "status": _valor(os_.status), "editavel": os_aberta(os_)},
         "linhas": linhas,
         # D3: insumo cujo produto foi excluido: so informa, nao baixa estoque.
         "sem_cadastro": [
@@ -273,7 +254,7 @@ def ler(db: Session, numero_os: str) -> dict[str, Any]:
 def _preparar_escrita(db: Session, numero_os: str, item_id: int) -> tuple:
     """OS aberta (D14) e o item, que tem de ser uma linha da separacao desta OS."""
     os_, orc = _os_e_orcamento(db, numero_os)
-    if not _aberta(os_):
+    if not os_aberta(os_):
         erros.conflito(OS_FECHADA, MSG_OS_FECHADA)
     item = next((i for i in _itens(os_) if i.id == item_id), None)
     if item is None:

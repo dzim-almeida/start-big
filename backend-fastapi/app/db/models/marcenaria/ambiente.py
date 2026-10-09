@@ -14,9 +14,10 @@ Unidades (D10): quantidade de insumo em MILESIMOS (1,4 chapa = 1400), horas em
 CENTESIMOS (2,5 h = 250), medidas em milimetros, dinheiro em centavos.
 """
 
+from datetime import date
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -54,6 +55,8 @@ class MarcenariaMovel(Base):
     __table_args__ = (
         Index("ix_marcenaria_moveis_ambiente", "ambiente_id"),
         Index("ix_marcenaria_moveis_os_item", "os_item_id"),          # Spec 08A
+        Index("ix_marcenaria_moveis_pedido", "pedido_compra_id"),     # Spec 11A
+        Index("ix_marcenaria_moveis_terc", "terc_situacao", "terc_previsao"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -85,6 +88,21 @@ class MarcenariaMovel(Base):
         ForeignKey("ordem_servico_itens.id", ondelete="SET NULL"), nullable=True,
     )
     ordem: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # --- Movel TERCEIRIZADO depois da aprovacao (Spec 11A) ------------------------
+    # Com o Compras: o pedido de SERVICO a central; a situacao acompanha o pedido.
+    pedido_compra_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("pedidos_compra.id", ondelete="SET NULL"), nullable=True,
+    )
+    # Sem o Compras: o acompanhamento anotado a mao (nulo = "A pedir").
+    terc_situacao: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)   # ENVIADO/RECEBIDO/CONFERIDO
+    terc_pedido: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)     # o numero que a central deu
+    terc_enviado_em: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    terc_previsao: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    terc_recebido_em: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    # Nos dois modos: a fabrica conferiu (pronto para instalar) ou achou problema.
+    terc_conferido_em: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    terc_problema: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     ambiente: Mapped["MarcenariaAmbiente"] = relationship("MarcenariaAmbiente", back_populates="moveis")
     central: Mapped[Optional["Fornecedor"]] = relationship("Fornecedor")

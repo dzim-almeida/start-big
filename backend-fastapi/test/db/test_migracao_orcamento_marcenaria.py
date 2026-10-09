@@ -27,7 +27,11 @@ COLUNAS_DE_SPECS_SEGUINTES = {
         "instalacao_aprovada", "resumo_aprovado_total_centavos",
         "resumo_aprovado_sinal_centavos", "sinal_recebido_centavos",
     },
-    "marcenaria_moveis": {"os_item_id"},    # 971eb6cc5a33 (Spec 08A)
+    "marcenaria_moveis": {
+        "os_item_id",                                                   # 971eb6cc5a33 (Spec 08A)
+        "pedido_compra_id", "terc_situacao", "terc_pedido", "terc_enviado_em",   # 642b2e8f79fa (Spec 11A)
+        "terc_previsao", "terc_recebido_em", "terc_conferido_em", "terc_problema",
+    },
     "marcenaria_orcamento_rt": {"conta_pagar_id"},   # 195109da93f7 (Spec 09A)
 }
 TABELAS = (

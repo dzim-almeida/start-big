@@ -102,7 +102,8 @@ def test_banco_completo_fica_igual_aos_models(tmp_path, monkeypatch):
             conn.execute(sa.text(f"CREATE TABLE {tabela} (id INTEGER PRIMARY KEY)"))
         conn.execute(sa.text("CREATE TABLE ordem_servico_itens (id INTEGER PRIMARY KEY)"))
     command.stamp(_config(url), "608dc99a8616")
-    command.upgrade(_config(url), REVISAO)
+    # Ate a HEAD: os models de hoje ja tem colunas de migracoes posteriores (ex.: 11A no movel).
+    command.upgrade(_config(url), "head")
 
     insp = _inspector(engine)
     for tabela in ("marcenaria_orcamentos", "marcenaria_moveis"):

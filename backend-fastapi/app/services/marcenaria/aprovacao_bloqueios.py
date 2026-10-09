@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 from app.core import segmentos as reg
 from app.core.enum import OrdemServicoStatus
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
+from app.db.models.pedido_compra import PedidoCompra
+from app.services.marcenaria import terceirizado_situacao as terceirizado
 from app.services.segmentos import get_segmento_atual
 
 # Texto do status da OS quando o segmento nao declarou o seu (Spec 01A).
@@ -56,12 +58,32 @@ def _bloqueio_material_retirado(db: Session, orc: MarcenariaOrcamento) -> list[s
     return []
 
 
+def _bloqueio_pedido_a_central(db: Session, orc: MarcenariaOrcamento) -> list[str]:
+    """Spec 11A D15: desfazer com pedido feito deixaria a central produzindo sem OS."""
+    motivos = []
+    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+        for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id)):
+            if not movel.aprovado or movel.tipo_producao != terceirizado.TERCEIRIZADA:
+                continue
+            pedido = db.get(PedidoCompra, movel.pedido_compra_id) if movel.pedido_compra_id else None
+            situacao = terceirizado.situacao_do_movel(movel, pedido)
+            central = (movel.central.nome_fantasia or movel.central.nome) if movel.central else "parceira"
+            if situacao.pedido is not None:          # pedido do Compras (ate em rascunho)
+                motivos.append(f"Já há pedido à central {central} ({situacao.pedido.codigo}). Cancele o pedido "
+                               "no Compras e volte o móvel para 'A pedir' antes de desfazer.")
+            elif situacao.situacao != terceirizado.A_PEDIR:   # anotado a mao
+                motivos.append(f"Já há pedido à central {central} para o móvel {movel.nome}. "
+                               "Volte o móvel para 'A pedir' antes de desfazer.")
+    return list(dict.fromkeys(motivos))              # um pedido com 2 moveis: uma frase so
+
+
 # Ponto de extensao: cada spec seguinte acrescenta a regra que ELA conhece
 # (10A: material retirado; 11A: pedido a central; 12A: producao; 13A: entrega).
 BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = [
     _bloqueio_status_da_os,
     _bloqueio_pagamentos_da_os,
     _bloqueio_material_retirado,          # 10A
+    _bloqueio_pedido_a_central,           # 11A
 ]
 
 

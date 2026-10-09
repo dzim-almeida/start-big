@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: test/db/test_migracao_rt_marcenaria.py
-# DESCRICAO: A migracao 195109da93f7 (Spec 09A da marcenaria) num banco de loja.
+# ARQUIVO: test/db/test_migracao_terceirizados_marcenaria.py
+# DESCRICAO: A migracao 642b2e8f79fa (Spec 11A da marcenaria) num banco de loja.
 #            Nunca toca o banco real da maquina (mesmo padrao das outras).
 # ---------------------------------------------------------------------------
 
@@ -15,8 +15,10 @@ from app.core.config import settings
 from app.db.base import Base
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REVISAO_ANTERIOR = "971eb6cc5a33"          # a head antes da Spec 09A (Spec 08A)
-REVISAO = "195109da93f7"
+REVISAO_ANTERIOR = "195109da93f7"          # a head antes da Spec 11A (Spec 09A)
+REVISAO = "642b2e8f79fa"
+COLUNAS_NOVAS = {"pedido_compra_id", "terc_situacao", "terc_pedido", "terc_enviado_em", "terc_previsao",
+                 "terc_recebido_em", "terc_conferido_em", "terc_problema"}
 
 
 def _config(url: str) -> Config:
@@ -30,18 +32,14 @@ def _config(url: str) -> Config:
 
 @pytest.fixture
 def banco(tmp_path, monkeypatch):
-    """Loja com a configuracao da marcenaria preenchida, na head antiga."""
+    """Loja com um movel ja aprovado, na head antiga."""
     url = f"sqlite:///{tmp_path / 'loja.db'}"
     monkeypatch.setattr(settings, "DATABASE_URL", url)
     engine = sa.create_engine(url)
     with engine.begin() as conn:
-        # As tabelas que as colunas novas referenciam (existem em toda loja).
-        conn.execute(sa.text("CREATE TABLE contas_pagar (id INTEGER PRIMARY KEY)"))
-        conn.execute(sa.text("CREATE TABLE planos_conta (id INTEGER PRIMARY KEY)"))
-        conn.execute(sa.text("CREATE TABLE configuracoes_marcenaria (id INTEGER PRIMARY KEY, markup_padrao_bp INTEGER)"))
-        conn.execute(sa.text("INSERT INTO configuracoes_marcenaria (markup_padrao_bp) VALUES (9000)"))
-        conn.execute(sa.text("CREATE TABLE marcenaria_orcamento_rt (id INTEGER PRIMARY KEY, rt_bp INTEGER)"))
-        conn.execute(sa.text("INSERT INTO marcenaria_orcamento_rt (rt_bp) VALUES (800)"))
+        conn.execute(sa.text("CREATE TABLE pedidos_compra (id INTEGER PRIMARY KEY)"))
+        conn.execute(sa.text("CREATE TABLE marcenaria_moveis (id INTEGER PRIMARY KEY, nome VARCHAR(120), aprovado BOOLEAN)"))
+        conn.execute(sa.text("INSERT INTO marcenaria_moveis (nome, aprovado) VALUES ('Torre Quente', 1)"))
     command.stamp(_config(url), REVISAO_ANTERIOR)
     yield url, engine
     engine.dispose()
@@ -52,28 +50,29 @@ def _inspector(engine) -> sa.Inspector:
     return sa.inspect(engine)
 
 
-def test_colunas_novas_e_prazo_padrao_30(banco):
+def test_colunas_e_indices_novos_e_o_movel_fica_a_pedir(banco):
     url, engine = banco
 
     command.upgrade(_config(url), REVISAO)
 
     insp = _inspector(engine)
-    assert {"rt_vencimento_dias", "rt_plano_conta_id"} <= {c["name"] for c in insp.get_columns("configuracoes_marcenaria")}
-    assert "conta_pagar_id" in {c["name"] for c in insp.get_columns("marcenaria_orcamento_rt")}
+    assert COLUNAS_NOVAS <= {c["name"] for c in insp.get_columns("marcenaria_moveis")}
+    assert {"ix_marcenaria_moveis_pedido", "ix_marcenaria_moveis_terc"} <= {i["name"] for i in insp.get_indexes("marcenaria_moveis")}
     with engine.connect() as conn:
-        # A loja que ja existia ganha o prazo padrao; o resto fica como estava.
-        assert tuple(conn.execute(sa.text("SELECT markup_padrao_bp, rt_vencimento_dias FROM configuracoes_marcenaria")).one()) == (9000, 30)
-        assert conn.execute(sa.text("SELECT rt_bp, conta_pagar_id FROM marcenaria_orcamento_rt")).one() == (800, None)
+        # O movel que ja existia continua igual, com tudo nulo (= "A pedir").
+        linha = conn.execute(sa.text("SELECT nome, aprovado, pedido_compra_id, terc_situacao FROM marcenaria_moveis")).one()
+        assert tuple(linha) == ("Torre Quente", 1, None, None)
 
 
 def test_colunas_ja_criadas_nao_quebram(banco):
     url, engine = banco
     with engine.begin() as conn:
-        conn.execute(sa.text("ALTER TABLE configuracoes_marcenaria ADD COLUMN rt_vencimento_dias INTEGER NOT NULL DEFAULT 30"))
+        conn.execute(sa.text("ALTER TABLE marcenaria_moveis ADD COLUMN terc_situacao VARCHAR(10)"))
+        conn.execute(sa.text("CREATE INDEX ix_marcenaria_moveis_pedido ON marcenaria_moveis (id)"))
 
-    command.upgrade(_config(url), REVISAO)                         # nao pode levantar "duplicate column"
+    command.upgrade(_config(url), REVISAO)                         # nem "duplicate column" nem "index exists"
 
-    assert "rt_plano_conta_id" in {c["name"] for c in _inspector(engine).get_columns("configuracoes_marcenaria")}
+    assert COLUNAS_NOVAS <= {c["name"] for c in _inspector(engine).get_columns("marcenaria_moveis")}
 
 
 def test_banco_completo_fica_igual_aos_models(tmp_path, monkeypatch):
@@ -83,14 +82,13 @@ def test_banco_completo_fica_igual_aos_models(tmp_path, monkeypatch):
     engine = sa.create_engine(url)
     with engine.begin() as conn:
         for tabela in ("empresas", "clientes", "funcionarios", "objetos_servico", "ordens_servico", "fornecedores",
-                       "produtos", "ordem_servico_itens", "contas_pagar", "planos_conta"):
+                       "produtos", "ordem_servico_itens", "contas_pagar", "planos_conta", "pedidos_compra"):
             conn.execute(sa.text(f"CREATE TABLE {tabela} (id INTEGER PRIMARY KEY)"))
     command.stamp(_config(url), "d7a3e9c2f418")                      # antes da Spec 04A
-    # Ate a HEAD: os models de hoje ja tem colunas de migracoes posteriores (ex.: 11A no movel).
     command.upgrade(_config(url), "head")
 
     insp = _inspector(engine)
-    for tabela in ("configuracoes_marcenaria", "marcenaria_orcamento_rt", "marcenaria_orcamentos", "marcenaria_moveis"):
+    for tabela in ("configuracoes_marcenaria", "marcenaria_orcamentos", "marcenaria_moveis", "marcenaria_orcamento_rt"):
         assert {c["name"] for c in insp.get_columns(tabela)} == set(Base.metadata.tables[tabela].columns.keys()), tabela
     engine.dispose()
 
@@ -102,5 +100,7 @@ def test_downgrade_tira_as_colunas(banco):
     command.downgrade(_config(url), REVISAO_ANTERIOR)
 
     insp = _inspector(engine)
-    assert "rt_vencimento_dias" not in {c["name"] for c in insp.get_columns("configuracoes_marcenaria")}
-    assert "conta_pagar_id" not in {c["name"] for c in insp.get_columns("marcenaria_orcamento_rt")}
+    assert not COLUNAS_NOVAS & {c["name"] for c in insp.get_columns("marcenaria_moveis")}
+    assert "ix_marcenaria_moveis_terc" not in {i["name"] for i in insp.get_indexes("marcenaria_moveis")}
+    with engine.connect() as conn:
+        assert conn.execute(sa.text("SELECT nome FROM marcenaria_moveis")).scalar() == "Torre Quente"

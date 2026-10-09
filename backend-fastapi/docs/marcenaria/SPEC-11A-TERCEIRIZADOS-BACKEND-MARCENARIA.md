@@ -2,11 +2,18 @@
 
 | Campo        | Valor                                                                                 |
 |--------------|---------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                       |
+| Status       | Implementada em 09/10/2026                                                            |
 | Camada       | Backend (FastAPI)                                                                     |
 | Dependências | Specs 06A (móvel `TERCEIRIZADA`, central), 08A (aprovação, bloqueios do desfazer), 09A (ganchos, F2a) · módulo Compras (`services/compras/pedidos.py`, usado como é) |
 | Bloqueia     | Specs 11B, 12A (o terceirizado conta como pronto quando conferido)                    |
 | Referência   | SPEC-00: E6, E6a, E6b, F2a, C5a, P4, O8, T7, FB2, R15-MIG · PR1, PR4, PR6, PR7, PR8 |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Onde ficam as regras:** a situação (D1-D3, D8) está num módulo pequeno, `terceirizado_situacao.py`, porque o bloqueio do D15 vive em `aprovacao_bloqueios.py` (que o detalhe do orçamento importa) e a 12A também usa (pronto = `CONFERIDO`); o aviso do D16 é ligado em `ganchos.py` (09A), não no `__init__.py`. A busca "OS + orçamento aprovado" e "OS aberta" virou ajudante comum (`orcamento_comum.os_e_orcamento_aprovado` e `os_aberta`), usado também pela separação (10A).
+> (2) **Situação pelo pedido inteiro (D2):** com vários móveis no mesmo pedido, uma chegada parcial (`PARCIAL`) deixa todos como "Pedido enviado" até o pedido ficar `RECEBIDO` (o item do pedido não guarda o móvel). Para conferir um a um, peça um por pedido.
+> (3) **Respostas:** a leitura traz também `os` (`numero_os`, `status`, `editavel`); o `pedir` responde `{pedido, terceirizados}`, com `valor_total_centavos` do pedido só para quem vê custo de compra (regra do Compras); a lista geral responde `{itens}`, com `numero_os`, `cliente` e `orcamento_codigo`, atrasados primeiro; `valor_orcado_centavos` = `terceirizado_centavos` × quantidade.
+> (4) **Casos que a spec não cobria:** o desfazer também fica bloqueado com envio anotado à mão ("Volte o móvel para 'A pedir' antes de desfazer."); pedir de novo um móvel (depois de cancelar o pedido) limpa a conferência e o problema antigos; a data do problema fica no histórico (não há coluna para ela).
+> (5) **Testes de migração:** os testes "banco completo = models" da 08A e da 09A passam a migrar até a `head` (com a 11A, `marcenaria_moveis` tem colunas que as migrações delas ainda não criavam).
 
 > **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15, E6b).** O Compras já tem pedido de compra de **serviço** (`tipo = SERVICO`, o caminho que a fábrica F5 usava para a central de corte), com envio, recebimento e lançamento das contas a pagar no recebimento. Com o módulo COMPRAS, o pedido à central passa a ser esse pedido, e a situação do móvel **acompanha** o pedido; saem a oferta de conta própria e a categoria "Produção terceirizada" (a conta do recebimento sai sem categoria, e conta sem categoria já conta como despesa no resultado). Sem o módulo, a situação é marcada à mão, como na versão anterior, e a conta é lançada em Contas a Pagar. "Conferido" e "registrar problema" são da marcenaria nos dois casos. Migração `642b2e8f79fa`.
 
@@ -206,13 +213,13 @@ def pedir(db, numero_os, dados: PedidoCentralEntrada, usuario) -> PedidoServicoR
 
 ## 10. Critérios de aceite
 
-- [ ] Móvel terceirizado aprovado aparece "A pedir".
-- [ ] Com o Compras: pedir vários móveis da mesma central cria **um** pedido `SERVICO` em rascunho, com um item por móvel; a situação acompanha o pedido (enviado, recebido) e o recebimento no Compras lança a conta.
-- [ ] Sem o Compras: enviar (com nº e previsão) e receber à mão.
-- [ ] Conferir, registrar problema e voltar um passo nos dois modos.
-- [ ] Atrasados na lista geral.
-- [ ] Desfazer aprovação bloqueado com pedido; cancelamento registra o aviso.
-- [ ] Nenhum valor sem `view_custos_marcenaria`; o Compras sem mudança. Código comentado (PR6).
+- [x] Móvel terceirizado aprovado aparece "A pedir".
+- [x] Com o Compras: pedir vários móveis da mesma central cria **um** pedido `SERVICO` em rascunho, com um item por móvel; a situação acompanha o pedido (enviado, recebido) e o recebimento no Compras lança a conta.
+- [x] Sem o Compras: enviar (com nº e previsão) e receber à mão.
+- [x] Conferir, registrar problema e voltar um passo nos dois modos.
+- [x] Atrasados na lista geral.
+- [x] Desfazer aprovação bloqueado com pedido; cancelamento registra o aviso.
+- [x] Nenhum valor sem `view_custos_marcenaria`; o Compras sem mudança. Código comentado (PR6).
 
 ## 11. Casos de teste
 

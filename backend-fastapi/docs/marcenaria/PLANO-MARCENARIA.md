@@ -148,7 +148,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 07 | 09/10/2026 | `9dfa4eb` | +16 (vitest: dados, nome do PDF, documento A4 e o fluxo enviar → imprimir) | frontend: 384 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 | 08B | 09/10/2026 | `a30db21` | +30 (vitest: 20 da aprovação — modal, desfazer com PIN, faixa, proposta aprovada, aba da OS —, 10 de não regressão das abas e do cadeado da OS) | frontend: 414 testes, `vue-tsc` sem erros |
 | 09B | 09/10/2026 | `01f4fa6` | +32 vitest (21 do arquiteto no orçamento — bloco, salvamento do %, corrida com a troca, painel, faixa, modal de envio —, 9 do cadastro de fornecedor, 2 do prazo do RT); +4 pytest (rota `GET /arquitetos`) | frontend: 446 testes, `vue-tsc` sem erros; backend: 2.516 passando, 1 pulado |
-| 10A | 09/10/2026 | (commit da 10A) | +40 (30 de API, 7 de serviço com a finalização e o CMV, 3 do leitor) | 2.556 passando, 1 pulado |
+| 10A | 09/10/2026 | `cc073be` | +40 (30 de API, 7 de serviço com a finalização e o CMV, 3 do leitor) | 2.556 passando, 1 pulado |
+| 11A | 09/10/2026 | (commit da 11A) | +26 (22 de API, com e sem o Compras; 4 da migração) | suítes vizinhas (marcenaria, Compras, fábrica, OS, migrações): 563 passando; a suíte inteira é medida com a 12A |
 
 ---
 
