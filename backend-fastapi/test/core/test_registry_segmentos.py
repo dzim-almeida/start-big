@@ -14,7 +14,13 @@
 
 import pytest
 
-from app.core.segmentos import CAPACIDADES_CONHECIDAS, DEFINICOES, segmento_declara_coluna
+from app.core.enum import OrdemServicoStatus
+from app.core.segmentos import (
+    CAPACIDADES_CONHECIDAS,
+    DEFINICOES,
+    rotulo_status,
+    segmento_declara_coluna,
+)
 from app.core.segmentos.capacidades import CAP_GARANTIA_PRAZO, CAP_IMAGEM_NA_ENTRADA
 from app.core.segmentos.campos import (
     ESCOPOS_SUPORTADOS,
@@ -409,3 +415,87 @@ def test_quem_declara_a_coluna_marca():
     assert segmento_declara_coluna("marcenaria", "marca") is False
     assert segmento_declara_coluna("marcenaria", "modelo") is True
     assert segmento_declara_coluna(None, "marca") is False
+
+
+# =========================
+# Spec 01A -- rotulos de STATUS por segmento
+# =========================
+
+def test_rotulos_de_status_nao_inventam_valor_de_enum():
+    """
+    Caso 01 da Spec 01A. O status gravado e o MESMO enum em todo segmento:
+    transicoes, filtros e relatorios dependem dele. So o TEXTO muda.
+
+    Uma chave fora do enum nunca casaria com o valor salvo, e o erro seria
+    silencioso: a tela cairia no texto padrao sem ninguem perceber.
+    """
+    validas = {s.value for s in OrdemServicoStatus}  # os 7 codigos que existem no banco
+
+    for segmento, definicao in DEFINICOES.items():
+        rotulos = definicao.get("rotulos_status")  # chave opcional (Spec 01A, D1)
+        if not rotulos:
+            continue  # segmento sem rotulo proprio usa o texto padrao
+        assert set(rotulos) <= validas, f"{segmento}: chave fora do enum -> {set(rotulos) - validas}"
+
+
+def test_rotulo_de_status_declara_os_dois_tamanhos():
+    """
+    Casos 02 e 03 da Spec 01A. Cada rotulo tem o texto completo (telas e
+    impressao) e o curto (widget do dashboard). Os dois precisam existir: a
+    abreviacao nao e derivavel com seguranca (D3).
+
+    O curto tem no maximo 20 caracteres para caber no widget -- o maior texto
+    padrao de hoje e "Aguard. aprovação", com 17.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        for status, rotulo in (definicao.get("rotulos_status") or {}).items():
+            onde = f"{segmento}.{status}"  # para a mensagem de erro dizer quem falhou
+            assert str(rotulo.get("rotulo", "")).strip(), f"{onde}: rotulo completo vazio"
+            assert str(rotulo.get("curto", "")).strip(), f"{onde}: rotulo curto vazio"
+            assert len(rotulo["curto"]) <= 20, f"{onde}: curto com {len(rotulo['curto'])} caracteres"
+
+
+def test_so_a_marcenaria_renomeia_status_por_enquanto():
+    """
+    Caso 04 da Spec 01A. Oficina, informatica, serigrafia e PDV estao em
+    producao com os textos de sempre ("Em Andamento", "Aguardando Retirada").
+    Declarar `rotulos_status` em um deles mudaria a tela de um cliente que nao
+    pediu nada. Se um dia for intencional, este teste e o lugar de dizer isso
+    em voz alta.
+    """
+    assert "rotulos_status" not in DEFINICOES["oficina_mecanica"]
+    assert "rotulos_status" not in DEFINICOES["assistencia_tecnica"]
+    assert "rotulos_status" not in DEFINICOES["serigrafia"]
+    assert "rotulos_status" not in DEFINICOES["pdv"]
+    # A marcenaria declara exatamente os tres status da secao 4.1 da spec.
+    assert set(DEFINICOES["marcenaria"]["rotulos_status"]) == {
+        "EM_ANDAMENTO",
+        "AGUARDANDO_PECAS",
+        "AGUARDANDO_RETIRADA",
+    }
+
+
+def test_rotulo_status_devolve_o_texto_declarado():
+    """Casos 05 e 06 da Spec 01A: o tamanho certo para cada uso."""
+    # Completo: o padrao da tela de OS (cada palavra com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA") == "Aguardando Entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO") == "Em Produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS") == "Aguardando Material"
+    # Curto: o padrao do dashboard (so a primeira com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA", curto=True) == "Aguard. entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO", curto=True) == "Em produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS", curto=True) == "Aguard. material"
+
+
+def test_rotulo_status_devolve_none_quando_nao_ha_rotulo_proprio():
+    """
+    Casos 07 e 08 da Spec 01A. None quer dizer "use o seu padrao": a funcao
+    nunca inventa texto (D6), quem chama ja tem a tabela de hoje.
+    """
+    # Status que a marcenaria nao renomeou.
+    assert rotulo_status("marcenaria", "ABERTA") is None
+    # Empresa sem segmento, segmento sem arquivo de definicao, e segmento com
+    # definicao mas sem `rotulos_status`.
+    assert rotulo_status(None, "ABERTA") is None
+    assert rotulo_status("outros", "ABERTA") is None
+    assert rotulo_status("assistencia_tecnica", "AGUARDANDO_RETIRADA") is None

@@ -36,10 +36,10 @@
 #   filtra a lista. Decisao do dono em 16/09. Se um dia pedir "me mostra tudo
 #   que esta em Corte", vira capacidade -- depois de medir a demanda.
 #
-#   Status. "Aguardando Pecas" continua com esse nome quando a loja esta
-#   comprando MDF: rotulo de status nao varia por segmento, e criar isso mexe
-#   em codigo dos tres segmentos em producao. A Etapa carrega a palavra certa
-#   ("Aguardando material").
+#   Status. Desde a Spec 01A (docs/marcenaria/) o segmento pode RENOMEAR o
+#   texto de um status sem mudar o status gravado: veja `rotulos_status`
+#   abaixo ("Aguardando Pecas" aparece como "Aguardando Material"). Os outros
+#   segmentos nao declaram a chave e continuam com os textos de sempre.
 # ---------------------------------------------------------------------------
 
 from typing import Any, Dict, List
@@ -204,6 +204,21 @@ MARCENARIA = {
         "REPARADO": "Entregue",
         "SEM_REPARO": "Não produzido",
         "CONDENADO": "Perda na produção",
+    },
+
+    # Rotulos de STATUS da OS (nao confundir com rotulos_situacao, que e o
+    # desfecho). O status gravado continua o mesmo enum de todos os segmentos;
+    # so o texto mostrado muda. Spec 01A, decisoes D1-D8.
+    # "rotulo" = texto completo (telas e impressao, cada palavra com maiuscula);
+    # "curto" = texto do widget do dashboard (so a primeira com maiuscula).
+    "rotulos_status": {
+        # Quando a OS sai de "aberta", o movel esta sendo fabricado.
+        "EM_ANDAMENTO": {"rotulo": "Em Produção", "curto": "Em produção"},
+        # Na marcenaria, o que se espera e chapa, fita e ferragem.
+        "AGUARDANDO_PECAS": {"rotulo": "Aguardando Material", "curto": "Aguard. material"},
+        # Pronto: em Planejados vai ser instalado; em Reforma, o cliente retira.
+        # "Entrega" serve aos dois tipos (ver secao 8 da Spec 01A).
+        "AGUARDANDO_RETIRADA": {"rotulo": "Aguardando Entrega", "curto": "Aguard. entrega"},
     },
 
     # Gerado do numero da OS ("PRJ-2026-000042"), nunca pedido ao atendente.

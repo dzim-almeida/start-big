@@ -124,6 +124,26 @@ def segmento_declara_coluna(segmento: Optional[str], coluna: str) -> bool:
     )
 
 
+def rotulo_status(
+    segmento: Optional[str],      # segmento da empresa (ex.: "marcenaria"), ou None
+    status: str,                  # valor do enum, ex.: "AGUARDANDO_RETIRADA"
+    curto: bool = False,          # True = versao abreviada (dashboard)
+) -> Optional[str]:
+    """Texto que o SEGMENTO declarou para um status da OS.
+
+    Devolve None quando o segmento nao renomeia aquele status: quem chama usa
+    o texto padrao que ja tem. Nunca inventa um texto padrao aqui (Spec 01A, D6).
+    """
+    definicao = get_definicao_segmento(segmento)      # dicionario do segmento, ou None
+    if not definicao:                                  # empresa sem segmento ou segmento generico
+        return None                                    # -> quem chamou usa o padrao
+    rotulos = definicao.get("rotulos_status") or {}    # chave opcional: ausente vira {}
+    rotulo = rotulos.get(status)                       # so existe para os status renomeados
+    if not rotulo:                                     # status que o segmento nao renomeou
+        return None                                    # -> quem chamou usa o padrao
+    return rotulo["curto"] if curto else rotulo["rotulo"]  # escolhe o tamanho pedido
+
+
 __all__ = [
     "DEFINICOES",
     "OFICINA",
@@ -142,4 +162,5 @@ __all__ = [
     "identificador_e_gerado",
     "gerar_identificador",
     "segmento_declara_coluna",
+    "rotulo_status",
 ]

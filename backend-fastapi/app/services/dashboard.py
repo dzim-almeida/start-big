@@ -9,6 +9,7 @@ from calendar import monthrange
 
 from sqlalchemy.orm import Session
 
+from app.core import segmentos as reg                      # registry (dado dos segmentos)
 from app.core.tempo import agora_utc, fim_do_dia_utc, hoje_local, inicio_do_dia_utc
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import relatorio as relatorio_crud
@@ -40,6 +41,7 @@ from app.schemas.dashboard import (
     OSAtrasadaEmpresaItem,
     OSAtrasadaEmpresaResponse,
 )
+from app.services import segmentos as segmentos_service    # descobre o segmento da empresa
 
 
 # ===========================================================================
@@ -422,11 +424,18 @@ def get_ranking_funcionarios(db: Session, periodo: str, empresa_id: int) -> Rank
 
 
 def get_os_por_status(db: Session, empresa_id: int) -> OSPorStatusResponse:
-    rows = dashboard_crud.get_os_por_status(db, empresa_id)
+    rows = dashboard_crud.get_os_por_status(db, empresa_id)    # contagem por status (sem mudanca)
+    segmento = segmentos_service.get_segmento_atual(db)        # uma consulta, fora do laco
     items = [
         OSPorStatusItem(
-            status=row.status.value,
-            status_label=_STATUS_LABELS.get(row.status.value, row.status.value),
+            status=row.status.value,                           # sempre o codigo do enum
+            # 1o: o texto curto que o segmento declarou (Spec 01A);
+            # 2o: a tabela padrao de hoje (_STATUS_LABELS, igual para os outros segmentos);
+            # 3o: o proprio codigo, como ja era antes da Spec 01A.
+            status_label=(
+                reg.rotulo_status(segmento, row.status.value, curto=True)
+                or _STATUS_LABELS.get(row.status.value, row.status.value)
+            ),
             count=row.count,
         )
         for row in rows
