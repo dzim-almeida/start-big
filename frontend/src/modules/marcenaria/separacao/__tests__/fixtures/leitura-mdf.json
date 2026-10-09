@@ -1,0 +1,33 @@
+{
+  "fator": 1,
+  "linha": {
+    "item_id": 5,
+    "produto_id": 1,
+    "descricao": "MDF Branco TX 18mm",
+    "codigo": "P-1",
+    "unidade": "UN",
+    "localizacao": "Corredor A · Prateleira 2",
+    "planejado_milesimos": 2200,
+    "sugerido_milesimos": 3000,
+    "quantidade_milesimos": 3000,
+    "separada_milesimos": 0,
+    "falta_milesimos": 3000,
+    "concluida": false,
+    "nao_usado": false,
+    "no_estoque_milesimos": 2000,
+    "em_pedido_milesimos": 0,
+    "sem_cobertura_milesimos": 1000,
+    "estoque_milesimos": 2000,
+    "diferenca_bp": null,
+    "moveis": [
+      {
+        "nome": "Balcão",
+        "ambiente": "Cozinha Gourmet",
+        "planejado_milesimos": 2200
+      }
+    ],
+    "alertas": [
+      "SEM_COBERTURA"
+    ]
+  }
+}

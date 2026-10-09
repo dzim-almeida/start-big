@@ -9,6 +9,8 @@
  * - Produto que JÁ está no móvel não duplica: o pai leva o foco à quantidade.
  * - `Enter` escolhe o primeiro resultado.
  * - Sem resultado: "Cadastrar insumo novo" (cadastro rápido, D31).
+ * - Spec 10B D21: "Estoque 6 · disponível 2" (o disponível desconta o que as
+ *   OS abertas já reservaram, pela conta do Compras); negativo = "faltam 3".
  */
 import { computed, ref } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
@@ -18,6 +20,8 @@ import { Plus, Search } from 'lucide-vue-next';
 import { getProdutos } from '@/modules/products/inventory/services/product.service';
 import type { ProdutoRead } from '@/modules/products/inventory/types/products.types';
 import { formatCurrency } from '@/shared/utils/finance';
+import { formatarQuantidade } from '@/shared/utils/quantidade';
+import { getDisponivel } from '@/modules/marcenaria/separacao/services/separacao.service';
 
 import { CHAVE_RAIZ } from '../../constants/orcamento.constants';
 import { custoPelaRegraO3a, ROTULO_ORIGEM } from '../../utils/custoProduto';
@@ -48,6 +52,27 @@ const { data: resultados, isFetching, error } = useQuery({
   retry: false,                                          // 403 não melhora repetindo
   staleTime: 30_000,
 });
+
+/** 10B D21: o disponível dos resultados, numa chamada só, depois que a busca responde. */
+const idsDosResultados = computed(() => (resultados.value ?? []).map((p) => p.id));
+const { data: disponivel } = useQuery({
+  queryKey: computed(() => [CHAVE_RAIZ, 'disponivel', idsDosResultados.value.join(',')]),
+  queryFn: () => getDisponivel(idsDosResultados.value),
+  enabled: computed(() => idsDosResultados.value.length > 0),
+  retry: false,                                          // sem o disponível, a busca segue igual
+  staleTime: 30_000,
+});
+/** "Estoque 6 · disponível 2" ou "Estoque 1 · faltam 3"; sem resposta, nada. */
+function textoDisponivel(produto: ProdutoRead): { texto: string; falta: boolean } | null {
+  const linha = disponivel.value?.[String(produto.id)];
+  if (!linha) return null;
+  const unidade = produto.unidade_medida || 'UN';
+  const estoque = formatarQuantidade(linha.estoque_milesimos / 1000, unidade);
+  if (linha.disponivel_milesimos < 0) {
+    return { texto: `Estoque ${estoque} · faltam ${formatarQuantidade(-linha.disponivel_milesimos / 1000, unidade)}`, falta: true };
+  }
+  return { texto: `Estoque ${estoque} · disponível ${formatarQuantidade(linha.disponivel_milesimos / 1000, unidade)}`, falta: false };
+}
 
 /** Sem a permissão de Produtos, a busca devolve 403: dizemos o porquê. */
 const semPermissao = computed(() => statusDoErro(error.value) === 403);
@@ -100,6 +125,14 @@ function escolherPrimeiro() {
               {{ produto.codigo_produto }} · {{ produto.unidade_medida || 'UN' }}
               <span v-if="produto.sofre_perda" class="ml-1 rounded bg-zinc-100 px-1 text-zinc-600">sofre perda</span>
               <span v-if="produtosNoMovel.includes(produto.id)" class="ml-1 text-brand-primary">já no móvel</span>
+            </span>
+            <span
+              v-if="textoDisponivel(produto)"
+              class="block text-[11px]"
+              :class="textoDisponivel(produto)!.falta ? 'font-semibold text-red-600' : 'text-zinc-500'"
+              :data-testid="`disponivel-${produto.id}`"
+            >
+              {{ textoDisponivel(produto)!.texto }}
             </span>
           </span>
           <!-- Custo só para quem vê custos (D26). -->

@@ -1,0 +1,19 @@
+{
+  "numero_os": "OS-2026-000001",
+  "cliente": "Dona Marta",
+  "itens": [
+    {
+      "produto_id": 1,
+      "descricao": "MDF Branco TX 18mm",
+      "unidade": "UN",
+      "faltam_milesimos": 1000,
+      "localizacao": "Corredor A · Prateleira 2",
+      "fornecedor": {
+        "id": 3,
+        "nome": "Madeireira Central",
+        "telefone": null
+      }
+    }
+  ],
+  "gerado_em": "2026-10-09T17:58:16"
+}

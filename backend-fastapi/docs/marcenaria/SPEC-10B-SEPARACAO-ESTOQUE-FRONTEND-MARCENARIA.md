@@ -2,11 +2,19 @@
 
 | Campo        | Valor                                                                                  |
 |--------------|----------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                        |
+| Status       | Implementada em 09/10/2026                                                             |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (abas da OS)                     |
 | Dependências | Specs 06B (busca de insumo), 08B (padrão de aba na OS, fábrica retirada do modal), 10A (API) |
 | Bloqueia     | Spec 11B (o terceirizado aparece na mesma aba)                                         |
 | Referência   | SPEC-00: E1b, E2, E2a, E3b, E4, E5a, P3, P4, T1, FB2 · PR1, PR3, PR6                   |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Leitor (D14, D17):** o ouvinte global ignora o que é digitado no próprio campo "Ler código" (o campo trata o Enter dele; sem isso, a mesma leitura chegaria duas vezes) e só escuta com a OS editável e nenhum modal aberto. O bipe de erro é um tom curto pelo Web Audio (sem permissão de áudio, fica a mensagem). Bipar uma embalagem com o modal (modo normal) abre o "Retirar" com o que falta, como o produto.
+> (2) **Retirar (D5):** com a linha já completa (retirar além do sugerido), o aviso de estoque compara com o saldo do produto, não com a cobertura do Compras (que é zero numa linha sem falta). Unidade inteira (un, chapa, par) não aceita fração no campo.
+> (3) **Ações por estado da linha:** "Retirar" só nas pendentes; o menu "⋯" mostra só o que faz sentido (Devolver com retirada; Concluir com retirada parcial; Não usado sem retirada; Reabrir na concluída). Concluir e Não usado pedem confirmação com o efeito (D6); reabrir não.
+> (4) **Faltas (D18):** a consulta só roda com o painel aberto; a folha impressa leva a hora do computador da loja e passa no `check:print-bw`.
+> (5) **Busca de insumo (D21):** uma chamada ao `/estoque/disponivel` por página de resultados; se ela falhar, a busca segue igual, sem a linha do disponível.
+> (6) **Arquivos a mais:** `separacao/utils/quantidades.ts` (milésimos ↔ texto com a unidade). O teste das abas da 08B passou a esperar "Separação" antes de "Orçamento".
 
 > **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15).** Com a 10A reescrita: (1) a aba trabalha sobre as **peças embutidas** da OS, e a coluna "Disponível" vira **"No estoque p/ esta OS"**, o número que o Compras calcula na fila das OS abertas; (2) a aba **"Lista de compras" em Produtos sai**: a lista entre OS é a tela **Necessidades** do Compras (E5a), e a aba Separação ganha **"Faltas desta OS"** (imprimir) e, com o módulo Compras, o atalho para as Necessidades; (3) o leitor aceita o código de barras de **embalagem** (bipar a caixa de 10 = 10 unidades), como a separação da fábrica fazia; (4) cada escrita manda a `quantidade_separada` que a tela tinha (10A D16). A tela de Produtos **não muda**.
 
@@ -213,13 +221,13 @@ async function aoLer(codigo: string) {
 
 ## 10. Critérios de aceite
 
-- [ ] Aba Separação só na marcenaria, com as linhas na ordem da localização, só pendentes por padrão, sem preço.
-- [ ] Retirar com Enter, com os avisos de estoque insuficiente e de acima do sugerido; devolver, concluir, não usado e reabrir com o efeito explicado; o progresso e a cobertura atualizam.
-- [ ] Leitor: bipe abre o "Retirar" da linha certa; embalagem retira o fator no modo "cada leitura retira"; produto de fora avisa com som.
-- [ ] Orçado × real por produto.
-- [ ] Faltas desta OS com fornecedor e impressão; "Ver nas Necessidades" só com o módulo Compras.
-- [ ] Busca de insumo do orçamento mostra estoque e disponível.
-- [ ] Prova de não regressão (§8); código comentado (PR6).
+- [x] Aba Separação só na marcenaria, com as linhas na ordem da localização, só pendentes por padrão, sem preço.
+- [x] Retirar com Enter, com os avisos de estoque insuficiente e de acima do sugerido; devolver, concluir, não usado e reabrir com o efeito explicado; o progresso e a cobertura atualizam.
+- [x] Leitor: bipe abre o "Retirar" da linha certa; embalagem retira o fator no modo "cada leitura retira"; produto de fora avisa com som.
+- [x] Orçado × real por produto.
+- [x] Faltas desta OS com fornecedor e impressão; "Ver nas Necessidades" só com o módulo Compras.
+- [x] Busca de insumo do orçamento mostra estoque e disponível.
+- [x] Prova de não regressão (§8); código comentado (PR6).
 
 ## 11. Casos de teste
 

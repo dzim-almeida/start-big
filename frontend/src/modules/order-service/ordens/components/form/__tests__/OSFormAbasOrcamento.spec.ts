@@ -1,7 +1,7 @@
 /**
  * Spec 08B (marcenaria) ⚠️ código compartilhado da OS — casos 01 a 05c.
  *
- * - Abas do modal de OS: "Orçamento" só com a capacidade `orcamento_tecnico`
+ * - Abas do modal de OS: "Separação" (10B) e "Orçamento" só com a capacidade `orcamento_tecnico`
  *   e fora da criação; nos outros segmentos, as abas de hoje (01-03).
  * - Cadeado nos itens com `origem` e o grupo "Material do orçamento" (04-05b).
  * - A fábrica saiu do modal (05c, FB1).
@@ -80,14 +80,16 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Orçamento" depois de "Serviços e Peças"', () => {
+  it('02 — marcenaria, OS existente: "Separação" (10B) e "Orçamento" depois de "Serviços e Peças"', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Equipamento', 'Imagens', 'Serviços e Peças', 'Orçamento',
+      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Orçamento',
     ]);
   });
 
-  it('03 — marcenaria, criando a OS: sem a aba', () => {
-    expect(abas(['imagem_na_entrada', 'orcamento_tecnico'], true)).not.toContain('Orçamento');
+  it('03 — marcenaria, criando a OS: sem as abas', () => {
+    const lista = abas(['imagem_na_entrada', 'orcamento_tecnico'], true);
+    expect(lista).not.toContain('Orçamento');
+    expect(lista).not.toContain('Separação');
   });
 
   it('05c — sem o trilho, a aba e a trava de status da fábrica (FB1)', () => {

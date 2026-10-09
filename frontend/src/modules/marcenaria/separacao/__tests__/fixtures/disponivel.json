@@ -1,0 +1,12 @@
+{
+  "1": {
+    "estoque_milesimos": 2000,
+    "reservado_milesimos": 3000,
+    "disponivel_milesimos": -1000
+  },
+  "4": {
+    "estoque_milesimos": 4000,
+    "reservado_milesimos": 0,
+    "disponivel_milesimos": 4000
+  }
+}

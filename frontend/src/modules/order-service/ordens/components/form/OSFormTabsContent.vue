@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
 import { useRouter } from 'vue-router';
-import { ClipboardCheck, ClipboardList, FileSpreadsheet, Image as ImageIcon, Package } from 'lucide-vue-next';
+import { ClipboardCheck, ClipboardList, FileSpreadsheet, Image as ImageIcon, Package, PackageCheck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -29,7 +29,17 @@ const osSalvaId = computed(() => view.currentOSData.value?.id ?? null);
 const OSOrcamentoTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/orcamentos/components/os/OSOrcamentoTab.vue'),
 );
+// Marcenaria (Spec 10B D1): aba "Separação" do material. Também sob demanda.
+const OSSeparacaoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/separacao/components/OSSeparacaoTab.vue'),
+);
 const router = useRouter();
+
+/** "Ver nas Necessidades" (10B D19): fecha o modal de OS e vai para o Compras. */
+function verNecessidades() {
+  view.handleClose();
+  void router.push({ name: 'purchases-needs' });
+}
 
 /** "Abrir orçamento" (D20): fecha o modal de OS e vai para o orçamento. */
 function abrirOrcamento(orcamentoId: number) {
@@ -37,7 +47,7 @@ function abrirOrcamento(orcamentoId: number) {
   void router.push({ name: 'marcenaria-orcamento', params: { id: orcamentoId } });
 }
 
-type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'orcamento';
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'orcamento';
 
 const view = useOSFormView();
 
@@ -78,6 +88,8 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
   // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
   // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
   if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
+    // Separação (10B D1) antes do Orçamento: é o trabalho do dia da fábrica.
+    tabs.push({ id: 'separacao', label: 'Separação', icon: PackageCheck });
     tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
@@ -188,6 +200,13 @@ const objetoModel = computed<ObjetoFormData>({
       <ComprasDaOSPanel
         v-if="activeTab === 'servicos' && comprasDisponivel && osSalvaId"
         :os-id="osSalvaId"
+      />
+
+      <!-- Fora do fieldset: a separação tem as próprias regras de edição (10B D10). -->
+      <OSSeparacaoTab
+        v-if="activeTab === 'separacao' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        @ver-necessidades="verNecessidades"
       />
 
       <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->
