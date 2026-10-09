@@ -123,6 +123,15 @@ A ordem respeita as dependências declaradas em cada spec. As linhas do mesmo ma
 
 O roteiro manual de cada spec B, em sequência, com **um projeto real** da fábrica piloto (critério de pronto da SPEC-00).
 
+### Andamento
+
+Uma linha por spec entregue, com a suíte do backend medida depois dela (referência: 2.334 passando, 1 pulado). Sidecar: `npm run build:sidecar` antes do próximo instalador.
+
+| Spec | Data | Commit | Testes | Suíte do backend depois |
+|------|------|--------|--------|-------------------------|
+| 01A | 09/10/2026 | `5540bfd` | +13 | 2.347 passando, 1 pulado |
+| 03A | 09/10/2026 | (commit da 03A) | +30; −50 (D17); −1 (Reforma); −39 casos por campo do registry (campos que saíram) | 2.287 passando, 1 pulado |
+
 ---
 
 ## 4. Banco de dados

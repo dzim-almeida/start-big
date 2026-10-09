@@ -144,6 +144,35 @@ def rotulo_status(
     return rotulo["curto"] if curto else rotulo["rotulo"]  # escolhe o tamanho pedido
 
 
+def tipo_permite_criacao_manual(segmento: Optional[str], tipo_id: Optional[str]) -> bool:
+    """Uma OS deste segmento/tipo pode ser criada pelo caminho comum? (Spec 03A, D5)
+
+    - Tipo conhecido: vale a marcacao dele (padrao True).
+    - Tipo ausente ou desconhecido: so e recusado se o segmento declara tipos e
+      NENHUM deles e criavel a mao (senao omitir o tipo furaria a trava).
+    - Segmento sem definicao ou sem tipos: sempre True (nada muda).
+    """
+    definicao = get_definicao_segmento(segmento)               # None para segmento generico
+    tipos = (definicao or {}).get("tipos") or []               # [] para oficina/informatica
+    if not tipos:                                              # sem tipos: comportamento de hoje
+        return True
+    for tipo in tipos:                                         # tipo informado e conhecido?
+        if tipo["id"] == tipo_id:
+            return tipo.get("criacao_manual", True)            # vale a marcacao do tipo
+    # Tipo ausente/desconhecido: permitido se existir ALGUM tipo criavel a mao.
+    return any(t.get("criacao_manual", True) for t in tipos)
+
+
+def label_do_tipo(segmento: Optional[str], tipo_id: Optional[str]) -> str:
+    """Nome do tipo para mensagens; sem tipo informado, o primeiro do segmento."""
+    tipos = (get_definicao_segmento(segmento) or {}).get("tipos") or []  # [] sem tipos
+    for tipo in tipos:                                         # procura o tipo informado
+        if tipo["id"] == tipo_id:
+            return tipo["label"]
+    # Tipo omitido ou desconhecido: o primeiro tipo do segmento; sem tipos, o id cru.
+    return tipos[0]["label"] if tipos else (tipo_id or "")
+
+
 __all__ = [
     "DEFINICOES",
     "OFICINA",
@@ -163,4 +192,6 @@ __all__ = [
     "gerar_identificador",
     "segmento_declara_coluna",
     "rotulo_status",
+    "tipo_permite_criacao_manual",
+    "label_do_tipo",
 ]

@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                             |
 |--------------|-------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                   |
+| Status       | Implementada em 09/10/2026 (commit `5540bfd`)                     |
 | Camada       | Backend (FastAPI) ⚠️ código compartilhado                         |
 | Dependências | Spec 00                                                           |
 | Bloqueia     | Spec 01B (frontend), Spec 03A                                     |

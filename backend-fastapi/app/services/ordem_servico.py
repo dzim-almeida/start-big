@@ -318,13 +318,50 @@ def _exigir_campos_do_objeto(db: Session, objeto_data: dict) -> None:
     )
 
 
-def create_ordem_servico(db: Session, os_to_create: OrdemServicoCreate) -> OSModel:
+# Chave do tipo de trabalho dentro de `dados_adicionais` DA OS: é onde o
+# frontend grava (OSObjetoDinamicoTab.vue, CHAVE_TIPO). Spec 03A, D9.
+CHAVE_TIPO_TRABALHO = "tipo_trabalho"
+
+
+def _assert_tipo_pode_ser_criado(db: Session, dados_adicionais_os: dict | None, origem_orcamento: bool) -> None:
+    """Recusa a OS cujo tipo só nasce de outro documento (Spec 03A, D5-D7).
+
+    Hoje é o caso de Móveis planejados (marcenaria), que nasce da aprovação de
+    um orçamento. A regra lê a MARCAÇÃO do tipo no registry (`criacao_manual`),
+    nunca o nome do segmento: serigrafia, oficina e informática declaram tipos
+    criáveis à mão (ou nenhum tipo) e passam direto, como sempre.
+    """
+    if origem_orcamento:                                   # caminho legítimo da Spec 08A
+        return
+    tipo_id = (dados_adicionais_os or {}).get(CHAVE_TIPO_TRABALHO)  # pode vir ausente
+    segmento = get_segmento_atual(db)                      # segmento da empresa
+    if reg.tipo_permite_criacao_manual(segmento, tipo_id):  # tipo criável à mão: segue
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=(
+            f"OS de {reg.label_do_tipo(segmento, tipo_id)} é criada pela aprovação "
+            "de um orçamento. Use a tela Orçamentos."
+        ),
+    )
+
+
+def create_ordem_servico(
+    db: Session,
+    os_to_create: OrdemServicoCreate,
+    *,
+    origem_orcamento: bool = False,  # só a Spec 08A passa True; o endpoint nunca expõe (D7)
+) -> OSModel:
     """
     Cria uma nova OS com equipamento e itens em uma única transação.
 
-    Valida: cliente existe, funcionário existe (se informado).
+    Valida: cliente existe, funcionário existe (se informado), e se o tipo de
+    trabalho pode nascer por aqui (Spec 03A).
     Gera: número sequencial, valor_bruto e valor_total.
     """
+    # Primeira coisa: nada é gravado se a OS não puder nascer por este caminho.
+    _assert_tipo_pode_ser_criado(db, os_to_create.dados_adicionais, origem_orcamento)
+
     cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id=os_to_create.cliente_id)
     if not cliente_in_db:
         raise cliente_not_found_exce
@@ -563,6 +600,21 @@ def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) 
     os_in_db = _get_os_or_raise(db, numero_os)
 
     update_data = data.model_dump(exclude_unset=True)
+
+    # A OS não troca de tipo quando o antigo OU o novo só nasce de outro
+    # documento (Spec 03A, D8): uma OS de Móveis planejados virando outra coisa
+    # perderia o vínculo com o orçamento. Reenviar o MESMO tipo (o formulário
+    # reenvia tudo) não é troca. Roda antes de mesclar `dados_adicionais`.
+    tipo_antigo = (os_in_db.dados_adicionais or {}).get(CHAVE_TIPO_TRABALHO)
+    tipo_novo = (update_data.get("dados_adicionais") or {}).get(CHAVE_TIPO_TRABALHO, tipo_antigo)
+    if tipo_novo != tipo_antigo:                           # só olha o registry se mudou
+        segmento = get_segmento_atual(db)
+        if not (reg.tipo_permite_criacao_manual(segmento, tipo_antigo)
+                and reg.tipo_permite_criacao_manual(segmento, tipo_novo)):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="O tipo de trabalho desta OS não pode ser alterado.",
+            )
 
     # Extrai campos legados e move para dados_adicionais.
     # dict(...) cria um novo objeto para que o SQLAlchemy detecte a mudança
@@ -1264,9 +1316,15 @@ def cancelar_ordem_servico(
     )
 
     os_in_db.status = OrdemServicoStatus.CANCELADA
-    # Fábrica: o que foi separado volta ao estoque (no-op nas outras OS).
-    from app.services.fabrica import separacao as separacao_fabrica
-    separacao_fabrica.devolver_tudo(db, os_in_db, usuario_token or {})
+    # Fábrica APOSENTADA (SPEC-00 da marcenaria, Revisão 15, FB1; Spec 03A, D15):
+    # só a OS que ainda está no trilho antigo devolve sozinha a separação ao
+    # cancelar. A OS da marcenaria nova também separa (Spec 10A), mas a regra
+    # dela é a contrária: chapa cortada não volta à prateleira por um clique
+    # (E2a). Nos outros segmentos nada muda: nenhum item deles tem
+    # `quantidade_separada`.
+    if os_in_db.fase_fabrica is not None:
+        from app.services.fabrica import separacao as separacao_fabrica
+        separacao_fabrica.devolver_tudo(db, os_in_db, usuario_token or {})
     trilho_fabrica.ao_cancelar(db, os_in_db, (usuario_token or {}).get("nome") or "Sistema", data.motivo)
 
     if data.motivo:

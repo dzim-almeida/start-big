@@ -51,10 +51,12 @@ from .definicoes import (
     get_definicao_segmento,
     get_identificador_segmento,
     identificador_e_gerado,
+    label_do_tipo,
     rotulo_status,
     segmento_declara_coluna,
     segmento_tem_definicao,
     segmento_usa_ordem_servico,
+    tipo_permite_criacao_manual,
 )
 from .identificador import (
     IDENTIFICADOR_MIN_CARACTERES,
@@ -94,6 +96,8 @@ __all__ = [
     "gerar_identificador",
     "segmento_declara_coluna",
     "rotulo_status",
+    "tipo_permite_criacao_manual",
+    "label_do_tipo",
     # identificador
     "IDENTIFICADORES_GENERICOS",
     "IDENTIFICADOR_MIN_CARACTERES",

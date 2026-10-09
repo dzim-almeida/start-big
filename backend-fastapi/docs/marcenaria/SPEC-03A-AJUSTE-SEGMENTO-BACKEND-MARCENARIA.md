@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                    |
 |--------------|--------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                          |
+| Status       | Implementada em 09/10/2026                                               |
 | Camada       | Backend (FastAPI) · toca `services/ordem_servico.py` (compartilhado) ⚠️  |
 | Dependências | Spec 01A                                                                 |
 | Bloqueia     | Spec 03B, Spec 08A                                                       |
@@ -104,6 +104,8 @@ backend-fastapi/
 | D16 | O resto do código da fábrica (rotas `/fabrica`, trilho, separação, central de corte) **fica**, inerte: todas as funções que ele expõe à OS (`assert_status_manual`, `assert_pode_finalizar`, `ao_finalizar`, `ao_cancelar`, `ao_reabrir`) saem cedo sem `fase_fabrica` (conferido em 08/10). O Compras chama `pode_comprar(None, …)`, que responde `True` | Remover código que o serviço da OS e o Compras importam é uma mudança maior do que esta spec. Inerte, ele não muda comportamento; sai numa spec de limpeza depois do piloto |
 | D17 | Testes: `test_orcamento_api.py`, `test_trilho_api.py` e `test_separacao_api.py` (pasta `test/api/v1/fabrica/`) **saem**, porque montam o cenário ligando o modo fábrica e criando a OS pelo `POST`, que esta spec recusa. Entra `test_fabrica_aposentada.py`, que prova a inércia (casos 20–26). `test_migracao_fabrica.py`, `test_insumo_api.py` e `test/services/fabrica/test_calculo.py` **ficam** | Teste de comportamento que não existe mais não protege nada; o que importa agora é provar que o trilho não liga e que a OS e o Compras seguem iguais. A saída fica registrada aqui, com o motivo (nenhum teste é apagado em silêncio) |
 | D18 | A base de testes de referência (08/10/2026, `53e5d81`): **2.334 passando, 1 pulado**. Depois desta spec: 2.334 − 50 (removidos, D17) + os casos novos, todos passando | Prova de que a saída dos testes é só a da D17 |
+
+> **Resultado (09/10/2026).** Depois da Spec 01A a suíte estava em 2.347. Depois desta spec: **2.287 passando, 1 pulado**, sem falhas. A conta: 2.347 − 50 (D17) − 1 (`test_marcenaria_reforma_nao_tem_montagem_externa`, caso 05) − 39 + 30 novos. Os **39** não estavam previstos aqui: são casos **gerados por campo** em `test_registry_segmentos.py` (cada campo declarado é conferido por vários testes parametrizados), e os 13 campos que saíram da marcenaria (D2, D3) levaram os seus casos junto. Nenhum teste de outro segmento mudou (lista de ids comparada antes × depois).
 
 ---
 

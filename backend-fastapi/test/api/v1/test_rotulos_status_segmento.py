@@ -18,6 +18,8 @@ from starlette import status
 
 from app.core.segmentos import DEFINICOES  # a declaracao que a API deve devolver
 from app.main import app
+from app.schemas.ordem_servico import OrdemServicoCreate
+from app.services import ordem_servico as os_service
 
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
@@ -91,9 +93,18 @@ def _criar_cliente(client, header: dict) -> int:
     return r.json()["id"]
 
 
+def _por_no_status(client, header: dict, numero_os: str, status_os: str) -> None:
+    """Coloca a OS no status pedido pelo mesmo caminho da tela
+    (PUT /ordens-servico/{numero} com o campo `status`)."""
+    # Toda OS nasce ABERTA; so muda quando o status pedido e outro.
+    if status_os != "ABERTA":
+        r = client.put(f"/api/v1/ordens-servico/{numero_os}", json={"status": status_os}, headers=header)
+        assert r.status_code == status.HTTP_200_OK, r.text
+        assert r.json()["status"] == status_os
+
+
 def _abrir_os_no_status(client, header: dict, cliente_id: int, objeto: dict, status_os: str) -> str:
-    """Abre uma OS e a coloca no status pedido pelo mesmo caminho da tela
-    (PUT /ordens-servico/{numero} com o campo `status`). Devolve o numero."""
+    """Abre uma OS pela rota comum e a coloca no status pedido. Devolve o numero."""
     r = client.post("/api/v1/ordens-servico/", json={
         "cliente_id": cliente_id,
         "prioridade": "NORMAL",
@@ -104,13 +115,27 @@ def _abrir_os_no_status(client, header: dict, cliente_id: int, objeto: dict, sta
     }, headers=header)
     assert r.status_code == status.HTTP_201_CREATED, r.text
     numero_os = r.json()["numero_os"]
-
-    # Toda OS nasce ABERTA; so muda quando o status pedido e outro.
-    if status_os != "ABERTA":
-        r = client.put(f"/api/v1/ordens-servico/{numero_os}", json={"status": status_os}, headers=header)
-        assert r.status_code == status.HTTP_200_OK, r.text
-        assert r.json()["status"] == status_os
+    _por_no_status(client, header, numero_os, status_os)
     return numero_os
+
+
+def _abrir_planejados_no_status(client, db_session, header: dict, cliente_id: int,
+                                nome: str, status_os: str) -> str:
+    """Marcenaria: a OS de Planejados so nasce da aprovacao de um orcamento
+    (Spec 03A), entao e aberta pelo SERVICO com `origem_orcamento=True`, como a
+    Spec 08A vai fazer. Depois o status muda pela rota comum."""
+    dados = OrdemServicoCreate(
+        cliente_id=cliente_id,
+        prioridade="NORMAL",
+        defeito_relatado="Teste de rotulo de status",
+        dados_adicionais={"tipo_trabalho": "planejados"},
+        objeto={"modelo": nome, "dados_adicionais": {}},  # o codigo PRJ e gerado
+        itens=[],
+    )
+    os_ = os_service.create_ordem_servico(db_session, dados, origem_orcamento=True)
+    db_session.commit()  # o endpoint faria o commit; aqui o teste faz
+    _por_no_status(client, header, os_.numero_os, status_os)
+    return os_.numero_os
 
 
 def _rotulos_do_dashboard(client, header: dict) -> dict:
@@ -177,8 +202,7 @@ def test_dashboard_da_marcenaria_usa_o_rotulo_curto_do_segmento(client, db_sessi
     cliente_id = _criar_cliente(client, header)
     # Uma OS em cada status; o codigo do projeto (PRJ-...) e gerado pelo sistema.
     for status_os in ("AGUARDANDO_RETIRADA", "EM_ANDAMENTO", "AGUARDANDO_PECAS", "ABERTA"):
-        projeto = {"modelo": f"Cozinha {status_os}", "dados_adicionais": {}}
-        _abrir_os_no_status(client, header, cliente_id, projeto, status_os)
+        _abrir_planejados_no_status(client, db_session, header, cliente_id, f"Cozinha {status_os}", status_os)
 
     rotulos = _rotulos_do_dashboard(client, header)
 
@@ -195,8 +219,7 @@ def test_dashboard_da_marcenaria_devolve_o_codigo_do_enum_no_status(client, db_s
     que e o que filtros e links da tela usam."""
     header = _autenticar_e_criar_empresa(client, "marcenaria")
     cliente_id = _criar_cliente(client, header)
-    projeto = {"modelo": "Closet casal", "dados_adicionais": {}}
-    _abrir_os_no_status(client, header, cliente_id, projeto, "AGUARDANDO_RETIRADA")
+    _abrir_planejados_no_status(client, db_session, header, cliente_id, "Closet casal", "AGUARDANDO_RETIRADA")
 
     r = client.get(URL_OS_POR_STATUS, headers=header)
 
