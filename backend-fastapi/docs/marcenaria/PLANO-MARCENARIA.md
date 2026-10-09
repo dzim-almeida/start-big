@@ -131,7 +131,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 |------|------|--------|--------|--------------|
 | 01A | 09/10/2026 | `5540bfd` | +13 | 2.347 passando, 1 pulado |
 | 03A | 09/10/2026 | `00b71e4` | +30; −50 (D17); −1 (Reforma); −39 casos por campo do registry (campos que saíram) | 2.287 passando, 1 pulado |
-| 01B | 09/10/2026 | (commit da 01B) | +28 (vitest) | frontend: 216 testes, `vue-tsc` sem erros |
+| 01B | 09/10/2026 | `c5e89cc` | +28 (vitest) | frontend: 216 testes, `vue-tsc` sem erros |
+| 02 | 09/10/2026 | (commit da 02) | +21 (vitest) | frontend: 237 testes, `vue-tsc` sem erros |
 
 ---
 

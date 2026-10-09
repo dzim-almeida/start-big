@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  ConsultaCnpjErro,
+  TEMPO_LIMITE_CNPJ_MS,
+  buscarDadosCNPJ,
   converterRespostaBrasilApi,
   mapNaturezaJuridica,
   mapRegimeTributario,
@@ -71,5 +74,78 @@ describe('mapRegimeTributario', () => {
 describe('mapNaturezaJuridica', () => {
   it('sem SIMEI, empresário individual continua EI', () => {
     expect(mapNaturezaJuridica('Empresário (Individual)', 'MICRO EMPRESA', false)).toBe('EI');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Spec 02 (marcenaria): a chamada à BrasilAPI diz POR QUE falhou e não fica
+// pendurada sem rede. O `fetch` é simulado: nenhum teste vai à internet.
+// ---------------------------------------------------------------------------
+
+/** Resposta falsa do `fetch` com o status dado. */
+function respostaCom(status: number, corpo: unknown = {}) {
+  return { status, ok: status >= 200 && status < 300, json: async () => corpo } as Response;
+}
+
+/** Roda a consulta e devolve o erro lançado (falha o teste se não lançar). */
+async function erroDe(promessa: Promise<unknown>): Promise<ConsultaCnpjErro> {
+  try {
+    await promessa;
+  } catch (erro) {
+    return erro as ConsultaCnpjErro;
+  }
+  throw new Error('a consulta deveria ter falhado');
+}
+
+describe('buscarDadosCNPJ — motivo da falha e tempo limite', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();                                    // devolve o fetch de verdade
+    vi.useRealTimers();                                       // e o relógio de verdade
+  });
+
+  it('01 — 200 devolve o mesmo mapeamento de converterRespostaBrasilApi', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respostaCom(200, RESPOSTA_MEI)));
+    await expect(buscarDadosCNPJ('58.348.941/0001-60')).resolves.toEqual(converterRespostaBrasilApi(RESPOSTA_MEI));
+  });
+
+  it('02 — 404 é NAO_ENCONTRADO', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respostaCom(404)));
+    const erro = await erroDe(buscarDadosCNPJ('00000000000000'));
+    expect(erro).toBeInstanceOf(ConsultaCnpjErro);
+    expect(erro.motivo).toBe('NAO_ENCONTRADO');
+  });
+
+  it.each([429, 503])('03 — %s é INDISPONIVEL (limite de uso ou servidor fora)', async (status) => {
+    vi.stubGlobal('fetch', vi.fn(async () => respostaCom(status)));
+    expect((await erroDe(buscarDadosCNPJ('00000000000000'))).motivo).toBe('INDISPONIVEL');
+  });
+
+  it('04 — sem rede (fetch rejeita) é INDISPONIVEL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    expect((await erroDe(buscarDadosCNPJ('00000000000000'))).motivo).toBe('INDISPONIVEL');
+  });
+
+  it('05 — sem resposta em 8 s: aborta o fetch e é INDISPONIVEL', async () => {
+    vi.useFakeTimers();                                       // controla o relógio
+    let sinal: AbortSignal | undefined;
+    // fetch que só termina quando é abortado (como uma rede que não responde).
+    vi.stubGlobal('fetch', vi.fn((_url: string, opcoes?: RequestInit) => {
+      sinal = opcoes?.signal ?? undefined;
+      return new Promise((_ok, falha) => sinal?.addEventListener('abort', () => falha(new DOMException('abortado', 'AbortError'))));
+    }));
+    const consulta = erroDe(buscarDadosCNPJ('00000000000000'));
+    await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_CNPJ_MS);  // passam os 8 segundos
+    expect((await consulta).motivo).toBe('INDISPONIVEL');
+    expect(sinal?.aborted).toBe(true);
+  });
+
+  it('06 — a mensagem é a de sempre (o cadastro de empresa mostra só ela)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respostaCom(503)));
+    expect((await erroDe(buscarDadosCNPJ('00000000000000'))).message).toBe('CNPJ não encontrado na Receita Federal');
+  });
+
+  it('07 — o caminho da empresa reexporta a mesma função', async () => {
+    const daEmpresa = await import('@/modules/enterprise/composables/useConsultaCNPJ');
+    expect(daEmpresa.buscarDadosCNPJ).toBe(buscarDadosCNPJ);
   });
 });

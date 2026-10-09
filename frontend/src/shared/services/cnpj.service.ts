@@ -104,11 +104,45 @@ export function converterRespostaBrasilApi(d: Record<string, any>): DadosCnpj {
   };
 }
 
-export async function buscarDadosCNPJ(cnpj: string): Promise<DadosCnpj> {
-  const digits = cnpj.replace(/\D/g, '');
-  const resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-  if (!resp.ok) {
-    throw new Error('CNPJ não encontrado na Receita Federal');
+/**
+ * Por que a consulta falhou (Spec 02 da marcenaria, D1):
+ *   - NAO_ENCONTRADO: a Receita respondeu que o CNPJ não existe (404);
+ *   - INDISPONIVEL: não deu para perguntar (sem rede, tempo esgotado, 429, 5xx).
+ * Antes, as duas viravam "CNPJ não encontrado" e o usuário achava que tinha
+ * digitado errado quando, na verdade, estava sem internet.
+ */
+export type MotivoFalhaCnpj = 'NAO_ENCONTRADO' | 'INDISPONIVEL';
+
+export class ConsultaCnpjErro extends Error {
+  motivo: MotivoFalhaCnpj;                      // declarado no corpo (o tsconfig não aceita parameter properties)
+
+  constructor(motivo: MotivoFalhaCnpj) {
+    // Mensagem antiga, de propósito: o cadastro de EMPRESA mostra só ela num
+    // toast genérico e não pode mudar. Quem quer o motivo lê `motivo`.
+    super('CNPJ não encontrado na Receita Federal');
+    this.name = 'ConsultaCnpjErro';             // facilita reconhecer o erro no console
+    this.motivo = motivo;                       // o cadastro de cliente decide o texto por aqui
   }
-  return converterRespostaBrasilApi(await resp.json());
+}
+
+/** Tempo máximo de espera pela BrasilAPI (Spec 02, D2): sem rede o fetch pode nunca responder. */
+export const TEMPO_LIMITE_CNPJ_MS = 8_000;
+
+export async function buscarDadosCNPJ(cnpj: string): Promise<DadosCnpj> {
+  const digits = cnpj.replace(/\D/g, '');                             // a API só aceita os 14 dígitos
+  const controle = new AbortController();                             // permite cancelar o fetch
+  const timer = setTimeout(() => controle.abort(), TEMPO_LIMITE_CNPJ_MS); // corta a espera em 8 s
+
+  let resp: Response;
+  try {
+    resp = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, { signal: controle.signal });
+  } catch {
+    throw new ConsultaCnpjErro('INDISPONIVEL');                       // sem rede ou tempo esgotado
+  } finally {
+    clearTimeout(timer);                                              // não deixa o timer vivo
+  }
+
+  if (resp.status === 404) throw new ConsultaCnpjErro('NAO_ENCONTRADO'); // a Receita não conhece
+  if (!resp.ok) throw new ConsultaCnpjErro('INDISPONIVEL');             // 429 (limite), 5xx...
+  return converterRespostaBrasilApi(await resp.json());                 // mapeamento de sempre
 }

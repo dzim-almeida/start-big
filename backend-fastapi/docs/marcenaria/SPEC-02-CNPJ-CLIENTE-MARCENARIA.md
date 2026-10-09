@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                 |
 |--------------|-----------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                       |
+| Status       | Implementada em 09/10/2026 (roteiro manual da §11 pendente)           |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                 |
 | Dependências | Spec 00                                                               |
 | Bloqueia     | Spec 06B (o orçamento usa o modal de cliente)                         |
@@ -58,6 +58,8 @@ frontend/src/
 |---------|-----|---------|
 | `cnpj.service.ts` | Chama a BrasilAPI, classifica a falha, corta a espera | Saber de formulário |
 | `useCustomerForm.context.ts` | Decide se é duplicado, preenche (como hoje), guarda o estado | Renderizar |
+
+> **Nota da implementação (09/10/2026):** para os casos 08–15 poderem ser testados sem montar o modal inteiro, a lógica de `consultarReceita` foi **movida** para `customers/composables/modal/context/consultaReceita.ts` (`criarConsultaReceita`), e o provider passou a usá-la. O preenchimento foi movido sem mudança de linha (D9).
 | `CompanyDataSection.vue` | Dispara a consulta automática e mostra o estado | Chamar API |
 
 ---
