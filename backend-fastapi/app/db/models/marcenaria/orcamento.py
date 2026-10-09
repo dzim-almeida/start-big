@@ -19,6 +19,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from app.db.models.funcionario import Funcionario
     from app.db.models.marcenaria.ambiente import MarcenariaAmbiente
     from app.db.models.objeto_servico import ObjetoServico
+    from app.db.models.ordem_servico import OrdemServico
 
 
 class StatusOrcamento:
@@ -63,6 +65,7 @@ class MarcenariaOrcamento(Base):
         Index("ix_marcenaria_orcamentos_status", "status"),
         Index("ix_marcenaria_orcamentos_cliente", "cliente_id"),
         Index("ix_marcenaria_orcamentos_validade", "data_validade"),
+        Index("ix_marcenaria_orcamentos_os", "os_id"),                 # Spec 08A: achar pela OS
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -115,6 +118,15 @@ class MarcenariaOrcamento(Base):
     data_aprovacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)   # Spec 08A
     os_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ordens_servico.id"), nullable=True)  # Spec 08A
 
+    # --- Aprovacao (Spec 08A, secao 5): o que virou OS ----------------------
+    instalacao_aprovada: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)   # NULL ate aprovar
+    resumo_aprovado_total_centavos: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Sinal COMBINADO (o do motor sobre o aprovado) e o que de fato ENTROU na OS
+    # (D15): quando o cliente ainda nao pagou, o recebido e 0 e o combinado fica
+    # guardado para a tela da OS mostrar "ainda nao recebido".
+    resumo_aprovado_sinal_centavos: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sinal_recebido_centavos: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # --- Resumo para a LISTA (D5): atualizado a cada escrita ------------------
     resumo_bruto_centavos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     resumo_total_centavos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -132,6 +144,7 @@ class MarcenariaOrcamento(Base):
     cliente: Mapped[Optional["Cliente"]] = relationship("Cliente")
     funcionario: Mapped[Optional["Funcionario"]] = relationship("Funcionario")
     objeto: Mapped[Optional["ObjetoServico"]] = relationship("ObjetoServico")
+    os: Mapped[Optional["OrdemServico"]] = relationship("OrdemServico")       # a OS da aprovacao (08A)
 
     # A arvore: apagar o orcamento apaga os ambientes (e, deles, moveis e insumos).
     ambientes: Mapped[List["MarcenariaAmbiente"]] = relationship(

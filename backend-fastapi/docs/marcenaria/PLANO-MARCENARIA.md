@@ -139,7 +139,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 04A | 09/10/2026 | `ea86a32` | +28 | 2.315 passando, 1 pulado |
 | 04B | 09/10/2026 | `e9f7287` | +37 (vitest) | frontend: 304 testes, `vue-tsc` sem erros |
 | 05 | 09/10/2026 | `b98901f` | +35 (cenários A, B e C centavo a centavo; 500 orçamentos aleatórios) | 2.350 passando, 1 pulado |
-| 06A | 09/10/2026 | (commit da 06A) | +76 (23 de serviço, 50 de API, 3 da migração; cenário B pelo banco centavo a centavo) | 2.426 passando, 1 pulado |
+| 06A | 09/10/2026 | `5fada11` | +76 (23 de serviço, 50 de API, 3 da migração; cenário B pelo banco centavo a centavo) | 2.426 passando, 1 pulado |
+| 08A | 09/10/2026 | (commit da 08A) | +56 (39 de API, 10 de serviço com 200 aprovações aleatórias, 4 da migração, 3 de não regressão da OS) | 2.482 passando, 1 pulado |
 
 ---
 

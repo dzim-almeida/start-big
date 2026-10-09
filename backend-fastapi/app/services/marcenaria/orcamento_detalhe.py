@@ -25,6 +25,7 @@ from app.services.marcenaria.calculo import (
     arredondar,
     repartir_maior_resto,
 )
+from app.services.marcenaria.aprovacao_bloqueios import os_cancelada
 from app.services.marcenaria.permissoes import (
     PERMISSOES_EXCLUIR_ORCAMENTOS,
     PERMISSOES_GERIR_ORCAMENTOS,
@@ -34,6 +35,7 @@ from app.services.marcenaria.permissoes import (
 # Status em que cada acao faz sentido (secao 6.1, D11-D19).
 _PODE_RECUSAR = (StatusOrcamento.ENVIADO, StatusOrcamento.VENCIDO)
 _PODE_NOVA_VERSAO = (StatusOrcamento.ENVIADO, StatusOrcamento.VENCIDO, StatusOrcamento.RECUSADO)
+_PODE_APROVAR = (StatusOrcamento.RASCUNHO, StatusOrcamento.ENVIADO, StatusOrcamento.VENCIDO)
 
 
 # ===========================================================================
@@ -96,23 +98,31 @@ def _vendedor(funcionario) -> Optional[dict]:
 # ACOES (o que o usuario pode fazer AGORA)
 # ===========================================================================
 
-def montar_acoes(orc: MarcenariaOrcamento, usuario_token: dict) -> dict[str, bool]:
-    """Status + permissao. A tela so mostra botao a partir daqui (06B D13)."""
+def montar_acoes(orc: MarcenariaOrcamento, usuario_token: dict, pode_desfazer: bool = False) -> dict[str, bool]:
+    """Status + permissao. A tela so mostra botao a partir daqui (06B D13).
+
+    `pode_desfazer` vem do servico (08A, secao 7.6): so liga o botao quando
+    nada impede, para a tela nao oferecer o que vai falhar.
+    """
     gerir = tem_alguma(usuario_token, PERMISSOES_GERIR_ORCAMENTOS)
     excluir = tem_alguma(usuario_token, PERMISSOES_EXCLUIR_ORCAMENTOS)
     s = orc.status
+    # 08A D21: aprovado com a OS cancelada pela tela de OS -> o caminho e nova versao.
+    aprovado_com_os_cancelada = s == StatusOrcamento.APROVADO and os_cancelada(orc)
     return {
         "editar": gerir and s == StatusOrcamento.RASCUNHO,
         "enviar": gerir and s == StatusOrcamento.RASCUNHO,
         "voltar_a_editar": gerir and s == StatusOrcamento.ENVIADO,
         "recusar": gerir and s in _PODE_RECUSAR,
         "renovar": gerir and s == StatusOrcamento.VENCIDO,
-        "nova_versao": gerir and s in _PODE_NOVA_VERSAO,
+        "nova_versao": gerir and (s in _PODE_NOVA_VERSAO or aprovado_com_os_cancelada),
         # D18: so a versao 1, em rascunho, que nunca foi enviada.
         "excluir": excluir and s == StatusOrcamento.RASCUNHO and orc.versao == 1 and orc.data_envio is None,
         # D31: anexos em qualquer status, menos SUBSTITUIDO e APROVADO.
         "anexos": gerir and s not in (StatusOrcamento.SUBSTITUIDO, StatusOrcamento.APROVADO),
-        "aprovar": False,   # Spec 08A
+        # 08A D13: aprova de RASCUNHO (registra o envio junto), ENVIADO ou VENCIDO.
+        "aprovar": gerir and s in _PODE_APROVAR,
+        "desfazer_aprovacao": gerir and s == StatusOrcamento.APROVADO and pode_desfazer,
     }
 
 
@@ -157,6 +167,7 @@ def _movel(m: MarcenariaMovel, r: Optional[MovelResultado], custos: bool) -> dic
             {"fornecedor_id": m.central.id, "nome": m.central.nome} if m.central is not None else None
         ),
         "aprovado": m.aprovado,
+        "os_item_id": m.os_item_id,       # o item da OS que o movel virou (08A)
     }
     if custos:
         saida["terceirizado_centavos"] = m.terceirizado_centavos
@@ -203,7 +214,7 @@ def _arquitetos(orc: MarcenariaOrcamento, resultado: OrcamentoResultado, custos:
     return lista
 
 
-def _calculo_geral(resultado: OrcamentoResultado, custos: bool) -> dict:
+def calculo_geral(resultado: OrcamentoResultado, custos: bool) -> dict:
     """Totais. Desconto, total, sinal e saldo sempre; custos e margens so com permissao."""
     saida: dict[str, Any] = {
         "bruto_centavos": resultado.bruto_centavos,
@@ -247,13 +258,40 @@ def _parametros(orc: MarcenariaOrcamento, custos: bool) -> dict:
     return saida
 
 
+def _os_resumo(orc: MarcenariaOrcamento) -> Optional[dict]:
+    """A OS da aprovacao (08A): numero e status, para o link e a faixa."""
+    if orc.os is None:
+        return None
+    return {"id": orc.os.id, "numero_os": orc.os.numero_os, "status": getattr(orc.os.status, "value", orc.os.status)}
+
+
+def _aprovacao(orc: MarcenariaOrcamento, resultado_aprovado: Optional[OrcamentoResultado], custos: bool) -> Optional[dict]:
+    """O que virou OS (08A, secao 6.4). `calculo` aqui e SO o aprovado; o de
+    fora (o orcamento inteiro) continua sendo o que foi proposto."""
+    if orc.status != StatusOrcamento.APROVADO:
+        return None
+    return {
+        "data": orc.data_aprovacao,
+        "instalacao_aprovada": orc.instalacao_aprovada,
+        "total_centavos": orc.resumo_aprovado_total_centavos,
+        "sinal_combinado_centavos": orc.resumo_aprovado_sinal_centavos,
+        "sinal_recebido_centavos": orc.sinal_recebido_centavos,
+        "calculo": calculo_geral(resultado_aprovado, custos) if resultado_aprovado is not None else None,
+    }
+
+
 def montar_detalhe(
     orc: MarcenariaOrcamento,
     resultado: OrcamentoResultado,
     usuario_token: dict,
     custos: bool,
+    resultado_aprovado: Optional[OrcamentoResultado] = None,
+    pode_desfazer: bool = False,
 ) -> dict:
-    """O detalhe completo (secao 6.2), ja recortado."""
+    """O detalhe completo (secao 6.2), ja recortado.
+
+    `resultado_aprovado` e `pode_desfazer` so importam no orcamento APROVADO (08A).
+    """
     # Resultado do motor por id do movel (o motor devolve o id como texto).
     por_movel = {mr.id: mr for amb in resultado.ambientes for mr in amb.moveis}
     por_ambiente = {ar.id: ar for ar in resultado.ambientes}
@@ -302,7 +340,7 @@ def montar_detalhe(
         "desconto": {"modo": orc.desconto_modo, "valor": orc.desconto_valor},
         "sinal": {"modo": orc.sinal_modo, "valor": orc.sinal_valor},
         "ambientes": ambientes,
-        "calculo": _calculo_geral(resultado, custos),
+        "calculo": calculo_geral(resultado, custos),
         "avisos": avisos,
         "datas": {
             "criacao": orc.data_criacao,
@@ -313,9 +351,10 @@ def montar_detalhe(
             "aprovacao": orc.data_aprovacao,
         },
         "motivo_recusa": orc.motivo_recusa,
-        "os": None,                       # preenchido pela Spec 08A
+        "aprovacao": _aprovacao(orc, resultado_aprovado, custos),   # 08A
+        "os": _os_resumo(orc),                                       # 08A
         "inclui_custos": custos,
-        "acoes": montar_acoes(orc, usuario_token),
+        "acoes": montar_acoes(orc, usuario_token, pode_desfazer),
     })
     return detalhe
 
@@ -334,10 +373,16 @@ def montar_item_lista(orc: MarcenariaOrcamento, custos: bool) -> dict:
         "cliente_nome": nome_do_cliente(orc.cliente) or None,
         "projeto_nome": orc.projeto_nome,
         "vendedor_nome": orc.funcionario.nome if orc.funcionario else None,
-        "resumo_total_centavos": orc.resumo_total_centavos,
+        # Aprovado: o total que virou OS (08A, secao 5); senao, o proposto.
+        "resumo_total_centavos": (
+            orc.resumo_aprovado_total_centavos
+            if orc.status == StatusOrcamento.APROVADO and orc.resumo_aprovado_total_centavos is not None
+            else orc.resumo_total_centavos
+        ),
         "resumo_qtd_moveis": orc.resumo_qtd_moveis,
         "data_validade": orc.data_validade,
         "data_atualizacao": orc.data_atualizacao,
+        "os_numero": orc.os.numero_os if orc.status == StatusOrcamento.APROVADO and orc.os else None,
     }
     if custos:
         item["resumo_margem_bp"] = orc.resumo_margem_bp     # margem: so com permissao

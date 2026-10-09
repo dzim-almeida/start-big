@@ -2,12 +2,21 @@
 
 | Campo        | Valor                                                                                    |
 |--------------|------------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                          |
+| Status       | Implementada em 09/10/2026                                                               |
 | Camada       | Backend (FastAPI) ⚠️ código compartilhado (serviço e itens da OS)                        |
 | Dependências | Specs 03A (`origem_orcamento`), 05 (motor), 06A (orçamento, Revisões 1 e 2)              |
 | Bloqueia     | Specs 08B, 09A, 10A, 11A, 12A, 13A, 14                                                   |
 | Revisões     | 1 (06/10/2026): pedidos da Spec 08B · 2 (08/10/2026): insumos como peças embutidas e convergência com a branch (SPEC-00 Revisão 15) — ver o fim do documento |
 | Referência   | SPEC-00: F2, F2b, F3, F4, F4a, O2, O4, O4a, O5, O7, O7a, O8, O8a, C3, C5, C5d, C5d+, C7, C9, E0a, E3b, FB1, R15-MIG · PR1, PR2, PR4, PR6, PR7, PR8 |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Módulo a mais:** `services/marcenaria/aprovacao_bloqueios.py` guarda `BLOQUEIOS_DESFAZER`, `motivos_que_impedem_desfazer` e `os_cancelada`: o detalhe da 06A também precisa deles (para `acoes.desfazer_aprovacao` e `acoes.nova_versao`, D21), e assim `aprovacao.py` e `orcamento.py` não importam um ao outro. **As specs 10A–13A acrescentam as regras delas nessa lista.**
+> (2) **Simular sem mexer em nada:** em vez de marcar os móveis em memória e dar `rollback` (§7.4), `montar_entrada_motor` ganhou o parâmetro `selecao` (móveis escolhidos + instalação), e o `so_aprovados=True` passou a respeitar `instalacao_aprovada` (§7.7). O simular devolve também `desconto_bp_efetivo`, `sinal_bp_efetivo` e (com custos) `margem_bruta_centavos`.
+> (3) **Itens da OS cancelada pelo "desfazer" continuam com `origem`** (a ⚠️ da §7.5): mostram de onde vieram, e a OS cancelada já não se edita. **Vencido depois de desfazer:** o orçamento volta a `ENVIADO` e a regra preguiçosa da 06A o marca `VENCIDO` na leitura que responde a chamada (uma regra só).
+> (4) **Erros a mais:** "Móvel não encontrado neste orçamento." (id de outro orçamento), "O mesmo móvel aparece duas vezes.", "Informe o motivo para desfazer a aprovação." (motivo obrigatório, até 300). Sinal recebido de valor zero conta como não recebido. A trava do item responde nas rotas de item da OS que existem: `PUT` e `DELETE /ordens-servico/{n}/itens/{id}`.
+> (5) **`GET /por-os/{numero_os}`:** permissão `view_`/`manage_orcamentos_marcenaria` **ou** `servico`; `aprovado_por` vem do evento `ORCAMENTO_APROVADO`.
+> (6) **Testes da 06A ajustados:** `acoes.aprovar` agora liga em `RASCUNHO`, `ENVIADO` e `VENCIDO` (era `false` fixo até esta spec), e a paridade de colunas da migração `683ff38df873` desconta as colunas que esta spec acrescenta.
+> (7) **Testes:** 39 de API (01–22, 24–36, 40–44 e bordas), 10 de serviço (37–39, a função pura das peças e a **propriedade 23 com 200 orçamentos aleatórios**), 4 da migração (⚠️ `ordem_servico_itens` sem nenhuma linha mudada, sem recriar a tabela) e 3 de não regressão da OS em informática (28, 29 e a trava genérica); doze mutações das regras principais conferidas.
 
 ---
 

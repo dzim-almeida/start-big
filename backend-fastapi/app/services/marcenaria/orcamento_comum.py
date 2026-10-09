@@ -68,14 +68,17 @@ def registrar_evento(
     descricao: str,
     usuario_token: Optional[dict],
     dados: Optional[dict[str, Any]] = None,
+    os_id: Optional[int] = None,
 ) -> None:
     """Inclui um evento no historico (sem commit: vai junto com a acao).
 
-    `usuario_token=None` = acao do sistema (vencimento).
+    `usuario_token=None` = acao do sistema (vencimento). `os_id` liga o evento
+    a OS (aprovacao e desfazer, Spec 08A D23): a OS conta a mesma historia.
     """
     crud_evento.inserir_evento(
         db,
         orcamento_id=orc.id if orc is not None else None,
+        os_id=os_id,
         tipo=tipo,
         descricao=descricao,
         dados=dados,

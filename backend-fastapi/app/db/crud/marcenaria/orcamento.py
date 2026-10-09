@@ -52,6 +52,12 @@ def get_orcamento(db: Session, orcamento_id: int) -> Optional[MarcenariaOrcament
     return db.scalar(stmt)
 
 
+def get_orcamento_por_os(db: Session, os_id: int) -> Optional[MarcenariaOrcamento]:
+    """O orcamento cuja aprovacao gerou a OS (Spec 08A), com a arvore."""
+    orcamento_id = db.scalar(select(MarcenariaOrcamento.id).where(MarcenariaOrcamento.os_id == os_id))
+    return get_orcamento(db, orcamento_id) if orcamento_id is not None else None
+
+
 def ultimo_codigo_com_prefixo(db: Session, prefixo: str) -> Optional[str]:
     """O codigo mais alto que comeca com o prefixo do ano ("ORC-2026-").
 
@@ -152,6 +158,7 @@ def listar_orcamentos(
         base.options(
             selectinload(MarcenariaOrcamento.cliente),
             selectinload(MarcenariaOrcamento.funcionario),
+            selectinload(MarcenariaOrcamento.os),             # numero da OS no aprovado (08A)
         )
         # Mais recente primeiro; o id desempata duas escritas no mesmo instante.
         .order_by(MarcenariaOrcamento.data_atualizacao.desc(), MarcenariaOrcamento.id.desc())

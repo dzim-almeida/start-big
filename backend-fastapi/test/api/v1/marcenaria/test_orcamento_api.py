@@ -348,10 +348,11 @@ def _acoes_ligadas(d) -> set[str]:
 
 
 def test_33_acoes_por_status_e_permissao(api, cenario, como):
-    assert _acoes_ligadas(cenario) == {"editar", "enviar", "excluir", "anexos"}
+    # "aprovar" desde a Spec 08A: de RASCUNHO, ENVIADO e VENCIDO (08A D13).
+    assert _acoes_ligadas(cenario) == {"editar", "enviar", "excluir", "anexos", "aprovar"}
 
     d = _enviar(api, cenario)
-    assert _acoes_ligadas(d) == {"voltar_a_editar", "recusar", "nova_versao", "anexos"}
+    assert _acoes_ligadas(d) == {"voltar_a_editar", "recusar", "nova_versao", "anexos", "aprovar"}
 
     d = api.ok("POST", f"/{d['id']}/recusar", rev=d["revisao"], json={"motivo": "Prazo"})
     assert _acoes_ligadas(d) == {"nova_versao", "anexos"}
@@ -359,11 +360,10 @@ def test_33_acoes_por_status_e_permissao(api, cenario, como):
     v2 = api.ok("POST", f"/{d['id']}/nova-versao", rev=d["revisao"], esperado=201)
     v1 = api.detalhe(d["id"])
     assert v1["status"] == "SUBSTITUIDO" and _acoes_ligadas(v1) == set()
-    assert _acoes_ligadas(v2) == {"editar", "enviar", "anexos"}       # v2 nao se exclui (D18)
+    assert _acoes_ligadas(v2) == {"editar", "enviar", "anexos", "aprovar"}   # v2 nao se exclui (D18)
 
     como(view_orcamentos_marcenaria=True)                               # so ver: nenhum botao
     assert _acoes_ligadas(api.detalhe(v2["id"])) == set()
-    assert api.detalhe(v2["id"])["acoes"]["aprovar"] is False           # Spec 08A
 
 
 def test_33b_vencido_pode_renovar(api, cenario, db_session):
@@ -375,4 +375,4 @@ def test_33b_vencido_pode_renovar(api, cenario, db_session):
     d = api.detalhe(d["id"])
 
     assert d["status"] == "VENCIDO"
-    assert _acoes_ligadas(d) == {"recusar", "renovar", "nova_versao", "anexos"}
+    assert _acoes_ligadas(d) == {"recusar", "renovar", "nova_versao", "anexos", "aprovar"}

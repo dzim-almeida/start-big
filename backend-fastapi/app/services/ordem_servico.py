@@ -211,6 +211,25 @@ def _assert_item_nao_gerado_pela_fabrica(item: OSItemModel) -> None:
         )
 
 
+# Item que veio de outro documento (ex.: orçamento técnico da marcenaria).
+item_de_outro_documento_exce = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="Este item veio do orçamento. Para mudar, desfaça a aprovação ou crie uma nova versão do orçamento.",
+)
+
+
+def _assert_item_sem_origem(item: OSItemModel) -> None:
+    """409 no item criado a partir de outro documento (Spec 08A da marcenaria, D18).
+
+    Genérico de propósito: o serviço da OS não sabe o que é marcenaria, só que
+    item com `origem` muda no documento de origem (desfazer a aprovação ou nova
+    versão do orçamento). Item com origem nula -- todos os que existiam antes da
+    coluna, e todo item lançado à mão -- passa direto.
+    """
+    if item.origem:
+        raise item_de_outro_documento_exce
+
+
 def _item_conta_no_total(status: OrdemServicoItemAprovacao) -> bool:
     """Um item entra no total da OS a menos que esteja REPROVADO."""
     return status != OrdemServicoItemAprovacao.REPROVADO
@@ -1004,6 +1023,7 @@ def update_item_os(db: Session, numero_os: str, item_id: int, data: OSItemUpdate
     if not item_in_db or item_in_db.ordem_servico_id != os_in_db.id:
         raise item_not_found_exce
     _assert_item_nao_gerado_pela_fabrica(item_in_db)
+    _assert_item_sem_origem(item_in_db)            # item do orçamento técnico (08A, D18)
 
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -1041,6 +1061,7 @@ def remove_item_from_os(db: Session, numero_os: str, item_id: int) -> None:
     if not item_in_db or item_in_db.ordem_servico_id != os_in_db.id:
         raise item_not_found_exce
     _assert_item_nao_gerado_pela_fabrica(item_in_db)
+    _assert_item_sem_origem(item_in_db)            # item do orçamento técnico (08A, D18)
 
     os_crud.delete_os_item(db, item_to_delete=item_in_db)
     db.refresh(os_in_db)

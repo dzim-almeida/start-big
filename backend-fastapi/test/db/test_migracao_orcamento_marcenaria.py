@@ -20,6 +20,15 @@ from app.db.base import Base
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REVISAO_ANTERIOR = "608dc99a8616"          # a head antes da Spec 06A (Spec 04A)
 REVISAO = "683ff38df873"
+# Colunas que as specs SEGUINTES acrescentam aos models destas tabelas (cada
+# uma pela sua migracao): nao fazem parte da foto da 683ff38df873.
+COLUNAS_DE_SPECS_SEGUINTES = {
+    "marcenaria_orcamentos": {   # 971eb6cc5a33 (Spec 08A)
+        "instalacao_aprovada", "resumo_aprovado_total_centavos",
+        "resumo_aprovado_sinal_centavos", "sinal_recebido_centavos",
+    },
+    "marcenaria_moveis": {"os_item_id"},    # 971eb6cc5a33 (Spec 08A)
+}
 TABELAS = (
     "marcenaria_orcamentos", "marcenaria_orcamento_rt", "marcenaria_ambientes", "marcenaria_moveis",
     "marcenaria_movel_insumos", "marcenaria_orcamento_anexos", "marcenaria_eventos",
@@ -66,7 +75,8 @@ def test_banco_antigo_ganha_as_tabelas_iguais_aos_models(banco):
         assert insp.has_table(tabela), tabela
         # A migracao e uma foto dos models de HOJE: mesmas colunas.
         colunas = {c["name"] for c in insp.get_columns(tabela)}
-        assert colunas == set(Base.metadata.tables[tabela].columns.keys()), tabela
+        do_model = set(Base.metadata.tables[tabela].columns.keys()) - COLUNAS_DE_SPECS_SEGUINTES.get(tabela, set())
+        assert colunas == do_model, tabela
     unicos = insp.get_unique_constraints("marcenaria_orcamentos")
     assert [u["column_names"] for u in unicos] == [["codigo", "versao"]]
     with engine.connect() as conn:                       # dados antigos intactos

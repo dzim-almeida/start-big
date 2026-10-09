@@ -51,7 +51,10 @@ class MarcenariaAmbiente(Base):
 class MarcenariaMovel(Base):
     """Um movel do ambiente: medidas, quantidade, producao e mao de obra."""
     __tablename__ = "marcenaria_moveis"
-    __table_args__ = (Index("ix_marcenaria_moveis_ambiente", "ambiente_id"),)
+    __table_args__ = (
+        Index("ix_marcenaria_moveis_ambiente", "ambiente_id"),
+        Index("ix_marcenaria_moveis_os_item", "os_item_id"),          # Spec 08A
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ambiente_id: Mapped[int] = mapped_column(
@@ -76,6 +79,11 @@ class MarcenariaMovel(Base):
 
     # NULL ate a aprovacao (Spec 08A, O4): na aprovacao parcial, so os True viram OS.
     aprovado: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    # O item da OS que este movel virou (08A, D7). O vinculo fica so aqui, e nao
+    # nos dados da OS: o formulario da OS regrava aqueles dados inteiros.
+    os_item_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("ordem_servico_itens.id", ondelete="SET NULL"), nullable=True,
+    )
     ordem: Mapped[int] = mapped_column(Integer, nullable=False)
 
     ambiente: Mapped["MarcenariaAmbiente"] = relationship("MarcenariaAmbiente", back_populates="moveis")

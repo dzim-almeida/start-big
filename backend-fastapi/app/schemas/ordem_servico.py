@@ -124,6 +124,9 @@ class OSItemRead(OSItemBase):
     fabrica_orcamento_id: Optional[int] = Field(None, description="Versão do orçamento da fábrica que gerou o item")
     fabrica_movel_id: Optional[int] = Field(None, description="Móvel do orçamento da fábrica (item do móvel)")
     quantidade_separada: Optional[float] = Field(None, description="Fábrica (F4): o que já saiu do estoque na separação")
+    # Só LEITURA (Spec 08A da marcenaria, D19): o OSItemCreate não tem o campo,
+    # então ninguém cria item "travado" pela API. Nulo em todo item comum.
+    origem: Optional[str] = Field(None, description="Documento que gerou o item (ex.: ORCAMENTO_MARCENARIA). Nulo = item comum")
 
 
 class OSItemUpdate(BaseModel):

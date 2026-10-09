@@ -38,6 +38,8 @@ from app.schemas.marcenaria.orcamento import (
 from app.services import configuracao_marcenaria as configuracao_service
 from app.services.marcenaria import erros
 from app.services.marcenaria import orcamento_precos as precos
+from app.services.marcenaria.aprovacao_bloqueios import motivos_que_impedem_desfazer, os_cancelada
+from app.services.marcenaria.calculo import calcular_orcamento
 from app.services.marcenaria.orcamento_anexos import apagar_anexos_do_codigo
 from app.services.marcenaria.orcamento_calculo import (
     calcular,
@@ -76,7 +78,17 @@ def detalhe(db: Session, orcamento_id: int, usuario_token: dict) -> dict:
     """O detalhe com o calculo do motor (secao 6.2), recortado pela permissao."""
     orc = carregar(db, orcamento_id)
     resultado = calcular_orcamento_do_banco(orc)          # D5: sempre recalcula
-    return montar_detalhe(orc, resultado, usuario_token, pode_ver_custos_marcenaria(usuario_token))
+    resultado_aprovado, pode_desfazer = None, False
+    if orc.status == StatusOrcamento.APROVADO:            # Spec 08A: o que virou OS
+        try:
+            resultado_aprovado = calcular_orcamento(montar_entrada_motor(orc, so_aprovados=True))
+        except ValueError:
+            resultado_aprovado = None                     # nunca deve acontecer: aprovou porque fechava
+        pode_desfazer = not motivos_que_impedem_desfazer(db, orc)
+    return montar_detalhe(
+        orc, resultado, usuario_token, pode_ver_custos_marcenaria(usuario_token),
+        resultado_aprovado=resultado_aprovado, pode_desfazer=pode_desfazer,
+    )
 
 
 # ===========================================================================
@@ -406,10 +418,12 @@ def nova_versao(db: Session, orcamento_id: int, revisao: int, usuario_token: dic
 
     Tudo numa transacao. Devolve o id da versao nova.
     """
-    orc = _carregar_para_transicao(
-        db, orcamento_id, revisao,
-        (StatusOrcamento.ENVIADO, StatusOrcamento.VENCIDO, StatusOrcamento.RECUSADO),
-    )
+    orc = carregar(db, orcamento_id)
+    conferir_revisao(orc, revisao)
+    permitido = orc.status in (StatusOrcamento.ENVIADO, StatusOrcamento.VENCIDO, StatusOrcamento.RECUSADO)
+    # 08A D21: aprovado com a OS cancelada pela tela de OS -> o cliente voltou.
+    if not permitido and not (orc.status == StatusOrcamento.APROVADO and os_cancelada(orc)):
+        erros.transicao_invalida(orc.status)
     nova = MarcenariaOrcamento(
         **{c: getattr(orc, c) for c in _CAMPOS_COPIADOS},
         versao=orc.versao + 1,

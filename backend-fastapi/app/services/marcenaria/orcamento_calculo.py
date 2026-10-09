@@ -12,6 +12,7 @@ leitura o motor recalcula. So o RESUMO do cabecalho (para a lista) e
 atualizado a cada escrita.
 """
 
+from dataclasses import dataclass
 from typing import Optional
 
 from app.db.models.marcenaria.ambiente import MarcenariaMovel
@@ -64,23 +65,47 @@ def soma_rt_bp(orc: MarcenariaOrcamento) -> int:
     return sum(rt.rt_bp for rt in orc.rts)
 
 
+@dataclass(frozen=True)
+class Selecao:
+    """Quais moveis e se a instalacao entram, SEM gravar nada (simular, 08A D12).
+
+    Na aprovacao de verdade a escolha ja esta gravada (`aprovado` de cada movel e
+    `instalacao_aprovada`), e basta `so_aprovados=True`.
+    """
+    movel_ids: frozenset[int]
+    incluir_instalacao: bool
+
+
 def montar_entrada_motor(
     orc: MarcenariaOrcamento,
     so_aprovados: bool = False,
     trocas: Optional[Trocas] = None,
+    selecao: Optional[Selecao] = None,
 ) -> OrcamentoCalc:
     """Converte o orcamento do banco na entrada da Spec 05.
 
-    so_aprovados=True e usado pela Spec 08A (aprovacao parcial, O4): so
-    entram os moveis com aprovado=True. Aqui (06A) e sempre False.
+    so_aprovados=True e usado pela Spec 08A (aprovacao parcial, O4): so entram
+    os moveis com aprovado=True, e a instalacao so com instalacao_aprovada.
+    `selecao` faz o mesmo a partir de uma escolha ainda NAO gravada.
     """
+    def entra(movel) -> bool:
+        if selecao is not None:
+            return movel.id in selecao.movel_ids
+        return not so_aprovados or bool(movel.aprovado)
+
+    instalacao = orc.instalacao_custo_centavos
+    if selecao is not None and not selecao.incluir_instalacao:
+        instalacao = None                               # o cliente nao quis a instalacao
+    elif selecao is None and so_aprovados and not orc.instalacao_aprovada:
+        instalacao = None
+
     ambientes = tuple(
         AmbienteCalc(
             id=str(amb.id),
             moveis=tuple(
                 movel_para_calc(m, trocas)
                 for m in sorted(amb.moveis, key=lambda m: (m.ordem, m.id))
-                if not so_aprovados or m.aprovado
+                if entra(m)
             ),
         )
         for amb in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id))
@@ -92,7 +117,7 @@ def montar_entrada_motor(
         custo_hora_centavos=orc.custo_hora_centavos,
         rt_bp=soma_rt_bp(orc),
         rt_modo=orc.rt_modo,
-        instalacao_custo_centavos=orc.instalacao_custo_centavos,
+        instalacao_custo_centavos=instalacao,
         desconto=AjusteCalc(orc.desconto_modo, orc.desconto_valor),
         sinal=AjusteCalc(orc.sinal_modo, orc.sinal_valor),
     )

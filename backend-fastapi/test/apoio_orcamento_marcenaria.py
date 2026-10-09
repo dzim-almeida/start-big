@@ -227,3 +227,40 @@ def montar_cenario_b(api: Api, produto, fornecedor, cliente: Optional[int] = Non
         ],
     })
     return d
+
+
+# ---------------------------------------------------------------------------
+# Aprovacao (Spec 08A)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def forma_pagamento(client, loja):
+    """Cria uma forma de pagamento (a seed do startup nao roda nos testes)."""
+    def _forma(nome: str = "PIX") -> int:
+        r = client.post("/api/v1/formas-pagamento/", json={"nome": nome, "ativo": True}, headers=loja)
+        assert r.status_code == 201, r.text
+        return r.json()["id"]
+    return _forma
+
+
+def ids_dos_moveis(d: dict) -> list[int]:
+    """Todos os moveis do detalhe, na ordem da tela."""
+    return [m["id"] for amb in d["ambientes"] for m in amb["moveis"]]
+
+
+def aprovar(api: Api, d: dict, movel_ids: Optional[list[int]] = None, esperado: int = 200, **extra) -> Any:
+    """POST /aprovar com todos os moveis (ou os dados). Devolve o JSON (ou a resposta, se esperado != 200)."""
+    corpo = {"movel_ids": movel_ids if movel_ids is not None else ids_dos_moveis(d), **extra}
+    r = api.req("POST", f"/{d['id']}/aprovar", rev=d["revisao"], json=corpo)
+    if esperado != 200:
+        assert r.status_code == esperado, r.text
+        return r
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def os_da_api(api: Api, numero_os: str) -> dict:
+    """A OS como a tela de OS le (GET /ordens-servico/{numero})."""
+    r = api.client.get(f"/api/v1/ordens-servico/{numero_os}", headers=api.header)
+    assert r.status_code == 200, r.text
+    return r.json()

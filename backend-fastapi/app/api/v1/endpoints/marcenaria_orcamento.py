@@ -28,7 +28,8 @@ from app.schemas.marcenaria.orcamento import (
     OrcamentoCriar,
     RecusarEntrada,
 )
-from app.services.marcenaria import erros
+from app.schemas.marcenaria.aprovacao import AprovacaoEntrada, DesfazerEntrada
+from app.services.marcenaria import aprovacao, erros
 from app.services.marcenaria import orcamento as servico
 from app.services.marcenaria.orcamento_comum import exigir_custos
 from app.services.marcenaria.permissoes import (
@@ -102,6 +103,17 @@ def contagens(usuario_token: dict = VER, db: Session = Depends(get_db)):
 @router.get("/projetos", summary="Projetos (objetos) ativos do cliente")
 def projetos(cliente_id: int = Query(...), usuario_token: dict = VER, db: Session = Depends(get_db)):
     return executar(db, servico.projetos_do_cliente, cliente_id)
+
+
+@router.get("/por-os/{numero_os}", summary="O orçamento que gerou a OS (aba Orçamento da OS)")
+def por_os(
+    numero_os: str,
+    # Quem trabalha na OS precisa saber o que foi vendido: vale a permissao de
+    # orcamento OU a de OS ("servico"). A resposta nunca traz custo (08A, Revisao 1).
+    usuario_token: dict = Depends(check_permission(PERMISSOES_VER_ORCAMENTOS + ["servico"])),
+    db: Session = Depends(get_db),
+):
+    return executar(db, aprovacao.resumo_por_os, numero_os)
 
 
 # ===========================================================================
@@ -195,6 +207,41 @@ def nova_versao(
 @router.get("/{orcamento_id}/versoes", summary="Todas as versões do mesmo código")
 def versoes(orcamento_id: int, usuario_token: dict = VER, db: Session = Depends(get_db)):
     return executar(db, servico.versoes, orcamento_id)
+
+
+# ===========================================================================
+# APROVACAO (Spec 08A): cria a OS; desfazer cancela a OS
+# ===========================================================================
+
+@router.post("/{orcamento_id}/aprovacao/simular", summary="Números do que seria aprovado (não grava)")
+def simular_aprovacao(
+    orcamento_id: int, dados: AprovacaoEntrada, usuario_token: dict = GERIR, db: Session = Depends(get_db),
+):
+    return executar(db, aprovacao.simular, orcamento_id, dados, usuario_token)
+
+
+@router.post("/{orcamento_id}/aprovar", summary="Aprovar (todo ou em parte) e criar a OS")
+def aprovar(
+    orcamento_id: int,
+    dados: AprovacaoEntrada,
+    revisao: int = REVISAO,
+    usuario_token: dict = GERIR,
+    db: Session = Depends(get_db),
+):
+    executar(db, aprovacao.aprovar, orcamento_id, revisao, dados, usuario_token)
+    return executar(db, servico.detalhe, orcamento_id, usuario_token)
+
+
+@router.post("/{orcamento_id}/desfazer-aprovacao", summary="Desfazer a aprovação (cancela a OS)")
+def desfazer_aprovacao(
+    orcamento_id: int,
+    dados: DesfazerEntrada,
+    revisao: int = REVISAO,
+    usuario_token: dict = GERIR,
+    db: Session = Depends(get_db),
+):
+    executar(db, aprovacao.desfazer_aprovacao, orcamento_id, revisao, dados, usuario_token)
+    return executar(db, servico.detalhe, orcamento_id, usuario_token)
 
 
 # ===========================================================================
