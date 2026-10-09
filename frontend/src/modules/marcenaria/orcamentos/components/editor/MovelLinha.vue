@@ -46,9 +46,19 @@ const CLASSE_ACAO =
 </script>
 
 <template>
-  <li class="flex flex-wrap items-start justify-between gap-3 py-3" :data-testid="`movel-${movel.id}`">
+  <!-- Não aprovado (08B D13): fica como histórico, esmaecido e com selo. -->
+  <li
+    class="flex flex-wrap items-start justify-between gap-3 py-3"
+    :class="movel.aprovado === false ? 'opacity-50' : ''"
+    :data-testid="`movel-${movel.id}`"
+  >
     <div class="min-w-0 flex-1">
-      <p class="truncate text-sm font-semibold text-zinc-800">{{ movel.nome }}</p>
+      <p class="flex items-center gap-2 truncate text-sm font-semibold text-zinc-800">
+        {{ movel.nome }}
+        <span v-if="movel.aprovado === false" class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600" data-testid="selo-nao-aprovado">
+          Não aprovado
+        </span>
+      </p>
       <p class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-zinc-500">
         <span v-if="medidas">{{ medidas }}</span>
         <span>{{ movel.quantidade }}×</span>

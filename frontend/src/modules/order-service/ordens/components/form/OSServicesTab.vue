@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { Plus, Trash2, Package, Wrench, ShoppingBag, Pencil, Lock } from 'lucide-vue-next';
+import { Plus, Trash2, Package, Wrench, ShoppingBag, Pencil, Lock, ChevronDown } from 'lucide-vue-next';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { formatCurrency } from '@/shared/utils/finance';
@@ -31,7 +31,7 @@ interface Props {
   isLocked?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   isLocked: false,
 });
 
@@ -41,10 +41,29 @@ const emit = defineEmits<{
   removeItem: [index: number];
 }>();
 
-/** Item gerado pelo orçamento da fábrica: muda por uma nova versão, não aqui. */
+/**
+ * Item gerado por um orçamento (fábrica antiga ou marcenaria, Spec 08B D24):
+ * muda pelo orçamento, não aqui (F4a). Olha só os campos do item, nunca o
+ * segmento. Itens de hoje (sem `origem` e sem `fabrica_orcamento_id`) e itens
+ * novos ainda em memória (sem o campo) continuam editáveis.
+ */
 function veioDoOrcamento(item: OsItem): boolean {
-  return 'fabrica_orcamento_id' in item && item.fabrica_orcamento_id != null;
+  const daFabrica = 'fabrica_orcamento_id' in item && item.fabrica_orcamento_id != null;   // regra de antes
+  const comOrigem = 'origem' in item && !!item.origem;                                      // 08A: coluna genérica
+  return daFabrica || comOrigem;
 }
+
+/**
+ * As linhas, com o índice ORIGINAL (editar/remover avisam o pai pelo índice
+ * em `itens`). Peças embutidas que vieram do orçamento (itens de produto com
+ * `origem`) vão para o grupo recolhido do fim (D24a): uma cozinha traz 20
+ * linhas de chapa, fita e ferragem, que empurrariam os móveis para fora da tela.
+ */
+const linhas = computed(() => props.itens.map((item, indice) => ({ item, indice })));
+const ehMaterialDoOrcamento = (item: OsItem) => 'origem' in item && !!item.origem && item.tipo === 'PRODUTO';
+const linhasPrincipais = computed(() => linhas.value.filter(({ item }) => !ehMaterialDoOrcamento(item)));
+const materialDoOrcamento = computed(() => linhas.value.filter(({ item }) => ehMaterialDoOrcamento(item)));
+const materialAberto = ref(false);                        // recolhido por padrão
 
 function getItemIcon(item: OsItem) {
   return item.tipo === 'SERVICO' ? Wrench : ShoppingBag;
@@ -126,7 +145,7 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
 
       <div v-else class="space-y-2">
         <div
-          v-for="(item, index) in itens"
+          v-for="{ item, indice: index } in linhasPrincipais"
           :key="'id' in item && item.id ? item.id : `new-${index}`"
           class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:border-brand-primary/20 transition-colors group"
         >
@@ -182,7 +201,7 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
             <div
               v-if="!isLocked && veioDoOrcamento(item)"
               class="flex items-center gap-1 pl-2 border-l border-slate-100 text-slate-300"
-              title="Veio do orçamento aprovado. Para mudar, faça uma nova versão na aba Orçamento."
+              title="Veio do orçamento aprovado. Para mudar, desfaça a aprovação ou crie uma nova versão do orçamento."
             >
               <Lock :size="14" />
             </div>
@@ -195,6 +214,29 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
               </BaseButton>
             </div>
           </div>
+        </div>
+
+        <!-- Material do orçamento (D24a): recolhido, abre com um clique. Só itens com `origem`. -->
+        <div v-if="materialDoOrcamento.length" class="rounded-lg border border-slate-200 bg-slate-50/50" data-testid="material-orcamento">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between px-3 py-2 text-xs font-bold text-slate-600 cursor-pointer"
+            :aria-expanded="materialAberto"
+            @click="materialAberto = !materialAberto"
+          >
+            <span>Material do orçamento ({{ materialDoOrcamento.length }} {{ materialDoOrcamento.length === 1 ? 'item' : 'itens' }})</span>
+            <ChevronDown :size="14" class="transition-transform" :class="materialAberto ? 'rotate-180' : ''" />
+          </button>
+          <ul v-if="materialAberto" class="divide-y divide-slate-100 border-t border-slate-200 text-xs">
+            <li v-for="{ item, indice } in materialDoOrcamento" :key="'id' in item && item.id ? item.id : `mat-${indice}`" class="flex items-center justify-between px-3 py-1.5">
+              <span class="truncate text-slate-700">{{ item.nome }}</span>
+              <span class="flex shrink-0 items-center gap-3 text-slate-500">
+                {{ item.quantidade }} {{ item.unidade_medida }}
+                <span class="tabular-nums">{{ formatCurrency(getItemTotal(item)) }}</span>
+                <Lock :size="12" class="text-slate-300" />
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
 

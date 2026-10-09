@@ -23,23 +23,35 @@ import { Printer } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
+import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
 import { useConfirmacao } from '@/shared/composables/useConfirmacao';
+import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
+import { useToast } from '@/shared/composables/useToast';
+import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
+import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 
 import { chaveDetalhe } from '../../constants/orcamento.constants';
+import { useAbrirOS } from '../../composables/useAbrirOS';
 import { useAcoesOrcamento } from '../../composables/useAcoesOrcamento';
+import { useAprovacao } from '../../composables/useAprovacao';
 import { proverEditor } from '../../composables/useEditorContexto';
 import { useFilaOrcamento } from '../../composables/useFilaOrcamento';
 import { useImprimirProposta } from '../../composables/useImprimirProposta';
+import { useOrcamentoDaOS } from '../../composables/useOrcamentoDaOS';
 import { useOrcamentoQuery, useVersoesQuery } from '../../composables/useOrcamentoQuery';
 import { usePermissoesOrcamento } from '../../composables/usePermissoesOrcamento';
 import { useSalvamentoAutomatico } from '../../composables/useSalvamentoAutomatico';
 import type { AcoesOrcamento, MovelDetalhe, OrcamentoDetalhe, PrecosDesatualizados } from '../../schemas/orcamentoDetalhe.schema';
 import { criarOrcamento } from '../../services/orcamento.service';
 import { montarDadosProposta } from '../../utils/dadosProposta';
+import type { AprovacaoEntrada, DesfazerEntrada } from '../../schemas/aprovacao.schema';
 import type { CabecalhoForm } from '../../utils/diferencaCabecalho';
-import { statusDoErro } from '../../utils/erros';
+import { codigoDoErro, mensagemDoErro, statusDoErro } from '../../utils/erros';
 import type { PendenciaEnvio } from '../../utils/pendenciasEnvio';
+import AprovarModal from '../modais/AprovarModal.vue';
 import AtualizarPrecosModal from '../modais/AtualizarPrecosModal.vue';
+import DesfazerAprovacaoModal from '../modais/DesfazerAprovacaoModal.vue';
+import OSCriadaModal from '../modais/OSCriadaModal.vue';
 import ConflitoModal from '../modais/ConflitoModal.vue';
 import EnviarModal from '../modais/EnviarModal.vue';
 import HistoricoDrawer from '../modais/HistoricoDrawer.vue';
@@ -98,6 +110,8 @@ const salvamento = useSalvamentoAutomatico(detalhe, fila, { criar });
 watchEffect(() => { pendente.value = salvamento.temPendencia.value; });
 
 const acoesOrcamento = useAcoesOrcamento(id, fila);
+const aprovacao = useAprovacao(id, fila);
+const toast = useToast();
 
 // --- O que pode ser feito (D13) ------------------------------------------------------
 /** Na tela "novo" ainda não há `acoes`: só editar (se puder gerir). */
@@ -261,6 +275,58 @@ async function excluir() {
   }
 }
 
+// --- Aprovação (Spec 08B) -------------------------------------------------------------
+const aprovarAberto = ref(false);
+const osCriadaAberto = ref(false);
+const desfazerAberto = ref(false);
+const desfazendo = ref(false);
+const gerente = useGerenteAprovacao();                            // PIN quando a loja exige (D17)
+const { abrirOS } = useAbrirOS();
+
+async function abrirAprovar() {
+  await gravarPendencias();                                      // a aprovação usa o que está gravado
+  aprovarAberto.value = true;
+}
+
+/** Aprova pela fila (D6). Devolve true se deu certo (o modal fecha e vem o OSCriadaModal, D7). */
+async function aprovar(entrada: AprovacaoEntrada): Promise<boolean> {
+  try {
+    await aprovacao.aprovar(entrada);
+    osCriadaAberto.value = true;
+    return true;
+  } catch (erro) {
+    if (codigoDoErro(erro) !== 'REVISAO_DESATUALIZADA') toast.error('Não foi possível aprovar.', mensagemDoErro(erro));
+    return false;
+  }
+}
+
+/** Desfaz (D16, D17): com a loja exigindo PIN, o modal do gerente pede e reenvia. */
+async function desfazer(entrada: DesfazerEntrada) {
+  desfazendo.value = true;
+  try {
+    const novo = await aprovacao.desfazer(entrada, (pinErrado) => {
+      if (pinErrado) toast.error('PIN do gerente inválido');
+      return gerente.pedirPin();
+    });
+    if (novo) {
+      desfazerAberto.value = false;
+      toast.success('Aprovação desfeita. A OS foi cancelada.');
+    }
+  } catch (erro) {
+    if (codigoDoErro(erro) !== 'REVISAO_DESATUALIZADA') toast.error('Não foi possível desfazer a aprovação.', mensagemDoErro(erro));
+  } finally {
+    desfazendo.value = false;
+  }
+}
+
+// Aprovado: quem aprovou e por que não dá para desfazer vêm do resumo da OS (08A Revisão 1).
+const numeroOs = computed(() => (detalhe.value?.status === 'APROVADO' ? detalhe.value.os?.numero_os ?? null : null));
+const { data: resumoOs } = useOrcamentoDaOS(numeroOs, computed(() => numeroOs.value != null));
+const { rotuloStatus } = useRotulosStatusOS();
+const rotuloStatusOs = computed(() =>
+  detalhe.value?.os ? rotuloStatus(detalhe.value.os.status as OsStatusEnumDataType) : null,
+);
+
 // --- Atualizar preços (O3, D39, D40) -------------------------------------------------
 const precos = ref<PrecosDesatualizados | null>(null);
 const precosAbertos = ref(false);
@@ -372,6 +438,7 @@ const erroCarregar = computed(() => {
       @alternar-visao-cliente="visaoCliente = !visaoCliente"
       @historico="historicoAberto = true"
       @enviar="abrirEnviar"
+      @aprovar="abrirAprovar"
       @excluir="excluir"
       @tentar-agora="salvamento.salvarAgora()"
       @abrir-versao="abrirVersao"
@@ -399,6 +466,12 @@ const erroCarregar = computed(() => {
         v-if="detalhe"
         :detalhe="detalhe"
         :versao-substituta="versaoSubstituta"
+        :aprovado-por="resumoOs?.aprovado_por ?? null"
+        :rotulo-status-os="rotuloStatusOs"
+        :motivos-desfazer="resumoOs?.motivos_desfazer ?? []"
+        @abrir-os="detalhe?.os && abrirOS(detalhe.os.numero_os)"
+        @proposta-aprovada="imprimir(undefined, 'aprovada')"
+        @desfazer="desfazerAberto = true"
         @voltar-a-editar="voltarAberto = true"
         @recusar="recusarAberto = true"
         @nova-versao="novaVersao"
@@ -450,6 +523,31 @@ const erroCarregar = computed(() => {
     />
     <AtualizarPrecosModal :is-open="precosAbertos" :precos="precos" :gravando="gravandoPrecos" @close="precosAbertos = false" @atualizar="atualizarPrecos" />
     <HistoricoDrawer :id="id" :aberto="historicoAberto" @fechar="historicoAberto = false" />
+    <!-- Aprovação (Spec 08B) -->
+    <AprovarModal v-if="detalhe && acoes.aprovar" :is-open="aprovarAberto" :detalhe="detalhe" :aprovar="aprovar" @close="aprovarAberto = false" />
+    <OSCriadaModal
+      :is-open="osCriadaAberto"
+      :detalhe="detalhe"
+      @close="osCriadaAberto = false"
+      @abrir-os="osCriadaAberto = false; detalhe?.os && abrirOS(detalhe.os.numero_os)"
+      @imprimir-aprovada="osCriadaAberto = false; imprimir(undefined, 'aprovada')"
+    />
+    <DesfazerAprovacaoModal
+      v-if="detalhe?.os"
+      :is-open="desfazerAberto"
+      :numero-os="detalhe.os.numero_os"
+      :sinal-recebido-centavos="resumoOs?.sinal_recebido_centavos ?? detalhe.aprovacao?.sinal_recebido_centavos ?? 0"
+      :gravando="desfazendo"
+      @close="desfazerAberto = false"
+      @confirmar="desfazer"
+    />
+    <GerenteAprovacaoModal
+      :is-open="gerente.isOpen.value"
+      motivo="Cancelar a OS"
+      descricao="Desfazer a aprovação cancela a OS. Insira o PIN do gerente para autorizar."
+      @confirmar="gerente.confirmar"
+      @cancelar="gerente.cancelar"
+    />
     <ConflitoModal :is-open="fila.conflito.value" :campos-perdidos="salvamento.camposPendentes.value" :recarregando="recarregando" @recarregar="recarregar" />
     <!-- O documento só existe enquanto imprime (Spec 07 §6.3). -->
     <PropostaPrintTemplate v-if="dadosParaImprimir" :dados="dadosParaImprimir" />

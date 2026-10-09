@@ -10,7 +10,7 @@
  * `...detalhe` nem `...movel`, que levariam junto o que o cliente não pode ver.
  * Um teste varre as chaves da saída para garantir isso.
  */
-import { formatDataPura } from '@/shared/utils/date.utils';
+import { formatData, formatDataPura } from '@/shared/utils/date.utils';
 import { formatPrintDoc, formatPrintPhone } from '@/shared/utils/print.utils';
 
 import type { StatusOrcamento } from '../constants/orcamento.constants';
@@ -40,6 +40,12 @@ export interface AjusteProposta {
 
 /** Tudo o que a proposta e a visão do cliente mostram. Nada de custo. */
 export interface DadosProposta {
+  /** 'proposta' = tudo o que foi oferecido; 'aprovada' = só o que o cliente aceitou (08B D25). */
+  modo: 'proposta' | 'aprovada';
+  /** "PROPOSTA COMERCIAL" ou "PROPOSTA APROVADA". */
+  titulo: string;
+  /** Proposta aprovada: "Aprovada em 06/10/2026 · OS-2026-000512"; senão null. */
+  aprovacaoTexto: string | null;
   codigo: string;
   versao: number;
   status: StatusOrcamento;
@@ -62,6 +68,8 @@ export interface DadosProposta {
   totalCentavos: number;
   /** null quando o sinal é zero (Spec 07 D11: só "Total a pagar"). */
   sinal: AjusteProposta | null;
+  /** Proposta aprovada: o sinal já entrou ("recebido") ou não ("a receber"); senão null. */
+  sinalSituacao: 'recebido' | 'a receber' | null;
   saldoCentavos: number;
   prazoEntregaDias: number;
   /** Observações da proposta, com as quebras de linha digitadas. */
@@ -72,6 +80,8 @@ export interface DadosProposta {
 export interface OpcoesProposta {
   /** Número da versão que substituiu esta (faixa "VERSÃO SUBSTITUÍDA pela v3"). */
   versaoSubstituta?: number | null;
+  /** 'aprovada': só os móveis aprovados e os totais da aprovação (08B D25). */
+  modo?: 'proposta' | 'aprovada';
 }
 
 /** "L 700 × A 2200 × P 600 mm"; medida vazia fica de fora; nenhuma medida = "". */
@@ -120,8 +130,14 @@ function faixaDoStatus(detalhe: OrcamentoDetalhe, opcoes: OpcoesProposta): strin
  * o mesmo detalhe e a mesma data dão sempre o mesmo resultado.
  */
 export function montarDadosProposta(detalhe: OrcamentoDetalhe, hoje: Date, opcoes: OpcoesProposta = {}): DadosProposta {
+  // Proposta aprovada só existe com a aprovação gravada; sem ela, é a proposta normal.
+  if (opcoes.modo === 'aprovada' && detalhe.aprovacao?.calculo) return montarAprovada(detalhe, hoje);
   const { calculo } = detalhe;
   return {
+    modo: 'proposta',
+    titulo: 'PROPOSTA COMERCIAL',
+    aprovacaoTexto: null,
+    sinalSituacao: null,
     codigo: detalhe.codigo,
     versao: detalhe.versao,
     status: detalhe.status,
@@ -165,5 +181,51 @@ export function montarDadosProposta(detalhe: OrcamentoDetalhe, hoje: Date, opcoe
     saldoCentavos: calculo.saldo_centavos,
     prazoEntregaDias: detalhe.parametros.prazo_entrega_dias,
     observacoes: detalhe.observacoes_proposta ?? '',
+  };
+}
+
+/**
+ * A proposta APROVADA (08B D25): só os móveis aprovados, a instalação se foi
+ * aprovada e os totais da aprovação (`aprovacao.calculo`). É o documento que o
+ * cliente assina como pedido: os móveis que ele recusou não aparecem.
+ *
+ * O total de cada ambiente é a soma dos preços dos móveis APROVADOS dele. É a
+ * única soma da proposta, e fecha com o bruto aprovado porque o motor arredonda
+ * só no preço de cada móvel (C6): bruto = Σ preços dos móveis + instalação.
+ */
+function montarAprovada(detalhe: OrcamentoDetalhe, hoje: Date): DadosProposta {
+  const normal = montarDadosProposta(detalhe, hoje);                     // cliente, projeto etc. iguais
+  const aprovacao = detalhe.aprovacao!;
+  const calculo = aprovacao.calculo!;
+  const ambientes = detalhe.ambientes
+    .map((ambiente) => {
+      const aprovados = ambiente.moveis.filter((movel) => movel.aprovado === true);
+      return {
+        nome: ambiente.nome,
+        totalCentavos: aprovados.reduce((soma, movel) => soma + (movel.calculo?.preco_total_centavos ?? 0), 0),
+        moveis: aprovados.map((movel) => ({
+          nome: movel.nome,
+          descricao: movel.descricao ?? '',
+          medidas: formatarMedidasProposta(movel.largura_mm, movel.altura_mm, movel.profundidade_mm),
+          quantidade: movel.quantidade,
+        })),
+      };
+    })
+    .filter((ambiente) => ambiente.moveis.length > 0);                   // ambiente sem aprovado não sai
+  const recebido = (aprovacao.sinal_recebido_centavos ?? 0) > 0;
+  return {
+    ...normal,
+    modo: 'aprovada',
+    titulo: 'PROPOSTA APROVADA',
+    aprovacaoTexto: [`Aprovada em ${formatData(aprovacao.data, '')}`, detalhe.os?.numero_os].filter(Boolean).join(' · '),
+    faixa: null,                                                          // aprovada não leva faixa
+    ambientes,
+    instalacaoCentavos: aprovacao.instalacao_aprovada ? calculo.instalacao?.preco_centavos ?? null : null,
+    subtotalCentavos: calculo.bruto_centavos,
+    desconto: ajuste(detalhe.desconto, calculo.desconto_centavos),
+    totalCentavos: calculo.total_centavos,
+    sinal: ajuste(detalhe.sinal, calculo.sinal_centavos),
+    sinalSituacao: calculo.sinal_centavos > 0 ? (recebido ? 'recebido' : 'a receber') : null,
+    saldoCentavos: calculo.saldo_centavos,
   };
 }

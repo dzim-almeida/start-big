@@ -18,7 +18,11 @@ defineProps<{
   mostrarMargem: boolean;
 }>();
 
-const emit = defineEmits<{ abrir: [id: number] }>();
+const emit = defineEmits<{
+  abrir: [id: number];
+  /** Coluna OS (08B §7.5): abre a OS gerada pela aprovação. */
+  abrirOs: [numeroOs: string];
+}>();
 
 /** Validade só importa enquanto o cliente pode aceitar (enviado ou vencido). */
 function validadeVisivel(item: ItemListaOrcamento): boolean {
@@ -54,6 +58,7 @@ function classeValidade(validade: string): string {
         <th v-if="mostrarMargem" class="px-5 py-3 text-right" data-testid="coluna-margem">Margem</th>
         <th class="px-5 py-3">Validade</th>
         <th class="px-5 py-3">Status</th>
+        <th class="px-5 py-3">OS</th>
         <th class="px-5 py-3">Atualizado</th>
       </tr>
     </thead>
@@ -92,8 +97,18 @@ function classeValidade(validade: string): string {
         </td>
         <td class="px-5 py-3">
           <OrcamentoStatusBadge :status="item.status" />
-          <!-- Aprovado: a OS que ele gerou (08A). -->
-          <p v-if="item.os_numero" class="mt-0.5 text-[11px] text-zinc-400">OS {{ item.os_numero }}</p>
+        </td>
+        <!-- Aprovado: a OS que ele gerou, como link (o clique não abre o orçamento). -->
+        <td class="px-5 py-3 whitespace-nowrap">
+          <button
+            v-if="item.status === 'APROVADO' && item.os_numero"
+            type="button"
+            class="text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
+            :data-testid="`abrir-os-${item.id}`"
+            @click.stop="emit('abrirOs', item.os_numero)"
+          >
+            {{ item.os_numero }}
+          </button>
         </td>
         <td class="px-5 py-3 whitespace-nowrap text-xs text-zinc-400">
           {{ atualizadoHa(item.data_atualizacao) }}

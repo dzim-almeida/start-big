@@ -18,6 +18,9 @@ import { centavosParaReais, reaisParaCentavos } from '../../utils/conversoes';
 
 const { form, detalhe, editavel, incluiCustos } = useEditor();
 
+/** Aprovado sem a instalação (08B D13): ela fica esmaecida, como os móveis recusados. */
+const instalacaoRecusada = computed(() => detalhe.value?.aprovacao?.instalacao_aprovada === false);
+
 /** Preço da instalação calculado pela API (null = sem instalação). */
 const preco = computed(() => detalhe.value?.calculo.instalacao?.preco_centavos ?? null);
 
@@ -35,8 +38,11 @@ const custoReais = computed({
 </script>
 
 <template>
-  <section class="rounded-2xl border border-zinc-200 bg-white p-5" aria-labelledby="titulo-instalacao">
-    <h2 id="titulo-instalacao" class="mb-3 text-sm font-bold text-zinc-800">Instalação</h2>
+  <section class="rounded-2xl border border-zinc-200 bg-white p-5" :class="instalacaoRecusada ? 'opacity-60' : ''" aria-labelledby="titulo-instalacao">
+    <h2 id="titulo-instalacao" class="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-800">
+      Instalação
+      <span v-if="instalacaoRecusada" class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">Não aprovada</span>
+    </h2>
 
     <!-- Com custos: liga/desliga e informa o custo; o preço vem pronto. -->
     <div v-if="incluiCustos" class="flex flex-wrap items-end gap-6">

@@ -29,6 +29,10 @@ vi.mock('../services/orcamento.service', () => ({
   patchOrcamento: (...args: unknown[]) => patch(...args),
 }));
 vi.mock('../services/orcamentoAnexos.service', () => ({ listarAnexos: async () => [] }));
+vi.mock('../services/aprovacao.service', async (original) => ({
+  ...(await original<typeof import('../services/aprovacao.service')>()),
+  getResumoPorOs: async () => (await import('./fixtures/resumo-por-os.json')).default,
+}));
 vi.mock('@/modules/order-service/ordens/composables/request/relationship/useOSRelationshipGet.queries', () => ({
   useOsEmployeesGet: () => ({ data: ref([{ id: 1, nome: 'Admin Master' }]), isError: ref(false) }),
 }));
@@ -56,6 +60,8 @@ vi.mock('@/modules/order-service/ordens/components/OSClienteSearchModal.vue', ()
 const { default: OrcamentoEditorView } = await import('../views/OrcamentoEditorView.vue');
 const { default: EditorOrcamento } = await import('../components/editor/EditorOrcamento.vue');
 const { detalheFixture, novoQueryClient } = await import('./apoio');
+const { orcamentoDetalheSchema } = await import('../schemas/orcamentoDetalhe.schema');
+const aprovadoFixture = (await import('./fixtures/detalhe-aprovado-com-custos.json')).default;
 
 function montarNaRota(caminho: string) {
   const router = createRouter({
@@ -110,6 +116,18 @@ describe('editor do orçamento (pela rota)', () => {
     expect(wrapper.find('[data-testid="painel-custos"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="instalacao-so-preco"]').text()).toContain('R$ 1.425,00');
     expect(wrapper.findAll('[data-testid="custo-movel"]')).toHaveLength(0);
+  });
+
+  it('aprovado (08B): faixa com a OS, móvel recusado esmaecido, resumo proposto × aprovado, nada editável', async () => {
+    resposta.detalhe = orcamentoDetalheSchema.parse(structuredClone(aprovadoFixture));
+    const wrapper = await montarNaRota('/orcamentos/1').montar();
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="faixa-texto"]').text()).toContain('por Admin Master'));
+    expect(wrapper.find('[data-testid="faixa-texto"]').text()).toContain('OS-2026-000001');
+    expect(wrapper.find('[data-testid="acao-desfazer"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="movel-2"] [data-testid="selo-nao-aprovado"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="painel-resumo"]').text()).toContain('Aprovado');
+    expect(wrapper.find('[data-testid="acao-aprovar"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="novo-ambiente"]').exists()).toBe(false);
   });
 
   it('13 — "novo": nada é gravado até escolher o cliente; aí POST e a rota vira /orcamentos/:id', async () => {

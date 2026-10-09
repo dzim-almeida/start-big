@@ -51,6 +51,11 @@ export const OsItemReadSchema = z.object({
   // nova versão, nunca pela OS (o backend responde 409).
   fabrica_orcamento_id: z.number().int().positive().optional().nullable(),
   fabrica_movel_id: z.number().int().positive().optional().nullable(),
+  /**
+   * De onde o item veio (ex.: 'ORCAMENTO_MARCENARIA', Spec 08A). Null = item
+   * comum, editável (F4a). Só leitura: o envio (OsItemCreateSchema) não muda.
+   */
+  origem: z.string().nullable().optional(),
 });
 
 export const OsItemUpdateSchema = z.object({

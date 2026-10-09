@@ -42,11 +42,16 @@ const projeto = computed(() =>
     <div class="print-container proposta hidden print:block bg-white text-black font-sans leading-snug" data-testid="proposta">
       <PrintCompanyHeader
         :company="companyInfo"
-        document-label="PROPOSTA COMERCIAL"
+        :document-label="dados.titulo"
         :document-number="`${dados.codigo} · v${dados.versao}`"
         date-label="Emitida em"
         :date-value="dados.emitidaEm"
       />
+
+      <!-- Proposta aprovada (08B D25): quando e qual OS. -->
+      <p v-if="dados.aprovacaoTexto" class="mb-3 text-xs font-bold uppercase tracking-wider" data-testid="proposta-aprovacao">
+        {{ dados.aprovacaoTexto }}
+      </p>
 
       <!-- Faixa de status (D6): texto e borda, sem cor. -->
       <p v-if="dados.faixa" class="proposta-faixa mb-4 border-2 border-neutral-900 px-3 py-1.5 text-center text-sm font-black uppercase tracking-wider" data-testid="proposta-faixa">
@@ -112,13 +117,18 @@ const projeto = computed(() =>
 
         <div class="mt-4 text-xs">
           <p class="mb-1 text-[10px] font-bold uppercase tracking-widest text-neutral-600">Condições</p>
-          <p v-if="dados.sinal">
+          <!-- Aprovada: o sinal já combinado, recebido ou a receber (08B D25). -->
+          <p v-if="dados.sinal && dados.sinalSituacao">
+            Sinal: {{ formatCurrency(dados.sinal.centavos) }}<template v-if="dados.sinal.percentualTexto"> ({{ dados.sinal.percentualTexto }})</template>
+            — {{ dados.sinalSituacao }} · Saldo: {{ formatCurrency(dados.saldoCentavos) }}
+          </p>
+          <p v-else-if="dados.sinal">
             Sinal na aprovação: {{ formatCurrency(dados.sinal.centavos) }}<template v-if="dados.sinal.percentualTexto"> ({{ dados.sinal.percentualTexto }})</template>
             · Saldo: {{ formatCurrency(dados.saldoCentavos) }}
           </p>
           <p v-else>Total a pagar: {{ formatCurrency(dados.totalCentavos) }}</p>
           <p>Prazo de entrega: {{ dados.prazoEntregaDias }} dias corridos após a aprovação</p>
-          <p>Validade: {{ dados.validadeTexto }}</p>
+          <p v-if="dados.modo === 'proposta'">Validade: {{ dados.validadeTexto }}</p>
         </div>
 
         <!-- Observações com as quebras de linha digitadas (D15) -->

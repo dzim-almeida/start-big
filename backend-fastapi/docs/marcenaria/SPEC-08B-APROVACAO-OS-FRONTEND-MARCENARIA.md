@@ -2,11 +2,19 @@
 
 | Campo        | Valor                                                                                   |
 |--------------|-----------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                         |
+| Status       | Implementada em 09/10/2026                                                              |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (abas e itens do modal de OS)     |
 | Dependências | Specs 06B (editor), 07 (proposta), 08A (API, com a Revisão 1)                           |
 | Bloqueia     | Specs 10B, 11B, 12B, 13B (novas abas da OS seguem o mesmo padrão)                        |
 | Referência   | SPEC-00: F3, F4, F4a, F2b, O4, O4a, O7a, O8, O8a, T1, T3f, T5, FB1 · PR1, PR3, PR6      |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Quem aprovou e por que não dá para desfazer** não vêm no detalhe do orçamento: no status `APROVADO` o editor lê o mesmo `GET /por-os/{numero_os}` da aba da OS (`aprovado_por`, `motivos_desfazer`). O rótulo do status da OS na faixa usa os rótulos do segmento ("Em Produção"), como o resto da OS.
+> (2) **Na OS, nada novo no contexto do modal:** "Preencher adiantamento" usa o `handleValorEntradaUpdate` que já existe e põe no campo o **sinal combinado** (= o que já entrou + o que falta); "Abrir orçamento" usa o `handleClose` de sempre e navega (o modal de OS não tem pergunta de alterações não salvas para reaproveitar). O `OSControlsCard` mantém a prop opcional `statusDaEtapa` (o shell só deixou de passá-la); a pasta `order-service/fabrica/` continua inerte.
+> (3) **Grupo "Material do orçamento" (D24a):** a lista principal e o grupo guardam o índice ORIGINAL de cada item, porque editar/remover avisam o pai pela posição em `itens`.
+> (4) **Proposta aprovada (D25):** o total de cada ambiente é a soma dos preços dos móveis aprovados dele (a única soma da proposta; fecha com o bruto aprovado por C6, e um teste confere). O sinal sai como "— recebido" ou "— a receber": a forma de pagamento do sinal não vem no detalhe.
+> (5) **AprovarModal:** o erro "Informe a forma de pagamento do sinal." aparece assim que "Sim, recebi" é marcado (o botão fica desabilitado, então o motivo precisa estar à vista). Com a simulação em erro, o bloco do sinal some (não há sinal confiável para perguntar) e o botão fica desabilitado. PIN do gerente errado avisa e pede de novo.
+> (6) **Arquivos a mais:** `composables/useAbrirOS.ts` (busca a OS pelo número e a entrega ao fluxo global de OS, o mesmo do painel de notificações; usado pela faixa, pelo `OSCriadaModal` e pela coluna OS da lista). Os JSON do estado aprovado em `__tests__/fixtures/` também foram gerados pela API real da 08A.
 
 > **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) **Cadeado:** a aba "Serviços e Peças" já tem o cadeado de "item que veio do orçamento" para a fábrica (`OSServicesTab.veioDoOrcamento`, que olha `fabrica_orcamento_id`). A D24 passa a **estender essa função** para olhar também `origem`, com o mesmo ícone e um texto que serve aos dois; nada de selo novo. (2) **Peças embutidas** (08A Revisão 2): os insumos aprovados chegam como itens de produto de valor zero; eles ficam agrupados e recolhidos no fim da lista ("Material do orçamento (N)"), D24a. (3) **Fábrica aposentada (FB1):** ao criar a aba `'orcamento'`, saem de `OSFormTabsContent.vue` o trilho e a aba Orçamento da fábrica (dependiam de `fase_fabrica`, que nenhuma OS nova recebe) e, de `OSFormModalShell.vue`, a trava do status por etapa (`status-da-etapa`), D19a.
 

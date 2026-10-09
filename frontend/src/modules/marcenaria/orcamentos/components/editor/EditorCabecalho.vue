@@ -10,7 +10,7 @@
  */
 import { computed, ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
-import { AlertCircle, ArrowLeft, Check, Eye, History, Loader2, MoreHorizontal, Send } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Check, CheckCheck, Eye, History, Loader2, MoreHorizontal, Send } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
@@ -34,6 +34,8 @@ const emit = defineEmits<{
   alternarVisaoCliente: [];
   historico: [];
   enviar: [];
+  /** Spec 08B D1: aprovar e gerar a OS. */
+  aprovar: [];
   excluir: [];
   tentarAgora: [];
   abrirVersao: [id: number];
@@ -137,6 +139,10 @@ const acoes = computed(() => props.detalhe?.acoes);
         </div>
       </div>
 
+      <!-- Aprovar (08B D1): é o objetivo do orçamento, não fica escondido no "Mais". -->
+      <BaseButton v-if="acoes?.aprovar" variant="secondary" size="sm" data-testid="acao-aprovar" @click="emit('aprovar')">
+        <CheckCheck :size="14" class="mr-1" /> Aprovar
+      </BaseButton>
       <!-- Enviar fica sempre visível no rascunho: o modal explica o que falta (D36). -->
       <BaseButton v-if="acoes?.enviar" variant="primary" size="sm" data-testid="acao-enviar" @click="emit('enviar')">
         <Send :size="14" class="mr-1" /> Enviar ao cliente

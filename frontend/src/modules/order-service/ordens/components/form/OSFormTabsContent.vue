@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
-import { ClipboardCheck, ClipboardList, Image as ImageIcon, Package, Ruler } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+import { ClipboardCheck, ClipboardList, FileSpreadsheet, Image as ImageIcon, Package } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -22,19 +23,19 @@ const ComprasDaOSPanel = defineAsyncComponent(
 );
 const osSalvaId = computed(() => view.currentOSData.value?.id ?? null);
 
-// Marcenaria-fábrica: a aba Orçamento só existe na OS que nasceu no trilho
-// (`fase_fabrica` preenchida). Sob demanda — os outros segmentos nem baixam.
-const OrcamentoFabricaTab = defineAsyncComponent(
-  () => import('@/modules/order-service/fabrica/components/OrcamentoFabricaTab.vue'),
+// Marcenaria (Spec 08B D19): aba "Orçamento" com o que foi vendido. Sob
+// demanda — os outros segmentos nem baixam. O trilho e a aba da fábrica saíram
+// (SPEC-00 FB1; 08B D19a): dependiam de `fase_fabrica`, que nenhuma OS nova recebe.
+const OSOrcamentoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/orcamentos/components/os/OSOrcamentoTab.vue'),
 );
-const ehDaFabrica = computed(() => !!view.currentOSData.value?.fase_fabrica);
-const TrilhoFabrica = defineAsyncComponent(
-  () => import('@/modules/order-service/fabrica/components/TrilhoFabrica.vue'),
-);
-const clienteDaOS = computed(() => {
-  const cliente = view.currentOSData.value?.cliente as { nome?: string; razao_social?: string; nome_fantasia?: string } | undefined;
-  return cliente?.nome ?? cliente?.nome_fantasia ?? cliente?.razao_social ?? '';
-});
+const router = useRouter();
+
+/** "Abrir orçamento" (D20): fecha o modal de OS e vai para o orçamento. */
+function abrirOrcamento(orcamentoId: number) {
+  view.handleClose();
+  void router.push({ name: 'marcenaria-orcamento', params: { id: orcamentoId } });
+}
 
 type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'orcamento';
 
@@ -42,7 +43,7 @@ const view = useOSFormView();
 
 // Rótulo e ícone da aba do objeto vêm do contrato (Veículo/Equipamento).
 const { labelSingular, objetoIcon } = useObjetoLabels();
-const { temVistoria, temDiagnostico, temImagemNaEntrada } = useCapacidades();
+const { temVistoria, temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } = useCapacidades();
 
 // Qual aba de objeto usar. `temTipos` só é verdadeiro para segmento que declara
 // tipos de trabalho no registry — oficina e informática não declaram, então
@@ -74,8 +75,10 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
       : { id: 'diagnostico', label: 'Imagens', icon: ImageIcon },
     { id: 'servicos', label: 'Serviços e Peças', icon: Package },
   );
-  if (ehDaFabrica.value) {
-    tabs.push({ id: 'orcamento', label: 'Orçamento', icon: Ruler });
+  // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
+  // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
+  if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
+    tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
 });
@@ -104,14 +107,6 @@ const objetoModel = computed<ObjetoFormData>({
 
 <template>
   <div>
-    <TrilhoFabrica
-      v-if="ehDaFabrica && view.currentOSData.value"
-      :numero-os="view.currentOSData.value.numero_os"
-      :fase="view.currentOSData.value.fase_fabrica ?? ''"
-      :atualizado-em="view.currentOSData.value.data_atualizacao"
-      class="mb-4"
-      @os-alterada="view.refreshCurrentOSData"
-    />
     <div class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
       <button
         v-for="tab in visibleTabs"
@@ -195,14 +190,13 @@ const objetoModel = computed<ObjetoFormData>({
         :os-id="osSalvaId"
       />
 
-      <!-- Fora do fieldset: tem as próprias ações e travas (só o rascunho se edita). -->
-      <OrcamentoFabricaTab
-        v-if="activeTab === 'orcamento' && ehDaFabrica && view.currentOSData.value"
+      <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->
+      <OSOrcamentoTab
+        v-if="activeTab === 'orcamento' && view.currentOSData.value"
         :numero-os="view.currentOSData.value.numero_os"
-        :cliente="clienteDaOS"
-        :projeto="view.currentOSData.value.objeto?.modelo ?? ''"
-        :travada="view.isFinalizada.value || view.isCancelada.value"
-        @os-alterada="view.refreshCurrentOSData"
+        :total-os-centavos="view.currentOSData.value.valor_total ?? null"
+        @preencher-adiantamento="view.handleValorEntradaUpdate"
+        @abrir-orcamento="abrirOrcamento"
       />
 
       <OSDiagnosticoTab

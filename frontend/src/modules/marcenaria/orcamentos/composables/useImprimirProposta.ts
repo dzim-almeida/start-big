@@ -36,9 +36,10 @@ export function useImprimirProposta(opcoes: Opcoes) {
 
   /**
    * Imprime a proposta. `atual` permite imprimir o detalhe que ACABOU de
-   * voltar do envio (com a validade gravada, D7). Devolve true se o diálogo abriu.
+   * voltar do envio (com a validade gravada, D7). `modo: 'aprovada'` imprime
+   * só o que o cliente aprovou (08B D25). Devolve true se o diálogo abriu.
    */
-  async function imprimir(atual?: OrcamentoDetalhe): Promise<boolean> {
+  async function imprimir(atual?: OrcamentoDetalhe, modo: 'proposta' | 'aprovada' = 'proposta'): Promise<boolean> {
     if (imprimindo.value) return false;
     imprimindo.value = true;
     try {
@@ -55,6 +56,7 @@ export function useImprimirProposta(opcoes: Opcoes) {
       }
       dadosParaImprimir.value = montarDadosProposta(detalhe, new Date(), {
         versaoSubstituta: opcoes.versaoSubstituta?.value ?? null,
+        modo,
       });
 
       const tituloOriginal = document.title;

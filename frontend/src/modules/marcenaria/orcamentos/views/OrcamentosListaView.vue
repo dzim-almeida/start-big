@@ -23,6 +23,7 @@ import { useExigeCapacidade } from '../composables/useExigeCapacidade';
 import { useContagensQuery, useOrcamentosQuery } from '../composables/useOrcamentosQuery';
 import { usePermissoesOrcamento } from '../composables/usePermissoesOrcamento';
 import type { FiltrosLista } from '../services/orcamento.service';
+import { useAbrirOS } from '../composables/useAbrirOS';
 
 // Sem a capacidade do segmento (outro segmento digitou o endereço): volta ao início (D3).
 useExigeCapacidade('orcamento_tecnico');
@@ -101,6 +102,8 @@ function limparFiltros() {
 }
 
 const abrir = (id: number) => router.push({ name: 'marcenaria-orcamento', params: { id } });
+// Coluna OS (08B §7.5): o mesmo caminho do painel de notificações.
+const { abrirOS } = useAbrirOS();
 const novo = () => router.push({ name: 'marcenaria-orcamento-novo' });
 </script>
 
@@ -163,7 +166,7 @@ const novo = () => router.push({ name: 'marcenaria-orcamento-novo' });
         </div>
       </template>
 
-      <OrcamentosTabela :itens="lista?.items ?? []" :mostrar-margem="podeVerCustos" @abrir="abrir" />
+      <OrcamentosTabela :itens="lista?.items ?? []" :mostrar-margem="podeVerCustos" @abrir="abrir" @abrir-os="abrirOS" />
     </BaseTableContainer>
   </div>
 </template>
