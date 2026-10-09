@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                         |
 |--------------|-------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                               |
+| Status       | Implementada em 09/10/2026                                                    |
 | Camada       | Backend (Python puro, sem banco)                                              |
 | Dependências | Spec 04A (parâmetros e `sofre_perda`)                                         |
 | Bloqueia     | Spec 06A, Spec 08A, Spec 09A                                                  |
@@ -460,6 +460,8 @@ Os dois móveis no ambiente "Cozinha Gourmet".
 | 17a | Revisão 1: cenário B | `desconto_bp_efetivo = 500`; `sinal_bp_efetivo = 4000` |
 | 17b | Revisão 1: cenário A com desconto em VALOR R$ 1.000,00 | `desconto_bp_efetivo = arred(100000 / 972515 × 10000) = 1028` |
 | 17c | Revisão 1: orçamento vazio | Os dois efetivos = 0 (sem divisão por zero) |
+
+> **Nota da implementação (09/10/2026):** os três cenários batem centavo a centavo com as tabelas acima. Duas validações sem mensagem na §6.6 ganharam uma: modo de desconto/sinal desconhecido ("Forma de desconto ou sinal inválida.") e modo de RT desconhecido ("Modo do RT inválido."). As propriedades 18–25 rodam em **dois** testes que percorrem os 500 orçamentos (e dizem a semente que falhou), para não inflar a contagem da suíte com 600 itens.
 
 ### 11.4. Propriedades (geradas aleatoriamente, 500 orçamentos por execução, semente fixa)
 

@@ -135,7 +135,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 02 | 09/10/2026 | `efa4fb9` | +21 (vitest) | frontend: 237 testes, `vue-tsc` sem erros |
 | 03B | 09/10/2026 | `15dbc0f` | +33; −3 (`cargos.spec.ts`, D15) | frontend: 267 testes, `vue-tsc` sem erros |
 | 04A | 09/10/2026 | `ea86a32` | +28 | 2.315 passando, 1 pulado |
-| 04B | 09/10/2026 | (commit da 04B) | +37 (vitest) | frontend: 304 testes, `vue-tsc` sem erros |
+| 04B | 09/10/2026 | `e9f7287` | +37 (vitest) | frontend: 304 testes, `vue-tsc` sem erros |
+| 05 | 09/10/2026 | (commit da 05) | +35 (cenários A, B e C centavo a centavo; 500 orçamentos aleatórios) | 2.350 passando, 1 pulado (2.351 coletados) |
 
 ---
 
