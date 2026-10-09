@@ -51,7 +51,12 @@ beforeEach(() => {
 const montados: ReturnType<typeof mount>[] = [];
 afterEach(() => {
   montados.splice(0).forEach((w) => w.unmount());
+  // O `closeModal` limpa o estado 300 ms DEPOIS (animação do modal). Sem rodar
+  // esse timer aqui, ele disparava no meio do teste seguinte e apagava o
+  // formulário que o teste acabara de preencher (falha só com a máquina lenta).
+  vi.useFakeTimers();
   useFornecedorModal().closeModal();
+  vi.runAllTimers();
   vi.useRealTimers();
   document.body.innerHTML = '';
 });
