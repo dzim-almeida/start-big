@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { PackageCheck } from 'lucide-vue-next';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
 import { getUniqueOS } from '@/modules/order-service/ordens/services/orderServiceGet.service';
 import { useToast } from '@/shared/composables/useToast';
 import type { OSAguardandoRetiradaItemData } from '../../schemas/dashboard.schema';
@@ -19,6 +20,9 @@ defineProps<Props>();
 const { openExistingOS } = useOSCreateFlow();
 // Rótulo do objeto por segmento: a oficina lê "Veículo" no cabeçalho, não "Equipamento".
 const { labelSingular } = useObjetoLabels();
+// Título do card com o rótulo do segmento (Spec 01B): "Aguardando Entrega" na
+// marcenaria; nos outros segmentos continua "Aguardando Retirada".
+const { rotuloStatus } = useRotulosStatusOS();
 const toast = useToast();
 const loadingOS = ref<string | null>(null);
 
@@ -45,7 +49,7 @@ function formatDate(dateStr: string | null): string {
   <div class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
     <div class="p-4 md:p-6 border-b border-zinc-100 flex items-center gap-2">
       <PackageCheck :size="18" class="text-zinc-500" />
-      <h3 class="font-bold text-base md:text-lg text-zinc-900">Aguardando Retirada</h3>
+      <h3 class="font-bold text-base md:text-lg text-zinc-900">{{ rotuloStatus('AGUARDANDO_RETIRADA') }}</h3>
       <span v-if="items.length > 0" class="ml-auto text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full">
         {{ items.length }}
       </span>
@@ -91,8 +95,10 @@ function formatDate(dateStr: string | null): string {
       </table>
     </div>
 
+    <!-- Mesmo rótulo do título, em minúsculas: "aguardando retirada" como sempre;
+         "aguardando entrega" no segmento que renomeia o status (Spec 01B). -->
     <div v-else class="p-8 text-center text-zinc-400 text-sm flex-1 flex items-center justify-center">
-      Nenhum {{ labelSingular.toLowerCase() }} aguardando retirada
+      Nenhum {{ labelSingular.toLowerCase() }} {{ rotuloStatus('AGUARDANDO_RETIRADA').toLowerCase() }}
     </div>
   </div>
 </template>

@@ -4,6 +4,8 @@ import { Wrench, Clock, CheckCircle2, Inbox } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
 import { useOSPerformanceQuery } from '../composables/useOSPerformanceQuery';
+import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
+import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 
 const props = defineProps<{ inicio: string; fim: string }>();
 
@@ -27,6 +29,14 @@ function statusLabel(s: string): string {
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+// Rótulo que o SEGMENTO declarou para o status (Spec 01B), ex.: "Em Produção".
+const { rotuloStatusProprio } = useRotulosStatusOS();
+
+/** Texto do status no relatório: o do segmento, senão o montado do código (como sempre). */
+function textoDoStatus(s: string): string {
+  return rotuloStatusProprio(s as OsStatusEnumDataType) ?? statusLabel(s);
 }
 </script>
 
@@ -90,7 +100,7 @@ function statusLabel(s: string): string {
         <h4 class="text-xs font-bold text-slate-600 mb-2">Backlog por status (atual)</h4>
         <ul v-if="porStatus.length" class="space-y-1 max-h-40 overflow-y-auto">
           <li v-for="s in porStatus" :key="s.status" class="flex items-center justify-between text-xs">
-            <span class="text-slate-600">{{ statusLabel(s.status) }}</span>
+            <span class="text-slate-600">{{ textoDoStatus(s.status) }}</span>
             <span class="font-semibold text-slate-700 tabular-nums">{{ s.quantidade }}</span>
           </li>
         </ul>

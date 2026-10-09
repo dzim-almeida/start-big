@@ -6,6 +6,8 @@
 // que novos segmentos (ex: oficina_moto) funcionem sem alterar o frontend.
 // ---------------------------------------------------------------------------
 
+import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
+
 /**
  * Tipo de widget de um campo dinâmico.
  *
@@ -133,6 +135,14 @@ export interface SegmentWorkType {
   campos: SegmentField[];
 }
 
+/** Texto de um status da OS declarado pelo segmento (Spec 01A da marcenaria). */
+export interface RotuloStatus {
+  /** Texto completo: lista, filtro, modal, relatório (ex.: "Aguardando Entrega"). */
+  rotulo: string;
+  /** Texto abreviado: dashboard (ex.: "Aguard. entrega"). */
+  curto: string;
+}
+
 /** Definição completa dos campos de um segmento com regras dedicadas. */
 export interface SegmentDefinition {
   segmento: string;
@@ -177,6 +187,12 @@ export interface SegmentDefinition {
    * palavras mudam — "Reparado" não descreve nada numa produção.
    */
   rotulos_situacao?: Record<string, string>;
+  /**
+   * Texto de cada STATUS da OS, por chave do enum. Opcional: ausente = textos
+   * padrão de OS_ESTADO_CONFIG. Só o texto muda; o valor enviado à API é o
+   * mesmo enum de todos os segmentos (Spec 01A/01B da marcenaria).
+   */
+  rotulos_status?: Partial<Record<OsStatusEnumDataType, RotuloStatus>>;
   identificador: SegmentIdentifier;
   /** O que o segmento faz. Vazio = só o fluxo genérico de OS. */
   capacidades: SegmentCapability[];

@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                |
 |--------------|----------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                      |
+| Status       | Implementada em 09/10/2026 (roteiro manual da §11 pendente)          |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                |
 | Dependências | Spec 01A (contrato com `rotulos_status`)                             |
 | Bloqueia     | Spec 03B                                                             |

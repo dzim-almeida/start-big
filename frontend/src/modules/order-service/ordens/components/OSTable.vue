@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Ellipsis, Pencil, CheckCircle, XCircle, RotateCcw, Printer } from 'lucide-vue-next';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
-import { OS_STATUS_FILTER_CONFIG } from '../constants/ordemServico.constants';
-import { getEstadoOS, getClienteNome } from '../../shared/utils/formatters';
+import { getClienteNome } from '../../shared/utils/formatters';
+import { useRotulosStatusOS } from '../../shared/segmento/useRotulosStatusOS';
 import { useTiposDeTrabalho } from '../../shared/segmento/useTiposDeTrabalho';
 import { subtituloObjetoLista } from '../../shared/segmento/subtituloObjetoLista';
 import { formatCurrency } from '@/shared/utils/finance';
@@ -42,6 +42,10 @@ const activeFilter = defineModel<string | null>('activeFilter', { default: null 
 // Rótulo do tipo de trabalho na coluna "Cliente / Objeto" — ver subtituloObjetoLista.
 const { tipos } = useTiposDeTrabalho();
 
+// Badge e filtro com o texto que o segmento declarou (Spec 01B). As cores e as
+// chaves do filtro continuam as mesmas; só o texto pode mudar.
+const { estadoOS, statusFilterConfig } = useRotulosStatusOS();
+
 // `data_criacao` é timestamp de evento (UTC no backend).
 function formatDate(dateValue: string | Date): string {
   return parseTimestampBackend(dateValue).toLocaleDateString('pt-BR', {
@@ -77,7 +81,7 @@ function getOSSequence(numero_os: string): string {
   >
     <template #toolbar>
       <BaseSearchInput v-model="search" placeholder="Buscar por número, cliente..." />
-      <BaseFilter v-model="activeFilter" :filter-config="OS_STATUS_FILTER_CONFIG" button-label="Filtros" />
+      <BaseFilter v-model="activeFilter" :filter-config="statusFilterConfig" button-label="Filtros" />
     </template>
 
     <div class="overflow-x-auto">
@@ -119,10 +123,10 @@ function getOSSequence(numero_os: string): string {
               <span
                 :class="[
                   'px-2 md:px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold whitespace-nowrap',
-                  getEstadoOS(os.status, os.situacao_equipamento).badge,
+                  estadoOS(os.status, os.situacao_equipamento).badge,
                 ]"
               >
-                {{ getEstadoOS(os.status, os.situacao_equipamento).label }}
+                {{ estadoOS(os.status, os.situacao_equipamento).label }}
               </span>
             </td>
 

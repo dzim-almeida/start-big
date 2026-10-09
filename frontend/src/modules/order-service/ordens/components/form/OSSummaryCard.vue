@@ -6,7 +6,7 @@ import { formatCurrency } from '@/shared/utils/finance';
 import type { OsPaymentReadSchemaDataType } from '../../schemas/relationship/osPayment.schema';
 import type { OsStatusEnumDataType, OsEquipSituacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
 import { inferPaymentType, getPaymentDisplayName } from '@/shared/utils/print.utils';
-import { getEstadoOS } from '../../../shared/utils/formatters';
+import { useRotulosStatusOS } from '../../../shared/segmento/useRotulosStatusOS';
 import { formatDataHora } from '@/shared/utils/date.utils';
 import { useOsPaymentMethodsGet } from '../../composables/request/relationship/useOSPaymentMethods.queries';
 
@@ -128,7 +128,9 @@ const restante = computed(() => {
 
 // --- Dados de OS (movidos de OSClientCard) ---
 
-const estado = computed(() => getEstadoOS(props.status, props.situacaoEquipamento));
+// Texto do status com o rótulo do segmento (Spec 01B); cores de sempre.
+const { estadoOS } = useRotulosStatusOS();
+const estado = computed(() => estadoOS(props.status, props.situacaoEquipamento));
 
 const statusLabel = computed(() => (props.status ? estado.value.label : 'Nova OS'));
 
