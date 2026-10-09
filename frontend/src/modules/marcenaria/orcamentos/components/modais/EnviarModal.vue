@@ -7,10 +7,12 @@
  * - Completo: confirma mostrando total, sinal, validade e os avisos do motor
  *   (os avisos não bloqueiam: são a última chance de corrigir um insumo sem custo).
  *
- * O espaço `<slot name="proposta">` acima dos botões é da Spec 07
- * ("Enviar e gerar proposta").
+ * Spec 07 (D7, D8): o botão principal é "Enviar e gerar proposta" (envia e
+ * depois imprime, com a validade já gravada); "Só marcar como enviado" serve
+ * para quando a proposta foi gerada antes ou entregue de outro jeito. Uma dica,
+ * uma vez por computador, ensina o "Salvar como PDF".
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { AlertTriangle, ArrowRight } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -29,9 +31,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  enviar: [];
+  /** `gerarProposta`: true = "Enviar e gerar proposta"; false = "Só marcar como enviado". */
+  enviar: [gerarProposta: boolean];
   irPara: [bloco: PendenciaEnvio['bloco']];
 }>();
+
+// --- Dica do PDF (Spec 07 D8): uma vez por computador ----------------------------
+const CHAVE_DICA = 'startbig.marcenaria.dica-pdf-dispensada';
+function dicaDispensada(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_DICA) === 'sim';
+  } catch {
+    return false;                                         // sem armazenamento: mostra a dica
+  }
+}
+const mostrarDica = ref(!dicaDispensada());
+function dispensarDica() {
+  mostrarDica.value = false;
+  try {
+    localStorage.setItem(CHAVE_DICA, 'sim');
+  } catch {
+    // Sem armazenamento: só não lembra da próxima vez.
+  }
+}
 
 const pendencias = computed(() => pendenciasParaEnviar(props.detalhe));
 const avisos = computed(() => textosDosAvisos(props.detalhe.avisos, props.detalhe.inclui_custos));
@@ -88,16 +110,25 @@ const calculo = computed(() => props.detalhe.calculo);
         </p>
       </div>
 
-      <!-- Spec 07: "Enviar e gerar proposta" -->
+      <!-- Spec 07 D8: como sai o PDF (o caminho pelo diálogo não é óbvio na 1ª vez) -->
+      <div v-if="mostrarDica" class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600" data-testid="dica-pdf">
+        Na janela de impressão, escolha <strong>Salvar como PDF</strong> em Destino para gerar o arquivo e enviar por WhatsApp ou e-mail.
+        <button type="button" class="ml-1 font-semibold text-zinc-700 underline cursor-pointer" @click="dispensarDica">Não mostrar de novo</button>
+      </div>
       <slot name="proposta" />
     </div>
 
     <template #footer>
       <div class="flex justify-end gap-2">
         <BaseButton variant="secondary" @click="emit('close')">{{ pendencias.length ? 'Fechar' : 'Cancelar' }}</BaseButton>
-        <BaseButton v-if="!pendencias.length" variant="primary" :is-loading="enviando" data-testid="confirmar-envio" @click="emit('enviar')">
-          Enviar
-        </BaseButton>
+        <template v-if="!pendencias.length">
+          <BaseButton variant="secondary" :disabled="enviando" data-testid="so-marcar-enviado" @click="emit('enviar', false)">
+            Só marcar como enviado
+          </BaseButton>
+          <BaseButton variant="primary" :is-loading="enviando" data-testid="confirmar-envio" @click="emit('enviar', true)">
+            Enviar e gerar proposta
+          </BaseButton>
+        </template>
       </div>
     </template>
   </BaseModal>

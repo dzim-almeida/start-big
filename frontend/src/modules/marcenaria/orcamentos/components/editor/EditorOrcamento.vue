@@ -19,6 +19,7 @@
 import { computed, onMounted, ref, watch, watchEffect } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 import { useQueryClient } from '@tanstack/vue-query';
+import { Printer } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
@@ -28,6 +29,7 @@ import { chaveDetalhe } from '../../constants/orcamento.constants';
 import { useAcoesOrcamento } from '../../composables/useAcoesOrcamento';
 import { proverEditor } from '../../composables/useEditorContexto';
 import { useFilaOrcamento } from '../../composables/useFilaOrcamento';
+import { useImprimirProposta } from '../../composables/useImprimirProposta';
 import { useOrcamentoQuery, useVersoesQuery } from '../../composables/useOrcamentoQuery';
 import { usePermissoesOrcamento } from '../../composables/usePermissoesOrcamento';
 import { useSalvamentoAutomatico } from '../../composables/useSalvamentoAutomatico';
@@ -44,6 +46,7 @@ import HistoricoDrawer from '../modais/HistoricoDrawer.vue';
 import MovelModal, { type MovelParaSalvar } from '../modais/MovelModal.vue';
 import RecusarModal from '../modais/RecusarModal.vue';
 import VoltarEditarModal from '../modais/VoltarEditarModal.vue';
+import PropostaPrintTemplate from '../print/PropostaPrintTemplate.vue';
 import BlocoAmbientes from './BlocoAmbientes.vue';
 import BlocoClienteProjeto from './BlocoClienteProjeto.vue';
 import BlocoCondicoes from './BlocoCondicoes.vue';
@@ -184,6 +187,19 @@ async function gravarPendencias() {
   await fila.esvaziar();
 }
 
+/** Igual, e diz se TUDO ficou gravado (sem conflito e sem campo pendente). */
+async function gravarTudo(): Promise<boolean> {
+  await gravarPendencias();
+  return !fila.conflito.value && !salvamento.temPendencia.value;
+}
+
+// --- Proposta (Spec 07) -------------------------------------------------------------
+const { imprimir, enviarEImprimir, dadosParaImprimir, imprimindo } = useImprimirProposta({
+  detalhe,
+  gravarPendencias: gravarTudo,                                   // D4: só imprime o que está gravado
+  versaoSubstituta: computed(() => versaoSubstituta.value?.versao ?? null),
+});
+
 async function abrirEnviar() {
   await gravarPendencias();
   enviarAberto.value = true;
@@ -201,7 +217,15 @@ async function transicao(executar: () => Promise<OrcamentoDetalhe | null>, fecha
   }
 }
 
-const enviar = () => transicao(acoesOrcamento.enviar, () => { enviarAberto.value = false; });
+/**
+ * Enviar (D36). Com `gerarProposta`, imprime DEPOIS do envio, com a validade
+ * já gravada (Spec 07 D7); cancelar o diálogo de impressão não desfaz o envio.
+ */
+async function enviar(gerarProposta: boolean) {
+  const envio = () => transicao(acoesOrcamento.enviar, () => { enviarAberto.value = false; });
+  if (gerarProposta) await enviarEImprimir(envio);
+  else await envio();
+}
 const voltarAEditar = () => transicao(acoesOrcamento.voltarAEditar, () => { voltarAberto.value = false; });
 const recusar = (motivo: string) => transicao(() => acoesOrcamento.recusar(motivo), () => { recusarAberto.value = false; });
 
@@ -351,7 +375,14 @@ const erroCarregar = computed(() => {
       @excluir="excluir"
       @tentar-agora="salvamento.salvarAgora()"
       @abrir-versao="abrirVersao"
-    />
+    >
+      <!-- Spec 07: a proposta em qualquer status (com a faixa do status, D6) -->
+      <template #acoes>
+        <BaseButton variant="secondary" size="sm" :is-loading="imprimindo" data-testid="imprimir-proposta" @click="imprimir()">
+          <Printer :size="14" class="mr-1" /> Proposta
+        </BaseButton>
+      </template>
+    </EditorCabecalho>
 
     <!-- Carregando / erro -->
     <p v-if="id != null && isLoading" class="text-sm text-zinc-400 animate-pulse">Carregando orçamento…</p>
@@ -420,6 +451,8 @@ const erroCarregar = computed(() => {
     <AtualizarPrecosModal :is-open="precosAbertos" :precos="precos" :gravando="gravandoPrecos" @close="precosAbertos = false" @atualizar="atualizarPrecos" />
     <HistoricoDrawer :id="id" :aberto="historicoAberto" @fechar="historicoAberto = false" />
     <ConflitoModal :is-open="fila.conflito.value" :campos-perdidos="salvamento.camposPendentes.value" :recarregando="recarregando" @recarregar="recarregar" />
+    <!-- O documento só existe enquanto imprime (Spec 07 §6.3). -->
+    <PropostaPrintTemplate v-if="dadosParaImprimir" :dados="dadosParaImprimir" />
     <BaseConfirmModal
       :is-open="confirmacao.isOpen.value"
       :title="confirmacao.opcoes.value.titulo"

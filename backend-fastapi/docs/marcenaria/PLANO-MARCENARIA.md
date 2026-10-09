@@ -142,7 +142,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 06A | 09/10/2026 | `5fada11` | +76 (23 de serviço, 50 de API, 3 da migração; cenário B pelo banco centavo a centavo) | 2.426 passando, 1 pulado |
 | 08A | 09/10/2026 | `0a88ba0` | +56 (39 de API, 10 de serviço com 200 aprovações aleatórias, 4 da migração, 3 de não regressão da OS) | 2.482 passando, 1 pulado |
 | 09A | 09/10/2026 | `7c32baf` | +30 (19 do RT, 5 dos ganchos da OS, 2 do CMV, 4 da migração) | 2.512 passando, 1 pulado |
-| 06B | 09/10/2026 | (commit da 06B) | +64 (vitest: 53 do orçamento — schemas contra JSON reais da API, fila, salvamento, editor pela rota —, 3 do menu, 4 dos atalhos, 4 de cargos) | frontend: 368 testes, `vue-tsc` sem erros |
+| 06B | 09/10/2026 | `d8ab396` | +64 (vitest: 53 do orçamento — schemas contra JSON reais da API, fila, salvamento, editor pela rota —, 3 do menu, 4 dos atalhos, 4 de cargos) | frontend: 368 testes, `vue-tsc` sem erros |
+| 07 | 09/10/2026 | (commit da 07) | +16 (vitest: dados, nome do PDF, documento A4 e o fluxo enviar → imprimir) | frontend: 384 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 
 ---
 

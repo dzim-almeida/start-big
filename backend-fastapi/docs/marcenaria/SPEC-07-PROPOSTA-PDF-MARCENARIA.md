@@ -2,11 +2,18 @@
 
 | Campo        | Valor                                                                          |
 |--------------|--------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                |
+| Status       | Implementada em 09/10/2026                                                     |
 | Camada       | Frontend (Vue 3 + TypeScript)                                                  |
 | Dependências | Spec 06B (editor, `montarDadosProposta`), Spec 06A Revisão 2 (dados do cliente no detalhe, evento de envio) |
 | Bloqueia     | Spec 08B (a proposta aprovada reaproveita o template)                          |
 | Referência   | SPEC-00: T5, T3f, C6, C7, C9, C3, O3, O7, P4 · PR1, PR3, PR6                   |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **`DadosProposta` nasceu completo na 06B** (o tipo da §6.1 já era usado pela visão do cliente); aqui entram o template, o fluxo e o nome do arquivo. A faixa "VERSÃO SUBSTITUÍDA pela v3" usa o número da versão mais nova, que o editor já busca para a faixa de status.
+> (2) **"Tudo gravado" (D4)** é: salvamento automático sem campo pendente, fila vazia e sem conflito. A fila nunca rejeita (um erro não trava as próximas), por isso a conferência é pelo estado, não por exceção.
+> (3) **Modal de envio:** "Enviar e gerar proposta" (principal) e "Só marcar como enviado" (secundário) ficam no rodapé, ao lado de "Cancelar"; a dica do D8 fica acima, com "Não mostrar de novo" (chave no navegador, com `try/catch`). O envio que falha (422) não imprime nada.
+> (4) **Limpeza de segurança:** se o `afterprint` não vier, título e documento voltam ao normal em 2 minutos (o mesmo cuidado do pedido de compra).
+> (5) **Cabeçalho repetido nas páginas seguintes (D13):** ficou de fora, como a §6.2 permite; as quebras (móvel inteiro, título com o primeiro móvel, fechamento junto) estão no CSS escopado em `.proposta`.
 
 > **Revisão 1 (08/10/2026) — correção do exemplo.** O desenho da §6.2 tinha um ambiente "Dormitório casal" de R$ 1.425,00 que fazia a soma dos ambientes com a instalação (R$ 11.150,15) não bater com o subtotal (R$ 9.725,15), contrariando a D10. O desenho passa a ser o cenário B da Spec 05: Cozinha Gourmet (Torre Quente e 2 Balcões) + instalação.
 
