@@ -113,3 +113,25 @@ def ordenar_para_a_os(insumos: list[InsumoDaOS], localizacoes: Optional[dict[int
     """D1e: pela localizacao do produto no estoque e depois pelo nome (a ordem da separacao)."""
     localizacoes = localizacoes or {}
     return sorted(insumos, key=lambda i: ((localizacoes.get(i.produto_id) or "").casefold(), i.nome.casefold()))
+
+
+def insumos_sem_produto(orc: MarcenariaOrcamento) -> list[tuple[str, int]]:
+    """Insumos aprovados SEM produto (excluido depois da copia), pela descricao (Spec 10A D3).
+
+    Nao viram peca embutida (D1c: nao ha estoque para baixar), mas a fabrica
+    precisa saber que eles existem. Devolve [(descricao, planejado em
+    milesimos)], na ordem de aparicao, com a mesma conta do planejado acima
+    (quantidade x quantidade do movel x perda, so onde `sofre_perda`).
+    """
+    total: dict[str, Decimal] = {}             # descricao -> planejado sem arredondar
+    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+        for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id)):
+            if not movel.aprovado or movel.tipo_producao != "INTERNA":
+                continue                                    # so o que a fabrica produz
+            for insumo in sorted(movel.insumos, key=lambda i: (i.ordem, i.id)):
+                if insumo.produto_id is not None:
+                    continue                                # com produto: e peca embutida
+                fator = (_BP + orc.perda_bp) / _BP if insumo.sofre_perda else Decimal(1)
+                planejado = Decimal(insumo.quantidade_milesimos) * movel.quantidade * fator
+                total[insumo.descricao] = total.get(insumo.descricao, Decimal(0)) + planejado
+    return [(descricao, _arredondar(valor)) for descricao, valor in total.items()]

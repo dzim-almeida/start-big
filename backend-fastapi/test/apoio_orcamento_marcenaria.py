@@ -264,3 +264,69 @@ def os_da_api(api: Api, numero_os: str) -> dict:
     r = api.client.get(f"/api/v1/ordens-servico/{numero_os}", headers=api.header)
     assert r.status_code == 200, r.text
     return r.json()
+
+
+# ---------------------------------------------------------------------------
+# Separacao de material (Spec 10A)
+# ---------------------------------------------------------------------------
+
+URL_MARCENARIA = "/api/v1/marcenaria"
+
+
+class Separacao:
+    """Atalho para a API da separacao de uma OS (Spec 10A), com o header do master."""
+
+    def __init__(self, client: TestClient, header: dict):
+        self.client = client
+        self.header = header
+
+    def req(self, metodo: str, numero_os: str, caminho: str = "", **kwargs) -> Any:
+        return self.client.request(metodo, f"{URL_MARCENARIA}/os/{numero_os}/separacao{caminho}",
+                                   headers=self.header, **kwargs)
+
+    def ler(self, numero_os: str) -> dict:
+        r = self.req("GET", numero_os)
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def linha(self, numero_os: str, descricao: str) -> dict:
+        """A linha cuja descricao comeca com o texto dado (ex.: "MDF")."""
+        return next(linha for linha in self.ler(numero_os)["linhas"] if linha["descricao"].startswith(descricao))
+
+    def acao(self, numero_os: str, linha: dict, acao: str, quantidade: Optional[int] = None,
+             esperado: int = 200, separada: Optional[int] = None) -> Any:
+        """POST retirar/devolver/concluir/reabrir com a trava da linha (D16).
+
+        `separada` troca a `separada_esperada_milesimos` (para provar o 409).
+        Devolve o JSON (ou a resposta, se esperado != 200).
+        """
+        corpo: dict[str, Any] = {
+            "separada_esperada_milesimos": linha["separada_milesimos"] if separada is None else separada,
+        }
+        if quantidade is not None:
+            corpo["quantidade_milesimos"] = quantidade
+        r = self.req("POST", numero_os, f"/{linha['item_id']}/{acao}", json=corpo)
+        assert r.status_code == esperado, r.text
+        return r.json() if esperado == 200 else r
+
+
+@pytest.fixture
+def separacao(client, loja) -> Separacao:
+    return Separacao(client, loja)
+
+
+def aprovar_simples(api: Api, cliente_id: int, moveis: list[list[dict]]) -> tuple[dict, str]:
+    """Orcamento de UM ambiente com os moveis dados (cada um, a lista de insumos),
+    todos internos e de quantidade 1, aprovado inteiro. Devolve (detalhe, numero da OS).
+    """
+    orc = api.criar(cliente_id=cliente_id, projeto_nome="Projeto da separação")
+    d = api.ok("POST", f"/{orc['id']}/ambientes", rev=orc["revisao"], esperado=201, json={"nome": "Cozinha"})
+    amb = d["ambientes"][0]["id"]
+    for numero, insumos in enumerate(moveis, start=1):
+        d = api.ok("POST", f"/{orc['id']}/ambientes/{amb}/moveis", rev=d["revisao"], esperado=201, json={
+            "nome": f"Móvel {numero}", "quantidade": 1,
+            "mao_obra": {"modo": "FIXA", "centavos": 10000, "horas_centesimos": 0},
+            "insumos": insumos,
+        })
+    d = aprovar(api, d)
+    return d, d["os"]["numero_os"]

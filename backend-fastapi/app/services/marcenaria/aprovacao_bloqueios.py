@@ -48,11 +48,20 @@ def _bloqueio_pagamentos_da_os(db: Session, orc: MarcenariaOrcamento) -> list[st
     return ["A OS já tem pagamento registrado."] if orc.os.pagamentos else []
 
 
+def _bloqueio_material_retirado(db: Session, orc: MarcenariaOrcamento) -> list[str]:
+    """Spec 10A D23: com chapa ja cortada, desfazer deixaria estoque e custo sem dono."""
+    if any((item.quantidade_separada or 0) > 0 for item in orc.os.itens):
+        return ["Já há material retirado do estoque para esta OS. "
+                "Devolva o material ao estoque antes de desfazer a aprovação."]
+    return []
+
+
 # Ponto de extensao: cada spec seguinte acrescenta a regra que ELA conhece
 # (10A: material retirado; 11A: pedido a central; 12A: producao; 13A: entrega).
 BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = [
     _bloqueio_status_da_os,
     _bloqueio_pagamentos_da_os,
+    _bloqueio_material_retirado,          # 10A
 ]
 
 

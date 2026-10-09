@@ -127,6 +127,8 @@ O roteiro manual de cada spec B, em sequência, com **um projeto real** da fábr
 
 **Marco 1 concluído em 09/10/2026** (01A, 01B, 02, 03A, 03B, 04A, 04B, 05): backend 2.350 passando e 1 pulado; frontend 304 testes e `vue-tsc` sem erros. Pendentes antes de seguir para a loja: os roteiros manuais (olho na tela) das specs B e o `npm run build:sidecar`.
 
+**Marco 2 concluído em 09/10/2026** (06A, 06B, 07, 08A, 08B, 09A, 09B): backend 2.516 passando e 1 pulado; frontend 446 testes e `vue-tsc` sem erros. Pendentes antes da loja: os roteiros manuais das specs 06B, 07, 08B e 09B e o `npm run build:sidecar`.
+
 Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/10: backend 2.334 passando e 1 pulado; frontend 188 testes e `vue-tsc` sem erros). Sidecar: `npm run build:sidecar` antes do próximo instalador.
 
 | Spec | Data | Commit | Testes | Suíte depois |
@@ -145,7 +147,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 06B | 09/10/2026 | `d8ab396` | +64 (vitest: 53 do orçamento — schemas contra JSON reais da API, fila, salvamento, editor pela rota —, 3 do menu, 4 dos atalhos, 4 de cargos) | frontend: 368 testes, `vue-tsc` sem erros |
 | 07 | 09/10/2026 | `9dfa4eb` | +16 (vitest: dados, nome do PDF, documento A4 e o fluxo enviar → imprimir) | frontend: 384 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 | 08B | 09/10/2026 | `a30db21` | +30 (vitest: 20 da aprovação — modal, desfazer com PIN, faixa, proposta aprovada, aba da OS —, 10 de não regressão das abas e do cadeado da OS) | frontend: 414 testes, `vue-tsc` sem erros |
-| 09B | 09/10/2026 | (commit da 09B) | +32 vitest (21 do arquiteto no orçamento — bloco, salvamento do %, corrida com a troca, painel, faixa, modal de envio —, 9 do cadastro de fornecedor, 2 do prazo do RT); +4 pytest (rota `GET /arquitetos`) | frontend: 446 testes, `vue-tsc` sem erros; backend: 2.516 passando, 1 pulado |
+| 09B | 09/10/2026 | `01f4fa6` | +32 vitest (21 do arquiteto no orçamento — bloco, salvamento do %, corrida com a troca, painel, faixa, modal de envio —, 9 do cadastro de fornecedor, 2 do prazo do RT); +4 pytest (rota `GET /arquitetos`) | frontend: 446 testes, `vue-tsc` sem erros; backend: 2.516 passando, 1 pulado |
+| 10A | 09/10/2026 | (commit da 10A) | +40 (30 de API, 7 de serviço com a finalização e o CMV, 3 do leitor) | 2.556 passando, 1 pulado |
 
 ---
 

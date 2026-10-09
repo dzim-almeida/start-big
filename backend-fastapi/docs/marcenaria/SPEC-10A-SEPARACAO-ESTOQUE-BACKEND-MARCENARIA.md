@@ -2,11 +2,19 @@
 
 | Campo        | Valor                                                                                   |
 |--------------|-----------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                         |
+| Status       | Implementada em 09/10/2026                                                              |
 | Camada       | Backend (FastAPI)                                                                       |
 | Dependências | Specs 04A (`sofre_perda`), 06A (insumos), 08A (peças embutidas, `insumos_os`, ponto de extensão do desfazer), 09A (ganchos da OS, F2a), 03A (cancelamento sem devolução, FB1) · módulo Compras (`services/compras/demanda_os.py`, usado como é) |
 | Bloqueia     | Spec 10B                                                                                |
 | Referência   | SPEC-00: E1b, E2, E2a, E3b, E4, E5a, F2a, F2b, F5, P4, O8, FB1, FB2 · PR1, PR4, PR6, PR7, PR8 |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Onde ficam os ganchos:** o bloqueio do D23 está em `aprovacao_bloqueios.py` (é lá a lista `BLOQUEIOS_DESFAZER` da 08A) e olha qualquer item da OS com `quantidade_separada > 0`; o aviso do D24 é ligado em `ganchos.py` (09A), não no `__init__.py`. O `api.py` ganha a linha do roteador novo (prefixo `/marcenaria`).
+> (2) **Trava do D16 sem corrida:** além de comparar, a gravação é um `UPDATE` condicional (`... WHERE quantidade_separada = a esperada`): dois cliques simultâneos não tiram a mesma chapa duas vezes; o segundo recebe 409 e nada muda.
+> (3) **Casos que a spec não cobria:** retirar numa linha "não usado" responde `409 ITEM_NAO_USADO` ("Reabra a linha para retirar"); concluir uma linha já concluída não muda nada nem grava histórico; leitor com código vazio é 422.
+> (4) **Formatos:** o leitor responde `{fator, linha}`; o disponível usa as chaves `estoque_milesimos`, `reservado_milesimos` e `disponivel_milesimos` (PR4), ignora produto inexistente e aceita até 200 ids; `resumo.com_falta` conta as linhas com `sem_cobertura_milesimos > 0` (as faltas do D18).
+> (5) **Histórico:** `MATERIAL_RETIRADO`, `MATERIAL_DEVOLVIDO`, `SEPARACAO_CONCLUIDA`, `SEPARACAO_REABERTA` e `MATERIAL_FORA_DO_ESTOQUE`, todos ligados à OS.
+> (6) **Insumo sem produto (D3):** a conta do planejado sem cadastro é `insumos_os.insumos_sem_produto`, a mesma do planejado das peças embutidas.
 
 > **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15).** A versão de 06/10 tinha uma tabela própria (`marcenaria_separacao`), uma reserva calculada própria e uma lista de compras própria. Com a Revisão 15: (1) os insumos aprovados **já estão na OS** como peças embutidas (08A Revisão 2, F2b), então a separação trabalha sobre esses itens, com as colunas que a finalização e o Compras já entendem (`quantidade_separada`, `custo_real`; E3b); (2) a reserva e o "quanto o estoque cobre" vêm do **Compras** (`demanda_os.demandas_por_produto` e `compras_da_os`, E1b, FB2); (3) a lista de compras entre OS é a tela **Necessidades** do Compras, e esta spec só entrega as **faltas da OS** (E5a). **Não há migração.** As decisões de comportamento aprovadas em 06/10 (E2a: retirada sem saldo acontece; sobra pode ser devolvida; cancelar não devolve sozinho) continuam.
 
@@ -285,15 +293,15 @@ def reabrir(...):             # D12
 
 ## 10. Critérios de aceite
 
-- [ ] A separação de uma OS aprovada lista uma linha por peça embutida, com planejado (com perda), sugerido, localização, os móveis que usam e a cobertura do estoque (Compras).
-- [ ] Retirar dá baixa no estoque com origem OS e soma em `quantidade_separada`; retirar sem saldo funciona e avisa; retirar acima do sugerido sobe a quantidade e avisa.
-- [ ] Devolver dá entrada e reduz a necessidade; concluir com menos ajusta a quantidade; concluir sem retirar marca "não usado"; reabrir volta ao sugerido.
-- [ ] A reserva do Compras e o painel "Compras desta OS" refletem cada ação, sem mudança no Compras.
-- [ ] Finalizar a OS baixa só o que não foi separado (regra de hoje) e o CMV conta as retiradas menos as devoluções.
-- [ ] Leitor acha o item pelo código de barras, pelo código do produto ou pela embalagem (com o fator); produto de fora responde a mensagem certa.
-- [ ] Faltas da OS com fornecedor principal, com ou sem o módulo Compras.
-- [ ] Desfazer aprovação bloqueado com material retirado; cancelamento não devolve e registra o aviso.
-- [ ] Nenhum preço na separação, para ninguém. Código comentado (PR6).
+- [x] A separação de uma OS aprovada lista uma linha por peça embutida, com planejado (com perda), sugerido, localização, os móveis que usam e a cobertura do estoque (Compras).
+- [x] Retirar dá baixa no estoque com origem OS e soma em `quantidade_separada`; retirar sem saldo funciona e avisa; retirar acima do sugerido sobe a quantidade e avisa.
+- [x] Devolver dá entrada e reduz a necessidade; concluir com menos ajusta a quantidade; concluir sem retirar marca "não usado"; reabrir volta ao sugerido.
+- [x] A reserva do Compras e o painel "Compras desta OS" refletem cada ação, sem mudança no Compras.
+- [x] Finalizar a OS baixa só o que não foi separado (regra de hoje) e o CMV conta as retiradas menos as devoluções.
+- [x] Leitor acha o item pelo código de barras, pelo código do produto ou pela embalagem (com o fator); produto de fora responde a mensagem certa.
+- [x] Faltas da OS com fornecedor principal, com ou sem o módulo Compras.
+- [x] Desfazer aprovação bloqueado com material retirado; cancelamento não devolve e registra o aviso.
+- [x] Nenhum preço na separação, para ninguém. Código comentado (PR6).
 
 ## 11. Casos de teste
 

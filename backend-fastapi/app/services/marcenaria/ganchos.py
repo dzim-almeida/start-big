@@ -12,11 +12,14 @@
 # ---------------------------------------------------------------------------
 
 from app.services import ordem_servico_ganchos as ganchos_os
-from app.services.marcenaria import rt
+from app.services.marcenaria import rt, separacao
 
 
 def registrar() -> None:
-    """Liga o RT do arquiteto a finalizacao, reabertura e cancelamento da OS."""
+    """Liga a marcenaria a finalizacao, reabertura e cancelamento da OS."""
+    # Spec 09A: a conta a pagar do RT do arquiteto.
     ganchos_os.registrar(ganchos_os.ao_finalizar, rt.criar_contas_ao_finalizar)
     ganchos_os.registrar(ganchos_os.ao_reabrir, rt.cancelar_pendentes_ao_reabrir)
     ganchos_os.registrar(ganchos_os.ao_cancelar, rt.tratar_cancelamento)
+    # Spec 10A D24: o material retirado continua fora do estoque (so o aviso).
+    ganchos_os.registrar(ganchos_os.ao_cancelar, separacao.avisar_material_no_cancelamento)
