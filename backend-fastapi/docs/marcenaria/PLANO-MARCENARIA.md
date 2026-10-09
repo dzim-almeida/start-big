@@ -125,6 +125,8 @@ O roteiro manual de cada spec B, em sequência, com **um projeto real** da fábr
 
 ### Andamento
 
+**Marco 1 concluído em 09/10/2026** (01A, 01B, 02, 03A, 03B, 04A, 04B, 05): backend 2.350 passando e 1 pulado; frontend 304 testes e `vue-tsc` sem erros. Pendentes antes de seguir para a loja: os roteiros manuais (olho na tela) das specs B e o `npm run build:sidecar`.
+
 Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/10: backend 2.334 passando e 1 pulado; frontend 188 testes e `vue-tsc` sem erros). Sidecar: `npm run build:sidecar` antes do próximo instalador.
 
 | Spec | Data | Commit | Testes | Suíte depois |
@@ -136,7 +138,7 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 03B | 09/10/2026 | `15dbc0f` | +33; −3 (`cargos.spec.ts`, D15) | frontend: 267 testes, `vue-tsc` sem erros |
 | 04A | 09/10/2026 | `ea86a32` | +28 | 2.315 passando, 1 pulado |
 | 04B | 09/10/2026 | `e9f7287` | +37 (vitest) | frontend: 304 testes, `vue-tsc` sem erros |
-| 05 | 09/10/2026 | (commit da 05) | +35 (cenários A, B e C centavo a centavo; 500 orçamentos aleatórios) | 2.350 passando, 1 pulado (2.351 coletados) |
+| 05 | 09/10/2026 | `b98901f` | +35 (cenários A, B e C centavo a centavo; 500 orçamentos aleatórios) | 2.350 passando, 1 pulado |
 
 ---
 
