@@ -19,6 +19,7 @@ import { useDeletePositionMutation } from '../composables/usePositionsQuery';
 import {
   PERMISSION_KEYS,
   PERMISSION_MATRIX,
+  chavesAoAlternar,
   getAccessLevel,
   getPermissionStats,
 } from '../constants/positions.constants';
@@ -77,7 +78,6 @@ const {
   submitCount,
   apiError,
   isPending,
-  setPermission,
   setAllPermissions,
   onSubmit,
 } = usePositionFormProvider();
@@ -142,8 +142,10 @@ const matrizBloqueada = computed(() => isViewMode.value || cargoAcessoTotal.valu
 
 function togglePermission(key: string) {
   if (matrizBloqueada.value) return;
-  const currentValue = !!permissoes.value?.[key];
-  setPermission(key, !currentValue);
+  const marcar = !permissoes.value?.[key];
+  // Nas linhas de segmento, Gerenciar e Ver andam juntos (Spec 04B, D16); nas
+  // outras, `chavesAoAlternar` devolve só a própria chave, como sempre.
+  setAllPermissions(marcar, chavesAoAlternar(key, marcar));
 }
 
 /**

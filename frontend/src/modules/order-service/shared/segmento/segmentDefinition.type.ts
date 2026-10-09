@@ -118,7 +118,14 @@ export type SegmentCapability =
    * Desligada, o campo some da finalização e o Termo de Garantia só é impresso
    * quando houver prazo de fato.
    */
-  | 'garantia_prazo';
+  | 'garantia_prazo'
+  /**
+   * O segmento orça por ambiente, móvel e insumo, com perda, markup e margem
+   * (orçamento técnico da marcenaria, Spec 04A/04B). Liga a seção Configurações
+   * › Marcenaria, a caixa "Sofre perda" no produto e, nas próximas specs, o
+   * menu Orçamentos.
+   */
+  | 'orcamento_tecnico';
 
 /**
  * Um processo de negócio dentro do mesmo segmento.

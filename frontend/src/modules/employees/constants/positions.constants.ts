@@ -18,6 +18,7 @@ import {
   Printer,
   ClipboardList,
   PackageCheck,
+  Calculator,
 } from 'lucide-vue-next';
 
 import { MODULOS } from '@/shared/constants/modulos.constants';
@@ -219,7 +220,40 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     manageKey: 'manage_positions',
     deleteKey: 'delete_positions',
   },
+  {
+    // Spec 04B (marcenaria, D16): ver custos e margens do orçamento; alterar
+    // markup, perda, custo/hora e RT. As chaves são as MESMAS que o backend
+    // confere (app/services/marcenaria/permissoes.py), por isso a linha não
+    // entra no MODULE_PERMISSION_MAP. Sem Excluir.
+    id: 'marcenaria_custos',
+    label: 'Custos da Marcenaria',
+    description: 'Ver custos e margens; alterar markup, perda e RT',
+    icon: Calculator,
+    viewKey: 'view_custos_marcenaria',
+    manageKey: 'manage_custos_marcenaria',
+    // Só na marcenaria, e fora do nível de acesso dos outros segmentos: é o
+    // mecanismo que a matriz já tem (PERMISSION_KEYS e PositionModal.matrizVisivel).
+    segmento: 'marcenaria',
+  },
 ];
+
+/**
+ * Chaves que mudam JUNTO com a que foi clicada (Spec 04B, D16).
+ *
+ * Só nas linhas de um SEGMENTO (hoje, "Custos da Marcenaria"), onde gerenciar
+ * sem ver não faz sentido: marcar Gerenciar marca Ver; desmarcar Ver desmarca
+ * Gerenciar. Nas outras linhas devolve só a própria chave, que é a regra de
+ * sempre (mudar o comportamento delas mexeria em cargos de todos os segmentos).
+ */
+export function chavesAoAlternar(chave: string, marcar: boolean): string[] {
+  const linha = PERMISSION_MATRIX.find(
+    (item) => item.segmento && (item.viewKey === chave || item.manageKey === chave),
+  );
+  if (!linha) return [chave];                                       // linha comum: só ela
+  if (marcar && chave === linha.manageKey) return [chave, linha.viewKey];   // gerenciar implica ver
+  if (!marcar && chave === linha.viewKey && linha.manageKey) return [chave, linha.manageKey]; // sem ver, sem gerenciar
+  return [chave];
+}
 
 function chavesDe(itens: PermissionMatrixItem[]): string[] {
   return Array.from(

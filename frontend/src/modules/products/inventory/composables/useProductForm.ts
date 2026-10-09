@@ -26,6 +26,8 @@ import { useProductModal } from './useProductModal';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 import { recursoDisponivel } from '@/shared/config/planos';
 import { getProdutoFiscal } from '../services/product.service';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
+import { campoSofrePerda } from './sofrePerda';
 
 // =============================================
 // Constants
@@ -41,6 +43,7 @@ const DEFAULT_FORM_VALUES: ProductFormData = {
   fornecedor_id: '',
   localizacao_estoque: '',
   observacao: '',
+  sofre_perda: false,
 
   valor_entrada: 0,
   valor_varejo: 0,
@@ -154,6 +157,10 @@ export interface ProductFormContext {
   fornecedor_id: Ref<string>;
   localizacao_estoque: Ref<string>;
   observacao: Ref<string>;
+  /** Marcenaria (Spec 04B): caixa "Sofre perda no orçamento". */
+  sofre_perda: Ref<boolean>;
+  /** O segmento tem orçamento técnico? Decide se a caixa aparece e se o campo vai no envio. */
+  temOrcamentoTecnico: Ref<boolean>;
 
   valor_entrada: Ref<number>;
   valor_varejo: Ref<number>;
@@ -236,6 +243,10 @@ export function useProductFormProvider() {
   const [fornecedor_id] = defineField('fornecedor_id');
   const [localizacao_estoque] = defineField('localizacao_estoque');
   const [observacao] = defineField('observacao');
+  // Marcenaria (Spec 04B): a caixa só aparece, e o campo só é enviado, onde o
+  // segmento declara `orcamento_tecnico`. Nos outros, nada muda (D3).
+  const [sofre_perda] = defineField('sofre_perda');
+  const { temOrcamentoTecnico } = useCapacidades();
 
   const [valor_entrada] = defineField('valor_entrada');
   const [valor_varejo] = defineField('valor_varejo');
@@ -282,6 +293,7 @@ export function useProductFormProvider() {
       fornecedor_id: product.fornecedor_id ? String(product.fornecedor_id) : '',
       localizacao_estoque: product.localizacao_estoque || '',
       observacao: product.observacao || '',
+      sofre_perda: product.sofre_perda ?? false,   // produto antigo sem o campo = false
 
       valor_entrada: product.estoque.valor_entrada ? product.estoque.valor_entrada / 100 : 0,
       valor_varejo: product.estoque.valor_varejo / 100,
@@ -364,6 +376,8 @@ export function useProductFormProvider() {
       marca: formData.marca || undefined,
       fornecedor_id: toNumberOrUndefined(formData.fornecedor_id),
       localizacao_estoque: formData.localizacao_estoque || undefined,
+      // Só no segmento com orçamento técnico; nos outros o corpo fica igual (D3).
+      ...campoSofrePerda(temOrcamentoTecnico.value, formData.sofre_perda),
       estoque: {
         valor_varejo: toCents(formData.valor_varejo) || 0,
         quantidade: Number(formData.quantidade),
@@ -432,6 +446,8 @@ export function useProductFormProvider() {
           marca: formData.marca || undefined,
           fornecedor_id: toNumberOrUndefined(formData.fornecedor_id),
           localizacao_estoque: formData.localizacao_estoque || undefined,
+          // Só no segmento com orçamento técnico; nos outros o corpo fica igual (D3).
+          ...campoSofrePerda(temOrcamentoTecnico.value, formData.sofre_perda),
           estoque: {
             valor_varejo: toCents(formData.valor_varejo),
             quantidade: formData.quantidade,
@@ -484,6 +500,8 @@ export function useProductFormProvider() {
     fornecedor_id,
     localizacao_estoque,
     observacao,
+    sofre_perda,
+    temOrcamentoTecnico,
     valor_entrada,
     valor_varejo,
     valor_atacado,

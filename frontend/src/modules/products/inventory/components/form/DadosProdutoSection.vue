@@ -12,6 +12,7 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import ImageUploadSection from './ImageUploadSection.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import { useProductForm } from '../../composables/useProductForm';
 import { useFornecedoresQuery } from '../../../suppliers/composables/useFornecedoresQuery';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
@@ -50,6 +51,8 @@ const {
   fornecedor_id,
   localizacao_estoque,
   observacao,
+  sofre_perda,
+  temOrcamentoTecnico,
   errors,
 } = useProductForm();
 
@@ -192,6 +195,16 @@ function handleGenerateSku() {
             :error="submitCount > 0 ? errors.localizacao_estoque : ''"
             :disabled="disabled"
           />
+        </div>
+
+        <!-- Marcenaria: só no segmento com orçamento técnico (Spec 04B, D1/D4).
+             O dono decide por produto e precisa saber o efeito na hora de marcar. -->
+        <div v-if="temOrcamentoTecnico" class="col-span-12" data-testid="sofre-perda">
+          <BaseCheckbox v-model="sofre_perda" label="Sofre perda no orçamento" :disabled="disabled" />
+          <p class="text-xs text-zinc-500 mt-1">
+            Marque para chapas e fitas de borda: o orçamento acrescenta o percentual de perda
+            do corte. Não marque ferragens e acessórios.
+          </p>
         </div>
 
         <!-- Row 4: Observações -->

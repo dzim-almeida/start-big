@@ -42,8 +42,9 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // Marcenaria (fase 1: só Móveis planejados). Os móveis são aprovados no
   // orçamento, não item a item na OS (SPEC-00, O4; Spec 03B, D7). Imagem na
   // entrada e garantia em dias continuam. A Reforma, quando voltar, devolve
-  // `aprovacao_itens` (SPEC-00 §7.1).
-  marcenaria: ['imagem_na_entrada', 'garantia_prazo'],
+  // `aprovacao_itens` (SPEC-00 §7.1). `orcamento_tecnico` liga os parâmetros,
+  // o "Sofre perda" e o menu Orçamentos (Spec 04B, D2).
+  marcenaria: ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'],
 };
 
 /**
@@ -106,5 +107,7 @@ export function useCapacidades() {
     temDiagnostico: computed(() => tem('diagnostico')),
     temImagemNaEntrada: computed(() => tem('imagem_na_entrada')),
     temGarantiaPrazo: computed(() => tem('garantia_prazo')),
+    /** Orçamento técnico (marcenaria): parâmetros, "Sofre perda", menu Orçamentos. */
+    temOrcamentoTecnico: computed(() => tem('orcamento_tecnico')),
   };
 }

@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                    |
 |--------------|--------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                          |
+| Status       | Implementada em 09/10/2026 (roteiro manual da §11 pendente)              |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                    |
 | Dependências | Spec 04A                                                                 |
 | Bloqueia     | Spec 06B                                                                 |
@@ -374,6 +374,8 @@ defineProps<{
 | 21 | `useProductForm`, informática, enviar | Payload sem `sofre_perda` |
 | 22 | `PositionModal`, informática | Sem a linha nova; "Selecionar tudo" marca as mesmas chaves de antes |
 | 23 | `PositionModal`, marcenaria, marcar Gerenciar | Ver marcado junto |
+
+> **Nota da implementação (09/10/2026).** (1) As conversões (% ↔ bp, R$ ↔ centavos) e as regras das listas ficaram em `sections/marcenaria/marcenariaForm.ts`, funções puras testadas (01–06); a validação usa essas funções, com as mesmas mensagens do backend, no lugar de um segundo schema zod. (2) O envio condicional do "Sofre perda" é `campoSofrePerda()` (`products/inventory/composables/sofrePerda.ts`, caso 21). (3) A regra "Gerenciar marca Ver" é `chavesAoAlternar()` em `positions.constants.ts`, aplicada só às linhas com `segmento` (casos 22–23). (4) Os casos 17–18 (modal inteiro) foram cobertos pelas partes: a query não dispara sem a capacidade (17) e a seção expõe `podeGerir`/`paraApi`, que o modal usa para mostrar "Salvar" e montar o corpo do `PUT`. O "Salvar" confere os erros antes de mandar.
 
 ### Roteiro manual (dev)
 
