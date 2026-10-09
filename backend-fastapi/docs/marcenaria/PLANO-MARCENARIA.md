@@ -156,6 +156,7 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 10B | 09/10/2026 | `28965b1` | +20 (vitest: schemas contra JSON reais da 10A, leitor, aba, modais, faltas, impressão, disponível na busca) | frontend: 466 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 | 11B | 09/10/2026 | `597f441` | +39 (vitest: 33 dos terceirizados — schemas contra JSON reais da 11A, regras da barra, seção com e sem o Compras, modais, aba em Serviços —, 2 da seção na Separação, 3 das abas de Serviços por segmento, 1 do botão do topo) | frontend: 505 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 | 12B | 09/10/2026 | `39d84c6` | +35 (vitest: 24 da produção — schemas contra JSON reais da 12A, chips, lote, otimista e desfazer, pergunta de status, Feito por, editar etapas, seleção, quadro —, 3 do status sem perder o formulário e da aba inicial, 3 do editor de listas, 3 das abas da OS, 1 da aba em Serviços, 1 da pergunta na Separação) | frontend: 540 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 13A | 09/10/2026 | (commit da 13A) | +38 (35 de API — registro, correção, pendências, fotos na galeria, agenda, data de instalação no Compras, desfazer, lista de instalações —, 3 da migração) | suítes vizinhas (marcenaria, migrações, Compras, OS, fábrica): 561 passando; a suíte inteira é medida no fechamento do Marco 4 |
 
 ---
 

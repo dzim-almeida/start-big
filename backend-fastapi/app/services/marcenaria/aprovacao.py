@@ -59,6 +59,8 @@ from app.services.marcenaria.orcamento_comum import (
 )
 from app.services.marcenaria.permissoes import pode_ver_custos_marcenaria
 from app.services.marcenaria.producao import apagar_etapas_do_desfazer, criar_etapas_da_aprovacao
+from app.services.marcenaria.entrega import apagar_do_desfazer as apagar_entregas_do_desfazer
+from app.services.marcenaria.entrega import criar_entregas_da_aprovacao
 
 ORIGEM = "ORCAMENTO_MARCENARIA"            # o que vai em `ordem_servico_itens.origem` (D18)
 NOME_INSTALACAO = "Instalação e montagem"   # o item da instalacao (D2)
@@ -360,6 +362,8 @@ def aprovar(db: Session, orcamento_id: int, revisao: int, dados: AprovacaoEntrad
 
     # Spec 12A D1: a copia das etapas padrao em cada movel interno aprovado.
     criar_etapas_da_aprovacao(db, orc)
+    # Spec 13A D1: uma entrega pendente por ambiente aprovado, com a copia do checklist.
+    criar_entregas_da_aprovacao(db, orc, os_criada.id)
 
     aprovados = [m.id for _a, m in _todos_os_moveis(orc) if m.aprovado]
     recusados = [m.id for _a, m in _todos_os_moveis(orc) if not m.aprovado]
@@ -419,6 +423,7 @@ def desfazer_aprovacao(db: Session, orcamento_id: int, revisao: int, dados: Desf
     )
 
     apagar_etapas_do_desfazer(orc)                              # 12A: todas pendentes (D20 garante)
+    apagar_entregas_do_desfazer(db, os_)                        # 13A: nada registrado (D17 garante)
     for _a, movel in _todos_os_moveis(orc):
         movel.aprovado, movel.os_item_id = None, None
     orc.os_id = None

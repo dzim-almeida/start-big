@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core import segmentos as reg
 from app.core.enum import OrdemServicoStatus
+from app.db.models.marcenaria.entrega import MarcenariaEntrega, SituacaoEntrega
 from app.db.models.marcenaria.etapa import StatusEtapa
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.pedido_compra import PedidoCompra
@@ -103,6 +104,21 @@ def _bloqueio_producao(db: Session, orc: MarcenariaOrcamento) -> list[str]:
     return [f"A produção já começou ({'; '.join(partes)})."]
 
 
+def _bloqueio_entrega(db: Session, orc: MarcenariaOrcamento) -> list[str]:
+    """Spec 13A D17: com entrega registrada, a obra ja foi entregue (o que aconteceu nao some).
+
+    Agendamentos sem registro NAO bloqueiam: o desfazer os apaga junto.
+    """
+    registradas = [
+        e for e in db.query(MarcenariaEntrega).filter(MarcenariaEntrega.os_id == orc.os_id).all()
+        if e.situacao != SituacaoEntrega.PENDENTE
+    ]
+    if not registradas:
+        return []
+    nomes = ", ".join(e.ambiente.nome for e in sorted(registradas, key=lambda e: (e.ambiente.ordem, e.ambiente.id)))
+    return [f"Já há entrega registrada ({nomes})."]
+
+
 # Ponto de extensao: cada spec seguinte acrescenta a regra que ELA conhece
 # (10A: material retirado; 11A: pedido a central; 12A: producao; 13A: entrega).
 BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = [
@@ -111,6 +127,7 @@ BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = 
     _bloqueio_material_retirado,          # 10A
     _bloqueio_pedido_a_central,           # 11A
     _bloqueio_producao,                   # 12A
+    _bloqueio_entrega,                    # 13A
 ]
 
 

@@ -40,6 +40,7 @@ from app.api.v1.endpoints import nfe_entrada
 from app.api.v1.endpoints import compras
 from app.api.v1.endpoints import fabrica
 from app.api.v1.endpoints import (
+    marcenaria_entrega,
     marcenaria_orcamento,
     marcenaria_orcamento_itens,
     marcenaria_producao,
@@ -178,6 +179,8 @@ router.include_router(marcenaria_separacao.router, prefix="/marcenaria", tags=["
 router.include_router(marcenaria_terceirizado.router, prefix="/marcenaria", tags=["Marcenaria - Terceirizados"])
 # Spec 12A: etapas de producao por movel e o quadro da fabrica.
 router.include_router(marcenaria_producao.router, prefix="/marcenaria", tags=["Marcenaria - Produção"])
+# Spec 13A: entrega por ambiente, pendencias, fotos e agenda de instalacao.
+router.include_router(marcenaria_entrega.router, prefix="/marcenaria", tags=["Marcenaria - Entrega"])
 # Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
 # do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
 marcenaria_ganchos.registrar()

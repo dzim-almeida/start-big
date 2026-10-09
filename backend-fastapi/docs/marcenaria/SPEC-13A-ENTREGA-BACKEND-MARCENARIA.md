@@ -2,13 +2,25 @@
 
 | Campo        | Valor                                                                                    |
 |--------------|------------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                          |
+| Status       | Implementada em 09/10/2026                                                               |
 | Camada       | Backend (FastAPI)                                                                        |
 | Dependências | Specs 04A (`checklist_vistoria`), 08A (aprovação, bloqueios), 12A (padrão de cópia na aprovação) |
 | Bloqueia     | Specs 13B, 14                                                                            |
 | Referência   | SPEC-00: I1, I2, I3, I4, I5, I5a, I5b, I6, T7, T8, T8a, P3, P4, O8, R15-MIG · PR1, PR6, PR7, PR8 |
 
 > **Revisão 1 (08/10/2026) — convergência com a branch (SPEC-00 Revisão 15).** (1) Migração `2c4df92b1412`, filha de `072437088f6c` (12A). (2) **I5b:** a OS guarda em `ordens_servico.data_instalacao` a data do próximo agendamento com ambiente ainda não entregue (D20). A coluna já existe (fábrica F3) e só o Compras a lê, para a fila de material atender primeiro quem instala primeiro (`demanda_os.DemandaOS.na_fila`). A Lista de OS continua igual (T8a).
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Avisos como objetos:** `avisos: [{codigo, mensagem}]` (e não só o código), para a tela dizer "quem e onde" (D11): `MONTADOR_OCUPADO` traz também `funcionario_id` e `numero_os`; `SEM_FOTO_TERMO` vem com a frase pronta.
+> (2) **Um só formato de resumo**, na aba e em `/entrega/resumo`: `{entregues, total, todos_entregues, ambientes_pendentes: [nomes], pendencias_abertas: [{id, entrega_id, ambiente, descricao}]}` — a contagem de pendências é o tamanho da lista.
+> (3) **Ids para a tela:** cada entrega traz `ambiente_id`; o agendamento da entrega traz os montadores como `{funcionario_id, nome}` (a 13B pré-marca os montadores no registro); cada agendamento traz `ambiente_ids`, os nomes, `atrasado` e `editavel` (D10 e OS aberta).
+> (4) **Pendência só depois do registro** ("Registre a entrega do ambiente antes de anotar pendências."): numa entrega pendente, o que falta vai no próprio registro. Depois dele, vale até com a OS finalizada (D6).
+> (5) **Registro:** aceita montador que já saiu da empresa (ele montou de verdade, e a correção não pode travar por isso); agendar exige funcionário ativo. Data da entrega e da resolução no futuro são recusadas. Marcações: nulo = mantém as de antes (correção); com valor, uma por item do checklist, na ordem.
+> (6) **Checklist** só muda com a entrega pendente (409 `TRANSICAO_INVALIDA`); agendamento com entrega registrada responde 409 `AGENDAMENTO_REGISTRADO`.
+> (7) **Fotos:** só com a OS aberta (como o registro; a 13B mostra só leitura na OS fechada). `DELETE …/fotos/{id}` usa o id do vínculo. Excluir a foto pela galeria da OS apaga o vínculo (FK `ON DELETE CASCADE`; o SQLite da loja liga as FKs).
+> (8) **Lista de instalações:** OS canceladas ficam de fora; os filtros se somam (período **e** montador **e** atrasadas); cada linha traz também o telefone do cliente e o status da OS.
+> (9) As regras que a entrega e a agenda dividem (atrasado, travado, `sincronizar_data_instalacao`, montadores) ficam em `agenda_regras.py`, para os dois serviços não se importarem (sem ciclo), como `aprovacao_bloqueios.py`.
+> (10) Nos testes, as fotos vão para uma pasta temporária (nunca para a pasta de dados da máquina).
 
 ---
 
@@ -259,14 +271,14 @@ def registrar(db, numero_os, entrega_id, dados: RegistroEntrega, usuario) -> Ent
 
 ## 10. Critérios de aceite
 
-- [ ] Aprovar cria uma entrega pendente por ambiente aprovado, com a cópia do checklist; o checklist é editável por ambiente.
-- [ ] Agendar com data, hora, ambientes e montadores; vários agendamentos por OS; aviso de montador ocupado; atrasado quando a data passa sem registro.
-- [ ] Registrar Conforme ou Com ressalvas (exige pendência), com data, montadores, recebido por, marcações e observações; corrigir depois com evento.
-- [ ] Fotos de termo e de montagem entram na galeria da OS e ficam ligadas ao ambiente; registro sem foto do termo avisa.
-- [ ] Pendências criadas, resolvidas e reabertas, mesmo com a OS finalizada.
-- [ ] Resumo para a finalização com ambientes não entregues e pendências abertas; `todos_entregues` no último registro.
-- [ ] Lista de instalações por período, montador e atrasadas.
-- [ ] Desfazer aprovação bloqueado com entrega registrada. Nenhum preço. Código comentado (PR6).
+- [x] Aprovar cria uma entrega pendente por ambiente aprovado, com a cópia do checklist; o checklist é editável por ambiente.
+- [x] Agendar com data, hora, ambientes e montadores; vários agendamentos por OS; aviso de montador ocupado; atrasado quando a data passa sem registro.
+- [x] Registrar Conforme ou Com ressalvas (exige pendência), com data, montadores, recebido por, marcações e observações; corrigir depois com evento.
+- [x] Fotos de termo e de montagem entram na galeria da OS e ficam ligadas ao ambiente; registro sem foto do termo avisa.
+- [x] Pendências criadas, resolvidas e reabertas, mesmo com a OS finalizada.
+- [x] Resumo para a finalização com ambientes não entregues e pendências abertas; `todos_entregues` no último registro.
+- [x] Lista de instalações por período, montador e atrasadas.
+- [x] Desfazer aprovação bloqueado com entrega registrada. Nenhum preço. Código comentado (PR6).
 
 ## 11. Casos de teste
 
