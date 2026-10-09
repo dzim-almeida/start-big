@@ -89,3 +89,47 @@ describe('ListaTextosEditavel', () => {
     wrapper.unmount();
   });
 });
+
+describe('ListaTextosEditavel — identidade e itens travados (Spec 12B)', () => {
+  /** A última lista de identidades emitida. */
+  const ultimosIds = (wrapper: ReturnType<typeof montar>) => {
+    const emissoes = wrapper.emitted('update:ids') ?? [];
+    return emissoes[emissoes.length - 1]?.[0] as (number | null)[] | undefined;
+  };
+
+  it('sem `ids`, nada de `update:ids` (Configurações › Marcenaria fica igual)', async () => {
+    const wrapper = montar(['Corte', 'Borda']);
+    await botao(wrapper, 'Descer etapa Corte').trigger('click');
+    expect(ultimaLista(wrapper)).toEqual(['Borda', 'Corte']);
+    expect(wrapper.emitted('update:ids')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('a identidade anda com o item: descer, remover e adicionar (novo = null)', async () => {
+    const wrapper = montar(['Corte', 'Borda', 'Montagem'], { ids: [1, 2, 3], maxItens: 5 });
+    await botao(wrapper, 'Descer etapa Corte').trigger('click');
+    expect(ultimaLista(wrapper)).toEqual(['Borda', 'Corte', 'Montagem']);
+    expect(ultimosIds(wrapper)).toEqual([2, 1, 3]);
+    await botao(wrapper, 'Remover etapa Borda').trigger('click');
+    expect(ultimosIds(wrapper)).toEqual([1, 3]);
+    await wrapper.find('button:not([aria-label])').trigger('click');          // "Adicionar etapa"
+    expect(ultimosIds(wrapper)).toEqual([1, 2, 3, null]);
+    wrapper.unmount();
+  });
+
+  it('item travado: não renomeia nem remove (com o motivo), mas sobe e desce', async () => {
+    const motivo = 'Etapa concluída: reabra antes de remover ou renomear.';
+    const wrapper = montar(['Corte', 'Borda'], { ids: [1, 2], travados: [true, false], motivoTravado: motivo });
+    const campo = wrapper.find('input[aria-label="etapa 1"]');
+    expect((campo.element as HTMLInputElement).readOnly).toBe(true);
+    expect(campo.attributes('title')).toBe(motivo);
+    const remover = botao(wrapper, 'Remover etapa Corte');
+    expect(remover.attributes('disabled')).toBeDefined();
+    expect(remover.attributes('title')).toBe(motivo);
+    await campo.setValue('Corte novo');
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();            // não renomeou
+    await botao(wrapper, 'Descer etapa Corte').trigger('click');
+    expect(ultimaLista(wrapper)).toEqual(['Borda', 'Corte']);                 // mover vale
+    wrapper.unmount();
+  });
+});

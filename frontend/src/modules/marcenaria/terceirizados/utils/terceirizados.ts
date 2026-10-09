@@ -60,8 +60,8 @@ export function diasDeAtraso(movel: MovelTerceirizado, hoje = new Date()): numbe
   return Math.max(1, Math.round((inicioDeHoje.getTime() - previsao.getTime()) / 86_400_000));
 }
 
-/** "700 × 2200 × 600 mm" (só as medidas preenchidas). */
-export function textoDasMedidas(movel: MovelTerceirizado): string {
+/** "700 × 2200 × 600 mm" (só as medidas preenchidas). Serve a qualquer móvel com `medidas` (a 12B usa). */
+export function textoDasMedidas(movel: Pick<MovelTerceirizado, 'medidas'>): string {
   const { largura_mm: l, altura_mm: a, profundidade_mm: p } = movel.medidas;
   const partes = [l, a, p].filter((m): m is number => m != null && m > 0);
   return partes.length ? `${partes.join(' × ')} mm` : '';

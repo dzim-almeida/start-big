@@ -28,6 +28,9 @@ import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schema
 import { mensagemDoErro, statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
 import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
 import SecaoTerceirizados from '@/modules/marcenaria/terceirizados/components/SecaoTerceirizados.vue';
+import type { SugestaoStatus, TerceirizadosDaOS } from '@/modules/marcenaria/terceirizados/schemas/terceirizado.schema';
+import SugestaoStatusModal from '@/modules/marcenaria/producao/components/SugestaoStatusModal.vue';
+import { useToast } from '@/shared/composables/useToast';
 
 import { tocarSomDeErro, useLeitorCodigo } from '../composables/useLeitorCodigo';
 import { useSeparacao } from '../composables/useSeparacao';
@@ -40,7 +43,11 @@ import RetirarModal from './RetirarModal.vue';
 import SeparacaoLinha from './SeparacaoLinha.vue';
 import SeparacaoResumo from './SeparacaoResumo.vue';
 
-const props = defineProps<{ numeroOs: string }>();
+const props = withDefaults(defineProps<{
+  numeroOs: string;
+  /** Grava só o status da OS (12B D13). Sem ela, a pergunta de status da 11B não aparece. */
+  aplicarStatus?: ((status: string) => Promise<void>) | null;
+}>(), { aplicarStatus: null });
 const emit = defineEmits<{ verNecessidades: []; navegar: [destino: RouteLocationRaw] }>();
 
 // --- Modais da aba (enquanto um está aberto, a lista não recarrega e o leitor dorme) ---
@@ -52,9 +59,11 @@ const faltasAberto = ref(false);
 const confirmacao = useConfirmacao();
 /** A seção "Móveis da central" (11B) avisa quando está com um modal aberto. */
 const terceirizadosOcupado = ref(false);
+/** A pergunta de status da OS (12B D12), quando o conferir/voltar da 11B sugere uma. */
+const sugestao = ref<SugestaoStatus>(null);
 const algumModalAberto = computed(
   () => retirarModal.value.aberto || devolverModal.value.aberto || faltasAberto.value || confirmacao.isOpen.value
-    || terceirizadosOcupado.value,
+    || terceirizadosOcupado.value || sugestao.value !== null,
 );
 
 const {
@@ -147,6 +156,27 @@ onMounted(focarCampo);                                  // D2: sempre focado ao 
 watch(() => separacao.value != null, (carregou) => { if (carregou) focarCampo(); });
 onBeforeUnmount(() => { if (tempoDestaque) clearTimeout(tempoDestaque); });
 
+// --- Pergunta de status da OS (12B D12): conferir o último terceirizado pode terminar a produção ---
+const toast = useToast();
+const aplicandoStatus = ref(false);
+function aoSugerirStatus(secao: TerceirizadosDaOS) {
+  if (props.aplicarStatus) sugestao.value = secao.sugestao_status ?? null;
+}
+async function moverStatus() {
+  const alvo = sugestao.value;
+  if (!alvo || !props.aplicarStatus) return;
+  aplicandoStatus.value = true;
+  try {
+    await props.aplicarStatus(alvo.para);
+    toast.success(`OS movida para ${alvo.rotulo}.`);
+    sugestao.value = null;
+  } catch (erro) {
+    toast.error('Não foi possível mudar o status da OS.', mensagemDoErro(erro));
+  } finally {
+    aplicandoStatus.value = false;
+  }
+}
+
 // --- Ações ------------------------------------------------------------------------------
 function abrirRetirar(linha: LinhaSeparacao) {
   retirarModal.value = { aberto: true, linha, quantidade: null };
@@ -200,6 +230,7 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
       v-model:ocupado="terceirizadosOcupado"
       :numero-os="numeroOs"
       @navegar="emit('navegar', $event)"
+      @sugestao-status="aoSugerirStatus"
     />
 
     <p v-if="isLoading" class="text-sm text-zinc-400">Carregando a separação…</p>
@@ -325,6 +356,7 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
       @close="faltasAberto = false; focarCampo()"
       @ver-necessidades="faltasAberto = false; emit('verNecessidades')"
     />
+    <SugestaoStatusModal :sugestao="sugestao" :aplicando="aplicandoStatus" @mover="moverStatus" @agora-nao="sugestao = null" />
     <BaseConfirmModal
       :is-open="confirmacao.isOpen.value"
       :title="confirmacao.opcoes.value.titulo"

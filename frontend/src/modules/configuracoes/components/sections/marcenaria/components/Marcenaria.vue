@@ -29,7 +29,7 @@ import {
   paraTela,
   type FormMarcenaria,
 } from '../marcenariaForm';
-import ListaTextosEditavel from './ListaTextosEditavel.vue';
+import ListaTextosEditavel from '@/shared/components/ui/ListaTextosEditavel/ListaTextosEditavel.vue';
 
 const { data, isPending, isError, refetch } = useConfiguracaoMarcenariaQuery();
 

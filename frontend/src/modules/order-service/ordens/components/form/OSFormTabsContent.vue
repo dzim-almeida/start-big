@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
 import { useRouter, type RouteLocationRaw } from 'vue-router';
-import { ClipboardCheck, ClipboardList, FileSpreadsheet, Image as ImageIcon, Package, PackageCheck } from 'lucide-vue-next';
+import { ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, Package, PackageCheck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -14,6 +14,8 @@ import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObje
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
 import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
+import { useOSCreateFlow } from '../../composables/useOSCreateFlow';
+import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 
 // Módulo Compras (fase 6): "Compras desta OS" na aba de peças. Só com o módulo
 // e a permissão, e carregado sob demanda — quem não tem Compras nem baixa.
@@ -32,6 +34,10 @@ const OSOrcamentoTab = defineAsyncComponent(
 // Marcenaria (Spec 10B D1): aba "Separação" do material. Também sob demanda.
 const OSSeparacaoTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/separacao/components/OSSeparacaoTab.vue'),
+);
+// Marcenaria (Spec 12B D1): aba "Produção" das etapas por móvel. Também sob demanda.
+const OSProducaoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/producao/components/OSProducaoTab.vue'),
 );
 const router = useRouter();
 
@@ -53,7 +59,7 @@ function abrirOrcamento(orcamentoId: number) {
   void router.push({ name: 'marcenaria-orcamento', params: { id: orcamentoId } });
 }
 
-type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'orcamento';
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'producao' | 'orcamento';
 
 const view = useOSFormView();
 
@@ -68,11 +74,15 @@ const { temTipos } = useTiposDeTrabalho();
 
 const activeTab = ref<TabType>('objeto');
 
-watch(() => view.isOpen.value, (open) => {
-  if (open) {
-    activeTab.value = 'objeto';
-  }
-});
+/** "Feito por" da Produção (12B D6): os funcionários do select da OS, sem o "-- Selecione --". */
+const funcionariosDaProducao = computed(() =>
+  view.funcionariosOptions.value
+    .filter((opcao) => opcao.value !== '')
+    .map((opcao) => ({ id: Number(opcao.value), nome: opcao.label })),
+);
+
+/** 12B D13: "Mover" na pergunta de status grava só o status (o resto do formulário fica). */
+const aplicarStatus = (status: string) => view.aplicarStatusSalvo(status as OsStatusEnumDataType);
 
 const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => {
   const tabs: { id: TabType; label: string; icon: Component }[] = [
@@ -94,8 +104,9 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
   // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
   // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
   if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
-    // Separação (10B D1) antes do Orçamento: é o trabalho do dia da fábrica.
+    // Separação (10B D1) e Produção (12B D1) antes do Orçamento: é o trabalho do dia da fábrica.
     tabs.push({ id: 'separacao', label: 'Separação', icon: PackageCheck });
+    tabs.push({ id: 'producao', label: 'Produção', icon: Hammer });
     tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
@@ -116,6 +127,21 @@ const visibleTabs = computed(() => {
     ? allTabs.value.filter((tab) => tab.id !== 'diagnostico')
     : allTabs.value;
 });
+
+// Spec 12B §7.1: quem abre a OS pode pedir a aba inicial (o quadro da fábrica
+// pede 'producao'). Sem pedido — ou uma aba que este segmento não tem —, abre
+// em 'objeto', como sempre. O pedido vale uma vez só. `immediate`: este
+// componente pode nascer com o modal já aberto. Fica DEPOIS de `allTabs`,
+// que ele consulta.
+const { abaInicial } = useOSCreateFlow();
+
+watch(() => view.isOpen.value, (open) => {
+  if (open) {
+    const pedida = allTabs.value.find((tab) => tab.id === abaInicial.value);
+    activeTab.value = pedida ? pedida.id : 'objeto';
+    abaInicial.value = null;
+  }
+}, { immediate: true });
 
 const objetoModel = computed<ObjetoFormData>({
   get: () => view.objetoFormData.value,
@@ -212,8 +238,17 @@ const objetoModel = computed<ObjetoFormData>({
       <OSSeparacaoTab
         v-if="activeTab === 'separacao' && view.currentOSData.value"
         :numero-os="view.currentOSData.value.numero_os"
+        :aplicar-status="aplicarStatus"
         @ver-necessidades="verNecessidades"
         @navegar="navegar"
+      />
+
+      <!-- Fora do fieldset: a produção tem as próprias regras de edição (12B D10). -->
+      <OSProducaoTab
+        v-if="activeTab === 'producao' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :funcionarios="funcionariosDaProducao"
+        :aplicar-status="aplicarStatus"
       />
 
       <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->

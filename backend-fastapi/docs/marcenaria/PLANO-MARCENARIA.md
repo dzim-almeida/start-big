@@ -129,6 +129,8 @@ O roteiro manual de cada spec B, em sequência, com **um projeto real** da fábr
 
 **Marco 2 concluído em 09/10/2026** (06A, 06B, 07, 08A, 08B, 09A, 09B): backend 2.516 passando e 1 pulado; frontend 446 testes e `vue-tsc` sem erros. Pendentes antes da loja: os roteiros manuais das specs 06B, 07, 08B e 09B e o `npm run build:sidecar`.
 
+**Marco 3 concluído em 09/10/2026** (10A, 10B, 11A, 11B, 12A, 12B): backend 2.610 passando e 1 pulado; frontend 540 testes e `vue-tsc` sem erros. Pendentes antes da loja: os roteiros manuais das specs 10B, 11B e 12B (no computador da fábrica, com leitor de código) e o `npm run build:sidecar` (o backend mudou nas 10A, 11A e 12A).
+
 Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/10: backend 2.334 passando e 1 pulado; frontend 188 testes e `vue-tsc` sem erros). Sidecar: `npm run build:sidecar` antes do próximo instalador.
 
 | Spec | Data | Commit | Testes | Suíte depois |
@@ -152,7 +154,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 11A | 09/10/2026 | `861f99e` | +26 (22 de API, com e sem o Compras; 4 da migração) | suítes vizinhas (marcenaria, Compras, fábrica, OS, migrações): 563 passando; a suíte inteira é medida com a 12A |
 | 12A | 09/10/2026 | `de41026` | +28 (25 de API, 3 da migração) | 2.610 passando, 1 pulado (com a 11A) |
 | 10B | 09/10/2026 | `28965b1` | +20 (vitest: schemas contra JSON reais da 10A, leitor, aba, modais, faltas, impressão, disponível na busca) | frontend: 466 testes, `vue-tsc` sem erros, `check:print-bw` ok |
-| 11B | 09/10/2026 | (commit da 11B) | +39 (vitest: 33 dos terceirizados — schemas contra JSON reais da 11A, regras da barra, seção com e sem o Compras, modais, aba em Serviços —, 2 da seção na Separação, 3 das abas de Serviços por segmento, 1 do botão do topo) | frontend: 505 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 11B | 09/10/2026 | `597f441` | +39 (vitest: 33 dos terceirizados — schemas contra JSON reais da 11A, regras da barra, seção com e sem o Compras, modais, aba em Serviços —, 2 da seção na Separação, 3 das abas de Serviços por segmento, 1 do botão do topo) | frontend: 505 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 12B | 09/10/2026 | (commit da 12B) | +35 (vitest: 24 da produção — schemas contra JSON reais da 12A, chips, lote, otimista e desfazer, pergunta de status, Feito por, editar etapas, seleção, quadro —, 3 do status sem perder o formulário e da aba inicial, 3 do editor de listas, 3 das abas da OS, 1 da aba em Serviços, 1 da pergunta na Separação) | frontend: 540 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 
 ---
 

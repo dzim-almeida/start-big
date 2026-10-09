@@ -36,8 +36,9 @@ describe('botão do topo da tela de OS', () => {
     expect(mostrarBotaoAdicionar('revisoes', true)).toBe(false);
   });
 
-  it('aba Terceirizados (marcenaria, Spec 11B D13): sem botão, só lê', () => {
+  it('abas Terceirizados e Produção (marcenaria, Specs 11B D13 e 12B): sem botão, só leem', () => {
     expect(mostrarBotaoAdicionar('terceirizados', false)).toBe(false);
+    expect(mostrarBotaoAdicionar('producao', false)).toBe(false);
   });
 });
 

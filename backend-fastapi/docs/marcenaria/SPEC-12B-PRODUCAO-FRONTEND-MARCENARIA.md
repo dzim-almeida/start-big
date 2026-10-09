@@ -2,11 +2,22 @@
 
 | Campo        | Valor                                                                                   |
 |--------------|-----------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                         |
+| Status       | Implementada em 09/10/2026                                                              |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (abas da OS e da tela de Serviços) |
 | Dependências | Specs 01B (rótulos de status), 08B (padrão de aba), 11B (terceirizados), 12A (API)      |
 | Bloqueia     | —                                                                                       |
 | Referência   | SPEC-00: P1, P1a, P2, P2a, P2b, P3, P4, E6a, T1 · PR1, PR3, PR6                         |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **"Concluir em todos" com o "Feito por":** o botão manda as etapas pendentes daquele nome para `POST /etapas/concluir` (um POST só, caso 05), e não para `/concluir-em-todos`, que não aceita o responsável: assim o D6 vale também no lote. O nome é comparado sem diferenciar maiúsculas, como o backend.
+> (2) **Iniciar:** pelo botão direito no chip ou pelo "⋯" que aparece ao passar o mouse; abre um modal pequeno ("Quem vai fazer"), que já vem com o "Feito por". "Iniciar selecionadas" usa o mesmo modal. Reabrir (no menu do chip concluído) não pede confirmação: o menu já é o passo deliberado, e reabrir por engano se desfaz com um clique.
+> (3) **"Feito por" (D6):** vale para a sessão (até fechar o sistema), não só para a aba; "Eu (usuário logado)" manda sem o campo, e o backend usa o funcionário do usuário. A lista é a dos funcionários do próprio modal de OS (sem permissão de ver funcionários, o select some).
+> (4) **Otimista (D11):** a recarga automática pausa com modal aberto e enquanto há gravação no ar (uma leitura velha desfaria a marcação na tela). No erro, a tela volta ao estado anterior na hora e a aba relê a API.
+> (5) **Pergunta de status (D12, D13):** `aplicarStatusSalvo` foi extraído para `useOSAplicarStatus` (testável sozinho) e entra no contexto do modal. As abas recebem a função por prop (`aplicarStatus`); sem ela, a pergunta não aparece. A pergunta também aparece na aba Separação, quando o conferir ou o voltar de um terceirizado (11B) trazem sugestão.
+> (6) **Aba inicial (§7.1):** `openExistingOS(os, comReopen, { abaInicial })` — o terceiro parâmetro é opcional e as chamadas de hoje não mudam. O modal lê o pedido ao abrir e o limpa; uma aba que o segmento não tem cai em "objeto".
+> (7) **`ListaTextosEditavel` em `shared/components/ui/`** (com a regra `errosDosItens` ao lado, reexportada de `marcenariaForm.ts`). Dois props opcionais novos: `ids` (v-model:ids, a identidade que anda com o item ao mover e remover) e `travados` + `motivoTravado`. Sem eles, Configurações › Marcenaria fica igual (teste).
+> (8) **Terceirizado no cartão (D7):** a API da 12A não manda o nome da central na produção; o cartão mostra "Central · Pedido enviado · chega 20/10" (o nome e o telefone ficam na seção da Separação).
+> (9) **Quadro:** os filtros (status, "Só atrasadas", busca) são aplicados na tela sobre a lista da API, que já vem na ordem da previsão. "Atrasada" = a OS tem móvel não pronto com a previsão vencida (`moveis_atrasados` da 12A).
 
 ---
 
@@ -188,14 +199,14 @@ async function concluirEtapas(ids: number[]) {
 
 ## 10. Critérios de aceite
 
-- [ ] Aba Produção só na marcenaria, com progresso, previsão, "Concluir em todos" e um cartão por móvel com os chips.
-- [ ] Um clique conclui; fora de ordem pede confirmação; reabrir pelo menu; iniciar com responsável; seleção em lote.
-- [ ] "Feito por" muda o responsável das próximas marcações.
-- [ ] Terceirizado aparece com a situação e fica pronto quando conferido.
-- [ ] Editar etapas de um móvel; aplicar etapas padrão quando faltam.
-- [ ] Pergunta de "Em Produção" e de "Aguardando Entrega"; "Mover" troca só o status sem perder o resto do formulário.
-- [ ] Quadro em Serviços › Produção, ordenado pela previsão, abrindo a OS na aba Produção.
-- [ ] Nenhum preço. Prova de não regressão (§8). Código comentado (PR6).
+- [x] Aba Produção só na marcenaria, com progresso, previsão, "Concluir em todos" e um cartão por móvel com os chips.
+- [x] Um clique conclui; fora de ordem pede confirmação; reabrir pelo menu; iniciar com responsável; seleção em lote.
+- [x] "Feito por" muda o responsável das próximas marcações.
+- [x] Terceirizado aparece com a situação e fica pronto quando conferido.
+- [x] Editar etapas de um móvel; aplicar etapas padrão quando faltam.
+- [x] Pergunta de "Em Produção" e de "Aguardando Entrega"; "Mover" troca só o status sem perder o resto do formulário.
+- [x] Quadro em Serviços › Produção, ordenado pela previsão, abrindo a OS na aba Produção.
+- [x] Nenhum preço. Prova de não regressão (§8). Código comentado (PR6).
 
 ## 11. Casos de teste
 

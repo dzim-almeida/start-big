@@ -4,7 +4,7 @@
  *
  * - informática / serigrafia: exatamente as abas de hoje;
  * - oficina: + "Revisões", no mesmo lugar;
- * - marcenaria: + "Terceirizados", sem botão de criar no topo (D13).
+ * - marcenaria: + "Produção" (12B D15) e "Terceirizados" (11B D10), sem botão de criar no topo.
  *
  * As abas em si são trocadas por marcadores: aqui só importa QUAL aparece.
  */
@@ -37,6 +37,7 @@ vi.mock('../tabs/OrdensServicoTab.vue', () => marcador('aba-ordens'));
 vi.mock('../tabs/ServicosTab.vue', () => marcador('aba-servicos'));
 vi.mock('../tabs/RevisoesPendentesTab.vue', () => marcador('aba-revisoes'));
 vi.mock('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue', () => marcador('aba-terceirizados'));
+vi.mock('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue', () => marcador('aba-quadro-producao'));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -70,13 +71,24 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     temOrcamentoTecnico.value = true;
     podeCriarOSManual.value = false;
     const w = montar();
-    expect(abas(w)).toEqual(['Ordens de Serviço', 'Cadastro de Serviços', 'Terceirizados']);
+    expect(abas(w)).toEqual(['Ordens de Serviço', 'Cadastro de Serviços', 'Produção', 'Terceirizados']);
 
     await w.findAll('button').find((b) => b.text() === 'Terceirizados')!.trigger('click');
     await flushPromises();
     expect(w.find('h2').text()).toBe('Terceirizados');
     expect(w.text()).toContain('Móveis pedidos às centrais parceiras e ainda não conferidos.');
     expect(w.find('[data-testid="aba-terceirizados"]').exists()).toBe(true);
+    expect(w.text()).not.toContain('Novo Serviço');
+  });
+
+  it('marcenaria: "Produção" mostra o quadro da fábrica, sem botão de criar (12B D15)', async () => {
+    temOrcamentoTecnico.value = true;
+    podeCriarOSManual.value = false;
+    const w = montar();
+    await w.findAll('button').find((b) => b.text() === 'Produção')!.trigger('click');
+    await flushPromises();
+    expect(w.find('h2').text()).toBe('Produção');
+    expect(w.find('[data-testid="aba-quadro-producao"]').exists()).toBe(true);
     expect(w.text()).not.toContain('Novo Serviço');
   });
 });

@@ -29,6 +29,7 @@ import { useOSPrintFlow } from '../composables/modal/useOSPrintFlow';
 import { useOSClientHistory } from '../composables/modal/useOSClientHistory';
 import { useOSFormViewProvider } from '../context/useOSFormView.context';
 import { getCustomerByIdForOS } from '../services/relationship/osRelationshipGet.service';
+import { useOSAplicarStatus } from '../composables/modal/useOSAplicarStatus';
 interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
@@ -174,6 +175,12 @@ async function refreshCurrentOSData() {
   const os = await getUniqueOS(osNumber.value);
   localOSData.value = os;
 }
+
+// Marcenaria (Spec 12B D13): "Mover" a OS de status grava SÓ o status, sem
+// tocar no resto do formulário (uma observação não salva continua pendente).
+const { aplicarStatusSalvo } = useOSAplicarStatus({
+  osNumber, currentOSData, localOSData, campoStatus: form.atualizarGeral.status,
+});
 const {
   isItemModalOpen,
   editingItem,
@@ -591,6 +598,7 @@ useOSFormViewProvider({
   handleUpdateCliente,
   handleAbrirComCliente,
   handleStatusUpdate,
+  aplicarStatusSalvo,
   handleFuncionarioIdUpdate,
   handlePrioridadeUpdate,
   handleDataPrevisaoUpdate,

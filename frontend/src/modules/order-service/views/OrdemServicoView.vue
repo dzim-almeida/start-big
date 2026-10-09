@@ -11,7 +11,11 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import OrdensServicoTab from './tabs/OrdensServicoTab.vue';
 import ServicosTab from './tabs/ServicosTab.vue';
 import RevisoesPendentesTab from './tabs/RevisoesPendentesTab.vue';
-// Marcenaria (Spec 11B D10): aba "Terceirizados". Sob demanda — os outros segmentos nem baixam.
+// Marcenaria: abas "Produção" (Spec 12B D15) e "Terceirizados" (11B D10). Sob
+// demanda — os outros segmentos nem baixam.
+const QuadroProducaoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue'),
+);
 const TerceirizadosTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue'),
 );
@@ -32,22 +36,27 @@ const { podeCriarOSManual } = useTiposDeTrabalho();
 
 const activeTab = ref('ordens');
 
-// Abas extras por capacidade, na ordem: Revisões (oficina, pós-venda) e
-// Terceirizados (marcenaria, Spec 11B D10). Sem nenhuma, a lista é a de sempre.
+// Abas extras por capacidade, na ordem: Revisões (oficina, pós-venda), Produção
+// (marcenaria, Spec 12B D15: o quadro que a fábrica abre de manhã) e
+// Terceirizados (11B D10). Sem nenhuma, a lista é a de sempre.
 const tabOptions = computed(() => [
   ...TAB_OPTIONS,
   ...(temRevisoes.value ? [{ id: 'revisoes', label: 'Revisões' }] : []),
-  ...(temOrcamentoTecnico.value ? [{ id: 'terceirizados', label: 'Terceirizados' }] : []),
+  ...(temOrcamentoTecnico.value
+    ? [{ id: 'producao', label: 'Produção' }, { id: 'terceirizados', label: 'Terceirizados' }]
+    : []),
 ]);
 
 const pageTitle = computed(() => {
   if (activeTab.value === 'revisoes') return 'Revisões Pendentes';
+  if (activeTab.value === 'producao') return 'Produção';
   if (activeTab.value === 'terceirizados') return 'Terceirizados';
   return activeTab.value === 'ordens' ? 'Ordens de Serviço' : 'Cadastro de Serviços';
 });
 
 const pageDescription = computed(() => {
   if (activeTab.value === 'revisoes') return 'Veículos com revisão vencida por data e/ou KM.';
+  if (activeTab.value === 'producao') return 'As OS em produção, com o progresso e a próxima etapa, na ordem da entrega.';
   if (activeTab.value === 'terceirizados') return 'Móveis pedidos às centrais parceiras e ainda não conferidos.';
   return activeTab.value === 'ordens'
     ? 'Gerencie as ordens de serviço da sua organização.'
@@ -112,6 +121,7 @@ function handleAddClick() {
 
     <OrdensServicoTab v-if="activeTab === 'ordens'" />
     <RevisoesPendentesTab v-else-if="activeTab === 'revisoes'" />
+    <QuadroProducaoTab v-else-if="activeTab === 'producao'" />
     <TerceirizadosTab v-else-if="activeTab === 'terceirizados'" />
     <ServicosTab v-else />
   </div>

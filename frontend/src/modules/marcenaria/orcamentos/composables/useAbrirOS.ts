@@ -17,11 +17,12 @@ export function useAbrirOS() {
   const toast = useToast();
   const abrindo = ref(false);
 
-  async function abrirOS(numeroOs: string): Promise<void> {
+  /** `opcoes.abaInicial`: a aba em que o modal abre (o quadro da fábrica usa 'producao', 12B D16). */
+  async function abrirOS(numeroOs: string, opcoes: { abaInicial?: string } = {}): Promise<void> {
     if (abrindo.value) return;                       // clique duplo não abre duas vezes
     abrindo.value = true;
     try {
-      openExistingOS(await getUniqueOS(numeroOs));
+      openExistingOS(await getUniqueOS(numeroOs), false, opcoes);
     } catch (erro) {
       toast.error('Não foi possível abrir a OS.', mensagemDoErro(erro));
     } finally {

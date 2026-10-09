@@ -1,14 +1,15 @@
 /**
  * Spec 08B (marcenaria) ⚠️ código compartilhado da OS — casos 01 a 05c.
  *
- * - Abas do modal de OS: "Separação" (10B) e "Orçamento" só com a capacidade `orcamento_tecnico`
- *   e fora da criação; nos outros segmentos, as abas de hoje (01-03).
+ * - Abas do modal de OS: "Separação" (10B), "Produção" (12B) e "Orçamento" só com a capacidade
+ *   `orcamento_tecnico` e fora da criação; nos outros segmentos, as abas de hoje (01-03).
+ * - A aba inicial pedida por quem abre a OS (12B §7.1, casos 13-14 da 12B).
  * - Cadeado nos itens com `origem` e o grupo "Material do orçamento" (04-05b).
  * - A fábrica saiu do modal (05c, FB1).
  *
  * O contexto do modal e as capacidades do segmento são SIMULADOS.
  */
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, markRaw, ref, shallowRef } from 'vue';
 
@@ -34,7 +35,14 @@ vi.mock('vue-router', async (original) => ({
   useRouter: () => ({ push: vi.fn() }),                    // "Abrir orçamento" não navega no teste
 }));
 
+// A aba Produção de verdade busca dados: aqui ela é só um marcador.
+vi.mock('@/modules/marcenaria/producao/components/OSProducaoTab.vue', () => ({
+  __esModule: true,
+  default: defineComponent({ render: () => h('div', { 'data-testid': 'aba-producao-marcador' }) }),
+}));
+
 const { default: OSFormTabsContent } = await import('../OSFormTabsContent.vue');
+const { useOSCreateFlow } = await import('../../../composables/useOSCreateFlow');
 const { default: OSServicesTab } = await import('../OSServicesTab.vue');
 const { OS_FORM_VIEW_CONTEXT_KEY } = await import('../../../context/useOSFormView.context');
 const { default: fonteAbas } = await import('../OSFormTabsContent.vue?raw');
@@ -53,22 +61,30 @@ function contexto(criando: boolean) {
     isItemsLocked: computed(() => false),
     displayItems: computed(() => []),
     objetoFormData: computed(() => ({})),
+    funcionariosOptions: computed(() => [{ value: '', label: '-- Selecione --' }, { value: '7', label: 'Pedro' }]),
   };
   return new Proxy(base, { get: (alvo, chave: string) => (chave in alvo ? alvo[chave] : { value: undefined }) });
 }
 const Vazio = defineComponent({ setup: () => () => h('div') });
 
-/** Rótulos das abas do modal de OS para um segmento. */
-function abas(caps: string[], criando = false): string[] {
-  capacidades.value = caps;
-  const wrapper = mount(OSFormTabsContent, {
+/** Monta as abas do modal de OS com o contexto simulado. */
+function montarAbas(criando: boolean) {
+  return mount(OSFormTabsContent, {
     global: {
       provide: { [OS_FORM_VIEW_CONTEXT_KEY as symbol]: contexto(criando) },
       stubs: { OSObjetoTab: Vazio, OSObjetoDinamicoTab: Vazio, OSVistoriaTab: Vazio, OSDiagnosticoTab: Vazio, OSServicesTab: Vazio },
     },
   });
-  return wrapper.findAll('button').map((b) => b.text());
 }
+
+/** Rótulos das abas do modal de OS para um segmento. */
+function abas(caps: string[], criando = false): string[] {
+  capacidades.value = caps;
+  return montarAbas(criando).findAll('button').map((b) => b.text());
+}
+
+/** O rótulo da aba ativa (a que tem o fundo branco). */
+const abaAtiva = (w: ReturnType<typeof montarAbas>) => w.findAll('button').find((b) => b.classes().includes('bg-white'))?.text();
 
 describe('abas do modal de OS', () => {
   it('01 — informática: as abas de hoje', () => {
@@ -80,9 +96,9 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Separação" (10B) e "Orçamento" depois de "Serviços e Peças"', () => {
+  it('02 — marcenaria, OS existente: "Separação" (10B), "Produção" (12B) e "Orçamento" depois de "Serviços e Peças"', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Orçamento',
+      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Orçamento',
     ]);
   });
 
@@ -90,6 +106,29 @@ describe('abas do modal de OS', () => {
     const lista = abas(['imagem_na_entrada', 'orcamento_tecnico'], true);
     expect(lista).not.toContain('Orçamento');
     expect(lista).not.toContain('Separação');
+  });
+
+  it('12B/14 — sem aba inicial pedida, abre em "objeto" (como hoje)', () => {
+    capacidades.value = ['imagem_na_entrada', 'orcamento_tecnico'];
+    const w = montarAbas(false);
+    expect(abaAtiva(w)).toBe('Equipamento');
+  });
+
+  it('12B/13 — o quadro pede "producao": abre na Produção, e o pedido vale uma vez só', async () => {
+    capacidades.value = ['imagem_na_entrada', 'orcamento_tecnico'];
+    useOSCreateFlow().abaInicial.value = 'producao';
+    const w = montarAbas(false);
+    await flushPromises();
+    expect(abaAtiva(w)).toBe('Produção');
+    expect(w.find('[data-testid="aba-producao-marcador"]').exists()).toBe(true);
+    expect(useOSCreateFlow().abaInicial.value).toBeNull();
+  });
+
+  it('12B — aba pedida que o segmento não tem (informática): abre em "objeto"', () => {
+    capacidades.value = ['diagnostico'];
+    useOSCreateFlow().abaInicial.value = 'producao';
+    const w = montarAbas(false);
+    expect(abaAtiva(w)).toBe('Equipamento');
   });
 
   it('05c — sem o trilho, a aba e a trava de status da fábrica (FB1)', () => {

@@ -8,11 +8,19 @@
  * Regras iguais às do backend (Spec 04A §6.4): nunca fica vazia (o último item
  * não sai), recusa item vazio, longo demais e repetido — o erro aparece ao
  * digitar, ao lado do item, e não só ao salvar.
+ *
+ * Dois recursos OPCIONAIS (Spec 12B, etapas de um móvel da OS); sem eles, o
+ * editor é exatamente o de Configurações › Marcenaria:
+ * - `ids` (v-model:ids): a identidade de cada item, que ANDA com ele ao subir,
+ *   descer e remover. Item novo entra com `null`. Serve para o pai saber qual
+ *   etapa foi renomeada ou movida.
+ * - `travados`: itens que não podem ser renomeados nem removidos (etapa já
+ *   concluída). Subir e descer continuam valendo. O motivo vai no `title`.
  */
 import { computed, nextTick, ref } from 'vue';
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-vue-next';
 
-import { errosDosItens } from '../marcenariaForm';
+import { errosDosItens } from './errosDosItens';
 
 interface Props {
   /** A lista atual (v-model). */
@@ -25,13 +33,23 @@ interface Props {
   rotuloItem: string;
   /** Somente leitura (sem permissão de alterar). */
   disabled?: boolean;
+  /** Opcional: a identidade de cada item, na mesma ordem (v-model:ids). */
+  ids?: (number | null)[];
+  /** Opcional: por item, se está travado (sem renomear nem remover). */
+  travados?: boolean[];
+  /** Por que o item está travado (vai no `title` do campo e do botão de remover). */
+  motivoTravado?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { disabled: false });
+const props = withDefaults(defineProps<Props>(), { disabled: false, ids: undefined, travados: undefined, motivoTravado: '' });
 
 const emit = defineEmits<{
   'update:modelValue': [value: string[]];
+  'update:ids': [value: (number | null)[]];
 }>();
+
+/** O item da posição está travado? */
+const travado = (indice: number) => props.travados?.[indice] === true;
 
 /** Os campos de texto, para mandar o foco ao item novo. */
 const campos = ref<HTMLInputElement[]>([]);
@@ -39,12 +57,17 @@ const campos = ref<HTMLInputElement[]>([]);
 /** Erro de cada item ('' = certo), com a mesma regra do backend. */
 const erros = computed(() => errosDosItens(props.modelValue, props.maxCaracteres));
 
-/** Sempre devolve uma lista NOVA: o pai recebe a mudança pelo v-model. */
-function emitir(lista: string[]) {
+/**
+ * Sempre devolve uma lista NOVA: o pai recebe a mudança pelo v-model. Com
+ * `ids`, a lista de identidades vai junto, na mesma ordem.
+ */
+function emitir(lista: string[], ids?: (number | null)[]) {
   emit('update:modelValue', lista);
+  if (props.ids && ids) emit('update:ids', ids);
 }
 
 function editar(indice: number, valor: string) {
+  if (travado(indice)) return;               // travado: o nome não muda
   const lista = [...props.modelValue];
   lista[indice] = valor;                     // troca só o item editado
   emitir(lista);
@@ -52,14 +75,14 @@ function editar(indice: number, valor: string) {
 
 async function adicionar() {
   if (props.disabled || props.modelValue.length >= props.maxItens) return;
-  emitir([...props.modelValue, '']);         // item vazio no fim
+  emitir([...props.modelValue, ''], [...(props.ids ?? []), null]);   // item vazio no fim (novo: sem id)
   await nextTick();                          // espera o campo novo aparecer
   campos.value[props.modelValue.length - 1]?.focus();
 }
 
 function remover(indice: number) {
-  if (props.disabled || props.modelValue.length <= 1) return;   // o último não sai (D14)
-  emitir(props.modelValue.filter((_, i) => i !== indice));
+  if (props.disabled || props.modelValue.length <= 1 || travado(indice)) return;   // o último não sai (D14)
+  emitir(props.modelValue.filter((_, i) => i !== indice), props.ids?.filter((_, i) => i !== indice));
 }
 
 /** Troca o item de lugar com o vizinho (direcao -1 = sobe, +1 = desce). */
@@ -68,7 +91,10 @@ function mover(indice: number, direcao: -1 | 1) {
   if (props.disabled || destino < 0 || destino >= props.modelValue.length) return;
   const lista = [...props.modelValue];
   [lista[indice], lista[destino]] = [lista[destino], lista[indice]];
-  emitir(lista);
+  // A identidade troca de lugar junto com o texto.
+  const ids = props.ids ? [...props.ids] : undefined;
+  if (ids) [ids[indice], ids[destino]] = [ids[destino], ids[indice]];
+  emitir(lista, ids);
 }
 </script>
 
@@ -83,10 +109,12 @@ function mover(indice: number, direcao: -1 | 1) {
           type="text"
           :maxlength="maxCaracteres"
           :disabled="disabled"
+          :readonly="travado(indice)"
+          :title="travado(indice) ? motivoTravado : undefined"
           :aria-label="`${rotuloItem} ${indice + 1}`"
           :aria-invalid="erros[indice] ? 'true' : 'false'"
           class="flex-1 border rounded-lg px-3 py-1.5 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary disabled:bg-zinc-50 disabled:text-zinc-500"
-          :class="erros[indice] ? 'border-red-300' : 'border-zinc-200'"
+          :class="[erros[indice] ? 'border-red-300' : 'border-zinc-200', travado(indice) ? 'bg-zinc-50 text-zinc-500' : '']"
           @input="editar(indice, ($event.target as HTMLInputElement).value)"
         />
         <button
@@ -110,7 +138,8 @@ function mover(indice: number, direcao: -1 | 1) {
         <button
           type="button"
           class="p-1 rounded text-zinc-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
-          :disabled="disabled || modelValue.length <= 1"
+          :disabled="disabled || modelValue.length <= 1 || travado(indice)"
+          :title="travado(indice) ? motivoTravado : undefined"
           :aria-label="`Remover ${rotuloItem} ${item}`"
           @click="remover(indice)"
         >

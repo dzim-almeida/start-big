@@ -13,6 +13,7 @@ import type {
   ConfiguracaoMarcenariaUpdate,
   RtModo,
 } from '../../../schemas/configuracaoMarcenaria.schema';
+import { errosDosItens } from '@/shared/components/ui/ListaTextosEditavel/errosDosItens';
 
 /** Valores como a TELA os mostra. Os de custo só existem com permissão (D8). */
 export interface FormMarcenaria {
@@ -72,24 +73,10 @@ export function paraApi(form: FormMarcenaria): ConfiguracaoMarcenariaUpdate {
   return corpo;
 }
 
-/**
- * Erros de cada item de uma lista (mesma regra do backend): vazio, longo
- * demais ou repetido (sem diferenciar maiúsculas e sem os espaços das pontas).
- * Devolve um texto por item, vazio quando o item está certo.
- */
-export function errosDosItens(itens: string[], maxCaracteres: number): string[] {
-  const vistos = new Map<string, number>();            // texto normalizado -> primeira posição
-  return itens.map((item, indice) => {
-    const limpo = item.trim();
-    if (!limpo) return 'Preencha ou remova este item.';
-    if (limpo.length > maxCaracteres) return `Até ${maxCaracteres} caracteres.`;
-    const chave = limpo.toLocaleLowerCase('pt-BR');
-    const primeiro = vistos.get(chave);
-    if (primeiro !== undefined && primeiro !== indice) return 'Item repetido.';
-    vistos.set(chave, indice);
-    return '';
-  });
-}
+// `errosDosItens` mora junto do editor de listas, em `shared/` (Spec 12B: a
+// produção da OS usa o mesmo editor). Fica reexportado aqui para quem já o
+// importava deste arquivo.
+export { errosDosItens };
 
 /** Mensagens dos limites numéricos, iguais às do backend (Spec 04A §4.1). */
 export function errosDoFormulario(form: FormMarcenaria): Record<string, string> {

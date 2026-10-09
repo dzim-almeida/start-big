@@ -31,8 +31,10 @@ vi.mock('../services/separacao.service', async (original) => ({
 }));
 // A seção "Móveis da central" (11B) mora no topo da aba: a API dela também é simulada.
 const getTerceirizados = vi.fn();
+const conferirTerceirizados = vi.fn();
 vi.mock('@/modules/marcenaria/terceirizados/services/terceirizado.service', () => ({
   getTerceirizados: (...a: unknown[]) => getTerceirizados(...a),
+  conferir: (...a: unknown[]) => conferirTerceirizados(...a),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() };
 vi.mock('@/shared/composables/useToast', () => ({ useToast: () => toast }));
@@ -88,6 +90,7 @@ const el = (testid: string) => document.body.querySelector(`[data-testid="${test
 beforeEach(() => {
   for (const f of [getSeparacao, retirar, concluir, lerCodigo, getFaltas, getDisponivel, getProdutos, ...Object.values(toast)]) f.mockReset();
   getTerceirizados.mockReset();
+  conferirTerceirizados.mockReset();
   // Padrão: OS sem móvel terceirizado (a resposta real da 11A, com a lista vazia).
   getTerceirizados.mockResolvedValue({ ...structuredClone(fixtureTerceirizados), moveis: [] });
   comCompras.value = false;
@@ -186,6 +189,32 @@ describe('aba Separação', () => {
     const titulo = [...document.body.querySelectorAll('h3')].find((h) => h.textContent === 'Separação de material')!;
     // DOCUMENT_POSITION_FOLLOWING: o título da separação vem depois da seção.
     expect(secao.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('12B D12 — conferir o último terceirizado com sugestão: a aba pergunta e "Mover" aplica', async () => {
+    getTerceirizados.mockResolvedValue(structuredClone(fixtureTerceirizados));
+    conferirTerceirizados.mockResolvedValue({
+      ...structuredClone(fixtureTerceirizados),
+      sugestao_status: { de: 'ABERTA', para: 'AGUARDANDO_RETIRADA', rotulo: 'Aguardando Entrega' },
+    });
+    getSeparacao.mockResolvedValue(separacao());
+    const aplicarStatus = vi.fn().mockResolvedValue(undefined);
+    const w = mount(OSSeparacaoTab, {
+      props: { numeroOs: 'OS-2026-000001', aplicarStatus }, attachTo: document.body, global: { plugins: plugins() },
+    });
+    montados.push(w);
+    await flushPromises();
+    const caixa = el('marcar-4') as HTMLInputElement;                      // Aéreo, Recebido
+    caixa.checked = true;
+    caixa.dispatchEvent(new Event('change'));
+    await flushPromises();
+    el('acao-conferir')!.click();
+    await flushPromises();
+    expect(el('pergunta-status')!.textContent).toContain('Todos os móveis estão prontos. Mover a OS para Aguardando Entrega?');
+    el('mover-status')!.click();
+    await flushPromises();
+    expect(aplicarStatus).toHaveBeenCalledWith('AGUARDANDO_RETIRADA');
+    expect(el('pergunta-status')).toBeNull();
   });
 
   it('06 — produto de fora: mensagem, som, campo limpo e focado', async () => {
