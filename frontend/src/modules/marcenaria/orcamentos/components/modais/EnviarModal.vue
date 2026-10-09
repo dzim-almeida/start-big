@@ -19,7 +19,7 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 
-import { textosDosAvisos } from '../../constants/avisos.constants';
+import { avisoRtZero, textosDosAvisos } from '../../constants/avisos.constants';
 import type { OrcamentoDetalhe } from '../../schemas/orcamentoDetalhe.schema';
 import { pendenciasParaEnviar, type PendenciaEnvio } from '../../utils/pendenciasEnvio';
 
@@ -56,7 +56,12 @@ function dispensarDica() {
 }
 
 const pendencias = computed(() => pendenciasParaEnviar(props.detalhe));
-const avisos = computed(() => textosDosAvisos(props.detalhe.avisos, props.detalhe.inclui_custos));
+// Os do motor e, só com custos, o do arquiteto sem % (Spec 09B D12).
+const avisos = computed(() => {
+  const lista = textosDosAvisos(props.detalhe.avisos, props.detalhe.inclui_custos);
+  const rtZero = avisoRtZero(props.detalhe);
+  return rtZero ? [...lista, rtZero] : lista;
+});
 
 /** "vale até 24/10/2026 (15 dias)": a validade começa a contar no envio. */
 const validadeTexto = computed(() => {

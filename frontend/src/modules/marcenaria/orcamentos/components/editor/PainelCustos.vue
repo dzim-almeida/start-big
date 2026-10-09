@@ -19,7 +19,7 @@ import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 
 import { useEditor } from '../../composables/useEditorContexto';
-import { bpParaPercentual, centavosParaReais, formatarBp, percentualParaBp, reaisParaCentavos } from '../../utils/conversoes';
+import { bpParaPercentual, centavosParaReais, formatarBp, numeroParaTexto, percentualParaBp, reaisParaCentavos } from '../../utils/conversoes';
 
 const emit = defineEmits<{ conferirPrecos: [] }>();
 
@@ -47,6 +47,17 @@ watch(aberto, (valor) => {
 /** O detalhe com custos (o TypeScript sabe quais campos existem depois do `if`). */
 const comCustos = computed(() => (detalhe.value?.inclui_custos ? detalhe.value : null));
 const calculo = computed(() => comCustos.value?.calculo ?? null);
+
+/**
+ * Rótulo da linha do RT (Spec 09B D9): de quem é e quanto por cento.
+ * "RT — Studio Renascer (8%)" ou "RT — sem arquiteto". O % com até 2 casas,
+ * as mesmas que o campo do bloco Arquiteto aceita (8,25% não vira "8,3%").
+ */
+const rotuloRt = computed(() => {
+  const arquiteto = comCustos.value?.arquitetos[0];
+  if (!arquiteto) return 'RT — sem arquiteto';
+  return `RT — ${arquiteto.nome} (${numeroParaTexto(bpParaPercentual(arquiteto.rt_bp), 2)}%)`;
+});
 
 // --- Parâmetros (editáveis, salvam sozinhos) -------------------------------------
 /** Texto de cada percentual enquanto o usuário digita. */
@@ -113,9 +124,10 @@ const CLASSE_PERCENTUAL =
           <dt class="text-zinc-600">Margem bruta</dt>
           <dd class="tabular-nums text-zinc-800">{{ formatCurrency(calculo.margem_bruta_centavos) }}</dd>
         </div>
-        <div v-if="calculo.rt_total_centavos" class="flex justify-between">
-          <dt class="text-zinc-600">RT do arquiteto</dt>
-          <dd class="tabular-nums text-zinc-800">− {{ formatCurrency(calculo.rt_total_centavos) }}</dd>
+        <!-- RT: sempre visível, com o nome e o % (09B D9); sem arquiteto, R$ 0,00 -->
+        <div class="flex justify-between gap-3" data-testid="linha-rt">
+          <dt class="truncate text-zinc-600">{{ rotuloRt }}</dt>
+          <dd class="shrink-0 tabular-nums text-zinc-800">− {{ formatCurrency(calculo.rt_total_centavos) }}</dd>
         </div>
         <div class="flex justify-between border-t border-zinc-100 pt-1.5 font-semibold">
           <dt class="text-zinc-700">Margem líquida</dt>

@@ -25,6 +25,7 @@ vi.mock('../services/orcamento.service', () => ({
   getVersoes: async () => [],
   getHistorico: async () => [],
   getProjetosDoCliente: async () => [],
+  getArquitetos: async () => [{ id: 1, nome: 'Studio Renascer', nome_fantasia: null }],   // Spec 09B
   criarOrcamento: (...args: unknown[]) => criar(...args),
   patchOrcamento: (...args: unknown[]) => patch(...args),
 }));

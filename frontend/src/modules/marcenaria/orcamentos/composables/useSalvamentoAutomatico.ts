@@ -11,10 +11,11 @@
  */
 import { computed, reactive, ref, watch, type Ref } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
+import { useQueryClient } from '@tanstack/vue-query';
 
-import { ESPERA_SALVAR_MS, ROTULO_CAMPO } from '../constants/orcamento.constants';
+import { chaveDetalhe, ESPERA_SALVAR_MS, ROTULO_CAMPO } from '../constants/orcamento.constants';
 import type { OrcamentoDetalhe } from '../schemas/orcamentoDetalhe.schema';
-import { patchOrcamento } from '../services/orcamento.service';
+import { patchOrcamento, putRt } from '../services/orcamento.service';
 import { cabecalhoDoDetalhe, diferencaCabecalho, type CabecalhoForm } from '../utils/diferencaCabecalho';
 import { campoDoErro, codigoDoErro, ehErroDeRede, mensagemDoErro } from '../utils/erros';
 import { ConflitoRevisao, type FilaOrcamento } from './useFilaOrcamento';
@@ -60,6 +61,7 @@ export function useSalvamentoAutomatico(
   fila: FilaOrcamento,
   opcoes: Opcoes = {},
 ) {
+  const queryClient = useQueryClient();                        // o cache do detalhe (a fila grava nele)
   const inicial = detalhe.value ? cabecalhoDoDetalhe(detalhe.value) : cabecalhoVazio();
   const form = reactive<CabecalhoForm>(cabecalhoCopiado(inicial)); // cópia editável dos campos
   let ultimoSalvo: CabecalhoForm = cabecalhoCopiado(inicial);       // o que o servidor tem
@@ -104,7 +106,22 @@ export function useSalvamentoAutomatico(
         ultimoSalvo = { ...ultimoSalvo, ...pickCriados(mudancas) };
       } else {
         const id = detalhe.value!.id;
-        await fila.enfileirar((revisao) => patchOrcamento(id, revisao, mudancas));
+        // O % do RT vai no PUT /rt (com o arquiteto de agora); o resto, no PATCH (09B §6.2).
+        const { rt_arquiteto_bp: rtBp, ...resto } = mudancas;
+        if (rtBp !== undefined) {
+          await fila.enfileirar((revisao) => {
+            // O arquiteto é lido do cache NA VEZ desta escrita: se o usuário trocou
+            // de arquiteto logo depois de digitar o %, a troca (que entrou antes na
+            // fila) já está lá, e este PUT não a desfaz mandando o arquiteto antigo.
+            const atual = queryClient.getQueryData<OrcamentoDetalhe>(chaveDetalhe(id)) ?? detalhe.value!;
+            const arquiteto = atual.arquitetos[0];
+            if (!arquiteto) return Promise.resolve(atual);       // tiraram o arquiteto: o % não tem dono
+            return putRt(id, revisao, [{ fornecedor_id: arquiteto.fornecedor_id, rt_bp: rtBp }]);
+          });
+        }
+        if (Object.keys(resto).length) {
+          await fila.enfileirar((revisao) => patchOrcamento(id, revisao, resto));
+        }
         ultimoSalvo = { ...ultimoSalvo, ...mudancas };        // o servidor agora tem isso
       }
       errosPorCampo.value = {};
@@ -174,6 +191,11 @@ export function useSalvamentoAutomatico(
       }
     }
     ultimoSalvo = { ...ultimoSalvo, ...doServidor };          // o servidor tem isto agora
+    // Chave opcional que o servidor deixou de mandar (ex.: o arquiteto saiu): some da tela também.
+    if (!('rt_arquiteto_bp' in doServidor) && !('rt_arquiteto_bp' in pendentes)) {
+      delete (form as Partial<CabecalhoForm>).rt_arquiteto_bp;
+      delete (ultimoSalvo as Partial<CabecalhoForm>).rt_arquiteto_bp;
+    }
     if (descartarNaProxima) {
       descartarNaProxima = false;
       estado.value = 'salvo';                                 // a tela agora é igual ao servidor

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.core.busca import filtro_busca
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
+from app.db.models.fornecedor import Fornecedor
 from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel
 from app.db.models.marcenaria.orcamento import (
     MarcenariaOrcamento,
@@ -217,6 +218,16 @@ def listar_projetos_do_cliente(db: Session, cliente_id: int) -> list[tuple[Objet
 # ===========================================================================
 # ANEXOS (D27-D31)
 # ===========================================================================
+
+def listar_arquitetos_ativos(db: Session) -> list[Fornecedor]:
+    """Fornecedores ATIVOS do tipo `arquiteto`, em ordem de nome (Spec 09B D4)."""
+    stmt = (
+        select(Fornecedor)
+        .where(Fornecedor.tipo == "arquiteto", Fornecedor.ativo.is_(True))
+        .order_by(Fornecedor.nome, Fornecedor.id)
+    )
+    return list(db.scalars(stmt))
+
 
 def listar_anexos(db: Session, codigo: str) -> list[MarcenariaOrcamentoAnexo]:
     """Anexos do CODIGO (todas as versoes veem os mesmos, D30), na ordem de inclusao."""

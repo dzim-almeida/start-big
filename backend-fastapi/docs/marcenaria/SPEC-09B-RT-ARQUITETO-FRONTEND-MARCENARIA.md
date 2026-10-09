@@ -2,11 +2,19 @@
 
 | Campo        | Valor                                                                                      |
 |--------------|--------------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                            |
+| Status       | Implementada em 09/10/2026                                                                 |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (cadastro de fornecedor)             |
 | Dependências | Specs 04B (Configurações › Marcenaria), 06B (editor), 06A Revisão 3, 09A Revisão 1         |
 | Bloqueia     | —                                                                                          |
 | Referência   | SPEC-00: C5a, C5b, C5c, C5d, C5e, P4 · PR1, PR3, PR6                                       |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Rota própria para o select (backend, aditiva):** `GET /marcenaria/orcamentos/arquitetos` devolve só `id`, `nome` e `nome_fantasia` dos arquitetos **ativos**, em ordem de nome, com a permissão de **ver orçamentos** (404 fora da marcenaria, como o resto). O `GET /fornecedores` da §5 exige a permissão `fornecedor` ou `produto` e devolve PIX e dados bancários: um vendedor só com "Orçamentos de marcenaria" não conseguiria escolher o arquiteto (D1) e, para conseguir, passaria a ver os dados bancários de todos os fornecedores. Só leitura, 4 testes de API. A chave da query começa pela dos fornecedores: cadastrar um arquiteto recarrega a lista. A busca do D4 é a do próprio `BaseSelect`, pelo rótulo "nome · escritório".
+> (2) **"Cadastrar arquiteto"** aparece só para quem pode `POST /fornecedores` (permissão `fornecedor` **ou** `produto`, a mesma regra do backend); sem ela, o vendedor só escolhe. O `FornecedorFormModal` é montado no editor só nesse caso. Aberto já no tipo, o cadastro não mostra "Voltar"; fechar sem salvar esquece o callback.
+> (3) **Corrida "digitar o % e trocar o arquiteto":** o PUT do % (salvamento automático) lê o arquiteto do cache **na vez da escrita** na fila. Lido antes, com a rede lenta, o PUT levaria o arquiteto antigo e desfaria a troca que acabou de ser gravada; um teste reproduz com o PUT demorando 1 s.
+> (4) **Percentual:** o campo aceita de 0 a 30% (o limite do backend) e, fora disso, mostra "O RT deve ficar entre 0% e 30%." sem salvar. O painel mostra o % com até 2 casas ("8,25%"), as mesmas do campo (o `formatarBp` de 1 casa segue nas margens).
+> (5) **Faixa do aprovado (D10):** situação da conta como em Contas a Pagar (Pendente, Paga, Cancelada). O link "Ver em Contas a Pagar" só aparece depois que a conta existe e com o módulo Financeiro, e abre a tela **sem filtro**: ela não lê `?busca=` da URL e mostra um mês por vez, e mudar isso mexeria num módulo em produção. A faixa já diz o vencimento, que é o mês a abrir lá. Com a OS cancelada, a faixa não mostra o RT.
+> (6) **Aviso do D12:** uma função só (`avisoRtZero`, em `constants/avisos.constants.ts`) para o bloco e o modal de envio, com a mesma frase.
 
 > **Revisão 1 (08/10/2026) — dependências escritas.** A versão anterior citava a "06A Revisão 3" e a "09A Revisão 1", que não existiam. As duas foram escritas em 08/10: a **06A Revisão 3** traz o `rt_padrao_bp` no orçamento, o `PUT /rt` sem percentual (mantém o gravado ou usa o padrão; só `manage` para trocar o arquiteto, `view_custos` para mandar `rt_bp`) e o `valor_previsto_centavos`; a **09A Revisão 1** traz a `conta` de cada arquiteto no detalhe. Também: a ordem das decisões (D11 e D12 estavam trocadas) e dos casos de teste foi acertada; nada mudou no conteúdo.
 
@@ -154,13 +162,13 @@ function escolher(fornecedorId: number | null) {
 
 ## 9. Critérios de aceite
 
-- [ ] Vendedor sem custos escolhe o arquiteto; o % entra pelo padrão; ele não vê nem o % nem o valor.
-- [ ] Dono escolhe o arquiteto, muda o %, vê o valor previsto e a frase do modo do RT; a margem e (no modo embutido) os preços se atualizam.
-- [ ] "Cadastrar arquiteto" abre o cadastro no tipo arquiteto e, ao salvar, já seleciona o novo.
-- [ ] Tipo "Arquiteto / Designer" só aparece na marcenaria.
-- [ ] Orçamento aprovado mostra o RT previsto e, depois da finalização, a conta com status e vencimento.
-- [ ] Prazo do RT editável em Configurações › Marcenaria.
-- [ ] Prova de não regressão (§7); código comentado (PR6).
+- [x] Vendedor sem custos escolhe o arquiteto; o % entra pelo padrão; ele não vê nem o % nem o valor.
+- [x] Dono escolhe o arquiteto, muda o %, vê o valor previsto e a frase do modo do RT; a margem e (no modo embutido) os preços se atualizam.
+- [x] "Cadastrar arquiteto" abre o cadastro no tipo arquiteto e, ao salvar, já seleciona o novo.
+- [x] Tipo "Arquiteto / Designer" só aparece na marcenaria.
+- [x] Orçamento aprovado mostra o RT previsto e, depois da finalização, a conta com status e vencimento.
+- [x] Prazo do RT editável em Configurações › Marcenaria.
+- [x] Prova de não regressão (§7); código comentado (PR6).
 
 ## 10. Casos de teste
 

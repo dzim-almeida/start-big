@@ -30,6 +30,8 @@ export const configuracaoMarcenariaSchema = z.discriminatedUnion('inclui_custos'
     custo_hora_centavos: z.number().int(),
     rt_padrao_bp: z.number().int(),
     rt_modo: rtModoSchema,
+    /** Dias depois de finalizar a OS para a conta do RT vencer (Spec 09A §5 / 09B D11). */
+    rt_vencimento_dias: z.number().int(),
   }),
 ]);
 
@@ -43,6 +45,7 @@ export interface ConfiguracaoMarcenariaUpdate {
   custo_hora_centavos?: number;
   rt_padrao_bp?: number;
   rt_modo?: RtModo;
+  rt_vencimento_dias?: number;
   validade_dias?: number;
   prazo_entrega_dias?: number;
   etapas_producao?: string[];

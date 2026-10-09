@@ -28,6 +28,9 @@ import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao';
 import { useToast } from '@/shared/composables/useToast';
 import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
+import FornecedorFormModal from '@/modules/products/suppliers/components/FornecedorFormModal.vue';
+import { MODULOS } from '@/shared/constants/modulos.constants';
+import { useModulosStore } from '@/shared/stores/modulos.store';
 import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 
 import { chaveDetalhe } from '../../constants/orcamento.constants';
@@ -60,6 +63,7 @@ import RecusarModal from '../modais/RecusarModal.vue';
 import VoltarEditarModal from '../modais/VoltarEditarModal.vue';
 import PropostaPrintTemplate from '../print/PropostaPrintTemplate.vue';
 import BlocoAmbientes from './BlocoAmbientes.vue';
+import BlocoArquiteto from './BlocoArquiteto.vue';
 import BlocoClienteProjeto from './BlocoClienteProjeto.vue';
 import BlocoCondicoes from './BlocoCondicoes.vue';
 import BlocoInstalacao from './BlocoInstalacao.vue';
@@ -77,7 +81,10 @@ const emit = defineEmits<{ criado: [id: number] }>();
 const route = useRoute();
 const router = useRouter();
 const queryClient = useQueryClient();
-const { podeGerir, podeVerCustos, podeCriarProduto } = usePermissoesOrcamento();
+const { podeGerir, podeVerCustos, podeCriarProduto, podeCadastrarFornecedor } = usePermissoesOrcamento();
+// Spec 09B D10: o link "Ver em Contas a Pagar" só existe com o módulo Financeiro.
+const modulos = useModulosStore();
+const temFinanceiro = computed(() => modulos.temModulo(MODULOS.FINANCEIRO));
 
 // --- Dados, fila e salvamento ------------------------------------------------------
 const id = ref<number | null>(props.idInicial);
@@ -389,6 +396,8 @@ function irPara(bloco: PendenciaEnvio['bloco']) {
   document.getElementById(bloco)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 const voltarALista = () => router.push({ name: 'marcenaria-orcamentos' });
+/** Spec 09B D10: a conta do RT fica em Contas a Pagar, como qualquer outra. */
+const abrirContasPagar = () => router.push({ name: 'finance-payable' });
 const abrirVersao = (outroId: number) => router.push({ name: 'marcenaria-orcamento', params: { id: outroId } });
 
 /**
@@ -469,6 +478,7 @@ const erroCarregar = computed(() => {
         :aprovado-por="resumoOs?.aprovado_por ?? null"
         :rotulo-status-os="rotuloStatusOs"
         :motivos-desfazer="resumoOs?.motivos_desfazer ?? []"
+        :tem-financeiro="temFinanceiro"
         @abrir-os="detalhe?.os && abrirOS(detalhe.os.numero_os)"
         @proposta-aprovada="imprimir(undefined, 'aprovada')"
         @desfazer="desfazerAberto = true"
@@ -477,6 +487,7 @@ const erroCarregar = computed(() => {
         @nova-versao="novaVersao"
         @renovar="renovar"
         @abrir-versao="abrirVersao"
+        @contas-pagar="abrirContasPagar"
       />
 
       <EditorAvisos :codigos="detalhe?.avisos ?? []" :inclui-custos="incluiCustos" :aviso-precos="avisoPrecos" />
@@ -484,6 +495,8 @@ const erroCarregar = computed(() => {
       <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div class="flex min-w-0 flex-col gap-5">
           <BlocoClienteProjeto />
+          <!-- Spec 09B D1: quem indicou o cliente, entre o cliente e os ambientes -->
+          <BlocoArquiteto />
           <BlocoAmbientes />
           <BlocoInstalacao v-if="detalhe" />
           <BlocoMedicao />
@@ -523,6 +536,8 @@ const erroCarregar = computed(() => {
     />
     <AtualizarPrecosModal :is-open="precosAbertos" :precos="precos" :gravando="gravandoPrecos" @close="precosAbertos = false" @atualizar="atualizarPrecos" />
     <HistoricoDrawer :id="id" :aberto="historicoAberto" @fechar="historicoAberto = false" />
+    <!-- "Cadastrar arquiteto" (09B D5): o cadastro de fornecedor, sem sair do orçamento -->
+    <FornecedorFormModal v-if="podeCadastrarFornecedor" />
     <!-- Aprovação (Spec 08B) -->
     <AprovarModal v-if="detalhe && acoes.aprovar" :is-open="aprovarAberto" :detalhe="detalhe" :aprovar="aprovar" @close="aprovarAberto = false" />
     <OSCriadaModal

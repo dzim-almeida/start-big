@@ -74,6 +74,14 @@ export function useAcoesOrcamento(id: Ref<number | null>, fila: FilaOrcamento) {
   const ordenarMoveis = (ambienteId: number, ids: number[]) =>
     gravar((oid, rev) => moveis.ordenarMoveis(oid, ambienteId, rev, ids));
 
+  // --- Arquiteto (Spec 09B D7) ----------------------------------------------
+  /**
+   * Escolhe (ou tira) o arquiteto: salva na hora. Só o fornecedor vai; o %
+   * fica com o backend (o gravado, se era o mesmo, ou o padrão do orçamento).
+   */
+  const definirArquiteto = (fornecedorId: number | null) =>
+    gravar((oid, rev) => servico.putRt(oid, rev, fornecedorId ? [{ fornecedor_id: fornecedorId }] : []));
+
   // --- Ciclo de vida (D36-D42) ----------------------------------------------
 
   const enviar = () => gravar(servico.enviarOrcamento, 'Orçamento enviado ao cliente.');
@@ -124,7 +132,7 @@ export function useAcoesOrcamento(id: Ref<number | null>, fila: FilaOrcamento) {
 
   return {
     criarAmbiente, renomearAmbiente, removerAmbiente, ordenarAmbientes,
-    criarMovel, salvarMovel, removerMovel, duplicarMovel, ordenarMoveis,
+    criarMovel, salvarMovel, removerMovel, duplicarMovel, ordenarMoveis, definirArquiteto,
     enviar, voltarAEditar, recusar, renovar, novaVersao, atualizarPrecos, conferirPrecos, excluir,
   };
 }

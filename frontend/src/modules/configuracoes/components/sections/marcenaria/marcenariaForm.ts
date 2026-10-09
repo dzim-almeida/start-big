@@ -25,6 +25,7 @@ export interface FormMarcenaria {
   custo_hora_reais?: number;    // 45.5 = R$ 45,50
   rt_percentual?: number;       // 8 = 8%
   rt_modo?: RtModo;
+  rt_vencimento_dias?: number;  // dias depois de finalizar a OS (Spec 09B D11)
 }
 
 /** Limites das listas (Spec 04A §4.1). */
@@ -47,6 +48,7 @@ export function paraTela(api: ConfiguracaoMarcenaria): FormMarcenaria {
     form.custo_hora_reais = api.custo_hora_centavos / 100;   // 4550 centavos -> R$ 45,50
     form.rt_percentual = api.rt_padrao_bp / 100;
     form.rt_modo = api.rt_modo;
+    form.rt_vencimento_dias = api.rt_vencimento_dias;
   }
   return form;
 }
@@ -65,6 +67,7 @@ export function paraApi(form: FormMarcenaria): ConfiguracaoMarcenariaUpdate {
     corpo.custo_hora_centavos = Math.round((form.custo_hora_reais ?? 0) * 100);
     corpo.rt_padrao_bp = Math.round((form.rt_percentual ?? 0) * 100);
     corpo.rt_modo = form.rt_modo ?? 'MARGEM';
+    corpo.rt_vencimento_dias = form.rt_vencimento_dias ?? 30;
   }
   return corpo;
 }
@@ -101,6 +104,10 @@ export function errosDoFormulario(form: FormMarcenaria): Record<string, string> 
     if (fora(form.perda_percentual, 0, 50)) erros.perda_percentual = 'A perda deve ficar entre 0% e 50%.';
     if (fora(form.custo_hora_reais, 0)) erros.custo_hora_reais = 'O custo por hora não pode ser negativo.';
     if (fora(form.rt_percentual, 0, 30)) erros.rt_percentual = 'O RT deve ficar entre 0% e 30%.';
+    // Mesma regra e mensagem do backend (Spec 09A).
+    if (fora(form.rt_vencimento_dias, 0, 180) || !Number.isInteger(form.rt_vencimento_dias)) {
+      erros.rt_vencimento_dias = 'O prazo do RT deve ficar entre 0 e 180 dias.';
+    }
   }
   for (const [campo, limites] of [['etapas_producao', LIMITES_LISTA.etapas], ['checklist_vistoria', LIMITES_LISTA.checklist]] as const) {
     const itens = form[campo];

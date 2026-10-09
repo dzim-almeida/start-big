@@ -6,7 +6,8 @@
 // ============================================================================
 export type StatusFilter = 'ativos' | 'inativos';
 export type ModalMode = 'create' | 'edit' | 'view';
-export type SupplierTipo = 'produto' | 'transportadora' | 'entregador';
+/** 'arquiteto' (marcenaria, Spec 09B D2): quem indica clientes e recebe RT. */
+export type SupplierTipo = 'produto' | 'transportadora' | 'entregador' | 'arquiteto';
 
 export interface FornecedorFilters {
   buscar?: string;
@@ -26,6 +27,8 @@ export interface EnderecoFormData {
 
 export interface FornecedorFormData extends EnderecoFormData {
   tipo: SupplierTipo;
+  /** Só do formulário (não vai para a API): o arquiteto é pessoa física (CPF) ou jurídica (CNPJ). */
+  pessoa: 'PF' | 'PJ';
   nome: string;
   cnpj: string;
   cpf: string;

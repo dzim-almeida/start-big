@@ -1,6 +1,6 @@
 /**
  * @fileoverview Chamadas do orçamento de marcenaria: lista, cabeçalho,
- * transições, versões, histórico e projetos (Spec 06A §6.1).
+ * transições, versões, histórico, projetos e arquitetos (Spec 06A §6.1, 09B).
  *
  * Toda ESCRITA manda `?revisao=N` (trava otimista, 06A D20) e devolve o
  * DETALHE completo (06A D21), conferido pelo zod.
@@ -8,12 +8,14 @@
 import api from '@/api/axios';
 
 import {
+  arquitetoOpcaoSchema,
   contagensSchema,
   eventoSchema,
   listaSchema,
   orcamentoDetalheSchema,
   projetoSchema,
   versaoSchema,
+  type ArquitetoOpcao,
   type ContagensOrcamento,
   type EventoOrcamento,
   type ListaOrcamentos,
@@ -77,6 +79,15 @@ export async function getHistorico(id: number): Promise<EventoOrcamento[]> {
 export async function getProjetosDoCliente(clienteId: number): Promise<ProjetoCliente[]> {
   const { data } = await api.get(`${URL_ORCAMENTOS}/projetos`, { params: { cliente_id: clienteId } });
   return projetoSchema.array().parse(data);
+}
+
+/**
+ * Arquitetos ativos para o select "Quem indicou" (Spec 09B D1, D4). Vale a
+ * permissão de VER orçamentos: o vendedor escolhe sem acesso a Fornecedores.
+ */
+export async function getArquitetos(): Promise<ArquitetoOpcao[]> {
+  const { data } = await api.get(`${URL_ORCAMENTOS}/arquitetos`);
+  return arquitetoOpcaoSchema.array().parse(data);
 }
 
 // ---------------------------------------------------------------------------

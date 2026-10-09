@@ -144,7 +144,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 09A | 09/10/2026 | `7c32baf` | +30 (19 do RT, 5 dos ganchos da OS, 2 do CMV, 4 da migração) | 2.512 passando, 1 pulado |
 | 06B | 09/10/2026 | `d8ab396` | +64 (vitest: 53 do orçamento — schemas contra JSON reais da API, fila, salvamento, editor pela rota —, 3 do menu, 4 dos atalhos, 4 de cargos) | frontend: 368 testes, `vue-tsc` sem erros |
 | 07 | 09/10/2026 | `9dfa4eb` | +16 (vitest: dados, nome do PDF, documento A4 e o fluxo enviar → imprimir) | frontend: 384 testes, `vue-tsc` sem erros, `check:print-bw` ok |
-| 08B | 09/10/2026 | (commit da 08B) | +30 (vitest: 20 da aprovação — modal, desfazer com PIN, faixa, proposta aprovada, aba da OS —, 10 de não regressão das abas e do cadeado da OS) | frontend: 414 testes, `vue-tsc` sem erros |
+| 08B | 09/10/2026 | `a30db21` | +30 (vitest: 20 da aprovação — modal, desfazer com PIN, faixa, proposta aprovada, aba da OS —, 10 de não regressão das abas e do cadeado da OS) | frontend: 414 testes, `vue-tsc` sem erros |
+| 09B | 09/10/2026 | (commit da 09B) | +32 vitest (21 do arquiteto no orçamento — bloco, salvamento do %, corrida com a troca, painel, faixa, modal de envio —, 9 do cadastro de fornecedor, 2 do prazo do RT); +4 pytest (rota `GET /arquitetos`) | frontend: 446 testes, `vue-tsc` sem erros; backend: 2.516 passando, 1 pulado |
 
 ---
 

@@ -24,6 +24,11 @@ export interface CabecalhoForm {
   custo_hora_centavos?: number;
   rt_padrao_bp?: number;
   instalacao_custo_centavos?: number | null;
+  /**
+   * RT do arquiteto escolhido, em bp (Spec 09B §6.2). Só existe com custos E
+   * com arquiteto. Não vai no PATCH: o salvamento manda esta chave no PUT /rt.
+   */
+  rt_arquiteto_bp?: number;
 }
 
 /** Copia do detalhe os campos editáveis do cabeçalho (cópia nova, nada compartilhado). */
@@ -47,6 +52,8 @@ export function cabecalhoDoDetalhe(detalhe: OrcamentoDetalhe): CabecalhoForm {
     form.custo_hora_centavos = detalhe.parametros.custo_hora_centavos;
     form.rt_padrao_bp = detalhe.parametros.rt_padrao_bp;
     form.instalacao_custo_centavos = detalhe.instalacao_custo_centavos;
+    // Um arquiteto por orçamento na tela (C5a): o primeiro da lista.
+    if (detalhe.arquitetos[0]) form.rt_arquiteto_bp = detalhe.arquitetos[0].rt_bp;
   }
   return form;
 }

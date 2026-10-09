@@ -76,6 +76,7 @@ export const ROTULO_CAMPO: Record<string, string> = {
   custo_hora_centavos: 'Custo por hora',
   rt_padrao_bp: 'RT padrão',
   instalacao_custo_centavos: 'Instalação',
+  rt_arquiteto_bp: 'RT do arquiteto',
   desconto: 'Desconto',
   sinal: 'Sinal',
   validade_dias: 'Validade',

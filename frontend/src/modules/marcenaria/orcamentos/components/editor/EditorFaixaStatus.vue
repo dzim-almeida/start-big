@@ -12,6 +12,7 @@ import { Info } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatData, formatDataPura } from '@/shared/utils/date.utils';
+import { formatCurrency } from '@/shared/utils/finance';
 
 import type { OrcamentoDetalhe } from '../../schemas/orcamentoDetalhe.schema';
 import { diasAteValidade } from '../../utils/validade';
@@ -26,6 +27,11 @@ const props = defineProps<{
   rotuloStatusOs?: string | null;
   /** Aprovado sem poder desfazer: os motivos, para o ícone de informação (D18). */
   motivosDesfazer?: string[];
+  /**
+   * Spec 09B D10: a loja tem o módulo Financeiro? Só então a linha do RT ganha
+   * o link "Ver em Contas a Pagar" (sem o módulo, a tela nem abre).
+   */
+  temFinanceiro?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,6 +44,8 @@ const emit = defineEmits<{
   abrirOs: [];
   propostaAprovada: [];
   desfazer: [];
+  /** Spec 09B D10: abrir Contas a Pagar (quem navega é o editor). */
+  contasPagar: [];
 }>();
 
 /** A OS do orçamento aprovado foi cancelada pela tela de OS (08A D21, 08B D15). */
@@ -82,6 +90,35 @@ const texto = computed(() => {
 
 const acoes = computed(() => props.detalhe.acoes);
 
+/** Como a conta a pagar aparece para o usuário (os mesmos nomes de Contas a Pagar). */
+const ROTULO_CONTA: Record<string, string> = { PENDENTE: 'Pendente', PAGA: 'Paga', CANCELADA: 'Cancelada' };
+
+/**
+ * Linha do RT no orçamento aprovado (Spec 09B D10, C5e): o dono vê se o
+ * arquiteto já tem conta a pagar sem ir procurar. Só com custos (o valor do RT
+ * é custo) e com arquiteto; com a OS cancelada, a faixa já diz o que importa.
+ * - antes de finalizar a OS: "RT de Studio Renascer: previsto R$ 739,11 · conta criada na finalização da OS."
+ * - depois: "RT de Studio Renascer: conta a pagar de R$ 739,11, vence 05/12/2026 (Pendente)."
+ */
+const linhaRt = computed(() => {
+  const d = props.detalhe;
+  if (d.status !== 'APROVADO' || osCancelada.value || !d.inclui_custos) return null;
+  const arquiteto = d.arquitetos[0];                         // um arquiteto por orçamento na tela (C5a)
+  if (!arquiteto) return null;
+  const conta = arquiteto.conta;
+  if (!conta) {
+    return {
+      texto: `RT de ${arquiteto.nome}: previsto ${formatCurrency(arquiteto.valor_previsto_centavos)} · conta criada na finalização da OS.`,
+      temConta: false,
+    };
+  }
+  const situacao = ROTULO_CONTA[conta.status] ?? conta.status;   // status novo do backend aparece cru, não some
+  return {
+    texto: `RT de ${arquiteto.nome}: conta a pagar de ${formatCurrency(conta.valor_centavos)}, vence ${formatDataPura(conta.vencimento)} (${situacao}).`,
+    temConta: true,
+  };
+});
+
 /** Cor da faixa: vencido e recusado chamam mais atenção. */
 const classes = computed(() => {
   switch (props.detalhe.status) {
@@ -106,7 +143,20 @@ const classes = computed(() => {
   >
     <div>
       <p data-testid="faixa-texto">{{ texto }}</p>
-      <!-- A Spec 08B acrescenta aqui a OS do orçamento aprovado. -->
+      <!-- RT do arquiteto (09B D10): previsto ou a conta a pagar. -->
+      <p v-if="linhaRt" class="mt-1 text-xs" data-testid="faixa-rt">
+        {{ linhaRt.texto }}
+        <!-- O link só existe com o Financeiro: sem o módulo, a tela de contas nem abre. -->
+        <button
+          v-if="linhaRt.temConta && temFinanceiro"
+          type="button"
+          class="ml-1 font-semibold underline cursor-pointer"
+          data-testid="ver-contas-pagar"
+          @click="emit('contasPagar')"
+        >
+          Ver em Contas a Pagar
+        </button>
+      </p>
       <slot />
     </div>
     <div class="flex flex-wrap gap-2">

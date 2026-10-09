@@ -163,6 +163,15 @@ const CLASSE_NUMERO =
             </span>
           </label>
         </fieldset>
+
+        <!-- Prazo para pagar o RT (Spec 09B D11) -->
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Prazo para pagar o RT (dias após finalizar a OS)</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">A conta a pagar do arquiteto nasce quando a OS é finalizada e vence depois deste prazo.</p>
+          <input v-model.number="form.rt_vencimento_dias" type="number" min="0" max="180" :disabled="!podeGerir" :class="CLASSE_NUMERO" data-testid="rt-vencimento" />
+          <span class="ml-2 text-xs text-zinc-400">dias</span>
+          <p v-if="erros.rt_vencimento_dias" class="text-[11px] text-red-600 mt-1">{{ erros.rt_vencimento_dias }}</p>
+        </div>
       </div>
       <!-- Sem view_custos_marcenaria: a API nem manda os custos (D8). -->
       <p v-else class="text-xs text-zinc-500" data-testid="custos-ocultos">

@@ -4,6 +4,7 @@
  * O backend devolve só o CÓDIGO do aviso; a frase depende de quem está vendo:
  * quem não vê custos não pode receber números de margem.
  */
+import type { OrcamentoDetalhe } from '../schemas/orcamentoDetalhe.schema';
 
 /** Uma linha de aviso pronta para a tela. */
 export interface AvisoTexto {
@@ -54,4 +55,21 @@ export function textosDosAvisos(codigos: string[], incluiCustos: boolean): Aviso
   return codigos
     .map((codigo) => textoDoAviso(codigo, incluiCustos))
     .filter((aviso): aviso is AvisoTexto => aviso !== null);
+}
+
+/**
+ * Spec 09B D12: arquiteto escolhido com 0% de RT (o padrão da configuração
+ * nasce em 0%). Sem o aviso, o RT é esquecido até o arquiteto cobrar.
+ * Só para quem vê custos (o % é custo); null quando não há o que avisar.
+ * Usado no bloco Arquiteto e no modal de envio (a mesma frase nos dois).
+ */
+export function avisoRtZero(detalhe: OrcamentoDetalhe | undefined): AvisoTexto | null {
+  if (!detalhe?.inclui_custos) return null;
+  const arquiteto = detalhe.arquitetos[0];                 // um arquiteto por orçamento na tela (C5a)
+  if (!arquiteto || arquiteto.rt_bp !== 0) return null;
+  return {
+    codigo: 'RT_ZERO',
+    tom: 'atencao',
+    texto: `${arquiteto.nome} está sem percentual de RT. Informe o % ou defina um padrão em Configurações › Marcenaria.`,
+  };
 }

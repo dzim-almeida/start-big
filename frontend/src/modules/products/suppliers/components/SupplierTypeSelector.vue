@@ -5,8 +5,10 @@
 //                  descrições e efeitos visuais de hover/escala para UX.
 // ============================================================================
 <script setup lang="ts">
-import { Package, Truck, Bike } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { Package, Truck, Bike, Ruler } from 'lucide-vue-next';
 import type { SupplierTipo } from '../types/fornecedor.types';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 const emit = defineEmits<{
   select: [tipo: SupplierTipo];
@@ -41,6 +43,22 @@ const TIPOS = [
     border: 'border-brand-primary/20 hover:border-brand-primary/60',
   },
 ];
+
+/**
+ * Arquiteto / Designer (marcenaria, Spec 09B D2): a opção só existe onde o
+ * segmento faz orçamento técnico. Nos outros segmentos, o seletor de sempre.
+ */
+const ARQUITETO = {
+  tipo: 'arquiteto' as SupplierTipo,
+  icon: Ruler,
+  label: 'Arquiteto / Designer',
+  description: 'Profissionais que indicam clientes e recebem RT',
+  color: 'text-brand-primary',
+  bg: 'bg-brand-primary-light',
+  border: 'border-brand-primary/20 hover:border-brand-primary/60',
+};
+const { temOrcamentoTecnico } = useCapacidades();
+const opcoes = computed(() => (temOrcamentoTecnico.value ? [...TIPOS, ARQUITETO] : TIPOS));
 </script>
 
 <template>
@@ -51,7 +69,7 @@ const TIPOS = [
 
     <div class="grid grid-cols-1 gap-4">
       <button
-        v-for="item in TIPOS"
+        v-for="item in opcoes"
         :key="item.tipo"
         type="button"
         :class="[

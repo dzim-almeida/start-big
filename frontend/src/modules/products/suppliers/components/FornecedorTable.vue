@@ -26,7 +26,8 @@ function formatCpf(cpf: string): string {
 }
 
 function getDocumento(fornecedor: FornecedorReadType): string {
-  if (fornecedor.tipo === 'entregador' && fornecedor.cpf) {
+  // Entregador e arquiteto pessoa física têm CPF (09B).
+  if ((fornecedor.tipo === 'entregador' || fornecedor.tipo === 'arquiteto') && fornecedor.cpf) {
     return formatCpf(fornecedor.cpf);
   }
   if (fornecedor.cnpj) return formatCnpj(fornecedor.cnpj);
@@ -37,6 +38,8 @@ const tipoBadgeConfig: Record<string, { label: string; class: string }> = {
   produto: { label: 'Produto', class: 'bg-zinc-100 text-zinc-700 border border-zinc-200' },
   transportadora: { label: 'Transportadora', class: 'bg-zinc-100 text-zinc-700 border border-zinc-200' },
   entregador: { label: 'Entregador', class: 'bg-zinc-100 text-zinc-700 border border-zinc-200' },
+  // Marcenaria (09B): mesma paleta neutra dos outros tipos.
+  arquiteto: { label: 'Arquiteto', class: 'bg-zinc-100 text-zinc-700 border border-zinc-200' },
 };
 
 const ITEMS_PER_PAGE = 10;

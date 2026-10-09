@@ -35,6 +35,13 @@ export function usePermissoesOrcamento() {
     podeVerCustos: pode(PERMISSIONS.viewCustosMarcenaria),
     /** Cadastro rápido de insumo (D35): a mesma chave que o `POST /produtos` exige. */
     podeCriarProduto: pode(PERMISSIONS.products),
+    /**
+     * "Cadastrar arquiteto" (09B D5): o `POST /fornecedores` aceita quem tem
+     * `fornecedor` OU `produto` (basta uma das duas), então aqui também.
+     */
+    podeCadastrarFornecedor: computed(
+      () => isMaster.value || hasPermission(PERMISSIONS.suppliers) || hasPermission(PERMISSIONS.products),
+    ),
     /** Funcionário do usuário logado (vendedor padrão, D22). */
     funcionarioId: computed(() => userData.value?.funcionario_id ?? null),
   };

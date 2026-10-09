@@ -29,7 +29,7 @@ from app.schemas.marcenaria.orcamento import (
     RecusarEntrada,
 )
 from app.schemas.marcenaria.aprovacao import AprovacaoEntrada, DesfazerEntrada
-from app.services.marcenaria import aprovacao, erros
+from app.services.marcenaria import aprovacao, erros, rt
 from app.services.marcenaria import orcamento as servico
 from app.services.marcenaria.orcamento_comum import exigir_custos
 from app.services.marcenaria.permissoes import (
@@ -103,6 +103,12 @@ def contagens(usuario_token: dict = VER, db: Session = Depends(get_db)):
 @router.get("/projetos", summary="Projetos (objetos) ativos do cliente")
 def projetos(cliente_id: int = Query(...), usuario_token: dict = VER, db: Session = Depends(get_db)):
     return executar(db, servico.projetos_do_cliente, cliente_id)
+
+
+@router.get("/arquitetos", summary="Arquitetos ativos para o select do orçamento (Spec 09B)")
+def arquitetos(usuario_token: dict = VER, db: Session = Depends(get_db)):
+    # So id, nome e escritorio: quem monta o orcamento escolhe sem ver PIX e banco.
+    return executar(db, rt.arquitetos_para_escolher)
 
 
 @router.get("/por-os/{numero_os}", summary="O orçamento que gerou a OS (aba Orçamento da OS)")

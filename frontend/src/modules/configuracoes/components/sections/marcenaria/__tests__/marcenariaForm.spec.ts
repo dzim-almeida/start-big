@@ -18,6 +18,7 @@ const COMPLETA = {
   custo_hora_centavos: 0,
   rt_padrao_bp: 0,
   rt_modo: 'MARGEM' as const,
+  rt_vencimento_dias: 30,                                  // Spec 09A: a API passou a mandar o prazo do RT
   validade_dias: 15,
   prazo_entrega_dias: 30,
   etapas_producao: ['Corte', 'Borda'],
@@ -33,7 +34,7 @@ const PUBLICA = {
   checklist_vistoria: ['Limpeza final do ambiente'],
 };
 
-const CAMPOS_DE_CUSTO_API = ['markup_padrao_bp', 'perda_padrao_bp', 'custo_hora_centavos', 'rt_padrao_bp', 'rt_modo'];
+const CAMPOS_DE_CUSTO_API = ['markup_padrao_bp', 'perda_padrao_bp', 'custo_hora_centavos', 'rt_padrao_bp', 'rt_modo', 'rt_vencimento_dias'];
 
 describe('conversões', () => {
   it('01 — paraTela: 9000 bp → 90%, 1000 bp → 10%, 0 centavos → R$ 0', () => {
@@ -114,5 +115,19 @@ describe('regras das listas e dos limites (iguais às do backend)', () => {
 
   it('formulário certo não tem erro', () => {
     expect(errosDoFormulario(paraTela(COMPLETA))).toEqual({});
+  });
+});
+
+/** Spec 09B (D11; caso 10) — prazo para pagar o RT, só para quem vê custos. */
+describe('prazo do RT', () => {
+  it('vai e volta pela tela', () => {
+    expect(paraTela(COMPLETA).rt_vencimento_dias).toBe(30);
+    expect(paraApi({ ...paraTela(COMPLETA), rt_vencimento_dias: 45 }).rt_vencimento_dias).toBe(45);
+  });
+
+  it('10 — prazo 200: "O prazo do RT deve ficar entre 0 e 180 dias."', () => {
+    const erros = errosDoFormulario({ ...paraTela(COMPLETA), rt_vencimento_dias: 200 });
+    expect(erros.rt_vencimento_dias).toBe('O prazo do RT deve ficar entre 0 e 180 dias.');
+    expect(errosDoFormulario({ ...paraTela(COMPLETA), rt_vencimento_dias: 0 }).rt_vencimento_dias).toBeUndefined();
   });
 });

@@ -35,9 +35,24 @@ from app.schemas.conta_pagar import ContaPagarCreate
 from app.services import financeiro as financeiro_service
 from app.services.marcenaria.calculo import repartir_maior_resto
 from app.services.marcenaria.orcamento_calculo import calcular, montar_entrada_motor
-from app.services.marcenaria.orcamento_comum import registrar_evento
+from app.services.marcenaria.orcamento_comum import exigir_orcamento_tecnico, registrar_evento
 
 NOME_CATEGORIA_RT = "Comissão de arquitetos (RT)"     # D5: o dono pode renomear depois
+
+
+def arquitetos_para_escolher(db: Session) -> list[dict]:
+    """Arquitetos ativos para o select "Quem indicou" do orcamento (Spec 09B D1, D4).
+
+    Vale a permissao de VER orcamentos: o vendedor escolhe quem indicou mesmo
+    sem acesso ao cadastro de fornecedores. Por isso so vai o necessario para
+    escolher (id, nome e escritorio) -- PIX e dados bancarios ficam no
+    GET /fornecedores, com a permissao de fornecedores.
+    """
+    exigir_orcamento_tecnico(db)                      # fora da marcenaria: 404, como o resto
+    return [
+        {"id": f.id, "nome": f.nome, "nome_fantasia": f.nome_fantasia}
+        for f in crud.listar_arquitetos_ativos(db)
+    ]
 
 
 # ===========================================================================

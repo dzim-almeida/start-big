@@ -302,6 +302,17 @@ export const projetoSchema = z.object({
 });
 export type ProjetoCliente = z.infer<typeof projetoSchema>;
 
+/**
+ * Um arquiteto do select "Quem indicou" (Spec 09B D4). Só o necessário para
+ * escolher: o PIX e os dados bancários ficam no cadastro de fornecedores.
+ */
+export const arquitetoOpcaoSchema = z.object({
+  id: z.number(),
+  nome: z.string(),
+  nome_fantasia: z.string().nullable(),               // o escritório
+});
+export type ArquitetoOpcao = z.infer<typeof arquitetoOpcaoSchema>;
+
 export const anexoSchema = z.object({
   id: z.number(),
   tipo: z.enum(['FOTO', 'PDF']),
