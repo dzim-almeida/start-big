@@ -83,6 +83,9 @@ from app.db.models.pedido_compra import (  # noqa: F401
 from app.db.models.compra_log import CompraLog  # noqa: F401
 from app.db.models.recebimento_compra import RecebimentoCompra, RecebimentoCompraItem  # noqa: F401
 
+# --- Marcenaria: orçamento técnico (docs/marcenaria/, Spec 04A) ---
+from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria  # noqa: F401
+
 # --- Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md) ---
 from app.db.models.fabrica_orcamento import (  # noqa: F401
     FabricaOrcamento, FabricaAmbiente, FabricaMovel, FabricaMaterial, FabricaFaseLog,

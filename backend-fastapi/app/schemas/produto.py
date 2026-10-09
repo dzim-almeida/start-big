@@ -3,7 +3,7 @@
 # MÓDULO: Schemas Pydantic (DTOs)
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel, ConfigDict, Field, AliasPath
+from pydantic import BaseModel, ConfigDict, Field, AliasPath, model_validator
 from typing import Optional, Sequence
 from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
 from app.schemas.produto_fotos import ProdutoFotoRead
@@ -28,6 +28,11 @@ class ProdutoCreate(BaseModel):
     fornecedor_id: Optional[int] = Field(None, description="ID do fornecedor vinculado.")
 
     localizacao_estoque: Optional[str] = Field(None, max_length=255, description="Onde o produto fica guardado (corredor, prateleira).")
+
+    # Marcenaria (Spec 04A): a perda do orçamento entra na quantidade deste
+    # insumo (MDF e fita sim; ferragem não). Opcional e aditivo: nenhum
+    # segmento precisa enviar, e o padrão false é o comportamento de sempre.
+    sofre_perda: bool = Field(False, description="A perda do orçamento de marcenaria se aplica a este insumo.")
 
     estoque: EstoqueCreate = Field(..., description="Dados iniciais de estoque.")
 
@@ -142,6 +147,10 @@ class ProdutoUpdate(BaseModel):
     
     fornecedor_id: Optional[int] = Field(None)
 
+    # Marcenaria (Spec 04A). Ausente = não muda. Um `null` explícito também
+    # não muda (ver `_null_em_sofre_perda_nao_muda`): a coluna é NOT NULL.
+    sofre_perda: Optional[bool] = Field(None, description="A perda do orçamento de marcenaria se aplica a este insumo.")
+
     estoque: Optional[EstoqueUpdate] = Field(None, description="Atualização parcial de estoque.")
     
     model_config = ConfigDict(
@@ -155,3 +164,15 @@ class ProdutoUpdate(BaseModel):
             }
         }
     )
+
+    @model_validator(mode="after")
+    def _null_em_sofre_perda_nao_muda(self) -> "ProdutoUpdate":
+        """`"sofre_perda": null` vale como "não enviado".
+
+        O serviço grava tudo o que veio (`exclude_unset`); um null chegaria à
+        coluna NOT NULL e viraria erro de banco. Tirá-lo dos campos enviados
+        mantém o valor que o produto já tinha.
+        """
+        if self.sofre_perda is None:
+            self.model_fields_set.discard("sofre_perda")   # como se não tivesse vindo
+        return self

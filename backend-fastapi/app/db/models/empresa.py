@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.db.models.configuracao_vendas import ConfiguracaoVendas
     from app.db.models.configuracao_seguranca import ConfiguracaoSeguranca
     from app.db.models.configuracao_backup import ConfiguracaoBackup
+    from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
 
 class Empresa(Base):
     """
@@ -192,4 +193,14 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações de backup automático"
+    )
+
+    # Relacionamento 1:1 com os parâmetros do orçamento de marcenaria (Spec 04A).
+    # Só existe linha para empresa de segmento com orçamento técnico.
+    config_marcenaria: Mapped[Optional["ConfiguracaoMarcenaria"]] = relationship(
+        "ConfiguracaoMarcenaria",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Parâmetros padrão do orçamento de marcenaria"
     )

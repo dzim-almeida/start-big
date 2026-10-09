@@ -133,7 +133,8 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 03A | 09/10/2026 | `00b71e4` | +30; −50 (D17); −1 (Reforma); −39 casos por campo do registry (campos que saíram) | 2.287 passando, 1 pulado |
 | 01B | 09/10/2026 | `c5e89cc` | +28 (vitest) | frontend: 216 testes, `vue-tsc` sem erros |
 | 02 | 09/10/2026 | `efa4fb9` | +21 (vitest) | frontend: 237 testes, `vue-tsc` sem erros |
-| 03B | 09/10/2026 | (commit da 03B) | +33; −3 (`cargos.spec.ts`, D15) | frontend: 267 testes, `vue-tsc` sem erros |
+| 03B | 09/10/2026 | `15dbc0f` | +33; −3 (`cargos.spec.ts`, D15) | frontend: 267 testes, `vue-tsc` sem erros |
+| 04A | 09/10/2026 | (commit da 04A) | +28 | 2.315 passando, 1 pulado |
 
 ---
 

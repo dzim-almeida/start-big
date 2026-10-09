@@ -21,12 +21,14 @@ from app.core.segmentos import (
     label_do_tipo,
     rotulo_status,
     segmento_declara_coluna,
+    segmento_tem_capacidade,
     tipo_permite_criacao_manual,
 )
 from app.core.segmentos.capacidades import (
     CAP_APROVACAO_ITENS,
     CAP_GARANTIA_PRAZO,
     CAP_IMAGEM_NA_ENTRADA,
+    CAP_ORCAMENTO_TECNICO,
 )
 from app.core.segmentos.campos import (
     ESCOPOS_SUPORTADOS,
@@ -532,9 +534,10 @@ def test_capacidades_da_marcenaria_sem_aprovacao_por_item():
     """
     Caso 04 da Spec 03A (D10). Os moveis sao aprovados no ORCAMENTO, antes de a
     OS existir: aprovacao por item na OS seria a mesma decisao duas vezes.
+    A Spec 04A acrescentou `orcamento_tecnico`.
     """
     capacidades = set(DEFINICOES["marcenaria"]["capacidades"])
-    assert capacidades == {CAP_IMAGEM_NA_ENTRADA, CAP_GARANTIA_PRAZO}
+    assert capacidades == {CAP_IMAGEM_NA_ENTRADA, CAP_GARANTIA_PRAZO, CAP_ORCAMENTO_TECNICO}
     assert CAP_APROVACAO_ITENS not in capacidades
 
 
@@ -582,3 +585,35 @@ def test_quem_tem_todos_os_tipos_fora_da_criacao_manual():
         and not any(t["criacao_manual"] for t in definicao["tipos"])  # ...e nenhum e criavel
     }
     assert sem_criacao_manual == {"marcenaria"}
+
+
+# =========================
+# Spec 04A -- capacidade `orcamento_tecnico`
+# =========================
+
+def test_orcamento_tecnico_e_capacidade_conhecida():
+    """Caso 01 da Spec 04A: declarar uma capacidade que o sistema nao conhece
+    seria metadado orfao (o guard de cima ja recusa)."""
+    assert CAP_ORCAMENTO_TECNICO in CAPACIDADES_CONHECIDAS
+
+
+def test_so_a_marcenaria_tem_orcamento_tecnico():
+    """
+    Caso 02 da Spec 04A. A capacidade liga os parametros da marcenaria, a flag
+    "sofre perda" no produto e o menu Orcamentos. Liga-la em outro segmento
+    mostraria tudo isso a uma loja em producao que nao pediu. Se um dia for
+    intencional, este teste e o lugar de dizer isso em voz alta.
+    """
+    quem_declara = {
+        segmento
+        for segmento, definicao in DEFINICOES.items()
+        if CAP_ORCAMENTO_TECNICO in definicao.get("capacidades", [])
+    }
+    assert quem_declara == {"marcenaria"}
+
+
+def test_segmento_tem_capacidade():
+    """Casos 03 e 04 da Spec 04A: a primeira consulta de capacidade no backend."""
+    assert segmento_tem_capacidade("marcenaria", CAP_ORCAMENTO_TECNICO) is True
+    for segmento in ("serigrafia", "oficina_mecanica", None, "outros"):
+        assert segmento_tem_capacidade(segmento, CAP_ORCAMENTO_TECNICO) is False, segmento

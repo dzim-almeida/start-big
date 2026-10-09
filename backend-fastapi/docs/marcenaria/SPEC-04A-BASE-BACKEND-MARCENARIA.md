@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                     |
 |--------------|---------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                           |
+| Status       | Implementada em 09/10/2026                                                |
 | Camada       | Backend (FastAPI) ⚠️ toca `produtos` (tabela compartilhada)               |
 | Dependências | Spec 03A                                                                  |
 | Bloqueia     | Spec 04B, Spec 05, Spec 06A                                               |
@@ -390,6 +390,8 @@ def update_configuracao_marcenaria(
 
 - `schemas/produto.py`: `sofre_perda: bool = False` em `ProdutoCreate` (logo `ProdutoRead` herda); `sofre_perda: Optional[bool] = None` em `ProdutoUpdate`.
 - `services/produto.py`: `"sofre_perda": "Sofre perda"` em `_CAMPO_LEGIVEL`, para o histórico do produto dizer o que mudou. Conferir se a criação copia o campo para o model (se o serviço monta o `ProdutoModel` campo a campo, acrescentar).
+
+> **Nota da implementação (09/10/2026):** `ProdutoUpdate` trata `"sofre_perda": null` como "não enviado" (um `model_validator` tira o campo dos enviados), porque o serviço grava tudo o que veio e a coluna é `NOT NULL`. Coberto pelo caso 08. O teste da fábrica `test_insumo_api.py::test_cadastro_do_produto_nao_muda` foi ajustado: ele comparava a resposta do produto antes e depois de gravar o insumo pela rota da fábrica, e agora `sofre_perda` faz parte dessa resposta (de propósito). Ele continua conferindo que `unidade_consumo` e `consumo_por_unidade` não vazam para o cadastro.
 
 ### 6.8. Migração — `608dc99a8616_base_marcenaria.py`
 

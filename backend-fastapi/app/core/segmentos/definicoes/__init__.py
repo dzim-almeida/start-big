@@ -144,6 +144,17 @@ def rotulo_status(
     return rotulo["curto"] if curto else rotulo["rotulo"]  # escolhe o tamanho pedido
 
 
+def segmento_tem_capacidade(segmento: Optional[str], capacidade: str) -> bool:
+    """True se o segmento declara a capacidade (Spec 04A, D2).
+
+    Ate aqui so o frontend consultava capacidades; o backend passa a precisar
+    para ligar recursos de um segmento sem escrever o nome dele no codigo.
+    Segmento sem definicao (generico ou sem segmento): False.
+    """
+    definicao = get_definicao_segmento(segmento)            # None para segmento generico
+    return bool(definicao) and capacidade in definicao.get("capacidades", [])
+
+
 def tipo_permite_criacao_manual(segmento: Optional[str], tipo_id: Optional[str]) -> bool:
     """Uma OS deste segmento/tipo pode ser criada pelo caminho comum? (Spec 03A, D5)
 
@@ -194,4 +205,5 @@ __all__ = [
     "rotulo_status",
     "tipo_permite_criacao_manual",
     "label_do_tipo",
+    "segmento_tem_capacidade",
 ]

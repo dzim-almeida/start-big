@@ -30,6 +30,7 @@ from ..campos import campo, tipo_de_trabalho
 from ..capacidades import (
     CAP_GARANTIA_PRAZO,
     CAP_IMAGEM_NA_ENTRADA,
+    CAP_ORCAMENTO_TECNICO,
 )
 
 SEGMENTO_MARCENARIA = "marcenaria"
@@ -145,11 +146,15 @@ MARCENARIA = {
     # Sem aprovacao_itens (Spec 03A, D10): os moveis sao aprovados no
     # ORCAMENTO, antes de a OS existir. A capacidade so ficava por causa da
     # Reforma, que saiu da fase 1.
+    # orcamento_tecnico: o orcamento por ambiente, movel e insumo, com perda,
+    #   markup e margem (Spec 04A). Liga os parametros da marcenaria e a flag
+    #   "sofre perda" no produto.
     # Sem vistoria e sem revisoes: a medicao do ambiente nao e checklist nesta
     # versao, e movel nao volta para manutencao por data.
     "capacidades": [
         CAP_IMAGEM_NA_ENTRADA,
         CAP_GARANTIA_PRAZO,
+        CAP_ORCAMENTO_TECNICO,
     ],
 
     # Vazios porque este segmento declara por tipo de trabalho. O guard
