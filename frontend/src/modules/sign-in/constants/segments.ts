@@ -81,8 +81,11 @@ export const SEGMENT_TIPS: Record<Segmento, string> = {
     'Para serigrafias, cadastre a pintura por número de cores em Serviços e os tipos de sacola em Produtos — a OS já multiplica pelo que o cliente pedir.',
   pdv:
     'Sua loja abre direto no PDV, sem Ordem de Serviço. Ative o controle de caixa em Configurações › Regras de Vendas para abrir turno, sangrar e fechar conferindo.',
+  // Spec 03B (D10): o trabalho da marcenaria começa no orçamento técnico, e a
+  // OS nasce da aprovação do cliente.
   marcenaria:
-    'Para marcenarias, a OS é de Móveis planejados ou de Reforma de móveis. Cadastre o que você cobra (metro linear, restauração, montagem) em Serviços e as chapas e ferragens em Produtos — a OS monta o orçamento e recebe o adiantamento.',
+    'Para marcenarias, o trabalho começa em Orçamentos: você monta os ambientes e os móveis com '
+    + 'chapas, fitas e ferragens cadastradas em Produtos, e a aprovação do cliente gera a OS.',
   eletricista:
     'Para eletricistas, as ordens de serviço com checklist de materiais facilitarão seu dia a dia.',
   outros:

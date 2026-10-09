@@ -39,10 +39,11 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // e a excecao: ela E a arte a ser estampada, entra no cadastro inicial e sai
   // impressa na via de entrada.
   serigrafia: ['imagem_na_entrada'],
-  // Marcenaria aprova o orcamento item a item, tira foto do ambiente (ou do
-  // movel a reformar) ja na abertura e da garantia em dias. Nem vistoria nem
-  // revisao: a medicao do ambiente e Fase 5 do plano, se a fabrica pedir.
-  marcenaria: ['aprovacao_itens', 'imagem_na_entrada', 'garantia_prazo'],
+  // Marcenaria (fase 1: só Móveis planejados). Os móveis são aprovados no
+  // orçamento, não item a item na OS (SPEC-00, O4; Spec 03B, D7). Imagem na
+  // entrada e garantia em dias continuam. A Reforma, quando voltar, devolve
+  // `aprovacao_itens` (SPEC-00 §7.1).
+  marcenaria: ['imagem_na_entrada', 'garantia_prazo'],
 };
 
 /**

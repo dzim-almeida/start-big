@@ -1,0 +1,50 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`linha "Fábrica" de Cargos (aposentada) > 20 — PERMISSION_KEYS igual ao de antes (a linha nunca contou no nível) 1`] = `
+[
+  "view_dashboard",
+  "manage_dashboard",
+  "delete_dashboard",
+  "view_sales",
+  "manage_sales",
+  "delete_sales",
+  "view_storage",
+  "manage_storage",
+  "delete_storage",
+  "view_services",
+  "manage_services",
+  "delete_services",
+  "view_customers",
+  "manage_customers",
+  "delete_customers",
+  "view_products",
+  "manage_products",
+  "delete_products",
+  "view_labels",
+  "manage_labels",
+  "delete_labels",
+  "view_reports",
+  "manage_reports",
+  "view_financeiro",
+  "manage_financeiro",
+  "view_enterprise",
+  "manage_enterprise",
+  "delete_enterprise",
+  "view_employees",
+  "manage_employees",
+  "delete_employees",
+  "view_positions",
+  "manage_positions",
+  "delete_positions",
+]
+`;
+
+exports[`linha "Fábrica" de Cargos (aposentada) > o nível de acesso dos cargos de exemplo é o mesmo de antes 1`] = `
+{
+  "comFabricaGravada": "Operacional",
+  "metade": "Operacional",
+  "nenhuma": "Restrito",
+  "soVer": "Operacional",
+  "todas": "Administrador",
+}
+`;

@@ -133,6 +133,12 @@ export interface SegmentWorkType {
   id: string;
   label: string;
   campos: SegmentField[];
+  /**
+   * false = a OS deste tipo só nasce de outro documento (ex.: Móveis planejados
+   * nasce da aprovação do orçamento). Ausente = true, como num contrato antigo
+   * (sidecar desatualizado). Spec 03A/03B da marcenaria.
+   */
+  criacao_manual?: boolean;
 }
 
 /** Texto de um status da OS declarado pelo segmento (Spec 01A da marcenaria). */

@@ -15,10 +15,14 @@ import RevisoesPendentesTab from './tabs/RevisoesPendentesTab.vue';
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
 import { useCapacidades } from '../shared/segmento/useCapacidades';
+import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
+import { mostrarBotaoAdicionar } from '../shared/segmento/botoesCriacaoOS';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS } = useOSCreateFlow();
 const { temRevisoes } = useCapacidades();
+// O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
+const { podeCriarOSManual } = useTiposDeTrabalho();
 
 const activeTab = ref('ordens');
 
@@ -41,6 +45,9 @@ const pageDescription = computed(() => {
     : 'Gerencie o catálogo de serviços da sua organização.';
 });
 
+/** Botão do topo: "Nova OS" só onde dá para criar à mão; "Novo Serviço" sempre (Spec 03B, D3/D5). */
+const exibirBotaoAdicionar = computed(() => mostrarBotaoAdicionar(activeTab.value, podeCriarOSManual.value));
+
 function handleAddClick() {
   if (activeTab.value === 'ordens') {
     openNovaOS();
@@ -61,7 +68,7 @@ function handleAddClick() {
       <div class="flex gap-5">
         <BaseTab2 :options="tabOptions" v-model="activeTab" />
         <BaseButton
-          v-if="activeTab !== 'revisoes'"
+          v-if="exibirBotaoAdicionar"
           variant="primary"
           size="md"
           type="button"

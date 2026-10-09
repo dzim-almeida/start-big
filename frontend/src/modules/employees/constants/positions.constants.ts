@@ -18,7 +18,6 @@ import {
   Printer,
   ClipboardList,
   PackageCheck,
-  Ruler,
 } from 'lucide-vue-next';
 
 import { MODULOS } from '@/shared/constants/modulos.constants';
@@ -169,18 +168,10 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     manageKey: 'receive_purchases',
     modulo: MODULOS.COMPRAS,
   },
-  {
-    id: 'fabrica',
-    label: 'Fabrica',
-    description: 'Orcamento por movel, custos e liberacao de compra',
-    icon: Ruler,
-    // So na marcenaria. Visualizar = ver CUSTO e margem do orcamento;
-    // Gerenciar = orcar, enviar, registrar a resposta do cliente, liberar
-    // compra antes do sinal. Avancar etapa e da permissao de Servicos.
-    viewKey: 'view_fabrica',
-    manageKey: 'manage_fabrica',
-    segmento: 'marcenaria',
-  },
+  // A linha "Fabrica" (view_fabrica/manage_fabrica, so na marcenaria) saiu com
+  // a aposentadoria da fabrica (SPEC-00 da marcenaria, FB1; Spec 03B, D12). Ela
+  // nao contava no nivel do cargo, entao nenhum nivel muda. As constantes de
+  // PERMISSIONS e o mapa `fabrica` abaixo ficam: o codigo inerte ainda os importa.
   {
     id: 'reports',
     label: 'Relatorios',

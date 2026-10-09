@@ -154,20 +154,10 @@ const homeRoutes: RouteRecordRaw[] = [
           exigeOrdemServico: true,
         },
       },
-      {
-        // Marcenaria-fábrica (F4): o almoxarife separa bipando, no PC ou no
-        // celular na rede da loja. A baixa no estoque acontece aqui.
-        path: '/fabrica/separacao/:numeroOs',
-        name: 'fabrica-separacao',
-        component: () => import('@/modules/order-service/fabrica/views/SeparacaoView.vue'),
-        meta: {
-          title: 'Separação de material',
-          subtitle: 'Bipe cada chapa, rolo e ferragem que sai para a produção.',
-          tabId: 'services',
-          requiresAuth: true,
-          exigeOrdemServico: true,
-        },
-      },
+      // A rota '/fabrica/separacao/:numeroOs' saiu com a aposentadoria da
+      // fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D14): ela só abria OS do
+      // trilho, que nenhuma OS nova recebe. A separação da marcenaria é a aba
+      // da Spec 10B.
       {
         path: '/vendas',
         name: 'sales',

@@ -32,6 +32,8 @@ import ConfiguracoesModal from '@/modules/configuracoes/components/Configuracoes
 import RenovarAssinaturaModal from '@/modules/license/components/RenovarAssinaturaModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
+import { filtrarAtalhos } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 import { getRevisoesPendentes } from '@/modules/order-service/revisoes/services/revisao.service';
@@ -136,12 +138,18 @@ const valorCreditoCliente = computed(() =>
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
-const quickActions: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
+/** Todos os atalhos do menu rápido (Ctrl+K), na ordem de sempre. */
+const TODOS_OS_ATALHOS: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
   { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
   { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
   { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
   { id: 'novo-servico', icon: Wrench, label: 'Criar Serviço', variant: 'secondary', action: () => openServicoCreate() },
 ];
+
+// "Criar OS" só onde a OS pode ser criada à mão; na marcenaria ela nasce do
+// orçamento (Spec 03B, D3). Os outros atalhos ficam iguais.
+const { podeCriarOSManual } = useTiposDeTrabalho();
+const quickActions = computed(() => filtrarAtalhos(TODOS_OS_ATALHOS, podeCriarOSManual.value));
 
 const { Ctrl_K } = useMagicKeys();
 

@@ -60,7 +60,7 @@ const emit = defineEmits<{
   applyHistorico: [];
 }>();
 
-const { opcoes, tipoPadrao, gruposDoTipo } = useTiposDeTrabalho();
+const { opcoes, tipoPadrao, gruposDoTipo, tipoPorId, tipoPodeSerTrocado } = useTiposDeTrabalho();
 const { labelSingular, labelObjetoAnterior, labelDefeito, placeholderDefeito } = useObjetoLabels();
 
 /**
@@ -118,6 +118,14 @@ const tipoAtual = computed<string>(
 );
 
 const grupos = computed(() => gruposDoTipo(tipoAtual.value));
+
+/**
+ * OS de um tipo que só nasce de outro documento (Móveis planejados nasce da
+ * aprovação do orçamento): o tipo aparece como informação, com o motivo, e
+ * nunca como seletor (Spec 03B, D6). O backend também recusa a troca (03A, D8).
+ */
+const tipoTravado = computed(() => !tipoPodeSerTrocado(tipoAtual.value));
+const labelDoTipoAtual = computed(() => tipoPorId(tipoAtual.value)?.label ?? '');
 
 function trocarTipo(valor: string) {
   // Só o tipo muda. Os valores já digitados ficam onde estão: trocar de tipo
@@ -196,7 +204,7 @@ function gravarCampo(campos: SegmentField[], nome: string, valor: unknown) {
       <!-- Seletor do tipo de trabalho. Some sozinho quando o segmento declara
            um tipo só — perguntar "camisa ou camisa?" seria ruído. -->
       <BaseSelect
-        v-if="opcoes.length > 1"
+        v-if="opcoes.length > 1 && !tipoTravado"
         :model-value="tipoAtual"
         label="Tipo de trabalho"
         :options="opcoes"
@@ -204,6 +212,11 @@ function gravarCampo(campos: SegmentField[], nome: string, valor: unknown) {
         :disabled="isLocked"
         @update:model-value="trocarTipo(String($event))"
       />
+
+      <!-- Tipo travado: informação, não campo (Spec 03B, D6). -->
+      <p v-else-if="tipoTravado" class="col-span-2 text-sm text-zinc-600" data-testid="tipo-travado">
+        Tipo de trabalho: <strong>{{ labelDoTipoAtual }}</strong> · criada a partir de um orçamento
+      </p>
 
       <!-- Cliente que volta não digita nada: escolhe a arte que já é dele. -->
       <BaseSelect

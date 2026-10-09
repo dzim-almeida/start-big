@@ -2,7 +2,7 @@
 
 | Campo        | Valor                                                                   |
 |--------------|-------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                         |
+| Status       | Implementada em 09/10/2026 (roteiro manual da §10 pendente)             |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado                   |
 | Dependências | Spec 03A (contrato com `criacao_manual`, só Planejados)                 |
 | Bloqueia     | Spec 06B, Spec 08B                                                      |
@@ -348,6 +348,8 @@ Conferir com uma busca que nada mais importa `InsumoProdutoSection.vue` nem `Sep
 | 22 | Router | Sem a rota `fabrica-separacao` |
 | 23 | Salvar Configurações › OS (qualquer segmento) | Corpo do `PUT` igual ao de antes (inclusive `modo_fabrica` com o valor que veio) |
 | 24 | Contagem da suíte | 188 − 3 + novos (D15) |
+
+> **Nota da implementação (09/10/2026).** As regras dos botões (casos 09–13) ficaram em `shared/segmento/botoesCriacaoOS.ts` (`mostrarBotaoAdicionar`, `filtrarAtalhos`), que `OrdemServicoView` e `MainLayout` só chamam; os testes cobrem as funções, sem montar as duas telas (rotas, abas e queries). O caso 21 confere o código do `ProductModal` (não importa a seção nem a pasta da fábrica), pelo mesmo motivo. Os casos 17, 18 e o nível dos cargos (§7.6) comparam com retratos (`__snapshots__`) gravados com o código de **antes** da mudança. Contagem (D15): 237 − 3 + 33 = 267.
 
 ### Roteiro manual (dev)
 
