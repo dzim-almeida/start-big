@@ -27,9 +27,13 @@ export function useFiscalEmitirNfeMutation() {
     onError: (error) => {
       const axiosErr = error as AxiosError<ApiError>;
 
-      if (axiosErr.response?.status === 409) {
-        const detail = axiosErr.response.data?.detail as FiscalConflictDetail | undefined;
-        const msg = detail?.mensagem || 'Esta venda já possui documento fiscal ativo.';
+      // Só o conflito de documento vem como objeto ({codigo, mensagem}). O
+      // `_handle_db_transaction` também devolve 409 para QUALQUER ValueError
+      // do montador da nota (ex.: CFOP 5xxx e 6xxx na mesma venda), com o
+      // motivo em texto puro — esse cai no toast de erro abaixo, com o motivo.
+      const detail = axiosErr.response?.data?.detail as FiscalConflictDetail | string | undefined;
+      if (axiosErr.response?.status === 409 && detail && typeof detail === 'object') {
+        const msg = detail.mensagem || 'Esta venda já possui documento fiscal ativo.';
         toast.warning('Documento fiscal existente', msg);
         queryClient.invalidateQueries({ queryKey: fiscalKeys.documentos() });
         queryClient.invalidateQueries({ queryKey: fiscalKeys.resumo() });
