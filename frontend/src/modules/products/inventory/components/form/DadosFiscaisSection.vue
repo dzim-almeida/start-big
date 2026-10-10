@@ -502,10 +502,13 @@ const codigoForaDoMotor = computed(() => {
     </div>
 
     <!-- Tributação específica: só quando este produto foge do padrão da loja -->
-    <div v-if="temTributacaoPadrao" class="border border-zinc-200 rounded-xl overflow-hidden">
+    <!-- Sem overflow-hidden: ele cortava a lista do BaseSelect (CST/CSOSN),
+         que abre em `absolute` por cima do conteúdo. O arredondado vai no botão. -->
+    <div v-if="temTributacaoPadrao" class="border border-zinc-200 rounded-xl">
       <button
         type="button"
         class="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 hover:bg-zinc-100 transition-colors cursor-pointer text-left"
+        :class="excecaoAberta ? 'rounded-t-xl' : 'rounded-xl'"
         @click="excecaoAberta = !excecaoAberta"
       >
         <span class="text-sm font-medium text-zinc-700">
