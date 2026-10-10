@@ -26,13 +26,13 @@ export const SaleUpdateSchema = SaleCreateSchema.extend({
     .min(0)
     .optional()
     .default(0)
-    .transform((val) => val * 100),
+    .transform((val) => Math.round(val * 100)),
   desconto: z
     .number()
     .min(0)
     .optional()
     .default(0)
-    .transform((val) => val * 100),
+    .transform((val) => Math.round(val * 100)),
   observacao: z.string().max(500).nullable().optional(),
   observacao_interna: z.string().max(500).nullable().optional(),
   codigo_gerente: z.string().nullable().optional(),

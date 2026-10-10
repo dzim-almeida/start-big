@@ -123,7 +123,7 @@ export function useItemSaleForm(
     if (selectedItem.value) {
       const payload: ProductSaleUpdate = {
         quantidade: formValues.quantidade,
-        desconto: formValues.desconto * 100,
+        desconto: Math.round(formValues.desconto * 100),
       };
 
       if (selectedItem.value.tipo_produto === 'AVULSO') {
@@ -172,7 +172,7 @@ export function useItemSaleForm(
       descricao_avulsa: formValues.descricao,
       valor_unitario: formValues.valor_unitario * 100,
       quantidade: formValues.quantidade,
-      desconto: formValues.desconto * 100,
+      desconto: Math.round(formValues.desconto * 100),
       ...(formValues.custo > 0 && { custo_unitario: Math.round(formValues.custo * 100) }),
     };
 
