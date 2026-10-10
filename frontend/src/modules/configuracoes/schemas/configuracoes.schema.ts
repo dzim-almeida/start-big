@@ -95,6 +95,10 @@ export const ConfiguracaoVendasSchema = z.object({
   regra_ordem: z.string().catch('R1,R2,R3'),
   bloquear_desconto_com_regra: z.boolean().catch(false),
 
+  /** Venda no atacado: botão no PDV + pedido mínimo (centavos). Nasce desligado. */
+  atacado_habilitado: z.boolean().catch(false),
+  atacado_pedido_minimo: z.number().int().min(0).catch(0),
+
   data_atualizacao: z.string(),
 })
 

@@ -161,6 +161,10 @@ def aplicar_na_venda(db: Session, venda, hoje: Optional[date] = None) -> set[int
     r1 = bool(config and config.regra_embalagem_avulsas) and embalagens_ligadas(db, empresa_id)
     r2 = bool(config and config.regra_faixas_quantidade)
     r3 = bool(config and config.regra_leve_pague)
+    if getattr(venda, "modo_atacado", False):
+        # Venda no atacado: o preço de quantidade é o próprio atacado. As
+        # regras saem das linhas (ver services/venda_atacado.py).
+        r1 = r2 = r3 = False
 
     # B8: loja sem regra ligada e carrinho sem regra antiga — não toca em nada.
     if not (r1 or r2 or r3) and not any(l.regra_preco in calc.REGRAS for l in itens):

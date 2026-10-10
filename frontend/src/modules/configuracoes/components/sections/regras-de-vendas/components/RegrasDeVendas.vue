@@ -24,6 +24,8 @@ const {
   regraConflito,
   regraOrdem,
   bloquearDescontoComRegra,
+  atacadoHabilitado,
+  atacadoPedidoMinimo,
 } = storeToRefs(configStore)
 
 const NOMES_REGRA: Record<string, string> = {
@@ -52,6 +54,8 @@ function valoresDoStore() {
       regra_conflito: regraConflito.value,
       regra_ordem: regraOrdem.value,
       bloquear_desconto_com_regra: bloquearDescontoComRegra.value,
+      atacado_habilitado: atacadoHabilitado.value,
+      atacado_pedido_minimo_reais: (atacadoPedidoMinimo.value / 100) as number,
     },
     estoque: {
       permitir_venda_estoque_zerado: permitirVendaEstoqueZerado.value,
@@ -115,6 +119,8 @@ defineExpose({
         regra_conflito: form.vendas.regra_conflito,
         regra_ordem: form.vendas.regra_ordem,
         bloquear_desconto_com_regra: form.vendas.bloquear_desconto_com_regra,
+        atacado_habilitado: form.vendas.atacado_habilitado,
+        atacado_pedido_minimo: Math.round((form.vendas.atacado_pedido_minimo_reais || 0) * 100),
       },
       estoque: {
         permitir_venda_estoque_zerado: form.estoque.permitir_venda_estoque_zerado,
@@ -275,6 +281,41 @@ defineExpose({
         >
           <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.bloquear_desconto_com_regra ? 'translate-x-5' : 'translate-x-0.5']" />
         </button>
+      </div>
+    </div>
+
+    <!-- Venda no atacado: o PDV ganha a chave "Atacado", que passa a venda
+         inteira para o preço de atacado do produto (quem não tem fica no
+         varejo). Abaixo do pedido mínimo a venda não finaliza. -->
+    <div class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Atacado</p>
+
+      <div class="flex items-center justify-between py-3 border-b border-zinc-100">
+        <div>
+          <p class="text-sm font-medium text-zinc-800">Vender no preço de atacado</p>
+          <p class="text-xs text-zinc-500 mt-0.5">Mostra o botão "Atacado" no PDV. Usa o Preço Atacado do cadastro; produto sem ele fica no varejo</p>
+        </div>
+        <button
+          type="button"
+          :class="['relative w-9 h-4.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0', form.vendas.atacado_habilitado ? 'bg-brand-primary' : 'bg-zinc-200']"
+          @click="form.vendas.atacado_habilitado = !form.vendas.atacado_habilitado"
+        >
+          <span :class="['absolute left-0 top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200', form.vendas.atacado_habilitado ? 'translate-x-5' : 'translate-x-0.5']" />
+        </button>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">Pedido mínimo do atacado (R$) — 0 = sem mínimo</label>
+        <input
+          v-model.number="form.vendas.atacado_pedido_minimo_reais"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0,00"
+          :disabled="!form.vendas.atacado_habilitado"
+          class="mt-1.5 w-full border border-zinc-200 rounded-lg px-3 py-2.5 bg-zinc-50 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+        <p class="text-xs text-zinc-500 mt-1">Soma dos itens já no preço de atacado. Abaixo disso a venda em atacado não finaliza</p>
       </div>
     </div>
 

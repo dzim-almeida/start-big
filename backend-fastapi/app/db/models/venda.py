@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
+from sqlalchemy import Boolean, String, Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, TYPE_CHECKING
 
@@ -94,6 +94,12 @@ class Venda(Base):
     subtotal: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Soma dos itens sem descontos e fretes (centavos)")
     entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor do frete/motoboy (centavos)")
     acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0", doc="Acrescimo de juros/cartao aplicado no checkout (centavos)")
+    # Venda no atacado (Configurações › Regras de Vendas): as linhas de unidade
+    # saem pelo `valor_atacado` do produto. Ver services/venda_atacado.py.
+    modo_atacado: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Venda no preço de atacado",
+    )
     @property
     def total_bruto(self):
         total_itens = sum(item.subtotal for item in self.itens)

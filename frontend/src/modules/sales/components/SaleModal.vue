@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, toRef, watch } from 'vue';
-import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
+import { X, Printer, ShoppingCart, PackagePlus, Trash2, Warehouse } from 'lucide-vue-next';
+import { formatCurrency } from '@/shared/utils/finance';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useSessaoCaixaQuery } from '../caixa/composables/queries/useSessaoCaixaQuery';
@@ -62,7 +63,29 @@ const deleteMutation = useDeleteSaleMutation();
 const updateSaleMutation = useUpdateSaleMutation();
 const cancelSaleModalIsOpen = ref(false);
 const { openCustomerModalForChange, iniciarVendaSemCliente } = useCustomerSearchModal();
-const { valorMinimoVenda, exigirClienteIdentificado, usarFilaDoCaixa } = storeToRefs(useConfiguracoesStore());
+const { valorMinimoVenda, exigirClienteIdentificado, usarFilaDoCaixa, atacadoHabilitado, atacadoPedidoMinimo } =
+  storeToRefs(useConfiguracoesStore());
+
+/**
+ * Venda no atacado (Configurações › Regras de Vendas). O botão só aparece com a
+ * chave da loja ligada — ou numa venda que já está em atacado, para ter como
+ * voltar. Quem troca os preços e trava a finalização é o backend; aqui o
+ * "faltam R$ X" e o Finalizar desabilitado só poupam a ida e volta.
+ */
+const modoAtacado = computed(() => !!sale.value?.modo_atacado);
+const mostraAtacado = computed(() => atacadoHabilitado.value || modoAtacado.value);
+const faltaParaAtacado = computed(() => {
+  if (!modoAtacado.value || !atacadoPedidoMinimo.value) return 0;
+  const itens = (sale.value?.produtos ?? []).reduce((soma, p) => soma + (p.subtotal ?? 0), 0);
+  return Math.max(0, atacadoPedidoMinimo.value - itens);
+});
+async function alternarAtacado() {
+  if (!sale.value) return;
+  await updateSaleMutation
+    .mutateAsync({ saleId: sale.value.id, payload: { modo_atacado: !modoAtacado.value } })
+    .catch(() => undefined); // o toast de erro já sai no onError da mutation
+  focarBuscaDeProduto();
+}
 const { modoBalcao } = storeToRefs(useBalcaoStore());
 const { caixaAberto, caixaHabilitado, exigeCaixaAberto } = useSessaoCaixaQuery();
 const { eRetaguarda } = useEsteTerminalQuery();
@@ -308,7 +331,11 @@ useSaleShortcuts({
   itemModalIsOpen,
   addProductModalIsOpen: toRef(addProductModal, 'isAddProductModalOpen'),
   onCreateSale: () => {},
-  onOpenFinishModal: openFinishModal,
+  // O atalho não passa pelo botão desabilitado: mesma trava do atacado aqui.
+  onOpenFinishModal: () => {
+    if (faltaParaAtacado.value > 0) return;
+    openFinishModal();
+  },
   onOpenItemModal: openCreateItemModal,
   onOpenAddProductModal: () => addProductModal.openAddProductModal(),
   onCloseAddProductModal: addProductModal.closeAddProductModal,
@@ -429,6 +456,34 @@ const saleDisplay = computed(() => {
             Adicionar Produto
             <kbd class="ml-0.5 inline-flex items-center rounded border border-brand-primary/30 bg-white/60 px-1 text-[10px] font-semibold">F3</kbd>
           </button>
+          <button
+            v-if="mostraAtacado"
+            type="button"
+            :class="[
+              'flex items-center gap-2 h-9 px-4 rounded-lg border text-sm font-semibold transition-all shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+              modoAtacado
+                ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                : 'bg-white text-zinc-600 border-zinc-200 hover:border-amber-400 hover:text-amber-700',
+            ]"
+            :disabled="updateSaleMutation.isPending.value"
+            :title="modoAtacado ? 'Voltar a venda para o preço de varejo' : 'Passar a venda para o preço de atacado'"
+            :aria-pressed="modoAtacado"
+            @click="alternarAtacado"
+          >
+            <Warehouse :size="16" />
+            {{ modoAtacado ? 'Atacado' : 'Varejo' }}
+          </button>
+        </div>
+        <div
+          v-if="modoAtacado && faltaParaAtacado > 0"
+          class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+        >
+          <Warehouse :size="14" class="shrink-0" />
+          <span>
+            Pedido mínimo do atacado: {{ formatCurrency(atacadoPedidoMinimo) }} —
+            <strong class="font-semibold">faltam {{ formatCurrency(faltaParaAtacado) }}</strong>.
+            Complete o pedido ou volte para o varejo.
+          </span>
         </div>
         <SaleItemsTable :sale="sale" :readonly="isViewMode" class="flex-1 min-h-0" />
         <SaleSummary
@@ -480,7 +535,7 @@ const saleDisplay = computed(() => {
               data-ir-pagamento
               class="w-full"
               :class="finalizarEhPrincipal ? 'text-base font-bold py-4 shadow-lg shadow-brand-primary/20' : ''"
-              :disabled="!sale?.produtos?.length"
+              :disabled="!sale?.produtos?.length || faltaParaAtacado > 0"
               @keydown.tab.exact.prevent="focarBuscaDeProduto"
               @click="openFinishModal"
             >

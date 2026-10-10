@@ -122,6 +122,9 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const regraConflito = computed(() => configVendas.value?.regra_conflito ?? 'MENOR_PRECO')
   const regraOrdem = computed(() => configVendas.value?.regra_ordem ?? 'R1,R2,R3')
   const bloquearDescontoComRegra = computed(() => configVendas.value?.bloquear_desconto_com_regra ?? false)
+  // Venda no atacado — desligada por padrão; mínimo em centavos (0 = sem mínimo).
+  const atacadoHabilitado = computed(() => configVendas.value?.atacado_habilitado ?? false)
+  const atacadoPedidoMinimo = computed(() => configVendas.value?.atacado_pedido_minimo ?? 0)
 
   // ── Segurança: PINs ──
   const requerPinDescontoVenda = computed(() => configSeguranca.value?.requer_pin_desconto_venda ?? false)
@@ -201,6 +204,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     regraConflito,
     regraOrdem,
     bloquearDescontoComRegra,
+    atacadoHabilitado,
+    atacadoPedidoMinimo,
 
     requerPinDescontoVenda,
     requerPinAlterarPreco,

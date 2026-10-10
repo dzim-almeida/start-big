@@ -55,6 +55,19 @@ function getProductDescription(item: SaleOrOrcamento['produtos'][number]) {
   return item.produto_id ? `SKU: #${item.sku}` : 'Produto cadastrado';
 }
 
+/**
+ * Venda em atacado e esta linha de unidade ficou no varejo: o produto não tem
+ * Preço Atacado no cadastro. Sem o selo, o operador acha que o botão falhou.
+ */
+function ficouNoVarejo(item: SaleOrOrcamento['produtos'][number]) {
+  if (!props.sale || !('modo_atacado' in props.sale) || !props.sale.modo_atacado) return false;
+  return (
+    item.tipo_produto === 'CADASTRADO' &&
+    (item.fator_embalagem ?? 1) === 1 &&
+    !('regra_preco' in item && item.regra_preco)
+  );
+}
+
 /** Regra de preço por quantidade aplicada na linha (§6.1). Orçamento não tem. */
 function regraDaLinha(item: SaleOrOrcamento['produtos'][number]) {
   if (!('regra_preco' in item) || !item.regra_preco || item.regra_preco === 'MANUAL') return null;
@@ -383,6 +396,13 @@ function removeItem(item: SaleOrOrcamento['produtos'][number]) {
                     :title="regraDaLinha(item)!.descricao"
                   >
                     {{ regraDaLinha(item)!.descricao }}
+                  </p>
+                  <p
+                    v-else-if="ficouNoVarejo(item)"
+                    class="mt-0.5 inline-block truncate rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+                    title="Este produto não tem Preço Atacado no cadastro"
+                  >
+                    Sem preço de atacado — varejo
                   </p>
 
                 </div>

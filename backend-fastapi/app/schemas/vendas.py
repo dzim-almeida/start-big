@@ -113,6 +113,7 @@ class VendaUpdate(BaseModel):
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")
     observacao_interna: Optional[str] = Field(None, max_length=500, description="Observação interna (não impressa no comprovante)")
     codigo_gerente: Optional[str] = Field(None, description="PIN do gerente para aprovar desconto acima do limite")
+    modo_atacado: Optional[bool] = Field(None, description="Liga/desliga o preço de atacado na venda inteira")
 
 # Schemas para leitura de venda, produtos e pagamentos relacionados a uma venda
 
@@ -144,9 +145,9 @@ class ProdutoVendaRead(BaseModel):
     # Regra de preço por quantidade aplicada (§6.1). `desconto` continua sendo
     # só o do operador; `total` já desconta os dois.
     desconto_regra: int = Field(0, ge=0, description="Desconto da regra de preço R1/R3 (centavos)")
-    regra_preco: Optional[str] = Field(None, description="R1, R2, R3 ou MANUAL (preço trocado pelo gerente)")
+    regra_preco: Optional[str] = Field(None, description="R1, R2, R3, ATACADO ou MANUAL (preço trocado pelo gerente)")
     regra_descricao: Optional[str] = Field(None, description="O que a linha mostra ('Leve 3, pague 2: 1 grátis')")
-    valor_unitario_tabela: Optional[int] = Field(None, description="R2: preço cheio da unidade, mostrado riscado")
+    valor_unitario_tabela: Optional[int] = Field(None, description="R2/ATACADO: preço cheio da unidade, mostrado riscado")
 
 class PagamentoVendaRead(PagamentoVendaCreate):
     id: int = Field(..., description="ID do pagamento na venda")
@@ -189,6 +190,7 @@ class VendaRead(VendaSimpleRead):
     subtotal: int = Field(0, ge=0, description="Subtotal da venda")
     descontos: int = Field(0, ge=0, description="Desconto da venda (só o do operador)")
     descontos_regra: int = Field(0, ge=0, description="Soma dos descontos das regras de preço (R1/R3)")
+    modo_atacado: bool = Field(False, description="Venda no preço de atacado")
     acrescimo: int = Field(0, ge=0, description="Acréscimo de juros/cartão aplicado no checkout")
     troco: int = Field(0, ge=0, description="Valor do troco a ser devolvido ao cliente")
     observacao: Optional[str] = Field(None, max_length=500, description="Observação da venda")

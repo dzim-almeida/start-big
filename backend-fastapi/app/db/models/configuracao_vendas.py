@@ -120,6 +120,21 @@ class ConfiguracaoVendas(Base):
         Boolean, default=False, server_default="0", nullable=False
     )
 
+    # =======================================================================
+    # VENDA NO ATACADO
+    # =======================================================================
+    # O PDV ganha a chave "Atacado": a venda inteira passa para o
+    # `estoque.valor_atacado` (quem não tem fica no varejo). Nasce DESLIGADO --
+    # sem a chave, nem o botão aparece e a venda é a de sempre.
+    atacado_habilitado: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    # Pedido mínimo do atacado (centavos), sobre a soma dos itens já no preço
+    # de atacado. Abaixo dele a venda não finaliza. 0 = sem mínimo.
+    atacado_pedido_minimo: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),

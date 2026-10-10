@@ -36,6 +36,7 @@ export const SaleUpdateSchema = SaleCreateSchema.extend({
   observacao: z.string().max(500).nullable().optional(),
   observacao_interna: z.string().max(500).nullable().optional(),
   codigo_gerente: z.string().nullable().optional(),
+  modo_atacado: z.boolean().optional(),
 }).partial();
 
 export type SaleUpdate = z.infer<typeof SaleUpdateSchema>;
@@ -90,6 +91,8 @@ export const SaleReadSchema = SaleSimpleReadSchema.extend({
   descontos: z.number(),
   // R1/R3 (§6.1), fora do desconto do operador. Backend antigo não manda.
   descontos_regra: z.number().optional().default(0),
+  // Venda no preço de atacado. Backend antigo não manda.
+  modo_atacado: z.boolean().optional().default(false),
   subtotal: z.number(),
   acrescimo: z.number(),
   troco: z.number(),

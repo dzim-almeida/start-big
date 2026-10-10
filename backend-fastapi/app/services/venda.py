@@ -17,6 +17,7 @@ from app.services import sessao_caixa as caixa_service
 from app.services import produto_embalagem as embalagem_service
 from app.services import quantidade_venda
 from app.services import regras_preco as regras_preco_service
+from app.services import venda_atacado
 
 from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
@@ -106,7 +107,17 @@ def _recalc_total_sale(
     # Com as chaves desligadas não toca em nada (B8). Os ids das OUTRAS linhas
     # que mudaram vão para a resposta, para a tela trocá-las também.
     if aplicar_regras:
-        sale_in_db.itens_alterados_pela_regra = regras_preco_service.aplicar_na_venda(db, sale_in_db)
+        # Atacado (services/venda_atacado.py) e regras por quantidade não se
+        # somam. A ordem importa: ao LIGAR, as regras saem primeiro (devolvem o
+        # varejo) e o atacado entra por cima; ao DESLIGAR, o atacado devolve o
+        # varejo primeiro e as regras voltam a valer sobre ele.
+        if sale_in_db.modo_atacado:
+            alteradas = regras_preco_service.aplicar_na_venda(db, sale_in_db)
+            alteradas |= venda_atacado.aplicar(sale_in_db)
+        else:
+            alteradas = venda_atacado.aplicar(sale_in_db)
+            alteradas |= regras_preco_service.aplicar_na_venda(db, sale_in_db)
+        sale_in_db.itens_alterados_pela_regra = alteradas
 
     descontos = sale_in_db.descontos + sale_in_db.descontos_regra
     if sale_in_db.total_bruto < descontos:
@@ -297,6 +308,14 @@ def update_sale(db: Session, sale_id: int, update_data: VendaUpdate) -> Venda:
 
     if update_data.entrega is not None:
         sale_in_db.entrega = update_data.entrega
+
+    if update_data.modo_atacado is not None and update_data.modo_atacado != sale_in_db.modo_atacado:
+        # Ligar exige a chave da loja; desligar vale sempre (é a saída).
+        if update_data.modo_atacado:
+            venda_atacado.exigir_habilitado(
+                config_vendas_crud.get_configuracao_vendas(db, empresa_id=sale_in_db.funcionario.empresa_id)
+            )
+        sale_in_db.modo_atacado = update_data.modo_atacado
 
     if update_data.desconto is not None:
         empresa_id = sale_in_db.funcionario.empresa_id
@@ -530,6 +549,8 @@ def finish_sale(
     config_vendas = config_vendas_crud.get_configuracao_vendas(db, empresa_id=empresa_id)
     if config_vendas and config_vendas.exigir_cliente_identificado and not sale_in_db.cliente_id:
         raise BadRequestException(detail="Esta venda exige um cliente identificado para ser finalizada")
+
+    venda_atacado.exigir_pedido_minimo(sale_in_db, config_vendas)
 
     # Trava do caixa: so morde quando a loja ligou AS DUAS chaves
     # (`controlar_caixa` e `exigir_caixa_aberto`). Loja que nao ligou nada passa

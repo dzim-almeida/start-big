@@ -37,6 +37,10 @@ class ConfiguracaoVendasRead(BaseModel):
     regra_ordem: str = "R1,R2,R3"
     bloquear_desconto_com_regra: bool = False
 
+    # Venda no atacado. Lidas pelo PDV: mostram o botão e o "faltam R$ X".
+    atacado_habilitado: bool = False
+    atacado_pedido_minimo: int = 0
+
     data_atualizacao: datetime
 
     model_config = {"from_attributes": True}
@@ -62,6 +66,9 @@ class ConfiguracaoVendasUpdate(BaseModel):
     regra_conflito: Optional[Literal["MENOR_PRECO", "ORDEM"]] = None
     regra_ordem: Optional[str] = Field(None, max_length=20)
     bloquear_desconto_com_regra: Optional[bool] = None
+
+    atacado_habilitado: Optional[bool] = None
+    atacado_pedido_minimo: Optional[int] = Field(None, ge=0)
 
     @field_validator("regra_ordem")
     @classmethod
