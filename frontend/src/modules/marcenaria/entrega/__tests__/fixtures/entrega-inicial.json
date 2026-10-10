@@ -1,0 +1,175 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000001",
+    "status": "ABERTA",
+    "editavel": true
+  },
+  "projeto": {
+    "codigo": "PRJ-2026-000001",
+    "nome": "Apto 802",
+    "endereco_obra": "Av. das Américas, 4200"
+  },
+  "cliente": {
+    "nome": "Dona Marta",
+    "telefone": "11987654321"
+  },
+  "entregas": [
+    {
+      "id": 1,
+      "ambiente_id": 1,
+      "ambiente": "Cozinha Gourmet",
+      "situacao": "PENDENTE",
+      "moveis": [
+        {
+          "nome": "Móvel de Cozinha Gourmet",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": null,
+      "montadores": [],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": null,
+      "registrado_em": null,
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": null
+    },
+    {
+      "id": 2,
+      "ambiente_id": 2,
+      "ambiente": "Sala",
+      "situacao": "PENDENTE",
+      "moveis": [
+        {
+          "nome": "Móvel de Sala",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": null,
+      "montadores": [],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": null,
+      "registrado_em": null,
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": null
+    },
+    {
+      "id": 3,
+      "ambiente_id": 3,
+      "ambiente": "Closet",
+      "situacao": "PENDENTE",
+      "moveis": [
+        {
+          "nome": "Móvel de Closet",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": null,
+      "montadores": [],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": null,
+      "registrado_em": null,
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": null
+    }
+  ],
+  "agendamentos": [],
+  "resumo": {
+    "entregues": 0,
+    "total": 3,
+    "todos_entregues": false,
+    "ambientes_pendentes": [
+      "Cozinha Gourmet",
+      "Sala",
+      "Closet"
+    ],
+    "pendencias_abertas": []
+  },
+  "avisos": []
+}

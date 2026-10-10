@@ -1,0 +1,17 @@
+{
+  "entregues": 1,
+  "total": 3,
+  "todos_entregues": false,
+  "ambientes_pendentes": [
+    "Sala",
+    "Closet"
+  ],
+  "pendencias_abertas": [
+    {
+      "id": 1,
+      "entrega_id": 1,
+      "ambiente": "Cozinha Gourmet",
+      "descricao": "Porta do aéreo 2 desalinhada"
+    }
+  ]
+}

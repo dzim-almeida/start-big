@@ -4,7 +4,8 @@
  *
  * - informática / serigrafia: exatamente as abas de hoje;
  * - oficina: + "Revisões", no mesmo lugar;
- * - marcenaria: + "Produção" (12B D15) e "Terceirizados" (11B D10), sem botão de criar no topo.
+ * - marcenaria: + "Produção" (12B D15), "Instalações" (13B D15) e "Terceirizados" (11B D10),
+ *   sem botão de criar no topo.
  *
  * As abas em si são trocadas por marcadores: aqui só importa QUAL aparece.
  */
@@ -38,6 +39,7 @@ vi.mock('../tabs/ServicosTab.vue', () => marcador('aba-servicos'));
 vi.mock('../tabs/RevisoesPendentesTab.vue', () => marcador('aba-revisoes'));
 vi.mock('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue', () => marcador('aba-terceirizados'));
 vi.mock('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue', () => marcador('aba-quadro-producao'));
+vi.mock('@/modules/marcenaria/entrega/components/InstalacoesTab.vue', () => marcador('aba-instalacoes'));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -71,13 +73,24 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     temOrcamentoTecnico.value = true;
     podeCriarOSManual.value = false;
     const w = montar();
-    expect(abas(w)).toEqual(['Ordens de Serviço', 'Cadastro de Serviços', 'Produção', 'Terceirizados']);
+    expect(abas(w)).toEqual(['Ordens de Serviço', 'Cadastro de Serviços', 'Produção', 'Instalações', 'Terceirizados']);
 
     await w.findAll('button').find((b) => b.text() === 'Terceirizados')!.trigger('click');
     await flushPromises();
     expect(w.find('h2').text()).toBe('Terceirizados');
     expect(w.text()).toContain('Móveis pedidos às centrais parceiras e ainda não conferidos.');
     expect(w.find('[data-testid="aba-terceirizados"]').exists()).toBe(true);
+    expect(w.text()).not.toContain('Novo Serviço');
+  });
+
+  it('marcenaria: "Instalações" mostra quem instala onde, sem botão de criar (13B D15)', async () => {
+    temOrcamentoTecnico.value = true;
+    podeCriarOSManual.value = false;
+    const w = montar();
+    await w.findAll('button').find((b) => b.text() === 'Instalações')!.trigger('click');
+    await flushPromises();
+    expect(w.find('h2').text()).toBe('Instalações');
+    expect(w.find('[data-testid="aba-instalacoes"]').exists()).toBe(true);
     expect(w.text()).not.toContain('Novo Serviço');
   });
 

@@ -2,11 +2,21 @@
 
 | Campo        | Valor                                                                                         |
 |--------------|-----------------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                               |
+| Status       | Implementada em 09/10/2026                                                                    |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ código compartilhado (abas da OS e de Serviços, finalização) |
 | Dependências | Specs 07 (impressão A4), 12B (padrão de abas, `openExistingOS` com aba), 13A (API)            |
 | Bloqueia     | —                                                                                             |
 | Referência   | SPEC-00: I1, I2, I3, I4, I5, I5a, I6, T8a, P2, P3, P4 · PR1, PR3, PR6                         |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Fotos antes do registro:** as fotos escolhidas no modal sobem primeiro (termo e montagem) e só depois vai o registro, para o backend saber que a foto do termo já existe. Com a foto, a pergunta do D6 não aparece. No cartão, "+ Termo" e "+ Montagem" enviam fotos a qualquer momento (OS aberta), e a foto pode ser excluída (sai também da galeria).
+> (2) **Avisos:** o "montador ocupado" (e o "sem foto do termo") viram toast de aviso com a frase da API (quem e onde); o agendamento fica salvo.
+> (3) **"Finalizar a OS agora?" (D9)** só quando a resposta passa a `todos_entregues` (a correção de um ambiente já entregue não pergunta de novo). "Finalizar" chama o `handleFinalizarOS` do modal de OS: o fluxo de sempre, com os pagamentos.
+> (4) **Montadores:** a lista é a dos funcionários do próprio modal de OS (a mesma do "Feito por" da 12B). Quem já está num agendamento ou registro e saiu da empresa continua aparecendo, marcado.
+> (5) **Aba Instalações:** "Só atrasadas" mostra todas as atrasadas, de qualquer dia (ignora o atalho de período); o filtro por montador é feito na tela, sobre a lista do período, com os montadores que aparecem nela (não pede o cadastro de funcionários, que exige outra permissão). "Esta semana" vai de segunda a domingo.
+> (6) **Impressão:** cada termo é um `.print-container` próprio (o `print-a4.css` só mostra filhos diretos do `body`); do segundo em diante, `break-before: page`. A lista do dia tem um bloco por agendamento, que nunca se divide entre folhas. O título da página vira o nome do PDF e volta no `afterprint` (como a 07).
+> (7) **Aviso da finalização:** `AvisoEntregaFinalizacao` entra no `OSFinalizarModal` por `defineAsyncComponent`, só com `temOrcamentoTecnico` — nos outros segmentos nem o código é baixado. O teste confere o `v-if` e que não há import estático.
+> (8) A aba Instalações abre a OS na aba Entrega pelo `openExistingOS(os, …, { abaInicial: 'entrega' })` da 12B.
 
 ---
 
@@ -204,15 +214,15 @@ No template, cada `TermoEntregaPrint` depois do primeiro leva `break-before: pag
 
 ## 10. Critérios de aceite
 
-- [ ] Aba Entrega só na marcenaria, com resumo, agendamentos e um cartão por ambiente.
-- [ ] Agendar com data, hora, ambientes e montadores; aviso de montador ocupado; atrasado em vermelho; editar e excluir quando permitido.
-- [ ] Imprimir o termo de um ambiente e os termos de um agendamento (um por página), em A4 preto e branco, sem preço.
-- [ ] Registrar Conforme ou Com ressalvas com checklist em três estados, pendências, recebido por e fotos; pergunta quando falta a foto do termo; corrigir depois.
-- [ ] Pendências resolvidas e reabertas, e novas depois da finalização.
-- [ ] Último ambiente entregue oferece finalizar a OS.
-- [ ] Aba Instalações por dia, com atalhos de período, montador e atrasadas, e impressão da lista do dia.
-- [ ] Finalização avisa ambiente não entregue e pendência aberta sem travar.
-- [ ] Prova de não regressão (§8). Código comentado (PR6).
+- [x] Aba Entrega só na marcenaria, com resumo, agendamentos e um cartão por ambiente.
+- [x] Agendar com data, hora, ambientes e montadores; aviso de montador ocupado; atrasado em vermelho; editar e excluir quando permitido.
+- [x] Imprimir o termo de um ambiente e os termos de um agendamento (um por página), em A4 preto e branco, sem preço.
+- [x] Registrar Conforme ou Com ressalvas com checklist em três estados, pendências, recebido por e fotos; pergunta quando falta a foto do termo; corrigir depois.
+- [x] Pendências resolvidas e reabertas, e novas depois da finalização.
+- [x] Último ambiente entregue oferece finalizar a OS.
+- [x] Aba Instalações por dia, com atalhos de período, montador e atrasadas, e impressão da lista do dia.
+- [x] Finalização avisa ambiente não entregue e pendência aberta sem travar.
+- [x] Prova de não regressão (§8). Código comentado (PR6).
 
 ## 11. Casos de teste
 

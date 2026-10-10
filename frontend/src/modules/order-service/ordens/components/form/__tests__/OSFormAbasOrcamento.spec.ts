@@ -40,6 +40,10 @@ vi.mock('@/modules/marcenaria/producao/components/OSProducaoTab.vue', () => ({
   __esModule: true,
   default: defineComponent({ render: () => h('div', { 'data-testid': 'aba-producao-marcador' }) }),
 }));
+vi.mock('@/modules/marcenaria/entrega/components/OSEntregaTab.vue', () => ({
+  __esModule: true,
+  default: defineComponent({ render: () => h('div', { 'data-testid': 'aba-entrega-marcador' }) }),
+}));
 
 const { default: OSFormTabsContent } = await import('../OSFormTabsContent.vue');
 const { useOSCreateFlow } = await import('../../../composables/useOSCreateFlow');
@@ -96,10 +100,19 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Separação" (10B), "Produção" (12B) e "Orçamento" depois de "Serviços e Peças"', () => {
+  it('02 — marcenaria, OS existente: "Separação" (10B), "Produção" (12B), "Entrega" (13B) e "Orçamento"', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Orçamento',
+      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega', 'Orçamento',
     ]);
+  });
+
+  it('13B/14 — a lista de instalações pede "entrega": abre na Entrega', async () => {
+    capacidades.value = ['imagem_na_entrada', 'orcamento_tecnico'];
+    useOSCreateFlow().abaInicial.value = 'entrega';
+    const w = montarAbas(false);
+    await flushPromises();
+    expect(abaAtiva(w)).toBe('Entrega');
+    expect(w.find('[data-testid="aba-entrega-marcador"]').exists()).toBe(true);
   });
 
   it('03 — marcenaria, criando a OS: sem as abas', () => {

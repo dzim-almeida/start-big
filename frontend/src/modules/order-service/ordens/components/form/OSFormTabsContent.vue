@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
 import { useRouter, type RouteLocationRaw } from 'vue-router';
-import { ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, Package, PackageCheck } from 'lucide-vue-next';
+import { ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, Package, PackageCheck, Truck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -39,6 +39,10 @@ const OSSeparacaoTab = defineAsyncComponent(
 const OSProducaoTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/producao/components/OSProducaoTab.vue'),
 );
+// Marcenaria (Spec 13B D1): aba "Entrega" (termo por ambiente, agenda, pendências). Também sob demanda.
+const OSEntregaTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/entrega/components/OSEntregaTab.vue'),
+);
 const router = useRouter();
 
 /** "Ver nas Necessidades" (10B D19): fecha o modal de OS e vai para o Compras. */
@@ -59,7 +63,7 @@ function abrirOrcamento(orcamentoId: number) {
   void router.push({ name: 'marcenaria-orcamento', params: { id: orcamentoId } });
 }
 
-type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'producao' | 'orcamento';
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'producao' | 'entrega' | 'orcamento';
 
 const view = useOSFormView();
 
@@ -74,7 +78,7 @@ const { temTipos } = useTiposDeTrabalho();
 
 const activeTab = ref<TabType>('objeto');
 
-/** "Feito por" da Produção (12B D6): os funcionários do select da OS, sem o "-- Selecione --". */
+/** Os funcionários do select da OS, sem o "-- Selecione --": "Feito por" da Produção (12B D6) e montadores da Entrega (13B). */
 const funcionariosDaProducao = computed(() =>
   view.funcionariosOptions.value
     .filter((opcao) => opcao.value !== '')
@@ -104,9 +108,11 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
   // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
   // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
   if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
-    // Separação (10B D1) e Produção (12B D1) antes do Orçamento: é o trabalho do dia da fábrica.
+    // Separação (10B D1), Produção (12B D1) e Entrega (13B D1) antes do Orçamento:
+    // é o caminho da obra, na ordem em que acontece.
     tabs.push({ id: 'separacao', label: 'Separação', icon: PackageCheck });
     tabs.push({ id: 'producao', label: 'Produção', icon: Hammer });
+    tabs.push({ id: 'entrega', label: 'Entrega', icon: Truck });
     tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
@@ -249,6 +255,14 @@ const objetoModel = computed<ObjetoFormData>({
         :numero-os="view.currentOSData.value.numero_os"
         :funcionarios="funcionariosDaProducao"
         :aplicar-status="aplicarStatus"
+      />
+
+      <!-- Fora do fieldset: pendências valem até com a OS finalizada (13B D10). -->
+      <OSEntregaTab
+        v-if="activeTab === 'entrega' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :funcionarios="funcionariosDaProducao"
+        @finalizar="view.handleFinalizarOS"
       />
 
       <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->
