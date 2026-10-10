@@ -2,11 +2,19 @@
 
 | Campo        | Valor                                                                              |
 |--------------|------------------------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                                    |
+| Status       | Implementada em 09/10/2026                                                         |
 | Camada       | Frontend (Vue 3 + TypeScript) ⚠️ `shared/etiquetas` (só acréscimos)                |
 | Dependências | Specs 12B (aba Produção), 13A (código do projeto e endereço da obra) · motor `frontend/src/shared/etiquetas/` (usado como é) |
 | Bloqueia     | —                                                                                  |
 | Referência   | SPEC-00: I7, P3, P4, FB2 · PR1, PR3, PR6                                           |
+
+> **Implementação (09/10/2026) — o que o código acrescenta ou decide além do texto.**
+> (1) **Motor (FB2):** só acréscimos — 7 campos novos na união `CampoEtiqueta` e a lista `CAMPOS_MOVEL`; `gerarMovel` ao lado de `gerarVolume`, com os mesmos ajudantes; `PRESETS_MOVEL` como lista própria. Um teste congela as chaves de `PRESETS`, `PRESETS_VOLUME` e `PRESETS_DANFE` e confere que os campos novos não entram nas listas de produto e de envio; os testes do motor que já existiam passam sem mudança.
+> (2) **Onde está a OS:** projeto (o nº de série do objeto, PRJ), endereço da obra (`dados_adicionais.endereco_obra` do objeto) e cliente vêm da OS aberta no modal (o `OSFormTabsContent` passa para a aba Produção); a empresa, do cadastro (`useCompanyPrintInfo`). Nenhuma chamada nova à API.
+> (3) **"Etiquetas"** fica no topo da aba Produção mesmo com a OS fechada (imprimir não muda nada), com os móveis prontos marcados. O menu "⋯" de TODO cartão (inclusive o do terceirizado, D9) ganhou "Imprimir etiquetas"; "Editar etapas" continua só no móvel da fábrica com a OS aberta.
+> (4) **Oferta (D8):** quando um "concluir" deixa móveis prontos, o toast de sucesso traz "Imprimir etiquetas" com só esses móveis marcados ("Balcão ficou pronto." ou "3 móveis ficaram prontos.").
+> (5) **Modelo lembrado (D11):** chave própria no `localStorage` deste computador (`startbig.marcenaria.etiqueta_modelo`), com `try/catch`; o store de impressão compartilhado não ganhou campo novo. Sem armazenamento, volta ao A4 em 4.
+> (6) **Título do PDF:** "Etiquetas OS-…" durante a impressão pelo driver, devolvido no `afterprint`; na térmica direta (sem diálogo), devolvido na hora.
 
 > **Revisão 1 (08/10/2026) — spec reescrita (SPEC-00 Revisão 15, FB2).** A versão de 06/10 desenhava formatos de folha, "começar na etiqueta nº", ajuste fino guardado no navegador, página de teste e impressão ESC/POS próprios. A branch recebeu em 08/10 o **motor de etiquetas** (`shared/etiquetas`), que já faz tudo isso: modelo neutro em milímetros, folhas A4/Carta (Pimaco/Avery), "pular N posições" da folha usada (`paginacao.ts`), calibração por terminal com "Imprimir teste" (store de impressão), impressão no driver ou **nativa** na térmica (ZPL/TSPL/PPLA), e até a etiqueta de **volume** de envio. Esta spec passa a só **acrescentar** ao motor os campos do móvel, um layout e três modelos prontos, e a montar a lista de etiquetas na aba Produção.
 
@@ -176,13 +184,13 @@ Começar na posição [ 1 ]   (só em folha)          8 etiquetas · 2 folhas   
 
 ## 9. Critérios de aceite
 
-- [ ] "Etiquetas" na aba Produção abre o modal com os móveis prontos marcados; o menu do móvel abre só com ele.
-- [ ] Volumes por móvel geram "VOLUME N DE T" certos, na ordem ambiente → móvel → volume.
-- [ ] A4 em 4 numa impressora comum; 100 × 150 e 100 × 50 na térmica (nativa quando configurada); "Começar na posição" pula as já usadas na folha.
-- [ ] A calibração do terminal vale para as etiquetas do móvel.
-- [ ] Etiquetas de produto e de envio iguais às de antes.
-- [ ] Oferta de etiquetas quando um móvel fica pronto.
-- [ ] Nenhum preço; preto e branco. Código comentado (PR6).
+- [x] "Etiquetas" na aba Produção abre o modal com os móveis prontos marcados; o menu do móvel abre só com ele.
+- [x] Volumes por móvel geram "VOLUME N DE T" certos, na ordem ambiente → móvel → volume.
+- [x] A4 em 4 numa impressora comum; 100 × 150 e 100 × 50 na térmica (nativa quando configurada); "Começar na posição" pula as já usadas na folha.
+- [x] A calibração do terminal vale para as etiquetas do móvel.
+- [x] Etiquetas de produto e de envio iguais às de antes.
+- [x] Oferta de etiquetas quando um móvel fica pronto.
+- [x] Nenhum preço; preto e branco. Código comentado (PR6).
 
 ## 10. Casos de teste
 

@@ -31,6 +31,8 @@ import {
 } from '../utils/producao';
 import EditarEtapasModal from './EditarEtapasModal.vue';
 import IniciarEtapasModal from './IniciarEtapasModal.vue';
+import ImprimirEtiquetasModal from '@/modules/marcenaria/etiquetas/components/ImprimirEtiquetasModal.vue';
+import type { DadosComunsEtiqueta } from '@/modules/marcenaria/etiquetas/utils/montarEtiquetas';
 import MovelProducaoCard from './MovelProducaoCard.vue';
 import SugestaoStatusModal from './SugestaoStatusModal.vue';
 
@@ -40,7 +42,9 @@ const props = withDefaults(defineProps<{
   funcionarios?: OpcaoFuncionario[];
   /** Grava só o status da OS (D13). Sem ela, a pergunta de status não aparece. */
   aplicarStatus?: ((status: string) => Promise<void>) | null;
-}>(), { funcionarios: () => [], aplicarStatus: null });
+  /** Spec 14: projeto, endereço da obra e cliente, para as etiquetas (da OS aberta no modal). */
+  obra?: Omit<DadosComunsEtiqueta, 'os' | 'empresa'>;
+}>(), { funcionarios: () => [], aplicarStatus: null, obra: () => ({ projeto: '', enderecoObra: '', cliente: '' }) });
 
 const toast = useToast();
 
@@ -48,7 +52,10 @@ const toast = useToast();
 const editando = ref<MovelProducao | null>(null);
 const iniciando = ref<{ ids: number[]; descricao: string } | null>(null);
 const confirmacao = useConfirmacao();
-const algumModalAberto = computed(() => editando.value !== null || iniciando.value !== null || confirmacao.isOpen.value);
+/** Spec 14: o modal das etiquetas, com os móveis que já vêm marcados. */
+const etiquetasPara = ref<number[] | null>(null);
+const algumModalAberto = computed(() =>
+  editando.value !== null || iniciando.value !== null || etiquetasPara.value !== null || confirmacao.isOpen.value);
 
 const {
   data: producao, isLoading, error, gravando, sugestao,
@@ -120,7 +127,27 @@ function alternar(etapa: Etapa) {
 
 // --- Ações ---------------------------------------------------------------------------------
 /** Conclui com o "Feito por" atual (ou o usuário logado). */
-const concluirIds = (ids: number[]) => concluir(ids, feitoPor.value, nomeDe(feitoPor.value));
+/**
+ * Conclui com o "Feito por" atual (ou o usuário logado). Spec 14 D8: se algum
+ * móvel ficou pronto agora (a última etapa), oferece as etiquetas dele.
+ */
+async function concluirIds(ids: number[]): Promise<boolean> {
+  const prontosAntes = new Set((producao.value?.moveis ?? []).filter((m) => m.pronto).map((m) => m.movel_id));
+  const ok = await concluir(ids, feitoPor.value, nomeDe(feitoPor.value));
+  const novos = ok ? (producao.value?.moveis ?? []).filter((m) => m.pronto && !prontosAntes.has(m.movel_id)) : [];
+  if (novos.length) {
+    const quem = novos.length === 1 ? `${novos[0].nome} ficou pronto.` : `${novos.length} móveis ficaram prontos.`;
+    toast.success(quem, 'A embalagem pede as etiquetas dos volumes.', {
+      action: { label: 'Imprimir etiquetas', onClick: () => { etiquetasPara.value = novos.map((m) => m.movel_id); } },
+    });
+  }
+  return ok;
+}
+
+/** D8: o botão do topo abre com os móveis prontos marcados. */
+const abrirEtiquetas = () => {
+  etiquetasPara.value = (producao.value?.moveis ?? []).filter((m) => m.pronto).map((m) => m.movel_id);
+};
 
 /**
  * D4: um clique conclui. Fora de ordem (não é a próxima do móvel), pergunta
@@ -205,14 +232,20 @@ async function moverStatus() {
             {{ progresso.moveis_prontos }} de {{ progresso.moveis_total }} móveis prontos
           </span>
         </div>
-        <span
-          v-if="entrega"
-          class="text-sm"
-          :class="entrega.atrasada ? 'font-semibold text-red-700' : 'text-zinc-600'"
-          data-testid="previsao-entrega"
-        >
-          Entrega prevista {{ entrega.data }} · {{ entrega.texto }}
-        </span>
+        <div class="flex flex-wrap items-center gap-3">
+          <span
+            v-if="entrega"
+            class="text-sm"
+            :class="entrega.atrasada ? 'font-semibold text-red-700' : 'text-zinc-600'"
+            data-testid="previsao-entrega"
+          >
+            Entrega prevista {{ entrega.data }} · {{ entrega.texto }}
+          </span>
+          <!-- Spec 14 D8: as etiquetas dos volumes (os prontos já vêm marcados) -->
+          <BaseButton v-if="producao.moveis.length" variant="secondary" size="sm" data-testid="abrir-etiquetas" @click="abrirEtiquetas">
+            Etiquetas
+          </BaseButton>
+        </div>
       </div>
 
       <!-- OS fechada: só leitura (D10) -->
@@ -295,6 +328,7 @@ async function moverStatus() {
           @reabrir="reabrir($event.id)"
           @alternar="alternar"
           @editar-etapas="editando = movel"
+          @imprimir-etiquetas="etiquetasPara = [movel.movel_id]"
           @aplicar-padrao="aplicarPadrao(movel.movel_id)"
         />
       </section>
@@ -306,6 +340,15 @@ async function moverStatus() {
 
     <!-- Modais (overlay: abrem por cima do modal de OS) -->
     <EditarEtapasModal :is-open="editando !== null" :movel="editando" :gravando="gravando" @close="editando = null" @salvar="salvarEtapas" />
+    <ImprimirEtiquetasModal
+      v-if="producao"
+      :is-open="etiquetasPara !== null"
+      :numero-os="producao.os.numero_os"
+      :moveis="producao.moveis"
+      :marcados="etiquetasPara ?? []"
+      :obra="obra"
+      @close="etiquetasPara = null"
+    />
     <IniciarEtapasModal
       :is-open="iniciando !== null"
       :descricao="iniciando?.descricao ?? ''"

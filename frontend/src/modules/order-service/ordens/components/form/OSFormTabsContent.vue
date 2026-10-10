@@ -85,6 +85,20 @@ const funcionariosDaProducao = computed(() =>
     .map((opcao) => ({ id: Number(opcao.value), nome: opcao.label })),
 );
 
+/**
+ * Spec 14: o que as etiquetas dos móveis levam da OS aberta — o código do
+ * projeto (o PRJ é o nº de série do objeto), o endereço da obra e o cliente.
+ */
+const obraDaOS = computed(() => {
+  const os = view.currentOSData.value;
+  const cliente = os?.cliente as { nome?: string | null; razao_social?: string | null } | null | undefined;
+  return {
+    projeto: os?.objeto?.numero_serie ?? '',
+    enderecoObra: String((os?.objeto?.dados_adicionais as Record<string, unknown> | undefined)?.endereco_obra ?? ''),
+    cliente: cliente?.nome || cliente?.razao_social || '',
+  };
+});
+
 /** 12B D13: "Mover" na pergunta de status grava só o status (o resto do formulário fica). */
 const aplicarStatus = (status: string) => view.aplicarStatusSalvo(status as OsStatusEnumDataType);
 
@@ -255,6 +269,7 @@ const objetoModel = computed<ObjetoFormData>({
         :numero-os="view.currentOSData.value.numero_os"
         :funcionarios="funcionariosDaProducao"
         :aplicar-status="aplicarStatus"
+        :obra="obraDaOS"
       />
 
       <!-- Fora do fieldset: pendências valem até com a OS finalizada (13B D10). -->

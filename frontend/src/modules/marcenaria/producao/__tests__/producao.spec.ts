@@ -331,6 +331,34 @@ describe('aba Produção da OS', () => {
     expect(api.concluir).not.toHaveBeenCalled();
   });
 
+  it('14/08 — a última etapa de um móvel: oferece "Imprimir etiquetas" só dele', async () => {
+    await montarAba();
+    // Balcão: Corte e Borda concluídas; Furação (3), Montagem (4) e Embalagem (5) concluem agora.
+    api.concluir.mockResolvedValue(utils.marcarLocalmente(producao(), [3, 4, 5], 'CONCLUIDA'));
+    await clicar('chip-3');
+    const chamadas = toast.success.mock.calls;
+    const [mensagem, , opcoes] = chamadas[chamadas.length - 1];
+    expect(mensagem).toBe('Balcão ficou pronto.');
+    expect(opcoes.action.label).toBe('Imprimir etiquetas');
+    opcoes.action.onClick();
+    await flushPromises();
+    expect((el('etiqueta-movel-1') as HTMLInputElement).checked).toBe(true);    // só o Balcão marcado
+    expect((el('etiqueta-movel-2') as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('14/D8 — "Etiquetas" abre com os móveis prontos marcados; o menu do móvel abre só com ele', async () => {
+    await montarAba(fixtures.aguardando);                                     // tudo pronto
+    await clicar('abrir-etiquetas');
+    expect((el('etiqueta-movel-1') as HTMLInputElement).checked).toBe(true);
+    expect((el('etiqueta-movel-4') as HTMLInputElement).checked).toBe(true);   // terceirizado conferido (D9)
+    document.body.querySelectorAll('button').forEach((b) => { if (b.textContent?.trim() === 'Cancelar') b.click(); });
+    await flushPromises();
+    await clicar('menu-movel-4');                                              // o terceirizado também tem menu
+    await clicar('opcao-imprimir-etiquetas');
+    expect((el('etiqueta-movel-4') as HTMLInputElement).checked).toBe(true);
+    expect((el('etiqueta-movel-1') as HTMLInputElement).checked).toBe(false);
+  });
+
   it('sem `aplicarStatus` (fora do modal de OS), a pergunta não aparece', async () => {
     api.getProducao.mockResolvedValue(producao(fixtures.inicial));
     api.concluir.mockResolvedValue(producao(fixtures.emProducao));

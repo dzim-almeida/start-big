@@ -7,7 +7,8 @@
  * - Terceirizado: sem chips; mostra a situação da 11B ("Pedido enviado ·
  *   chega 20/10") e fica verde "Pronto" quando conferido (E6a).
  * - Sem etapas (12A D6): o aviso e "Aplicar etapas padrão".
- * - Menu "⋯" do cartão: "Editar etapas".
+ * - Menu "⋯" do cartão: "Editar etapas" e "Imprimir etiquetas" (Spec 14 D8, D9:
+ *   o terceirizado também pode ter etiqueta).
  *
  * Só desenha e avisa o pai: quem grava é a aba.
  */
@@ -37,6 +38,8 @@ const emit = defineEmits<{
   alternar: [etapa: Etapa];
   editarEtapas: [];
   aplicarPadrao: [];
+  /** Spec 14 D8: as etiquetas só deste móvel. */
+  imprimirEtiquetas: [];
 }>();
 
 const terceirizado = computed(() => props.movel.terceirizado ?? null);
@@ -45,6 +48,9 @@ const proxima = computed(() => proximaEtapa(props.movel));
 const medidas = computed(() => textoDasMedidas(props.movel));
 
 /** D7: "Pedido enviado · chega 20/10" (a previsão só enquanto está a caminho). */
+/** "Editar etapas": só no móvel feito na fábrica, com etapas e a OS aberta. */
+const podeEditarEtapas = computed(() => props.editavel && !terceirizado.value && !props.movel.sem_etapas);
+
 const textoTerceirizado = computed(() => {
   const t = terceirizado.value;
   if (!t) return '';
@@ -75,8 +81,8 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
         </span>
       </p>
 
-      <!-- Menu do cartão: só para móvel feito na fábrica e OS aberta -->
-      <div v-if="editavel && !terceirizado && !movel.sem_etapas" ref="menuRef" class="relative">
+      <!-- Menu do cartão: etiquetas sempre; editar etapas só no móvel da fábrica com a OS aberta -->
+      <div ref="menuRef" class="relative">
         <BaseButton
           variant="secondary"
           size="sm"
@@ -90,6 +96,7 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
         </BaseButton>
         <div v-if="menuAberto" role="menu" class="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
           <button
+            v-if="podeEditarEtapas"
             type="button"
             role="menuitem"
             class="block w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 cursor-pointer"
@@ -97,6 +104,15 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
             @click="menuAberto = false; emit('editarEtapas')"
           >
             Editar etapas
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            class="block w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 cursor-pointer"
+            data-testid="opcao-imprimir-etiquetas"
+            @click="menuAberto = false; emit('imprimirEtiquetas')"
+          >
+            Imprimir etiquetas
           </button>
         </div>
       </div>

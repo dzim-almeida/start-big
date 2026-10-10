@@ -127,6 +127,44 @@ export function gerarVolume(pagina: PaginaEtiqueta): ElementoEtiqueta[] {
   ]);
 }
 
+/**
+ * Etiqueta por volume do MÓVEL da marcenaria (Spec 14 D3): o código do projeto
+ * e a OS (identificam no depósito), o móvel, o ambiente e as medidas (orientam
+ * a montagem), o "VOLUME 2 DE 5" em destaque, e o cliente com o endereço da
+ * obra (orientam o motorista). Nenhum preço (D10).
+ */
+export function gerarMovel(pagina: PaginaEtiqueta): ElementoEtiqueta[] {
+  // Abaixo de ~90 mm de altura, a versão compacta: sem a empresa e com o
+  // endereço numa linha só (como a `gerarVolume`).
+  if (pagina.altura_mm < 90) {
+    return empilhar(pagina, [
+      { campo: 'projeto.codigo', peso: 1.2, negrito: true },
+      { campo: 'os.numero', peso: 0.9, negrito: true },
+      { campo: 'movel.nome', peso: 1.3, negrito: true },
+      { campo: 'movel.ambiente', peso: 0.9 },
+      { campo: 'movel.medidas', peso: 0.8 },
+      { campo: 'volume.rotulo', peso: 1.4, negrito: true, alinhamento: 'centro' },
+      { campo: 'cliente.nome', texto: 'Cliente: ', peso: 0.8 },
+      { campo: 'projeto.endereco_obra', texto: 'Obra: ', peso: 0.8 },
+    ]);
+  }
+  return empilhar(pagina, [
+    { campo: 'projeto.codigo', peso: 1.8, negrito: true },
+    { campo: 'os.numero', peso: 1.3, negrito: true },
+    { separador: true },
+    { campo: 'movel.nome', peso: 2.2, negrito: true, linhas: 2 },
+    { campo: 'movel.ambiente', peso: 1.1 },
+    { campo: 'movel.medidas', peso: 1 },
+    { separador: true },
+    { campo: 'volume.rotulo', peso: 2.2, negrito: true, alinhamento: 'centro' },
+    { separador: true },
+    rotulo('CLIENTE E OBRA'),
+    { campo: 'cliente.nome', peso: 1, negrito: true },
+    { campo: 'projeto.endereco_obra', peso: 1.6, linhas: 2 },
+    { campo: 'empresa.nome', peso: 0.7, alinhamento: 'centro' },
+  ]);
+}
+
 /** DANFE Simplificado – Etiqueta: todas as linhas com pelo menos 6 pt (NT 2020.004). */
 export function gerarDanfe(pagina: PaginaEtiqueta): ElementoEtiqueta[] {
   const seis = { minimoPt: 6 };
