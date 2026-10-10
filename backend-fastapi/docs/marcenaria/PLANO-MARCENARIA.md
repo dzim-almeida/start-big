@@ -160,7 +160,7 @@ Uma linha por spec entregue, com a suíte medida depois dela (referência de 08/
 | 12B | 09/10/2026 | `39d84c6` | +35 (vitest: 24 da produção — schemas contra JSON reais da 12A, chips, lote, otimista e desfazer, pergunta de status, Feito por, editar etapas, seleção, quadro —, 3 do status sem perder o formulário e da aba inicial, 3 do editor de listas, 3 das abas da OS, 1 da aba em Serviços, 1 da pergunta na Separação) | frontend: 540 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 | 13A | 09/10/2026 | `aa19e71` | +38 (35 de API — registro, correção, pendências, fotos na galeria, agenda, data de instalação no Compras, desfazer, lista de instalações —, 3 da migração) | 2.648 passando, 1 pulado |
 | 13B | 09/10/2026 | `cea7cde` | +27 (vitest: 25 da entrega — schemas contra JSON reais da 13A, regras de tela, aba, agendar, registrar com fotos antes, pergunta sem foto, "Finalizar a OS agora?", termo A4, aviso da finalização, aba Instalações —, 2 das abas da OS e de Serviços) | frontend: 567 testes, `vue-tsc` sem erros, `check:print-bw` ok |
-| 14 | 09/10/2026 | (commit da 14) | +15 (vitest: 7 do motor — layout do móvel, modelos prontos, chaves dos modelos de antes congeladas, térmica direta —, 6 do modal e da montagem dos volumes, 2 da aba Produção) | frontend: 582 testes, `vue-tsc` sem erros, `check:print-bw` ok |
+| 14 | 09/10/2026 | `c290fc2` | +15 (vitest: 7 do motor — layout do móvel, modelos prontos, chaves dos modelos de antes congeladas, térmica direta —, 6 do modal e da montagem dos volumes, 2 da aba Produção) | frontend: 582 testes, `vue-tsc` sem erros, `check:print-bw` ok |
 
 ---
 
