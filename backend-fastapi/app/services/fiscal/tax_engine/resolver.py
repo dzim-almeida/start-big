@@ -264,6 +264,40 @@ def _resolver_item_interestadual(
     return _aplicar_regra(item, regra, operacao.nao_contribuinte, existe_st, simples_nacional)
 
 
+# CFOPs 6xxx que só existem fora do estado: o equivalente interno tem outro
+# sufixo (6107/6108 são a 6101/6102 para não contribuinte de outra UF).
+_SUFIXO_INTERNO_DO_INTERESTADUAL = {"107": "101", "108": "102"}
+# 6404 (ST já retida, remetente substituto) não tem par interno óbvio — não chutar.
+_SUFIXOS_SEM_PAR_INTERNO = frozenset({"404"})
+
+
+def _cfop_interno(fiscal: Any, produto: Any, idx: int) -> Optional[str]:
+    """
+    CFOP da operação INTERNA a partir do `cfop_padrao` do produto.
+
+    CFOP é atributo da operação, não da mercadoria (ver derivacao/cfop.py):
+    o caminho interestadual já ignora o grupo do cadastro e deriva o seu. Este
+    é o espelho. Produto cadastrado com 6102 numa venda dentro do estado saía
+    6102, o idDest virava 2 (`_local_destino` lê o 1º dígito) e a SEFAZ
+    recusava com a Rejeição 772 — "operação interestadual e UF de destino
+    igual à UF do emitente". Aqui o grupo 6 vira 5 e o sufixo é mantido.
+    """
+    cfop = getattr(fiscal, "cfop_padrao", None) if fiscal else None
+    if not cfop or not cfop.startswith("6"):
+        return cfop
+    sufixo = cfop[1:]
+    if sufixo in _SUFIXOS_SEM_PAR_INTERNO:
+        nome = getattr(produto, "nome", "?")
+        raise DadosFiscaisAusentesError(
+            f"Produto '{nome}' (item {idx}) está cadastrado com CFOP {cfop}, que é "
+            f"de operação interestadual, mas esta venda é dentro do estado. "
+            f"Ajuste o CFOP padrão do produto para um CFOP 5xxx com a contabilidade.",
+            campo="cfop_padrao",
+            item=idx,
+        )
+    return f"5{_SUFIXO_INTERNO_DO_INTERESTADUAL.get(sufixo, sufixo)}"
+
+
 def _assert_situacao_cabe_fora_do_estado(
     fiscal: Any, produto: Any, simples_nacional: bool, existe_st: bool, idx: int,
 ) -> None:
@@ -461,7 +495,7 @@ def resolver_aliquotas_venda(
                 (item_venda.desconto or 0) + (getattr(item_venda, "desconto_regra", 0) or 0)
             ),
             ncm=fiscal.ncm if fiscal else None,
-            cfop=inter.cfop if inter else (fiscal.cfop_padrao if fiscal else None),
+            cfop=inter.cfop if inter else _cfop_interno(fiscal, produto, idx),
             origem_mercadoria=fiscal.origem_mercadoria if fiscal and fiscal.origem_mercadoria is not None else 0,
             cst_icms=inter.cst_icms if inter else (fiscal.cst_icms if fiscal else None),
             csosn=inter.csosn if inter else (fiscal.csosn if fiscal else None),

@@ -284,3 +284,27 @@ def test_substituido_para_contribuinte_com_mva_vira_substituto(db, perfil_st):
     venda.itens[0].produto.fiscal.cst_icms = "60"
     itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
     assert itens[0].cst_icms == "10" and itens[0].cfop == "6404"
+
+
+# --- Operação interna com produto cadastrado em CFOP 6xxx (Rejeição 772) -------
+
+@pytest.mark.parametrize("cadastrado, esperado", [
+    ("6910", "5910"),   # blusa em bonificação: o caso real que derrubou a nota
+    ("6102", "5102"),
+    ("6108", "5102"),   # 6107/6108 não têm par interno com o mesmo sufixo
+    ("6107", "5101"),
+    ("5102", "5102"),   # interno continua como está
+])
+def test_venda_interna_converte_cfop_interestadual_do_cadastro(db, cadastrado, esperado):
+    venda = _venda(_pf(), uf_cliente=State.SAO_PAULO, indicador_presenca=BALCAO)
+    venda.itens[0].produto.fiscal.cfop_padrao = cadastrado
+    itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=True)
+    assert itens[0].cfop == esperado
+
+
+def test_venda_interna_recusa_6404_que_nao_tem_par_interno(db):
+    from app.services.fiscal.tax_engine.exceptions import DadosFiscaisAusentesError
+    venda = _venda(_pf(), uf_cliente=State.SAO_PAULO, indicador_presenca=BALCAO)
+    venda.itens[0].produto.fiscal.cfop_padrao = "6404"
+    with pytest.raises(DadosFiscaisAusentesError, match="6404"):
+        resolver_aliquotas_venda(db, venda, "SP", simples_nacional=True)

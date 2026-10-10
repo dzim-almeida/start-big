@@ -123,7 +123,7 @@ export const UNIDADE_SERVICO_OPTIONS: SelectOption[] = [
  */
 export const AJUDA_CAMPO_FISCAL: Record<string, string> = {
   ncm: 'Código de 8 dígitos que diz ao governo QUE mercadoria é esta. Sai na nota e define o imposto. Ex.: 9608.10.00 para caneta esferográfica. Na dúvida, confirme com seu contador ou com a nota de compra do fornecedor.',
-  cfop: 'Diz o QUE a operação é: venda dentro do estado, venda para outro estado, devolução. Para venda comum dentro do estado, 5102.',
+  cfop: 'Diz o QUE a operação é. Cadastre só o de dentro do estado (venda comum: 5102). Quando a venda for para outro estado, o sistema escolhe sozinho o 6xxx certo para o cliente; um 6xxx cadastrado vira 5xxx nas vendas dentro do estado.',
   unidade_tributavel: 'Como o produto é medido na nota. O normal é ser igual à unidade de venda — só muda quando você vende em caixa e tributa por unidade, por exemplo.',
   origem: 'De onde a mercadoria veio. "0 - Nacional" cobre quase tudo no varejo; importado só quando você mesmo importou ou comprou de importador.',
   cst_icms: 'Como o ICMS é tratado neste produto. O padrão de revenda é "tributado normalmente". Se o fornecedor já pagou o imposto por você (pneu, bebida, autopeça), é ST.',
