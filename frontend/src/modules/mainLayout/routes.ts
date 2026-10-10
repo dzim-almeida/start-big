@@ -172,14 +172,14 @@ const homeRoutes: RouteRecordRaw[] = [
         path: '/orcamentos/novo',                               // editor ainda sem gravar (D5)
         name: 'marcenaria-orcamento-novo',
         component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
-        meta: { title: 'Orçamentos', subtitle: 'Novo orçamento', tabId: 'marcenaria-orcamentos', requiresAuth: true },
+        meta: { title: 'Orçamentos', subtitle: 'Novo orçamento', tabId: 'marcenaria-orcamentos', requiresAuth: true, telaCheia: true },
       },
       {
         path: '/orcamentos/:id(\\d+)',                          // só número: "novo" não cai aqui
         name: 'marcenaria-orcamento',
         component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
         props: (rota) => ({ id: Number(rota.params.id) }),      // a tela recebe o id já como número
-        meta: { title: 'Orçamentos', subtitle: 'Orçamento de móveis planejados', tabId: 'marcenaria-orcamentos', requiresAuth: true },
+        meta: { title: 'Orçamentos', subtitle: 'Orçamento de móveis planejados', tabId: 'marcenaria-orcamentos', requiresAuth: true, telaCheia: true },
       },
       // A rota '/fabrica/separacao/:numeroOs' saiu com a aposentadoria da
       // fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D14): ela só abria OS do

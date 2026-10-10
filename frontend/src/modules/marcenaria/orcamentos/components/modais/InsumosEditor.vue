@@ -102,10 +102,6 @@ defineExpose({ incluir, focarQuantidade });
 
 <template>
   <div>
-    <div class="mb-2 flex items-center justify-between gap-3">
-      <p class="text-xs font-semibold text-zinc-700">Insumos</p>
-    </div>
-
     <InsumoBusca
       v-if="editavel"
       class="mb-3"
@@ -117,7 +113,7 @@ defineExpose({ incluir, focarQuantidade });
       @cadastrar="emit('cadastrar', $event)"
     />
 
-    <p v-if="!insumos.length" class="text-xs text-zinc-400">Nenhum insumo. Busque no cadastro acima.</p>
+    <p v-if="!insumos.length" class="text-sm text-zinc-500">Nenhum insumo. Busque no cadastro acima.</p>
     <ul v-else class="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
       <li v-for="(linha, indice) in insumos" :key="linha.chave" class="flex flex-wrap items-center gap-3 px-3 py-2" :data-testid="`insumo-${linha.produto_id}`">
         <div class="min-w-40 flex-1">

@@ -19,7 +19,6 @@
 import { computed, onMounted, ref, watch, watchEffect } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router';
 import { useQueryClient } from '@tanstack/vue-query';
-import { Printer } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
@@ -63,13 +62,13 @@ import RecusarModal from '../modais/RecusarModal.vue';
 import VoltarEditarModal from '../modais/VoltarEditarModal.vue';
 import PropostaPrintTemplate from '../print/PropostaPrintTemplate.vue';
 import BlocoAmbientes from './BlocoAmbientes.vue';
-import BlocoArquiteto from './BlocoArquiteto.vue';
 import BlocoClienteProjeto from './BlocoClienteProjeto.vue';
 import BlocoCondicoes from './BlocoCondicoes.vue';
 import BlocoInstalacao from './BlocoInstalacao.vue';
 import BlocoMedicao from './BlocoMedicao.vue';
 import EditorAvisos from './EditorAvisos.vue';
 import EditorCabecalho from './EditorCabecalho.vue';
+import EditorAcoes from './EditorAcoes.vue';
 import EditorFaixaStatus from './EditorFaixaStatus.vue';
 import PainelCustos from './PainelCustos.vue';
 import PainelResumo from './PainelResumo.vue';
@@ -184,6 +183,18 @@ const versaoSubstituta = computed(() => {
   const maisNova = versoes.value.reduce((a, b) => (b.versao > a.versao ? b : a));
   return maisNova.id !== id.value ? { id: maisNova.id, versao: maisNova.versao } : null;
 });
+
+// --- Seções do editor (navegação do cabeçalho, redesign 10/2026) -----------------------
+const secoes = computed(() => [
+  { id: 'secao-cliente', rotulo: 'Cliente e projeto' },
+  {
+    id: 'secao-ambientes',
+    rotulo: 'Ambientes e móveis',
+    contagem: (detalhe.value?.ambientes ?? []).reduce<number>((soma, a) => soma + a.moveis.length, 0),
+  },
+  { id: 'secao-instalacao', rotulo: detalhe.value ? 'Instalação e medição' : 'Medição' },
+  { id: 'secao-condicoes', rotulo: 'Condições' },
+]);
 
 // --- Visão do cliente (D14) --------------------------------------------------------------
 const visaoCliente = ref(false);
@@ -435,33 +446,28 @@ const erroCarregar = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5">
-    <EditorCabecalho
-      :detalhe="detalhe"
-      :estado="salvamento.estado.value"
-      :salvo-em="salvamento.salvoEm.value"
-      :tentando-de-novo="salvamento.tentandoDeNovo.value"
-      :gravando-acao="fila.pendentes.value > 0"
-      :visao-cliente="visaoCliente"
-      @voltar="voltarALista"
-      @alternar-visao-cliente="visaoCliente = !visaoCliente"
-      @historico="historicoAberto = true"
-      @enviar="abrirEnviar"
-      @aprovar="abrirAprovar"
-      @excluir="excluir"
-      @tentar-agora="salvamento.salvarAgora()"
-      @abrir-versao="abrirVersao"
-    >
-      <!-- Spec 07: a proposta em qualquer status (com a faixa do status, D6) -->
-      <template #acoes>
-        <BaseButton variant="secondary" size="sm" :is-loading="imprimindo" data-testid="imprimir-proposta" @click="imprimir()">
-          <Printer :size="14" class="mr-1" /> Proposta
-        </BaseButton>
-      </template>
-    </EditorCabecalho>
+  <!-- Tela cheia (rota com meta.telaCheia): cabeçalho fixo, conteúdo e a coluna do resumo. -->
+  <div class="flex min-h-full flex-col bg-brand-off-white">
+    <div class="sticky top-0 z-30 border-b border-zinc-200 bg-white px-4 pt-4 md:px-8">
+      <EditorCabecalho
+        :detalhe="detalhe"
+        :estado="salvamento.estado.value"
+        :salvo-em="salvamento.salvoEm.value"
+        :tentando-de-novo="salvamento.tentandoDeNovo.value"
+        :gravando-acao="fila.pendentes.value > 0"
+        :projeto-nome="salvamento.form.projeto_nome"
+        :secoes="visaoCliente || erroCarregar ? [] : secoes"
+        @voltar="voltarALista"
+        @historico="historicoAberto = true"
+        @excluir="excluir"
+        @tentar-agora="salvamento.salvarAgora()"
+        @abrir-versao="abrirVersao"
+      />
+    </div>
 
+    <div class="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 p-4 md:p-6 lg:px-8">
     <!-- Carregando / erro -->
-    <p v-if="id != null && isLoading" class="text-sm text-zinc-400 animate-pulse">Carregando orçamento…</p>
+    <p v-if="id != null && isLoading" class="text-sm text-zinc-500 animate-pulse">Carregando orçamento…</p>
     <div v-else-if="erroCarregar" class="flex flex-col items-start gap-3 rounded-2xl border border-zinc-200 bg-white p-6">
       <p class="text-sm text-red-600" data-testid="erro-carregar">{{ erroCarregar }}</p>
       <BaseButton variant="secondary" size="sm" @click="voltarALista">Voltar aos orçamentos</BaseButton>
@@ -492,23 +498,50 @@ const erroCarregar = computed(() => {
 
       <EditorAvisos :codigos="detalhe?.avisos ?? []" :inclui-custos="incluiCustos" :aviso-precos="avisoPrecos" />
 
-      <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div class="flex min-w-0 flex-col gap-5">
+      <div class="grid grid-cols-1 items-start gap-7 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <!-- As quatro seções, na ordem da navegação do cabeçalho -->
+        <div class="flex min-w-0 flex-col gap-6">
           <BlocoClienteProjeto />
-          <!-- Spec 09B D1: quem indicou o cliente, entre o cliente e os ambientes -->
-          <BlocoArquiteto />
           <BlocoAmbientes />
-          <BlocoInstalacao v-if="detalhe" />
-          <BlocoMedicao />
+
+          <section id="secao-instalacao" class="scroll-mt-40 rounded-2xl border border-zinc-200 bg-white" aria-labelledby="titulo-secao-instalacao">
+            <header class="px-6 pb-4 pt-5">
+              <h2 id="titulo-secao-instalacao" class="text-base font-semibold text-zinc-900">{{ detalhe ? 'Instalação e medição' : 'Medição' }}</h2>
+              <p class="text-xs text-zinc-500">O que vai além dos móveis: a montagem na obra e o que foi medido lá.</p>
+            </header>
+            <div :class="['grid grid-cols-1 gap-6 px-6 pb-6', detalhe ? 'lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1.3fr)]' : '']">
+              <template v-if="detalhe">
+                <BlocoInstalacao />
+                <div class="hidden bg-zinc-100 lg:block" aria-hidden="true" />
+              </template>
+              <BlocoMedicao />
+            </div>
+          </section>
+
           <BlocoCondicoes />
         </div>
-        <!-- Coluna lateral fixa ao rolar; em janela estreita, desce para baixo -->
-        <aside class="flex flex-col gap-5 lg:sticky lg:top-4">
-          <PainelResumo />
+
+        <!-- Coluna lateral fixa ao rolar: o que vende (resumo e ações) e, embaixo, o que é interno -->
+        <!-- top-32: um pouco menos que a distância natural até o cabeçalho, para não "pular" antes de rolar. -->
+        <aside class="flex flex-col gap-5 xl:sticky xl:top-32">
+          <PainelResumo>
+            <template #acoes>
+              <EditorAcoes
+                :detalhe="detalhe"
+                :visao-cliente="visaoCliente"
+                :imprimindo="imprimindo"
+                @alternar-visao-cliente="visaoCliente = !visaoCliente"
+                @enviar="abrirEnviar"
+                @aprovar="abrirAprovar"
+                @proposta="imprimir()"
+              />
+            </template>
+          </PainelResumo>
           <PainelCustos v-if="incluiCustos" @conferir-precos="detalhe && conferirPrecos(detalhe.id, true)" />
         </aside>
       </div>
     </template>
+    </div>
 
     <!-- Modais -->
     <MovelModal

@@ -101,7 +101,7 @@ function confirmar() {
           <input
             v-model="hora"
             type="time"
-            class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary font-normal"
             data-testid="hora-agendamento"
           />
         </label>
@@ -146,7 +146,7 @@ function confirmar() {
           v-model="observacao"
           type="text"
           maxlength="300"
-          class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+          class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary font-normal"
           placeholder="Ex.: levar o espelho"
         />
       </label>

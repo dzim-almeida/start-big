@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
  * @component BlocoClienteProjeto
- * @description Cliente, vendedor e projeto do orçamento (Spec 06B D21, D22).
+ * @description Seção "Cliente e projeto" (Spec 06B D21, D22; redesign 10/2026):
+ * uma ficha só com cliente, vendedor, quem indicou (BlocoArquiteto) e o projeto.
  *
  * - Cliente: a mesma busca da OS (com cadastro de cliente novo e CNPJ, Spec 02).
- * - Projeto: depois do cliente, mostra os projetos que ele já tem para escolher,
+ * - Projeto: depois do cliente, uma lista com os projetos que ele já tem,
  *   ou "Novo projeto" (nome + endereço da obra). TROCAR O CLIENTE LIMPA o
  *   projeto escolhido (o nome digitado fica): um projeto de outro cliente nunca
  *   fica preso ao orçamento.
@@ -13,7 +14,7 @@
  * Tudo aqui é do cabeçalho: muda o `form` e o salvamento automático grava.
  */
 import { computed, ref, watch } from 'vue';
-import { UserCircle2 } from 'lucide-vue-next';
+import { MapPin } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -22,10 +23,11 @@ import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSCl
 import { useOsEmployeesGet } from '@/modules/order-service/ordens/composables/request/relationship/useOSRelationshipGet.queries';
 import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
 import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
-import { formatDataPura } from '@/shared/utils/date.utils';
+import { formatCNPJ, formatCPF, formatTelefone } from '@/shared/utils/document.utils';
 
 import { useEditor } from '../../composables/useEditorContexto';
 import { useProjetosDoClienteQuery } from '../../composables/useOrcamentoQuery';
+import BlocoArquiteto from './BlocoArquiteto.vue';
 
 const { form, detalhe, editavel } = useEditor();
 
@@ -37,6 +39,20 @@ const nomeCliente = computed(() => {
   // O detalhe só vale se ainda for o MESMO cliente do formulário.
   if (detalhe.value?.cliente && detalhe.value.cliente.id === form.cliente_id) return detalhe.value.cliente.nome;
   return nomeEscolhido.value;
+});
+
+/** Iniciais para o avatar ("Studio Arquitetura" → "SA"). */
+const iniciais = computed(() =>
+  (nomeCliente.value ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase(),
+);
+
+/** "00.360.305/0001-04 · (88) 99908-3353" — só do cliente que o detalhe já trouxe. */
+const contatoCliente = computed(() => {
+  const c = detalhe.value?.cliente;
+  if (!c || c.id !== form.cliente_id) return '';
+  const digitos = (c.documento ?? '').replace(/\D/g, '');
+  const documento = digitos.length === 14 ? formatCNPJ(digitos) : digitos.length === 11 ? formatCPF(digitos) : c.documento;
+  return [documento, c.telefone ? formatTelefone(c.telefone) : null].filter(Boolean).join(' · ');
 });
 
 /** Nome de exibição do cliente PF (nome) ou PJ (fantasia, senão razão social). */
@@ -64,10 +80,20 @@ function escolherObjeto(objeto: ObjetoBuscaItemDataType) {
 const clienteId = computed(() => form.cliente_id);
 const { data: projetos } = useProjetosDoClienteQuery(clienteId);
 
-/** "novo" ou o id do projeto escolhido (os botões de rádio). */
+/** Os projetos do cliente na lista, e "Novo projeto" por último. */
+const opcoesProjeto = computed(() => [
+  ...(projetos.value ?? []).map((p) => ({
+    value: String(p.objeto_id),
+    label: p.nome,
+  })),
+  { value: 'novo', label: '+ Novo projeto' },
+]);
+
+/** "novo" ou o id do projeto escolhido (a lista "Projeto"). */
 const escolhaProjeto = computed({
   get: () => (form.objeto_id != null ? String(form.objeto_id) : 'novo'),
-  set: (valor: string) => {
+  set: (escolhido: string | number | undefined) => {
+    const valor = String(escolhido ?? 'novo');
     if (valor === 'novo') {
       form.objeto_id = null;                               // o nome e o endereço ficam para editar
       return;
@@ -114,24 +140,34 @@ watch(botaoCliente, (botao) => {
 </script>
 
 <template>
-  <section class="rounded-2xl border border-zinc-200 bg-white p-5" aria-labelledby="titulo-cliente">
-    <h2 id="titulo-cliente" class="mb-4 text-sm font-bold text-zinc-800">Cliente e projeto</h2>
+  <section id="secao-cliente" class="scroll-mt-40 rounded-2xl border border-zinc-200 bg-white" aria-labelledby="titulo-cliente">
+    <header class="px-6 pb-4 pt-5">
+      <h2 id="titulo-cliente" class="text-base font-semibold text-zinc-900">Cliente e projeto</h2>
+      <p class="text-xs text-zinc-500">Quem compra, quem vende e onde será instalado.</p>
+    </header>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-x-5 gap-y-5 px-6 pb-6 lg:grid-cols-3">
       <!-- Cliente -->
       <div>
-        <p class="mb-1 text-xs font-medium text-zinc-600">Cliente</p>
-        <div class="flex items-center gap-2">
-          <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
-            <UserCircle2 :size="16" class="shrink-0 text-zinc-400" />
-            <span class="truncate text-sm" :class="nomeCliente ? 'text-zinc-800' : 'text-zinc-400'" data-testid="nome-cliente">
+        <span class="mb-1 block text-xs font-medium text-gray-700">Cliente</span>
+        <div class="flex min-h-14 items-center gap-3 rounded-lg border border-zinc-200 px-3 py-2">
+          <span
+            v-if="nomeCliente"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white"
+            aria-hidden="true"
+          >
+            {{ iniciais }}
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-semibold" :class="nomeCliente ? 'text-zinc-900' : 'font-normal text-zinc-500'" data-testid="nome-cliente">
               {{ nomeCliente || 'Nenhum cliente escolhido' }}
             </span>
-          </div>
+            <span v-if="contatoCliente" class="block truncate text-xs tabular-nums text-zinc-500">{{ contatoCliente }}</span>
+          </span>
           <BaseButton
             v-if="editavel"
             ref="botaoCliente"
-            variant="secondary"
+            :variant="form.cliente_id ? 'secondary' : 'primary'"
             size="sm"
             data-testid="escolher-cliente"
             @click="buscaAberta = true"
@@ -142,60 +178,42 @@ watch(botaoCliente, (botao) => {
       </div>
 
       <!-- Vendedor (D22) -->
-      <div>
-        <BaseSelect
-          v-model="vendedor"
-          label="Vendedor"
-          :options="opcoesVendedor"
-          :disabled="!editavel || erroFuncionarios"
-          placeholder="Escolha o vendedor"
-        />
-      </div>
-    </div>
+      <BaseSelect
+        v-model="vendedor"
+        label="Vendedor"
+        :options="opcoesVendedor"
+        :disabled="!editavel || erroFuncionarios"
+        placeholder="Escolha o vendedor"
+      />
 
-    <!-- Projeto (D21): os do cliente, ou um novo -->
-    <fieldset class="mt-4">
-      <legend class="mb-2 text-xs font-medium text-zinc-600">Projeto</legend>
-      <div v-if="projetos?.length" class="mb-3 flex flex-col gap-1.5">
-        <label
-          v-for="projeto in projetos"
-          :key="projeto.objeto_id"
-          class="flex cursor-pointer items-start gap-2 text-sm"
-        >
-          <input
-            v-model="escolhaProjeto"
-            type="radio"
-            :value="String(projeto.objeto_id)"
-            :disabled="!editavel"
-            class="mt-1 accent-brand-primary"
-          />
-          <span>
-            <span class="font-medium text-zinc-800">{{ projeto.nome }}</span>
-            <span v-if="projeto.endereco_obra" class="text-zinc-500"> · {{ projeto.endereco_obra }}</span>
-            <span class="block text-[11px] text-zinc-400">Último orçamento em {{ formatDataPura(projeto.ultimo_uso) }}</span>
-          </span>
-        </label>
-        <label class="flex cursor-pointer items-center gap-2 text-sm">
-          <input v-model="escolhaProjeto" type="radio" value="novo" :disabled="!editavel" class="accent-brand-primary" />
-          <span class="font-medium text-zinc-800">Novo projeto</span>
-        </label>
-      </div>
+      <!-- Quem indicou (Spec 09B D1) -->
+      <BlocoArquiteto />
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <BaseInput
-          v-model="projetoNome"
-          label="Nome do projeto"
-          placeholder="Ex.: Residencial Alpha Ville - Apto 802"
-          :disabled="!editavel || form.objeto_id != null"
-        />
+      <!-- Projeto (D21): os do cliente, ou um novo -->
+      <div v-if="projetos?.length">
+        <BaseSelect v-model="escolhaProjeto" label="Projeto" :options="opcoesProjeto" :disabled="!editavel" />
+        <p class="mt-1.5 text-xs text-zinc-500">
+          {{ projetos.length }} {{ projetos.length === 1 ? 'projeto' : 'projetos' }} deste cliente · ou um novo
+        </p>
+      </div>
+      <BaseInput
+        v-model="projetoNome"
+        label="Nome do projeto"
+        placeholder="Ex.: Residencial Alpha Ville - Apto 802"
+        :disabled="!editavel || form.objeto_id != null"
+      />
+      <div :class="projetos?.length ? '' : 'lg:col-span-2'">
         <BaseInput
           v-model="enderecoObra"
           label="Endereço da obra"
           placeholder="Rua, número, bairro"
           :disabled="!editavel || form.objeto_id != null"
         />
+        <p v-if="form.objeto_id != null && editavel" class="mt-1.5 flex items-center gap-1 text-xs text-zinc-500">
+          <MapPin :size="12" /> Do projeto escolhido. Para mudar, escolha "Novo projeto".
+        </p>
       </div>
-    </fieldset>
+    </div>
 
     <OSClienteSearchModal
       :is-open="buscaAberta"

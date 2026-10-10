@@ -38,9 +38,10 @@ function confirmar() {
   <BaseModal :is-open="isOpen" title="Iniciar etapa" :subtitle="descricao" size="sm" overlay @close="emit('close')">
     <label class="flex flex-col gap-1 text-sm font-medium text-zinc-700">
       Quem vai fazer
+      <!-- eslint-disable-next-line vue/no-restricted-html-elements -- nativo: lista curta e fixa; os testes escolhem pelo value e o BaseSelect é um combobox com busca -->
       <select
         v-model="escolhido"
-        class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+        class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
         data-testid="responsavel-iniciar"
       >
         <option value="">Eu (usuário logado)</option>

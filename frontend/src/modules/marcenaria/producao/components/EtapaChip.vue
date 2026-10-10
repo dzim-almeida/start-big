@@ -14,7 +14,7 @@
  */
 import { computed, ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
-import { Check, MoreHorizontal } from 'lucide-vue-next';
+import { CheckCircle2, Circle, MoreHorizontal, RefreshCw } from 'lucide-vue-next';
 
 import type { Etapa } from '../schemas/producao.schema';
 
@@ -84,17 +84,17 @@ const dica = computed(() => {
 </script>
 
 <template>
-  <div ref="raiz" class="group relative inline-flex">
+  <div ref="raiz" class="group relative flex">
     <button
       type="button"
-      class="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-colors"
+      class="flex min-h-16 w-full items-start gap-2.5 rounded-xl border px-3.5 py-3 text-left transition-colors"
       :class="[
-        concluida ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-        : emExecucao ? 'border-blue-200 bg-blue-50 text-blue-800'
-          : 'border-zinc-200 bg-zinc-50 text-zinc-600',
-        proxima && !concluida ? 'border-brand-primary' : '',
+        concluida ? 'border-emerald-200 bg-white'
+        : emExecucao ? 'border-2 border-brand-primary bg-brand-primary-light'
+          : 'border-zinc-200 bg-white',
+        proxima && !concluida && !emExecucao ? 'border-brand-primary/50' : '',
         selecionada ? 'ring-2 ring-offset-1 ring-brand-primary' : '',
-        editavel ? 'cursor-pointer hover:brightness-95' : 'cursor-default',
+        editavel ? 'cursor-pointer hover:brightness-[0.98]' : 'cursor-default',
       ]"
       :title="dica"
       :aria-pressed="modoSelecao ? selecionada : undefined"
@@ -103,18 +103,30 @@ const dica = computed(() => {
       @click="clicar"
       @contextmenu.prevent="abrirMenu"
     >
-      <Check v-if="concluida" :size="16" />
-      <span v-else-if="emExecucao" class="h-2 w-2 rounded-full bg-blue-500" aria-hidden="true" />
-      {{ etapa.nome }}
-      <!-- D3: em execução mostra quem está fazendo -->
-      <span v-if="emExecucao && etapa.responsavel" class="font-normal">· {{ etapa.responsavel }}</span>
+      <CheckCircle2 v-if="concluida" :size="18" class="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" />
+      <RefreshCw v-else-if="emExecucao" :size="18" class="mt-0.5 shrink-0 text-brand-primary" aria-hidden="true" />
+      <Circle v-else :size="18" class="mt-0.5 shrink-0 text-zinc-300" aria-hidden="true" />
+      <span class="min-w-0">
+        <span
+          class="block text-sm font-semibold"
+          :class="concluida ? 'text-emerald-800' : emExecucao ? 'text-brand-primary' : 'text-zinc-600'"
+        >
+          {{ etapa.nome }}
+        </span>
+        <span class="block truncate text-xs" :class="concluida ? 'text-emerald-700' : emExecucao ? 'text-brand-primary' : 'text-zinc-500'">
+          <template v-if="concluida">Concluída<template v-if="etapa.concluida_por || etapa.responsavel"> · {{ etapa.concluida_por || etapa.responsavel }}</template></template>
+          <!-- D3: em execução mostra quem está fazendo -->
+          <template v-else-if="emExecucao">Em execução<template v-if="etapa.responsavel"> · {{ etapa.responsavel }}</template></template>
+          <template v-else>{{ proxima ? 'Próxima' : 'Aguardando' }}</template>
+        </span>
+      </span>
     </button>
 
     <!-- O "⋯": o mesmo menu do botão direito, para quem não usa o botão direito -->
     <button
       v-if="editavel && !modoSelecao"
       type="button"
-      class="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm group-hover:flex cursor-pointer"
+      class="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm group-hover:flex cursor-pointer"
       aria-label="Mais opções da etapa"
       :data-testid="`menu-chip-${etapa.id}`"
       @click.stop="menuAberto = !menuAberto"

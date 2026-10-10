@@ -186,7 +186,7 @@ describe('aba Separação', () => {
     getTerceirizados.mockResolvedValue(structuredClone(fixtureTerceirizados));
     await montarAba();
     const secao = el('secao-terceirizados')!;
-    const titulo = [...document.body.querySelectorAll('h3')].find((h) => h.textContent === 'Separação de material')!;
+    const titulo = [...document.body.querySelectorAll('h3')].find((h) => h.textContent === 'Separação de almoxarifado')!;
     // DOCUMENT_POSITION_FOLLOWING: o título da separação vem depois da seção.
     expect(secao.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

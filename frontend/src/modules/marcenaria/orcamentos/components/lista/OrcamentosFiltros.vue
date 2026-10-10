@@ -1,21 +1,25 @@
 <script setup lang="ts">
 /**
  * @component OrcamentosFiltros
- * @description Chips de status com contagem, busca, vendedor e "Mostrar
- * versões antigas" (Spec 06B D48, §6.1).
+ * @description Barra de filtros da lista de orçamentos (Spec 06B D48, §6.1),
+ * no padrão das outras listas do sistema: busca + BaseFilter (Status e
+ * Vendedor) + "Mostrar versões antigas".
  *
- * "Vence em 3 dias" é a pergunta que o vendedor faz toda manhã: por isso ele
- * tem um chip próprio, que filtra por `vence_em_dias=3` em vez de status.
+ * "Vence em 3 dias" é a pergunta que o vendedor faz toda manhã: por isso ele é
+ * uma opção do filtro de Status, que filtra por `vence_em_dias=3` em vez de status.
+ * A contagem de cada status vai no rótulo da opção (vem pronta da API, D48).
  */
 import { computed } from 'vue';
 
 import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
+import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
 import BaseSearchInput from '@/shared/components/ui/BaseSearchInput/BaseSearchInput.vue';
-import BaseSelect, { type SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { FilterOption } from '@/shared/types/filter.types';
 
 import type { ContagensOrcamento } from '../../schemas/orcamentoDetalhe.schema';
 
-/** Os chips, na ordem da tela. `VENCE_3` não é status: é o filtro de validade. */
+/** As opções de status, na ordem da tela. `VENCE_3` não é status: é o filtro de validade. */
 export type ChipFiltro = 'TODOS' | 'RASCUNHO' | 'ENVIADO' | 'VENCE_3' | 'VENCIDO' | 'RECUSADO' | 'APROVADO';
 
 const props = defineProps<{
@@ -30,61 +34,60 @@ const busca = defineModel<string>('busca', { required: true });
 const vendedorId = defineModel<number | null>('vendedorId', { required: true });
 const versoesAntigas = defineModel<boolean>('versoesAntigas', { required: true });
 
-/** Rótulo e contagem de cada chip (a contagem vem pronta da API, D48). */
-const chips = computed(() => {
+/** "Rascunho · 3" — a contagem só aparece quando já chegou (sem "undefined" piscando). */
+const comTotal = (rotulo: string, total?: number) => (total != null ? `${rotulo} · ${total}` : rotulo);
+
+const opcoesStatus = computed<Record<string, FilterOption>>(() => {
   const c = props.contagens;
-  return [
-    { id: 'TODOS' as const, rotulo: 'Todos', total: c?.total },
-    { id: 'RASCUNHO' as const, rotulo: 'Rascunho', total: c?.RASCUNHO },
-    { id: 'ENVIADO' as const, rotulo: 'Enviado', total: c?.ENVIADO },
-    { id: 'VENCE_3' as const, rotulo: 'Vence em 3 dias', total: c?.vence_em_3_dias },
-    { id: 'VENCIDO' as const, rotulo: 'Vencido', total: c?.VENCIDO },
-    { id: 'RECUSADO' as const, rotulo: 'Recusado', total: c?.RECUSADO },
-    { id: 'APROVADO' as const, rotulo: 'Aprovado', total: c?.APROVADO },
-  ];
+  return {
+    RASCUNHO: { label: comTotal('Rascunho', c?.RASCUNHO), class: '', color: 'bg-zinc-400' },
+    ENVIADO: { label: comTotal('Enviado', c?.ENVIADO), class: '', color: 'bg-blue-500' },
+    VENCE_3: { label: comTotal('Vence em 3 dias', c?.vence_em_3_dias), class: '', color: 'bg-amber-500' },
+    VENCIDO: { label: comTotal('Vencido', c?.VENCIDO), class: '', color: 'bg-amber-700' },
+    APROVADO: { label: comTotal('Aprovado', c?.APROVADO), class: '', color: 'bg-emerald-500' },
+    RECUSADO: { label: comTotal('Recusado', c?.RECUSADO), class: '', color: 'bg-red-500' },
+  };
 });
 
-/** O BaseSelect trabalha com string|number; "todos" vira null. */
-const vendedorSelecionado = computed({
-  get: () => vendedorId.value ?? '',
-  set: (valor: string | number | undefined) => {
-    vendedorId.value = valor === '' || valor == null ? null : Number(valor);
-  },
+/** O BaseFilter fala `null` para "Todos"; a tela fala 'TODOS'. */
+const statusSelecionado = computed<string | null>({
+  get: () => (chip.value === 'TODOS' ? null : chip.value),
+  set: (valor) => { chip.value = (valor ?? 'TODOS') as ChipFiltro; },
 });
-const opcoesVendedor = computed<SelectOption[]>(() => [{ value: '', label: 'Todos os vendedores' }, ...props.vendedores]);
+
+const opcoesVendedor = computed<Record<string, FilterOption>>(() =>
+  Object.fromEntries(props.vendedores.map((v) => [String(v.value), { label: v.label, class: '', color: 'bg-brand-primary' }])),
+);
+
+const vendedorSelecionado = computed<string | null>({
+  get: () => (vendedorId.value == null ? null : String(vendedorId.value)),
+  set: (valor) => { vendedorId.value = valor == null ? null : Number(valor); },
+});
 </script>
 
 <template>
-  <div class="flex w-full flex-col gap-3">
-    <!-- Chips: um clique troca o filtro de status (role="tablist" para leitor de tela). -->
-    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Filtrar por status">
-      <button
-        v-for="item in chips"
-        :key="item.id"
-        type="button"
-        role="tab"
-        :aria-selected="chip === item.id"
-        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer"
-        :class="chip === item.id
-          ? 'border-brand-primary bg-brand-primary text-white'
-          : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'"
-        :data-testid="`chip-${item.id}`"
-        @click="chip = item.id"
-      >
-        {{ item.rotulo }}
-        <!-- Contagem só quando já chegou (sem "undefined" piscando). -->
-        <span v-if="item.total != null" class="tabular-nums opacity-80">{{ item.total }}</span>
-      </button>
+  <!-- `contents`: os filtros viram itens da barra do BaseTableContainer, como nas outras listas. -->
+  <div class="contents">
+    <div class="min-w-56 flex-1">
+      <BaseSearchInput v-model="busca" placeholder="Buscar orçamento…" />
     </div>
-
-    <div class="flex flex-wrap items-center gap-3">
-      <div class="min-w-60 flex-1">
-        <BaseSearchInput v-model="busca" placeholder="Código, projeto ou cliente…" />
-      </div>
-      <div v-if="vendedores.length" class="w-56">
-        <BaseSelect v-model="vendedorSelecionado" :options="opcoesVendedor" placeholder="Vendedor" />
-      </div>
-      <BaseCheckbox v-model="versoesAntigas" label="Mostrar versões antigas" />
+    <div data-testid="filtro-status">
+      <BaseFilter
+        v-model="statusSelecionado"
+        :filter-config="opcoesStatus"
+        title="Status do orçamento"
+        button-label="Status"
+      />
+    </div>
+    <BaseFilter
+      v-if="vendedores.length"
+      v-model="vendedorSelecionado"
+      :filter-config="opcoesVendedor"
+      title="Vendedor"
+      button-label="Vendedor"
+    />
+    <div class="shrink-0">
+      <BaseCheckbox v-model="versoesAntigas" label="Versões antigas" />
     </div>
   </div>
 </template>

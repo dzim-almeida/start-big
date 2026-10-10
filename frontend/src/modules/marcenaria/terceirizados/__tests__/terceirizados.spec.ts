@@ -406,7 +406,11 @@ describe('aba "Terceirizados" em Serviços', () => {
   it('11 — padrão: só "Pedido enviado", agrupado por central, com telefone e contagem (D11, D12)', async () => {
     await montarAba();
     expect(api.getTerceirizadosEmAberto).toHaveBeenCalledWith({ situacao: 'ENVIADO', atrasados: false });
-    expect((el('filtro-situacao') as HTMLSelectElement).value).toBe('ENVIADO');
+    // Situação é um BaseFilter: o botão fica marcado (ponto azul) e a opção "Pedido enviado" vem escolhida.
+    (el('filtro-situacao')!.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    const escolhida = [...el('filtro-situacao')!.querySelectorAll('button')].find((b) => b.querySelector('svg.lucide-check'));
+    expect(escolhida?.textContent?.trim()).toBe('Pedido enviado');
     // Só a Madeiranit tem móvel enviado: um pedido (4521) cobrindo dois móveis atrasados.
     expect(el('grupo-1')!.textContent).toContain('Madeiranit');
     expect(el('grupo-1')!.textContent).toContain('(85) 99999-0000');
@@ -419,9 +423,9 @@ describe('aba "Terceirizados" em Serviços', () => {
 
   it('"Todas" mostra as duas centrais; o número da OS abre a OS', async () => {
     await montarAba();
-    const filtro = el('filtro-situacao') as HTMLSelectElement;
-    filtro.value = '';
-    filtro.dispatchEvent(new Event('change'));
+    (el('filtro-situacao')!.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    ([...el('filtro-situacao')!.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Todos') as HTMLButtonElement).click();
     await flushPromises();
     expect(api.getTerceirizadosEmAberto).toHaveBeenLastCalledWith({ situacao: null, atrasados: false });
     expect(el('grupo-2')!.textContent).toContain('Central Norte');
@@ -431,7 +435,7 @@ describe('aba "Terceirizados" em Serviços', () => {
 
   it('"Só atrasados" vai para a API', async () => {
     await montarAba();
-    const caixa = el('filtro-atrasados') as HTMLInputElement;
+    const caixa = el('filtro-atrasados')!.querySelector('input') as HTMLInputElement;
     caixa.checked = true;
     caixa.dispatchEvent(new Event('change'));
     await flushPromises();

@@ -82,7 +82,7 @@ describe('24 — EnviarModal', () => {
   });
 });
 
-describe('25 — CampoPercentualOuValor (D18, Revisão 1)', () => {
+describe('25 — CampoPercentualOuValor (D18; seletor % | R$ do redesign 10/2026)', () => {
   /** Pai mínimo com o v-model e os equivalentes que a API devolveria. */
   function montar(inicial: AjusteOrcamento) {
     const ajuste = ref<AjusteOrcamento>(inicial);
@@ -97,8 +97,17 @@ describe('25 — CampoPercentualOuValor (D18, Revisão 1)', () => {
     return { wrapper: mount(Pai), ajuste };
   }
 
+  it('trocar % → R$ não muda o desconto: o campo passa a mostrar o equivalente da API', async () => {
+    const { wrapper, ajuste } = montar({ modo: 'PERCENTUAL', valor: 500 });
+    expect(wrapper.find('[data-testid="desconto-valor"]').exists()).toBe(false);     // um campo só
+    await wrapper.find('[data-testid="desconto-modo-valor"]').trigger('click');
+    expect(ajuste.value).toEqual({ modo: 'VALOR', valor: 48626 });
+    expect((wrapper.find('[data-testid="desconto-valor"]').element as HTMLInputElement).value).toBe('486,26');
+  });
+
   it('digitar R$: modo VALOR; o % mostra o efetivo da API com "≈"', async () => {
     const { wrapper, ajuste } = montar({ modo: 'PERCENTUAL', valor: 500 });
+    await wrapper.find('[data-testid="desconto-modo-valor"]').trigger('click');
     const reais = wrapper.find('[data-testid="desconto-valor"]');
     await reais.trigger('focus');
     await reais.setValue('486,26');
@@ -108,6 +117,7 @@ describe('25 — CampoPercentualOuValor (D18, Revisão 1)', () => {
 
   it('digitar %: modo PERCENTUAL; o R$ mostra o valor da API com "≈"', async () => {
     const { wrapper, ajuste } = montar({ modo: 'VALOR', valor: 48626 });
+    await wrapper.find('[data-testid="desconto-modo-percentual"]').trigger('click');
     const pct = wrapper.find('[data-testid="desconto-percentual"]');
     await pct.trigger('focus');
     await pct.setValue('5');

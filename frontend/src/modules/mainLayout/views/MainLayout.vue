@@ -35,7 +35,7 @@ import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useO
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
 import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
 import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 import { getRevisoesPendentes } from '@/modules/order-service/revisoes/services/revisao.service';
@@ -152,6 +152,9 @@ const TODOS_OS_ATALHOS: import('@/modules/home/types/dashboard.types').QuickActi
 // orçamento (Spec 03B, D3), e o atalho vira "Novo orçamento" para quem pode
 // gerir orçamentos (Spec 06B, D4). Os outros atalhos ficam iguais.
 const router = useRouter();
+// Rota em tela cheia (ex.: editor de orçamento): sem sidebar, cabeçalho nem ações rápidas.
+const route = useRoute();
+const telaCheia = computed(() => route.meta.telaCheia === true);
 const { podeCriarOSManual } = useTiposDeTrabalho();
 const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
 const quickActions = computed(() => {
@@ -196,17 +199,18 @@ whenever(Ctrl_K, () => {
         @click="layoutStore.closeSettings"
       />
 
-    <BaseSidebar />
+    <BaseSidebar v-if="!telaCheia" />
 
     <main class="relative flex-1 overflow-y-auto flex flex-col min-w-0">
-      <BaseHeader />
+      <BaseHeader v-if="!telaCheia" />
       <div class="flex-1 overflow-y-auto">
         <router-view />
       </div>
 
       <Transition name="pop" mode="out-in">
+        <div v-if="telaCheia" />
         <button
-          v-if="!isQuickOpen"
+          v-else-if="!isQuickOpen"
           class="fixed z-10 right-5 bottom-5 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
           @click="layoutStore.toggleQuick"
         >

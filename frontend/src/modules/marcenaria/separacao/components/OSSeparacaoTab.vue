@@ -16,9 +16,11 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
-import { ScanBarcode } from 'lucide-vue-next';
+import { PackageCheck, Printer, ScanBarcode } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseProgressBar from '@/shared/components/ui/BaseProgressBar/BaseProgressBar.vue';
+import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import { unidadeEhFracionada } from '@/shared/utils/quantidade';
@@ -224,7 +226,7 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
 </script>
 
 <template>
-  <div class="space-y-4" data-testid="aba-separacao">
+  <div class="flex flex-col gap-6" data-testid="aba-separacao">
     <!-- 11B D1: os móveis da central vêm primeiro (o atraso deles atrasa a obra inteira) -->
     <SecaoTerceirizados
       v-model:ocupado="terceirizadosOcupado"
@@ -233,15 +235,31 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
       @sugestao-status="aoSugerirStatus"
     />
 
-    <p v-if="isLoading" class="text-sm text-zinc-400">Carregando a separação…</p>
+    <p v-if="isLoading" class="text-sm text-zinc-500">Carregando a separação…</p>
     <p v-else-if="semSeparacao" class="text-sm text-zinc-500" data-testid="sem-separacao">Esta OS não tem separação de material.</p>
     <p v-else-if="error" class="text-sm text-red-600">Não foi possível carregar a separação agora.</p>
 
     <template v-else-if="separacao">
-      <!-- Topo: título, faltas e progresso (D2, D18) -->
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h3 class="text-base font-bold text-zinc-800">Separação de material</h3>
-        <div class="flex flex-wrap items-center gap-3">
+      <!-- Topo: título, progresso e faltas (D2, D18) -->
+      <section class="flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-zinc-200 bg-white px-6 py-5">
+        <div class="flex items-center gap-3.5">
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-primary text-white" aria-hidden="true">
+            <PackageCheck :size="22" />
+          </span>
+          <div>
+            <h3 class="text-base font-semibold text-zinc-900">Separação de almoxarifado</h3>
+            <p class="text-xs text-zinc-500">Os insumos dos móveis desta OS, somados por item do estoque.</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-6">
+          <div class="w-64" data-testid="progresso">
+            <BaseProgressBar
+              :valor="progresso"
+              rotulo="Progresso"
+              :detalhe="`${separacao.resumo.concluidas} de ${separacao.resumo.linhas} separados`"
+              :tom="progresso >= 100 ? 'sucesso' : 'primario'"
+            />
+          </div>
           <BaseButton
             variant="secondary"
             size="sm"
@@ -249,82 +267,91 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
             data-testid="abrir-faltas"
             @click="faltasAberto = true"
           >
+            <Printer :size="14" class="mr-1" />
             Faltas desta OS<template v-if="separacao.resumo.com_falta"> ({{ separacao.resumo.com_falta }})</template>
           </BaseButton>
-          <div class="flex items-center gap-2" data-testid="progresso">
-            <div class="h-2 w-32 overflow-hidden rounded-full bg-zinc-100">
-              <div class="h-full bg-emerald-500 transition-all" :style="{ width: `${progresso}%` }" />
-            </div>
-            <span class="text-xs text-zinc-600">{{ separacao.resumo.concluidas }} de {{ separacao.resumo.linhas }} separados</span>
-          </div>
         </div>
-      </div>
+      </section>
 
       <!-- OS fechada: só leitura (D10) -->
-      <p v-if="!editavel" class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600" data-testid="separacao-fechada">
+      <p v-if="!editavel" class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600" data-testid="separacao-fechada">
         {{ fraseFechada }}
       </p>
 
       <!-- Leitor (D2, D14-D17) -->
-      <div v-else class="flex flex-wrap items-end gap-4">
-        <label class="flex flex-col gap-1 text-xs font-medium text-zinc-600">
-          Ler código
-          <span class="flex items-center gap-2">
-            <ScanBarcode :size="18" class="text-zinc-400" />
+      <section v-else class="flex flex-wrap items-end gap-x-6 gap-y-3 rounded-2xl border border-zinc-200 bg-white px-6 py-4">
+        <div>
+          <label for="campo-codigo-separacao" class="mb-1 block text-xs font-medium text-gray-700">Ler código</label>
+          <div class="relative">
+            <ScanBarcode :size="18" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <!-- Nativo de propósito: o leitor precisa do foco e do Enter direto no campo (D14). -->
             <input
+              id="campo-codigo-separacao"
               ref="campoCodigo"
               v-model="codigoDigitado"
               type="text"
               autocomplete="off"
-              class="w-64 rounded-lg border border-zinc-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+              class="w-72 rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               placeholder="Bipe ou digite e tecle Enter"
               data-testid="campo-codigo"
               @keydown.enter.prevent="aoLer(codigoDigitado)"
             />
-          </span>
-        </label>
-        <label class="flex items-center gap-2 text-sm text-zinc-700">
-          <input v-model="cadaLeituraRetira" type="checkbox" class="accent-brand-primary" data-testid="cada-leitura-retira" />
+          </div>
+        </div>
+        <label class="flex min-h-11 items-center gap-2 text-sm text-zinc-700">
+          <input v-model="cadaLeituraRetira" type="checkbox" class="h-4 w-4 accent-brand-primary" data-testid="cada-leitura-retira" />
           Cada leitura retira
         </label>
-        <label class="flex items-center gap-2 text-sm text-zinc-700">
-          <input v-model="soPendentes" type="checkbox" class="accent-brand-primary" data-testid="so-pendentes" />
+        <label class="flex min-h-11 items-center gap-2 text-sm text-zinc-700">
+          <input v-model="soPendentes" type="checkbox" class="h-4 w-4 accent-brand-primary" data-testid="so-pendentes" />
           Mostrar só pendentes
         </label>
-      </div>
-      <p
-        v-if="mensagemLeitor"
-        role="status"
-        class="text-sm font-medium"
-        :class="{ 'text-red-600': mensagemLeitor.tom === 'erro', 'text-amber-700': mensagemLeitor.tom === 'atencao', 'text-emerald-700': mensagemLeitor.tom === 'ok' }"
-        data-testid="mensagem-leitor"
-      >
-        {{ mensagemLeitor.texto }}
-      </p>
+        <p
+          v-if="mensagemLeitor"
+          role="status"
+          class="basis-full text-sm font-medium"
+          :class="{ 'text-red-600': mensagemLeitor.tom === 'erro', 'text-amber-700': mensagemLeitor.tom === 'atencao', 'text-emerald-700': mensagemLeitor.tom === 'ok' }"
+          data-testid="mensagem-leitor"
+        >
+          {{ mensagemLeitor.texto }}
+        </p>
+      </section>
 
       <!-- As linhas, na ordem do depósito (D3) -->
-      <div class="flex flex-col gap-2">
-        <SeparacaoLinha
-          v-for="linha in linhasVisiveis"
-          :key="linha.item_id"
-          :linha="linha"
-          :editavel="editavel"
-          :destacada="destacada === linha.item_id"
-          @retirar="abrirRetirar(linha)"
-          @devolver="devolverModal = { aberto: true, linha }"
-          @concluir="concluir(linha, false)"
-          @nao-usado="concluir(linha, true)"
-          @reabrir="reabrirLinha(linha)"
-        />
-        <p v-if="!separacao.linhas.length" class="text-sm text-zinc-500">Esta OS não tem material a separar.</p>
-        <p v-else-if="!linhasVisiveis.length" class="text-sm text-emerald-700" data-testid="tudo-separado">
+      <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div
+          v-if="linhasVisiveis.length"
+          class="hidden gap-x-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+          aria-hidden="true"
+        >
+          <span>Insumo · usado em</span><span>Quantidades</span><span>Local no estoque</span><span>Situação</span><span class="w-28" />
+        </div>
+        <div class="divide-y divide-zinc-100">
+          <SeparacaoLinha
+            v-for="linha in linhasVisiveis"
+            :key="linha.item_id"
+            :linha="linha"
+            :editavel="editavel"
+            :destacada="destacada === linha.item_id"
+            @retirar="abrirRetirar(linha)"
+            @devolver="devolverModal = { aberto: true, linha }"
+            @concluir="concluir(linha, false)"
+            @nao-usado="concluir(linha, true)"
+            @reabrir="reabrirLinha(linha)"
+          />
+        </div>
+        <p v-if="!separacao.linhas.length" class="px-5 py-6 text-center text-sm text-zinc-500">Esta OS não tem material a separar.</p>
+        <p v-else-if="!linhasVisiveis.length" class="px-5 py-6 text-center text-sm text-emerald-700" data-testid="tudo-separado">
           Tudo separado. Desmarque "Mostrar só pendentes" para ver o que saiu.
         </p>
-      </div>
+      </section>
 
       <!-- Produto excluído do cadastro: só informa (D8; 10A D3) -->
-      <div v-if="separacao.sem_cadastro.length" class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3" data-testid="sem-cadastro">
-        <p class="text-xs font-semibold text-zinc-600">Produto excluído do cadastro: não baixa estoque</p>
+      <div v-if="separacao.sem_cadastro.length" class="rounded-2xl border border-zinc-200 bg-white px-6 py-4" data-testid="sem-cadastro">
+        <p class="flex items-center gap-2 text-sm font-semibold text-zinc-800">
+          Produto excluído do cadastro: não baixa estoque
+          <BaseStatusPill tom="neutro">{{ separacao.sem_cadastro.length }}</BaseStatusPill>
+        </p>
         <ul class="mt-1 text-sm text-zinc-600">
           <li v-for="item in separacao.sem_cadastro" :key="item.descricao">{{ item.descricao }} · {{ quantidadeSimples(item.planejado_milesimos) }}</li>
         </ul>

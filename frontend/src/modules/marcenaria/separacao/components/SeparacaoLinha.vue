@@ -10,9 +10,10 @@
  */
 import { computed, ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
-import { Check, MoreHorizontal } from 'lucide-vue-next';
+import { Check, MapPin, MoreHorizontal } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseStatusPill, { type TomStatus } from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 
 import { ALERTAS_SEPARACAO, type LinhaSeparacao } from '../schemas/separacao.schema';
 import { quantidadeComUnidade, quantidadeSimples } from '../utils/quantidades';
@@ -43,12 +44,10 @@ const q = (milesimos: number) => quantidadeComUnidade(milesimos, props.linha.uni
 const sugerido = computed(() => props.linha.sugerido_milesimos ?? props.linha.quantidade_milesimos);
 
 /** Os avisos da linha, em frase (D8). Código desconhecido não aparece. */
-const ALERTAS: Record<string, { texto: string; classe: string }> = {
-  [ALERTAS_SEPARACAO.semCobertura]: { texto: 'Falta no estoque', classe: 'bg-amber-50 text-amber-800 border-amber-200' },
-  [ALERTAS_SEPARACAO.estoqueNegativo]: {
-    texto: 'Estoque negativo: conferir a contagem', classe: 'bg-red-50 text-red-700 border-red-200',
-  },
-  [ALERTAS_SEPARACAO.acimaDoSugerido]: { texto: 'Retirado acima do sugerido', classe: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
+const ALERTAS: Record<string, { texto: string; tom: TomStatus }> = {
+  [ALERTAS_SEPARACAO.semCobertura]: { texto: 'Falta no estoque', tom: 'alerta' },
+  [ALERTAS_SEPARACAO.estoqueNegativo]: { texto: 'Estoque negativo: conferir a contagem', tom: 'perigo' },
+  [ALERTAS_SEPARACAO.acimaDoSugerido]: { texto: 'Retirado acima do sugerido', tom: 'neutro' },
 };
 const alertas = computed(() => props.linha.alertas.map((codigo) => ALERTAS[codigo]).filter(Boolean));
 
@@ -73,73 +72,75 @@ function escolher(id: 'devolver' | 'concluir' | 'naoUsado' | 'reabrir') {
 </script>
 
 <template>
+  <!-- Uma linha da tabela de separação (redesign 10/2026). As colunas batem com o cabeçalho de OSSeparacaoTab. -->
   <div
     :id="`separacao-linha-${linha.item_id}`"
-    class="flex flex-wrap items-start gap-x-4 gap-y-2 rounded-xl border px-4 py-3 transition-colors"
+    class="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
     :class="[
-      linha.concluida ? 'border-zinc-100 bg-zinc-50 opacity-70' : 'border-zinc-200 bg-white',
-      destacada ? 'ring-2 ring-brand-primary/60' : '',
+      linha.concluida ? 'bg-zinc-50/70' : alertas.some((a) => a.tom === 'perigo') ? 'bg-red-50/40' : 'bg-white',
+      destacada ? 'ring-2 ring-inset ring-brand-primary/60' : '',
     ]"
     :data-testid="`linha-${linha.item_id}`"
   >
-    <!-- Localização primeiro: a lista está na ordem das prateleiras -->
-    <p class="w-36 shrink-0 pt-1 text-xs font-bold uppercase tracking-wide text-zinc-500">
-      {{ linha.localizacao || 'Sem localização' }}
-    </p>
-
-    <div class="min-w-0 flex-1">
-      <p class="text-sm font-semibold text-zinc-900">
+    <!-- Insumo e os móveis que usam (D5 da 10A): "Balcão 2,2" -->
+    <div class="min-w-0">
+      <p class="text-sm font-semibold text-zinc-900" :class="linha.concluida ? 'text-zinc-500' : ''">
         {{ linha.descricao }}
-        <span v-if="linha.codigo" class="ml-1 text-xs font-normal text-zinc-400">{{ linha.codigo }}</span>
+        <span v-if="linha.codigo" class="ml-1 text-xs font-normal text-zinc-500">{{ linha.codigo }}</span>
       </p>
-
-      <!-- Concluída: um resumo só (D7) -->
-      <p v-if="linha.nao_usado" class="mt-1 inline-flex items-center gap-1 text-sm text-zinc-500" data-testid="linha-nao-usado">
-        Não usado
-      </p>
-      <p v-else-if="linha.concluida" class="mt-1 inline-flex items-center gap-1 text-sm text-emerald-700" data-testid="linha-concluida">
-        <Check :size="16" /> Retirado {{ q(linha.separada_milesimos) }}
-      </p>
-
-      <!-- Os três números grandes (D3) -->
-      <dl v-else class="mt-1 flex flex-wrap gap-x-6 gap-y-1">
-        <div>
-          <dt class="text-[11px] text-zinc-500">Sugerido</dt>
-          <dd class="text-lg font-bold tabular-nums text-zinc-900" data-testid="sugerido">{{ q(sugerido) }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] text-zinc-500">Retirado</dt>
-          <dd class="text-lg font-bold tabular-nums text-zinc-900" data-testid="retirado">{{ q(linha.separada_milesimos) }}</dd>
-        </div>
-        <div>
-          <dt class="text-[11px] text-zinc-500">No estoque p/ esta OS</dt>
-          <dd
-            class="text-lg font-bold tabular-nums"
-            :class="linha.no_estoque_milesimos < linha.falta_milesimos ? 'text-amber-700' : 'text-zinc-900'"
-            data-testid="no-estoque"
-          >
-            {{ q(linha.no_estoque_milesimos) }}
-          </dd>
-        </div>
-      </dl>
-
-      <!-- Os móveis que usam (D5 da 10A): "Balcão 2,2" -->
-      <p v-if="linha.moveis.length" class="mt-1 text-xs text-zinc-500">
-        <span v-for="(movel, i) in linha.moveis" :key="i">
-          {{ movel.nome }} {{ quantidadeSimples(movel.planejado_milesimos) }}<template v-if="i < linha.moveis.length - 1"> · </template>
+      <p v-if="linha.moveis.length" class="mt-1 flex flex-wrap gap-1">
+        <span v-for="(movel, i) in linha.moveis" :key="i" class="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+          {{ movel.nome }} {{ quantidadeSimples(movel.planejado_milesimos) }}
         </span>
       </p>
+    </div>
 
-      <!-- Avisos (D8) -->
-      <div v-if="alertas.length" class="mt-2 flex flex-wrap gap-1.5">
-        <span v-for="alerta in alertas" :key="alerta.texto" class="rounded-full border px-2 py-0.5 text-[11px]" :class="alerta.classe">
-          {{ alerta.texto }}
-        </span>
+    <!-- Quantidades: concluída vira um resumo só (D7); aberta mostra os três números (D3) -->
+    <p v-if="linha.nao_usado" class="text-sm text-zinc-500" data-testid="linha-nao-usado">Não usado</p>
+    <p v-else-if="linha.concluida" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-700" data-testid="linha-concluida">
+      <Check :size="16" /> Retirado {{ q(linha.separada_milesimos) }}
+    </p>
+    <dl v-else class="grid grid-cols-3 gap-3">
+      <div>
+        <dt class="text-xs text-zinc-500">Sugerido</dt>
+        <dd class="text-sm font-bold tabular-nums text-zinc-900" data-testid="sugerido">{{ q(sugerido) }}</dd>
       </div>
+      <div>
+        <dt class="text-xs text-zinc-500">Retirado</dt>
+        <dd class="text-sm font-bold tabular-nums text-zinc-900" data-testid="retirado">{{ q(linha.separada_milesimos) }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-zinc-500">No estoque</dt>
+        <dd
+          class="text-sm font-bold tabular-nums"
+          :class="linha.no_estoque_milesimos < linha.falta_milesimos ? 'text-amber-700' : 'text-zinc-900'"
+          data-testid="no-estoque"
+        >
+          {{ q(linha.no_estoque_milesimos) }}
+        </dd>
+      </div>
+    </dl>
+
+    <!-- Localização: a lista está na ordem das prateleiras -->
+    <div>
+      <span
+        class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium"
+        :class="linha.localizacao ? 'bg-brand-primary-light text-brand-primary' : 'bg-zinc-100 text-zinc-500'"
+      >
+        <MapPin :size="13" aria-hidden="true" />
+        {{ linha.localizacao || 'Sem localização' }}
+      </span>
+    </div>
+
+    <!-- Situação e avisos (D8) -->
+    <div class="flex min-w-0 flex-wrap gap-1.5">
+      <BaseStatusPill v-for="alerta in alertas" :key="alerta.texto" :tom="alerta.tom" quebra-linha>{{ alerta.texto }}</BaseStatusPill>
+      <BaseStatusPill v-if="!alertas.length && linha.concluida && !linha.nao_usado" tom="sucesso">Separado</BaseStatusPill>
+      <BaseStatusPill v-else-if="!alertas.length && !linha.concluida" tom="neutro">Pendente</BaseStatusPill>
     </div>
 
     <!-- Ações: Retirar em destaque; o resto no menu (D3) -->
-    <div v-if="editavel" class="flex shrink-0 items-center gap-2">
+    <div v-if="editavel" class="flex shrink-0 items-center justify-end gap-2">
       <BaseButton v-if="!linha.concluida" size="sm" data-testid="acao-retirar" @click="emit('retirar')">Retirar</BaseButton>
       <div v-if="opcoes.length" ref="menuRef" class="relative">
         <BaseButton variant="secondary" size="sm" aria-haspopup="menu" :aria-expanded="menuAberto" aria-label="Mais ações" data-testid="menu-linha" @click="menuAberto = !menuAberto">
@@ -160,5 +161,6 @@ function escolher(id: 'devolver' | 'concluir' | 'naoUsado' | 'reabrir') {
         </div>
       </div>
     </div>
+    <div v-else />
   </div>
 </template>

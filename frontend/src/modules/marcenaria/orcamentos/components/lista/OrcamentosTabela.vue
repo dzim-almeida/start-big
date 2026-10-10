@@ -81,9 +81,9 @@ function classeValidade(validade: string): string {
         </td>
         <td class="px-5 py-3 max-w-48 truncate text-zinc-700">{{ item.cliente_nome ?? '—' }}</td>
         <td class="px-5 py-3 max-w-56 truncate text-zinc-700">{{ item.projeto_nome ?? '—' }}</td>
-        <td class="px-5 py-3 text-zinc-600">{{ item.vendedor_nome ?? '—' }}</td>
+        <td class="px-5 py-3 whitespace-nowrap text-zinc-600">{{ item.vendedor_nome ?? '—' }}</td>
         <td class="px-5 py-3 text-right tabular-nums text-zinc-600">{{ item.resumo_qtd_moveis }}</td>
-        <td class="px-5 py-3 text-right font-semibold tabular-nums text-zinc-800">
+        <td class="px-5 py-3 text-right font-semibold whitespace-nowrap tabular-nums text-zinc-800">
           {{ formatCurrency(item.resumo_total_centavos) }}
         </td>
         <td v-if="mostrarMargem" class="px-5 py-3 text-right tabular-nums text-zinc-600">

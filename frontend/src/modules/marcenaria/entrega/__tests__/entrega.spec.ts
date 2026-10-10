@@ -389,13 +389,15 @@ describe('aba Instalações em Serviços', () => {
 
   it('montador filtra na tela; "Só atrasadas" pede todas as atrasadas', async () => {
     await montarInstalacoes();
-    const select = el('filtro-montador') as HTMLSelectElement;
-    expect([...select.options].map((o) => o.textContent)).toEqual(['Todos', 'Carlos', 'Davi']);
-    select.value = '3';                                              // Davi
-    select.dispatchEvent(new Event('change'));
+    // Montador é um BaseFilter: abre o menu e escolhe pelo nome.
+    (el('filtro-montador')!.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    const opcoes = [...el('filtro-montador')!.querySelectorAll('button')].slice(1);
+    expect(opcoes.map((o) => o.textContent?.trim())).toEqual(['Todos', 'Carlos', 'Davi']);
+    opcoes[2].click();                                               // Davi
     await flushPromises();
     expect(document.body.querySelectorAll('[data-testid^="instalacao-"]')).toHaveLength(1);
-    const caixa = el('so-atrasadas') as HTMLInputElement;
+    const caixa = el('so-atrasadas')!.querySelector('input') as HTMLInputElement;
     caixa.checked = true;
     caixa.dispatchEvent(new Event('change'));
     await flushPromises();

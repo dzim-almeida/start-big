@@ -9,16 +9,21 @@
  * "Imprimir a lista do dia" (o roteiro da equipe em papel, P3).
  */
 import { computed, nextTick, ref } from 'vue';
-import { AlertTriangle, Printer } from 'lucide-vue-next';
+import { AlertTriangle, CalendarDays, CalendarX, MapPin, Printer, Users } from 'lucide-vue-next';
+
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
+import BaseFilter from '@/shared/components/ui/BaseFilter/BaseFilter.vue';
+import BaseStatusPill, { type TomStatus } from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
+import type { FilterOption } from '@/shared/types/filter.types';
 
 import { formatTelefone } from '@/shared/utils/document.utils';
 import { aguardarImagensDaImpressao, imprimirComPagina } from '@/shared/utils/print.utils';
 import { useAbrirOS } from '@/modules/marcenaria/orcamentos/composables/useAbrirOS';
 
 import { useInstalacoes } from '../composables/useInstalacoes';
-import type { Instalacao } from '../schemas/entrega.schema';
+import type { Instalacao, SituacaoEntrega } from '../schemas/entrega.schema';
 import {
-  agruparPorDia, CLASSE_SITUACAO_ENTREGA, datasDoPeriodo, montadoresDaLista, nomesDosMontadores, PERIODOS,
+  agruparPorDia, datasDoPeriodo, montadoresDaLista, nomesDosMontadores, PERIODOS,
   ROTULO_SITUACAO_ENTREGA, type Periodo,
 } from '../utils/entrega';
 import ListaDoDiaPrint from './ListaDoDiaPrint.vue';
@@ -28,6 +33,14 @@ const periodo = ref<Periodo>('semana');
 const soAtrasadas = ref(false);
 /** '' = todos os montadores (o <select> nativo não guarda null). */
 const montador = ref('');
+
+/** O BaseFilter fala `null` para "Todos"; o filtro guarda ''. */
+const montadorSelecionado = computed<string | null>({
+  get: () => montador.value || null,
+  set: (valor) => { montador.value = valor ?? ''; },
+});
+
+const TOM_SITUACAO: Record<SituacaoEntrega, TomStatus> = { PENDENTE: 'neutro', CONFORME: 'sucesso', COM_RESSALVAS: 'alerta' };
 
 /**
  * O que vai para a API. "Só atrasadas" mostra TODAS as atrasadas, de qualquer
@@ -42,6 +55,9 @@ const { abrirOS, abrindo } = useAbrirOS();
 
 /** Os montadores do período (o filtro não depende do cadastro de funcionários). */
 const montadores = computed(() => montadoresDaLista(itens.value ?? []));
+const opcoesMontador = computed<Record<string, FilterOption>>(() =>
+  Object.fromEntries(montadores.value.map((m) => [String(m.funcionario_id), { label: m.nome, class: '', color: 'bg-brand-primary' }])),
+);
 const visiveis = computed(() => (itens.value ?? []).filter((item) =>
   !montador.value || item.montadores.some((m) => String(m.funcionario_id) === montador.value)));
 const dias = computed(() => agruparPorDia(visiveis.value));
@@ -71,92 +87,94 @@ async function imprimirDia(dia: { titulo: string; itens: Instalacao[] }) {
 </script>
 
 <template>
-  <div class="space-y-4" data-testid="aba-instalacoes">
-    <!-- Filtros -->
-    <div class="flex flex-wrap items-end gap-4">
-      <div class="flex rounded-xl border border-zinc-200 bg-white p-1 text-xs font-semibold" :class="{ 'opacity-50': soAtrasadas }">
+  <div class="space-y-6" data-testid="aba-instalacoes">
+    <!-- Filtros: o período, o montador e "Só atrasadas" -->
+    <div class="flex flex-wrap items-center gap-4 rounded-2xl border border-zinc-200 bg-white px-6 py-4">
+      <div class="flex rounded-xl border border-zinc-200 bg-white p-1 text-xs font-semibold shadow-sm" :class="{ 'opacity-50': soAtrasadas }">
         <button
           v-for="p in PERIODOS"
           :key="p.id"
           type="button"
-          class="rounded-lg px-3 py-1.5 cursor-pointer"
-          :class="periodo === p.id ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-50'"
+          class="min-h-9 rounded-lg px-3 md:px-4 cursor-pointer transition-all"
+          :class="periodo === p.id ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'"
           :data-testid="`periodo-${p.id}`"
           @click="periodo = p.id; soAtrasadas = false"
         >
           {{ p.rotulo }}
         </button>
       </div>
-      <label class="flex flex-col gap-1 text-xs font-medium text-zinc-600">
-        Montador
-        <select
-          v-model="montador"
-          class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
-          data-testid="filtro-montador"
-        >
-          <option value="">Todos</option>
-          <option v-for="m in montadores" :key="m.funcionario_id" :value="String(m.funcionario_id)">{{ m.nome }}</option>
-        </select>
-      </label>
-      <label class="flex items-center gap-2 pb-2 text-sm text-zinc-700">
-        <input v-model="soAtrasadas" type="checkbox" class="accent-brand-primary" data-testid="so-atrasadas" />
-        Só atrasadas
-      </label>
+      <div data-testid="filtro-montador">
+        <BaseFilter v-model="montadorSelecionado" :filter-config="opcoesMontador" title="Montador" button-label="Montador" />
+      </div>
+      <div class="shrink-0" data-testid="so-atrasadas">
+        <BaseCheckbox v-model="soAtrasadas" label="Só atrasadas" />
+      </div>
     </div>
 
-    <p v-if="isLoading" class="text-sm text-zinc-400">Carregando…</p>
+    <p v-if="isLoading" class="text-sm text-zinc-500">Carregando…</p>
     <p v-else-if="isError" class="text-sm text-red-600">Não foi possível carregar as instalações agora.</p>
-    <p v-else-if="!dias.length" class="rounded-xl border border-zinc-200 bg-white px-4 py-6 text-center text-sm text-zinc-500" data-testid="sem-instalacoes">
-      Nenhuma instalação neste período.
-    </p>
+    <div
+      v-else-if="!dias.length"
+      class="flex flex-col items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-6 py-12 text-center"
+      data-testid="sem-instalacoes"
+    >
+      <span class="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 text-zinc-400"><CalendarX :size="22" /></span>
+      <p class="text-sm font-medium text-zinc-600">Nenhuma instalação neste período.</p>
+      <p class="text-xs text-zinc-500">Agende pela aba Entrega da OS.</p>
+    </div>
 
     <!-- Um bloco por dia ("Segunda, 03/11"), na ordem de data e hora (D16) -->
     <template v-else>
-      <section v-for="dia in dias" :key="dia.data" class="overflow-hidden rounded-xl border border-zinc-200 bg-white" :data-testid="`dia-${dia.data}`">
-        <header class="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-4 py-2">
-          <strong class="text-sm text-zinc-800">{{ dia.titulo }}</strong>
-          <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline cursor-pointer" :data-testid="`imprimir-dia-${dia.data}`" @click="imprimirDia(dia)">
-            <Printer :size="12" /> Imprimir a lista do dia
+      <section v-for="dia in dias" :key="dia.data" class="overflow-hidden rounded-2xl border border-zinc-200 bg-white" :data-testid="`dia-${dia.data}`">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50 px-6 py-3">
+          <strong class="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+            <CalendarDays :size="16" class="text-brand-primary" /> {{ dia.titulo }}
+            <BaseStatusPill tom="info">{{ dia.itens.length }} {{ dia.itens.length === 1 ? 'instalação' : 'instalações' }}</BaseStatusPill>
+          </strong>
+          <button type="button" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:underline cursor-pointer" :data-testid="`imprimir-dia-${dia.data}`" @click="imprimirDia(dia)">
+            <Printer :size="14" /> Imprimir a lista do dia
           </button>
         </header>
         <ul class="divide-y divide-zinc-100">
-          <li v-for="item in dia.itens" :key="item.id" class="flex flex-wrap items-start gap-x-4 gap-y-1 px-4 py-2 text-sm" :data-testid="`instalacao-${item.id}`">
-            <span class="w-12 font-semibold tabular-nums text-zinc-800">{{ item.hora_inicio ?? '—' }}</span>
-            <div class="min-w-0 flex-1">
-              <p>
+          <li
+            v-for="item in dia.itens"
+            :key="item.id"
+            class="grid grid-cols-1 items-start gap-x-5 gap-y-2 px-6 py-4 text-sm md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,14rem)]"
+            :data-testid="`instalacao-${item.id}`"
+          >
+            <span class="flex h-11 w-16 items-center justify-center rounded-lg bg-brand-primary-light font-bold tabular-nums text-brand-primary">
+              {{ item.hora_inicio ?? '—' }}
+            </span>
+            <div class="min-w-0">
+              <p class="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                 <!-- O número abre a OS direto na aba Entrega -->
                 <button
                   type="button"
-                  class="font-medium text-brand-primary hover:underline cursor-pointer disabled:opacity-60"
+                  class="font-semibold text-brand-primary hover:underline cursor-pointer disabled:opacity-60"
                   :disabled="abrindo"
                   :data-testid="`abrir-os-${item.id}`"
                   @click="abrirOS(item.numero_os, { abaInicial: 'entrega' })"
                 >
                   {{ item.numero_os }}
                 </button>
-                <span class="text-zinc-700"> · {{ item.cliente ?? '—' }}</span>
-                <span v-if="item.telefone" class="text-zinc-500"> · {{ formatTelefone(item.telefone) }}</span>
-                <span
-                  v-if="item.atrasado"
-                  class="ml-2 inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700"
-                  data-testid="atrasada"
-                >
-                  <AlertTriangle :size="11" /> Atrasada
+                <span class="font-medium text-zinc-800">· {{ item.cliente ?? '—' }}</span>
+                <span v-if="item.telefone" class="text-zinc-500">· {{ formatTelefone(item.telefone) }}</span>
+                <span v-if="item.atrasado" data-testid="atrasada">
+                  <BaseStatusPill tom="perigo"><AlertTriangle :size="12" /> Atrasada</BaseStatusPill>
                 </span>
               </p>
-              <p v-if="item.endereco_obra" class="text-xs text-zinc-500">{{ item.endereco_obra }}</p>
-              <p class="mt-1 flex flex-wrap gap-1.5">
-                <span
-                  v-for="ambiente in item.ambientes"
-                  :key="ambiente.ambiente_id"
-                  class="rounded-full border px-2 py-0.5 text-[11px]"
-                  :class="ambiente.situacao ? CLASSE_SITUACAO_ENTREGA[ambiente.situacao] : 'border-zinc-200 text-zinc-500'"
-                >
+              <p v-if="item.endereco_obra" class="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
+                <MapPin :size="12" class="shrink-0" /> {{ item.endereco_obra }}
+              </p>
+              <p class="mt-2 flex flex-wrap gap-1.5">
+                <BaseStatusPill v-for="ambiente in item.ambientes" :key="ambiente.ambiente_id" :tom="ambiente.situacao ? TOM_SITUACAO[ambiente.situacao] : 'neutro'">
                   {{ ambiente.nome }}<template v-if="ambiente.situacao && ambiente.situacao !== 'PENDENTE'"> · {{ ROTULO_SITUACAO_ENTREGA[ambiente.situacao] }}</template>
-                </span>
+                </BaseStatusPill>
               </p>
             </div>
-            <span class="text-zinc-600">{{ nomesDosMontadores(item.montadores) }}</span>
+            <p class="flex items-center gap-1.5 text-zinc-600">
+              <Users :size="15" class="shrink-0 text-zinc-400" /> {{ nomesDosMontadores(item.montadores) }}
+            </p>
           </li>
         </ul>
       </section>

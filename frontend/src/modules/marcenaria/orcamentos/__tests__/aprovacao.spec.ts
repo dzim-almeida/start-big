@@ -133,6 +133,9 @@ describe('AprovarModal', () => {
     abrir();
     await esperarPrevia();
     simular.mockRejectedValue(erroApi(422, { codigo: 'CALCULO_INVALIDO', campo: 'desconto', mensagem: 'O desconto não pode passar do total.' }));
+    // Desconto em R$: escolhe o modo no seletor "% | R$" e digita no campo único.
+    (el('aprovar-desconto-modo-valor') as HTMLButtonElement).click();
+    await flushPromises();
     const reais = el('aprovar-desconto-valor') as HTMLInputElement;
     reais.dispatchEvent(new Event('focus'));
     reais.value = '999999';

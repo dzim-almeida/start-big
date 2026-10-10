@@ -13,8 +13,12 @@
  * `aplicarStatus` que o pai passa (sem ela, a pergunta não aparece).
  */
 import { computed, ref, toRef, watch } from 'vue';
+import { ListChecks, Printer } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseProgressBar from '@/shared/components/ui/BaseProgressBar/BaseProgressBar.vue';
+import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
+import AmbienteSecao from '@/modules/marcenaria/shared/components/AmbienteSecao.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import { useToast } from '@/shared/composables/useToast';
@@ -101,13 +105,33 @@ const esconderProntos = ref(false);
 const moveisVisiveis = computed(() =>
   (producao.value?.moveis ?? []).filter((m) => !esconderProntos.value || !m.pronto));
 const escondidos = computed(() => (producao.value?.moveis.length ?? 0) - moveisVisiveis.value.length);
+/**
+ * Percentual do ambiente (barra do cabeçalho): etapas concluídas sobre o total.
+ * Móvel sem etapas (terceirizado ou sem caminho) conta como uma etapa só,
+ * concluída quando o móvel está pronto.
+ */
+function progressoDoAmbiente(moveis: MovelProducao[]): number {
+  let feitas = 0;
+  let total = 0;
+  for (const movel of moveis) {
+    if (movel.etapas?.length) {
+      total += movel.etapas.length;
+      feitas += movel.etapas.filter((etapa) => etapa.status === 'CONCLUIDA').length;
+    } else {
+      total += 1;
+      feitas += movel.pronto ? 1 : 0;
+    }
+  }
+  return total ? Math.round((feitas / total) * 100) : 0;
+}
+
 const ambientes = computed(() => {
   const grupos = new Map<string, MovelProducao[]>();
   for (const movel of moveisVisiveis.value) {
     if (!grupos.has(movel.ambiente)) grupos.set(movel.ambiente, []);
     grupos.get(movel.ambiente)!.push(movel);
   }
-  return [...grupos.entries()].map(([nome, moveis]) => ({ nome, moveis }));
+  return [...grupos.entries()].map(([nome, moveis]) => ({ nome, moveis, progresso: progressoDoAmbiente(moveis) }));
 });
 
 /** D2: "Concluir em todos: Corte (4)". */
@@ -214,53 +238,58 @@ async function moverStatus() {
 </script>
 
 <template>
-  <div class="space-y-4" data-testid="aba-producao">
-    <p v-if="isLoading" class="text-sm text-zinc-400">Carregando a produção…</p>
+  <div class="flex flex-col gap-6" data-testid="aba-producao">
+    <p v-if="isLoading" class="text-sm text-zinc-500">Carregando a produção…</p>
     <p v-else-if="semProducao" class="text-sm text-zinc-500" data-testid="sem-producao">Esta OS não tem produção.</p>
     <p v-else-if="error" class="text-sm text-red-600">Não foi possível carregar a produção agora.</p>
 
     <template v-else-if="producao && progresso">
       <!-- Topo: progresso e previsão (D2) -->
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-3">
-          <h3 class="text-base font-bold text-zinc-800">Produção</h3>
-          <div class="h-2.5 w-40 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
-            <div class="h-full bg-emerald-500 transition-all" :style="{ width: `${percentual}%` }" />
+      <section class="flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-zinc-200 bg-white px-6 py-5">
+        <div class="flex items-center gap-3.5">
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-primary text-white" aria-hidden="true">
+            <ListChecks :size="22" />
+          </span>
+          <div>
+            <h3 class="text-base font-semibold text-zinc-900">Produção por ambiente</h3>
+            <p class="text-xs text-zinc-500">
+              {{ ambientes.length }} {{ ambientes.length === 1 ? 'ambiente' : 'ambientes' }} ·
+              {{ progresso.moveis_total }} {{ progresso.moveis_total === 1 ? 'móvel' : 'móveis' }}
+            </p>
           </div>
-          <span class="text-sm text-zinc-600" data-testid="progresso">
-            {{ progresso.etapas_concluidas }} de {{ progresso.etapas_total }} etapas ·
-            {{ progresso.moveis_prontos }} de {{ progresso.moveis_total }} móveis prontos
-          </span>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <span
-            v-if="entrega"
-            class="text-sm"
-            :class="entrega.atrasada ? 'font-semibold text-red-700' : 'text-zinc-600'"
-            data-testid="previsao-entrega"
-          >
-            Entrega prevista {{ entrega.data }} · {{ entrega.texto }}
-          </span>
+        <div class="flex flex-wrap items-center gap-6">
+          <div class="w-72">
+            <BaseProgressBar :valor="percentual" rotulo="Progresso geral" :tom="percentual >= 100 ? 'sucesso' : 'primario'" />
+            <p class="mt-1 text-xs text-zinc-500" data-testid="progresso">
+              {{ progresso.etapas_concluidas }} de {{ progresso.etapas_total }} etapas ·
+              {{ progresso.moveis_prontos }} de {{ progresso.moveis_total }} móveis prontos
+            </p>
+          </div>
+          <BaseStatusPill v-if="entrega" :tom="entrega.atrasada ? 'perigo' : 'neutro'">
+            <span data-testid="previsao-entrega">Entrega prevista {{ entrega.data }} · {{ entrega.texto }}</span>
+          </BaseStatusPill>
           <!-- Spec 14 D8: as etiquetas dos volumes (os prontos já vêm marcados) -->
           <BaseButton v-if="producao.moveis.length" variant="secondary" size="sm" data-testid="abrir-etiquetas" @click="abrirEtiquetas">
-            Etiquetas
+            <Printer :size="14" class="mr-1" /> Etiquetas
           </BaseButton>
         </div>
-      </div>
+      </section>
 
       <!-- OS fechada: só leitura (D10) -->
-      <p v-if="!editavel" class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600" data-testid="producao-fechada">
+      <p v-if="!editavel" class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600" data-testid="producao-fechada">
         {{ fraseFechada }}
       </p>
 
       <template v-else>
         <!-- Feito por, seleção e filtro (D5, D6, D9) -->
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-6 py-4">
           <label v-if="funcionarios.length" class="flex items-center gap-2 text-sm text-zinc-700">
             Feito por:
+            <!-- eslint-disable-next-line vue/no-restricted-html-elements -- nativo: lista curta e fixa; os testes escolhem pelo value e o BaseSelect é um combobox com busca -->
             <select
               v-model="feitoPorTexto"
-              class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+              class="min-h-11 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
               data-testid="feito-por"
             >
               <option value="">Eu (usuário logado)</option>
@@ -273,7 +302,7 @@ async function moverStatus() {
               {{ modoSelecao ? 'Sair da seleção' : 'Selecionar' }}
             </BaseButton>
             <label class="flex items-center gap-2 text-sm text-zinc-700">
-              <input v-model="esconderProntos" type="checkbox" class="accent-brand-primary" data-testid="esconder-prontos" />
+              <input v-model="esconderProntos" type="checkbox" class="h-4 w-4 accent-brand-primary" data-testid="esconder-prontos" />
               Esconder móveis prontos
             </label>
           </div>
@@ -314,8 +343,16 @@ async function moverStatus() {
       </template>
 
       <!-- Os móveis, agrupados por ambiente (D3) -->
-      <section v-for="ambiente in ambientes" :key="ambiente.nome" class="space-y-2">
-        <p class="text-xs font-bold uppercase tracking-wide text-zinc-500">{{ ambiente.nome }}</p>
+      <AmbienteSecao
+        v-for="(ambiente, indice) in ambientes"
+        :key="ambiente.nome"
+        :numero="indice + 1"
+        :nome="ambiente.nome"
+        :contagem="`${ambiente.moveis.length} ${ambiente.moveis.length === 1 ? 'móvel' : 'móveis'}`"
+        :progresso="ambiente.progresso"
+        :inativo="ambiente.progresso === 0"
+        destaque
+      >
         <MovelProducaoCard
           v-for="movel in ambiente.moveis"
           :key="movel.movel_id"
@@ -331,7 +368,7 @@ async function moverStatus() {
           @imprimir-etiquetas="etiquetasPara = [movel.movel_id]"
           @aplicar-padrao="aplicarPadrao(movel.movel_id)"
         />
-      </section>
+      </AmbienteSecao>
       <p v-if="!producao.moveis.length" class="text-sm text-zinc-500">Esta OS não tem móveis.</p>
       <p v-if="escondidos" class="text-sm text-emerald-700" data-testid="prontos-escondidos">
         {{ escondidos }} {{ escondidos === 1 ? 'móvel pronto escondido' : 'móveis prontos escondidos' }}.

@@ -1,20 +1,21 @@
 <script setup lang="ts">
 /**
  * @component BlocoInstalacao
- * @description Instalação do orçamento (Spec 06B §6.2, D16; SPEC-00 C3).
+ * @description Instalação do orçamento (Spec 06B §6.2, D16; SPEC-00 C3) — a
+ * coluna da esquerda da seção "Instalação e medição" (redesign 10/2026).
  *
- * - Quem vê custos: caixa "Cobrar instalação" + custo; o PREÇO vem da API.
- *   Caixa desmarcada manda `instalacao_custo_centavos = null` (sem a linha).
+ * - Quem vê custos: chave "Cobrar instalação" + custo; o PREÇO vem da API.
+ *   Chave desligada manda `instalacao_custo_centavos = null` (sem a linha).
  * - Quem não vê custos: só o preço (o custo nem chega na resposta).
  */
 import { computed } from 'vue';
 
-import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
+import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 
 import { useEditor } from '../../composables/useEditorContexto';
-import { centavosParaReais, reaisParaCentavos } from '../../utils/conversoes';
+import { centavosParaReais, formatarBp, reaisParaCentavos } from '../../utils/conversoes';
 
 const { form, detalhe, editavel, incluiCustos } = useEditor();
 
@@ -30,6 +31,9 @@ const cobrar = computed({
   set: (marcado: boolean) => { form.instalacao_custo_centavos = marcado ? (form.instalacao_custo_centavos ?? 0) : null; },
 });
 
+/** O markup deste orçamento, para a dica do preço ("markup de 90%"). */
+const markup = computed(() => (form.markup_bp != null ? formatarBp(form.markup_bp) : null));
+
 /** O campo de dinheiro trabalha em R$; o formulário guarda centavos. */
 const custoReais = computed({
   get: () => centavosParaReais(form.instalacao_custo_centavos ?? 0),
@@ -38,29 +42,52 @@ const custoReais = computed({
 </script>
 
 <template>
-  <section class="rounded-2xl border border-zinc-200 bg-white p-5" :class="instalacaoRecusada ? 'opacity-60' : ''" aria-labelledby="titulo-instalacao">
-    <h2 id="titulo-instalacao" class="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-800">
-      Instalação
-      <span v-if="instalacaoRecusada" class="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">Não aprovada</span>
-    </h2>
-
-    <!-- Com custos: liga/desliga e informa o custo; o preço vem pronto. -->
-    <div v-if="incluiCustos" class="flex flex-wrap items-end gap-6">
-      <BaseCheckbox v-model="cobrar" label="Cobrar instalação" :disabled="!editavel" />
-      <div v-if="cobrar" class="w-40">
-        <MoneyInput v-model="custoReais" label="Custo" :disabled="!editavel" />
-      </div>
-      <p v-if="cobrar" class="text-sm text-zinc-600">
-        Preço <span class="font-semibold tabular-nums text-zinc-800">{{ preco != null ? formatCurrency(preco) : '—' }}</span>
-      </p>
+  <div class="flex flex-col gap-4" :class="instalacaoRecusada ? 'opacity-60' : ''" aria-labelledby="titulo-instalacao">
+    <div class="flex items-center justify-between gap-3">
+      <h3 id="titulo-instalacao" class="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+        Instalação
+        <BaseStatusPill v-if="instalacaoRecusada" tom="neutro">Não aprovada</BaseStatusPill>
+      </h3>
+      <!-- Com custos: a chave liga/desliga a cobrança (role="switch": o leitor de tela anuncia o estado). -->
+      <button
+        v-if="incluiCustos && editavel"
+        type="button"
+        role="switch"
+        :aria-checked="cobrar"
+        class="flex shrink-0 items-center gap-2.5 text-sm whitespace-nowrap text-zinc-700 cursor-pointer"
+        data-testid="cobrar-instalacao"
+        @click="cobrar = !cobrar"
+      >
+        Cobrar na proposta
+        <span :class="['relative h-6 w-10 shrink-0 rounded-full transition-colors', cobrar ? 'bg-brand-primary' : 'bg-zinc-300']">
+          <span :class="['absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all', cobrar ? 'left-[1.125rem]' : 'left-0.5']" />
+        </span>
+      </button>
     </div>
+
+    <!-- Com custos: o custo e o preço que a API calculou. -->
+    <template v-if="incluiCustos">
+      <div v-if="cobrar" class="grid grid-cols-2 gap-4">
+        <MoneyInput v-model="custoReais" label="Custo" :disabled="!editavel" />
+        <div>
+          <span class="mb-1 block text-xs font-medium text-gray-700">Preço na proposta</span>
+          <div class="flex min-h-10 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm font-semibold tabular-nums text-zinc-900">
+            {{ preco != null ? formatCurrency(preco) : '—' }}
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-zinc-500">
+        <template v-if="cobrar">Preço calculado com o markup do orçamento<template v-if="markup"> ({{ markup }})</template>.</template>
+        <template v-else>Sem instalação na proposta.</template>
+      </p>
+    </template>
 
     <!-- Sem custos: só o preço (D16). -->
     <p v-else class="text-sm text-zinc-600" data-testid="instalacao-so-preco">
       <template v-if="preco != null">
-        Instalação incluída: <span class="font-semibold tabular-nums text-zinc-800">{{ formatCurrency(preco) }}</span>
+        Instalação incluída: <span class="font-semibold tabular-nums text-zinc-900">{{ formatCurrency(preco) }}</span>
       </template>
       <template v-else>Sem instalação.</template>
     </p>
-  </section>
+  </div>
 </template>

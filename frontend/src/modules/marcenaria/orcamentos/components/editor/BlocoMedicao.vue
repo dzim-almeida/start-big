@@ -24,23 +24,23 @@ const observacoes = computed({
 </script>
 
 <template>
-  <section class="rounded-2xl border border-zinc-200 bg-white p-5" aria-labelledby="titulo-medicao">
-    <h2 id="titulo-medicao" class="mb-4 text-sm font-bold text-zinc-800">Medição</h2>
+  <div class="flex flex-col gap-3" aria-labelledby="titulo-medicao">
+    <h3 id="titulo-medicao" class="text-sm font-semibold text-zinc-900">Medição</h3>
 
     <BaseTextarea
       v-model="observacoes"
-      label="Medidas e observações da medição"
+      label="Medidas e observações"
       placeholder="Ex.: parede da pia 3,20 m; tomada a 1,10 m do piso; janela à esquerda."
       :rows="3"
       :disabled="!editavel"
     />
 
-    <div class="mt-4">
-      <p class="mb-2 text-xs font-medium text-zinc-600">Fotos e arquivos</p>
+    <div>
+      <p class="mb-1.5 text-xs font-medium text-zinc-600">Fotos e arquivos</p>
       <AnexosOrcamento v-if="id != null" />
-      <p v-else class="text-xs text-zinc-400">
+      <p v-else class="text-xs text-zinc-500">
         Os anexos ficam disponíveis assim que o orçamento for criado (escolha o cliente ou dê um nome ao projeto).
       </p>
     </div>
-  </section>
+  </div>
 </template>

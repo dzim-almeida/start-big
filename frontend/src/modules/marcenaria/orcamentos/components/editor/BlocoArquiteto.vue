@@ -108,58 +108,60 @@ const fraseModo = computed(() =>
 const semPercentual = computed(() => avisoRtZero(detalhe.value));
 
 const CLASSE_PERCENTUAL =
-  'w-20 rounded-lg border px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:bg-zinc-50 disabled:text-zinc-500';
+  'min-h-9 w-20 rounded-md border bg-white px-2.5 py-1.5 text-sm tabular-nums text-gray-700 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary disabled:bg-gray-100 disabled:cursor-not-allowed';
 </script>
 
 <template>
-  <section class="rounded-2xl border border-zinc-200 bg-white p-5" aria-labelledby="titulo-arquiteto" data-testid="bloco-arquiteto">
-    <h2 id="titulo-arquiteto" class="mb-3 text-sm font-bold text-zinc-800">Arquiteto</h2>
-
+  <!-- Uma coluna da ficha "Cliente e projeto" (redesign 10/2026): quem indicou e o RT. -->
+  <div class="flex flex-col gap-2" data-testid="bloco-arquiteto">
     <!-- Fora do rascunho: só leitura (D8). -->
-    <p v-if="!editavel" class="text-sm text-zinc-700" data-testid="arquiteto-leitura">
-      {{ atual ? atual.nome : 'Nenhum arquiteto indicou este cliente.' }}
-    </p>
+    <template v-if="!editavel">
+      <span class="block text-xs font-medium text-gray-700">Indicado por (arquiteto)</span>
+      <p class="flex min-h-10 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700" data-testid="arquiteto-leitura">
+        {{ atual ? atual.nome : 'Nenhum' }}
+      </p>
+    </template>
 
-    <div v-else class="flex flex-wrap items-end gap-4">
-      <div class="w-72">
-        <BaseSelect v-model="selecionado" label="Quem indicou" :options="opcoes" :disabled="gravando" placeholder="Nenhum" />
-      </div>
+    <template v-else>
+      <BaseSelect v-model="selecionado" label="Indicado por (arquiteto)" :options="opcoes" :disabled="gravando" placeholder="Nenhum" />
       <button
         v-if="podeCadastrarFornecedor"
         type="button"
-        class="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline cursor-pointer"
+        class="inline-flex items-center gap-1 self-start text-xs font-semibold text-brand-primary hover:underline cursor-pointer"
         data-testid="cadastrar-arquiteto"
         @click="cadastrar"
       >
         <Plus :size="12" /> Cadastrar arquiteto
       </button>
-    </div>
+    </template>
 
-    <!-- Só com custos (D1, D6, D12) -->
-    <div v-if="incluiCustos && arquitetoComCustos" class="mt-4 flex flex-col gap-1.5" data-testid="rt-com-custos">
-      <label class="flex items-center gap-2 text-xs text-zinc-600">
-        RT
-        <input
-          :value="textoRt"
-          type="text"
-          inputmode="decimal"
-          :disabled="!editavel"
-          :class="[CLASSE_PERCENTUAL, erroRt ? 'border-red-400' : 'border-zinc-200']"
-          aria-label="RT do arquiteto em percentual"
-          data-testid="rt-percentual"
-          @input="digitarRt"
-        />
-        <span class="text-zinc-400">%</span>
-      </label>
-      <p v-if="erroRt" class="text-[11px] text-red-600">{{ erroRt }}</p>
-      <p class="text-xs text-zinc-600" data-testid="rt-previsto">
-        {{ arquitetoComCustos.nome }} recebe <strong class="tabular-nums">{{ formatCurrency(arquitetoComCustos.valor_previsto_centavos) }}</strong>
-      </p>
-      <p class="text-[11px] text-zinc-400">{{ fraseModo }}</p>
-      <p v-if="semPercentual" class="mt-1 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="aviso-rt-zero">
+    <!-- Só com custos (D1, D6, D12): o RT deste orçamento e quanto o arquiteto recebe -->
+    <div v-if="incluiCustos && arquitetoComCustos" class="flex flex-col gap-1.5 rounded-lg bg-zinc-50 px-3 py-2.5" data-testid="rt-com-custos">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <label class="flex items-center gap-2 text-xs font-medium text-zinc-600">
+          RT
+          <input
+            :value="textoRt"
+            type="text"
+            inputmode="decimal"
+            :disabled="!editavel"
+            :class="[CLASSE_PERCENTUAL, erroRt ? 'border-red-400' : 'border-gray-300']"
+            aria-label="RT do arquiteto em percentual"
+            data-testid="rt-percentual"
+            @input="digitarRt"
+          />
+          <span class="text-zinc-500">%</span>
+        </label>
+        <p class="text-xs text-zinc-600" data-testid="rt-previsto">
+          {{ arquitetoComCustos.nome }} recebe <strong class="tabular-nums">{{ formatCurrency(arquitetoComCustos.valor_previsto_centavos) }}</strong>
+        </p>
+      </div>
+      <p v-if="erroRt" class="text-xs text-red-600">{{ erroRt }}</p>
+      <p class="text-xs text-zinc-500">{{ fraseModo }}</p>
+      <p v-if="semPercentual" class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="aviso-rt-zero">
         <AlertTriangle :size="14" class="mt-0.5 shrink-0" />
         {{ semPercentual.texto }}
       </p>
     </div>
-  </section>
+  </div>
 </template>

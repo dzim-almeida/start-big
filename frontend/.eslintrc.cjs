@@ -15,5 +15,20 @@ module.exports = {
     
     // Evita erro se você usar 'any' no TypeScript (útil durante migrações, mas evite usar)
     '@typescript-eslint/no-explicit-any': 'warn'
-  }
+  },
+  overrides: [
+    {
+      // Marcenaria (redesign 10/2026): campo de formulário é componente base,
+      // para o módulo não voltar a sair do padrão visual do sistema. Exceção
+      // precisa de motivo escrito: `<!-- eslint-disable-next-line ... -- motivo -->`.
+      files: ['src/modules/marcenaria/**/*.vue'],
+      excludedFiles: ['**/__tests__/**', '**/*Print*.vue'],
+      rules: {
+        'vue/no-restricted-html-elements': ['error',
+          { element: 'select', message: 'Use o BaseSelect (shared/components/ui).' },
+          { element: 'textarea', message: 'Use o BaseTextarea (shared/components/ui).' },
+        ],
+      },
+    },
+  ],
 }

@@ -176,7 +176,7 @@ async function confirmar() {
             type="text"
             maxlength="150"
             placeholder="Quem assinou na obra"
-            class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+            class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary font-normal"
             data-testid="recebido-por"
           />
         </label>
@@ -223,10 +223,11 @@ async function confirmar() {
 
       <label class="flex flex-col gap-1 text-sm font-medium text-zinc-700">
         Pendências (uma por linha)
+        <!-- eslint-disable-next-line vue/no-restricted-html-elements -- nativo: precisa de maxlength e data-testid no próprio campo; o BaseTextarea ainda não os repassa -->
         <textarea
           v-model="pendencias"
           rows="3"
-          class="rounded-lg border px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+          class="rounded-md border bg-white px-3 py-2 text-sm font-normal text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
           :class="tentou && erroPendencias ? 'border-red-400' : 'border-zinc-300'"
           placeholder="Ex.: porta do aéreo 2 desalinhada"
           data-testid="pendencias"
@@ -239,7 +240,8 @@ async function confirmar() {
 
       <label class="flex flex-col gap-1 text-sm font-medium text-zinc-700">
         Observações
-        <textarea v-model="observacoes" rows="2" maxlength="1000" class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+        <!-- eslint-disable-next-line vue/no-restricted-html-elements -- nativo: precisa de maxlength e data-testid no próprio campo; o BaseTextarea ainda não os repassa -->
+        <textarea v-model="observacoes" rows="2" maxlength="1000" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary font-normal" />
       </label>
 
       <!-- As fotos: sobem para a galeria da OS antes do registro (13A D7) -->

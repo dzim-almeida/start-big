@@ -48,17 +48,20 @@ const toast = useToast();
  * fotos são a ARTE — o mockup que o cliente aprova pelo celular —, e chamá-las
  * de diagnóstico manda o atendente procurar algo que não existe ali.
  */
-const { temDiagnostico } = useCapacidades();
+// Marcenaria (orçamento técnico): não é laudo nem arte — são as fotos da obra.
+const { temDiagnostico, temOrcamentoTecnico } = useCapacidades();
 
-const tituloGaleria = computed(() =>
-  temDiagnostico.value ? 'Fotos do Diagnóstico' : 'Fotos da Arte',
-);
+const tituloGaleria = computed(() => {
+  if (temDiagnostico.value) return 'Fotos do Diagnóstico';
+  return temOrcamentoTecnico.value ? 'Fotos da obra' : 'Fotos da Arte';
+});
 
-const vazioGaleria = computed(() =>
-  temDiagnostico.value
-    ? 'Fotos do objeto e diagnóstico aparecerão aqui.'
-    : 'Anexe aqui a arte que o cliente vai aprovar.',
-);
+const vazioGaleria = computed(() => {
+  if (temDiagnostico.value) return 'Fotos do objeto e diagnóstico aparecerão aqui.';
+  return temOrcamentoTecnico.value
+    ? 'Medição, projeto e montagem: as fotos aparecem aqui.'
+    : 'Anexe aqui a arte que o cliente vai aprovar.';
+});
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const deleteMutation = useDeleteFotoOSMutation();

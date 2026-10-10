@@ -9,12 +9,13 @@
  */
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router';
-import { Plus } from 'lucide-vue-next';
+import { CheckCircle2, Clock, PencilLine, Plus, Send } from 'lucide-vue-next';
 import { refDebounced } from '@vueuse/core';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+import BaseStatsCard from '@/shared/components/layout/StatsCard/BaseStatsCard.vue';
 import { useOsEmployeesGet } from '@/modules/order-service/ordens/composables/request/relationship/useOSRelationshipGet.queries';
 
 import OrcamentosFiltros, { type ChipFiltro } from '../components/lista/OrcamentosFiltros.vue';
@@ -109,16 +110,31 @@ const novo = () => router.push({ name: 'marcenaria-orcamento-novo' });
 
 <template>
   <!-- Sem permissão de ver (o menu já esconde o item; isto é para quem digitou o endereço). -->
-  <div v-if="!podeVer" class="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500" data-testid="sem-permissao">
-    Você não tem permissão para ver orçamentos.
+  <div v-if="!podeVer" class="p-4 md:p-6 lg:p-8">
+    <div class="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500" data-testid="sem-permissao">
+      Você não tem permissão para ver orçamentos.
+    </div>
   </div>
 
-  <div v-else class="flex flex-col gap-6 md:gap-8">
+  <div v-else class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex items-center justify-between gap-4">
-      <PageReview title="Orçamentos" description="Propostas de móveis planejados, do rascunho à aprovação" />
+      <PageReview title="Todos os orçamentos" description="Acompanhe cada proposta, do rascunho até virar Ordem de Serviço." />
       <BaseButton v-if="podeGerir" variant="primary" data-testid="novo-orcamento" @click="novo">
-        <Plus :size="16" class="mr-1.5" /> Novo orçamento
+        <Plus :size="20" class="mr-2" /> Novo orçamento
       </BaseButton>
+    </div>
+
+    <!-- Indicadores (D48): as mesmas contagens do filtro, sem custo extra de API. -->
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
+      <BaseStatsCard :icon="PencilLine" label="Rascunhos" :value="String(contagens?.RASCUNHO ?? 0)" />
+      <BaseStatsCard :icon="Send" label="Enviados" :value="String(contagens?.ENVIADO ?? 0)" />
+      <BaseStatsCard
+        :icon="Clock"
+        label="Vencem em 3 dias"
+        :value="String(contagens?.vence_em_3_dias ?? 0)"
+        :tone="contagens?.vence_em_3_dias ? 'alerta' : 'neutro'"
+      />
+      <BaseStatsCard :icon="CheckCircle2" label="Aprovados" :value="String(contagens?.APROVADO ?? 0)" />
     </div>
 
     <BaseTableContainer

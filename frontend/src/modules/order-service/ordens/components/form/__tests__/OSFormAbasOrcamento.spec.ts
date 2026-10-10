@@ -84,11 +84,11 @@ function montarAbas(criando: boolean) {
 /** Rótulos das abas do modal de OS para um segmento. */
 function abas(caps: string[], criando = false): string[] {
   capacidades.value = caps;
-  return montarAbas(criando).findAll('button').map((b) => b.text());
+  return montarAbas(criando).findAll('[role="tab"]').map((b) => b.text());
 }
 
-/** O rótulo da aba ativa (a que tem o fundo branco). */
-const abaAtiva = (w: ReturnType<typeof montarAbas>) => w.findAll('button').find((b) => b.classes().includes('bg-white'))?.text();
+/** O rótulo da aba ativa (`aria-selected`: vale para as abas em pílula e as sublinhadas da marcenaria). */
+const abaAtiva = (w: ReturnType<typeof montarAbas>) => w.findAll('[role="tab"]').find((b) => b.attributes('aria-selected') === 'true')?.text();
 
 describe('abas do modal de OS', () => {
   it('01 — informática: as abas de hoje', () => {
@@ -100,9 +100,9 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Separação" (10B), "Produção" (12B), "Entrega" (13B) e "Orçamento"', () => {
+  it('02 — marcenaria, OS existente: "Visão Geral" no lugar do objeto, "Separação" (10B), "Produção" (12B), "Entrega & Fotos" (13B) e "Orçamento"', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Equipamento', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega', 'Orçamento',
+      'Visão Geral', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega & Fotos', 'Orçamento',
     ]);
   });
 
@@ -111,7 +111,7 @@ describe('abas do modal de OS', () => {
     useOSCreateFlow().abaInicial.value = 'entrega';
     const w = montarAbas(false);
     await flushPromises();
-    expect(abaAtiva(w)).toBe('Entrega');
+    expect(abaAtiva(w)).toBe('Entrega & Fotos');
     expect(w.find('[data-testid="aba-entrega-marcador"]').exists()).toBe(true);
   });
 
@@ -121,10 +121,10 @@ describe('abas do modal de OS', () => {
     expect(lista).not.toContain('Separação');
   });
 
-  it('12B/14 — sem aba inicial pedida, abre em "objeto" (como hoje)', () => {
+  it('12B/14 — sem aba inicial pedida, abre em "objeto" (na marcenaria, a Visão Geral)', () => {
     capacidades.value = ['imagem_na_entrada', 'orcamento_tecnico'];
     const w = montarAbas(false);
-    expect(abaAtiva(w)).toBe('Equipamento');
+    expect(abaAtiva(w)).toBe('Visão Geral');
   });
 
   it('12B/13 — o quadro pede "producao": abre na Produção, e o pedido vale uma vez só', async () => {

@@ -408,21 +408,27 @@ describe('quadro da fábrica (Serviços › Produção)', () => {
 
   it('filtros: "Só atrasadas", status e busca (D17)', async () => {
     await montarQuadro();
-    const atrasadas = el('so-atrasadas') as HTMLInputElement;
+    // Os filtros são os componentes base (BaseCheckbox, BaseFilter, BaseSearchInput): o campo fica dentro do marcador.
+    const atrasadas = el('so-atrasadas')!.querySelector('input') as HTMLInputElement;
     atrasadas.checked = true;
     atrasadas.dispatchEvent(new Event('change'));
     await flushPromises();
     expect(linhas()).toEqual(['linha-OS-2026-000003']);
     atrasadas.checked = false;
     atrasadas.dispatchEvent(new Event('change'));
-    const status = el('filtro-status') as HTMLSelectElement;
-    status.value = 'ABERTA';
-    status.dispatchEvent(new Event('change'));
+    // Situação: abre o filtro e escolhe a opção pelo rótulo do segmento.
+    const opcaoDoFiltro = (texto: string) =>
+      [...el('filtro-status')!.querySelectorAll('button')].find((b) => b.textContent?.trim() === texto) as HTMLButtonElement;
+    (el('filtro-status')!.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    opcaoDoFiltro('Aberta').click();
     await flushPromises();
     expect(linhas()).toEqual(['linha-OS-2026-000002']);
-    status.value = '';
-    status.dispatchEvent(new Event('change'));
-    const busca = el('busca-quadro') as HTMLInputElement;
+    (el('filtro-status')!.querySelector('button') as HTMLButtonElement).click();
+    await flushPromises();
+    opcaoDoFiltro('Todos').click();
+    await flushPromises();
+    const busca = el('busca-quadro')!.querySelector('input') as HTMLInputElement;
     busca.value = '000003';
     busca.dispatchEvent(new Event('input'));
     await flushPromises();

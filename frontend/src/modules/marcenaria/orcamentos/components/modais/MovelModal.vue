@@ -89,11 +89,27 @@ watch(() => props.isOpen, async (aberto) => {
 
 const mudou = computed(() => JSON.stringify(form.value) !== original);
 const criando = computed(() => !props.movel);
-const titulo = computed(() => {
+const titulo = computed(() => (criando.value ? 'Novo móvel' : props.editavel ? 'Editar móvel' : 'Móvel'));
+/** O ambiente vai no subtítulo do modal ("Ambiente: Cozinha Gourmet"). */
+const subtitulo = computed(() => {
   const ambiente = props.ambientes.find((a) => a.id === form.value.ambiente_id)?.nome;
-  const base = criando.value ? 'Novo móvel' : props.editavel ? 'Editar móvel' : 'Móvel';
-  return ambiente ? `${base} — ${ambiente}` : base;
+  return ambiente ? `Ambiente: ${ambiente}` : undefined;
 });
+
+/** Classes do card de opção (Produção): borda azul no escolhido, como no design. */
+const classeOpcao = (ativa: boolean) => [
+  'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors',
+  ativa ? 'border-2 border-brand-primary bg-brand-primary-light' : 'border-zinc-200 bg-white hover:border-zinc-300',
+];
+
+/** Título de cada seção numerada do modal. */
+const CLASSE_SECAO = 'flex items-center gap-2.5 text-sm font-semibold text-zinc-900';
+const CLASSE_NUMERO = 'flex h-6 w-6 items-center justify-center rounded-lg bg-brand-primary-light text-xs font-bold text-brand-primary';
+const OPCOES_MAO_OBRA = [
+  { valor: 'NENHUMA', rotulo: 'Sem mão de obra' },
+  { valor: 'FIXA', rotulo: 'Valor fixo' },
+  { valor: 'HORAS', rotulo: 'Horas' },
+] as const;
 
 /** Valida com as regras do backend; erros por campo e por linha de insumo. */
 function validar(): boolean {
@@ -232,126 +248,149 @@ onKeyStroke('Escape', () => {
 </script>
 
 <template>
-  <BaseModal :is-open="isOpen" :title="titulo" size="xl" @close="pedirFechar">
-    <fieldset :disabled="!editavel" class="flex flex-col gap-5">
-      <!-- Nome e descrição -->
-      <div class="grid grid-cols-1 gap-4">
-        <BaseInput ref="campoNome" v-model="form.nome" label="Nome" required :error="erros.nome" data-testid="movel-nome" />
+  <BaseModal :is-open="isOpen" :title="titulo" :subtitle="subtitulo" size="xl" @close="pedirFechar">
+    <fieldset :disabled="!editavel" class="flex flex-col divide-y divide-zinc-100">
+      <!-- 1. Identificação -->
+      <section class="flex flex-col gap-4 pb-6">
+        <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">1</span>Identificação</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_10rem]">
+          <BaseInput ref="campoNome" v-model="form.nome" label="Nome do móvel" required :error="erros.nome" data-testid="movel-nome" />
+          <BaseInput v-model.number="quantidade" type="number" label="Quantidade" min="1" step="1" required :error="erros.quantidade" />
+        </div>
         <div>
           <BaseTextarea v-model="form.descricao" label="Descrição" :rows="2" :error="erros.descricao" placeholder="Ex.: MDF Branco TX e Freijó, corrediças com amortecedor" />
-          <p class="mt-1 text-[11px] text-zinc-400">Sai na proposta. Até {{ LIMITES.descricaoMovel }} caracteres.</p>
+          <p class="mt-1 text-xs text-zinc-500">Sai na proposta. Até {{ LIMITES.descricaoMovel }} caracteres.</p>
         </div>
-      </div>
-
-      <!-- Medidas (mm) e quantidade (D24) -->
-      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <BaseInput v-model.number="largura" type="number" label="Largura (mm)" min="1" step="1" :error="erros.largura_mm" />
-        <BaseInput v-model.number="altura" type="number" label="Altura (mm)" min="1" step="1" :error="erros.altura_mm" />
-        <BaseInput v-model.number="profundidade" type="number" label="Profundidade (mm)" min="1" step="1" :error="erros.profundidade_mm" />
-        <BaseInput v-model.number="quantidade" type="number" label="Quantidade" min="1" step="1" required :error="erros.quantidade" />
-      </div>
-
-      <!-- Ambiente: só ao editar (mover o móvel de ambiente, 06A §6.1) -->
-      <div v-if="!criando && ambientes.length > 1" class="max-w-xs">
-        <BaseSelect v-model="ambienteSelecionado" label="Ambiente" :options="opcoesAmbiente" />
-      </div>
-
-      <!-- Produção (D29) -->
-      <fieldset>
-        <legend class="mb-2 text-xs font-medium text-zinc-600">Produção</legend>
-        <div class="flex flex-wrap items-end gap-4">
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.tipo_producao" type="radio" value="INTERNA" class="accent-brand-primary" /> Interna
-          </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.tipo_producao" type="radio" value="TERCEIRIZADA" class="accent-brand-primary" data-testid="producao-terceirizada" /> Terceirizada
-          </label>
-          <template v-if="terceirizado">
-            <div class="w-64">
-              <BaseSelect v-model="central" label="Central parceira" required :options="opcoesCentral" :error="erros.central_fornecedor_id" placeholder="Escolha a central" />
-            </div>
-            <div v-if="incluiCustos" class="w-40" data-testid="valor-central">
-              <MoneyInput v-model="valorCentral" label="Valor da central" :error="erros.terceirizado_reais" />
-            </div>
-          </template>
+        <!-- Ambiente: só ao editar (mover o móvel de ambiente, 06A §6.1) -->
+        <div v-if="!criando && ambientes.length > 1" class="max-w-xs">
+          <BaseSelect v-model="ambienteSelecionado" label="Ambiente" :options="opcoesAmbiente" />
         </div>
-        <p v-if="erros.central_fornecedor_id" class="mt-1 text-[11px] text-red-600" data-testid="erro-central">{{ erros.central_fornecedor_id }}</p>
-      </fieldset>
+      </section>
 
-      <!-- Insumos (D25-D27) -->
-      <InsumosEditor
-        ref="editorInsumos"
-        v-model="form.insumos"
-        :inclui-custos="incluiCustos"
-        :editavel="editavel"
-        :pode-cadastrar="podeCadastrarInsumo"
-        :erros="errosInsumos"
-        @cadastrar="abrirCadastro"
-      />
-      <p v-if="erros.insumos" class="text-[11px] text-red-600">{{ erros.insumos }}</p>
+      <!-- 2. Dimensões (mm, D24) -->
+      <section class="flex flex-col gap-4 py-6">
+        <div class="flex items-center justify-between">
+          <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">2</span>Dimensões</h3>
+          <span class="text-xs text-zinc-500">em milímetros</span>
+        </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <BaseInput v-model.number="largura" type="number" label="Largura (L)" min="1" step="1" :error="erros.largura_mm" />
+          <BaseInput v-model.number="altura" type="number" label="Altura (A)" min="1" step="1" :error="erros.altura_mm" />
+          <BaseInput v-model.number="profundidade" type="number" label="Profundidade (P)" min="1" step="1" :error="erros.profundidade_mm" />
+        </div>
+      </section>
 
-      <!-- Mão de obra (C4, D28): só quem vê custos -->
-      <fieldset v-if="incluiCustos" data-testid="mao-obra">
-        <legend class="mb-2 text-xs font-medium text-zinc-600">Mão de obra (por unidade)</legend>
-        <div class="flex flex-wrap items-end gap-4">
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.mao_obra_modo" type="radio" value="NENHUMA" class="accent-brand-primary" /> Sem mão de obra
+      <!-- 3. Produção (D29) -->
+      <section class="flex flex-col gap-4 py-6">
+        <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">3</span>Produção</h3>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2" role="radiogroup" aria-label="Tipo de produção">
+          <label :class="classeOpcao(form.tipo_producao === 'INTERNA')">
+            <input v-model="form.tipo_producao" type="radio" value="INTERNA" class="mt-0.5 h-4 w-4 accent-brand-primary" />
+            <span>
+              <span class="block text-sm font-semibold text-zinc-900">Produção interna</span>
+              <span class="text-xs text-zinc-500">Corte, borda e montagem na marcenaria própria.</span>
+            </span>
           </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.mao_obra_modo" type="radio" value="FIXA" class="accent-brand-primary" /> Valor fixo
+          <label :class="classeOpcao(terceirizado)">
+            <input v-model="form.tipo_producao" type="radio" value="TERCEIRIZADA" class="mt-0.5 h-4 w-4 accent-brand-primary" data-testid="producao-terceirizada" />
+            <span>
+              <span class="block text-sm font-semibold text-zinc-900">Terceirizada</span>
+              <span class="text-xs text-zinc-500">As peças vêm prontas de uma central parceira.</span>
+            </span>
           </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.mao_obra_modo" type="radio" value="HORAS" class="accent-brand-primary" /> Horas
-          </label>
-          <div v-if="form.mao_obra_modo === 'FIXA'" class="w-40">
-            <MoneyInput v-model="valorMaoObra" label="Valor" />
-          </div>
-          <div v-if="form.mao_obra_modo === 'HORAS'" class="w-28">
-            <BaseInput v-model.number="horas" type="number" label="Horas" min="0" step="0.25" />
+        </div>
+        <div v-if="terceirizado" class="grid grid-cols-1 gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 md:grid-cols-[minmax(0,1fr)_12rem]">
+          <BaseSelect v-model="central" label="Central parceira" required :options="opcoesCentral" :error="erros.central_fornecedor_id" placeholder="Escolha a central" />
+          <div v-if="incluiCustos" data-testid="valor-central">
+            <MoneyInput v-model="valorCentral" label="Valor da central" :error="erros.terceirizado_reais" />
           </div>
         </div>
-        <p v-if="form.mao_obra_modo === 'HORAS'" class="mt-2 text-xs text-zinc-500">
-          Custo/hora deste orçamento: {{ formatCurrency(custoHoraCentavos ?? 0) }}
+        <p v-if="erros.central_fornecedor_id" class="text-xs text-red-600" data-testid="erro-central">{{ erros.central_fornecedor_id }}</p>
+      </section>
+
+      <!-- 4. Insumos (D25-D27) -->
+      <section class="flex flex-col gap-4 py-6">
+        <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">4</span>Insumos</h3>
+        <InsumosEditor
+          ref="editorInsumos"
+          v-model="form.insumos"
+          :inclui-custos="incluiCustos"
+          :editavel="editavel"
+          :pode-cadastrar="podeCadastrarInsumo"
+          :erros="errosInsumos"
+          @cadastrar="abrirCadastro"
+        />
+        <p v-if="erros.insumos" class="text-xs text-red-600">{{ erros.insumos }}</p>
+      </section>
+
+      <!-- 5. Mão de obra (C4, D28): só quem vê custos -->
+      <section class="flex flex-col gap-4 py-6">
+        <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">5</span>Mão de obra <span class="text-xs font-normal text-zinc-500">por unidade</span></h3>
+        <fieldset v-if="incluiCustos" data-testid="mao-obra">
+          <legend class="sr-only">Mão de obra (por unidade)</legend>
+          <div class="flex flex-wrap items-end gap-4">
+            <div class="flex rounded-xl border border-zinc-200 bg-white p-1" role="radiogroup" aria-label="Como cobrar a mão de obra">
+              <label
+                v-for="opcao in OPCOES_MAO_OBRA"
+                :key="opcao.valor"
+                :class="['flex min-h-9 cursor-pointer items-center rounded-lg px-3 text-xs font-semibold', form.mao_obra_modo === opcao.valor ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50']"
+              >
+                <input v-model="form.mao_obra_modo" type="radio" :value="opcao.valor" class="sr-only" />
+                {{ opcao.rotulo }}
+              </label>
+            </div>
+            <div v-if="form.mao_obra_modo === 'FIXA'" class="w-40">
+              <MoneyInput v-model="valorMaoObra" label="Valor" />
+            </div>
+            <div v-if="form.mao_obra_modo === 'HORAS'" class="w-28">
+              <BaseInput v-model.number="horas" type="number" label="Horas" min="0" step="0.25" />
+            </div>
+            <p v-if="form.mao_obra_modo === 'HORAS'" class="pb-3 text-xs text-zinc-500">
+              × {{ formatCurrency(custoHoraCentavos ?? 0) }}/h (custo/hora deste orçamento)
+            </p>
+          </div>
+          <p v-if="form.mao_obra_modo === 'HORAS' && custoHoraZerado" class="mt-2 text-xs text-amber-700" data-testid="aviso-hora-zero">
+            O custo/hora deste orçamento está em R$ 0,00; a mão de obra por horas sairá zerada.
+          </p>
+        </fieldset>
+        <p v-else class="text-sm text-zinc-500" data-testid="frase-sem-custos">
+          Mão de obra, valor da central e custos são preenchidos por quem vê os custos.
         </p>
-        <p v-if="form.mao_obra_modo === 'HORAS' && custoHoraZerado" class="mt-1 text-xs text-amber-700" data-testid="aviso-hora-zero">
-          O custo/hora deste orçamento está em R$ 0,00; a mão de obra por horas sairá zerada.
-        </p>
-      </fieldset>
-      <p v-else class="text-xs text-zinc-500" data-testid="frase-sem-custos">
-        Mão de obra, valor da central e custos são preenchidos por quem vê os custos.
-      </p>
+      </section>
+
+      <!-- 6. Prévia (D30): números da API; esmaecidos enquanto recalcula -->
+      <section class="flex flex-col gap-4 pt-6">
+        <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">6</span>Prévia de custo e preço</h3>
+        <div :class="carregandoPrevia ? 'opacity-50' : ''" data-testid="previa">
+          <p v-if="previaFalhou && !previa" class="text-sm text-zinc-500">Prévia indisponível</p>
+          <div v-else-if="previa" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div v-if="incluiCustos && previa.calculo.custo_unit_centavos != null" class="rounded-xl border border-zinc-200 p-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Custo unitário</p>
+              <p class="mt-1 text-xl font-extrabold tabular-nums text-zinc-900">{{ formatCurrency(previa.calculo.custo_unit_centavos) }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-200 p-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Preço unitário</p>
+              <p class="mt-1 text-xl font-extrabold tabular-nums text-zinc-900">{{ formatCurrency(previa.calculo.preco_unit_centavos) }}</p>
+            </div>
+            <div class="rounded-xl border-2 border-brand-primary bg-brand-primary-light p-4">
+              <p class="text-xs font-semibold uppercase tracking-wider text-brand-primary">Preço total</p>
+              <p class="mt-1 text-xl font-extrabold tabular-nums text-brand-primary" data-testid="previa-total">{{ formatCurrency(previa.calculo.preco_total_centavos) }}</p>
+            </div>
+          </div>
+          <p v-else class="text-sm text-zinc-500">A prévia aparece quando o nome e a quantidade estiverem preenchidos.</p>
+        </div>
+      </section>
     </fieldset>
 
     <template #footer>
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <!-- Prévia (D30): números da API; esmaecidos enquanto recalcula -->
-        <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm" :class="carregandoPrevia ? 'opacity-50' : ''" data-testid="previa">
-          <template v-if="previaFalhou && !previa">
-            <span class="text-zinc-400">Prévia indisponível</span>
-          </template>
-          <template v-else-if="previa">
-            <span v-if="incluiCustos && previa.calculo.custo_unit_centavos != null" class="text-zinc-500">
-              Custo unitário <strong class="tabular-nums text-zinc-700">{{ formatCurrency(previa.calculo.custo_unit_centavos) }}</strong>
-            </span>
-            <span class="text-zinc-500">
-              Preço unitário <strong class="tabular-nums text-zinc-800">{{ formatCurrency(previa.calculo.preco_unit_centavos) }}</strong>
-            </span>
-            <span class="text-zinc-500">
-              Total <strong class="tabular-nums text-zinc-900" data-testid="previa-total">{{ formatCurrency(previa.calculo.preco_total_centavos) }}</strong>
-            </span>
-          </template>
-          <span v-else class="text-zinc-400">A prévia aparece quando o nome e a quantidade estiverem preenchidos.</span>
-        </div>
-
-        <div class="flex gap-2">
-          <BaseButton variant="secondary" @click="pedirFechar">{{ editavel ? 'Cancelar' : 'Fechar' }}</BaseButton>
-          <template v-if="editavel">
-            <BaseButton v-if="criando" variant="secondary" :is-loading="gravando" data-testid="salvar-e-outro" @click="gravar(true)">
-              Salvar e adicionar outro
-            </BaseButton>
-            <BaseButton variant="primary" :is-loading="gravando" data-testid="salvar-movel" @click="gravar(false)">Salvar</BaseButton>
-          </template>
-        </div>
+      <div class="flex flex-wrap justify-end gap-3">
+        <BaseButton variant="secondary" @click="pedirFechar">{{ editavel ? 'Cancelar' : 'Fechar' }}</BaseButton>
+        <template v-if="editavel">
+          <BaseButton v-if="criando" variant="ghost" :is-loading="gravando" data-testid="salvar-e-outro" @click="gravar(true)">
+            Salvar e adicionar outro
+          </BaseButton>
+          <BaseButton variant="primary" :is-loading="gravando" data-testid="salvar-movel" @click="gravar(false)">Salvar móvel</BaseButton>
+        </template>
       </div>
     </template>
   </BaseModal>

@@ -12,8 +12,10 @@
  * Não conhece o modal de OS: avisa por evento.
  */
 import { computed, nextTick, ref, toRef } from 'vue';
+import { CalendarPlus, Truck } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
 import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import { useToast } from '@/shared/composables/useToast';
@@ -192,36 +194,41 @@ function imprimirTermosDoAgendamento(agendamento: Agendamento) {
 </script>
 
 <template>
-  <div class="space-y-4" data-testid="aba-entrega">
-    <p v-if="isLoading" class="text-sm text-zinc-400">Carregando a entrega…</p>
+  <div class="flex flex-col gap-6" data-testid="aba-entrega">
+    <p v-if="isLoading" class="text-sm text-zinc-500">Carregando a entrega…</p>
     <p v-else-if="semEntrega" class="text-sm text-zinc-500" data-testid="sem-entrega">Esta OS não tem entrega por ambiente.</p>
     <p v-else-if="error" class="text-sm text-red-600">Não foi possível carregar a entrega agora.</p>
 
     <template v-else-if="dados">
       <!-- Topo: resumo e "Agendar instalação" (D2) -->
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-wrap items-center gap-3">
-          <h3 class="text-base font-bold text-zinc-800">Entrega</h3>
-          <span class="text-sm text-zinc-600" data-testid="resumo-entrega">{{ textoDoResumo(dados.resumo) }}</span>
+      <section class="flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-zinc-200 bg-white px-6 py-5">
+        <div class="flex items-center gap-3.5">
+          <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-primary text-white" aria-hidden="true">
+            <Truck :size="22" />
+          </span>
+          <div>
+            <h3 class="text-base font-semibold text-zinc-900">Entrega e instalação por ambiente</h3>
+            <p class="text-xs text-zinc-500" data-testid="resumo-entrega">{{ textoDoResumo(dados.resumo) }}</p>
+          </div>
         </div>
-        <BaseButton v-if="editavel" size="sm" data-testid="agendar" @click="agendando = { aberto: true, agendamento: null }">
-          Agendar instalação
+        <BaseButton v-if="editavel" variant="ghost" size="sm" data-testid="agendar" @click="agendando = { aberto: true, agendamento: null }">
+          <CalendarPlus :size="14" class="mr-1" /> Agendar instalação
         </BaseButton>
-      </div>
+      </section>
 
       <!-- OS fechada: só pendências (D10) -->
-      <p v-if="!editavel" class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600" data-testid="entrega-fechada">
+      <p v-if="!editavel" class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600" data-testid="entrega-fechada">
         {{ fraseFechada }}
       </p>
 
       <!-- Agendamentos da OS (D2, D4) -->
-      <div v-if="dados.agendamentos.length" class="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
-        <p class="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-500">Agendamentos</p>
-        <ul class="flex flex-col gap-1.5">
+      <div v-if="dados.agendamentos.length" class="rounded-2xl border border-zinc-200 bg-white px-6 py-4">
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">Agendamentos</p>
+        <ul class="flex flex-col divide-y divide-zinc-100">
           <li
             v-for="a in dados.agendamentos"
             :key="a.id"
-            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm"
             :data-testid="`agendamento-${a.id}`"
           >
             <span class="w-24 font-semibold tabular-nums" :class="a.atrasado ? 'text-red-700' : 'text-zinc-800'">
@@ -229,9 +236,7 @@ function imprimirTermosDoAgendamento(agendamento: Agendamento) {
             </span>
             <span class="min-w-40 flex-1 text-zinc-700">{{ a.ambientes.join(', ') }}</span>
             <span class="text-zinc-600">{{ nomesDosMontadores(a.montadores) }}</span>
-            <span v-if="a.atrasado" class="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700" data-testid="atrasado">
-              Atrasado
-            </span>
+            <span v-if="a.atrasado" data-testid="atrasado"><BaseStatusPill tom="perigo">Atrasado</BaseStatusPill></span>
             <span v-if="a.observacao" class="w-full pl-27 text-xs text-zinc-500">{{ a.observacao }}</span>
             <span class="flex gap-2">
               <button type="button" class="text-xs font-medium text-brand-primary hover:underline cursor-pointer" :data-testid="`imprimir-termos-${a.id}`" @click="imprimirTermosDoAgendamento(a)">
@@ -252,8 +257,9 @@ function imprimirTermosDoAgendamento(agendamento: Agendamento) {
 
       <!-- Um cartão por ambiente (D3) -->
       <EntregaAmbienteCard
-        v-for="entrega in dados.entregas"
+        v-for="(entrega, indice) in dados.entregas"
         :key="entrega.id"
+        :numero="indice + 1"
         :entrega="entrega"
         :editavel="editavel"
         @imprimir-termo="imprimirTermo(entrega)"

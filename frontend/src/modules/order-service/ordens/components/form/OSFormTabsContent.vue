@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
 import { useRouter, type RouteLocationRaw } from 'vue-router';
-import { ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, Package, PackageCheck, Truck } from 'lucide-vue-next';
+import { Camera, ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, LayoutGrid, Package, PackageCheck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -77,6 +77,8 @@ const { temVistoria, temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } =
 const { temTipos } = useTiposDeTrabalho();
 
 const activeTab = ref<TabType>('objeto');
+/** A Visão Geral da marcenaria (aba do objeto) leva a coluna lateral. */
+const visaoGeral = computed(() => marcenaria.value && activeTab.value === 'objeto');
 
 /** Os funcionários do select da OS, sem o "-- Selecione --": "Feito por" da Produção (12B D6) e montadores da Entrega (13B). */
 const funcionariosDaProducao = computed(() =>
@@ -102,9 +104,20 @@ const obraDaOS = computed(() => {
 /** 12B D13: "Mover" na pergunta de status grava só o status (o resto do formulário fica). */
 const aplicarStatus = (status: string) => view.aplicarStatusSalvo(status as OsStatusEnumDataType);
 
+/**
+ * Marcenaria numa OS que já existe (redesign 10/2026): tela cheia, abas
+ * sublinhadas e a aba do objeto vira a "Visão Geral" — etapas, controles e
+ * projeto, com a coluna lateral (resumo financeiro e cliente) SÓ nela; as
+ * outras abas usam a largura toda. Quem monta a Visão Geral e a lateral é o
+ * shell (slots `visao-geral` e `lateral`). Os outros segmentos: como sempre.
+ */
+const marcenaria = computed(() => temOrcamentoTecnico.value && !view.isCreateMode.value);
+
 const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => {
   const tabs: { id: TabType; label: string; icon: Component }[] = [
-    { id: 'objeto', label: labelSingular.value, icon: objetoIcon.value },
+    marcenaria.value
+      ? { id: 'objeto', label: 'Visão Geral', icon: LayoutGrid }
+      : { id: 'objeto', label: labelSingular.value, icon: objetoIcon.value },
   ];
   // Vistoria: só para segmentos que declaram a capacidade no registry.
   if (temVistoria.value) {
@@ -126,7 +139,7 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
     // é o caminho da obra, na ordem em que acontece.
     tabs.push({ id: 'separacao', label: 'Separação', icon: PackageCheck });
     tabs.push({ id: 'producao', label: 'Produção', icon: Hammer });
-    tabs.push({ id: 'entrega', label: 'Entrega', icon: Truck });
+    tabs.push({ id: 'entrega', label: 'Entrega & Fotos', icon: Camera });
     tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
@@ -171,11 +184,39 @@ const objetoModel = computed<ObjetoFormData>({
 
 <template>
   <div>
-    <div class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
+    <!-- Marcenaria: abas sublinhadas, presas no topo ao rolar a tela cheia. -->
+    <div
+      v-if="marcenaria"
+      role="tablist"
+      aria-label="Seções da OS"
+      class="sticky -top-6 z-20 -mx-6 -mt-6 mb-6 flex gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-6"
+    >
       <button
         v-for="tab in visibleTabs"
         :key="tab.id"
         type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
+        :class="[
+          'flex shrink-0 items-center gap-2 border-b-2 px-3.5 pb-3 pt-3.5 text-sm whitespace-nowrap transition-colors cursor-pointer',
+          activeTab === tab.id
+            ? 'border-brand-primary font-semibold text-brand-primary'
+            : 'border-transparent font-medium text-zinc-600 hover:text-zinc-900',
+        ]"
+        @click="activeTab = tab.id"
+      >
+        <component :is="tab.icon" :size="16" />
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <div v-else role="tablist" class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
+      <button
+        v-for="tab in visibleTabs"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
         :class="[
           'flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-bold rounded-lg transition-all',
           activeTab === tab.id
@@ -189,7 +230,10 @@ const objetoModel = computed<ObjetoFormData>({
       </button>
     </div>
 
-    <div class="min-h-125">
+    <!-- Visão Geral da marcenaria: conteúdo + coluna lateral; as outras abas, largura toda. -->
+    <div :class="visaoGeral ? 'grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]' : ''">
+    <div :class="visaoGeral ? 'flex min-w-0 flex-col gap-6' : 'min-h-125'">
+      <slot v-if="visaoGeral" name="visao-geral" />
       <fieldset v-if="activeTab !== 'diagnostico'" :disabled="view.isStructureLocked.value" class="contents">
         <OSObjetoDinamicoTab
           v-if="activeTab === 'objeto' && temTipos"
@@ -301,6 +345,10 @@ const objetoModel = computed<ObjetoFormData>({
         @remove-pending="view.handleRemovePending"
         @photo-change="view.handlePhotoChange"
       />
+    </div>
+    <aside v-if="visaoGeral" class="flex flex-col gap-6 xl:sticky xl:top-14">
+      <slot name="lateral" />
+    </aside>
     </div>
   </div>
 </template>

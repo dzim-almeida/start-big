@@ -14,9 +14,10 @@
  */
 import { computed, ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
-import { AlertTriangle, CheckCircle2, MoreHorizontal } from 'lucide-vue-next';
+import { AlertTriangle, Box, CheckCircle2, MoreHorizontal, Truck } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 import { ROTULO_SITUACAO, textoDasMedidas } from '@/modules/marcenaria/terceirizados/utils/terceirizados';
 
 import type { Etapa, MovelProducao } from '../schemas/producao.schema';
@@ -66,20 +67,28 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
 
 <template>
   <div
-    class="rounded-xl border px-4 py-3"
-    :class="movel.pronto ? 'border-emerald-200 bg-emerald-50/40' : 'border-zinc-200 bg-white'"
+    class="rounded-xl border px-5 py-4"
+    :class="movel.pronto ? 'border-emerald-200 bg-emerald-50/30' : 'border-zinc-200 bg-white'"
     :data-testid="`movel-${movel.movel_id}`"
   >
-    <div class="flex flex-wrap items-start justify-between gap-2">
-      <p class="text-sm font-semibold text-zinc-900">
-        {{ movel.nome }}
-        <span class="ml-1 text-xs font-normal text-zinc-500">
-          <template v-if="medidas">{{ medidas }} · </template>{{ movel.quantidade }}×
+    <div class="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 pb-3.5">
+      <div class="flex min-w-0 items-center gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary" aria-hidden="true">
+          <Box :size="20" />
         </span>
-        <span v-if="movel.pronto" class="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700" data-testid="pronto">
-          <CheckCircle2 :size="14" /> Pronto
-        </span>
-      </p>
+        <div class="min-w-0">
+          <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-900">
+            {{ movel.nome }}
+            <BaseStatusPill :tom="terceirizado ? 'info' : 'sucesso'">{{ terceirizado ? 'Terceirizada' : 'Produção interna' }}</BaseStatusPill>
+            <span v-if="movel.pronto" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700" data-testid="pronto">
+              <CheckCircle2 :size="14" /> Pronto
+            </span>
+          </p>
+          <p class="text-xs tabular-nums text-zinc-500">
+            <template v-if="medidas">{{ medidas }} · </template>{{ movel.quantidade }}×
+          </p>
+        </div>
+      </div>
 
       <!-- Menu do cartão: etiquetas sempre; editar etapas só no móvel da fábrica com a OS aberta -->
       <div ref="menuRef" class="relative">
@@ -119,36 +128,41 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
     </div>
 
     <!-- D7: terceirizado, a situação da central -->
-    <p v-if="terceirizado" class="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-600" data-testid="situacao-terceirizado">
+    <p v-if="terceirizado" class="mt-3.5 flex flex-wrap items-center gap-2 text-sm text-zinc-700" data-testid="situacao-terceirizado">
+      <Truck :size="16" class="text-zinc-400" aria-hidden="true" />
       {{ textoTerceirizado }}
-      <span v-if="terceirizado.atrasado" class="inline-flex items-center gap-1 text-xs font-semibold text-red-700">
+      <BaseStatusPill v-if="terceirizado.atrasado" tom="perigo">
         <AlertTriangle :size="12" /> Atrasado
-      </span>
+      </BaseStatusPill>
     </p>
 
     <!-- D8 / 12A D6: sem etapas, sem caminho para ficar pronto -->
-    <div v-else-if="movel.sem_etapas" class="mt-2 flex flex-wrap items-center gap-3" data-testid="sem-etapas">
+    <div v-else-if="movel.sem_etapas" class="mt-3.5 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3" data-testid="sem-etapas">
       <p class="text-sm text-amber-800">Este móvel não tem etapas de produção.</p>
       <BaseButton v-if="editavel" size="sm" variant="secondary" data-testid="aplicar-padrao" @click="emit('aplicarPadrao')">
         Aplicar etapas padrão
       </BaseButton>
     </div>
 
-    <!-- D3: os chips, na ordem do móvel -->
-    <div v-else class="mt-2 flex flex-wrap gap-2">
-      <EtapaChip
-        v-for="etapa in etapas"
-        :key="etapa.id"
-        :etapa="etapa"
-        :proxima="proxima?.id === etapa.id"
-        :editavel="editavel"
-        :modo-selecao="modoSelecao"
-        :selecionada="selecionadas.has(etapa.id)"
-        @concluir="emit('concluir', etapa)"
-        @iniciar="emit('iniciar', etapa)"
-        @reabrir="emit('reabrir', etapa)"
-        @alternar="emit('alternar', etapa)"
-      />
+    <!-- D3: as etapas, na ordem do móvel -->
+    <div v-else class="mt-3.5">
+      <p class="mb-2.5 text-xs font-semibold text-zinc-700">Etapas de fabricação</p>
+      <!-- Quantas couberem por linha: o móvel pode ter 3, 5 ou 7 etapas. -->
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-3">
+        <EtapaChip
+          v-for="etapa in etapas"
+          :key="etapa.id"
+          :etapa="etapa"
+          :proxima="proxima?.id === etapa.id"
+          :editavel="editavel"
+          :modo-selecao="modoSelecao"
+          :selecionada="selecionadas.has(etapa.id)"
+          @concluir="emit('concluir', etapa)"
+          @iniciar="emit('iniciar', etapa)"
+          @reabrir="emit('reabrir', etapa)"
+          @alternar="emit('alternar', etapa)"
+        />
+      </div>
     </div>
   </div>
 </template>

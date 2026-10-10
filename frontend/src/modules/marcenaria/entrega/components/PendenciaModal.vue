@@ -35,12 +35,13 @@ function confirmar() {
   <BaseModal :is-open="isOpen" title="Nova pendência" :subtitle="ambiente" size="sm" overlay @close="emit('close')">
     <label class="flex flex-col gap-1 text-sm font-medium text-zinc-700">
       O que ficou por fazer?
+      <!-- eslint-disable-next-line vue/no-restricted-html-elements -- nativo: precisa de maxlength e data-testid no próprio campo; o BaseTextarea ainda não os repassa -->
       <textarea
         ref="campo"
         v-model="texto"
         rows="3"
         maxlength="300"
-        class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+        class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary font-normal"
         data-testid="descricao-pendencia"
       />
     </label>
