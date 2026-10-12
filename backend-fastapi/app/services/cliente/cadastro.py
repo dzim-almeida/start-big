@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: cliente_service.py
-# MÓDULO: Regras de Negócio (Service Layer)
-# DESCRIÇÃO: Orquestra validações, verificação de conflitos e persistência.
+# ARQUIVO: services/cliente/cadastro.py
+# DESCRICAO: Cadastro de clientes - criar PF/PJ, editar, ativar/desativar,
+#            busca e validacao de duplicidade.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
@@ -13,6 +13,7 @@ from app.db.crud import cliente as cliente_crud
 from app.services import endereco as address_service
 from app.core.enum import Gender, EntityType
 
+
 # ===========================================================================
 # EXCEÇÕES REUTILIZÁVEIS
 # ===========================================================================
@@ -22,6 +23,7 @@ not_found_exce = HTTPException(
     detail="Cliente não encontrado no sistema"
 )
 
+
 def conflito_dados_exce(mensagem: str):
     """Lança erro 409 para conflitos simples."""
     return HTTPException(
@@ -29,12 +31,14 @@ def conflito_dados_exce(mensagem: str):
         detail=mensagem
     )
 
+
 def validation_exce(errors: list):
     """Lança erro 409 com uma lista detalhada de campos com erro."""
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail=errors
     )
+
 
 # ===========================================================================
 # CONFIGURAÇÃO DE VALIDAÇÃO (Campos Únicos)
@@ -48,6 +52,7 @@ VALIDATORS_MAP = {
     "email": cliente_crud.get_cliente_by_email,
 }
 
+
 FIELD_LABELS = {
     "cpf": "CPF",
     "cnpj": "CNPJ",
@@ -55,6 +60,7 @@ FIELD_LABELS = {
     "ie": "Inscrição Estadual",
     "email": "E-mail",
 }
+
 
 # ===========================================================================
 # HELPERS PRIVADOS
@@ -84,6 +90,7 @@ def _validar_unicidade_cliente(db: Session, data_dict: dict, cliente_id: int | N
     if validation_errors:
         raise validation_exce(validation_errors)
 
+
 def _get_cliente_or_raise(db: Session, cliente_id: int) -> ClienteModel:
     """Busca um cliente no banco. Se não existir, lança 404."""
     cliente_in_db = cliente_crud.get_cliente_by_id(db, cliente_id)
@@ -95,6 +102,7 @@ def _get_cliente_or_raise(db: Session, cliente_id: int) -> ClienteModel:
 def get_cliente_by_id(db: Session, cliente_id: int) -> ClienteModel:
     """Retorna o cadastro completo (PF/PJ) do cliente pelo ID; 404 se não existir."""
     return _get_cliente_or_raise(db, cliente_id)
+
 
 # ===========================================================================
 # LÓGICA DE CRIAÇÃO (CREATE)
@@ -141,6 +149,7 @@ def create_cliente_pj(db: Session, data: ClientePJCreate) -> ClientePJModel:
 
     return cliente_in_db
 
+
 # ===========================================================================
 # LÓGICA DE LEITURA (READ)
 # ===========================================================================
@@ -172,8 +181,10 @@ def get_cliente_by_search(
         "filters": filters,
     }
 
+
 def get_cliente_simple_by_search(db: Session, search: str = None) -> list[ClienteSimpleRead]:
     return cliente_crud.get_cliente_simple_by_search(db, search=search)
+
 
 def cliente_exists(db: Session, cliente_id: int) -> None:
     """Verifica se um cliente existe no banco."""
@@ -181,6 +192,7 @@ def cliente_exists(db: Session, cliente_id: int) -> None:
     if not customer_in_db:
         raise not_found_exce
     return customer_in_db
+
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
@@ -212,6 +224,7 @@ def update_cliente_by_id(db: Session, cliente_id: int, data: ClienteUpdate) -> C
 
     return cliente_crud.update_cliente(db, cliente_to_update=cliente_in_db)
 
+
 # ===========================================================================
 # LÓGICA DE STATUS (TOGGLE)
 # ===========================================================================
@@ -221,34 +234,3 @@ def toggle_active_disable_cliente_by_id(db: Session, cliente_id: int) -> Cliente
     cliente_in_db = _get_cliente_or_raise(db, cliente_id)
     cliente_in_db.ativo = not cliente_in_db.ativo
     return cliente_crud.update_cliente(db, cliente_to_update=cliente_in_db)
-
-# ===========================================================================
-# EQUIPAMENTOS DO CLIENTE (HISTÓRICO)
-# ===========================================================================
-
-EQUIPMENT_HISTORY_LIMIT = 20
-
-def get_equipamentos_historico_by_cliente_id(
-    db: Session, cliente_id: int
-) -> list:
-    """
-    Retorna equipamentos únicos (ativos) de um cliente, deduplicados
-    por (tipo_equipamento, marca, modelo, numero_serie) e limitados
-    aos mais recentes.
-    """
-    _get_cliente_or_raise(db, cliente_id)
-
-    equipamentos = cliente_crud.get_objetos_by_cliente_id(db, cliente_id)
-
-    seen: set[tuple] = set()
-    resultado: list = []
-
-    for equip in equipamentos:
-        key = (equip.tipo_equipamento, equip.marca, equip.modelo, equip.numero_serie)
-        if key not in seen:
-            seen.add(key)
-            resultado.append(equip)
-        if len(resultado) >= EQUIPMENT_HISTORY_LIMIT:
-            break
-
-    return resultado
