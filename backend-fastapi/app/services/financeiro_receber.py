@@ -28,7 +28,6 @@ from app.core.enum import (
     MovimentacaoFinanceiraTipo,
 )
 from app.core.tempo import agora_utc, fim_do_dia_utc, hoje_local, inicio_do_dia_utc
-from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import financeiro as financeiro_crud
 from app.db.crud import financeiro_receber as receber_crud
 from app.db.crud import sessao_caixa as caixa_crud

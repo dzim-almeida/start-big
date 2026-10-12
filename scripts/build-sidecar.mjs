@@ -71,6 +71,13 @@ passo(1, 'PyArmor — ofuscando app/ para dist/');
 // que aconteceu em 19/09/2026, quando o projeto saiu de Desktop\start-big-master
 // para Desktop\PROJETOS\StartBig. O passo 2 já chamava o PyInstaller assim, e
 // por isso nunca sofreu disso.
+//
+// `dist/` começa VAZIA: o PyArmor só escreve por cima, nunca apaga. Sem isto,
+// um arquivo que saiu de `app/` (ex.: crud/dashboard.py, que virou a pasta
+// crud/dashboard/ em 12/10/2026) continuava em dist/ e ia para dentro do .exe;
+// um import quebrado podia achar a cópia velha e só falhar no build de outra
+// máquina. `dist/` é artefato de build (gitignored), refeita inteira aqui.
+rmSync(join(BACKEND, 'dist'), { recursive: true, force: true });
 rodar(PY, ['-m', 'pyarmor.cli', 'gen', '-O', 'dist', '-r', 'app'], BACKEND);
 
 passo(2, 'PyInstaller — empacotando o .exe');

@@ -30,7 +30,6 @@ from app.core.enum import (
     PlanoContaTipo,
 )
 from app.core.tempo import agora_utc, fim_do_dia_utc, hoje_local, inicio_do_dia_utc
-from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import financeiro as financeiro_crud
 from app.db.crud import sessao_caixa as caixa_crud
 from app.db.models.conta_bancaria import ContaBancaria
