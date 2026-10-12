@@ -224,7 +224,6 @@ export interface EmpresaFormContext {
 
   // ========== LOADING STATES ==========
   isUploadingLogo: ComputedRef<boolean>;
-  isUploadingCert: ComputedRef<boolean>;
   isTestingSefaz: ComputedRef<boolean>;
   isTestingPrefeitura: ComputedRef<boolean>;
   isLoadingCertificates: ComputedRef<boolean>;
@@ -245,7 +244,6 @@ export interface EmpresaFormContext {
   onSubmit: (e?: Event) => void;
   setTipoPessoa: (isCnpj: boolean) => void;
   handleLogoUpload: (file: File) => void;
-  handleCertUpload: (file: File, senha: string) => void;
   handleTestSefaz: () => void;
   handleTestPrefeitura: () => void;
   refetchWindowsCerts: () => void;

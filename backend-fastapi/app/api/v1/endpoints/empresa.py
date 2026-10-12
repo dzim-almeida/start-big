@@ -9,7 +9,7 @@ import mimetypes
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, Path, UploadFile, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.schemas.empresa import (
@@ -19,7 +19,6 @@ from app.schemas.empresa import (
     WindowsCertificateRead,
     CertificadoWindowsVincular,
 )
-from app.db.models.usuario import Usuario as UsuarioModel
 from app.core.config import BASE_DIR
 from app.core.depends import get_current_master_user, get_current_user, _handle_db_transaction, requer_configuracao_fiscal
 from app.db.session import get_db
@@ -216,48 +215,10 @@ def update_empresa(
 # ENDPOINTS DE CERTIFICADO DIGITAL
 # ---------------------------------------------------------------------------
 
-@router.post(
-    "/certificado-a1",
-    response_model=EmpresaAdminRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Upload de Certificado A1 (PKCS#12)",
-    description="""
-    Realiza upload e validação de certificado digital A1.
-
-    **Segurança:**
-    - A senha é usada APENAS para validar o certificado
-    - A senha NÃO é persistida no banco de dados
-    - O arquivo é salvo em diretório seguro (fora de /static)
-
-    **Validações:**
-    - Verifica se a senha está correta
-    - Verifica se o certificado não está expirado
-    - Extrai metadados (subject, validade)
-    """
-)
-def upload_certificado_a1(
-    user_token: dict = Depends(get_current_master_user),
-    _fiscal: dict = Depends(requer_configuracao_fiscal),
-    file: UploadFile = File(..., description="Arquivo .pfx ou .p12"),
-    senha: str = Form(..., description="Senha do certificado"),
-    db: Session = Depends(get_db)
-):
-    empresa_id: Optional[int] = user_token.get("empresa_id")
-
-    if not empresa_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="ID da Empresa não encontrado no token. Crie a empresa primeiro."
-        )
-
-    return _handle_db_transaction(
-        db,
-        empresa_service.upload_certificado_a1,
-        empresa_id,
-        file,
-        senha
-    )
-
+# POST /certificado-a1 (upload de A1 guardado no disco, com a senha cifrada) foi
+# APOSENTADO em 12/10/2026: chamava `encrypt_data` sem importar (dava 500), a
+# emissao nao le mais o certificado local (quem assina e a plataforma) e nenhuma
+# tela chegava nela. O certificado vai pelo fiscal: POST /fiscal/certificado/upload-focus.
 
 @router.get(
     "/certificados-windows",

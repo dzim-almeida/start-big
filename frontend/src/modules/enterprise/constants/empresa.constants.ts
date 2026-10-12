@@ -209,14 +209,12 @@ export const FIELD_LABELS = {
 export const MESSAGES = {
   success: {
     save: 'Dados atualizados com sucesso!',
-    uploadCert: 'Certificado enviado com sucesso!',
     uploadLogo: 'Logo atualizada com sucesso!',
     addressFound: 'Endereço encontrado!',
     cnpjAutofill: 'Dados da empresa preenchidos automaticamente!',
   },
   error: {
     save: 'Erro ao salvar dados.',
-    uploadCert: 'Erro ao enviar certificado.',
     uploadLogo: 'Erro ao enviar imagem.',
     loadData: 'Erro ao carregar dados.',
     loadCerts: 'Erro ao listar certificados.',

@@ -4,7 +4,6 @@
 # DESCRIÇÃO: Controla a unicidade da empresa e gerenciamento de arquivos.
 # ---------------------------------------------------------------------------
 
-import os
 import platform
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -28,7 +27,6 @@ from app.db.crud import empresa as empresa_crud
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
 from app.core.imagem import salvar_imagem
-from app.core.config import BASE_DIR, secure_dir
 
 # ---------------------------------------------------------------------------
 # CONSTANTES E EXCEÇÕES
@@ -45,16 +43,9 @@ NOT_FOUND_EXCE = HTTPException(
     detail="Empresa não encontrada."
 )
 
-# Diretório seguro para certificados (fora de static para não expor publicamente)
-# Caminho ABSOLUTO, e dentro do data_dir.
-#
-# Era relativo ("secure_storage/certificates"), e a pasta era criada num lugar
-# (BASE_DIR + relativo) enquanto o .pfx era gravado em outro -- relativo ao CWD
-# do processo. Rodando como tarefa agendada do Windows o CWD e imprevisivel, e
-# o certificado ia parar onde ninguem procura. O data_dir e o mesmo lugar do
-# banco e da chave Fernet: o desinstalador nao o alcanca.
-CERT_UPLOAD_DIR = os.path.join(secure_dir, "certificados")
-os.makedirs(CERT_UPLOAD_DIR, exist_ok=True)
+# A pasta `certificados` (A1 guardado no disco) deixou de ser criada em
+# 12/10/2026, com a aposentadoria de `upload_certificado_a1`. Arquivos que ja
+# estejam la nas lojas ficam onde estao: nada aqui os apaga.
 
 # Campos cuja edição explícita equivale a confirmar a numeração fiscal
 # (ver `update_fiscal_settings`).
@@ -335,97 +326,6 @@ def update_fiscal_settings(
 # FUNÇÕES DE CERTIFICADO DIGITAL
 # ---------------------------------------------------------------------------
 
-def upload_certificado_a1(
-    db: Session,
-    empresa_id: int,
-    file: UploadFile,
-    senha: str
-) -> EmpresaModel:
-    """
-    Upload e validação de certificado A1 (PKCS#12).
-
-    A senha É persistida, criptografada com Fernet (`encrypt_data`): a emissão
-    da NF-e precisa abrir o PKCS#12 a cada chamada, e sem a senha guardada o
-    lojista teria de redigitá-la a cada nota.
-
-    Args:
-        db: Sessão do banco de dados.
-        empresa_id: ID da empresa.
-        file: Arquivo do certificado (.pfx ou .p12).
-        senha: Senha do certificado para validação.
-
-    Raises:
-        HTTPException 400: Se a senha estiver incorreta ou certificado inválido.
-        HTTPException 404: Se a empresa não for encontrada.
-
-    Returns:
-        EmpresaModel: Empresa atualizada com os dados do certificado.
-    """
-    from cryptography.hazmat.primitives.serialization import pkcs12
-    from cryptography.hazmat.backends import default_backend
-
-    empresa_in_db = empresa_crud.get_empresa_by_id(db, empresa_id=empresa_id)
-    if not empresa_in_db:
-        raise NOT_FOUND_EXCE
-
-    # 1. Ler arquivo em memória
-    file_content = file.file.read()
-
-    # 2. Validar certificado com a senha
-    try:
-        private_key, certificate, chain = pkcs12.load_key_and_certificates(
-            file_content,
-            senha.encode('utf-8'),
-            default_backend()
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Senha incorreta ou certificado inválido"
-        )
-    finally:
-        file.file.close()
-
-    if certificate is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Certificado não encontrado no arquivo"
-        )
-
-    # 3. Extrair metadados
-    cert_subject = certificate.subject.rfc4514_string()
-    cert_validade = certificate.not_valid_after_utc
-
-    # 4. Verificar se não está expirado
-    if cert_validade < datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Certificado expirado em {cert_validade.strftime('%d/%m/%Y')}"
-        )
-
-    # 5. Salvar arquivo em diretório seguro
-    cert_folder = os.path.join(CERT_UPLOAD_DIR, str(empresa_id))
-    os.makedirs(cert_folder, exist_ok=True)
-    file_path = os.path.join(cert_folder, "certificado.pfx")
-
-    with open(file_path, "wb") as f:
-        f.write(file_content)
-
-    # 6. Atualizar configurações fiscais (sem senha!)
-    settings = get_or_create_fiscal_settings(db, empresa_id)
-    settings.tipo_certificado = "ARQUIVO"
-    settings.certificado_digital_path = file_path
-    settings.certificado_validade = cert_validade
-    settings.certificado_subject = cert_subject
-    settings.certificado_thumbprint = None  # Limpar Windows se estava usando
-    settings.certificado_senha = encrypt_data(senha)
-
-    db.flush()
-    db.refresh(empresa_in_db)
-
-    return empresa_in_db
-
-
 def upload_certificado_focus(
     db: Session,
     empresa_id: int,
@@ -436,8 +336,9 @@ def upload_certificado_focus(
     """
     Valida um certificado A1 (PKCS#12) destinado a emissao pela API na nuvem.
 
-    Diferente do `upload_certificado_a1`, aqui o arquivo NAO fica no disco e a
-    senha NAO e guardada: quem assina e o servico remoto, entao a loja nao
+    O arquivo NAO fica no disco e a senha NAO e guardada (o antigo
+    `upload_certificado_a1`, que guardava, foi aposentado em 12/10/2026):
+    quem assina e o servico remoto, entao a loja nao
     precisa manter o material criptografico.
 
     ATENCAO: o envio para a API Online ainda e um mock (passo 5). O que esta
