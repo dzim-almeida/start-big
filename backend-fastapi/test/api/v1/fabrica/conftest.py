@@ -66,14 +66,17 @@ def chapa(db_session: Session) -> int:
     return produto.id
 
 
-# --- F2: OS no trilho da fábrica ------------------------------------------------
-
-CHAPA_MM2 = 2750 * 1850
+# --- OS na marcenaria depois da aposentadoria da fábrica (Spec 03A) ----------------
+#
+# Os testes que montavam o trilho (orçamento, trilho e separação) saíram junto
+# com a fábrica (SPEC-00 FB1, Spec 03A D17). O que fica aqui serve ao teste que
+# prova que ela ficou INERTE (test_fabrica_aposentada.py).
 
 
 @pytest.fixture
 def modo_fabrica(db_session: Session, marcenaria):
-    """Liga (ou desliga) a chave da loja."""
+    """Grava a chave da loja (ligada por padrão). Depois da aposentadoria ela
+    continua no banco, mas não liga mais nada -- é isso que os testes provam."""
     from app.db.models.configuracao_os import ConfiguracaoOS
 
     def _definir(ligado: bool = True):
@@ -101,32 +104,21 @@ def cliente_id(client: TestClient, header_com_token) -> int:
 
 
 @pytest.fixture
-def abrir_os(client: TestClient, header_com_token, cliente_id):
-    """Abre uma OS de marcenaria pela rota de sempre. `tipo=None` = o atendente não mexeu no seletor."""
-    def _abrir(tipo="planejados", nome="Cozinha apto 302"):
-        dados = {"tipo_trabalho": tipo} if tipo else {}
-        r = client.post("/api/v1/ordens-servico/", json={
-            "cliente_id": cliente_id, "prioridade": "NORMAL", "defeito_relatado": "Cozinha planejada",
-            "dados_adicionais": dados, "objeto": {"modelo": nome, "dados_adicionais": {}}, "itens": [],
-        }, headers=header_com_token)
-        assert r.status_code == 201, r.text
-        return r.json()
+def abrir_os(db_session: Session, cliente_id):
+    """Abre uma OS de Móveis planejados como a aprovação do orçamento vai abrir
+    (Spec 08A): pelo SERVIÇO, com `origem_orcamento=True`. O POST comum é
+    recusado desde a Spec 03A. Devolve o modelo da OS (não o JSON)."""
+    from app.schemas.ordem_servico import OrdemServicoCreate
+    from app.services import ordem_servico as os_service
+
+    def _abrir(nome="Cozinha apto 302", itens=None):
+        dados = OrdemServicoCreate(
+            cliente_id=cliente_id, prioridade="NORMAL", defeito_relatado="Cozinha planejada",
+            dados_adicionais={"tipo_trabalho": "planejados"},   # o tipo fica na OS
+            objeto={"modelo": nome, "dados_adicionais": {}},     # o código PRJ é gerado
+            itens=itens or [],
+        )
+        os_ = os_service.create_ordem_servico(db_session, dados, origem_orcamento=True)
+        db_session.commit()  # o endpoint faria o commit; aqui a fixture faz
+        return os_
     return _abrir
-
-
-@pytest.fixture
-def insumos(db_session: Session) -> dict:
-    """MDF (chapa em m², perde), fita (rolo de 50 m, perde) e dobradiça (unidade, não perde)."""
-    def novo(nome, codigo, unidade, consumo, sofre_perda, custo, unidade_consumo):
-        p = Produto(nome=nome, codigo_produto=codigo, unidade_medida=unidade, ativo=True,
-                    unidade_consumo=unidade_consumo, consumo_por_unidade=consumo, sofre_perda=sofre_perda)
-        p.estoque = Estoque(quantidade=0, valor_varejo=0, custo_medio=custo)
-        db_session.add(p)
-        return p
-
-    mdf = novo("MDF Branco 15mm", "MDF-15", "CH", CHAPA_MM2, True, 30000, "M2")
-    fita = novo("Fita de borda branca 22mm", "FITA-22", "RL", 50_000, True, 2000, "M")
-    dobradica = novo("Dobradiça 35mm", "DOB-35", "UN", 1, False, 500, "UN")
-    comum = novo("Cola branca 1kg", "COLA-1", "UN", None, False, 900, None)
-    db_session.commit()
-    return {"mdf": mdf.id, "fita": fita.id, "dobradica": dobradica.id, "comum": comum.id}

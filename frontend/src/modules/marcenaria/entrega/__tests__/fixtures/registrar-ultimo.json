@@ -1,0 +1,325 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000001",
+    "status": "ABERTA",
+    "editavel": true
+  },
+  "projeto": {
+    "codigo": "PRJ-2026-000001",
+    "nome": "Apto 802",
+    "endereco_obra": "Av. das Américas, 4200"
+  },
+  "cliente": {
+    "nome": "Dona Marta",
+    "telefone": "11987654321"
+  },
+  "entregas": [
+    {
+      "id": 1,
+      "ambiente_id": 1,
+      "ambiente": "Cozinha Gourmet",
+      "situacao": "COM_RESSALVAS",
+      "moveis": [
+        {
+          "nome": "Móvel de Cozinha Gourmet",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": "ok"
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": "ok"
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": "nao_ok"
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": "ok"
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": "2026-10-09",
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        },
+        {
+          "funcionario_id": 3,
+          "nome": "Davi"
+        }
+      ],
+      "recebido_por": "Ana (síndica)",
+      "observacoes": "Cliente pediu para voltar na sexta.",
+      "registrado_por": "Admin Master",
+      "registrado_em": "2026-10-09T23:32:20.369976",
+      "pendencias": [
+        {
+          "id": 1,
+          "descricao": "Porta do aéreo 2 desalinhada",
+          "situacao": "ABERTA",
+          "criada_em": "2026-10-09T23:32:20.369602",
+          "criada_por": "Admin Master",
+          "resolucao": null,
+          "resolvida_em": null,
+          "resolvida_por": null
+        },
+        {
+          "id": 2,
+          "descricao": "Falta um puxador",
+          "situacao": "RESOLVIDA",
+          "criada_em": "2026-10-09T23:32:20.369914",
+          "criada_por": "Admin Master",
+          "resolucao": "Puxador instalado",
+          "resolvida_em": "2026-10-09",
+          "resolvida_por": "Admin Master"
+        }
+      ],
+      "fotos": [
+        {
+          "id": 1,
+          "os_foto_id": 1,
+          "tipo": "TERMO",
+          "url": "static/uploads/ordens-servico/1/98e6b11d-2ab1-451a-8837-27ff704915ab.webp",
+          "nome_arquivo": "termo.png"
+        },
+        {
+          "id": 2,
+          "os_foto_id": 2,
+          "tipo": "MONTAGEM",
+          "url": "static/uploads/ordens-servico/1/0501f10c-1cab-49a8-81ae-2e09eca27cd5.webp",
+          "nome_arquivo": "termo.png"
+        }
+      ],
+      "agendamento": {
+        "id": 1,
+        "data": "2026-10-10",
+        "hora_inicio": "08:00",
+        "montadores": [
+          {
+            "funcionario_id": 2,
+            "nome": "Carlos"
+          },
+          {
+            "funcionario_id": 3,
+            "nome": "Davi"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "ambiente_id": 2,
+      "ambiente": "Sala",
+      "situacao": "CONFORME",
+      "moveis": [
+        {
+          "nome": "Móvel de Sala",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": "2026-10-09",
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": "Admin Master",
+      "registrado_em": "2026-10-09T23:32:20.550560",
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": {
+        "id": 1,
+        "data": "2026-10-10",
+        "hora_inicio": "08:00",
+        "montadores": [
+          {
+            "funcionario_id": 2,
+            "nome": "Carlos"
+          },
+          {
+            "funcionario_id": 3,
+            "nome": "Davi"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "ambiente_id": 3,
+      "ambiente": "Closet",
+      "situacao": "CONFORME",
+      "moveis": [
+        {
+          "nome": "Móvel de Closet",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": "2026-10-09",
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": "Admin Master",
+      "registrado_em": "2026-10-09T23:32:20.637133",
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": {
+        "id": 2,
+        "data": "2026-10-08",
+        "hora_inicio": null,
+        "montadores": [
+          {
+            "funcionario_id": 2,
+            "nome": "Carlos"
+          }
+        ]
+      }
+    }
+  ],
+  "agendamentos": [
+    {
+      "id": 2,
+      "data": "2026-10-08",
+      "hora_inicio": null,
+      "ambiente_ids": [
+        3
+      ],
+      "ambientes": [
+        "Closet"
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "observacao": "Levar o espelho",
+      "criado_por": "Admin Master",
+      "atrasado": false,
+      "editavel": false
+    },
+    {
+      "id": 1,
+      "data": "2026-10-10",
+      "hora_inicio": "08:00",
+      "ambiente_ids": [
+        1,
+        2
+      ],
+      "ambientes": [
+        "Cozinha Gourmet",
+        "Sala"
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        },
+        {
+          "funcionario_id": 3,
+          "nome": "Davi"
+        }
+      ],
+      "observacao": null,
+      "criado_por": "Admin Master",
+      "atrasado": false,
+      "editavel": false
+    }
+  ],
+  "resumo": {
+    "entregues": 3,
+    "total": 3,
+    "todos_entregues": true,
+    "ambientes_pendentes": [],
+    "pendencias_abertas": [
+      {
+        "id": 1,
+        "entrega_id": 1,
+        "ambiente": "Cozinha Gourmet",
+        "descricao": "Porta do aéreo 2 desalinhada"
+      }
+    ]
+  },
+  "avisos": [
+    {
+      "codigo": "SEM_FOTO_TERMO",
+      "mensagem": "A entrega foi registrada sem a foto do termo assinado."
+    }
+  ]
+}

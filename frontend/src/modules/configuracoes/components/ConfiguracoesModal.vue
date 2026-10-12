@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Wallet,
   Network,
+  Hammer,
 } from 'lucide-vue-next'
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
@@ -31,6 +32,7 @@ import { useSalvarConfiguracoesOSMutation } from '../composables/mutates/useSalv
 import { useSalvarConfiguracoesVendasMutation } from '../composables/mutates/useSalvarConfiguracoesVendasMutation'
 import { useSalvarConfiguracoesSegurancaMutation } from '../composables/mutates/useSalvarConfiguracoesSegurancaMutation'
 import { useSalvarConfiguracaoBackupMutation } from '../composables/mutates/useSalvarConfiguracaoBackupMutation'
+import { useSalvarConfiguracaoMarcenaria } from '../composables/mutates/useSalvarConfiguracaoMarcenaria'
 import { useUpdateEmpresaMutation } from '@/modules/enterprise/composables/useEmpresaQuery'
 import { guardarCorLocalmente } from '@/shared/theme/aplicar'
 import type { SecaoConfiguracao, SecaoExposta, SecaoId } from '../types/configuracoes.types'
@@ -48,6 +50,8 @@ import GestaoFinanceira from './sections/gestao-financeira/components/GestaoFina
 import Seguranca from './sections/seguranca/components/Seguranca.vue'
 import ProdutosEstoque from './sections/produtos-estoque/components/ProdutosEstoque.vue'
 import OrdensDeServico from './sections/ordens-de-servico/components/OrdensDeServico.vue'
+import Marcenaria from './sections/marcenaria/components/Marcenaria.vue'
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades'
 import { useOrdemServico } from '@/shared/composables/useOrdemServico'
 import ClientesCadastro from './sections/clientes-cadastro/components/ClientesCadastro.vue'
 import IntegracoesAPIs from './sections/integracoes-apis/components/IntegracoesAPIs.vue'
@@ -68,6 +72,9 @@ const { mutate: salvarOS, isPending: isPendingOS } = useSalvarConfiguracoesOSMut
 const { mutateAsync: salvarVendasAsync, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
 const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConfiguracoesSegurancaMutation()
 const { mutate: salvarBackup, isPending: isPendingBackup } = useSalvarConfiguracaoBackupMutation()
+// Marcenaria (Spec 04B): seção própria, com query e mutation próprias.
+const { mutate: salvarMarcenaria, isPending: isPendingMarcenaria } = useSalvarConfiguracaoMarcenaria()
+const { temOrcamentoTecnico } = useCapacidades()
 // O tema mora na empresa (junto do logo), então reaproveita a mutation dela —
 // que já invalida o cache e sincroniza o auth store.
 const { mutate: salvarTema, isPending: isPendingTema } = useUpdateEmpresaMutation()
@@ -116,7 +123,7 @@ async function navegarParaSecao(secaoId: SecaoId): Promise<void> {
   if (await verificarPinComRetry(pin)) irPara(secaoId)
 }
 
-const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value || isPendingTema.value || isPendingBackup.value)
+const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value || isPendingTema.value || isPendingBackup.value || isPendingMarcenaria.value)
 
 const activeComponentRef = ref<SecaoExposta | null>(null)
 const isDirtyAtivo = computed(() => activeComponentRef.value?.isDirty === true)
@@ -185,7 +192,12 @@ async function abrirSecaoInicial(secaoId: SecaoId): Promise<void> {
 }
 
 const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao', 'formatos-exibicao', 'integracoes-apis', 'backup-dados']
-const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
+const secaoFuncional = computed(() => {
+  // Marcenaria só oferece "Salvar" a quem pode alterar os parâmetros; para os
+  // outros ela é somente leitura e o rodapé mostra só "Fechar" (Spec 04B, D9).
+  if (secaoAtiva.value === 'marcenaria') return activeComponentRef.value?.podeGerir === true
+  return secoesFuncionais.includes(secaoAtiva.value)
+})
 
 /**
  * Seções que salvam SOZINHAS, campo a campo (ver o cabeçalho de
@@ -228,6 +240,17 @@ async function salvar(): Promise<void> {
     case 'backup-dados':
       salvarBackup(comp.form as any, fecharAposSalvar)
       break
+    case 'marcenaria': {
+      // Mesmas regras do backend, conferidas antes de mandar (Spec 04B §6.5).
+      const erros = Object.values(comp.erros ?? {})
+      if (erros.length) {
+        toast.error('Corrija os campos marcados antes de salvar.', erros[0])
+        return
+      }
+      // A tela guarda % e R$; o corpo vai em basis points e centavos (D10).
+      salvarMarcenaria(comp.paraApi!(comp.form as never) as any, fecharAposSalvar)
+      break
+    }
     case 'impressao':
       // Config local deste PC (localStorage) — sem chamada ao backend
       impressaoStore.salvar(comp.form as any)
@@ -291,6 +314,7 @@ const secoes: SecaoConfiguracao[] = [
   { id: 'gestao-financeira', label: 'Gestão Financeira',      icone: Wallet },
   { id: 'produtos-estoque',  label: 'Produtos e Estoque',    icone: Package },
   { id: 'ordens-de-servico', label: 'Ordens de Serviço',     icone: ClipboardList },
+  { id: 'marcenaria',        label: 'Marcenaria',            icone: Hammer },
   { id: 'clientes-cadastro', label: 'Clientes e Cadastro',   icone: Users },
   { id: 'integracoes-apis',  label: 'Integrações e APIs',    icone: Plug },
   { id: 'terminais',         label: 'Computadores da Loja',  icone: MonitorCog },
@@ -307,6 +331,7 @@ const componenteMap: Record<SecaoId, Component> = {
   'gestao-financeira': GestaoFinanceira,
   'produtos-estoque':  ProdutosEstoque,
   'ordens-de-servico': OrdensDeServico,
+  'marcenaria':        Marcenaria,
   'clientes-cadastro': ClientesCadastro,
   'integracoes-apis':  IntegracoesAPIs,
   'terminais':         Terminais,
@@ -329,6 +354,8 @@ const { controlarCaixa } = storeToRefs(configuracoesStore)
 const secoesVisiveis = computed(() =>
   secoes.filter((s) => {
     if (s.id === 'ordens-de-servico') return usaOrdemServico.value
+    // Só no segmento com orçamento técnico (hoje, a marcenaria; Spec 04B, D5).
+    if (s.id === 'marcenaria') return temOrcamentoTecnico.value
     // Nomear maquina e marcar retaguarda so faz sentido onde ha turno de caixa.
     // Loja que nao usa caixa nao ganha uma aba nova que nao explica nada.
     if (s.id === 'terminais') return controlarCaixa.value

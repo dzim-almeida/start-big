@@ -6,6 +6,7 @@ export type SecaoId =
   | 'gestao-financeira'
   | 'produtos-estoque'
   | 'ordens-de-servico'
+  | 'marcenaria'
   | 'clientes-cadastro'
   | 'integracoes-apis'
   | 'terminais'
@@ -25,4 +26,10 @@ export interface SecaoExposta {
   form?: Record<string, unknown>
   isDirty?: boolean
   resetar?: () => void
+  /** Marcenaria (Spec 04B): o usuário pode alterar? Sem isso, sem "Salvar". */
+  podeGerir?: boolean
+  /** Marcenaria: erros do formulário, com as mesmas mensagens do backend. */
+  erros?: Record<string, string>
+  /** Marcenaria: converte o formulário (% e R$) no corpo do PUT. */
+  paraApi?: (form: never) => unknown
 }

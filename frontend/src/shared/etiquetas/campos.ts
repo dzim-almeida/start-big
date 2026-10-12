@@ -38,7 +38,11 @@ export type CampoEtiqueta =
   | 'envio.origem' | 'envio.codigo' | 'envio.peso' | 'envio.observacao'
   | 'volume.contador' | 'volume.rotulo'
   | 'nfe.numero' | 'nfe.chave' | 'nfe.chave_formatada' | 'nfe.protocolo' | 'nfe.data_emissao' | 'nfe.valor_total'
-  | 'nfe.homologacao';
+  | 'nfe.homologacao'
+  // Volume de MÓVEL da marcenaria (Spec 14 D2). Nomes próprios, sem reaproveitar
+  // os do envio: `destinatario.*` tem outro sentido para quem editar um modelo.
+  | 'os.numero' | 'projeto.codigo' | 'projeto.endereco_obra' | 'cliente.nome'
+  | 'movel.nome' | 'movel.ambiente' | 'movel.medidas';
 
 export const CAMPOS_PRODUTO: { campo: CampoEtiqueta; rotulo: string }[] = [
   { campo: 'produto.nome', rotulo: 'Nome do produto' },
@@ -83,6 +87,23 @@ export const CAMPOS_VOLUME: { campo: CampoEtiqueta; rotulo: string }[] = [
   { campo: 'nfe.chave', rotulo: 'NF-e — chave (para código de barras)' },
   { campo: 'nfe.chave_formatada', rotulo: 'NF-e — chave (texto)' },
   { campo: 'data.impressao', rotulo: 'Data de impressão' },
+];
+
+/**
+ * Etiqueta por volume do MÓVEL da marcenaria (Spec 14 D2): os rótulos para
+ * tela. Lista própria — as listas de produto e de envio não mudam (FB2).
+ */
+export const CAMPOS_MOVEL: { campo: CampoEtiqueta; rotulo: string }[] = [
+  { campo: 'projeto.codigo', rotulo: 'Código do projeto (PRJ)' },
+  { campo: 'os.numero', rotulo: 'Número da OS' },
+  { campo: 'cliente.nome', rotulo: 'Cliente' },
+  { campo: 'projeto.endereco_obra', rotulo: 'Endereço da obra' },
+  { campo: 'movel.nome', rotulo: 'Móvel' },
+  { campo: 'movel.ambiente', rotulo: 'Ambiente' },
+  { campo: 'movel.medidas', rotulo: 'Medidas do móvel' },
+  { campo: 'volume.contador', rotulo: 'Volume (2/5)' },
+  { campo: 'volume.rotulo', rotulo: 'Volume (VOLUME 2 DE 5)' },
+  { campo: 'empresa.nome', rotulo: 'Nome da empresa' },
 ];
 
 export type OpcaoCampo = { campo: CampoEtiqueta; rotulo: string };

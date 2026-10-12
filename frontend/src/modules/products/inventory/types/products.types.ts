@@ -57,6 +57,8 @@ export interface ProdutoBase {
   marca?: string | null;
   fornecedor_id?: number | null;
   localizacao_estoque?: string | null;
+  /** Marcenaria (Spec 04A/04B): a perda do orçamento entra neste insumo. */
+  sofre_perda?: boolean;
 }
 
 export interface ProdutoCreate extends ProdutoBase {
@@ -225,6 +227,8 @@ export interface ProductFormData {
   fornecedor_id: string;
   localizacao_estoque: string;
   observacao: string;
+  /** Marcenaria (Spec 04B): caixa "Sofre perda no orçamento". */
+  sofre_perda: boolean;
 
   valor_entrada: number;
   valor_varejo: number;

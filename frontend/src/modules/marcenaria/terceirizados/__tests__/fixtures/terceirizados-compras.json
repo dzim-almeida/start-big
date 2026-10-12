@@ -1,0 +1,70 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000002",
+    "status": "ABERTA",
+    "editavel": true
+  },
+  "modo_compras": true,
+  "moveis": [
+    {
+      "movel_id": 6,
+      "nome": "Torre Quente",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 1,
+        "nome": "Madeiranit",
+        "telefone": "85999990000"
+      },
+      "situacao": "A_PEDIR",
+      "atrasado": false,
+      "previsao": "2026-10-19",
+      "pedido": {
+        "origem": "COMPRAS",
+        "id": 1,
+        "codigo": "PC-000001",
+        "situacao": "RASCUNHO"
+      },
+      "enviado_em": null,
+      "recebido_em": null,
+      "conferido_em": null,
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    },
+    {
+      "movel_id": 7,
+      "nome": "Painel TV",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 1,
+        "nome": "Madeiranit",
+        "telefone": "85999990000"
+      },
+      "situacao": "ENVIADO",
+      "atrasado": false,
+      "previsao": null,
+      "pedido": {
+        "origem": "COMPRAS",
+        "id": 2,
+        "codigo": "PC-000002",
+        "situacao": "ENVIADO"
+      },
+      "enviado_em": "2026-10-09",
+      "recebido_em": null,
+      "conferido_em": null,
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    }
+  ]
+}

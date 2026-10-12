@@ -34,5 +34,11 @@ declare module 'vue-router' {
      * O guard em router/index.ts lê isto e manda para a home quem não tem.
      */
     exigeModulo?: string;
+    /**
+     * Tela que ocupa a janela inteira (sem sidebar, cabeçalho nem botão de
+     * ações rápidas), mas ainda DENTRO do MainLayout: os modais globais (OS,
+     * cliente, produto) continuam montados. Ex.: editor de orçamento.
+     */
+    telaCheia?: boolean;
   }
 }

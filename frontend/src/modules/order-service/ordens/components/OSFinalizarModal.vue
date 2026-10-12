@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import { CheckCircle2, AlertTriangle, XCircle, ShieldCheck, User, Calendar, Banknote, BookmarkCheck, CalendarClock, Gauge, ChevronDown } from 'lucide-vue-next';
 
@@ -93,7 +93,14 @@ async function resolverPendentes(status: 'APROVADO' | 'REPROVADO') {
   }
 }
 
-const { temRevisoes, temGarantiaPrazo } = useCapacidades();
+const { temRevisoes, temGarantiaPrazo, temOrcamentoTecnico } = useCapacidades();
+
+// Marcenaria (Spec 13B D18, D19): ambiente não entregue e pendência aberta
+// AVISAM, sem travar. Sob demanda e só com a capacidade: nos outros segmentos o
+// bloco não existe e nenhuma chamada a /marcenaria é feita.
+const AvisoEntregaFinalizacao = defineAsyncComponent(
+  () => import('@/modules/marcenaria/entrega/components/AvisoEntregaFinalizacao.vue'),
+);
 const { labelSingular, labelIdentificador, objetoIcon, labelSituacao, rotuloSituacao } =
   useObjetoLabels();
 const toast = useToast();
@@ -535,6 +542,9 @@ async function handleEmitEntrega(zerarAdiantamento: boolean) {
           />
         </div>
       </div>
+
+      <!-- ── Marcenaria: entrega incompleta avisa, mas não impede finalizar (13B D18) ── -->
+      <AvisoEntregaFinalizacao v-if="temOrcamentoTecnico && osNumero" :numero-os="osNumero" />
 
       <!-- ── Itens aguardando resposta do cliente ── -->
       <div

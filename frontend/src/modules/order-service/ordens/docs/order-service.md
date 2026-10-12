@@ -207,6 +207,22 @@ O formulário da OS é dividido em **6 segmentos independentes**, cada um mapean
 
 ---
 
+## Rótulos de status por segmento
+
+(Spec 01A/01B da marcenaria, em `backend-fastapi/docs/marcenaria/`.)
+
+- O **enum** de status (`OsStatusEnum`) é o mesmo em todos os segmentos: transições, filtros, relatórios e o valor enviado à API não mudam. Um segmento só pode trocar o **texto** exibido, declarando `definicao.rotulos_status` no backend (`app/core/segmentos/definicoes/<segmento>.py`). Hoje só a marcenaria declara ("Em Produção", "Aguardando Material", "Aguardando Entrega").
+- O texto vem **sempre** de `shared/segmento/useRotulosStatusOS.ts`:
+  - `estadoOS(status, situacao)` — `getEstadoOS` com os rótulos do segmento (badges da lista, resumo e histórico);
+  - `statusOptions` / `statusFilterConfig` — select do modal e menu de filtro (valor/chave = código do enum, para o filtro salvo continuar valendo);
+  - `rotuloStatus(s)` — texto final (o do segmento ou o padrão de `OS_ESTADO_CONFIG`);
+  - `rotuloStatusProprio(s, curto?)` — só o texto do segmento, ou `undefined`, para telas com padrão próprio (Atividade de Hoje: "P/ Retirada").
+- O mesmo composable aplica `rotulos_situacao` ao **desfecho** na lista e no filtro ("Não produzido" no lugar de "Sem Reparo").
+- **Não** criar mapa próprio de rótulos de OS em componente, nem `if` pelo nome do segmento. As cores continuam únicas em `OS_ESTADO_CONFIG`.
+- O composable tem um **fallback** por segmento, usado só enquanto o contrato carrega (para a lista não piscar). Mudou o texto no backend? Mude o fallback também.
+
+---
+
 ## Padrão provide/inject — Como Usar
 
 ### Componente pai (OSFormModal)

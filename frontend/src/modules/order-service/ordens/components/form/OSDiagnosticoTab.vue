@@ -25,7 +25,7 @@ defineProps<Props>();
  * galeria de fotos, e em serigrafia a foto É a arte — é ela que o cliente
  * aprova pelo celular. Tirar a aba inteira tiraria o lugar de anexar o mockup.
  */
-const { temDiagnostico, temImagemNaEntrada } = useCapacidades();
+const { temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } = useCapacidades();
 
 const emit = defineEmits<{
   'update:diagnostico': [value: string];
@@ -45,7 +45,9 @@ const emit = defineEmits<{
       <p class="text-xs text-brand-primary mt-1">
         {{ temDiagnostico
           ? 'Espaço reservado para o laudo técnico.'
-          : 'Anexe a arte aprovada e as fotos do pedido.' }}
+          : temOrcamentoTecnico
+            ? 'Anexe as fotos da medição, do projeto e da obra.'
+            : 'Anexe a arte aprovada e as fotos do pedido.' }}
       </p>
     </div>
 

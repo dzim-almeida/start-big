@@ -13,7 +13,7 @@
  */
 
 import { gerarElementos, type OpcoesLayoutAuto } from './layoutAuto';
-import { gerarDanfe, gerarVolume } from './layoutEnvio';
+import { gerarDanfe, gerarMovel, gerarVolume } from './layoutEnvio';
 import type { ModeloEtiqueta, PaginaEtiqueta } from './modelo';
 
 const CARTA = { largura_mm: 215.9, altura_mm: 279.4 };
@@ -167,4 +167,16 @@ export const PRESETS_VOLUME: ModeloEtiqueta[] = [
 export const PRESETS_DANFE: ModeloEtiqueta[] = [
   presetEnvio('danfe-100x150', 'DANFE Simplificado 100 × 150 mm', '', bobina(100, 150), gerarDanfe),
   presetEnvio('danfe-a4-4', 'DANFE Simplificado — folha A4 em 4', 'impressora comum', A4_EM_4, gerarDanfe),
+];
+
+/**
+ * Etiqueta por volume do MÓVEL da marcenaria (Spec 14 D4). Lista PRÓPRIA: não
+ * entra em `PRESETS` nem em `PRESETS_VOLUME`, então a tela de envio e o editor
+ * de modelos da loja não mudam. `fonte: 'volume'` (o tipo não muda e o backend
+ * dos modelos também não). O primeiro é o padrão: folha comum, sem térmica.
+ */
+export const PRESETS_MOVEL: ModeloEtiqueta[] = [
+  presetEnvio('movel-a4-4', 'Móvel — folha A4 em 4', 'impressora comum', A4_EM_4, gerarMovel),
+  presetEnvio('movel-100x150', 'Móvel 100 × 150 mm', 'térmica', bobina(100, 150), gerarMovel),
+  presetEnvio('movel-100x50', 'Móvel 100 × 50 mm', 'térmica, compacta', bobina(100, 50), gerarMovel),
 ];

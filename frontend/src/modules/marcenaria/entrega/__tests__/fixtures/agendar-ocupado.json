@@ -1,0 +1,116 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000002",
+    "status": "ABERTA",
+    "editavel": true
+  },
+  "projeto": {
+    "codigo": "PRJ-2026-000002",
+    "nome": "Apto 802",
+    "endereco_obra": "Av. das Américas, 4200"
+  },
+  "cliente": {
+    "nome": "Dona Marta",
+    "telefone": "11987654321"
+  },
+  "entregas": [
+    {
+      "id": 4,
+      "ambiente_id": 5,
+      "ambiente": "Quarto",
+      "situacao": "PENDENTE",
+      "moveis": [
+        {
+          "nome": "Móvel de Quarto",
+          "quantidade": 1,
+          "medidas": {
+            "largura_mm": 700,
+            "altura_mm": 2200,
+            "profundidade_mm": 600
+          }
+        }
+      ],
+      "checklist": [
+        {
+          "texto": "Alinhamento de portas e gavetas",
+          "marcacao": null
+        },
+        {
+          "texto": "Acabamento de bordas e vedação com silicone",
+          "marcacao": null
+        },
+        {
+          "texto": "Funcionamento de corrediças, dobradiças e pistões",
+          "marcacao": null
+        },
+        {
+          "texto": "Fixação e nivelamento dos móveis",
+          "marcacao": null
+        },
+        {
+          "texto": "Limpeza final do ambiente",
+          "marcacao": null
+        }
+      ],
+      "data_entrega": null,
+      "montadores": [],
+      "recebido_por": null,
+      "observacoes": null,
+      "registrado_por": null,
+      "registrado_em": null,
+      "pendencias": [],
+      "fotos": [],
+      "agendamento": {
+        "id": 3,
+        "data": "2026-10-10",
+        "hora_inicio": "14:00",
+        "montadores": [
+          {
+            "funcionario_id": 2,
+            "nome": "Carlos"
+          }
+        ]
+      }
+    }
+  ],
+  "agendamentos": [
+    {
+      "id": 3,
+      "data": "2026-10-10",
+      "hora_inicio": "14:00",
+      "ambiente_ids": [
+        5
+      ],
+      "ambientes": [
+        "Quarto"
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "observacao": null,
+      "criado_por": "Admin Master",
+      "atrasado": false,
+      "editavel": true
+    }
+  ],
+  "resumo": {
+    "entregues": 0,
+    "total": 1,
+    "todos_entregues": false,
+    "ambientes_pendentes": [
+      "Quarto"
+    ],
+    "pendencias_abertas": []
+  },
+  "avisos": [
+    {
+      "codigo": "MONTADOR_OCUPADO",
+      "mensagem": "Carlos já tem instalação em 10/10 às 08:00 na OS-2026-000001 (Dona Marta).",
+      "funcionario_id": 2,
+      "numero_os": "OS-2026-000001"
+    }
+  ]
+}

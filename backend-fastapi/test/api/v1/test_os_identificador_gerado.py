@@ -16,6 +16,8 @@
 from starlette import status
 
 from app.core.segmentos import gerar_identificador, identificador_e_gerado
+from app.schemas.ordem_servico import OrdemServicoCreate
+from app.services import ordem_servico as os_service
 
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
@@ -114,27 +116,41 @@ def test_codigo_nao_empilha_dois_prefixos():
 # =========================
 # Marcenaria: o mesmo mecanismo, com o codigo do projeto
 # =========================
+#
+# Desde a Spec 03A a OS de Moveis planejados so nasce da aprovacao de um
+# orcamento: o POST comum e recusado (test_os_tipo_criacao_manual.py). Estes
+# testes criam a OS pelo SERVICO, com `origem_orcamento=True`, que e o caminho
+# que a Spec 08A vai usar -- e o mecanismo do identificador e o mesmo.
+
+def _criar_marcenaria_pelo_servico(db_session, cliente_id: int, objeto: dict, dados_os: dict):
+    """Abre a OS da marcenaria como a aprovacao do orcamento vai abrir."""
+    dados = OrdemServicoCreate(
+        cliente_id=cliente_id,
+        prioridade="NORMAL",
+        defeito_relatado="Cozinha planejada",
+        dados_adicionais=dados_os,   # o tipo de trabalho fica na OS
+        objeto=objeto,
+        itens=[],
+    )
+    os_ = os_service.create_ordem_servico(db_session, dados, origem_orcamento=True)
+    db_session.commit()  # o endpoint faria o commit; aqui o teste faz
+    return os_
+
 
 def test_marcenaria_abre_os_de_planejados_sem_o_usuario_informar_codigo(client, db_session):
+    """Caso 19 da Spec 03A: o codigo PRJ continua gerado do numero da OS."""
     header = _autenticar_e_criar_empresa(client, "marcenaria")
     cliente_id = _criar_cliente(client, header)
 
-    # O formulario manda so o que o atendente sabe: o nome do projeto e o tipo.
-    r = _post_os(client, header, cliente_id, {
-        "modelo": "Cozinha apto 302",
-        "dados_adicionais": {
-            "tipo_trabalho": "planejados",
-            "ambiente": "Cozinha",
-            "etapa": "Aguardando aprovação",
-        },
-    })
+    # O orcamento manda so o que se sabe do projeto: o nome e o tipo.
+    os_ = _criar_marcenaria_pelo_servico(
+        db_session, cliente_id,
+        objeto={"modelo": "Cozinha apto 302", "dados_adicionais": {}},
+        dados_os={"tipo_trabalho": "planejados"},
+    )
 
-    assert r.status_code == status.HTTP_201_CREATED, r.text
-    corpo = r.json()
-    objeto = corpo.get("objeto") or corpo.get("equipamento")
-
-    codigo = objeto["numero_serie"]
-    numero_os = corpo["numero_os"]
+    codigo = os_.objeto.numero_serie
+    numero_os = os_.numero_os
     assert codigo == f"PRJ-{numero_os.removeprefix('OS-')}"
     assert "PRJ-OS-" not in codigo
 
@@ -149,15 +165,14 @@ def test_marcenaria_nao_poe_o_nome_do_cliente_na_marca(client, db_session):
     header = _autenticar_e_criar_empresa(client, "marcenaria")
     cliente_id = _criar_cliente(client, header)
 
-    r = _post_os(client, header, cliente_id, {
-        "modelo": "Closet casal apto 302",
-        "dados_adicionais": {},
-    })
+    os_ = _criar_marcenaria_pelo_servico(
+        db_session, cliente_id,
+        objeto={"modelo": "Closet casal apto 302", "dados_adicionais": {}},
+        dados_os={"tipo_trabalho": "planejados"},
+    )
 
-    assert r.status_code == status.HTTP_201_CREATED, r.text
-    objeto = r.json().get("objeto") or r.json().get("equipamento")
-    assert objeto["marca"] == ""
-    assert objeto["modelo"] == "Closet casal apto 302"
+    assert os_.objeto.marca == ""
+    assert os_.objeto.modelo == "Closet casal apto 302"
 
 
 # =========================

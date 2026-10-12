@@ -2,6 +2,7 @@ import type { ComputedRef, Ref } from 'vue';
 import type { FieldEntry } from 'vee-validate';
 import type { AddressFormData } from '@/modules/customers/schemas/customer.schema';
 import type { TipoCliente } from '@/modules/customers/types/clientes.types';
+import type { AvisoCnpj } from '../context/consultaReceita';
 
 /**
  * Contexto agregado do formulário de cliente.
@@ -49,6 +50,10 @@ export interface CustomerFormContext {
   // Busca do CNPJ na Receita (só PJ)
   isConsultingCNPJ: Ref<boolean>;
   consultarReceita: (cnpjDigitos: string) => Promise<void>;
+  /** Aviso fixo abaixo do CNPJ: outro cliente já tem este CNPJ (Spec 02, D4/D6). */
+  avisoCnpj: Ref<AvisoCnpj>;
+  /** Some com o aviso (CNPJ mudou). */
+  limparAvisoCnpj: () => void;
   isCreateMode: Ref<boolean> | ComputedRef<boolean>;
   // Ações
   onSubmit: (e?: Event) => void;

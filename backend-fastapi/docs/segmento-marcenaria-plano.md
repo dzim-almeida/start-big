@@ -1,5 +1,10 @@
 # Plano: segmento Marcenaria (planejados + reforma de móveis)
 
+> ⚠️ **Substituído em 06/10/2026 por [`marcenaria/SPEC-00-DECISOES-MARCENARIA.md`](./marcenaria/SPEC-00-DECISOES-MARCENARIA.md).**
+> Este plano partia de "duas lojas esperando" e de um segmento só com campos na OS.
+> Nenhuma loja usa o segmento, e o escopo passou a incluir o orçamento técnico por
+> ambiente e móvel. Mantido só como histórico: não implementar a partir dele.
+
 Escrito em 16/09/2026, na branch `feat/segmento-marcenaria` (criada a partir de
 `feat/fiscal-nfe @ 0c64aec`, a linhagem que roda nas lojas). Quarto segmento
 depois de informática, oficina mecânica e serigrafia — e o primeiro com **duas

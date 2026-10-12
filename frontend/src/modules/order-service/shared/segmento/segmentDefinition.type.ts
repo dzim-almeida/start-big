@@ -6,6 +6,8 @@
 // que novos segmentos (ex: oficina_moto) funcionem sem alterar o frontend.
 // ---------------------------------------------------------------------------
 
+import type { OsStatusEnumDataType } from '../../ordens/schemas/enums/osEnums.schema';
+
 /**
  * Tipo de widget de um campo dinâmico.
  *
@@ -116,7 +118,14 @@ export type SegmentCapability =
    * Desligada, o campo some da finalização e o Termo de Garantia só é impresso
    * quando houver prazo de fato.
    */
-  | 'garantia_prazo';
+  | 'garantia_prazo'
+  /**
+   * O segmento orça por ambiente, móvel e insumo, com perda, markup e margem
+   * (orçamento técnico da marcenaria, Spec 04A/04B). Liga a seção Configurações
+   * › Marcenaria, a caixa "Sofre perda" no produto e, nas próximas specs, o
+   * menu Orçamentos.
+   */
+  | 'orcamento_tecnico';
 
 /**
  * Um processo de negócio dentro do mesmo segmento.
@@ -131,6 +140,20 @@ export interface SegmentWorkType {
   id: string;
   label: string;
   campos: SegmentField[];
+  /**
+   * false = a OS deste tipo só nasce de outro documento (ex.: Móveis planejados
+   * nasce da aprovação do orçamento). Ausente = true, como num contrato antigo
+   * (sidecar desatualizado). Spec 03A/03B da marcenaria.
+   */
+  criacao_manual?: boolean;
+}
+
+/** Texto de um status da OS declarado pelo segmento (Spec 01A da marcenaria). */
+export interface RotuloStatus {
+  /** Texto completo: lista, filtro, modal, relatório (ex.: "Aguardando Entrega"). */
+  rotulo: string;
+  /** Texto abreviado: dashboard (ex.: "Aguard. entrega"). */
+  curto: string;
 }
 
 /** Definição completa dos campos de um segmento com regras dedicadas. */
@@ -177,6 +200,12 @@ export interface SegmentDefinition {
    * palavras mudam — "Reparado" não descreve nada numa produção.
    */
   rotulos_situacao?: Record<string, string>;
+  /**
+   * Texto de cada STATUS da OS, por chave do enum. Opcional: ausente = textos
+   * padrão de OS_ESTADO_CONFIG. Só o texto muda; o valor enviado à API é o
+   * mesmo enum de todos os segmentos (Spec 01A/01B da marcenaria).
+   */
+  rotulos_status?: Partial<Record<OsStatusEnumDataType, RotuloStatus>>;
   identificador: SegmentIdentifier;
   /** O que o segmento faz. Vazio = só o fluxo genérico de OS. */
   capacidades: SegmentCapability[];

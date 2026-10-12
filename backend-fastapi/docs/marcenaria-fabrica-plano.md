@@ -1,5 +1,12 @@
 # Plano: Marcenaria-fábrica (projeto → orçamento → produção → compra → instalação)
 
+> ⚠️ **Aposentado em 08/10/2026 pela Revisão 15 da [`marcenaria/SPEC-00-DECISOES-MARCENARIA.md`](./marcenaria/SPEC-00-DECISOES-MARCENARIA.md) (decisão FB1).**
+> A marcenaria segue as specs da pasta `marcenaria/`. O "modo fábrica" deixa de valer; as tabelas e colunas
+> criadas pelas fases F1–F5 ficam no banco (as migrações estão na cadeia) e o código inerte sai numa limpeza
+> depois do piloto. O que daqui continua em uso: `produtos.sofre_perda`, `ordem_servico_itens.quantidade_separada`
+> e `custo_real`, `ordens_servico.data_instalacao` e o pedido `SERVICO` do Compras para a central parceira.
+> Mantido como histórico: não implementar a partir dele.
+
 Escrito em 04/10/2026 e **revisado em 05/10/2026 contra o código** (branch
 `feat/compras`, em cima de `529fc34`). Esta versão é para implementar: cada
 fase diz o que muda no banco, na API, nas telas e o que os testes provam.

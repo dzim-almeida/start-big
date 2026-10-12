@@ -1,0 +1,156 @@
+{
+  "itens": [
+    {
+      "numero_os": "OS-2026-000001",
+      "cliente": "Dona Marta",
+      "orcamento_codigo": "ORC-2026-000001",
+      "movel_id": 2,
+      "nome": "Painel TV",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 1,
+        "nome": "Madeiranit",
+        "telefone": "85999990000"
+      },
+      "situacao": "ENVIADO",
+      "atrasado": true,
+      "previsao": "2026-10-06",
+      "pedido": {
+        "origem": "MANUAL",
+        "numero": "4521"
+      },
+      "enviado_em": "2026-10-09",
+      "recebido_em": null,
+      "conferido_em": null,
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    },
+    {
+      "numero_os": "OS-2026-000001",
+      "cliente": "Dona Marta",
+      "orcamento_codigo": "ORC-2026-000001",
+      "movel_id": 1,
+      "nome": "Torre Quente",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 1,
+        "nome": "Madeiranit",
+        "telefone": "85999990000"
+      },
+      "situacao": "ENVIADO",
+      "atrasado": true,
+      "previsao": "2026-10-06",
+      "pedido": {
+        "origem": "MANUAL",
+        "numero": "4521"
+      },
+      "enviado_em": "2026-10-09",
+      "recebido_em": null,
+      "conferido_em": null,
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    },
+    {
+      "numero_os": "OS-2026-000001",
+      "cliente": "Dona Marta",
+      "orcamento_codigo": "ORC-2026-000001",
+      "movel_id": 4,
+      "nome": "Aéreo",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 1,
+        "nome": "Madeiranit",
+        "telefone": "85999990000"
+      },
+      "situacao": "RECEBIDO",
+      "atrasado": false,
+      "previsao": null,
+      "pedido": {
+        "origem": "MANUAL",
+        "numero": "4522"
+      },
+      "enviado_em": "2026-10-09",
+      "recebido_em": "2026-10-09",
+      "conferido_em": null,
+      "problema": "Porta riscada",
+      "valor_orcado_centavos": 38000
+    },
+    {
+      "numero_os": "OS-2026-000001",
+      "cliente": "Dona Marta",
+      "orcamento_codigo": "ORC-2026-000001",
+      "movel_id": 3,
+      "nome": "Ilha",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 2,
+        "nome": "Central Norte",
+        "telefone": null
+      },
+      "situacao": "A_PEDIR",
+      "atrasado": false,
+      "previsao": null,
+      "pedido": null,
+      "enviado_em": null,
+      "recebido_em": null,
+      "conferido_em": null,
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    },
+    {
+      "numero_os": "OS-2026-000001",
+      "cliente": "Dona Marta",
+      "orcamento_codigo": "ORC-2026-000001",
+      "movel_id": 5,
+      "nome": "Nicho",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": 700,
+        "altura_mm": 2200,
+        "profundidade_mm": 600
+      },
+      "central": {
+        "id": 2,
+        "nome": "Central Norte",
+        "telefone": null
+      },
+      "situacao": "CONFERIDO",
+      "atrasado": false,
+      "previsao": null,
+      "pedido": {
+        "origem": "MANUAL",
+        "numero": null
+      },
+      "enviado_em": "2026-10-09",
+      "recebido_em": "2026-10-09",
+      "conferido_em": "2026-10-09",
+      "problema": null,
+      "valor_orcado_centavos": 38000
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, defineAsyncComponent, type Component } from 'vue';
-import { ClipboardCheck, ClipboardList, Image as ImageIcon, Package, Ruler } from 'lucide-vue-next';
+import { useRouter, type RouteLocationRaw } from 'vue-router';
+import { Camera, ClipboardCheck, ClipboardList, FileSpreadsheet, Hammer, Image as ImageIcon, LayoutGrid, Package, PackageCheck } from 'lucide-vue-next';
 
 import OSObjetoTab from './OSObjetoTab.vue';
 import OSObjetoDinamicoTab from './OSObjetoDinamicoTab.vue';
@@ -13,6 +14,8 @@ import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObje
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
 import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
+import { useOSCreateFlow } from '../../composables/useOSCreateFlow';
+import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
 
 // Módulo Compras (fase 6): "Compras desta OS" na aba de peças. Só com o módulo
 // e a permissão, e carregado sob demanda — quem não tem Compras nem baixa.
@@ -22,27 +25,51 @@ const ComprasDaOSPanel = defineAsyncComponent(
 );
 const osSalvaId = computed(() => view.currentOSData.value?.id ?? null);
 
-// Marcenaria-fábrica: a aba Orçamento só existe na OS que nasceu no trilho
-// (`fase_fabrica` preenchida). Sob demanda — os outros segmentos nem baixam.
-const OrcamentoFabricaTab = defineAsyncComponent(
-  () => import('@/modules/order-service/fabrica/components/OrcamentoFabricaTab.vue'),
+// Marcenaria (Spec 08B D19): aba "Orçamento" com o que foi vendido. Sob
+// demanda — os outros segmentos nem baixam. O trilho e a aba da fábrica saíram
+// (SPEC-00 FB1; 08B D19a): dependiam de `fase_fabrica`, que nenhuma OS nova recebe.
+const OSOrcamentoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/orcamentos/components/os/OSOrcamentoTab.vue'),
 );
-const ehDaFabrica = computed(() => !!view.currentOSData.value?.fase_fabrica);
-const TrilhoFabrica = defineAsyncComponent(
-  () => import('@/modules/order-service/fabrica/components/TrilhoFabrica.vue'),
+// Marcenaria (Spec 10B D1): aba "Separação" do material. Também sob demanda.
+const OSSeparacaoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/separacao/components/OSSeparacaoTab.vue'),
 );
-const clienteDaOS = computed(() => {
-  const cliente = view.currentOSData.value?.cliente as { nome?: string; razao_social?: string; nome_fantasia?: string } | undefined;
-  return cliente?.nome ?? cliente?.nome_fantasia ?? cliente?.razao_social ?? '';
-});
+// Marcenaria (Spec 12B D1): aba "Produção" das etapas por móvel. Também sob demanda.
+const OSProducaoTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/producao/components/OSProducaoTab.vue'),
+);
+// Marcenaria (Spec 13B D1): aba "Entrega" (termo por ambiente, agenda, pendências). Também sob demanda.
+const OSEntregaTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/entrega/components/OSEntregaTab.vue'),
+);
+const router = useRouter();
 
-type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'orcamento';
+/** "Ver nas Necessidades" (10B D19): fecha o modal de OS e vai para o Compras. */
+function verNecessidades() {
+  view.handleClose();
+  void router.push({ name: 'purchases-needs' });
+}
+
+/** Marcenaria (Spec 11B D4, D5): "Ver no Compras" e o pedido criado. Fecha o modal de OS e vai. */
+function navegar(destino: RouteLocationRaw) {
+  view.handleClose();
+  void router.push(destino);
+}
+
+/** "Abrir orçamento" (D20): fecha o modal de OS e vai para o orçamento. */
+function abrirOrcamento(orcamentoId: number) {
+  view.handleClose();
+  void router.push({ name: 'marcenaria-orcamento', params: { id: orcamentoId } });
+}
+
+type TabType = 'objeto' | 'vistoria' | 'diagnostico' | 'servicos' | 'separacao' | 'producao' | 'entrega' | 'orcamento';
 
 const view = useOSFormView();
 
 // Rótulo e ícone da aba do objeto vêm do contrato (Veículo/Equipamento).
 const { labelSingular, objetoIcon } = useObjetoLabels();
-const { temVistoria, temDiagnostico, temImagemNaEntrada } = useCapacidades();
+const { temVistoria, temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } = useCapacidades();
 
 // Qual aba de objeto usar. `temTipos` só é verdadeiro para segmento que declara
 // tipos de trabalho no registry — oficina e informática não declaram, então
@@ -50,16 +77,47 @@ const { temVistoria, temDiagnostico, temImagemNaEntrada } = useCapacidades();
 const { temTipos } = useTiposDeTrabalho();
 
 const activeTab = ref<TabType>('objeto');
+/** A Visão Geral da marcenaria (aba do objeto) leva a coluna lateral. */
+const visaoGeral = computed(() => marcenaria.value && activeTab.value === 'objeto');
 
-watch(() => view.isOpen.value, (open) => {
-  if (open) {
-    activeTab.value = 'objeto';
-  }
+/** Os funcionários do select da OS, sem o "-- Selecione --": "Feito por" da Produção (12B D6) e montadores da Entrega (13B). */
+const funcionariosDaProducao = computed(() =>
+  view.funcionariosOptions.value
+    .filter((opcao) => opcao.value !== '')
+    .map((opcao) => ({ id: Number(opcao.value), nome: opcao.label })),
+);
+
+/**
+ * Spec 14: o que as etiquetas dos móveis levam da OS aberta — o código do
+ * projeto (o PRJ é o nº de série do objeto), o endereço da obra e o cliente.
+ */
+const obraDaOS = computed(() => {
+  const os = view.currentOSData.value;
+  const cliente = os?.cliente as { nome?: string | null; razao_social?: string | null } | null | undefined;
+  return {
+    projeto: os?.objeto?.numero_serie ?? '',
+    enderecoObra: String((os?.objeto?.dados_adicionais as Record<string, unknown> | undefined)?.endereco_obra ?? ''),
+    cliente: cliente?.nome || cliente?.razao_social || '',
+  };
 });
+
+/** 12B D13: "Mover" na pergunta de status grava só o status (o resto do formulário fica). */
+const aplicarStatus = (status: string) => view.aplicarStatusSalvo(status as OsStatusEnumDataType);
+
+/**
+ * Marcenaria numa OS que já existe (redesign 10/2026): tela cheia, abas
+ * sublinhadas e a aba do objeto vira a "Visão Geral" — etapas, controles e
+ * projeto, com a coluna lateral (resumo financeiro e cliente) SÓ nela; as
+ * outras abas usam a largura toda. Quem monta a Visão Geral e a lateral é o
+ * shell (slots `visao-geral` e `lateral`). Os outros segmentos: como sempre.
+ */
+const marcenaria = computed(() => temOrcamentoTecnico.value && !view.isCreateMode.value);
 
 const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() => {
   const tabs: { id: TabType; label: string; icon: Component }[] = [
-    { id: 'objeto', label: labelSingular.value, icon: objetoIcon.value },
+    marcenaria.value
+      ? { id: 'objeto', label: 'Visão Geral', icon: LayoutGrid }
+      : { id: 'objeto', label: labelSingular.value, icon: objetoIcon.value },
   ];
   // Vistoria: só para segmentos que declaram a capacidade no registry.
   if (temVistoria.value) {
@@ -74,8 +132,15 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
       : { id: 'diagnostico', label: 'Imagens', icon: ImageIcon },
     { id: 'servicos', label: 'Serviços e Peças', icon: Package },
   );
-  if (ehDaFabrica.value) {
-    tabs.push({ id: 'orcamento', label: 'Orçamento', icon: Ruler });
+  // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
+  // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
+  if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
+    // Separação (10B D1), Produção (12B D1) e Entrega (13B D1) antes do Orçamento:
+    // é o caminho da obra, na ordem em que acontece.
+    tabs.push({ id: 'separacao', label: 'Separação', icon: PackageCheck });
+    tabs.push({ id: 'producao', label: 'Produção', icon: Hammer });
+    tabs.push({ id: 'entrega', label: 'Entrega & Fotos', icon: Camera });
+    tabs.push({ id: 'orcamento', label: 'Orçamento', icon: FileSpreadsheet });
   }
   return tabs;
 });
@@ -96,6 +161,21 @@ const visibleTabs = computed(() => {
     : allTabs.value;
 });
 
+// Spec 12B §7.1: quem abre a OS pode pedir a aba inicial (o quadro da fábrica
+// pede 'producao'). Sem pedido — ou uma aba que este segmento não tem —, abre
+// em 'objeto', como sempre. O pedido vale uma vez só. `immediate`: este
+// componente pode nascer com o modal já aberto. Fica DEPOIS de `allTabs`,
+// que ele consulta.
+const { abaInicial } = useOSCreateFlow();
+
+watch(() => view.isOpen.value, (open) => {
+  if (open) {
+    const pedida = allTabs.value.find((tab) => tab.id === abaInicial.value);
+    activeTab.value = pedida ? pedida.id : 'objeto';
+    abaInicial.value = null;
+  }
+}, { immediate: true });
+
 const objetoModel = computed<ObjetoFormData>({
   get: () => view.objetoFormData.value,
   set: (value) => view.setObjetoFormData(value),
@@ -104,19 +184,39 @@ const objetoModel = computed<ObjetoFormData>({
 
 <template>
   <div>
-    <TrilhoFabrica
-      v-if="ehDaFabrica && view.currentOSData.value"
-      :numero-os="view.currentOSData.value.numero_os"
-      :fase="view.currentOSData.value.fase_fabrica ?? ''"
-      :atualizado-em="view.currentOSData.value.data_atualizacao"
-      class="mb-4"
-      @os-alterada="view.refreshCurrentOSData"
-    />
-    <div class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
+    <!-- Marcenaria: abas sublinhadas, presas no topo ao rolar a tela cheia. -->
+    <div
+      v-if="marcenaria"
+      role="tablist"
+      aria-label="Seções da OS"
+      class="sticky -top-6 z-20 -mx-6 -mt-6 mb-6 flex gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-6"
+    >
       <button
         v-for="tab in visibleTabs"
         :key="tab.id"
         type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
+        :class="[
+          'flex shrink-0 items-center gap-2 border-b-2 px-3.5 pb-3 pt-3.5 text-sm whitespace-nowrap transition-colors cursor-pointer',
+          activeTab === tab.id
+            ? 'border-brand-primary font-semibold text-brand-primary'
+            : 'border-transparent font-medium text-zinc-600 hover:text-zinc-900',
+        ]"
+        @click="activeTab = tab.id"
+      >
+        <component :is="tab.icon" :size="16" />
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <div v-else role="tablist" class="flex p-1 mb-4 bg-slate-100 rounded-xl gap-1">
+      <button
+        v-for="tab in visibleTabs"
+        :key="tab.id"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.id"
         :class="[
           'flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-bold rounded-lg transition-all',
           activeTab === tab.id
@@ -130,7 +230,10 @@ const objetoModel = computed<ObjetoFormData>({
       </button>
     </div>
 
-    <div class="min-h-125">
+    <!-- Visão Geral da marcenaria: conteúdo + coluna lateral; as outras abas, largura toda. -->
+    <div :class="visaoGeral ? 'grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]' : ''">
+    <div :class="visaoGeral ? 'flex min-w-0 flex-col gap-6' : 'min-h-125'">
+      <slot v-if="visaoGeral" name="visao-geral" />
       <fieldset v-if="activeTab !== 'diagnostico'" :disabled="view.isStructureLocked.value" class="contents">
         <OSObjetoDinamicoTab
           v-if="activeTab === 'objeto' && temTipos"
@@ -195,14 +298,39 @@ const objetoModel = computed<ObjetoFormData>({
         :os-id="osSalvaId"
       />
 
-      <!-- Fora do fieldset: tem as próprias ações e travas (só o rascunho se edita). -->
-      <OrcamentoFabricaTab
-        v-if="activeTab === 'orcamento' && ehDaFabrica && view.currentOSData.value"
+      <!-- Fora do fieldset: a separação tem as próprias regras de edição (10B D10). -->
+      <OSSeparacaoTab
+        v-if="activeTab === 'separacao' && view.currentOSData.value"
         :numero-os="view.currentOSData.value.numero_os"
-        :cliente="clienteDaOS"
-        :projeto="view.currentOSData.value.objeto?.modelo ?? ''"
-        :travada="view.isFinalizada.value || view.isCancelada.value"
-        @os-alterada="view.refreshCurrentOSData"
+        :aplicar-status="aplicarStatus"
+        @ver-necessidades="verNecessidades"
+        @navegar="navegar"
+      />
+
+      <!-- Fora do fieldset: a produção tem as próprias regras de edição (12B D10). -->
+      <OSProducaoTab
+        v-if="activeTab === 'producao' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :funcionarios="funcionariosDaProducao"
+        :aplicar-status="aplicarStatus"
+        :obra="obraDaOS"
+      />
+
+      <!-- Fora do fieldset: pendências valem até com a OS finalizada (13B D10). -->
+      <OSEntregaTab
+        v-if="activeTab === 'entrega' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :funcionarios="funcionariosDaProducao"
+        @finalizar="view.handleFinalizarOS"
+      />
+
+      <!-- Fora do fieldset: a aba é só leitura e o link precisa funcionar em OS finalizada. -->
+      <OSOrcamentoTab
+        v-if="activeTab === 'orcamento' && view.currentOSData.value"
+        :numero-os="view.currentOSData.value.numero_os"
+        :total-os-centavos="view.currentOSData.value.valor_total ?? null"
+        @preencher-adiantamento="view.handleValorEntradaUpdate"
+        @abrir-orcamento="abrirOrcamento"
       />
 
       <OSDiagnosticoTab
@@ -217,6 +345,10 @@ const objetoModel = computed<ObjetoFormData>({
         @remove-pending="view.handleRemovePending"
         @photo-change="view.handlePhotoChange"
       />
+    </div>
+    <aside v-if="visaoGeral" class="flex flex-col gap-6 xl:sticky xl:top-14">
+      <slot name="lateral" />
+    </aside>
     </div>
   </div>
 </template>

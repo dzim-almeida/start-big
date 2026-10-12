@@ -26,6 +26,10 @@ const autoUsarCredito = ref(false);
 // faz o fluxo pular a pergunta "objeto já cadastrado?" — mas SEM pular o alerta
 // de crédito, que é dinheiro do cliente e precisa ser visto de qualquer jeito.
 const objetoPreSelecionado = ref<ObjetoHistorico | null>(null);
+// Marcenaria (Spec 12B §7.1): em qual aba o modal de OS deve abrir. Null = a
+// aba de sempre ("objeto"). O quadro da fábrica abre a OS direto na Produção;
+// o modal lê e limpa este valor ao abrir.
+const abaInicial = ref<string | null>(null);
 
 // =============================================
 // Helper privado — continua o fluxo após a decisão de crédito
@@ -73,11 +77,16 @@ export function useOSCreateFlow() {
     isClienteSearchOpen.value = true;
   }
 
-  function openExistingOS(os: OrderServiceReadDataType, comReopen = false) {
+  /**
+   * Abre uma OS que já existe. `opcoes.abaInicial` é OPCIONAL (Spec 12B):
+   * sem ela, o modal abre na aba de sempre, como antes.
+   */
+  function openExistingOS(os: OrderServiceReadDataType, comReopen = false, opcoes: { abaInicial?: string } = {}) {
     selectedOS.value = os;
     selectedCliente.value = null;
     selectedObjeto.value = null;
     autoOpenReopen.value = comReopen;
+    abaInicial.value = opcoes.abaInicial ?? null;
     isFormModalOpen.value = true;
   }
 
@@ -172,6 +181,7 @@ export function useOSCreateFlow() {
     autoUsarCredito.value = false;
     autoOpenReopen.value = false;
     objetoPreSelecionado.value = null;
+    abaInicial.value = null;
   }
 
   return {
@@ -185,6 +195,7 @@ export function useOSCreateFlow() {
     selectedObjeto,
     autoUsarCredito,
     autoOpenReopen,
+    abaInicial,
     openNovaOS,
     openExistingOS,
     handleClienteSelected,

@@ -86,7 +86,12 @@ def campo(
     return resultado
 
 
-def tipo_de_trabalho(id: str, label: str, campos: List[Dict[str, Any]]) -> Dict[str, Any]:
+def tipo_de_trabalho(
+    id: str,
+    label: str,
+    campos: List[Dict[str, Any]],
+    criacao_manual: bool = True,  # False = a OS deste tipo so nasce de outro documento (Spec 03A, D4)
+) -> Dict[str, Any]:
     """Um processo de negocio dentro do mesmo segmento.
 
     Oficina e informatica tem UM processo so: toda OS e sobre um veiculo, ou
@@ -97,8 +102,13 @@ def tipo_de_trabalho(id: str, label: str, campos: List[Dict[str, Any]]) -> Dict[
 
     Segmento que NAO declara `tipos` continua exatamente como sempre foi: e o
     que mantem oficina e informatica intocadas.
+
+    `criacao_manual` (Spec 03A da marcenaria): o padrao True e o de sempre --
+    o atendente abre a OS pela tela. False quer dizer que a OS deste tipo so
+    nasce de outro documento (em Moveis planejados, da aprovacao de um
+    orcamento); o servico da OS recusa a criacao pelo caminho comum.
     """
-    return {"id": id, "label": label, "campos": campos}
+    return {"id": id, "label": label, "campos": campos, "criacao_manual": criacao_manual}
 
 
 def grupo_vistoria(titulo: str, itens: List[str]) -> Dict[str, Any]:

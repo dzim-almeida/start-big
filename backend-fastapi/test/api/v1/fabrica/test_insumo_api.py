@@ -95,8 +95,15 @@ def test_cadastro_do_produto_nao_muda(client, header_com_token, marcenaria, chap
     antes = client.get(f"/api/v1/produtos/{chapa}", headers=header_com_token).json()
     gravar_chapa(client, header_com_token, chapa)
     depois = client.get(f"/api/v1/produtos/{chapa}", headers=header_com_token).json()
-    assert antes == depois
+    # Desde a Spec 04A da marcenaria, `sofre_perda` FAZ PARTE do cadastro do
+    # produto (de propósito), então a resposta mostra o valor que esta rota
+    # gravou. O que este teste protege continua: os campos de insumo da fábrica
+    # (`unidade_consumo`, `consumo_por_unidade`) não vazam para o cadastro.
+    sem_perda = lambda produto: {k: v for k, v in produto.items() if k != "sofre_perda"}  # noqa: E731
+    assert sem_perda(antes) == sem_perda(depois)
+    assert depois["sofre_perda"] is True
     assert "unidade_consumo" not in depois
+    assert "consumo_por_unidade" not in depois
 
     # e editar o produto pelo cadastro de sempre não apaga o insumo
     r = client.put(f"/api/v1/produtos/{chapa}", json={"nome": "MDF Branco TX 15mm"}, headers=header_com_token)

@@ -214,6 +214,8 @@ _CAMPO_LEGIVEL: dict[str, str] = {
     "quantidade": "Quantidade",
     "quantidade_minima": "Qtd. Mínima",
     "quantidade_ideal": "Qtd. Ideal",
+    # Marcenaria (Spec 04A): o histórico diz "Sofre perda alterado".
+    "sofre_perda": "Sofre perda",
 }
 
 

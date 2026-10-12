@@ -14,8 +14,22 @@
 
 import pytest
 
-from app.core.segmentos import CAPACIDADES_CONHECIDAS, DEFINICOES, segmento_declara_coluna
-from app.core.segmentos.capacidades import CAP_GARANTIA_PRAZO, CAP_IMAGEM_NA_ENTRADA
+from app.core.enum import OrdemServicoStatus
+from app.core.segmentos import (
+    CAPACIDADES_CONHECIDAS,
+    DEFINICOES,
+    label_do_tipo,
+    rotulo_status,
+    segmento_declara_coluna,
+    segmento_tem_capacidade,
+    tipo_permite_criacao_manual,
+)
+from app.core.segmentos.capacidades import (
+    CAP_APROVACAO_ITENS,
+    CAP_GARANTIA_PRAZO,
+    CAP_IMAGEM_NA_ENTRADA,
+    CAP_ORCAMENTO_TECNICO,
+)
 from app.core.segmentos.campos import (
     ESCOPOS_SUPORTADOS,
     LARGURAS_SUPORTADAS,
@@ -296,32 +310,17 @@ def test_ids_dos_tipos_da_marcenaria_sao_contrato_com_o_frontend():
     """
     Mesmo aviso da serigrafia. O pacote MARCENARIA em textosImpressaoOS.ts
     sobrescreve por tipo: Planejados nao tem "prazo de retirada" (o movel e
-    montado na obra) e Reforma tem (o movel volta para o cliente). Renomear um
-    id aqui faria a via de Planejados sair com a clausula de retirada, em
-    silencio.
+    instalado na obra). Renomear o id aqui faria a via de Planejados sair com a
+    clausula de retirada, em silencio.
+
+    Fase 1 = so Planejados (Spec 03A, D3): a Reforma de moveis saiu do
+    registry e volta numa fase seguinte (SPEC-00, secao 7.1).
     """
     ids = {tipo["id"] for tipo in DEFINICOES["marcenaria"].get("tipos", [])}
 
-    assert {"planejados", "reforma_moveis"} <= ids, (
+    assert ids == {"planejados"}, (
         f"ids esperados pelo pacote de textos das vias nao encontrados: {ids}"
     )
-
-
-def test_marcenaria_reforma_nao_tem_montagem_externa():
-    """
-    A etapa "Montagem externa" e a montagem na casa do cliente -- so existe em
-    Planejados. Em Reforma o movel volta pronto para o cliente; oferecer a
-    opcao faria o atendente marcar uma etapa que nao acontece.
-    """
-    tipos = {t["id"]: t for t in DEFINICOES["marcenaria"]["tipos"]}
-    etapas = {
-        tid: next(c for c in t["campos"] if c["nome"] == "etapa")["opcoes"]
-        for tid, t in tipos.items()
-    }
-    assert "Montagem externa" in etapas["planejados"]
-    assert "Montagem externa" not in etapas["reforma_moveis"]
-    # Fora essa, as etapas sao as mesmas e na mesma ordem: e o mesmo fluxo.
-    assert [e for e in etapas["planejados"] if e != "Montagem externa"] == etapas["reforma_moveis"]
 
 
 def test_imagem_na_entrada_e_de_quem_recebe_o_pedido_em_imagem():
@@ -331,8 +330,8 @@ def test_imagem_na_entrada_e_de_quem_recebe_o_pedido_em_imagem():
 
     Em serigrafia a imagem e a arte a estampar: sem ela nao ha o que produzir, e
     quem pinta trabalha a partir do papel. Em marcenaria (ligada em 16/09/2026)
-    e o ambiente ou o projeto em Planejados, e o estado do movel em Reforma --
-    nos dois casos o cliente assina a via vendo a foto. Em oficina e informatica
+    e o ambiente ou o projeto em Planejados -- o cliente assina a via vendo a
+    foto. Em oficina e informatica
     a foto e prova do estado do bem: nasce depois, com o aparelho na bancada, e
     nao vai para a via do cliente.
 
@@ -409,3 +408,212 @@ def test_quem_declara_a_coluna_marca():
     assert segmento_declara_coluna("marcenaria", "marca") is False
     assert segmento_declara_coluna("marcenaria", "modelo") is True
     assert segmento_declara_coluna(None, "marca") is False
+
+
+# =========================
+# Spec 01A -- rotulos de STATUS por segmento
+# =========================
+
+def test_rotulos_de_status_nao_inventam_valor_de_enum():
+    """
+    Caso 01 da Spec 01A. O status gravado e o MESMO enum em todo segmento:
+    transicoes, filtros e relatorios dependem dele. So o TEXTO muda.
+
+    Uma chave fora do enum nunca casaria com o valor salvo, e o erro seria
+    silencioso: a tela cairia no texto padrao sem ninguem perceber.
+    """
+    validas = {s.value for s in OrdemServicoStatus}  # os 7 codigos que existem no banco
+
+    for segmento, definicao in DEFINICOES.items():
+        rotulos = definicao.get("rotulos_status")  # chave opcional (Spec 01A, D1)
+        if not rotulos:
+            continue  # segmento sem rotulo proprio usa o texto padrao
+        assert set(rotulos) <= validas, f"{segmento}: chave fora do enum -> {set(rotulos) - validas}"
+
+
+def test_rotulo_de_status_declara_os_dois_tamanhos():
+    """
+    Casos 02 e 03 da Spec 01A. Cada rotulo tem o texto completo (telas e
+    impressao) e o curto (widget do dashboard). Os dois precisam existir: a
+    abreviacao nao e derivavel com seguranca (D3).
+
+    O curto tem no maximo 20 caracteres para caber no widget -- o maior texto
+    padrao de hoje e "Aguard. aprovação", com 17.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        for status, rotulo in (definicao.get("rotulos_status") or {}).items():
+            onde = f"{segmento}.{status}"  # para a mensagem de erro dizer quem falhou
+            assert str(rotulo.get("rotulo", "")).strip(), f"{onde}: rotulo completo vazio"
+            assert str(rotulo.get("curto", "")).strip(), f"{onde}: rotulo curto vazio"
+            assert len(rotulo["curto"]) <= 20, f"{onde}: curto com {len(rotulo['curto'])} caracteres"
+
+
+def test_so_a_marcenaria_renomeia_status_por_enquanto():
+    """
+    Caso 04 da Spec 01A. Oficina, informatica, serigrafia e PDV estao em
+    producao com os textos de sempre ("Em Andamento", "Aguardando Retirada").
+    Declarar `rotulos_status` em um deles mudaria a tela de um cliente que nao
+    pediu nada. Se um dia for intencional, este teste e o lugar de dizer isso
+    em voz alta.
+    """
+    assert "rotulos_status" not in DEFINICOES["oficina_mecanica"]
+    assert "rotulos_status" not in DEFINICOES["assistencia_tecnica"]
+    assert "rotulos_status" not in DEFINICOES["serigrafia"]
+    assert "rotulos_status" not in DEFINICOES["pdv"]
+    # A marcenaria declara exatamente os tres status da secao 4.1 da spec.
+    assert set(DEFINICOES["marcenaria"]["rotulos_status"]) == {
+        "EM_ANDAMENTO",
+        "AGUARDANDO_PECAS",
+        "AGUARDANDO_RETIRADA",
+    }
+
+
+def test_rotulo_status_devolve_o_texto_declarado():
+    """Casos 05 e 06 da Spec 01A: o tamanho certo para cada uso."""
+    # Completo: o padrao da tela de OS (cada palavra com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA") == "Aguardando Entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO") == "Em Produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS") == "Aguardando Material"
+    # Curto: o padrao do dashboard (so a primeira com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA", curto=True) == "Aguard. entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO", curto=True) == "Em produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS", curto=True) == "Aguard. material"
+
+
+def test_rotulo_status_devolve_none_quando_nao_ha_rotulo_proprio():
+    """
+    Casos 07 e 08 da Spec 01A. None quer dizer "use o seu padrao": a funcao
+    nunca inventa texto (D6), quem chama ja tem a tabela de hoje.
+    """
+    # Status que a marcenaria nao renomeou.
+    assert rotulo_status("marcenaria", "ABERTA") is None
+    # Empresa sem segmento, segmento sem arquivo de definicao, e segmento com
+    # definicao mas sem `rotulos_status`.
+    assert rotulo_status(None, "ABERTA") is None
+    assert rotulo_status("outros", "ABERTA") is None
+    assert rotulo_status("assistencia_tecnica", "AGUARDANDO_RETIRADA") is None
+
+
+# =========================
+# Spec 03A -- tipo de trabalho que so nasce de outro documento
+# =========================
+
+def test_todo_tipo_declara_criacao_manual():
+    """
+    Caso 01 da Spec 03A. O servico da OS le esta marcacao para decidir se a OS
+    pode nascer pelo caminho comum. `tipo_de_trabalho()` sempre preenche (padrao
+    True); um tipo montado a mao sem ela cairia no padrao calado.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        for tipo in definicao.get("tipos", []):
+            onde = f"{segmento}.{tipo['id']}"  # para a mensagem dizer quem falhou
+            assert isinstance(tipo.get("criacao_manual"), bool), f"{onde}: sem criacao_manual"
+
+
+def test_tipos_da_serigrafia_continuam_criaveis_a_mao():
+    """Caso 02 (GUARDIAO): a serigrafia esta em producao e abre OS pela tela."""
+    for tipo in DEFINICOES["serigrafia"]["tipos"]:
+        assert tipo["criacao_manual"] is True, tipo["id"]
+
+
+def test_marcenaria_tem_so_planejados_e_ele_nasce_do_orcamento():
+    """
+    Caso 03 da Spec 03A. Um tipo so (D1, D3), que nao se cria a mao (D4), com
+    os dados do PROJETO: o nome (coluna `modelo`) e o endereco da obra.
+    Ambiente, modulos, material, montagem e etapa vivem no orcamento (D2).
+    """
+    tipos = DEFINICOES["marcenaria"]["tipos"]
+    assert [t["id"] for t in tipos] == ["planejados"]
+
+    planejados = tipos[0]
+    assert planejados["criacao_manual"] is False
+    assert {c["nome"] for c in planejados["campos"]} == {"nome_projeto", "endereco_obra"}
+
+
+def test_capacidades_da_marcenaria_sem_aprovacao_por_item():
+    """
+    Caso 04 da Spec 03A (D10). Os moveis sao aprovados no ORCAMENTO, antes de a
+    OS existir: aprovacao por item na OS seria a mesma decisao duas vezes.
+    A Spec 04A acrescentou `orcamento_tecnico`.
+    """
+    capacidades = set(DEFINICOES["marcenaria"]["capacidades"])
+    assert capacidades == {CAP_IMAGEM_NA_ENTRADA, CAP_GARANTIA_PRAZO, CAP_ORCAMENTO_TECNICO}
+    assert CAP_APROVACAO_ITENS not in capacidades
+
+
+@pytest.mark.parametrize("tipo_id", ["planejados", None, "inexistente", "reforma_moveis"])
+def test_marcenaria_nao_cria_os_a_mao_com_tipo_nenhum(tipo_id):
+    """
+    Caso 07 da Spec 03A. Tipo omitido ou desconhecido tambem e recusado (D5-b):
+    sem isso bastaria nao mandar o tipo para furar a trava.
+    """
+    assert tipo_permite_criacao_manual("marcenaria", tipo_id) is False
+
+
+@pytest.mark.parametrize(
+    "segmento, tipo_id",
+    [
+        ("serigrafia", "camisa"),          # tipo conhecido e criavel
+        ("serigrafia", None),              # sem tipo: a serigrafia tem tipo criavel
+        ("serigrafia", "inexistente"),     # idem
+        ("assistencia_tecnica", None),     # segmento sem tipos: como sempre
+        (None, None),                      # empresa sem segmento
+    ],
+)
+def test_quem_cria_os_a_mao_continua_criando(segmento, tipo_id):
+    """Caso 08 da Spec 03A (GUARDIAO): nada muda para quem esta em producao."""
+    assert tipo_permite_criacao_manual(segmento, tipo_id) is True
+
+
+def test_label_do_tipo_para_a_mensagem_de_erro():
+    """Caso 09 da Spec 03A: sem tipo informado, a mensagem usa o primeiro."""
+    assert label_do_tipo("marcenaria", None) == "Móveis planejados"
+    assert label_do_tipo("marcenaria", "planejados") == "Móveis planejados"
+
+
+def test_quem_tem_todos_os_tipos_fora_da_criacao_manual():
+    """
+    Caso 10 da Spec 03A. Permitido -- mas este teste diz EM VOZ ALTA quais
+    segmentos nao abrem OS pela tela. A Spec 03B esconde o botao "Criar OS"
+    exatamente nesses; um segmento novo entrando nesta lista precisa da mesma
+    atencao.
+    """
+    sem_criacao_manual = {
+        segmento                                              # nome do segmento
+        for segmento, definicao in DEFINICOES.items()
+        if definicao.get("tipos")                             # declara tipos...
+        and not any(t["criacao_manual"] for t in definicao["tipos"])  # ...e nenhum e criavel
+    }
+    assert sem_criacao_manual == {"marcenaria"}
+
+
+# =========================
+# Spec 04A -- capacidade `orcamento_tecnico`
+# =========================
+
+def test_orcamento_tecnico_e_capacidade_conhecida():
+    """Caso 01 da Spec 04A: declarar uma capacidade que o sistema nao conhece
+    seria metadado orfao (o guard de cima ja recusa)."""
+    assert CAP_ORCAMENTO_TECNICO in CAPACIDADES_CONHECIDAS
+
+
+def test_so_a_marcenaria_tem_orcamento_tecnico():
+    """
+    Caso 02 da Spec 04A. A capacidade liga os parametros da marcenaria, a flag
+    "sofre perda" no produto e o menu Orcamentos. Liga-la em outro segmento
+    mostraria tudo isso a uma loja em producao que nao pediu. Se um dia for
+    intencional, este teste e o lugar de dizer isso em voz alta.
+    """
+    quem_declara = {
+        segmento
+        for segmento, definicao in DEFINICOES.items()
+        if CAP_ORCAMENTO_TECNICO in definicao.get("capacidades", [])
+    }
+    assert quem_declara == {"marcenaria"}
+
+
+def test_segmento_tem_capacidade():
+    """Casos 03 e 04 da Spec 04A: a primeira consulta de capacidade no backend."""
+    assert segmento_tem_capacidade("marcenaria", CAP_ORCAMENTO_TECNICO) is True
+    for segmento in ("serigrafia", "oficina_mecanica", None, "outros"):
+        assert segmento_tem_capacidade(segmento, CAP_ORCAMENTO_TECNICO) is False, segmento

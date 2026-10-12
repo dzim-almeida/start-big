@@ -59,6 +59,13 @@ CAP_IMAGEM_NA_ENTRADA = "imagem_na_entrada"
 # no pacote de textos, que e outro assunto.
 CAP_GARANTIA_PRAZO = "garantia_prazo"
 
+# O segmento orca por ambiente, movel e insumo (BOM), com perda, markup e
+# margem (orcamento tecnico da marcenaria, docs/marcenaria/ SPEC-00 e Spec 04A).
+# Liga os parametros da marcenaria (GET/PUT /configuracoes/marcenaria), a flag
+# "sofre perda" no produto e, nas proximas specs, o menu Orcamentos. Segmento
+# que nao declara continua exatamente como antes.
+CAP_ORCAMENTO_TECNICO = "orcamento_tecnico"
+
 CAPACIDADES_CONHECIDAS = [
     CAP_VISTORIA,
     CAP_REVISOES,
@@ -67,4 +74,5 @@ CAPACIDADES_CONHECIDAS = [
     CAP_DIAGNOSTICO,
     CAP_IMAGEM_NA_ENTRADA,
     CAP_GARANTIA_PRAZO,
+    CAP_ORCAMENTO_TECNICO,
 ]

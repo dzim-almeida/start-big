@@ -28,6 +28,8 @@ export const productSchema = z.object({
     }),
   localizacao_estoque: z.string().max(255).optional().or(z.literal('')),
   observacao: z.string().max(500).optional().or(z.literal('')),
+  // Marcenaria (Spec 04B): só aparece no segmento com orçamento técnico.
+  sofre_perda: z.boolean().default(false),
 
   valor_entrada: z.number().optional().or(z.literal(0)),
   valor_varejo: z

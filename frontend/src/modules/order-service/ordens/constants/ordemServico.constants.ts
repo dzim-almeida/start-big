@@ -55,17 +55,37 @@ export function isDesfechoKey(key: string): key is OsEquipSituacaoEnumDataType {
   return (OS_DESFECHO_KEYS as readonly string[]).includes(key);
 }
 
-export const OS_STATUS_OPTIONS: { value: OsStatusEnumDataType; label: string }[] = (
-  [
-    'ABERTA',
-    'EM_ANDAMENTO',
-    'AGUARDANDO_PECAS',
-    'AGUARDANDO_APROVACAO',
-    'AGUARDANDO_RETIRADA',
-    'FINALIZADA',
-    'CANCELADA',
-  ] as const
-).map((value) => ({ value, label: OS_ESTADO_CONFIG[value].label }));
+/** Ordem do fluxo no select de status (a mesma de sempre). */
+const OS_STATUS_ORDEM = [
+  'ABERTA',
+  'EM_ANDAMENTO',
+  'AGUARDANDO_PECAS',
+  'AGUARDANDO_APROVACAO',
+  'AGUARDANDO_RETIRADA',
+  'FINALIZADA',
+  'CANCELADA',
+] as const;
+
+/**
+ * Quem decide o TEXTO de cada estado. Por padrão, o label de OS_ESTADO_CONFIG;
+ * o composable `useRotulosStatusOS` passa um que conhece os rótulos do
+ * segmento (Spec 01B). As cores nunca mudam: vêm sempre de OS_ESTADO_CONFIG.
+ */
+export type TextoDoEstado = (chave: OsEstadoKey) => string;
+const textoPadrao: TextoDoEstado = (chave) => OS_ESTADO_CONFIG[chave].label;
+
+/**
+ * Opções do select de status. `value` é o código do enum (é o que vai para a
+ * API); `label` é o texto exibido (Spec 01B, D5).
+ */
+export function montarOpcoesStatus(
+  texto: TextoDoEstado = textoPadrao,       // sem parâmetro = textos padrão
+): { value: OsStatusEnumDataType; label: string }[] {
+  return OS_STATUS_ORDEM.map((value) => ({ value, label: texto(value) }));
+}
+
+/** Constante de sempre, agora montada pela função: mesmo conteúdo de antes. */
+export const OS_STATUS_OPTIONS: { value: OsStatusEnumDataType; label: string }[] = montarOpcoesStatus();
 
 export const OS_PRIORIDADE_OPTIONS = [
   { value: 'BAIXA' as OsPriorityEnumDataType, label: 'Baixa', color: 'gray' },
@@ -130,16 +150,27 @@ const OS_FILTRO_OCULTOS: readonly OsEstadoKey[] = ['CANCELADA'];
 /**
  * Opções do menu de filtro — derivadas do mapa acima, na mesma ordem: primeiro
  * os status do fluxo, depois os desfechos ("Sem Reparo" / "Condenado").
+ *
+ * A CHAVE de cada opção é o código do enum: é ela que fica salva no
+ * localStorage (STORAGE_KEY_OS_FILTER) e vai para a API. Só o texto pode vir
+ * do segmento (Spec 01B, D5).
  */
-export const OS_STATUS_FILTER_CONFIG: Record<string, FilterOption> = Object.fromEntries(
-  (Object.keys(OS_ESTADO_CONFIG) as OsEstadoKey[])
-    .filter((key) => !OS_FILTRO_OCULTOS.includes(key))
-    .map((key) => [
-      key,
-      {
-        label: OS_ESTADO_CONFIG[key].label,
-        class: OS_ESTADO_CONFIG[key].badge,
-        color: OS_ESTADO_CONFIG[key].dot,
-      },
-    ]),
-);
+export function montarFiltroStatus(
+  texto: TextoDoEstado = textoPadrao,       // sem parâmetro = textos padrão
+): Record<string, FilterOption> {
+  return Object.fromEntries(
+    (Object.keys(OS_ESTADO_CONFIG) as OsEstadoKey[])
+      .filter((key) => !OS_FILTRO_OCULTOS.includes(key))   // CANCELADA continua fora
+      .map((key) => [
+        key,                                               // chave = código do enum
+        {
+          label: texto(key),                               // texto: padrão ou do segmento
+          class: OS_ESTADO_CONFIG[key].badge,              // cores: sempre as mesmas
+          color: OS_ESTADO_CONFIG[key].dot,
+        },
+      ]),
+  );
+}
+
+/** Constante de sempre, agora montada pela função: mesmo conteúdo de antes. */
+export const OS_STATUS_FILTER_CONFIG: Record<string, FilterOption> = montarFiltroStatus();

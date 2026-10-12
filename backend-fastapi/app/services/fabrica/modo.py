@@ -13,15 +13,19 @@ Ela só nasce preenchida quando as três coisas são verdade ao abrir a OS:
 Desligar a chave depois não tira ninguém do trilho (D0c): a OS que já tem
 fase continua até fechar. Por isso todo o resto pergunta pela FASE da OS, não
 pela chave.
+
+APOSENTADA (08/10/2026): a marcenaria passou a seguir as specs de
+backend-fastapi/docs/marcenaria/ (orçamento técnico). `modo_fabrica_ligado`
+responde sempre False, então nenhuma OS nova entra no trilho; o resto da
+fábrica fica inerte e sai numa limpeza depois do piloto (SPEC-00 FB1,
+Spec 03A D13-D16).
 """
 
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.segmentos.definicoes.marcenaria import MARCENARIA, SEGMENTO_MARCENARIA
-from app.db.crud import empresa as empresa_crud
-from app.db.crud.configuracao_os import get_configuracao_os
+from app.core.segmentos.definicoes.marcenaria import MARCENARIA
 
 TIPO_PLANEJADOS = "planejados"
 # A tela mostra o PRIMEIRO tipo do segmento como escolhido e só grava
@@ -54,13 +58,15 @@ class Fase:
 
 
 def modo_fabrica_ligado(db: Session) -> bool:
-    empresa = empresa_crud.get_empresa_atual(db)
-    if not empresa or empresa.segmento != SEGMENTO_MARCENARIA:
-        return False
-    # Só lê: abrir uma OS não pode criar a linha de configuração como efeito
-    # colateral (get_or_create comita).
-    config = get_configuracao_os(db, empresa.id)
-    return bool(config and config.modo_fabrica)
+    """Sempre False: a fábrica foi APOSENTADA (SPEC-00 da marcenaria, Revisão 15, FB1).
+
+    A marcenaria segue as specs de docs/marcenaria/ (orçamento técnico). A chave
+    `configuracoes_os.modo_fabrica` continua no banco e no contrato, mas não liga
+    mais nada: nenhuma OS nova entra no trilho. O código da fábrica fica inerte
+    (tudo pergunta pela `fase_fabrica` da OS, que nenhuma OS nova recebe) e sai
+    numa limpeza depois do piloto.
+    """
+    return False  # `db` fica na assinatura: quem chama não muda
 
 
 def fase_inicial(db: Session, dados_adicionais: Optional[dict[str, Any]]) -> Optional[str]:

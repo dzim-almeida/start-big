@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Zap, ShoppingCart, FileText, Package, Wrench } from 'lucide-vue-next';
+import { Zap, ShoppingCart, FileText, Package, Wrench, PencilRuler } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia';
 
@@ -32,6 +32,10 @@ import ConfiguracoesModal from '@/modules/configuracoes/components/Configuracoes
 import RenovarAssinaturaModal from '@/modules/license/components/RenovarAssinaturaModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
+import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
+import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
+import { useRoute, useRouter } from 'vue-router';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
 import { getRevisoesPendentes } from '@/modules/order-service/revisoes/services/revisao.service';
@@ -43,7 +47,7 @@ const settingsStore = useSettingsStore();
 const configuracoesStore = useConfiguracoesStore();
 const impressaoStore = useImpressaoStore();
 const notificacoesStore = useNotificacoesStore();
-const { temRevisoes } = useCapacidades();
+const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, isRenovarAssinaturaOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
 const { data: osAbandonoData } = useQuery({
@@ -136,12 +140,35 @@ const valorCreditoCliente = computed(() =>
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
-const quickActions: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
+/** Todos os atalhos do menu rápido (Ctrl+K), na ordem de sempre. */
+const TODOS_OS_ATALHOS: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
   { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
   { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
   { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
   { id: 'novo-servico', icon: Wrench, label: 'Criar Serviço', variant: 'secondary', action: () => openServicoCreate() },
 ];
+
+// "Criar OS" só onde a OS pode ser criada à mão; na marcenaria ela nasce do
+// orçamento (Spec 03B, D3), e o atalho vira "Novo orçamento" para quem pode
+// gerir orçamentos (Spec 06B, D4). Os outros atalhos ficam iguais.
+const router = useRouter();
+// Rota em tela cheia (ex.: editor de orçamento): sem sidebar, cabeçalho nem ações rápidas.
+const route = useRoute();
+const telaCheia = computed(() => route.meta.telaCheia === true);
+const { podeCriarOSManual } = useTiposDeTrabalho();
+const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
+const quickActions = computed(() => {
+  const novoOrcamento = temOrcamentoTecnico.value && podeGerirOrcamentos.value
+    ? {
+      id: ATALHO_NOVO_ORCAMENTO,
+      icon: PencilRuler,
+      label: 'Novo orçamento',
+      variant: 'primary' as const,
+      action: () => { void router.push({ name: 'marcenaria-orcamento-novo' }); },
+    }
+    : null;
+  return atalhosComOrcamento(TODOS_OS_ATALHOS, podeCriarOSManual.value, novoOrcamento);
+});
 
 const { Ctrl_K } = useMagicKeys();
 
@@ -172,17 +199,18 @@ whenever(Ctrl_K, () => {
         @click="layoutStore.closeSettings"
       />
 
-    <BaseSidebar />
+    <BaseSidebar v-if="!telaCheia" />
 
     <main class="relative flex-1 overflow-y-auto flex flex-col min-w-0">
-      <BaseHeader />
+      <BaseHeader v-if="!telaCheia" />
       <div class="flex-1 overflow-y-auto">
         <router-view />
       </div>
 
       <Transition name="pop" mode="out-in">
+        <div v-if="telaCheia" />
         <button
-          v-if="!isQuickOpen"
+          v-else-if="!isQuickOpen"
           class="fixed z-10 right-5 bottom-5 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
           @click="layoutStore.toggleQuick"
         >

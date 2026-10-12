@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 
+import { useSegmento } from '@/shared/composables/useSegmento';
 import { useOSFieldDefinition } from './useOSFieldDefinition.queries';
 import type { SegmentField, SegmentWorkType } from './segmentDefinition.type';
 
@@ -15,8 +16,18 @@ import type { SegmentField, SegmentWorkType } from './segmentDefinition.type';
  * tudo continua pelo caminho de sempre — é isso que mantém as duas lojas em
  * produção intocadas.
  */
+
+/**
+ * Segmentos SEM tipo criável à mão, usados SÓ enquanto o contrato carrega
+ * (Spec 03B, D4): sem isto o botão "Nova OS" apareceria e sumiria um instante
+ * depois. Repete o backend (app/core/segmentos/definicoes/marcenaria.py);
+ * quando o contrato chega, ele manda. Mesmo padrão de `useCapacidades.ts`.
+ */
+const SEM_CRIACAO_MANUAL_FALLBACK: readonly string[] = ['marcenaria'];
+
 export function useTiposDeTrabalho() {
-  const { data } = useOSFieldDefinition();
+  const { data, isPending } = useOSFieldDefinition();   // contrato do segmento (já em cache)
+  const { segmento } = useSegmento();                   // segmento da empresa logada
 
   const tipos = computed<SegmentWorkType[]>(() => data.value?.definicao?.tipos ?? []);
 
@@ -63,5 +74,38 @@ export function useTiposDeTrabalho() {
     return grupos;
   }
 
-  return { tipos, temTipos, opcoes, tipoPadrao, tipoPorId, camposDoTipo, gruposDoTipo };
+  /** Um tipo pode ser criado à mão? Ausente no contrato = sim (Spec 03B, D1). */
+  const criavelAMao = (tipo: SegmentWorkType) => tipo.criacao_manual !== false;
+
+  /**
+   * O segmento deixa abrir OS pelo botão "Nova OS"? (Spec 03B, D2/D4)
+   * Sim quando não há tipos (oficina, informática) ou quando pelo menos um
+   * tipo é criável à mão (serigrafia). É a mesma regra do backend (03A, D5).
+   */
+  const podeCriarOSManual = computed<boolean>(() => {
+    // Contrato carregando: decide pelo fallback, para o botão não piscar.
+    if (isPending.value) return !SEM_CRIACAO_MANUAL_FALLBACK.includes(segmento.value ?? '');
+    return !temTipos.value || tipos.value.some(criavelAMao);
+  });
+
+  /**
+   * O tipo gravado numa OS pode ser trocado? (Spec 03B, D6) Tipo desconhecido
+   * ou ausente: pode, como sempre. Só o tipo que nasce de outro documento trava.
+   */
+  function tipoPodeSerTrocado(id: string | null | undefined): boolean {
+    const tipo = tipoPorId(id);
+    return !tipo || criavelAMao(tipo);
+  }
+
+  return {
+    tipos,
+    temTipos,
+    opcoes,
+    tipoPadrao,
+    tipoPorId,
+    camposDoTipo,
+    gruposDoTipo,
+    podeCriarOSManual,
+    tipoPodeSerTrocado,
+  };
 }

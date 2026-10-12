@@ -12,6 +12,7 @@ import SupplierTypeSelector from './SupplierTypeSelector.vue';
 import DadosFornecedorSection from './form/DadosFornecedorSection.vue';
 import DadosTransportadoraSection from './form/DadosTransportadoraSection.vue';
 import DadosEntregadorSection from './form/DadosEntregadorSection.vue';
+import DadosArquitetoSection from './form/DadosArquitetoSection.vue';
 import EnderecoFornecedorSection from './form/EnderecoFornecedorSection.vue';
 import DadosBancariosSection from './form/DadosBancariosSection.vue';
 import ObservacoesFornecedorSection from './form/ObservacoesFornecedorSection.vue';
@@ -23,6 +24,7 @@ const {
   isViewMode,
   isTipoSelectionStep,
   selectedTipo,
+  tipoFixo,
   modalTitle,
   selectTipo,
   backToTipoSelection,
@@ -66,6 +68,12 @@ function handleSelectTipo(tipo: SupplierTipo) {
           :submit-count="submitCount"
           :disabled="isViewMode"
         />
+        <!-- Marcenaria (Spec 09B D3): arquiteto que indica clientes e recebe RT. -->
+        <DadosArquitetoSection
+          v-else-if="selectedTipo === 'arquiteto'"
+          :submit-count="submitCount"
+          :disabled="isViewMode"
+        />
 
         <hr class="border-zinc-100" />
 
@@ -89,9 +97,9 @@ function handleSelectTipo(tipo: SupplierTipo) {
 
     <template #footer>
       <div class="flex items-center justify-between w-full">
-        <!-- Botão voltar (só no modo criação após selecionar tipo) -->
+        <!-- Botão voltar (só no modo criação após selecionar tipo; aberto já num tipo, não volta) -->
         <BaseButton
-          v-if="isCreateMode && !isTipoSelectionStep"
+          v-if="isCreateMode && !isTipoSelectionStep && !tipoFixo"
           type="button"
           variant="secondary"
           @click="backToTipoSelection"

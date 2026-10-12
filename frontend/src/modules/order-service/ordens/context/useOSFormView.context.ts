@@ -79,6 +79,11 @@ export interface OSFormViewContext {
   /** Troca o dono da OS em criação para um cliente já cadastrado, pelo ID. */
   handleAbrirComCliente: (clienteId: number) => void;
   handleStatusUpdate: (value: OsStatusEnumDataType) => void;
+  /**
+   * Grava SÓ o status da OS e o reflete no modal aberto (Spec 12B D13). Os
+   * outros campos editados e ainda não salvos ficam como estão.
+   */
+  aplicarStatusSalvo: (status: OsStatusEnumDataType) => Promise<void>;
   handleFuncionarioIdUpdate: (value: string) => void;
   handlePrioridadeUpdate: (value: OsPriorityEnumDataType) => void;
   handleDataPrevisaoUpdate: (value: string) => void;

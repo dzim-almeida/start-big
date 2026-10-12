@@ -139,6 +139,14 @@ class OrdemServicoItem(Base):
         Integer, nullable=True, doc="Custo médio do estoque na separação (centavos), para a margem real"
     )
 
+    # De que DOCUMENTO o item veio (ex.: "ORCAMENTO_MARCENARIA", Spec 08A, D18).
+    # Generico de proposito: o servico da OS so sabe que item com origem nao se
+    # edita nem se remove pela OS (muda-se no documento de origem). Nulo em
+    # todo item lancado a mao -- todos os que existiam antes desta coluna.
+    origem: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, doc="Documento que gerou o item (nulo = item comum)"
+    )
+
     ordem_servico: Mapped["OrdemServico"] = relationship(back_populates="itens")
     produtos: Mapped[Optional["Produto"]] = relationship(doc="Produto do catalogo associado")
     servico: Mapped[Optional["Servico"]] = relationship(doc="Servico do catalogo associado")

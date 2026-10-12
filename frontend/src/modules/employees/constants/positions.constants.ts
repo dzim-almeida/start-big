@@ -18,7 +18,8 @@ import {
   Printer,
   ClipboardList,
   PackageCheck,
-  Ruler,
+  Calculator,
+  PencilRuler,
 } from 'lucide-vue-next';
 
 import { MODULOS } from '@/shared/constants/modulos.constants';
@@ -169,18 +170,10 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     manageKey: 'receive_purchases',
     modulo: MODULOS.COMPRAS,
   },
-  {
-    id: 'fabrica',
-    label: 'Fabrica',
-    description: 'Orcamento por movel, custos e liberacao de compra',
-    icon: Ruler,
-    // So na marcenaria. Visualizar = ver CUSTO e margem do orcamento;
-    // Gerenciar = orcar, enviar, registrar a resposta do cliente, liberar
-    // compra antes do sinal. Avancar etapa e da permissao de Servicos.
-    viewKey: 'view_fabrica',
-    manageKey: 'manage_fabrica',
-    segmento: 'marcenaria',
-  },
+  // A linha "Fabrica" (view_fabrica/manage_fabrica, so na marcenaria) saiu com
+  // a aposentadoria da fabrica (SPEC-00 da marcenaria, FB1; Spec 03B, D12). Ela
+  // nao contava no nivel do cargo, entao nenhum nivel muda. As constantes de
+  // PERMISSIONS e o mapa `fabrica` abaixo ficam: o codigo inerte ainda os importa.
   {
     id: 'reports',
     label: 'Relatorios',
@@ -228,7 +221,61 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     manageKey: 'manage_positions',
     deleteKey: 'delete_positions',
   },
+  {
+    // Spec 06B (marcenaria, D51): ver, montar, enviar e excluir orçamentos.
+    // Marcar Gerenciar ou Excluir marca Ver (chavesAoAlternar).
+    id: 'marcenaria_orcamentos',
+    label: 'Orçamentos de Marcenaria',
+    description: 'Ver, montar, enviar e excluir orçamentos',
+    icon: PencilRuler,
+    viewKey: 'view_orcamentos_marcenaria',
+    manageKey: 'manage_orcamentos_marcenaria',
+    deleteKey: 'delete_orcamentos_marcenaria',
+    // Só na marcenaria e fora do nível de acesso (mesmo mecanismo da linha
+    // de custos abaixo). As chaves são as que o backend confere
+    // (app/services/marcenaria/permissoes.py); fora do MODULE_PERMISSION_MAP.
+    segmento: 'marcenaria',
+  },
+  {
+    // Spec 04B (marcenaria, D16): ver custos e margens do orçamento; alterar
+    // markup, perda, custo/hora e RT. As chaves são as MESMAS que o backend
+    // confere (app/services/marcenaria/permissoes.py), por isso a linha não
+    // entra no MODULE_PERMISSION_MAP. Sem Excluir.
+    id: 'marcenaria_custos',
+    label: 'Custos da Marcenaria',
+    description: 'Ver custos e margens; alterar markup, perda e RT',
+    icon: Calculator,
+    viewKey: 'view_custos_marcenaria',
+    manageKey: 'manage_custos_marcenaria',
+    // Só na marcenaria, e fora do nível de acesso dos outros segmentos: é o
+    // mecanismo que a matriz já tem (PERMISSION_KEYS e PositionModal.matrizVisivel).
+    segmento: 'marcenaria',
+  },
 ];
+
+/**
+ * Chaves que mudam JUNTO com a que foi clicada (Spec 04B, D16).
+ *
+ * Só nas linhas de um SEGMENTO ("Custos da Marcenaria", "Orçamentos de
+ * Marcenaria"), onde gerenciar ou excluir sem ver não faz sentido: marcar
+ * Gerenciar (ou Excluir, Spec 06B D51) marca Ver; desmarcar Ver desmarca
+ * Gerenciar e Excluir. Nas outras linhas devolve só a própria chave, que é a
+ * regra de sempre (mudar o comportamento delas mexeria em cargos de todos os
+ * segmentos).
+ */
+export function chavesAoAlternar(chave: string, marcar: boolean): string[] {
+  const linha = PERMISSION_MATRIX.find(
+    (item) => item.segmento && (item.viewKey === chave || item.manageKey === chave || item.deleteKey === chave),
+  );
+  if (!linha) return [chave];                                       // linha comum: só ela
+  // Gerenciar ou excluir implica ver.
+  if (marcar && (chave === linha.manageKey || chave === linha.deleteKey)) return [chave, linha.viewKey];
+  if (!marcar && chave === linha.viewKey) {
+    // Sem ver, sem gerenciar e sem excluir (só as caixas que a linha tem).
+    return [chave, ...[linha.manageKey, linha.deleteKey].filter((k): k is string => Boolean(k))];
+  }
+  return [chave];
+}
 
 function chavesDe(itens: PermissionMatrixItem[]): string[] {
   return Array.from(

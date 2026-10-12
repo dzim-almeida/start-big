@@ -39,6 +39,15 @@ from app.api.v1.endpoints import produto_regra_preco
 from app.api.v1.endpoints import nfe_entrada
 from app.api.v1.endpoints import compras
 from app.api.v1.endpoints import fabrica
+from app.api.v1.endpoints import (
+    marcenaria_entrega,
+    marcenaria_orcamento,
+    marcenaria_orcamento_itens,
+    marcenaria_producao,
+    marcenaria_separacao,
+    marcenaria_terceirizado,
+)
+from app.services.marcenaria import ganchos as marcenaria_ganchos
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
@@ -160,3 +169,18 @@ router.include_router(compras.router, prefix="/compras", tags=["Compras"])
 # Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md): o router inteiro só
 # responde no segmento Marcenaria.
 router.include_router(fabrica.router, prefix="/fabrica", tags=["Marcenaria-fábrica"])
+# Orçamento de marcenaria (docs/marcenaria/, Spec 06A): tudo responde 404 fora
+# de segmento com a capacidade `orcamento_tecnico`. Dois arquivos, um prefixo.
+router.include_router(marcenaria_orcamento.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
+router.include_router(marcenaria_orcamento_itens.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
+# Spec 10A: separacao de material da OS e o disponivel da busca de insumo.
+router.include_router(marcenaria_separacao.router, prefix="/marcenaria", tags=["Marcenaria - Separação"])
+# Spec 11A: moveis terceirizados (pedido a central, com ou sem o Compras).
+router.include_router(marcenaria_terceirizado.router, prefix="/marcenaria", tags=["Marcenaria - Terceirizados"])
+# Spec 12A: etapas de producao por movel e o quadro da fabrica.
+router.include_router(marcenaria_producao.router, prefix="/marcenaria", tags=["Marcenaria - Produção"])
+# Spec 13A: entrega por ambiente, pendencias, fotos e agenda de instalacao.
+router.include_router(marcenaria_entrega.router, prefix="/marcenaria", tags=["Marcenaria - Entrega"])
+# Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
+# do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
+marcenaria_ganchos.registrar()

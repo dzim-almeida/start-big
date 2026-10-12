@@ -2,7 +2,8 @@ import { computed, type ComputedRef } from 'vue';
 
 import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useOsEmployeesGet } from '../request/relationship/useOSRelationshipGet.queries';
-import { OS_PRIORIDADE_OPTIONS, OS_STATUS_OPTIONS } from '../../constants/ordemServico.constants';
+import { OS_PRIORIDADE_OPTIONS } from '../../constants/ordemServico.constants';
+import { useRotulosStatusOS } from '../../../shared/segmento/useRotulosStatusOS';
 
 interface UseOSSelectOptionsParams {
   currentStatus: ComputedRef<string | undefined>;
@@ -18,6 +19,9 @@ interface UseOSSelectOptionsParams {
 
 export function useOSSelectOptions({ currentStatus, ativo }: UseOSSelectOptionsParams) {
   const employeesQuery = useOsEmployeesGet(ativo);
+  // Opções de status com o texto do segmento (Spec 01B). O valor continua o
+  // código do enum, que é o que vai para a API.
+  const { statusOptions: opcoesDeStatus } = useRotulosStatusOS();
 
   const funcionariosOptions = computed<SelectOption[]>(() => {
     const raw = employeesQuery.data.value as unknown;
@@ -31,12 +35,12 @@ export function useOSSelectOptions({ currentStatus, ativo }: UseOSSelectOptionsP
 
   const statusOptions = computed<SelectOption[]>(() => {
     if (currentStatus.value === 'FINALIZADA' || currentStatus.value === 'CANCELADA') {
-      return OS_STATUS_OPTIONS
+      return opcoesDeStatus.value
         .filter((status) => status.value === currentStatus.value)
         .map((status) => ({ value: status.value, label: status.label }));
     }
 
-    return OS_STATUS_OPTIONS
+    return opcoesDeStatus.value
       .filter((status) => status.value !== 'FINALIZADA' && status.value !== 'CANCELADA')
       .map((status) => ({ value: status.value, label: status.label }));
   });

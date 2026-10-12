@@ -476,23 +476,27 @@ const MARCENARIA: TextosImpressaoOS = {
         'umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga '
         + 'ou mau uso, alteração, desmontagem ou remontagem por terceiros, movimentação do móvel '
         + 'após a instalação, e desgaste natural do acabamento.',
+      // Spec 03B (D8): projeto, materiais e ferragens agora vivem no ORÇAMENTO
+      // aprovado (a OS nasce dele), não em campos desta OS; e a montagem na
+      // obra virou a linha de INSTALAÇÃO. Revisão final dos textos com o dono
+      // nas Specs 07 e 13B.
       condicoesEntrada:
         'As medidas foram conferidas no local pelo responsável e o cliente declara ter aprovado o '
-        + 'projeto, os materiais, as cores e as ferragens descritos nesta OS. Alterações após a '
+        + 'projeto, os materiais, as cores e as ferragens do orçamento aprovado. Alterações após a '
         + 'aprovação geram novo orçamento, e o prazo é contado a partir da aprovação e do pagamento '
-        + 'do adiantamento. A montagem externa exige o ambiente pronto, limpo e livre no dia '
-        + 'agendado; paredes, pisos e pontos de água, luz e gás são de responsabilidade do cliente.',
-      // Não há "retirada": o móvel é entregue e montado na obra. A cláusula
+        + 'do adiantamento. A instalação exige o ambiente pronto, limpo e livre no dia agendado; '
+        + 'paredes, pisos e pontos de água, luz e gás são de responsabilidade do cliente.',
+      // Não há "retirada": o móvel é entregue e instalado na obra. A cláusula
       // passa a tratar do agendamento — sem ela a via prometeria vender uma
       // cozinha "não retirada". O título acompanha, senão o papel dizia
-      // "PRAZO DE RETIRADA" em cima de um texto sobre montagem.
-      tituloPrazoRetirada: 'Entrega e Montagem',
+      // "PRAZO DE RETIRADA" em cima de um texto sobre instalação.
+      tituloPrazoRetirada: 'Entrega e Instalação',
       prazoRetiradaEntradaA4: (prazo) =>
-        `Móveis concluídos aguardam o agendamento da entrega e montagem pelo cliente. Após ${prazo} `
+        `Móveis concluídos aguardam o agendamento da entrega e instalação pelo cliente. Após ${prazo} `
         + 'da notificação de conclusão sem agendamento, os móveis permanecem armazenados por conta e '
         + 'risco do cliente, podendo ser cobrada taxa de armazenagem.',
       prazoRetiradaGarantiaA4: (prazo) =>
-        `A garantia é contada a partir da data da montagem. Móveis não agendados para entrega no `
+        `A garantia é contada a partir da data da instalação. Móveis não agendados para entrega no `
         + `prazo de ${prazo} após a notificação de conclusão permanecem armazenados por conta e risco `
         + 'do cliente.',
       cupom: {
@@ -500,24 +504,25 @@ const MARCENARIA: TextosImpressaoOS = {
         garantiaExclusoes:
           'umidade, cupim, sobrecarga, mau uso, remontagem por terceiros ou desgaste natural.',
         condicoesEntrada:
-          'Medidas conferidas no local. Cliente declara ter aprovado projeto, materiais, cores e '
-          + 'ferragens. Alteracoes apos a aprovacao geram novo orcamento. Montagem exige ambiente '
-          + 'pronto e livre.',
+          'Medidas conferidas no local. Cliente declara ter aprovado o orcamento (projeto, '
+          + 'materiais, cores e ferragens). Alteracoes apos a aprovacao geram novo orcamento. '
+          + 'Instalacao exige ambiente pronto e livre.',
         semReparo: 'Producao nao realizada. Sem garantia aplicavel a esta OS.',
         cancelamento:
           'A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a '
           + 'empresa de garantias sobre servicos nao concluidos.',
         // Sem esta linha a bobina herdaria a de reforma e diria "Moveis nao
-        // retirados" numa cozinha que vai ser montada na casa do cliente.
+        // retirados" numa cozinha que vai ser instalada na casa do cliente.
         prazoRetirada: (dias) =>
-          `ENTREGA E MONTAGEM: Moveis concluidos aguardam agendamento pelo cliente. Apos ${dias} `
+          `ENTREGA E INSTALACAO: Moveis concluidos aguardam agendamento pelo cliente. Apos ${dias} `
           + 'dias da notificacao sem agendamento, ficam armazenados por conta e risco do cliente.',
       },
     },
   },
 };
 
-const PACOTES: Record<string, TextosImpressaoOS> = {
+/** Pacote de textos de cada segmento. Exportado para os testes conferirem que não muda. */
+export const PACOTES: Record<string, TextosImpressaoOS> = {
   oficina_mecanica: OFICINA_MECANICA,
   assistencia_tecnica: ASSISTENCIA_TECNICA,
   serigrafia: SERIGRAFIA,
@@ -533,7 +538,7 @@ const PADRAO = ASSISTENCIA_TECNICA;
  * `cupom` inteiro pelo parcial, e a via em bobina perderia identificador,
  * defeito, assinatura e prazo de retirada de uma vez.
  */
-function aplicarTipoTrabalho(
+export function aplicarTipoTrabalho(
   pacote: TextosImpressaoOS,
   tipo: string | null | undefined,
 ): TextosImpressaoOS {

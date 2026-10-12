@@ -17,9 +17,8 @@ import type { CustomerUnionReadSchemaDataType } from '@/shared/schemas/customer/
 import type { CustomerFormContext } from '../types/context.type';
 import { useCustomerPFForm } from '../form/useCustomerPF.form';
 import { useCustomerPJForm } from '../form/useCustomerPJ.form';
-import { DEFAULT_ADDRESS, DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
-import { buscarDadosCNPJ } from '@/shared/services/cnpj.service';
-import { formatCEP, formatTelefone } from '@/shared/utils/document.utils';
+import { DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
+import { criarConsultaReceita } from './consultaReceita';
 import {
   transformPFToCreateRequest,
   transformPJToCreateRequest,
@@ -198,6 +197,7 @@ export function useCustomerFormProvider(): CustomerFormContext {
       pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
       customerType.value = 'PF';
       apiError.value = null;
+      limparAvisoCnpj();                               // modal fechado: o aviso some junto
     }
   });
 
@@ -321,51 +321,22 @@ export function useCustomerFormProvider(): CustomerFormContext {
   // regime (MEI/Simples, quando a Receita afirma), o PRIMEIRO endereço e o
   // contato vazio. A Inscrição Estadual não vem: é cadastro do estado, não da
   // Receita — continua digitada (e a prévia da NF-e avisa se faltar).
-  const isConsultingCNPJ = ref(false);
-
-  async function consultarReceita(cnpjDigitos: string) {
-    if (isConsultingCNPJ.value) return;
-    isConsultingCNPJ.value = true;
-    try {
-      const dados = await buscarDadosCNPJ(cnpjDigitos);
-      const atual = pjForm.values;
-      const [primeiro, ...demais] = (atual.enderecos?.length ? atual.enderecos : [{ ...DEFAULT_ADDRESS }]) as AddressFormData[];
-
-      pjForm.setValues({
-        razao_social: dados.razao_social || atual.razao_social,
-        // Fantasia é obrigatória no formulário; muita empresa não tem na Receita.
-        nome_fantasia: dados.nome_fantasia || atual.nome_fantasia || dados.razao_social,
-        regime_tributario: dados.regime_tributario || atual.regime_tributario,
-        email: atual.email || dados.email,
-        telefone: atual.telefone || (dados.telefone ? formatTelefone(dados.telefone) : ''),
-        enderecos: [
-          {
-            ...primeiro,
-            cep: dados.cep ? formatCEP(dados.cep) : primeiro.cep,
-            logradouro: dados.logradouro || primeiro.logradouro,
-            numero: dados.numero || primeiro.numero,
-            complemento: dados.complemento || primeiro.complemento,
-            bairro: dados.bairro || primeiro.bairro,
-            cidade: dados.cidade || primeiro.cidade,
-            estado: dados.estado || primeiro.estado,
-          },
-          ...demais,
-        ],
-      }, false);
-
-      toast.success('Dados da Receita Federal preenchidos. Confira e informe a Inscrição Estadual, se o cliente tiver.');
-    } catch {
-      toast.error('CNPJ não encontrado na Receita Federal.');
-    } finally {
-      isConsultingCNPJ.value = false;
-    }
-  }
+  //
+  // A lógica mora em `consultaReceita.ts` (Spec 02): lá ela também avisa
+  // cliente duplicado, diz por que a consulta falhou e descarta resposta
+  // atrasada.
+  const { isConsultingCNPJ, avisoCnpj, consultarReceita, limparAvisoCnpj } = criarConsultaReceita({
+    pjForm,                                            // lê e preenche o formulário PJ
+    idEmEdicao: () => selectedCustomer.value?.id,      // o próprio cliente não é duplicado
+    toast,                                             // mensagens de sucesso e falha
+  });
 
   function resetForm() {
     pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
     pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
     customerType.value = 'PF';
     apiError.value = null;
+    limparAvisoCnpj();                                 // o aviso era do cliente anterior
   }
 
   // ── Montar contexto ──────────────────────────
@@ -410,6 +381,8 @@ export function useCustomerFormProvider(): CustomerFormContext {
     // Busca na Receita (PJ)
     isConsultingCNPJ,
     consultarReceita,
+    avisoCnpj,
+    limparAvisoCnpj,
     isCreateMode,
 
     // Ações

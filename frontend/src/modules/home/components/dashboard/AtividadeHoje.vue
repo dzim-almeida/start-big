@@ -8,6 +8,8 @@ import { useToast } from '@/shared/composables/useToast';
 import { ref } from 'vue';
 import type { AtividadeItemData } from '../../schemas/dashboard.schema';
 import { formatHora } from '@/shared/utils/date.utils';
+import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
+import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 
 interface Props {
   items: AtividadeItemData[];
@@ -58,6 +60,21 @@ const statusConfig: Record<string, { label: string; class: string }> = {
   AGUARDANDO_APROVACAO: { label: 'Aguard. aprova.', class: 'bg-violet-50 text-violet-600 border border-violet-200' },
   AGUARDANDO_RETIRADA:  { label: 'P/ Retirada', class: 'bg-teal-50 text-teal-600 border border-teal-200' },
 };
+
+// Rótulo curto que o SEGMENTO declarou para o status da OS (Spec 01B, D6).
+const { rotuloStatusProprio } = useRotulosStatusOS();
+
+/**
+ * Texto do badge de status. A lista mistura vendas e OS, e `FINALIZADA` existe
+ * nas duas: o rótulo do segmento vale SÓ para item de OS. Sem rótulo próprio,
+ * fica o texto curto desta tela ("P/ Retirada", "Andamento"), como sempre.
+ */
+function textoDoStatus(item: AtividadeItemData): string {
+  const doSegmento = item.tipo === 'os'
+    ? rotuloStatusProprio(item.status as OsStatusEnumDataType, true)  // ex.: "Aguard. entrega"
+    : undefined;                                                       // venda: nunca muda
+  return doSegmento ?? statusConfig[item.status]?.label ?? item.status;
+}
 </script>
 
 <template>
@@ -112,7 +129,7 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 
           <!-- Status -->
           <span :class="['px-1.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap shrink-0', statusConfig[item.status]?.class ?? 'bg-zinc-100 text-zinc-500']">
-            {{ statusConfig[item.status]?.label ?? item.status }}
+            {{ textoDoStatus(item) }}
           </span>
         </li>
       </ul>

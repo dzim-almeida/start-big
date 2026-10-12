@@ -6,7 +6,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
-import { getEstadoOS } from '../../../shared/utils/formatters';
+import { useRotulosStatusOS } from '../../../shared/segmento/useRotulosStatusOS';
 import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 import { useOrderServiceQueryByCliente } from '../../composables/request/useOrderServiceGet.queries';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
@@ -21,6 +21,8 @@ const props = defineProps<Props>();
 
 // Cabeçalho da coluna por segmento: a oficina lê "Veículo", não "Objeto".
 const { labelSingular } = useObjetoLabels();
+// Badge do status com o rótulo do segmento (Spec 01B); cores de sempre.
+const { estadoOS } = useRotulosStatusOS();
 
 const emit = defineEmits<{
   close: [];
@@ -105,10 +107,10 @@ function truncate(text: string | null | undefined, maxLength: number): string {
               <span
                 :class="[
                   'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide',
-                  getEstadoOS(os.status, os.situacao_equipamento).badge,
+                  estadoOS(os.status, os.situacao_equipamento).badge,
                 ]"
               >
-                {{ getEstadoOS(os.status, os.situacao_equipamento).label }}
+                {{ estadoOS(os.status, os.situacao_equipamento).label }}
               </span>
             </td>
             <td class="px-4 py-3 text-slate-600">

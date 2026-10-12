@@ -124,6 +124,66 @@ def segmento_declara_coluna(segmento: Optional[str], coluna: str) -> bool:
     )
 
 
+def rotulo_status(
+    segmento: Optional[str],      # segmento da empresa (ex.: "marcenaria"), ou None
+    status: str,                  # valor do enum, ex.: "AGUARDANDO_RETIRADA"
+    curto: bool = False,          # True = versao abreviada (dashboard)
+) -> Optional[str]:
+    """Texto que o SEGMENTO declarou para um status da OS.
+
+    Devolve None quando o segmento nao renomeia aquele status: quem chama usa
+    o texto padrao que ja tem. Nunca inventa um texto padrao aqui (Spec 01A, D6).
+    """
+    definicao = get_definicao_segmento(segmento)      # dicionario do segmento, ou None
+    if not definicao:                                  # empresa sem segmento ou segmento generico
+        return None                                    # -> quem chamou usa o padrao
+    rotulos = definicao.get("rotulos_status") or {}    # chave opcional: ausente vira {}
+    rotulo = rotulos.get(status)                       # so existe para os status renomeados
+    if not rotulo:                                     # status que o segmento nao renomeou
+        return None                                    # -> quem chamou usa o padrao
+    return rotulo["curto"] if curto else rotulo["rotulo"]  # escolhe o tamanho pedido
+
+
+def segmento_tem_capacidade(segmento: Optional[str], capacidade: str) -> bool:
+    """True se o segmento declara a capacidade (Spec 04A, D2).
+
+    Ate aqui so o frontend consultava capacidades; o backend passa a precisar
+    para ligar recursos de um segmento sem escrever o nome dele no codigo.
+    Segmento sem definicao (generico ou sem segmento): False.
+    """
+    definicao = get_definicao_segmento(segmento)            # None para segmento generico
+    return bool(definicao) and capacidade in definicao.get("capacidades", [])
+
+
+def tipo_permite_criacao_manual(segmento: Optional[str], tipo_id: Optional[str]) -> bool:
+    """Uma OS deste segmento/tipo pode ser criada pelo caminho comum? (Spec 03A, D5)
+
+    - Tipo conhecido: vale a marcacao dele (padrao True).
+    - Tipo ausente ou desconhecido: so e recusado se o segmento declara tipos e
+      NENHUM deles e criavel a mao (senao omitir o tipo furaria a trava).
+    - Segmento sem definicao ou sem tipos: sempre True (nada muda).
+    """
+    definicao = get_definicao_segmento(segmento)               # None para segmento generico
+    tipos = (definicao or {}).get("tipos") or []               # [] para oficina/informatica
+    if not tipos:                                              # sem tipos: comportamento de hoje
+        return True
+    for tipo in tipos:                                         # tipo informado e conhecido?
+        if tipo["id"] == tipo_id:
+            return tipo.get("criacao_manual", True)            # vale a marcacao do tipo
+    # Tipo ausente/desconhecido: permitido se existir ALGUM tipo criavel a mao.
+    return any(t.get("criacao_manual", True) for t in tipos)
+
+
+def label_do_tipo(segmento: Optional[str], tipo_id: Optional[str]) -> str:
+    """Nome do tipo para mensagens; sem tipo informado, o primeiro do segmento."""
+    tipos = (get_definicao_segmento(segmento) or {}).get("tipos") or []  # [] sem tipos
+    for tipo in tipos:                                         # procura o tipo informado
+        if tipo["id"] == tipo_id:
+            return tipo["label"]
+    # Tipo omitido ou desconhecido: o primeiro tipo do segmento; sem tipos, o id cru.
+    return tipos[0]["label"] if tipos else (tipo_id or "")
+
+
 __all__ = [
     "DEFINICOES",
     "OFICINA",
@@ -142,4 +202,8 @@ __all__ = [
     "identificador_e_gerado",
     "gerar_identificador",
     "segmento_declara_coluna",
+    "rotulo_status",
+    "tipo_permite_criacao_manual",
+    "label_do_tipo",
+    "segmento_tem_capacidade",
 ]
