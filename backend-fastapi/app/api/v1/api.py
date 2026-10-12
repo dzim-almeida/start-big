@@ -4,6 +4,9 @@
 #            da API. Este arquivo centraliza os módulos de rotas.
 # ---------------------------------------------------------------------------
 
+import os
+import sys
+
 from fastapi import APIRouter
 from app.api.v1.endpoints import reset_bd
 from app.api.v1.endpoints import auth
@@ -52,8 +55,27 @@ from app.services.marcenaria import ganchos as marcenaria_ganchos
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
 
-# Endpoint utilitário para resetar o banco de dados (provavelmente para testes)
-router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
+
+
+def rota_de_reset_liberada() -> bool:
+    """A rota que APAGA o banco (GET /reset/, sem login) só existe em desenvolvimento.
+
+    Até 12/10/2026 ela ia em todo instalador: qualquer aparelho na rede da loja
+    que abrisse http://servidor:8080/api/v1/reset/ zerava vendas, clientes e
+    notas. Duas travas, porque uma só não basta:
+    - `sys.frozen`: o .exe do PyInstaller SEMPRE marca, rode como rodar. É a que
+      cobre o servidor da loja: a tarefa agendada StartBigServer não passa
+      APP_ENV (o XML de tarefa do Windows não define variável de ambiente).
+    - `APP_ENV=production`: o que o Tauri passa ao subir o sidecar.
+    """
+    empacotado = getattr(sys, "frozen", False)
+    producao = os.getenv("APP_ENV", "development").lower() == "production"
+    return not empacotado and not producao
+
+
+# Utilitário de desenvolvimento: recria o banco vazio. Ver rota_de_reset_liberada.
+if rota_de_reset_liberada():
+    router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
 
 # Inclui o roteador de autenticação sob o prefixo /auth
 router.include_router(auth.router, prefix="/auth", tags=["Login"])
