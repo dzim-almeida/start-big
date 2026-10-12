@@ -286,8 +286,9 @@ const salvarDanfeLocal = async () => {
   try {
     const blob = await fiscalService.baixarPdfDocumento(documento.value.id);
     const nome = `${documento.value.chave_acesso || `documento-${documento.value.id}`}.pdf`;
-    const caminho = await salvarArquivo(nome, blob);
-    toast.success('DANFE salvo', caminho ? `Salvo em ${caminho}` : undefined);
+    const r = await salvarArquivo(nome, blob);
+    if (r.cancelado) return;
+    toast.success('DANFE salvo', r.caminho ? `Salvo em ${r.caminho}` : undefined);
   } catch {
     toast.error(
       'Não foi possível obter o DANFE',
@@ -304,8 +305,9 @@ const salvarXmlLocal = async () => {
   try {
     const blob = await fiscalService.baixarXmlDocumento(documento.value.id);
     const nome = `${documento.value.chave_acesso || `documento-${documento.value.id}`}.xml`;
-    const caminho = await salvarArquivo(nome, blob);
-    toast.success('XML salvo', caminho ? `Salvo em ${caminho}` : undefined);
+    const r = await salvarArquivo(nome, blob);
+    if (r.cancelado) return;
+    toast.success('XML salvo', r.caminho ? `Salvo em ${r.caminho}` : undefined);
   } catch {
     toast.error(
       'Não foi possível obter o XML',
@@ -360,8 +362,9 @@ const salvarArquivoCarta = async (carta: CartaCorrecaoRead, extensao: 'pdf' | 'x
         : await fiscalService.baixarXmlCartaCorrecao(carta.id);
     const chave = documento.value?.chave_acesso || `documento-${carta.documento_id}`;
     const nome = `${chave}_cce_${String(carta.sequencia ?? 0).padStart(2, '0')}.${extensao}`;
-    const caminho = await salvarArquivo(nome, blob);
-    toast.success(`${extensao.toUpperCase()} da carta salvo`, caminho ? `Salvo em ${caminho}` : undefined);
+    const r = await salvarArquivo(nome, blob);
+    if (r.cancelado) return;
+    toast.success(`${extensao.toUpperCase()} da carta salvo`, r.caminho ? `Salvo em ${r.caminho}` : undefined);
   } catch {
     toast.error(
       `Não foi possível obter o ${extensao.toUpperCase()} da carta`,

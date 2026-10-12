@@ -99,7 +99,9 @@ async function baixar() {
       toast.info('Nenhum documento no período', 'Não há nota autorizada ou cancelada nessas datas.');
       return;
     }
-    const caminho = await salvarArquivo(r.nome, r.arquivo);
+    const salvo = await salvarArquivo(r.nome, r.arquivo);
+    if (salvo.cancelado) return;
+    const caminho = salvo.caminho;
     const resumo = `${r.baixados} de ${r.documentos} XML${r.documentos === 1 ? '' : 's'}`
       + (r.naoBaixados > 0 ? ` — ${r.naoBaixados} não vieram da emissora (veja nao_baixados.txt)` : '');
     if (r.naoBaixados > 0) {
