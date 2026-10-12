@@ -197,12 +197,15 @@ def test_salvar_a_mascara_nao_destroi_o_csc(monkeypatch):
     """
     from app.schemas.empresa import FiscalSettingsUpdate
     from app.services import empresa as empresa_service
+    # Troca onde a funcao e USADA: desde 12/10/2026 update_fiscal_settings mora em
+    # services/empresa/fiscal.py, e trocar no pacote nao alcanca o submodulo.
+    from app.services.empresa import fiscal as empresa_fiscal
 
     guardado = cifrar_csc_token("CSC-ORIGINAL-9999")
     settings = _FiscalSettingsFake(csc_token=guardado, serie_nfce=1)
 
     monkeypatch.setattr(
-        empresa_service, "get_or_create_fiscal_settings",
+        empresa_fiscal, "get_or_create_fiscal_settings",
         lambda db, empresa_id: settings,
     )
 
@@ -219,10 +222,13 @@ def test_salvar_a_mascara_nao_destroi_o_csc(monkeypatch):
 def test_token_novo_substitui_e_fica_cifrado(monkeypatch):
     from app.schemas.empresa import FiscalSettingsUpdate
     from app.services import empresa as empresa_service
+    # Troca onde a funcao e USADA: desde 12/10/2026 update_fiscal_settings mora em
+    # services/empresa/fiscal.py, e trocar no pacote nao alcanca o submodulo.
+    from app.services.empresa import fiscal as empresa_fiscal
 
     settings = _FiscalSettingsFake(csc_token=cifrar_csc_token("ANTIGO"), serie_nfce=1)
     monkeypatch.setattr(
-        empresa_service, "get_or_create_fiscal_settings",
+        empresa_fiscal, "get_or_create_fiscal_settings",
         lambda db, empresa_id: settings,
     )
 
