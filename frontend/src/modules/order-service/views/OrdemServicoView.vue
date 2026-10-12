@@ -23,6 +23,10 @@ const InstalacoesTab = defineAsyncComponent(
 const TerceirizadosTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue'),
 );
+// Marcenaria: aba "Orçamentos" — a lista que antes era um item próprio do menu (12/10/2026).
+const OrcamentosTab = defineAsyncComponent(
+  () => import('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue'),
+);
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
@@ -30,7 +34,7 @@ import { useCapacidades } from '../shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
 import { mostrarBotaoAdicionar, mostrarBotaoNovoOrcamento } from '../shared/segmento/botoesCriacaoOS';
 import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS } = useOSCreateFlow();
@@ -38,13 +42,19 @@ const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
 
-const activeTab = ref('ordens');
+const router = useRouter();
+const route = useRoute();
+const { podeVer: podeVerOrcamentos, podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
 
 // Abas extras por capacidade, na ordem: Revisões (oficina, pós-venda), Produção
 // (marcenaria, Spec 12B D15: o quadro que a fábrica abre de manhã), Instalações
 // (13B D15) e Terceirizados (11B D10). Sem nenhuma, a lista é a de sempre.
+//
+// Marcenaria (12/10/2026): "Orçamentos" vem primeiro — é por ele que a loja
+// fecha o serviço — e o "Cadastro de Serviços" some.
 const tabOptions = computed(() => [
-  ...TAB_OPTIONS,
+  ...(temOrcamentoTecnico.value && podeVerOrcamentos.value ? [{ id: 'orcamentos', label: 'Orçamentos' }] : []),
+  ...(temOrcamentoTecnico.value ? TAB_OPTIONS.filter((aba) => aba.id !== 'servicos') : TAB_OPTIONS),
   ...(temRevisoes.value ? [{ id: 'revisoes', label: 'Revisões' }] : []),
   ...(temOrcamentoTecnico.value
     ? [
@@ -55,11 +65,27 @@ const tabOptions = computed(() => [
     : []),
 ]);
 
+// A aba aberta vem da URL (`?aba=orcamentos`): é como o "voltar" do editor de
+// orçamento devolve o usuário à lista. Aba ausente, ou que o segmento não tem:
+// a primeira da lista ("Ordens de Serviço" nos outros segmentos, como sempre).
+const abaPedida = ref<string | null>(typeof route.query.aba === 'string' ? route.query.aba : null);
+const activeTab = computed<string>({
+  get: () => {
+    const ids = tabOptions.value.map((aba) => aba.id);
+    return abaPedida.value && ids.includes(abaPedida.value) ? abaPedida.value : ids[0];
+  },
+  set: (aba) => {
+    abaPedida.value = aba;
+    void router.replace({ query: { aba } });
+  },
+});
+
 const pageTitle = computed(() => {
   if (activeTab.value === 'revisoes') return 'Revisões Pendentes';
   if (activeTab.value === 'producao') return 'Produção';
   if (activeTab.value === 'instalacoes') return 'Instalações';
   if (activeTab.value === 'terceirizados') return 'Terceirizados';
+  if (activeTab.value === 'orcamentos') return 'Orçamentos';
   return activeTab.value === 'ordens' ? 'Ordens de Serviço' : 'Cadastro de Serviços';
 });
 
@@ -68,6 +94,7 @@ const pageDescription = computed(() => {
   if (activeTab.value === 'producao') return 'As OS em produção, com o progresso e a próxima etapa, na ordem da entrega.';
   if (activeTab.value === 'instalacoes') return 'Quem instala onde, por dia.';
   if (activeTab.value === 'terceirizados') return 'Móveis pedidos às centrais parceiras e ainda não conferidos.';
+  if (activeTab.value === 'orcamentos') return 'Acompanhe cada proposta, do rascunho até virar Ordem de Serviço.';
   return activeTab.value === 'ordens'
     ? 'Gerencie as ordens de serviço da sua organização.'
     : 'Gerencie o catálogo de serviços da sua organização.';
@@ -77,8 +104,6 @@ const pageDescription = computed(() => {
 const exibirBotaoAdicionar = computed(() => mostrarBotaoAdicionar(activeTab.value, podeCriarOSManual.value));
 
 /** Marcenaria: no lugar de "Nova OS", "Novo orçamento" (a OS nasce dele; Spec 06B, D4). */
-const router = useRouter();
-const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
 const exibirNovoOrcamento = computed(() =>
   mostrarBotaoNovoOrcamento(activeTab.value, podeCriarOSManual.value, temOrcamentoTecnico.value && podeGerirOrcamentos.value),
 );
@@ -129,7 +154,8 @@ function handleAddClick() {
       </div>
     </div>
 
-    <OrdensServicoTab v-if="activeTab === 'ordens'" />
+    <OrcamentosTab v-if="activeTab === 'orcamentos'" embutida />
+    <OrdensServicoTab v-else-if="activeTab === 'ordens'" />
     <RevisoesPendentesTab v-else-if="activeTab === 'revisoes'" />
     <QuadroProducaoTab v-else-if="activeTab === 'producao'" />
     <InstalacoesTab v-else-if="activeTab === 'instalacoes'" />

@@ -1,9 +1,8 @@
 /**
- * Spec 06B (marcenaria, D2; casos 15 e 16) — o item "Orçamentos" do menu.
+ * Spec 06B (marcenaria, D2; casos 15 e 16) — o menu lateral e os orçamentos.
  *
- * Ele exige a CAPACIDADE `orcamento_tecnico` do segmento (contrato do backend)
- * e a permissão de ver orçamentos. Sem a capacidade, some (não fica com
- * cadeado). Nos outros segmentos, o menu fica exatamente como antes.
+ * Desde 12/10/2026 os orçamentos são a aba "Orçamentos" dentro de Serviços:
+ * o menu NÃO tem item próprio em segmento nenhum, e é igual para todos.
  *
  * Tudo em volta é SIMULADO: usuário com todas as permissões, todos os módulos.
  */
@@ -55,16 +54,13 @@ describe('menu "Orçamentos"', () => {
     expect(rotulosDoMenu().filter((r) => r !== 'Orçamentos')).toEqual(rotulos);
   });
 
-  it('16 — marcenaria com a permissão: "Orçamentos" logo depois de "Serviços"', () => {
+  it('16 — marcenaria: sem item "Orçamentos" (é aba de Serviços); menu igual ao dos outros', () => {
+    capacidades.value = ['diagnostico', 'garantia_prazo'];
+    const deOutroSegmento = rotulosDoMenu();
     capacidades.value = ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'];
-    const rotulos = rotulosDoMenu();
-    expect(rotulos[rotulos.indexOf('Serviços') + 1]).toBe('Orçamentos');
-  });
-
-  it('marcenaria SEM a permissão de ver orçamentos: o item some', () => {
-    capacidades.value = ['orcamento_tecnico'];
-    permitido.value = (chave) => chave !== 'view_orcamentos_marcenaria';
-    expect(rotulosDoMenu()).not.toContain('Orçamentos');
-    permitido.value = () => true;
+    const daMarcenaria = rotulosDoMenu();
+    expect(daMarcenaria).toContain('Serviços');
+    expect(daMarcenaria).not.toContain('Orçamentos');
+    expect(daMarcenaria).toEqual(deOutroSegmento);
   });
 });

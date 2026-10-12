@@ -18,12 +18,13 @@ export const ATALHO_NOVA_OS = 'nova-os';
  * Botão do topo da tela de OS (OrdemServicoView).
  *   - aba Revisões: nunca teve botão (regra de antes);
  *   - abas Produção, Instalações e Terceirizados (marcenaria, Specs 12B, 13B e 11B D13): nada a criar daqui;
+ *   - aba Orçamentos (marcenaria): o botão é "Novo orçamento" (mostrarBotaoNovoOrcamento);
  *   - aba Ordens ("Nova OS"): só se o segmento deixa criar à mão (D3);
  *   - aba Serviços ("Novo Serviço"): sempre; o catálogo não depende do tipo da OS (D5).
  */
 export function mostrarBotaoAdicionar(aba: string, podeCriarOSManual: boolean): boolean {
   if (aba === 'revisoes') return false;               // regra de antes
-  if (['producao', 'instalacoes', 'terceirizados'].includes(aba)) return false;   // 12B, 13B, 11B D13
+  if (['producao', 'instalacoes', 'terceirizados', 'orcamentos'].includes(aba)) return false;   // 12B, 13B, 11B D13
   if (aba === 'ordens') return podeCriarOSManual;     // "Nova OS"
   return true;                                        // "Novo Serviço"
 }
@@ -60,10 +61,22 @@ export function atalhosComOrcamento<T extends { id: string }>(
 }
 
 /**
- * Botão "Novo orçamento" na aba Ordens da tela de OS (Spec 06B D4): aparece
- * no lugar de "Nova OS" quando ela não pode ser criada à mão e o usuário pode
- * criar orçamento.
+ * Botão "Novo orçamento" na tela de OS (Spec 06B D4): nas abas Orçamentos e
+ * Ordens, no lugar de "Nova OS", quando ela não pode ser criada à mão e o
+ * usuário pode criar orçamento.
  */
 export function mostrarBotaoNovoOrcamento(aba: string, podeCriarOSManual: boolean, podeCriarOrcamento: boolean): boolean {
-  return aba === 'ordens' && !podeCriarOSManual && podeCriarOrcamento;
+  return (aba === 'ordens' || aba === 'orcamentos') && !podeCriarOSManual && podeCriarOrcamento;
+}
+
+/** Id do atalho "Criar Serviço" no menu rápido do MainLayout. */
+export const ATALHO_NOVO_SERVICO = 'novo-servico';
+
+/**
+ * Na marcenaria o serviço é fechado pelo orçamento: a aba "Cadastro de
+ * Serviços" some da tela de OS e, junto, o atalho "Criar Serviço" (decisão do
+ * Alan, 12/10/2026). Nos outros segmentos (`temOrcamentoTecnico` false) nada muda.
+ */
+export function semCadastroDeServicos<T extends { id: string }>(atalhos: readonly T[], temOrcamentoTecnico: boolean): T[] {
+  return atalhos.filter((atalho) => atalho.id !== ATALHO_NOVO_SERVICO || !temOrcamentoTecnico);
 }

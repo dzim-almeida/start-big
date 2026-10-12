@@ -6,6 +6,10 @@
  *
  * O filtro escolhido fica na URL (`?status=ENVIADO&busca=alpha`): voltar do
  * editor devolve a mesma lista, na mesma página.
+ *
+ * Desde 12/10/2026 é a aba "Orçamentos" da tela de Serviços (`embutida`): o
+ * título e o botão "Novo orçamento" ficam no topo daquela tela, e o `aba` da
+ * URL é preservado junto com os filtros.
  */
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router';
@@ -28,6 +32,11 @@ import { useAbrirOS } from '../composables/useAbrirOS';
 
 // Sem a capacidade do segmento (outro segmento digitou o endereço): volta ao início (D3).
 useExigeCapacidade('orcamento_tecnico');
+
+const props = defineProps<{
+  /** Dentro da aba de Serviços: sem título, botão e margem próprios. */
+  embutida?: boolean;
+}>();
 
 const route = useRoute();
 const router = useRouter();
@@ -69,7 +78,8 @@ watch([chip, buscaEsperada, vendedorId, versoesAntigas], () => { pagina.value = 
 
 // Guarda os filtros na URL (replace: não enche o "voltar" do usuário de passos).
 watch([chip, buscaEsperada, vendedorId, versoesAntigas, pagina], () => {
-  const query: LocationQueryRaw = {};
+  // A aba da tela de Serviços também mora na URL: os filtros não podem apagá-la.
+  const query: LocationQueryRaw = route.query.aba ? { aba: route.query.aba } : {};
   if (chip.value === 'VENCE_3') query.vence = '3';
   else if (chip.value !== 'TODOS') query.status = chip.value;
   if (buscaEsperada.value.trim()) query.busca = buscaEsperada.value.trim();
@@ -110,14 +120,14 @@ const novo = () => router.push({ name: 'marcenaria-orcamento-novo' });
 
 <template>
   <!-- Sem permissão de ver (o menu já esconde o item; isto é para quem digitou o endereço). -->
-  <div v-if="!podeVer" class="p-4 md:p-6 lg:p-8">
+  <div v-if="!podeVer" :class="props.embutida ? '' : 'p-4 md:p-6 lg:p-8'">
     <div class="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500" data-testid="sem-permissao">
       Você não tem permissão para ver orçamentos.
     </div>
   </div>
 
-  <div v-else class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
-    <div class="flex items-center justify-between gap-4">
+  <div v-else :class="[props.embutida ? '' : 'p-4 md:p-6 lg:p-8', 'space-y-6 md:space-y-8']" data-testid="lista-orcamentos">
+    <div v-if="!props.embutida" class="flex items-center justify-between gap-4">
       <PageReview title="Todos os orçamentos" description="Acompanhe cada proposta, do rascunho até virar Ordem de Serviço." />
       <BaseButton v-if="podeGerir" variant="primary" data-testid="novo-orcamento" @click="novo">
         <Plus :size="20" class="mr-2" /> Novo orçamento

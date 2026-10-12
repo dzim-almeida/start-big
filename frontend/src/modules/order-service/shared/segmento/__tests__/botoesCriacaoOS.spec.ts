@@ -9,6 +9,7 @@ import {
   filtrarAtalhos,
   mostrarBotaoAdicionar,
   mostrarBotaoNovoOrcamento,
+  semCadastroDeServicos,
 } from '../botoesCriacaoOS';
 
 /** Os 4 atalhos do menu rápido, na ordem do MainLayout. */
@@ -81,5 +82,21 @@ describe('"Novo orçamento" no lugar de "Criar OS"', () => {
     expect(mostrarBotaoNovoOrcamento('ordens', true, true)).toBe(false);     // informática: "Nova OS"
     expect(mostrarBotaoNovoOrcamento('ordens', false, false)).toBe(false);   // sem permissão
     expect(mostrarBotaoNovoOrcamento('servicos', false, true)).toBe(false);  // aba Serviços: "Novo Serviço"
+  });
+
+  it('aba Orçamentos (marcenaria): "Novo orçamento" para quem pode gerir, nunca "Novo Serviço"', () => {
+    expect(mostrarBotaoNovoOrcamento('orcamentos', false, true)).toBe(true);
+    expect(mostrarBotaoNovoOrcamento('orcamentos', false, false)).toBe(false);
+    expect(mostrarBotaoAdicionar('orcamentos', false)).toBe(false);
+  });
+});
+
+describe('"Criar Serviço" no menu rápido (12/10/2026)', () => {
+  it('marcenaria: some, os outros ficam na mesma ordem', () => {
+    expect(semCadastroDeServicos(ATALHOS, true).map((a) => a.id)).toEqual(['nova-venda', 'nova-os', 'novo-produto']);
+  });
+
+  it('outros segmentos: os 4 atalhos de hoje', () => {
+    expect(semCadastroDeServicos(ATALHOS, false)).toEqual(ATALHOS);
   });
 });

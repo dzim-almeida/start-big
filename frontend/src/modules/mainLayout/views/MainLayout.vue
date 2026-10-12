@@ -33,7 +33,7 @@ import RenovarAssinaturaModal from '@/modules/license/components/RenovarAssinatu
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
-import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
+import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento, semCadastroDeServicos } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
 import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
 import { useRoute, useRouter } from 'vue-router';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
@@ -167,7 +167,8 @@ const quickActions = computed(() => {
       action: () => { void router.push({ name: 'marcenaria-orcamento-novo' }); },
     }
     : null;
-  return atalhosComOrcamento(TODOS_OS_ATALHOS, podeCriarOSManual.value, novoOrcamento);
+  const atalhos = semCadastroDeServicos(TODOS_OS_ATALHOS, temOrcamentoTecnico.value);   // marcenaria: sem "Criar Serviço"
+  return atalhosComOrcamento(atalhos, podeCriarOSManual.value, novoOrcamento);
 });
 
 const { Ctrl_K } = useMagicKeys();
