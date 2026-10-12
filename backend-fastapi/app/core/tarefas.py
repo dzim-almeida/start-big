@@ -77,7 +77,7 @@ async def _loop_baixa_automatica():
     So alcanca o que nasceu marcado, que e cartao com prazo declarado na forma
     de pagamento. Fiado nunca entra sozinho: cliente nao paga por agendamento.
     """
-    from app.services import financeiro_receber as receber_service
+    from app.services.financeiro import conciliacao as receber_service
 
     while True:
         try:

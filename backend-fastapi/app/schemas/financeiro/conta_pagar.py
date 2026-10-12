@@ -1,14 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/conta_pagar.py
-# DESCRIÇÃO: Schemas Pydantic das contas a pagar — cadastro, baixa e leitura.
+# ARQUIVO: schemas/financeiro/conta_pagar.py
+# DESCRICAO: Financeiro - schemas de contas a pagar e do historico.
 # ---------------------------------------------------------------------------
 
 from datetime import date, datetime
 from typing import List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-from app.core.enum import ContaPagarStatus
 
 
 # ===========================================================================

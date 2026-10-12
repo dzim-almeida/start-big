@@ -1,13 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/plano_conta.py
-# DESCRIÇÃO: Schemas Pydantic das categorias de despesa e receita.
+# ARQUIVO: schemas/financeiro/plano_conta.py
+# DESCRICAO: Financeiro - schemas do plano de contas.
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.core.enum import PlanoContaTipo
 
 

@@ -1,13 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/conta_bancaria.py
-# DESCRIÇÃO: Schemas Pydantic das contas onde o dinheiro da loja fica.
+# ARQUIVO: schemas/financeiro/conta_bancaria.py
+# DESCRICAO: Financeiro - schemas de contas bancarias.
 # ---------------------------------------------------------------------------
 
 from datetime import date, datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.core.enum import ContaBancariaTipo
 
 

@@ -24,7 +24,7 @@ from starlette import status
 
 from app.db.models.conta_receber import ContaReceber
 from app.db.models.movimentacao_financeira import MovimentacaoFinanceira
-from app.services import financeiro_receber as receber_service
+from app.services.financeiro import conciliacao as receber_service
 
 TEST_USER_EMAIL = "prazo.dono@example.com"
 TEST_USER_PASSWORD = "senhaSegura789"

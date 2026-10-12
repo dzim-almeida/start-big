@@ -1206,7 +1206,7 @@ def finalizar_ordem_servico(
     # com caixa ligado fechava com sobra todo dia.
     # ANTES de lancar: o vencimento que a FORMA declarou. Cartao com prazo nao
     # entra na gaveta hoje -- so em D+n, quando a operadora deposita.
-    from app.services import financeiro_receber as financeiro_receber_service
+    from app.services.financeiro import promessas as financeiro_receber_service
     financeiro_receber_service.aplicar_prazo_de_recebimento(db, pagamentos_criados)
 
     from app.services import sessao_caixa as caixa_service
@@ -1278,7 +1278,7 @@ def cancelar_ordem_servico(
     if os_in_db.status == OrdemServicoStatus.FINALIZADA:
         _movimentar_estoque_os(db, os_in_db, saida=False, usuario_token=usuario_token)
 
-    from app.services import financeiro_receber as financeiro_receber_service
+    from app.services.financeiro import promessas as financeiro_receber_service
 
     # A COBRANÇA MORRE COM A OS. Cancelar mexia no estoque e no livro do
     # dinheiro, mas deixava a conta a receber PENDENTE para sempre -- a loja
@@ -1397,7 +1397,7 @@ def reabrir_ordem_servico(
             list(os_in_db.pagamentos),
             operador_funcionario_id=(usuario_token or {}).get("funcionario_id"),
         )
-        from app.services import financeiro_receber as financeiro_receber_service
+        from app.services.financeiro import promessas as financeiro_receber_service
 
         # ANTES DO CLEAR, obrigatoriamente: a FK da conta a receber é
         # `ondelete=SET NULL`, então depois de apagar os pagamentos a cobrança

@@ -31,7 +31,7 @@ from app.db.crud.marcenaria import orcamento as crud
 from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, MarcenariaOrcamentoRT
 from app.db.models.plano_conta import PlanoConta
-from app.schemas.conta_pagar import ContaPagarCreate
+from app.schemas.financeiro import ContaPagarCreate
 from app.services import financeiro as financeiro_service
 from app.services.marcenaria.calculo import repartir_maior_resto
 from app.services.marcenaria.orcamento_calculo import calcular, montar_entrada_motor

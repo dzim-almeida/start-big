@@ -1,13 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/conta_receber.py
-# DESCRIÇÃO: Schemas Pydantic das contas a receber — cadastro, baixa e leitura.
+# ARQUIVO: schemas/financeiro/conta_receber.py
+# DESCRICAO: Financeiro - schemas de contas a receber.
 # ---------------------------------------------------------------------------
 
 from datetime import date, datetime
 from typing import List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from app.core.enum import JurosDestino
 
 

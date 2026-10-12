@@ -1,9 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/financeiro_visao.py
-# DESCRIÇÃO: As três leituras do módulo — resumo do mês, fluxo de caixa e
-#            extrato. Nenhuma delas escreve nada.
+# ARQUIVO: services/financeiro/resumo.py
+# DESCRICAO: Financeiro - Visao Geral: resumo do mes e os alertas do painel de
+#            atencao.
 # ---------------------------------------------------------------------------
-"""
+
+"""(Texto de quando era services/financeiro_visao.py; desde 12/10/2026 o financeiro e o pacote services/financeiro/.)
+
 O que o dono OLHA: quanto entrou e saiu no mês (com os alertas do painel de
 atenção), a projeção do caixa dos próximos dias e o livro do dinheiro linha a
 linha.
@@ -16,149 +18,24 @@ Separado em 29/08/2026 pelo mesmo motivo do irmão: o PyArmor da licença trial
 recusa ofuscar arquivo acima de ~55 KB, e o original tinha 79 KB.
 """
 
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional, Sequence
-
+from datetime import date, timedelta
+from typing import Any, Dict, List
 from sqlalchemy.orm import Session
-
-from app.core.enum import (
-    ContaPagarStatus,
-    ContaReceberStatus,
-    MovimentacaoFinanceiraOrigem,
-    MovimentacaoFinanceiraTipo,
-)
-from app.core.tempo import agora_utc, fim_do_dia_utc, hoje_local, inicio_do_dia_utc
+from app.core.tempo import fim_do_dia_utc, hoje_local, inicio_do_dia_utc
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import financeiro as financeiro_crud
-from app.db.crud import financeiro_receber as receber_crud
 from app.db.crud import relatorio as relatorio_crud
-from app.db.crud import relatorio_custo as custo_crud
-from app.db.crud import sessao_caixa as caixa_crud
-from app.db.models.conta_receber import ContaReceber
-from app.helpers.exceptions import BadRequestException, NotFoundException
-from app.schemas.conta_receber import ContaReceberBaixa
-from app.db.models.conta_bancaria import ContaBancaria
+from app.helpers.exceptions import BadRequestException
 from app.schemas.financeiro import (
     AlertaFinanceiro,
     DespesaPorCategoria,
-    Extrato,
-    ExtratoLinha,
-    FluxoCaixa,
-    FluxoDia,
-    FluxoLancamento,
     ResumoFinanceiro,
 )
 from app.services import custo_mercadoria
-from app.services import financeiro_analise as analise_service
-from app.services.financeiro import (
-    _funcionario_do_token,
-    _serializar_conta,
-)
-
-
-# ===========================================================================
-# SALDO — quanto a loja tem AGORA
-# ===========================================================================
-
-class SaldoDasContas:
-    """O saldo de hoje, e as duas metades que o formam.
-
-    Guardar as metades separadas não é enfeite de tela: é o que permite o dono
-    conferir. "Você declarou R$ 500 no dia 29 e desde então entrou R$ 740 e saiu
-    R$ 90" é auditável na hora; "você tem R$ 1.150" só dá para acreditar ou não.
-    """
-
-    __slots__ = (
-        "saldo", "ancora", "movimentado", "entrou", "saiu", "declarado", "informado_em",
-    )
-
-    def __init__(self, saldo, ancora, entrou, saiu, declarado, informado_em):
-        self.saldo = saldo
-        self.ancora = ancora
-        self.entrou = entrou
-        self.saiu = saiu
-        self.movimentado = entrou - saiu
-        self.declarado = declarado
-        self.informado_em = informado_em
-
-
-def saldo_atual_das_contas(db: Session, empresa_id: int) -> SaldoDasContas:
-    """Âncora declarada + tudo que o livro moveu depois dela.
-
-    ESTE É O NÚMERO QUE FALTAVA. Até 02/09/2026 o Fluxo de Caixa partia do
-    `saldo_informado` puro, e o resultado era o dono vendendo o dia inteiro e
-    vendo o saldo parado no mesmo valor -- só mudava quando ele digitava outro à
-    mão. É o desenho do "saldo inicial" do Conta Azul e do Omie: declara-se uma
-    vez, e daí em diante quem move o saldo são os lançamentos.
-
-    ENQUANTO A LOJA NÃO DECLARAR NADA, não há saldo. Sem ponto de partida, somar
-    movimento daria "o quanto mudou", que não é saldo -- e a loja apareceria com
-    saldo negativo no primeiro boleto que pagasse.
-
-    MAS BASTA UMA CONTA DECLARADA para todas passarem a contar, e isso foi um
-    defeito real: a regra era "conta sem âncora própria não entra, nem com o
-    movimento dela", e o resultado era dinheiro sumindo em silêncio. A loja que
-    declarou a conta do banco e deixou a gaveta em branco via o dinheiro da OS
-    cair na gaveta (que é a conta principal) e desaparecer do saldo -- o Extrato
-    mostrava a entrada, o Fluxo de Caixa não se mexia.
-
-    A conta não declarada herda o corte MAIS ANTIGO da loja e parte de zero. É o
-    que o dono quis dizer: no dia em que ele declarou o que tinha, o que ele não
-    declarou valia zero. Herdar o corte mais antigo (e não o mais recente) é o
-    que garante que nenhum movimento fique de fora.
-
-    SÓ CONTAS ATIVAS. Uma conta desativada é dinheiro que a loja não usa mais, e
-    somá-la faria toda a projeção partir de um número alto demais.
-
-    O corte de cada conta é o INSTANTE da declaração; nas contas declaradas
-    antes de a coluna existir, o fim daquele dia (a convenção conservadora do
-    Conta Azul: perde-se o movimento do próprio dia, mas nada é contado duas
-    vezes).
-    """
-    contas = financeiro_crud.listar_contas_bancarias(db, empresa_id, apenas_ativas=True)
-    principal = financeiro_crud.get_conta_principal(db, empresa_id)
-    principal_id = principal.id if principal else None
-
-    ancora = sum(int(c.saldo_informado or 0) for c in contas)
-    datas = [c.saldo_informado_em for c in contas if c.saldo_informado_em]
-
-    def _corte(conta) -> Optional[datetime]:
-        if not conta.saldo_informado_em:
-            return None
-        return conta.saldo_informado_instante or fim_do_dia_utc(conta.saldo_informado_em)
-
-    cortes = [c for c in (_corte(conta) for conta in contas) if c is not None]
-    corte_da_loja = min(cortes) if cortes else None
-
-    entrou = saiu = 0
-    for conta in contas:
-        corte = _corte(conta) or corte_da_loja
-        if corte is None:
-            continue  # a loja inteira nunca declarou nada
-        conta_entrou, conta_saiu = receber_crud.entradas_e_saidas_desde(
-            db,
-            empresa_id,
-            conta_id=conta.id,
-            desde=corte,
-            # As linhas órfãs (antigas, ou de uma conta apagada) caem na
-            # principal -- que é para onde os lançamentos novos vão. Jogá-las
-            # fora faria o saldo derivado ficar abaixo do real.
-            incluir_sem_conta=(conta.id == principal_id),
-        )
-        entrou += conta_entrou
-        saiu += conta_saiu
-
-    return SaldoDasContas(
-        saldo=ancora + entrou - saiu,
-        ancora=ancora,
-        entrou=entrou,
-        saiu=saiu,
-        declarado=bool(datas),
-        # A data MAIS ANTIGA entre as contas: é ela que envelhece o número. Uma
-        # loja que atualizou o Nubank hoje e esqueceu a gaveta há um mês tem uma
-        # âncora de um mês atrás.
-        informado_em=min(datas) if datas else None,
-    )
+from app.services.financeiro.analise import alertas_de_tendencia
+from app.services.financeiro.comum import _funcionario_do_token
+from app.services.financeiro.contas_pagar import _serializar_conta
+from app.services.financeiro.fluxo_caixa import get_fluxo_caixa
 
 
 # ===========================================================================
@@ -168,6 +45,7 @@ def saldo_atual_das_contas(db: Session, empresa_id: int) -> SaldoDasContas:
 # Uma semana é o ponto em que o retrato do saldo deixa de servir: nele já
 # couberam um fim de semana de vendas e as contas do começo do mês.
 DIAS_ATE_O_SALDO_ENVELHECER = 7
+
 
 # ---------------------------------------------------------------------------
 # COMO A GRAVIDADE É DECIDIDA
@@ -187,17 +65,22 @@ DIAS_ATE_O_SALDO_ENVELHECER = 7
 # 10% do que a loja fatura no mês. Abaixo disso, é ruído para ela.
 FRACAO_MATERIAL_DO_FATURAMENTO = 0.10
 
+
 # Piso, para a loja parada (ou no primeiro mês de uso): sem ele, 10% de zero
 # faria QUALQUER centavo vencido virar alerta crítico.
 PISO_VALOR_MATERIAL = 20000  # R$ 200,00
+
 
 # Um mês de atraso é grave por si só, custe o que custar: já passou de
 # esquecimento para inadimplência.
 DIAS_DE_ATRASO_GRAVE = 30
 
+
 # Dentro de uma semana já não dá para "resolver depois" — é o horizonte em que
 # adiar uma conta ou cobrar um cliente ainda muda o desfecho.
 DIAS_ATE_O_APERTO_SER_URGENTE = 7
+
+
 def _montar_alertas(
     db: Session,
     empresa_id: int,
@@ -229,7 +112,7 @@ def _montar_alertas(
     )
 
     def _dias_de_atraso(*, receber: bool) -> int:
-        mais_antigo = receber_crud.vencimento_mais_antigo_pendente(
+        mais_antigo = financeiro_crud.vencimento_mais_antigo_pendente(
             db, empresa_id, hoje=hoje, receber=receber
         )
         return (hoje - mais_antigo).days if mais_antigo else 0
@@ -339,13 +222,13 @@ def _montar_alertas(
     # Visão Geral, e só para quem tem PRO. É o preço de o painel falar de
     # direção e não só de estado.
     if com_projecao:
-        alertas.extend(analise_service.alertas_de_tendencia(db, empresa_id, material))
+        alertas.extend(alertas_de_tendencia(db, empresa_id, material))
 
     # O SILÊNCIO PEDIDO PELO DONO, aplicado no fim de propósito: o alerta é
     # calculado de qualquer jeito e só então some da lista. Assim, quando o
     # prazo expira, ele volta com o número de HOJE -- e não com o de quando foi
     # silenciado.
-    calados = receber_crud.codigos_dispensados(db, empresa_id, hoje)
+    calados = financeiro_crud.codigos_dispensados(db, empresa_id, hoje)
     alertas = [a for a in alertas if a.codigo not in calados]
 
     # Crítico antes de atenção, preservando a ordem de urgência dentro de cada
@@ -386,7 +269,7 @@ def adiar_alerta(
 
     func_id, func_nome = _funcionario_do_token(usuario_token)
     ate = hoje_local() + timedelta(days=dias)
-    registro = receber_crud.dispensar_alerta(
+    registro = financeiro_crud.dispensar_alerta(
         db, empresa_id, codigo=codigo, ate=ate,
         funcionario_id=func_id, funcionario_nome=func_nome,
     )
@@ -466,7 +349,7 @@ def get_resumo(
         db, dt_inicio, dt_fim, empresa_id
     )
 
-    saiu_caixa = receber_crud.total_saiu_do_caixa(db, empresa_id, dt_inicio, dt_fim)
+    saiu_caixa = financeiro_crud.total_saiu_do_caixa(db, empresa_id, dt_inicio, dt_fim)
 
     # A OUTRA LEITURA do que entrou: pelo livro, não pelas tabelas de venda.
     #
@@ -475,7 +358,7 @@ def get_resumo(
     # vendido agora, fiado antigo quitado agora) e a tela mostra os dois em vez
     # de escolher um -- trocar o faturamento por este apagaria da tela o mês
     # inteiro de quem vende a prazo.
-    entrou_caixa = receber_crud.total_entrou_no_caixa(
+    entrou_caixa = financeiro_crud.total_entrou_no_caixa(
         db, empresa_id, dt_inicio, dt_fim
     )
 
@@ -504,7 +387,7 @@ def get_resumo(
     # Não entra no resultado: a venda fiado já está em `faturamento`, e somá-la
     # de novo contaria o mesmo dinheiro duas vezes. O card responde outra
     # pergunta -- quanto do que já vendi ainda não recebi.
-    a_receber, _recebido, a_receber_vencido = receber_crud.totais_contas_receber(
+    a_receber, _recebido, a_receber_vencido = financeiro_crud.totais_contas_receber(
         db, empresa_id, hoje=hoje
     )
 
@@ -555,270 +438,3 @@ def get_resumo(
             com_projecao=com_projecao,
         ),
     )
-
-
-# ===========================================================================
-# FLUXO DE CAIXA (Onda 3)
-# ===========================================================================
-
-def get_fluxo_caixa(db: Session, empresa_id: int, dias: int = 30) -> FluxoCaixa:
-    """A projeção dos próximos `dias`, a partir do saldo declarado pelo dono.
-
-    Três decisões que sustentam a tela, e o motivo de cada uma:
-
-    O SALDO DE PARTIDA É O DE HOJE, DERIVADO. É a âncora que o dono declarou
-    mais tudo que o livro registrou depois dela (ver `saldo_atual_das_contas`).
-    Era o `saldo_informado` puro até 02/09/2026, e essa foto parada é o defeito
-    que fez o dono relatar "não sobe conforme vou vendendo". Enquanto ninguém
-    declarar a âncora, `saldo_declarado` sai False e a tela pede o número em vez
-    de desenhar uma linha que parte de zero.
-
-    O ATRASADO NÃO ENTRA NA RÉGUA. Conta vencida não tem dia futuro para
-    ocupar. Empurrá-la para hoje inventaria um aperto que talvez não aconteça
-    (o fiado atrasado pode nunca chegar; o boleto vencido pode já ter sido
-    pago no banco sem alguém dar baixa aqui). Vai num balde à parte, como
-    aviso, e o dono decide.
-
-    SÓ DIAS COM MOVIMENTO. Sessenta linhas de zero escondem as cinco que
-    importam. A régua contínua é trabalho da tela, que sabe o tamanho dela.
-    """
-    hoje = hoje_local()
-    # `dias` conta a partir de HOJE inclusive: "próximos 30 dias" para o dono da
-    # loja começa hoje de manhã, não amanhã.
-    fim = hoje + timedelta(days=dias - 1)
-
-    atual = saldo_atual_das_contas(db, empresa_id)
-    saldo_inicial = atual.saldo
-
-    pagar, receber = receber_crud.pendentes_por_vencimento(
-        db, empresa_id, inicio=hoje, fim=fim
-    )
-
-    por_dia: Dict[date, Dict[str, Any]] = {}
-
-    def _bucket(dia: date) -> Dict[str, Any]:
-        return por_dia.setdefault(
-            dia, {"entradas": 0, "saidas": 0, "lancamentos": []}
-        )
-
-    for conta in receber:
-        b = _bucket(conta.vencimento)
-        b["entradas"] += int(conta.valor or 0)
-        b["lancamentos"].append(
-            FluxoLancamento(
-                conta_id=conta.id, tipo=MovimentacaoFinanceiraTipo.ENTRADA.value,
-                descricao=conta.descricao, valor=int(conta.valor or 0),
-            )
-        )
-
-    for conta in pagar:
-        b = _bucket(conta.vencimento)
-        b["saidas"] += int(conta.valor or 0)
-        b["lancamentos"].append(
-            FluxoLancamento(
-                conta_id=conta.id, tipo=MovimentacaoFinanceiraTipo.SAIDA.value,
-                descricao=conta.descricao, valor=int(conta.valor or 0),
-                # A tela marca as que se repetem. Sem isso, pagar a internet de
-                # setembro fazia a de outubro aparecer na régua e o dono ler que
-                # o pagamento não tinha sido registrado -- foi o primeiro
-                # estranhamento relatado depois que o saldo passou a andar.
-                recorrente=bool(conta.recorrente),
-            )
-        )
-
-    # Módulo Compras (docs/compras-plano.md, D8d): pedido enviado ainda não é
-    # conta a pagar — a conta nasce no recebimento —, mas já é dinheiro
-    # comprometido. Entra na régua MARCADO como previsão. Sem o módulo Compras
-    # a lista vem vazia e a projeção fica exatamente como era.
-    from app.services.compras.previsoes import previsoes_de_pagamento
-
-    previsto_compras = 0
-    for previsao in previsoes_de_pagamento(db, empresa_id, hoje, fim):
-        b = _bucket(previsao.data)
-        b["saidas"] += previsao.valor
-        previsto_compras += previsao.valor
-        b["lancamentos"].append(
-            FluxoLancamento(
-                conta_id=0, tipo=MovimentacaoFinanceiraTipo.SAIDA.value,
-                descricao=previsao.descricao, valor=previsao.valor,
-                previsao_compra=True, pedido_compra_id=previsao.pedido_id,
-            )
-        )
-
-    saldo = saldo_inicial
-    # O fundo do poço começa no próprio saldo de hoje: numa loja sem nada
-    # agendado, o menor saldo do período é o que ela já tem.
-    menor_saldo, menor_saldo_em = saldo_inicial, None
-    primeiro_negativo: Optional[date] = None
-    total_entradas = total_saidas = 0
-    linha: List[FluxoDia] = []
-
-    for data_dia in sorted(por_dia):
-        dados = por_dia[data_dia]
-        saldo += dados["entradas"] - dados["saidas"]
-        total_entradas += dados["entradas"]
-        total_saidas += dados["saidas"]
-
-        if saldo < menor_saldo:
-            menor_saldo, menor_saldo_em = saldo, data_dia
-        # O PRIMEIRO dia negativo, e não o último: é a data em que o dono
-        # precisa ter feito alguma coisa, e depois dela o resto é consequência.
-        if saldo < 0 and primeiro_negativo is None:
-            primeiro_negativo = data_dia
-
-        linha.append(
-            FluxoDia(
-                data=data_dia,
-                entradas=dados["entradas"],
-                saidas=dados["saidas"],
-                saldo=saldo,
-                # Entrada antes de saída no mesmo dia: é a ordem em que o dono
-                # lê ("entrou tanto, saiu tanto"), e o saldo do dia não depende
-                # da ordem dentro dele.
-                lancamentos=sorted(
-                    dados["lancamentos"],
-                    key=lambda item: (item.tipo != MovimentacaoFinanceiraTipo.ENTRADA.value,
-                                      -item.valor),
-                ),
-            )
-        )
-
-    _p, _pg, atrasado_a_pagar = financeiro_crud.totais_contas_pagar(
-        db, empresa_id, hoje=hoje
-    )
-    _r, _rc, atrasado_a_receber = receber_crud.totais_contas_receber(
-        db, empresa_id, hoje=hoje
-    )
-
-    return FluxoCaixa(
-        inicio=hoje,
-        fim=fim,
-        dias=dias,
-        saldo_inicial=saldo_inicial,
-        saldo_declarado=atual.declarado,
-        # As duas metades do saldo, para a tela poder mostrar a conta em vez de
-        # pedir fé num total: "declarou X no dia tal, e desde então moveu Y".
-        saldo_ancora=atual.ancora,
-        saldo_movimentado=atual.movimentado,
-        saldo_entrou=atual.entrou,
-        saldo_saiu=atual.saiu,
-        saldo_informado_em=atual.informado_em,
-        total_entradas=total_entradas,
-        total_saidas=total_saidas,
-        saldo_final=saldo,
-        primeiro_dia_negativo=primeiro_negativo,
-        menor_saldo=menor_saldo,
-        menor_saldo_em=menor_saldo_em,
-        atrasado_a_receber=atrasado_a_receber,
-        atrasado_a_pagar=atrasado_a_pagar,
-        previsto_compras=previsto_compras,
-        linha=linha,
-    )
-
-
-# ===========================================================================
-# EXTRATO (Onda 5)
-# ===========================================================================
-
-def listar_extrato(
-    db: Session,
-    empresa_id: int,
-    *,
-    inicio: Optional[date] = None,
-    fim: Optional[date] = None,
-    tipo: Optional[str] = None,
-    origem: Optional[str] = None,
-    limit: int = 200,
-    offset: int = 0,
-) -> Extrato:
-    """O livro do dinheiro linha a linha — o que JÁ aconteceu.
-
-    O Fluxo de Caixa olha para frente e só enxerga documento em aberto; conta
-    paga SAI da régua dele. Este é o outro lado: aqui nada sai nunca, porque
-    `movimentacoes_financeiras` só recebe INSERT. Estorno não apaga o
-    lançamento original, cria o contrário -- e as duas linhas ficam.
-
-    O período filtra por `criado_em` (o instante em que o dinheiro andou), e
-    não por vencimento: no extrato não existe futuro.
-    """
-    dt_inicio = inicio_do_dia_utc(inicio) if inicio else None
-    dt_fim = fim_do_dia_utc(fim) if fim else None
-
-    itens, total = receber_crud.listar_extrato(
-        db, empresa_id, inicio=dt_inicio, fim=dt_fim, tipo=tipo, origem=origem,
-        limit=limit, offset=offset,
-    )
-    entradas, saidas = receber_crud.totais_extrato(
-        db, empresa_id, inicio=dt_inicio, fim=dt_fim, tipo=tipo, origem=origem
-    )
-
-    por_venda, por_os = receber_crud.documentos_de_origem(
-        db,
-        venda_pagamento_ids=[m.venda_pagamento_id for m in itens if m.venda_pagamento_id],
-        os_pagamento_ids=[
-            m.ordem_servico_pagamento_id for m in itens if m.ordem_servico_pagamento_id
-        ],
-    )
-
-    def _documento(mov) -> Optional[str]:
-        if mov.venda_pagamento_id:
-            numero = por_venda.get(mov.venda_pagamento_id)
-            return f"Venda {numero}" if numero else "Venda"
-        if mov.ordem_servico_pagamento_id:
-            return por_os.get(mov.ordem_servico_pagamento_id)
-        return None
-
-    # A conta bancária é lida do relacionamento por linha e não por join com
-    # `joinedload`: nem toda linha tem conta, e o extrato de um mês cabe numa
-    # página. Se um dia a tela paginar milhares, isto vira joinedload.
-    contas = {
-        c.id: c.nome for c in financeiro_crud.listar_contas_bancarias(db, empresa_id)
-    }
-
-    return Extrato(
-        total_itens=total,
-        total_entradas=entradas,
-        total_saidas=saidas,
-        saldo=entradas - saidas,
-        itens=[
-            ExtratoLinha(
-                id=m.id,
-                criado_em=m.criado_em,
-                tipo=m.tipo,
-                origem=m.origem,
-                valor=int(m.valor or 0),
-                motivo=m.motivo,
-                funcionario_nome=m.funcionario_nome,
-                conta_bancaria_nome=contas.get(m.conta_bancaria_id),
-                forma_pagamento_nome=(
-                    m.forma_pagamento.nome if m.forma_pagamento else None
-                ),
-                sessao_caixa_id=m.sessao_caixa_id,
-                documento=_documento(m),
-            )
-            for m in itens
-        ],
-    )
-
-
-def get_detalhe_custo(
-    db: Session, empresa_id: int, inicio: date, fim: date
-) -> Dict[str, Any]:
-    """Abre o card "Custo do que vendeu": cada linha que formou o CMV.
-
-    Só leitura, e de propósito no mesmo arquivo das outras três leituras.
-
-    O TOTAL DAQUI TEM QUE BATER com `custo_mercadorias` do resumo. As duas somas
-    saem das mesmas quatro parcelas com os mesmos filtros (ver o cabeçalho de
-    `crud/relatorio_custo.get_detalhe_cmv`), e há teste amarrando os dois números --
-    um detalhe que não fecha com o total piora a desconfiança em vez de
-    resolvê-la, que é exatamente o problema que ele veio consertar.
-    """
-    dt_inicio, dt_fim = inicio_do_dia_utc(inicio), fim_do_dia_utc(fim)
-    linhas = custo_crud.get_detalhe_cmv(db, dt_inicio, dt_fim, empresa_id)
-    return {
-        "periodo_inicio": inicio,
-        "periodo_fim": fim,
-        "total": sum(l["custo"] for l in linhas),
-        "linhas": linhas,
-    }

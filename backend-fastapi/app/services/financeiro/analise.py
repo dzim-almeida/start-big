@@ -1,9 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/financeiro_analise.py
-# DESCRIÇÃO: A leitura de DIREÇÃO do módulo financeiro — série mensal, alertas
-#            de tendência e projeção de 12 meses. A tela de Análise.
+# ARQUIVO: services/financeiro/analise.py
+# DESCRICAO: Financeiro - Analise: serie mensal e projecao de 12 meses, com os
+#            alertas de tendencia.
 # ---------------------------------------------------------------------------
-"""
+
+"""(Texto de quando era services/financeiro_analise.py; desde 12/10/2026 o financeiro e o pacote services/financeiro/.)
+
 O resto do módulo responde "como está agora"; este arquivo responde "para onde
 está indo". É o papel que o dono pagaria a um consultor para cumprir.
 
@@ -31,14 +33,11 @@ AS TRÊS REGRAS QUE ATRAVESSAM TUDO AQUI:
 """
 
 from datetime import date, timedelta
-from typing import List, Optional
-
+from typing import List
 from sqlalchemy.orm import Session
-
 from app.core.tempo import fim_do_dia_utc, hoje_local, inicio_do_dia_utc
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import financeiro as financeiro_crud
-from app.db.crud import financeiro_receber as receber_crud
 from app.services import custo_mercadoria
 from app.schemas.financeiro import (
     AlertaFinanceiro,
@@ -60,10 +59,20 @@ from app.schemas.financeiro import (
 # ---------------------------------------------------------------------------
 
 MESES_DE_QUEDA_PARA_ALERTAR = 3      # queda em fila, não um mês ruim
+
+
 QUEDA_GRAVE_ACUMULADA = 0.30         # 30% do primeiro mês da fila
+
+
 QUEDA_DE_ORIGEM = 0.30               # uma perna encolhendo contra a média
+
+
 FATIA_DE_DEPENDENCIA = 0.80          # uma origem virou o negócio inteiro
+
+
 CUSTO_CRESCE_VEZES_MAIS = 2.0        # despesa subindo ao dobro da receita
+
+
 PRAZO_LENTO_ACIMA_DE = 1.5           # 50% mais devagar que a média
 
 
@@ -140,8 +149,8 @@ def get_serie(db: Session, empresa_id: int, meses: int = 12) -> Serie:
         custo, _sem_registro = custo_mercadoria.calcular_cmv(
             db, dt_inicio, dt_fim, empresa_id
         )
-        caixa = receber_crud.total_entrou_no_caixa(db, empresa_id, dt_inicio, dt_fim)
-        prazo = receber_crud.prazo_medio_recebimento(db, empresa_id, dt_inicio, dt_fim)
+        caixa = financeiro_crud.total_entrou_no_caixa(db, empresa_id, dt_inicio, dt_fim)
+        prazo = financeiro_crud.prazo_medio_recebimento(db, empresa_id, dt_inicio, dt_fim)
         receita = sum(por_origem.values())
 
         linhas.append(
@@ -208,12 +217,18 @@ def get_serie(db: Session, empresa_id: int, meses: int = 12) -> Serie:
 # sai. Três pontos desenham qualquer coisa.
 PORTAO_PROJECAO = 6
 
+
 # Quantos meses entram na média. Três é o bastante para amortecer um mês fora
 # da curva sem esconder uma mudança recente de patamar.
 MESES_NA_MEDIA = 3
 
+
 MARGEM_MINIMA = 0.10   # nem a loja mais regular do mundo acerta na mosca
+
+
 MARGEM_MAXIMA = 0.50   # acima disso a faixa é tão larga que não informa nada
+
+
 CASTIGO_HISTORICO_CURTO = 1.3  # menos de um ano: alarga a faixa
 
 

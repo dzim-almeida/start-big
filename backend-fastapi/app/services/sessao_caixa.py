@@ -673,7 +673,7 @@ def _conta_do_dinheiro(db: Session, empresa_id: int) -> Optional[int]:
     Import local para não amarrar o módulo do caixa ao do financeiro no topo:
     a dependência aqui é pontual, e o arquivo já usa esse recurso.
     """
-    from app.services.financeiro import _conta_padrao_id
+    from app.services.financeiro.contas_bancarias import _conta_padrao_id
 
     return _conta_padrao_id(db, empresa_id)
 

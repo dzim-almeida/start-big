@@ -23,12 +23,12 @@ from sqlalchemy.orm import Session
 from app.core.depends import _handle_db_transaction, check_permission
 from app.core.modulos import requer_modulo
 from app.db.session import get_db
-from app.schemas.conta_bancaria import (
+from app.schemas.financeiro import (
     ContaBancariaCreate,
     ContaBancariaRead,
     ContaBancariaUpdate,
 )
-from app.schemas.conta_pagar import (
+from app.schemas.financeiro import (
     ContaPagarBaixa,
     ContaPagarCreate,
     ContaPagarEstorno,
@@ -37,7 +37,7 @@ from app.schemas.conta_pagar import (
     ContaPagarUpdate,
     HistoricoFinanceiroRead,
 )
-from app.schemas.conta_receber import (
+from app.schemas.financeiro import (
     ContaReceberBaixa,
     ContaReceberCreate,
     ContaReceberEstorno,
@@ -56,11 +56,10 @@ from app.schemas.financeiro import (
     Serie,
     ResumoFinanceiro,
 )
-from app.schemas.plano_conta import PlanoContaCreate, PlanoContaRead, PlanoContaUpdate
+from app.schemas.financeiro import PlanoContaCreate, PlanoContaRead, PlanoContaUpdate
+# Pacote services/financeiro/ (12/10/2026): reexporta pagar, receber, visao e
+# analise, que antes eram quatro modulos com um apelido cada.
 from app.services import financeiro as financeiro_service
-from app.services import financeiro_receber as receber_service
-from app.services import financeiro_visao as visao_service
-from app.services import financeiro_analise as analise_service
 from app.services import licenca as licenca_service
 
 router = APIRouter(dependencies=[Depends(requer_modulo("FINANCEIRO"))])
@@ -421,7 +420,7 @@ def listar_contas_receber(
 ):
     return _handle_db_transaction(
         db,
-        lambda db_: receber_service.listar_contas_receber(
+        lambda db_: financeiro_service.listar_contas_receber(
             db_, usuario_token["empresa_id"], status=status_filtro, inicio=inicio,
             fim=fim, cliente_id=cliente_id, busca=busca, vencidas=vencidas,
             limit=limit, offset=offset,
@@ -441,7 +440,7 @@ def criar_conta_receber(
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(
-        db, receber_service.criar_conta_receber,
+        db, financeiro_service.criar_conta_receber,
         usuario_token["empresa_id"], dados, usuario_token,
     )
 
@@ -457,7 +456,7 @@ def get_conta_receber(
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(
-        db, receber_service.get_conta_receber, usuario_token["empresa_id"], conta_id
+        db, financeiro_service.get_conta_receber, usuario_token["empresa_id"], conta_id
     )
 
 
@@ -474,7 +473,7 @@ def atualizar_conta_receber(
 ):
     """Renegociar prazo com o cliente é legítimo — e deixa rastro."""
     return _handle_db_transaction(
-        db, receber_service.atualizar_conta_receber,
+        db, financeiro_service.atualizar_conta_receber,
         usuario_token["empresa_id"], conta_id, dados, usuario_token,
     )
 
@@ -491,7 +490,7 @@ def cancelar_conta_receber(
 ):
     """Dívida perdoada continua sendo história, e o histórico responde por ela."""
     return _handle_db_transaction(
-        db, receber_service.cancelar_conta_receber,
+        db, financeiro_service.cancelar_conta_receber,
         usuario_token["empresa_id"], conta_id, usuario_token,
     )
 
@@ -510,7 +509,7 @@ def receber_conta(
     """O momento que o fecho da venda deixou marcado: "o movimento nasce no dia
     em que o cliente pagar". Origem RECEBIMENTO."""
     return _handle_db_transaction(
-        db, receber_service.receber_conta,
+        db, financeiro_service.receber_conta,
         usuario_token["empresa_id"], conta_id, dados, usuario_token,
     )
 
@@ -527,7 +526,7 @@ def estornar_recebimento(
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(
-        db, receber_service.estornar_recebimento,
+        db, financeiro_service.estornar_recebimento,
         usuario_token["empresa_id"], conta_id, dados, usuario_token,
     )
 
@@ -543,7 +542,7 @@ def historico_da_cobranca(
     db: Session = Depends(get_db),
 ):
     return _handle_db_transaction(
-        db, receber_service.listar_historico_do_recebimento,
+        db, financeiro_service.listar_historico_do_recebimento,
         usuario_token["empresa_id"], conta_id,
     )
 
@@ -581,7 +580,7 @@ def get_resumo(
 
     return _handle_db_transaction(
         db,
-        lambda db_: visao_service.get_resumo(
+        lambda db_: financeiro_service.get_resumo(
             db_, usuario_token["empresa_id"], inicio, fim, com_projecao=com_projecao
         ),
     )
@@ -619,7 +618,7 @@ def get_fluxo_caixa(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: visao_service.get_fluxo_caixa(
+        lambda db_: financeiro_service.get_fluxo_caixa(
             db_, usuario_token["empresa_id"], dias
         ),
     )
@@ -645,7 +644,7 @@ def get_conciliacao(
     deposita venda a venda, deposita o lote do dia."""
     return _handle_db_transaction(
         db,
-        lambda db_: receber_service.get_conciliacao(
+        lambda db_: financeiro_service.get_conciliacao(
             db_, usuario_token["empresa_id"], inicio, fim
         ),
     )
@@ -671,7 +670,7 @@ def baixar_lote(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: receber_service.baixar_lote(
+        lambda db_: financeiro_service.baixar_lote(
             db_, usuario_token["empresa_id"], dados, usuario_token
         ),
     )
@@ -706,7 +705,7 @@ def listar_extrato(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: visao_service.listar_extrato(
+        lambda db_: financeiro_service.listar_extrato(
             db_, usuario_token["empresa_id"],
             inicio=inicio, fim=fim, tipo=tipo, origem=origem,
             limit=limit, offset=offset,
@@ -739,7 +738,7 @@ def adiar_alerta(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: visao_service.adiar_alerta(
+        lambda db_: financeiro_service.adiar_alerta(
             db_, usuario_token["empresa_id"], codigo, dias, usuario_token
         ),
     )
@@ -773,7 +772,7 @@ def get_serie(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: analise_service.get_serie(db_, usuario_token["empresa_id"], meses),
+        lambda db_: financeiro_service.get_serie(db_, usuario_token["empresa_id"], meses),
     )
 
 
@@ -795,7 +794,7 @@ def get_projecao(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: analise_service.get_projecao(db_, usuario_token["empresa_id"]),
+        lambda db_: financeiro_service.get_projecao(db_, usuario_token["empresa_id"]),
     )
 
 
@@ -819,7 +818,7 @@ def get_custo_detalhe(
     """
     return _handle_db_transaction(
         db,
-        lambda db_: visao_service.get_detalhe_custo(
+        lambda db_: financeiro_service.get_detalhe_custo(
             db_, usuario_token["empresa_id"], inicio, fim
         ),
     )
