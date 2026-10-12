@@ -13,7 +13,7 @@ Estes testes travam os dois caminhos: o de PF (o que foi corrigido) e o de PJ
 import pytest
 from sqlalchemy.orm import Session
 
-from app.schemas.auth import SetupCreate
+from app.schemas.acesso.auth import SetupCreate
 from app.services.setup import setup_sistema
 from app.db.models.empresa import Empresa
 from app.db.models.funcionario import Funcionario

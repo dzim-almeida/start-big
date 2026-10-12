@@ -11,14 +11,14 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.schemas.auth import SetupCreate
-from app.schemas.usuario import UsuarioCreate
+from app.schemas.acesso.auth import SetupCreate
+from app.schemas.funcionario import UsuarioCreate
 from app.core.security import create_access_token
 
-from app.services import usuario as usuario_service
+from app.services.acesso import usuario as usuario_service
 from app.services import endereco as endereco_service
 from app.services import licenca as licenca_service
-from app.db.crud import usuario as usuario_crud
+from app.db.crud.acesso import usuario as usuario_crud
 from app.db.crud.funcionario import cargo as cargo_crud
 from app.db.crud import empresa as empresa_crud
 from app.db.crud import funcionario as funcionario_crud

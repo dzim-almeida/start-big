@@ -12,7 +12,7 @@ from app.schemas.funcionario import FuncionarioCreate, FuncionarioUpdate
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
 from app.db.crud.funcionario import cargo as cargo_crud
-from app.services import usuario as usuario_service
+from app.services.acesso import usuario as usuario_service
 from app.services import endereco as endereco_service
 from app.core.enum import EntityType
 

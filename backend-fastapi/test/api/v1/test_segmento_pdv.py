@@ -109,7 +109,7 @@ def test_pdv_nao_declara_capacidades_nem_campos_de_os():
 
 def test_mercado_deixou_de_ser_segmento_valido():
     """O valor foi rebatizado; a migration b3c4d5e6f7a8 converte quem ja existia."""
-    from app.schemas.auth import SEGMENTOS_VALIDOS
+    from app.schemas.acesso.auth import SEGMENTOS_VALIDOS
     from typing import get_args
 
     validos = get_args(SEGMENTOS_VALIDOS)

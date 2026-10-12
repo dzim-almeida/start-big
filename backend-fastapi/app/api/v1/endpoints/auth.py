@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_token, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.auth import UsuarioLogin, SetupCreate, StatusResponse, LogoutRequest, ReconnectRequest
-from app.services import auth as auth_service
+from app.schemas.acesso.auth import UsuarioLogin, SetupCreate, StatusResponse, LogoutRequest, ReconnectRequest
+from app.services.acesso import auth as auth_service
 from app.services import setup as setup_service
 from app.services.licenca import desconectar_terminal
 

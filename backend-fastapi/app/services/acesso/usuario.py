@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.models.usuario import Usuario as UsuarioModel
-from app.schemas.usuario import UsuarioRead, UsuarioCreate, UsuarioUpdateMe, UsuarioAlterarSenha
+from app.schemas.funcionario import UsuarioRead, UsuarioCreate, UsuarioUpdateMe, UsuarioAlterarSenha
 from app.core.security import hash_password
 from app.core.imagem import salvar_imagem
-from app.db.crud import usuario as usuario_crud
+from app.db.crud.acesso import usuario as usuario_crud
 
 # ---------------------------------------------------------------------------
 # EXCEÇÕES CONTEXTUALIZADAS (REGRA 4: Robustez)

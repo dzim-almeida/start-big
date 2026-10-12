@@ -4,7 +4,7 @@ from typing import Optional, Sequence
 
 from app.core.enum import TipoProdutoVenda
 from app.schemas.quantidade import Quantidade, QuantidadeLida
-from app.schemas.cargo import CargoBase
+from app.schemas.funcionario import CargoBase
 
 
 # --- Schemas para criacao de orcamento e produtos ---

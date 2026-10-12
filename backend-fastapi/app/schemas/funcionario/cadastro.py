@@ -8,8 +8,8 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
-from app.schemas.usuario import UsuarioCreate, UsuarioRead
-from app.schemas.cargo import ComissaoModo
+from app.schemas.funcionario.usuario import UsuarioCreate, UsuarioRead
+from app.schemas.funcionario.cargo import ComissaoModo
 from app.core.enum import Gender, BankAccountType
 
 # ===========================================================================

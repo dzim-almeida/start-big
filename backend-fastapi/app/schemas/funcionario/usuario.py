@@ -5,7 +5,7 @@
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.schemas.empresa import EmpresaUserRead
-from app.schemas.cargo import CargoBase
+from app.schemas.funcionario.cargo import CargoBase
 from typing import Optional
 
 # =========================

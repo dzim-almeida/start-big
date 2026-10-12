@@ -6,10 +6,10 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.schemas.usuario import UsuarioCreate
+from app.schemas.funcionario import UsuarioCreate
 from app.db.models.funcionario import Funcionario as FuncionarioModel
 from app.db.crud import funcionario as funcionario_crud
-from app.services import usuario as usuario_service
+from app.services.acesso import usuario as usuario_service
 from app.services.funcionario.cadastro import not_found_exce
 
 

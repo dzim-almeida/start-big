@@ -8,7 +8,7 @@ from typing import Sequence, Dict # Import adicionado para tipagem
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.schemas.cargo import CargoCreate, CargoUpdate
+from app.schemas.funcionario import CargoCreate, CargoUpdate
 from app.db.models.cargo import Cargo as CargoModel
 from app.db.crud.funcionario import cargo as cargo_crud
 

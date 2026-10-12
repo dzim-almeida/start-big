@@ -4,7 +4,7 @@ from datetime import datetime, date
 from typing import Optional, Sequence
 
 from app.schemas.cliente import ClienteRead, ClienteSimpleRead
-from app.schemas.cargo import CargoBase
+from app.schemas.funcionario import CargoBase
 
 from app.core.enum import TipoProdutoVenda, JurosResponsavel
 from app.schemas.quantidade import Quantidade, QuantidadeLida

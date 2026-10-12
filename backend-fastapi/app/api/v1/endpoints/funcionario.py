@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, status, Query, Path
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
-from app.schemas.usuario import UsuarioCreate
+from app.schemas.funcionario import UsuarioCreate
 from app.schemas.funcionario import FuncionarioCreate, FuncionarioRead, FuncionarioUpdate
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db

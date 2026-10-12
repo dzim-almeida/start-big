@@ -21,7 +21,7 @@ from app.schemas.empresa import (
     WindowsCertificateRead,
 )
 from app.services import endereco as endereco_service
-from app.services import usuario as usuario_service
+from app.services.acesso import usuario as usuario_service
 from app.core.enum import EntityType
 from app.services.fiscal.helpers import crt_efetivo
 from app.db.crud import empresa as empresa_crud
