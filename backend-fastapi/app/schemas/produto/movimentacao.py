@@ -1,12 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/movimentacao_estoque.py
-# DESCRIÇÃO: Schemas Pydantic para movimentações de estoque.
+# ARQUIVO: schemas/produto/movimentacao.py
+# DESCRICAO: Estoque - schemas das movimentacoes. Era schemas/movimentacao_estoque.py.
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
-
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
 
 

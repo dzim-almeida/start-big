@@ -45,7 +45,7 @@ from app.schemas.fabrica import (
     MovelMargem,
     SeparacaoRead,
 )
-from app.services import movimentacao_estoque as mov_service
+from app.services.produto import movimentacao as mov_service
 from app.services.fabrica import trilho
 from app.services.fabrica.modo import Fase
 

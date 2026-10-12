@@ -18,7 +18,7 @@ from app.db.models.conta_pagar import ContaPagar
 from app.db.models.estoque import Estoque
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.produto_fornecedor import ProdutoFornecedor
-from app.services.movimentacao_estoque import calcular_custo_medio
+from app.services.produto.movimentacao import calcular_custo_medio
 
 URL = "/api/v1/compras/pedidos"
 

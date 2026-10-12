@@ -61,7 +61,7 @@ from app.services.fabrica import calculo
 from app.services.fabrica import trilho
 from app.services.fabrica.modo import Fase
 from app.db.models.fabrica_orcamento import EventoFase
-from app.services.movimentacao_estoque import custo_atual
+from app.services.produto.movimentacao import custo_atual
 from app.services.ordem_servico import _recalcular_valor_total_os
 
 VENCIDO = "VENCIDO"

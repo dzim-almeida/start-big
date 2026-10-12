@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
-from app.schemas.produto_embalagem import EmbalagemRead, EmbalagensSalvar
-from app.services import produto_embalagem as embalagem_service
+from app.schemas.produto import EmbalagemRead, EmbalagensSalvar
+from app.services.produto import embalagem as embalagem_service
 
 router = APIRouter()
 

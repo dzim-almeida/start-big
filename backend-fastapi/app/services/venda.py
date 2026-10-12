@@ -14,7 +14,7 @@ from app.services.cliente import cliente_exists
 from app.services.funcionario import funcionario_exists
 from app.services import produto as produto_service
 from app.services import sessao_caixa as caixa_service
-from app.services import produto_embalagem as embalagem_service
+from app.services.produto import embalagem as embalagem_service
 from app.services import quantidade_venda
 from app.services import regras_preco as regras_preco_service
 from app.services import venda_atacado

@@ -13,7 +13,7 @@ import pytest
 from starlette import status
 
 from app.db.models.contador_venda import ContadorVenda
-from app.services.movimentacao_estoque import calcular_custo_medio
+from app.services.produto.movimentacao import calcular_custo_medio
 
 
 TEST_USER_EMAIL = "teste.funcionario@example.com"

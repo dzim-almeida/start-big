@@ -1,8 +1,10 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/produto_embalagem.py
-# MÓDULO: Schemas Pydantic — Embalagens do produto (fardo, caixa, pack)
+# ARQUIVO: schemas/produto/embalagem.py
+# DESCRICAO: Produtos - schemas das embalagens. Era schemas/produto_embalagem.py.
 # ---------------------------------------------------------------------------
-"""
+
+"""(Texto de quando era schemas/produto_embalagem.py; desde 12/10/2026 o financeiro e o pacote services/financeiro/.)
+
 As embalagens de um produto chegam e saem EM BLOCO (replace-all, como as
 regras do perfil tributário): a tela manda a lista inteira, e o que não veio
 sai. Espelho no frontend: `modules/products/inventory/types/embalagens.types.ts`.
@@ -20,11 +22,15 @@ embalagens) é do service: depende do banco.
 import re
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 MAX_EMBALAGENS = 30
+
+
 _SIGLA = re.compile(r"^[A-Z0-9]{1,6}$")
+
+
 _CODIGO = re.compile(r"^[A-Za-z0-9\-]{1,20}$")
 
 

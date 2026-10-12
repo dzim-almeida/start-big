@@ -1,15 +1,15 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/movimentacao_estoque.py
-# DESCRIÇÃO: Lógica de negócio para movimentações de estoque.
+# ARQUIVO: services/produto/movimentacao.py
+# DESCRICAO: Estoque - movimentacoes (entrada, saida, ajuste), custo medio e o
+#            livro de estoque. Era services/movimentacao_estoque.py.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional, Dict, Any
-
-from app.schemas.movimentacao_estoque import MovimentacaoCreate
+from app.schemas.produto import MovimentacaoCreate
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
-from app.db.crud import movimentacao_estoque as mov_crud
+from app.db.crud.produto import movimentacao as mov_crud
 from app.db.crud import produto as produto_crud
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
 
@@ -19,15 +19,18 @@ not_found_produto = HTTPException(
     detail="Produto não encontrado"
 )
 
+
 estoque_insuficiente = HTTPException(
     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     detail="Estoque insuficiente para realizar a saída"
 )
 
+
 quantidade_invalida = HTTPException(
     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     detail="Entrada e saída exigem quantidade maior que zero"
 )
+
 
 produto_sem_estoque = HTTPException(
     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

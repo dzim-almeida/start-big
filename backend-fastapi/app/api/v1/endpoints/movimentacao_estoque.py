@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.core.depends import get_token, check_permission, _handle_db_transaction
+from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.movimentacao_estoque import MovimentacaoCreate, MovimentacaoRead
-from app.services import movimentacao_estoque as mov_service
+from app.schemas.produto import MovimentacaoCreate, MovimentacaoRead
+from app.services.produto import movimentacao as mov_service
 
 router = APIRouter()
 

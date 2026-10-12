@@ -1,10 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/estoque.py
-# DESCRIÇÃO: Schemas Pydantic para validação de dados de Estoque.
+# ARQUIVO: schemas/produto/estoque.py
+# DESCRICAO: Produtos - schemas do estoque (quantidades, precos, custo).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
+
 
 # =========================
 # Schema Pydantic: EstoqueCreate (Criação)
@@ -40,6 +41,7 @@ class EstoqueCreate(BaseModel):
         description="Quantidade mínima para acionar alertas de reposição."
     )
 
+
 # =========================
 # Schema Pydantic: EstoqueRead (Leitura/Resposta)
 # =========================
@@ -60,6 +62,7 @@ class EstoqueRead(EstoqueCreate):
         None,
         description="Custo médio ponderado calculado, base do CMV (em centavos)."
     )
+
 
 class EstoqueUpdate(BaseModel):
     """

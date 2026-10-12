@@ -33,7 +33,7 @@ from app.db.models.nota_entrada import NotaEntrada
 from app.db.models.produto import Produto
 from app.db.models.produto_codigo_fornecedor import ProdutoCodigoFornecedor
 from app.db.models.produto_embalagem import ProdutoEmbalagem
-from app.schemas.estoque import EstoqueCreate
+from app.schemas.produto import EstoqueCreate
 from app.schemas.nfe_entrada import (
     DecisaoItem,
     DuplicataPrevia,
@@ -434,7 +434,7 @@ def _lembrar_vinculo(
 
 
 def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) -> ResultadoImportacao:
-    from app.services import movimentacao_estoque as mov_service
+    from app.services.produto import movimentacao as mov_service
 
     nota = _ler(dados.xml)
     anterior = _ja_importada(db, nota.chave)

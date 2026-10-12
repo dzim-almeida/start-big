@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, F
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
-from app.schemas.produto import ProdutoCreate, ProdutoCreateComFiscal, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
-from app.schemas.produto_fotos import ProdutoFotoRead
+from app.schemas.produto import ProdutoCreateComFiscal, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
+from app.schemas.produto import ProdutoFotoRead
 from app.core.depends import check_permission, requer_modulo_fiscal, _handle_db_transaction
 from app.schemas.produto_fiscal import ProdutoFiscalRead, ProdutoFiscalUpdate
 from app.services import produto_fiscal as produto_fiscal_service

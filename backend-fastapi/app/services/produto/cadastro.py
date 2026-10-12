@@ -1,26 +1,20 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/produto.py
-# MÓDULO: Regras de Negócio (Service Layer)
-# DESCRIÇÃO: Lógica para criação, atualização e controle de estado de produtos.
+# ARQUIVO: services/produto/cadastro.py
+# DESCRICAO: Produtos - criar, buscar, editar (com historico), ativar/desativar.
 # ---------------------------------------------------------------------------
 
-from fastapi import HTTPException, status, UploadFile
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Sequence
-
 from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
-from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.estoque import Estoque as EstoqueModel
 from app.db.crud import produto as produto_crud
-from app.db.crud import produto_fiscal as produto_fiscal_crud
-from app.db.crud import funcionario as funcionario_crud
-from app.services import movimentacao_estoque as mov_service
-from app.services import produto_embalagem as embalagem_service
 from app.services import produto_fiscal as produto_fiscal_service
-
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
-from app.core.imagem import salvar_imagem, deletar_imagem
+from app.services.produto.embalagem import codigo_de_produto_livre, embalagens_ligadas
+from app.services.produto.movimentacao import registrar_movimentacao
+
 
 # Exceções reutilizáveis
 conflict_codigo_produto_exce = HTTPException(
@@ -31,20 +25,24 @@ conflict_codigo_produto_exce = HTTPException(
     }
 )
 
+
 not_found_exce = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND,
     detail="Produto não encontrado no sistema"
 )
+
 
 internal_error_exce = HTTPException(
     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     detail="Erro em cumprir a requisição. Tente novamente mais tarde."
 )
 
+
 _bad_request_exce = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail="Estoque insuficiente para a quantidade solicitada"
 )
+
 
 # ===========================================================================
 # LÓGICA DE CRIAÇÃO (CREATE)
@@ -73,7 +71,7 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
     # O código do produto não pode ser o de uma embalagem (fardo/caixa) de
     # outro produto: o leitor do caixa não saberia qual dos dois lançar.
     for codigo in (produto_to_add.codigo_barras, produto_to_add.codigo_produto):
-        embalagem_service.codigo_de_produto_livre(db, codigo)
+        codigo_de_produto_livre(db, codigo)
 
     # Prepara dados (separa estoque e fiscal do produto principal)
     produto_data = produto_to_add.model_dump(exclude={"estoque", "fiscal"})
@@ -98,7 +96,7 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
 
     # Estoque inicial entra como qualquer outra compra: pelo registro central,
     # com o custo informado, para o livro nascer contando a verdade (0 → N).
-    mov_service.registrar_movimentacao(
+    registrar_movimentacao(
         db,
         produto=produto_in_db,
         tipo=MovimentacaoTipo.ENTRADA,
@@ -123,27 +121,6 @@ def create_produto(db: Session, produto_to_add: ProdutoCreate, usuario_token: di
 
     return produto_in_db
 
-def create_produto_image(db: Session, produto_id: int, image_file: UploadFile, primary_image: bool, usuario_token: dict) -> ProdutoFotoModel:
-
-    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-
-    if not produto_in_db:
-        raise not_found_exce
-
-    image_url = salvar_imagem(arquivo=image_file, entidade_id=produto_id, contexto="produto")
-
-    produto_image_to_db = ProdutoFotoModel(
-        produto_id=produto_id,
-        url=image_url,
-        nome_arquivo=image_file.filename,
-        principal=primary_image,
-    )
-
-    result = produto_crud.create_produto_image(db, produto_image_to_db)
-
-    _registrar_edicao(db, produto_in_db, usuario_token, "Foto do produto atualizada")
-
-    return result
 
 # ===========================================================================
 # LÓGICA DE LEITURA (READ)
@@ -156,6 +133,7 @@ def get_produto_by_search(
 ) -> Sequence[ProdutoModel]:
     """Intermediário para busca de produtos via CRUD."""
     return produto_crud.get_produto_by_search(db, search=produto_search, limite=limite)
+
 
 def get_produto_simple_by_search(
     db: Session,
@@ -170,9 +148,8 @@ def get_produto_simple_by_search(
     a busca é exatamente a de antes.
     """
     from app.core.embalagem import preco_da_embalagem
-    from app.services import produto_embalagem as embalagem_service
 
-    com_embalagens = embalagem_service.embalagens_ligadas(db, empresa_id)
+    com_embalagens = embalagens_ligadas(db, empresa_id)
     produtos = produto_crud.get_produto_simple_by_search(
         db, search=search, limite=limite, com_embalagens=com_embalagens
     )
@@ -193,6 +170,7 @@ def get_produto_simple_by_search(
                 if e.ativo and e.vende_no_pdv
             ]
     return produtos
+
 
 # ===========================================================================
 # LÓGICA DE ATUALIZAÇÃO (UPDATE)
@@ -227,7 +205,7 @@ def _build_observacao_edicao(campos: list[str]) -> str:
 
 
 def _registrar_edicao(db, produto, usuario_token: dict, observacao: str) -> None:
-    mov_service.registrar_movimentacao(
+    registrar_movimentacao(
         db,
         produto=produto,
         tipo=MovimentacaoTipo.EDICAO_DADOS,
@@ -251,7 +229,7 @@ def update_produto_by_id(db: Session, produto_id: int, produto_to_update: Produt
     data_to_update = produto_to_update.model_dump(exclude_unset=True)
     for campo in ("codigo_barras", "codigo_produto"):
         if data_to_update.get(campo) and data_to_update[campo] != getattr(produto_in_db, campo):
-            embalagem_service.codigo_de_produto_livre(db, data_to_update[campo], produto_id)
+            codigo_de_produto_livre(db, data_to_update[campo], produto_id)
     campos_alterados: list[str] = []
     # Quantidade não é um campo editável como os outros: ela precisa passar pelo
     # livro de estoque. Fica de fora do setattr e é aplicada depois, como AJUSTE.
@@ -287,7 +265,7 @@ def update_produto_by_id(db: Session, produto_id: int, produto_to_update: Produt
     # só registrava "Quantidade alterado", com anterior e posterior iguais: as
     # unidades sumiam sem deixar rastro de quantas eram nem de quando foi.
     if nova_quantidade is not None and nova_quantidade != (produto_result.estoque.quantidade or 0):
-        mov_service.registrar_movimentacao(
+        registrar_movimentacao(
             db,
             produto=produto_result,
             tipo=MovimentacaoTipo.AJUSTE,
@@ -299,6 +277,7 @@ def update_produto_by_id(db: Session, produto_id: int, produto_to_update: Produt
         )
 
     return produto_result
+
 
 # ===========================================================================
 # LÓGICA DE STATUS (TOGGLE)
@@ -342,117 +321,6 @@ def toggle_active_disable_produto_by_id(db: Session, produto_id: int, new_produt
 
     return produto_result
 
-# ===========================================================================
-# LÓGICA DE DELEÇÃO (DELETE)
-# ===========================================================================
-
-def replace_produto_principal_image(db: Session, produto_id: int, image_file: UploadFile) -> ProdutoFotoModel:
-    """
-    Substitui a foto principal de um produto.
-
-    1. Busca a foto principal atual (se existir).
-    2. Salva a nova imagem no disco.
-    3. Cria novo registro ProdutoFoto como principal.
-    4. Remove a foto anterior (arquivo + registro).
-    """
-    produto_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-    if not produto_in_db:
-        raise not_found_exce
-
-    foto_anterior = produto_crud.get_produto_principal_image(db, produto_id=produto_id)
-
-    image_url = salvar_imagem(arquivo=image_file, entidade_id=produto_id, contexto="produto")
-
-    nova_foto = ProdutoFotoModel(
-        produto_id=produto_id,
-        url=image_url,
-        nome_arquivo=image_file.filename,
-        principal=True,
-    )
-    nova_foto = produto_crud.create_produto_image(db, nova_foto)
-
-    if foto_anterior:
-        deletar_imagem(caminho_arquivo=foto_anterior.url)
-        produto_crud.delete_produto_image(db, image_to_delete=foto_anterior)
-
-    return nova_foto
-
-def delete_produto_image(db: Session, image_id: int):
-    
-    image_in_db = produto_crud.get_produto_image_by_id(db, image_id=image_id)
-
-    if not image_in_db:
-        raise not_found_exce
-    
-    file_path = image_in_db.url
-    
-    if not deletar_imagem(caminho_arquivo=file_path):
-        raise internal_error_exce
-    
-    return produto_crud.delete_produto_image(db, image_to_delete=image_in_db)
-
-def _usuario_do_funcionario(db: Session, funcionario_id: int | None) -> tuple[int | None, str]:
-    """Resolve o usuário responsável a partir do funcionário da venda.
-
-    A movimentação de estoque registra USUÁRIO (quem operou o sistema); a venda
-    guarda FUNCIONÁRIO. São entidades diferentes ligadas por FK.
-    """
-    if not funcionario_id:
-        return None, "Sistema"
-    funcionario = funcionario_crud.get_funcionario_by_id(db, funcionario_id=funcionario_id)
-    if not funcionario:
-        return None, "Sistema"
-    return funcionario.usuario_id, funcionario.nome or "Sistema"
-
-
-def decrease_product_in_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
-    """Baixa de estoque por venda.
-
-    NÃO permite estoque negativo: diferente da OS, aqui a peça ainda está na
-    prateleira e dá para simplesmente não vender.
-    """
-    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-    if not product_in_db:
-        raise not_found_exce
-
-    if quantidade > (product_in_db.estoque.quantidade or 0):
-        raise _bad_request_exce
-
-    usuario_id, usuario_nome = _usuario_do_funcionario(db, funcionario_id)
-    mov_service.registrar_movimentacao(
-        db,
-        produto=product_in_db,
-        tipo=MovimentacaoTipo.SAIDA,
-        quantidade=quantidade,
-        origem=MovimentacaoOrigem.VENDA,
-        usuario_id=usuario_id,
-        usuario_nome=usuario_nome,
-        venda_id=venda_id,
-        observacao="Baixa por venda",
-    )
-
-    return produto_crud.update_produto(db, product_in_db)
-
-def restore_product_to_stock(db: Session, produto_id: int, quantidade: int, venda_id: int, funcionario_id: int):
-    """Estorno de estoque por cancelamento de venda."""
-    product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)
-    if not product_in_db:
-        raise not_found_exce
-
-    usuario_id, usuario_nome = _usuario_do_funcionario(db, funcionario_id)
-    mov_service.registrar_movimentacao(
-        db,
-        produto=product_in_db,
-        tipo=MovimentacaoTipo.ENTRADA,
-        quantidade=quantidade,
-        origem=MovimentacaoOrigem.VENDA,
-        usuario_id=usuario_id,
-        usuario_nome=usuario_nome,
-        venda_id=venda_id,
-        observacao="Estorno por cancelamento de venda",
-    )
-
-    return produto_crud.update_produto(db, product_in_db)
 
 def get_produto_by_id(db: Session, produto_id: int) -> ProdutoModel:
     product_in_db = produto_crud.get_produto_by_id(db, produto_id=produto_id)

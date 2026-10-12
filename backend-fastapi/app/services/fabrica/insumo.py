@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.produto import Produto
 from app.schemas.fabrica import InsumoBusca, InsumoEscrita, InsumoRead
-from app.services.movimentacao_estoque import custo_atual
+from app.services.produto.movimentacao import custo_atual
 
 
 def _produto(db: Session, produto_id: int) -> Produto:

@@ -1,8 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/produto_embalagem.py
-# MÓDULO: Service — Embalagens do produto (fase 1 do plano de embalagens)
+# ARQUIVO: services/produto/embalagem.py
+# DESCRICAO: Produtos - embalagens (caixa, fardo): cadastro e uso na venda.
+#            Era services/produto_embalagem.py.
 # ---------------------------------------------------------------------------
-"""
+
+"""(Texto de quando era services/produto_embalagem.py; desde 12/10/2026 o financeiro e o pacote services/financeiro/.)
+
 Cadastro das embalagens de um produto. Nesta fase ninguém vende nem baixa
 estoque por embalagem ainda — é o cadastro, o código e a etiqueta.
 
@@ -14,15 +17,14 @@ frente do cliente.
 """
 
 from typing import Optional, Sequence
-
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
-
 from app.core.gtin import codigo_interno_embalagem
 from app.db.models.produto import Produto
 from app.db.models.produto_embalagem import ProdutoEmbalagem
-from app.schemas.produto_embalagem import EmbalagensSalvar
+from app.schemas.produto import EmbalagensSalvar
+
 
 CAMPOS = ("sigla", "descricao", "fator", "codigo_barras", "preco", "desconto_bp", "vende_no_pdv", "usa_na_entrada", "aplica_as_avulsas", "peso_gramas", "ativo")
 

@@ -1,17 +1,16 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/produto.py
-# MÓDULO: Acesso a Dados (Repository)
-# DESCRIÇÃO: Executa queries SQL via SQLAlchemy para Produtos.
+# ARQUIVO: db/crud/produto/consultas.py
+# DESCRICAO: Produtos (banco) - busca (com resgate por similaridade), por id
+#            e por codigo.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, or_
 from typing import Sequence, Optional
-
 from app.core.busca import filtro_busca, ordenacao_relevancia, por_similaridade
 from app.db.models.produto import Produto as ProdutoModel
-from app.db.models.produto_fotos import ProdutoFoto as ProdutoFotoModel
 from app.db.models.produto_embalagem import ProdutoEmbalagem
+
 
 # Campos varridos pela busca de produto. O código de barras entra na lista
 # porque o balcão usa leitor — sem ele, bipar não acha nada.
@@ -23,18 +22,22 @@ _CAMPOS_BUSCA = (
     ProdutoModel.categoria,
 )
 
+
 # Campos que, batendo exatamente, mandam o produto para o topo da lista.
 _CAMPOS_EXATOS = (
     ProdutoModel.codigo_produto,
     ProdutoModel.codigo_barras,
 )
 
+
 # Quantos produtos varrer no resgate por similaridade. É um teto de proteção:
 # só é atingido em catálogos grandes, e só quando a busca não achou nada.
 _TETO_RESGATE = 2000
 
+
 # Quantos produtos o resgate devolve quando o chamador não pediu limite.
 _LIMITE_RESGATE = 20
+
 
 # ===========================================================================
 # LEITURA (READ)
@@ -169,10 +172,12 @@ def get_produto_simple_by_search(
 
     return produtos
 
+
 def get_produto_by_id(db: Session, produto_id: int) -> Optional[ProdutoModel]:
     """Busca produto pela chave primária (ID)."""
     stmt = select(ProdutoModel).where(ProdutoModel.id == produto_id)
     return db.scalars(stmt).first()
+
 
 def get_produto_by_code(db: Session, produto_code: str) -> Optional[ProdutoModel]:
     """Busca produto pelo código único (SKU)."""
@@ -183,47 +188,3 @@ def get_produto_by_code(db: Session, produto_code: str) -> Optional[ProdutoModel
         )
     )
     return db.scalars(stmt).first()
-
-def get_produto_image_by_id(db: Session, image_id: int) -> ProdutoFotoModel:
-    stmt = select(ProdutoFotoModel).where(ProdutoFotoModel.id == image_id)
-    return db.scalars(stmt).first()
-
-def get_produto_principal_image(db: Session, produto_id: int) -> Optional[ProdutoFotoModel]:
-    stmt = select(ProdutoFotoModel).where(
-        and_(
-            ProdutoFotoModel.produto_id == produto_id,
-            ProdutoFotoModel.principal == True
-        )
-    )
-    return db.scalars(stmt).first()
-
-# ===========================================================================
-# ESCRITA (CREATE / UPDATE)
-# ===========================================================================
-
-def create_produto(db: Session, produto_to_add: ProdutoModel) -> ProdutoModel:
-    """Adiciona e persiste um novo produto (cascade para estoque)."""
-    db.add(produto_to_add)
-    db.flush()
-    db.refresh(produto_to_add)
-    return produto_to_add
-
-def create_produto_image(db: Session, image_to_add: ProdutoFotoModel) -> ProdutoFotoModel:
-    db.add(image_to_add)
-    db.flush()
-    db.refresh(image_to_add)
-    return image_to_add
-
-def update_produto(db: Session, produto_to_update: ProdutoModel) -> ProdutoModel:
-    """Persiste alterações em um produto rastreado pela sessão."""
-    db.flush()
-    db.refresh(produto_to_update)
-    return produto_to_update
-
-# ===========================================================================
-# DELEÇÃO (DELETE)
-# ===========================================================================
-
-def delete_produto_image(db: Session, image_to_delete: ProdutoFotoModel) -> ProdutoFotoModel:
-    db.delete(image_to_delete)
-    db.flush()

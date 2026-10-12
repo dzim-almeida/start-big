@@ -49,7 +49,7 @@ from app.services.segmentos import (
 )
 from app.core import segmentos as reg
 from app.core.busca import compactar
-from app.services import movimentacao_estoque as mov_service
+from app.services.produto import movimentacao as mov_service
 from app.services.fabrica.modo import fase_inicial as fase_inicial_fabrica
 from app.services.fabrica import trilho as trilho_fabrica
 from app.services import ordem_servico_ganchos as ganchos_os   # Spec 09A: quem reage ao ciclo da OS

@@ -1,12 +1,12 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/movimentacao_estoque.py
-# DESCRIÇÃO: Operações de banco de dados para movimentações de estoque.
+# ARQUIVO: db/crud/produto/movimentacao.py
+# DESCRICAO: Estoque (banco) - livro de movimentacoes. Era
+#            db/crud/movimentacao_estoque.py.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from typing import Sequence, Optional
-
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 
 

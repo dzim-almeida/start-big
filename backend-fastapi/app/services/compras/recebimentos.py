@@ -121,7 +121,7 @@ def receber(
     dados: RecebimentoEscrita,
     ver_custos: bool,
 ) -> PedidoRead:
-    from app.services import movimentacao_estoque as mov_service
+    from app.services.produto import movimentacao as mov_service
 
     pedido = pedidos_service.carregar(db, token, pedido_id)
     if pedido.situacao not in SituacaoPedido.EM_ABERTO:

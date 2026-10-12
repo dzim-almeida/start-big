@@ -46,7 +46,7 @@ from app.db.models.ordem_servico import OrdemServico
 from app.db.models.ordem_servico_item import OrdemServicoItem
 from app.db.models.produto import Produto
 from app.schemas.marcenaria.separacao import ConferenciaEntrada, MovimentoEntrada
-from app.services import movimentacao_estoque
+from app.services.produto import movimentacao as movimentacao_estoque
 from app.services.compras import demanda_os
 from app.services.marcenaria import erros, leitor
 from app.services.marcenaria.aprovacao import ORIGEM

@@ -1,14 +1,15 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/produto_schema.py
-# MÓDULO: Schemas Pydantic (DTOs)
+# ARQUIVO: schemas/produto/cadastro.py
+# DESCRICAO: Produtos - schemas do cadastro (criar, ler, editar, listar).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field, AliasPath, model_validator
 from typing import Optional, Sequence
-from app.schemas.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
-from app.schemas.produto_fotos import ProdutoFotoRead
 from app.schemas.produto_fiscal import ProdutoFiscalUpdate
-from app.schemas.produto_embalagem import EmbalagemRead
+from app.schemas.produto.embalagem import EmbalagemRead
+from app.schemas.produto.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
+from app.schemas.produto.fotos import ProdutoFotoRead
+
 
 class ProdutoCreate(BaseModel):
     """Modelo de entrada para criação de Produto."""
@@ -54,6 +55,7 @@ class ProdutoCreate(BaseModel):
         }
     )
 
+
 class ProdutoCreateComFiscal(ProdutoCreate):
     """
     Entrada do POST /produtos: o produto e, opcionalmente, seus dados fiscais.
@@ -89,6 +91,7 @@ class ProdutoRead(ProdutoCreate):
     embalagens: list[EmbalagemRead] = Field(default_factory=list, description="Embalagens do produto.")
     so_embalagem_fechada: bool = Field(False, description="Só vende em embalagem fechada (A3).")
     ativo: bool = Field(..., description="Estado do produto no sistema.")
+
 
 class EmbalagemPdvRead(BaseModel):
     """Embalagem que o caixa pode lançar, com o preço JÁ resolvido (D5/D14/A4)."""
@@ -129,6 +132,7 @@ class ProdutoSimpleRead(BaseModel):
         description="Embalagens vendidas no caixa, com preço.",
     )
     so_embalagem_fechada: bool = Field(False, description="Recusa a unidade avulsa no caixa (A3).")
+
 
 class ProdutoUpdate(BaseModel):
     """Modelo de entrada para atualização parcial de Produto."""

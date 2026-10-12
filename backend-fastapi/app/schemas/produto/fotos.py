@@ -1,12 +1,10 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/produto_fotos.py (Presumido)
-# DESCRIÇÃO: Define os schemas Pydantic para tipagem dos dados de fotos de
-#            produto, especificamente o schema de leitura (retorno da API).
+# ARQUIVO: schemas/produto/fotos.py
+# DESCRICAO: Produtos - schemas das fotos. Era schemas/produto_fotos.py.
 # ---------------------------------------------------------------------------
 
-from fastapi import UploadFile, File, Form # (Importações que podem ser removidas se não usadas no schema)
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional
+
 
 class ProdutoFotoRead(BaseModel):
     """
