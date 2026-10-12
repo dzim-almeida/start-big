@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/cargo.py
+# ARQUIVO: services/funcionario/cargo.py (era services/cargo.py ate 12/10/2026)
 # DESCRIÇÃO: Camada de serviço com a lógica de negócio para a entidade Cargo.
 #            Implementa CRUD e validações de conflito (unicidade).
 # ---------------------------------------------------------------------------
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.cargo import CargoCreate, CargoUpdate
 from app.db.models.cargo import Cargo as CargoModel
-from app.db.crud import cargo as cargo_crud
+from app.db.crud.funcionario import cargo as cargo_crud
 
 # Exceções pré-definidas para reutilização (boa prática)
 conflict_exce = HTTPException(

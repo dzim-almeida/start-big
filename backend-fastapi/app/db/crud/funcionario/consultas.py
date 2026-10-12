@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/funcionario_crud.py
-# MÓDULO: Acesso a Dados (Repository)
-# DESCRIÇÃO: Queries SQL para Funcionários.
+# ARQUIVO: db/crud/funcionario/consultas.py
+# DESCRICAO: Funcionarios (banco) - buscas (id, usuario, CPF, e-mail, RG, CTPS,
+#            CNH, pesquisa) e verificacao de conflito.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from sqlalchemy import select, or_, and_
 from typing import Sequence, Callable, Optional
 
 from app.db.models.funcionario import Funcionario as FuncionarioModel
+
 
 # ===========================================================================
 # VERIFICAÇÕES (AUXILIARES)
@@ -43,6 +44,7 @@ def verify_funcionario_conflict(
     formated_search = search_name.replace("_", " ")
     return f"{formated_search.upper()} já cadastrado"
 
+
 # ===========================================================================
 # LEITURA (READ)
 # ===========================================================================
@@ -52,30 +54,37 @@ def get_funcionario_by_id(db: Session, funcionario_id: int) -> FuncionarioModel 
     stmt = select(FuncionarioModel).where(FuncionarioModel.id == funcionario_id)
     return db.scalars(stmt).first()
 
+
 def get_funcionario_by_user_id(db: Session, user_id: int) -> FuncionarioModel | None:
     """Busca por ID de Usuário (1:1)."""
     stmt = select(FuncionarioModel).where(FuncionarioModel.usuario_id == user_id)
     return db.scalars(stmt).first()
 
+
 def get_funcionario_by_cpf(db: Session, funcionario_cpf: str) -> FuncionarioModel | None:
     stmt = select(FuncionarioModel).where(FuncionarioModel.cpf == funcionario_cpf)
     return db.scalars(stmt).first()
+
 
 def get_funcionario_by_email(db: Session, funcionario_email: str) -> FuncionarioModel | None:
     stmt = select(FuncionarioModel).where(FuncionarioModel.email == funcionario_email)
     return db.scalars(stmt).first()
 
+
 def get_funcionario_by_rg(db: Session, funcionario_rg: str) -> FuncionarioModel | None:
     stmt = select(FuncionarioModel).where(FuncionarioModel.rg == funcionario_rg)
     return db.scalars(stmt).first()
+
 
 def get_funcionario_by_ctps(db: Session, funcionario_ctps: str) -> FuncionarioModel | None:
     stmt = select(FuncionarioModel).where(FuncionarioModel.carteira_trabalho == funcionario_ctps)
     return db.scalars(stmt).first()
 
+
 def get_funcionario_by_cnh(db: Session, funcionario_cnh: str) -> FuncionarioModel | None:
     stmt = select(FuncionarioModel).where(FuncionarioModel.cnh == funcionario_cnh)
     return db.scalars(stmt).first()
+
 
 def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[FuncionarioModel]:
     """
@@ -105,20 +114,3 @@ def get_funcionario_by_search(db: Session, search: str | None) -> Sequence[Funci
         )
         
     return db.scalars(stmt).all()
-
-# ===========================================================================
-# ESCRITA (CREATE / UPDATE)
-# ===========================================================================
-
-def create_funcionario(db: Session, funcionario_to_add: FuncionarioModel) -> FuncionarioModel:
-    """Persiste novo funcionário."""
-    db.add(funcionario_to_add)
-    db.flush()
-    db.refresh(funcionario_to_add)
-    return funcionario_to_add
-
-def update_funcionario_in_db(db: Session, funcionario_to_update: FuncionarioModel) -> FuncionarioModel:
-    """Persiste alterações."""
-    db.flush()
-    db.refresh(funcionario_to_update)
-    return funcionario_to_update

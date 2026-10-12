@@ -19,7 +19,7 @@ from app.services import usuario as usuario_service
 from app.services import endereco as endereco_service
 from app.services import licenca as licenca_service
 from app.db.crud import usuario as usuario_crud
-from app.db.crud import cargo as cargo_crud
+from app.db.crud.funcionario import cargo as cargo_crud
 from app.db.crud import empresa as empresa_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.db.models.empresa import Empresa as EmpresaModel

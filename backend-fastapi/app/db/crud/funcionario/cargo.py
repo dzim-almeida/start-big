@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/cargo.py
+# ARQUIVO: app/db/crud/funcionario/cargo.py (era db/crud/cargo.py ate 12/10/2026)
 # DESCRIÇÃO: Funções de CRUD (Create, Read, Update, Delete) para interagir
 #            com a tabela de Cargos.
 # ---------------------------------------------------------------------------
