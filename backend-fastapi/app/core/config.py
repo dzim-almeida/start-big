@@ -166,7 +166,11 @@ class Settings(BaseSettings):
     # Segurança (JWT)
     SECRET_KEY: str = _secret_key_value
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 180
+    # Quanto dura o login, contado a partir dele (nao renova com o uso). Era
+    # 180 (3 h) ate 12/10/2026: a loja entrava de manha e era deslogada no
+    # meio do expediente. 12 h cobrem um dia de trabalho; o "Sair" continua
+    # derrubando a sessao na hora (lista de tokens revogados).
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 720
 
     # Criptografia da senha do certificado digital (Fernet)
     FERNET_KEY: bytes = _fernet_key_value
