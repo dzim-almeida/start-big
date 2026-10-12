@@ -17,7 +17,7 @@ from alembic.config import Config
 from app.core.config import settings
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REVISAO_ANTERIOR = "d7a3e9c2f418"          # a head antes da Spec 04A
+REVISAO_ANTERIOR = "e3b7c1a9f205"          # a head antes da Spec 04A (venda no atacado)
 REVISAO = "608dc99a8616"
 TABELA = "configuracoes_marcenaria"
 

@@ -85,7 +85,7 @@ def test_banco_completo_fica_igual_aos_models(tmp_path, monkeypatch):
         for tabela in ("empresas", "clientes", "funcionarios", "objetos_servico", "ordens_servico", "fornecedores",
                        "produtos", "ordem_servico_itens", "contas_pagar", "planos_conta"):
             conn.execute(sa.text(f"CREATE TABLE {tabela} (id INTEGER PRIMARY KEY)"))
-    command.stamp(_config(url), "d7a3e9c2f418")                      # antes da Spec 04A
+    command.stamp(_config(url), "e3b7c1a9f205")                      # antes da Spec 04A (venda no atacado)
     # Ate a HEAD: os models de hoje ja tem colunas de migracoes posteriores (ex.: 11A no movel).
     command.upgrade(_config(url), "head")
 

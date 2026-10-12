@@ -1,7 +1,7 @@
 """marcenaria (Spec 04A): parametros padrao do orcamento tecnico
 
 Revision ID: 608dc99a8616
-Revises: d7a3e9c2f418
+Revises: e3b7c1a9f205 (era d7a3e9c2f418; reencadeada apos a venda no atacado para a cadeia nao bifurcar: o boot avanca '+1' e para numa bifurcacao)
 Create Date: 2026-10-09 12:00:00.000000
 
 CONTEXTO (backend-fastapi/docs/marcenaria/SPEC-04A-BASE-BACKEND-MARCENARIA.md):
@@ -26,7 +26,7 @@ import sqlalchemy as sa
 
 
 revision: str = '608dc99a8616'
-down_revision: Union[str, Sequence[str], None] = 'd7a3e9c2f418'
+down_revision: Union[str, Sequence[str], None] = 'e3b7c1a9f205'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
