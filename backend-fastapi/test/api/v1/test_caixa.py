@@ -1073,6 +1073,51 @@ def test_venda_a_prazo_gera_conta_a_receber(client, db_session):
     ).count() == 0
 
 
+@pytest.mark.parametrize("controlar_caixa", [True, False])
+def test_venda_metade_agora_metade_depois_gera_receber_so_da_metade(client, db_session, controlar_caixa):
+    """O caso do monitor (loja de cliente, 12/10/2026): R$ 400, R$ 200 em
+    dinheiro na hora e R$ 200 para o dia 30.
+
+    Os R$ 200 de hoje entram no livro; os outros R$ 200 viram UMA conta a
+    receber, com o vencimento combinado. Com o caixa ligado ou desligado.
+    """
+    from app.db.models.conta_receber import ContaReceber
+
+    header = _auth(client)
+    funcionario_id = _funcionario(client, header)
+    fp_id = _forma(client, header)
+    produto_id = _produto(client, header, codigo="MONITOR-1", varejo=40000, quantidade=5)
+    _config_caixa(db_session, controlar_caixa=controlar_caixa)
+    if controlar_caixa:
+        client.post("/api/v1/caixa/abrir", json={"saldo_inicial": 10000}, headers=header)
+
+    if not db_session.query(ContadorVenda).first():
+        db_session.add(ContadorVenda(id=1, proximo_numero=1))
+        db_session.commit()
+    venda_id = client.post("/api/v1/vendas/", json={"funcionario_id": funcionario_id}, headers=header).json()["id"]
+    add = client.post(f"/api/v1/vendas/{venda_id}/itens", json={
+        "tipo_produto": "CADASTRADO", "produto_id": produto_id, "quantidade": 1,
+    }, headers=header)
+    assert add.json()["financeiro_atualizado"]["total"] == 40000
+
+    dia_30 = date.today() + timedelta(days=18)
+    fin = client.post(f"/api/v1/vendas/{venda_id}/finalizar", json={"pagamentos": [
+        {"forma_pagamento_id": fp_id, "valor": 20000, "parcelado": False, "qtd_parcelas": None},
+        {"forma_pagamento_id": fp_id, "valor": 20000, "parcelado": False, "qtd_parcelas": None,
+         "vencimento": dia_30.isoformat()},
+    ]}, headers=header)
+    assert fin.status_code == 200, fin.text
+
+    contas = db_session.query(ContaReceber).all()
+    assert len(contas) == 1, "so a metade prometida vira conta a receber"
+    assert contas[0].valor == 20000
+    assert contas[0].vencimento == dia_30
+    assert contas[0].status == "PENDENTE"
+
+    entrou = db_session.query(MovimentacaoFinanceira).filter(MovimentacaoFinanceira.origem == "VENDA").all()
+    assert sum(m.valor for m in entrou) == 20000, "so a metade paga entra no livro"
+
+
 def test_venda_a_vista_nao_gera_conta_a_receber(client, db_session):
     """A inercia do outro lado: venda paga na hora nao pode virar divida."""
     from app.db.models.conta_receber import ContaReceber

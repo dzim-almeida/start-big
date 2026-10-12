@@ -19,6 +19,7 @@ import type { PaymentFormReadDataType } from '@/shared/schemas/payments/payment.
 import type { OsCardsFlagEnumDataType } from '../schemas/enums/osEnums.schema';
 import type { DadosFinalizacaoOS } from './OSFinalizarModal.vue';
 import { formatCurrency } from '@/shared/utils/finance';
+import { rotuloAReceber } from '@/shared/utils/aReceber';
 import { useOsPaymentMethodsGet } from '../composables/request/relationship/useOSPaymentMethods.queries';
 import { useReadyOrderServiceMutation } from '../composables/request/useOrderServiceUpdate.mutate';
 import { inferPaymentType, inferPermiteParcelamento, getPaymentDisplayName, somarItensDaOS } from '../../shared/utils/formatters';
@@ -438,6 +439,7 @@ watch(() => props.isOpen, (open) => {
                   <p class="text-xs font-semibold text-zinc-700">
                     {{ getPaymentDisplayName(getPaymentMethodById(pgto.forma_pagamento_id)?.nome ?? 'Pagamento') }}
                     <span v-if="pgto.parcelas > 1" class="font-normal text-zinc-400"> · {{ pgto.parcelas }}x</span>
+                    <span v-if="rotuloAReceber(pgto.vencimento)" class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" data-testid="selo-a-receber">{{ rotuloAReceber(pgto.vencimento) }}</span>
                   </p>
                   <template v-if="pgto.juros_valor > 0 && pgto.juros_responsavel === 'CLIENTE'">
                     <p class="text-[10px] text-zinc-400">
@@ -643,6 +645,17 @@ watch(() => props.isOpen, (open) => {
         </div>
       </div>
 
+      <!-- Fiado / a prazo. Vale para QUALQUER forma: o boleto já tem
+           vencimento por natureza, mas dinheiro, PIX e cartão também podem
+           ficar para depois. ANTES do valor de propósito: o Enter no valor
+           confirma o pagamento, e embaixo o checkbox passava despercebido. -->
+      <div v-if="!ehBoleto" class="pt-1">
+        <BaseCheckbox v-model="receberDepois" label="Vou receber depois (fiado / a prazo)" />
+        <p class="mt-1 text-xs text-zinc-500">
+          O valor não entra no caixa hoje e vira uma conta a receber.
+        </p>
+      </div>
+
       <BaseMoneyInput 
         ref="moneyInputRef"
         v-model="paymentValueReais" 
@@ -656,16 +669,6 @@ watch(() => props.isOpen, (open) => {
           label="Parcelamento"
           :options="parcelasOptions"
         />
-      </div>
-
-      <!-- Fiado / a prazo. Vale para QUALQUER forma: o boleto já tem
-           vencimento por natureza, mas dinheiro, PIX e cartão também podem
-           ficar para depois. -->
-      <div v-if="!ehBoleto" class="pt-1">
-        <BaseCheckbox v-model="receberDepois" label="Vou receber depois (fiado / a prazo)" />
-        <p class="mt-1 text-xs text-zinc-500">
-          O valor não entra no caixa hoje e vira uma conta a receber.
-        </p>
       </div>
 
       <div v-if="ehBoleto || receberDepois" class="pt-1">

@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next';
 
 import { formatCurrency } from '@/shared/utils/finance';
+import { rotuloAReceber } from '@/shared/utils/aReceber';
 import {
   getPaymentDisplayName,
   inferPaymentType,
@@ -719,6 +720,7 @@ function handleFinish() {
                       {{ getPaymentMethodName(payment.forma_pagamento_id) }}
                       <span v-if="payment.parcelado" class="font-normal text-zinc-400"> · {{ payment.qtd_parcelas }}x</span>
                       <span v-if="payment.bandeira_cartao" class="font-normal text-zinc-400"> · {{ payment.bandeira_cartao }}</span>
+                      <span v-if="rotuloAReceber(payment.vencimento)" class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" data-testid="selo-a-receber">{{ rotuloAReceber(payment.vencimento) }}</span>
                     </p>
                     <template v-if="(payment.juros_valor ?? 0) > 0 && payment.juros_responsavel !== 'LOJA'">
                       <p class="text-[10px] text-zinc-400">
@@ -913,6 +915,16 @@ function handleFinish() {
         </div>
       </div>
 
+      <!-- Fiado / a prazo, para qualquer forma. ANTES do valor de propósito:
+           o Enter no valor confirma o pagamento, e com o checkbox embaixo
+           ele passava despercebido (caso do monitor, 12/10/2026). -->
+      <div v-if="!ehBoleto" class="pt-1">
+        <BaseCheckbox v-model="receberDepois" label="Vou receber depois (fiado / a prazo)" />
+        <p class="mt-1 text-xs text-zinc-500">
+          O valor não entra no caixa hoje e vira uma conta a receber.
+        </p>
+      </div>
+
       <BaseMoneyInput
         ref="moneyInputRef"
         v-model="paymentValueReais"
@@ -927,14 +939,6 @@ function handleFinish() {
           label="Parcelamento"
           :options="parcelasOptions"
         />
-      </div>
-
-      <!-- Fiado / a prazo, para qualquer forma -->
-      <div v-if="!ehBoleto" class="pt-1">
-        <BaseCheckbox v-model="receberDepois" label="Vou receber depois (fiado / a prazo)" />
-        <p class="mt-1 text-xs text-zinc-500">
-          O valor não entra no caixa hoje e vira uma conta a receber.
-        </p>
       </div>
 
       <div v-if="ehBoleto || receberDepois" class="pt-1">
