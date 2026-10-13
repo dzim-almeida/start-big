@@ -4,18 +4,25 @@
  * @description Desconto, sinal, validade, prazo de entrega e observações da
  * proposta (Spec 06B D18, §7.12). Tudo salva sozinho (D8).
  *
+ * Validade e prazo continuam em DIAS (é o que o backend guarda), mas cada um
+ * tem um calendário ao lado (remodelação item 7): escolher a data calcula os
+ * dias, e mudar os dias mostra a data. A conta parte do envio (validade) e da
+ * aprovação (prazo); antes deles, parte de hoje.
+ *
  * Desconto em R$ maior que o total: o backend responde 422 com
  * `campo = "desconto"` e a mensagem aparece EMBAIXO do campo, sem perder o
  * valor digitado (06A Revisão 1).
  */
 import { computed, ref, watch } from 'vue';
 
+import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 
 import { formatDataPura } from '@/shared/utils/date.utils';
 
 import { LIMITES } from '../../constants/orcamento.constants';
 import { useEditor } from '../../composables/useEditorContexto';
+import { dataBase, dataDepoisDe, diasAte } from '../../utils/diasPorData';
 import CampoPercentualOuValor from './CampoPercentualOuValor.vue';
 
 const { form, detalhe, editavel, errosPorCampo } = useEditor();
@@ -25,7 +32,7 @@ const calculo = computed(() => detalhe.value?.calculo);
 /** A validade conta do envio: no rascunho ainda não há data (06A). */
 const dicaValidade = computed(() => {
   const data = detalhe.value?.datas.validade;
-  return data ? `até ${formatDataPura(data.slice(0, 10))}` : 'contados a partir do envio';
+  return data ? `até ${formatDataPura(data.slice(0, 10))}` : 'contados a partir do envio (se enviado hoje)';
 });
 const caracteresObservacoes = computed(() => (form.observacoes_proposta ?? '').length);
 
@@ -59,6 +66,41 @@ watch(textoPrazo, (texto) => {
 watch(() => form.validade_dias, (dias) => { if (Number(textoValidade.value) !== dias) textoValidade.value = String(dias); });
 watch(() => form.prazo_entrega_dias, (dias) => { if (Number(textoPrazo.value) !== dias) textoPrazo.value = String(dias); });
 
+// --- Calendário (remodelação item 7) ------------------------------------------
+// Data-base de cada conta: validade conta do ENVIO; prazo, da APROVAÇÃO (06A).
+// Enquanto o evento não aconteceu, a base é hoje.
+const baseValidade = computed(() => dataBase(detalhe.value?.datas.envio));
+const basePrazo = computed(() => dataBase(detalhe.value?.datas.aprovacao));
+
+/**
+ * Liga um campo de dias a um calendário. `get`: base + dias = a data mostrada.
+ * `set`: a data escolhida vira dias, escritos no MESMO texto do campo de dias,
+ * então a validação de 1 a 365 e o salvamento automático são os de sempre.
+ */
+function dataDoCampo(texto: typeof textoValidade, base: typeof baseValidade, erro: typeof erroValidade) {
+  return computed({
+    get: () => {
+      const dias = Number(texto.value);
+      // Dias inválidos (campo vazio, "abc"): o calendário fica vazio em vez de mostrar uma data errada.
+      return Number.isInteger(dias) && dias > 0 ? dataDepoisDe(base.value, dias) : '';
+    },
+    set: (dataIso: string | undefined) => {
+      if (!dataIso) return;                               // apagou a data: os dias ficam como estão
+      const dias = diasAte(base.value, dataIso);
+      if (dias < 1) {
+        erro.value = 'Escolha uma data depois de hoje.';  // a data já passou (ou é a própria base)
+        return;
+      }
+      texto.value = String(dias);                         // o watch de cima valida e salva
+    },
+  });
+}
+const dataValidade = dataDoCampo(textoValidade, baseValidade, erroValidade);
+const dataPrazo = dataDoCampo(textoPrazo, basePrazo, erroPrazo);
+
+/** Dicas embaixo: de onde a conta parte, enquanto o evento não aconteceu. */
+const dicaPrazo = computed(() => (detalhe.value?.datas.aprovacao ? 'após a aprovação' : 'após a aprovação (se aprovado hoje)'));
+
 /** Observações: textarea devolve '' quando vazio; o backend guarda null. */
 const observacoes = computed({
   get: () => form.observacoes_proposta ?? '',
@@ -66,7 +108,7 @@ const observacoes = computed({
 });
 
 const CLASSE_DIAS =
-  'min-h-10 w-24 rounded-md border bg-white px-3 py-2 text-sm tabular-nums text-gray-700 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary disabled:bg-gray-100 disabled:cursor-not-allowed';
+  'min-h-10 w-20 rounded-md border bg-white px-3 py-2 text-sm tabular-nums text-gray-700 outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary disabled:bg-gray-100 disabled:cursor-not-allowed';
 </script>
 
 <template>
@@ -76,7 +118,9 @@ const CLASSE_DIAS =
       <p class="text-xs text-zinc-500">Saem na proposta que o cliente recebe.</p>
     </header>
 
-    <div class="grid grid-cols-1 gap-x-5 gap-y-4 px-6 pb-6 sm:grid-cols-2 xl:grid-cols-4">
+    <!-- 2 colunas (Desconto | Sinal, depois Validade | Prazo): com o calendário ao lado dos
+         dias (item 7), 4 colunas não cabem e o "Prazo" passava da borda da seção. -->
+    <div class="grid grid-cols-1 gap-x-5 gap-y-4 px-6 pb-6 sm:grid-cols-2">
       <CampoPercentualOuValor
         v-model="form.desconto"
         nome="desconto"
@@ -108,6 +152,10 @@ const CLASSE_DIAS =
             :class="[CLASSE_DIAS, erroValidade ? 'border-red-400' : 'border-gray-300']"
           />
           <span class="text-sm text-zinc-500">dias</span>
+          <!-- ou escolhe a data no calendário (item 7): os dias se ajustam sozinhos -->
+          <div class="w-36 shrink-0" data-testid="data-validade">
+            <BaseDateInput v-model="dataValidade" :disabled="!editavel" />
+          </div>
         </div>
         <p v-if="erroValidade" class="mt-1.5 text-xs text-red-600">{{ erroValidade }}</p>
         <p v-else class="mt-1.5 text-xs text-zinc-500">{{ dicaValidade }}</p>
@@ -124,12 +172,15 @@ const CLASSE_DIAS =
             :class="[CLASSE_DIAS, erroPrazo ? 'border-red-400' : 'border-gray-300']"
           />
           <span class="text-sm text-zinc-500">dias</span>
+          <div class="w-36 shrink-0" data-testid="data-prazo">
+            <BaseDateInput v-model="dataPrazo" :disabled="!editavel" />
+          </div>
         </div>
         <p v-if="erroPrazo" class="mt-1.5 text-xs text-red-600">{{ erroPrazo }}</p>
-        <p v-else class="mt-1.5 text-xs text-zinc-500">após a aprovação</p>
+        <p v-else class="mt-1.5 text-xs text-zinc-500">{{ dicaPrazo }}</p>
       </div>
 
-      <div class="sm:col-span-2 xl:col-span-4">
+      <div class="sm:col-span-2">
         <BaseTextarea
           v-model="observacoes"
           label="Observações da proposta"
