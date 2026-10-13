@@ -11,7 +11,7 @@
 
 from app.core.tempo import hoje_local, intervalo_utc
 from app.db.crud.relatorio import get_comissao_base
-from app.db.crud.relatorio_custo import get_custo_manual_os
+from app.db.crud.relatorio.custo import get_custo_manual_os
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.ordem_servico_item import OrdemServicoItem

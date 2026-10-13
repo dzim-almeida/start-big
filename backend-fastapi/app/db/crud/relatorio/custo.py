@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/relatorio_custo.py
+# ARQUIVO: db/crud/relatorio/custo.py (era db/crud/relatorio_custo.py ate 13/10/2026)
 # DESCRICAO: As consultas de CUSTO da mercadoria vendida. Apenas leitura.
 # ---------------------------------------------------------------------------
 """

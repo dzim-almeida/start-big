@@ -19,7 +19,7 @@ from typing import Tuple
 from sqlalchemy.orm import Session
 
 from app.core.enum import MovimentacaoTipo
-from app.db.crud import relatorio_custo as custo_crud
+from app.db.crud.relatorio import custo as custo_crud
 
 
 def calcular_cmv(

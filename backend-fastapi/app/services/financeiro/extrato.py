@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 from app.core.tempo import fim_do_dia_utc, inicio_do_dia_utc
 from app.db.crud import financeiro as financeiro_crud
-from app.db.crud import relatorio_custo as custo_crud
+from app.db.crud.relatorio import custo as custo_crud
 from app.schemas.financeiro import (
     Extrato,
     ExtratoLinha,
@@ -110,7 +110,7 @@ def get_detalhe_custo(
 
     O TOTAL DAQUI TEM QUE BATER com `custo_mercadorias` do resumo. As duas somas
     saem das mesmas quatro parcelas com os mesmos filtros (ver o cabeçalho de
-    `crud/relatorio_custo.get_detalhe_cmv`), e há teste amarrando os dois números --
+    `crud/relatorio/custo.get_detalhe_cmv`), e há teste amarrando os dois números --
     um detalhe que não fecha com o total piora a desconfiança em vez de
     resolvê-la, que é exatamente o problema que ele veio consertar.
     """
