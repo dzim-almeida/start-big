@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/servico_fiscal.py
+# ARQUIVO: schemas/fiscal/servico.py (era schemas/servico_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas Pydantic para dados fiscais de serviço (tabela servico_fiscal).
 #
 # Validações de formato (Camada 1) — garantem que somente dados com estrutura

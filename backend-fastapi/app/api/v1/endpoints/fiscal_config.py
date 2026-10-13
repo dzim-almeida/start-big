@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.depends import get_current_active_user, get_db, requer_configuracao_fiscal, _handle_db_transaction
 from app.db.crud import fiscal as fiscal_crud
-from app.schemas.emissao_fiscal import DiagnosticoPlataforma, EnvioPlataforma, FiscalConfiguracao
-from app.schemas.perfil_tributario import PerfilTributarioCreate, PerfilTributarioListItem, PerfilTributarioRead, PerfilTributarioUpdate
-from app.schemas.tributacao import RegraNcmRead, RegraNcmUpsert, TributacaoPadraoRead, TributacaoPadraoUpdate
-from app.services import perfil_tributario as perfil_tributario_service
+from app.schemas.fiscal.emissao import DiagnosticoPlataforma, EnvioPlataforma, FiscalConfiguracao
+from app.schemas.fiscal.perfil_tributario import PerfilTributarioCreate, PerfilTributarioListItem, PerfilTributarioRead, PerfilTributarioUpdate
+from app.schemas.fiscal.tributacao import RegraNcmRead, RegraNcmUpsert, TributacaoPadraoRead, TributacaoPadraoUpdate
+from app.services.fiscal import perfil_tributario as perfil_tributario_service
 from app.services.fiscal.helpers import dias_para_vencer_certificado, e_csc_mascarado, mascarar_csc, obter_csc_token
 from app.services.fiscal.payload_builder import _so_digitos
 from app.schemas.empresa import FiscalSettingsUpdate
@@ -132,7 +132,7 @@ def obter_tributacao_padrao(
     *,
     db: Session = Depends(get_db),
 ):
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
 
     return tributacao_crud.get_tributacao_padrao(db, user_token["empresa_id"])
 
@@ -153,7 +153,7 @@ def salvar_tributacao_padrao(
     db: Session = Depends(get_db),
 ):
     from datetime import datetime, timezone
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
 
     def _salvar(db_: Session):
         registro = tributacao_crud.upsert_tributacao_padrao(
@@ -181,7 +181,7 @@ def listar_regras_ncm(
     *,
     db: Session = Depends(get_db),
 ):
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
 
     return tributacao_crud.listar_regras_ncm(db, user_token["empresa_id"])
 
@@ -199,7 +199,7 @@ def salvar_regra_ncm(
     db: Session = Depends(get_db),
 ):
 
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
 
     if not ncm.isdigit():
         raise HTTPException(status_code=422, detail="NCM deve conter 8 dígitos numéricos.")
@@ -224,7 +224,7 @@ def remover_regra_ncm(
     *,
     db: Session = Depends(get_db),
 ):
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
 
     removeu = _handle_db_transaction(
         db, tributacao_crud.deletar_regra_ncm, user_token["empresa_id"], ncm,

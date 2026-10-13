@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/verificacao_fiscal.py
+# ARQUIVO: schemas/fiscal/verificacao.py (era schemas/verificacao_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas para o resultado da verificação de completude fiscal.
 #            Usado pelo gate de emissão e pelo futuro painel de pendências.
 # ---------------------------------------------------------------------------

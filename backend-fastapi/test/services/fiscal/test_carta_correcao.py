@@ -19,7 +19,7 @@ from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
-from app.schemas.emissao_fiscal import CartaCorrecaoRequest
+from app.schemas.fiscal.emissao import CartaCorrecaoRequest
 from app.services.fiscal.carta_correcao import (
     LIMITE_CARTAS_POR_NOTA,
     emitir_carta_correcao,

@@ -13,9 +13,9 @@ from app.db.models.perfil_tributario import PerfilTributario
 from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.regra_perfil_tributario import RegraPerfilTributario
-from app.schemas.produto_fiscal import ProdutoFiscalRead, ProdutoFiscalUpdate
-from app.services import perfil_tributario as perfil_service
-from app.services import produto_fiscal as service
+from app.schemas.fiscal.produto import ProdutoFiscalRead, ProdutoFiscalUpdate
+from app.services.fiscal import perfil_tributario as perfil_service
+from app.services.fiscal import produto as service
 
 
 @pytest.fixture

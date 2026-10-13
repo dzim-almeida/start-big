@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/tributacao.py
+# ARQUIVO: schemas/fiscal/tributacao.py (era schemas/tributacao.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Tributação padrão e regras por NCM
 # ---------------------------------------------------------------------------
 """

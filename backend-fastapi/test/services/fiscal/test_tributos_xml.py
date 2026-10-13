@@ -337,7 +337,7 @@ def test_resumo_por_tipo_nao_mistura_modelos():
 
     from app.db.base import Base
     from app.db.models.documento_fiscal import DocumentoFiscal
-    from app.services.documento_fiscal import obter_resumo
+    from app.services.fiscal.documento import obter_resumo
 
     engine = create_engine(
         "sqlite:///:memory:",

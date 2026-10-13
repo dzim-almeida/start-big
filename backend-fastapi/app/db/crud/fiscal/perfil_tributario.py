@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/perfil_tributario.py
+# ARQUIVO: db/crud/fiscal/perfil_tributario.py (era db/crud/perfil_tributario.py ate 13/10/2026)
 # MÓDULO: Repository — Perfis tributários interestaduais e suas regras
 # ---------------------------------------------------------------------------
 

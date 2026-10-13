@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/produto_fiscal.py
+# ARQUIVO: schemas/fiscal/produto.py (era schemas/produto_fiscal.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Dados Fiscais de Produto
 # DESCRIÇÃO: DTOs para leitura e escrita da tabela satélite 'produto_fiscal'.
 #

@@ -11,8 +11,8 @@ from typing import Sequence, Optional
 from app.schemas.produto import ProdutoCreateComFiscal, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
 from app.schemas.produto import ProdutoFotoRead
 from app.core.depends import check_permission, requer_modulo_fiscal, _handle_db_transaction
-from app.schemas.produto_fiscal import ProdutoFiscalRead, ProdutoFiscalUpdate
-from app.services import produto_fiscal as produto_fiscal_service
+from app.schemas.fiscal.produto import ProdutoFiscalRead, ProdutoFiscalUpdate
+from app.services.fiscal import produto as produto_fiscal_service
 from app.db.session import get_db
 from app.services import produto as produto_service
 

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/verificacao_fiscal.py
+# ARQUIVO: services/fiscal/verificacao.py (era services/verificacao_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Lógica central de verificação de completude fiscal.
 #            Função reutilizada pelo gate de emissão e pelo futuro painel
 #            de pendências. Camada 2 + Camada 3 do design de validação.
@@ -24,7 +24,7 @@ from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.servico_fiscal import ServicoFiscal
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.core.enum import EntityType, TipoProdutoVenda, OrdemServicoItemTipo, OrdemServicoItemAprovacao
-from app.schemas.verificacao_fiscal import (
+from app.schemas.fiscal.verificacao import (
     PendenciaFiscal,
     ResultadoVerificacaoFiscal,
     DocumentoAtivoResumo,

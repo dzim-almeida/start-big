@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/servico_fiscal.py
+# ARQUIVO: services/fiscal/servico.py (era services/servico_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Lógica de negócio para dados fiscais de serviço.
 # ---------------------------------------------------------------------------
 
@@ -8,10 +8,10 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.db.crud import servico_fiscal as crud
+from app.db.crud.fiscal import servico as crud
 from app.db.models.servico_fiscal import ServicoFiscal
 from app.db.models.servico import Servico
-from app.schemas.servico_fiscal import ServicoFiscalUpdate
+from app.schemas.fiscal.servico import ServicoFiscalUpdate
 
 def _validar_servico(db: Session, servico_id: int) -> None:
     """Levanta 404 se o serviço não existir."""

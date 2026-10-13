@@ -11,11 +11,11 @@
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Path
 from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db, requer_modulo_fiscal, _handle_db_transaction
-from app.schemas.documento_fiscal import DocumentoFiscalRead
-from app.schemas.emissao_fiscal import EmissaoBatchResponse, EmissaoDevolucaoRequest, EmissaoNFeBatchRequest, EmissaoNFCeRequest, EmissaoNFeRequest, EmissaoResponse
-from app.services import documento_fiscal as documento_fiscal_service
+from app.schemas.fiscal.documento import DocumentoFiscalRead
+from app.schemas.fiscal.emissao import EmissaoBatchResponse, EmissaoDevolucaoRequest, EmissaoNFeBatchRequest, EmissaoNFCeRequest, EmissaoNFeRequest, EmissaoResponse
+from app.services.fiscal import documento as documento_fiscal_service
 from app.core.modulos import requer_modulo
-from app.schemas.emissao_fiscal import EmissaoPreviewResponse
+from app.schemas.fiscal.emissao import EmissaoPreviewResponse
 
 # Sem `dependencies`: a trava do módulo NFE é herdada do router de `fiscal.py`.
 router = APIRouter()

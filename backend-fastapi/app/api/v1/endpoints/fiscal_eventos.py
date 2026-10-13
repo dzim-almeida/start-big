@@ -11,8 +11,8 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db, requer_configuracao_fiscal, _handle_db_transaction
-from app.schemas.documento_fiscal import DocumentoFiscalRead
-from app.schemas.emissao_fiscal import CartaCorrecaoRead, CartaCorrecaoRequest, GapNumeracao, InutilizacaoRead, AjusteNumeracaoRequest, InutilizacaoRequest, CancelamentoRequest
+from app.schemas.fiscal.documento import DocumentoFiscalRead
+from app.schemas.fiscal.emissao import CartaCorrecaoRead, CartaCorrecaoRequest, GapNumeracao, InutilizacaoRead, AjusteNumeracaoRequest, InutilizacaoRequest, CancelamentoRequest
 from .fiscal_documentos import _cliente_fiscal
 
 # Sem `dependencies`: a trava do módulo NFE é herdada do router de `fiscal.py`.

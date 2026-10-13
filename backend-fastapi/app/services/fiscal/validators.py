@@ -3,7 +3,7 @@ import re
 from sqlalchemy.orm import Session
 from app.core.validators import validar_cpf, validar_cnpj
 from app.core.enum import TipoProdutoVenda, OrdemServicoItemTipo, OrdemServicoItemAprovacao
-from app.schemas.verificacao_fiscal import PendenciaFiscal
+from app.schemas.fiscal.verificacao import PendenciaFiscal
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.venda import Venda
 from app.db.models.ordem_servico import OrdemServico

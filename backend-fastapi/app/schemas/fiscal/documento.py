@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/documento_fiscal.py
+# ARQUIVO: schemas/fiscal/documento.py (era schemas/documento_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas Pydantic para o Centro Fiscal (documentos e pendências).
 # ---------------------------------------------------------------------------
 

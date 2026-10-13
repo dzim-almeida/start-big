@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.schemas.verificacao_fiscal import PendenciaFiscal
+from app.schemas.fiscal.verificacao import PendenciaFiscal
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 
 

@@ -32,7 +32,7 @@ from app.db.crud import fiscal as crud
 from app.db.crud import produto as produto_crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.documento_fiscal_item import DocumentoFiscalItem
-from app.schemas.emissao_fiscal import EmissaoDevolucaoRequest
+from app.schemas.fiscal.emissao import EmissaoDevolucaoRequest
 from app.services.produto import movimentacao as mov_service
 from app.services.fiscal.derivacao.cfop import cfop_devolucao
 from app.services.fiscal.helpers import obter_crt, regime_apuracao, usa_csosn

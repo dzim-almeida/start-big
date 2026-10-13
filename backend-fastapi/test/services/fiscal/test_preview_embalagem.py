@@ -10,7 +10,7 @@ from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
-from app.schemas.emissao_fiscal import EmissaoPreviewResponse
+from app.schemas.fiscal.emissao import EmissaoPreviewResponse
 from app.services.fiscal import emissao, emissao_nfe_venda
 
 

@@ -22,9 +22,9 @@ from sqlalchemy.orm import Session
 from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
 from app.schemas.vendas import VendaNotaFiscalRead, VendaNotaFiscalUpdate
 from app.schemas.vendas import VendaCorrecaoFiscalPayload, VendaCorrecaoFiscalRead
-from app.schemas.verificacao_fiscal import ResultadoVerificacaoFiscal, ResultadoVerificacaoBatch
+from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal, ResultadoVerificacaoBatch
 from app.services.venda import nota_fiscal as venda_nota_fiscal_service
-from app.services import verificacao_fiscal as verificacao_fiscal_service
+from app.services.fiscal import verificacao as verificacao_fiscal_service
 from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,

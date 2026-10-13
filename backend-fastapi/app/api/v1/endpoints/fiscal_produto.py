@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db
 from app.core.modulos import requer_modulo
 from app.db.crud import fiscal as fiscal_crud
-from app.schemas.produto_fiscal import ProdutoFiscalUpdate
+from app.schemas.fiscal.produto import ProdutoFiscalUpdate
 
 # Mesmo gate do fiscal.py -- ver o item 2 do cabeçalho.
 router = APIRouter(dependencies=[Depends(requer_modulo("NFE"))])
@@ -258,7 +258,7 @@ def validar_produto_fiscal(
     """
     from types import SimpleNamespace
 
-    from app.db.crud import tributacao as tributacao_crud
+    from app.db.crud.fiscal import tributacao as tributacao_crud
     from app.services.fiscal.helpers import obter_crt, usa_csosn
     from app.services.fiscal.tributacao import mesclar
     from app.services.fiscal.validators import conferir_fiscal_do_produto

@@ -30,9 +30,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, 
 from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
-from app.schemas.verificacao_fiscal import ResultadoVerificacaoFiscal
-from app.schemas.emissao_fiscal import EmissaoResponse
-from app.services import verificacao_fiscal as verificacao_fiscal_service
+from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
+from app.schemas.fiscal.emissao import EmissaoResponse
+from app.services.fiscal import verificacao as verificacao_fiscal_service
 from app.schemas.ordem_servico import OrdemServicoNotaFiscalRead, OrdemServicoNotaFiscalUpdate
 from app.services.ordem_servico import nota_fiscal as os_nota_fiscal_service
 from app.db.session import get_db

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/perfil_tributario.py
+# ARQUIVO: services/fiscal/perfil_tributario.py (era services/perfil_tributario.py ate 13/10/2026)
 # DESCRIÇÃO: Regras de negócio dos perfis tributários interestaduais —
 #            escopo por empresa, 404 e a guarda "perfil em uso".
 # ---------------------------------------------------------------------------
@@ -7,9 +7,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.db.crud import perfil_tributario as crud
+from app.db.crud.fiscal import perfil_tributario as crud
 from app.db.models.perfil_tributario import PerfilTributario
-from app.schemas.perfil_tributario import PerfilTributarioCreate, PerfilTributarioListItem
+from app.schemas.fiscal.perfil_tributario import PerfilTributarioCreate, PerfilTributarioListItem
 
 
 def listar_perfis(db: Session, empresa_id: int) -> list[PerfilTributarioListItem]:

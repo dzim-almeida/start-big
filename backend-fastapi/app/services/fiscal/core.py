@@ -2,7 +2,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.schemas.verificacao_fiscal import ResultadoVerificacaoFiscal
+from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.db.crud import fiscal as crud
 
 from . import validators

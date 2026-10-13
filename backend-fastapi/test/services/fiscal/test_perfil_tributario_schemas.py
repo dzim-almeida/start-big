@@ -7,7 +7,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.perfil_tributario import (
+from app.schemas.fiscal.perfil_tributario import (
     PerfilTributarioCreate,
     RegraPerfilTributarioBase,
 )

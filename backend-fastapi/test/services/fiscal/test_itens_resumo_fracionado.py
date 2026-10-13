@@ -6,8 +6,8 @@ a nota de 3,5 kg aparecia com 4 — e o schema `int` recusava 3,5 da venda.
 """
 from types import SimpleNamespace
 
-from app.schemas.documento_fiscal import DocumentoItemResumo
-from app.services.documento_fiscal import _itens_do_snapshot
+from app.schemas.fiscal.documento import DocumentoItemResumo
+from app.services.fiscal.documento import _itens_do_snapshot
 
 
 def _item_snapshot(milesimos):

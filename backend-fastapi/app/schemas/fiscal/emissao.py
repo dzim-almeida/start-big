@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/emissao_fiscal.py
+# ARQUIVO: schemas/fiscal/emissao.py (era schemas/emissao_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas Pydantic para emissão de NF-e (request/response).
 # ---------------------------------------------------------------------------
 

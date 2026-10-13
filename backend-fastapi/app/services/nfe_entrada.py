@@ -48,7 +48,7 @@ from app.schemas.nfe_entrada import (
     ResultadoImportacao,
 )
 from app.schemas.produto import ProdutoCreateComFiscal
-from app.schemas.produto_fiscal import ProdutoFiscalUpdate
+from app.schemas.fiscal.produto import ProdutoFiscalUpdate
 from app.services.compras import fornecedores_produto as compras_fornecedores
 
 # Teto do arquivo: uma NF-e com 990 itens (o máximo) fica bem abaixo disto.

@@ -1,4 +1,4 @@
-# app/services/verificacao_fiscal/crud.py
+# app/db/crud/fiscal/nucleo.py (era db/crud/fiscal.py ate 13/10/2026)
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload, subqueryload

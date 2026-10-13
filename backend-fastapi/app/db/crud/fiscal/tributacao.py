@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/tributacao.py
+# ARQUIVO: db/crud/fiscal/tributacao.py (era db/crud/tributacao.py ate 13/10/2026)
 # MÓDULO: Repository — Tributação padrão da loja e regras por NCM
 # ---------------------------------------------------------------------------
 

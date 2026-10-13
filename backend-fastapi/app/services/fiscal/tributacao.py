@@ -193,7 +193,7 @@ def fiscal_efetivo(db: Session, produto: Any) -> Any:
     if produto is None:
         return None
 
-    from app.db.crud import tributacao as crud
+    from app.db.crud.fiscal import tributacao as crud
 
     produto_fiscal = getattr(produto, "fiscal", None)
     empresa_id = _empresa_do_produto(db, produto)

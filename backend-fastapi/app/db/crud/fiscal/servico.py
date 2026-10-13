@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/servico_fiscal.py
+# ARQUIVO: db/crud/fiscal/servico.py (era db/crud/servico_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Operações de banco de dados para dados fiscais de serviço.
 # ---------------------------------------------------------------------------
 
@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.servico_fiscal import ServicoFiscal
-from app.schemas.servico_fiscal import ServicoFiscalCreate, ServicoFiscalUpdate
+from app.schemas.fiscal.servico import ServicoFiscalCreate, ServicoFiscalUpdate
 
 
 def get_by_servico_id(db: Session, servico_id: int) -> Optional[ServicoFiscal]:

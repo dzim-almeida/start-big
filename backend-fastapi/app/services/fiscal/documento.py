@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/documento_fiscal.py
+# ARQUIVO: services/fiscal/documento.py (era services/documento_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: CRUD e consultas para documentos fiscais do Centro Fiscal.
 # ---------------------------------------------------------------------------
 
@@ -14,7 +14,7 @@ from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.crud import fiscal as fiscal_crud
 from app.services.fiscal.tributacao import fiscal_efetivo
 from app.schemas.quantidade import normalizar_quantidade
-from app.schemas.documento_fiscal import (
+from app.schemas.fiscal.documento import (
     DocumentoFiscalHistorico,
     DocumentoFiscalListRead,
     DocumentoFiscalRead,

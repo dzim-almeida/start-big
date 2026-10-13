@@ -5,7 +5,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field, AliasPath, model_validator
 from typing import Optional, Sequence
-from app.schemas.produto_fiscal import ProdutoFiscalUpdate
+from app.schemas.fiscal.produto import ProdutoFiscalUpdate
 from app.schemas.produto.embalagem import EmbalagemRead
 from app.schemas.produto.estoque import EstoqueCreate, EstoqueRead, EstoqueUpdate
 from app.schemas.produto.fotos import ProdutoFotoRead

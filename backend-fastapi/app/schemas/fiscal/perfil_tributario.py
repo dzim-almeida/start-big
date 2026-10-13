@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/perfil_tributario.py
+# ARQUIVO: schemas/fiscal/perfil_tributario.py (era schemas/perfil_tributario.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Perfil tributário interestadual e suas regras
 # ---------------------------------------------------------------------------
 """

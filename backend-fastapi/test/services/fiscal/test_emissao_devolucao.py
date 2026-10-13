@@ -32,7 +32,7 @@ from app.db.models.movimentacao_estoque import MovimentacaoEstoque
 from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
-from app.schemas.emissao_fiscal import (
+from app.schemas.fiscal.emissao import (
     DestinatarioAvulsoRequest,
     EmissaoDevolucaoRequest,
     ItemDevolucaoRequest,

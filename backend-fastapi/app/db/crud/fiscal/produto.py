@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/produto_fiscal.py
+# ARQUIVO: db/crud/fiscal/produto.py (era db/crud/produto_fiscal.py ate 13/10/2026)
 # MÓDULO: Repository — Dados Fiscais de Produto
 # DESCRIÇÃO: Operações de banco de dados para a tabela 'produto_fiscal'.
 # ---------------------------------------------------------------------------
@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.produto_fiscal import ProdutoFiscal
-from app.schemas.produto_fiscal import ProdutoFiscalCreate, ProdutoFiscalUpdate
+from app.schemas.fiscal.produto import ProdutoFiscalCreate, ProdutoFiscalUpdate
 
 
 def get_by_produto_id(db: Session, produto_id: int) -> Optional[ProdutoFiscal]:

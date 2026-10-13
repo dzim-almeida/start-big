@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
 from app.core.depends import check_permission, requer_modulo_fiscal, _handle_db_transaction
-from app.schemas.servico_fiscal import ServicoFiscalRead, ServicoFiscalUpdate
-from app.services import servico_fiscal as servico_fiscal_service
+from app.schemas.fiscal.servico import ServicoFiscalRead, ServicoFiscalUpdate
+from app.services.fiscal import servico as servico_fiscal_service
 from app.db.session import get_db
 from app.schemas.servico import ServicoCreate, ServicoRead, ServicoFilterParams, ServicoQuery, ServicoUpdate, ServicoStats
 from app.services import servico as servico_service

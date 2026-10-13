@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/produto_fiscal.py
+# ARQUIVO: services/fiscal/produto.py (era services/produto_fiscal.py ate 13/10/2026)
 # MÓDULO: Service Layer — Dados Fiscais de Produto
 # DESCRIÇÃO: Regras de negócio para leitura e atualização de dados fiscais
 #            de produtos. Camada 2 de validação (completude condicional).
@@ -9,11 +9,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.db.crud import perfil_tributario as perfil_crud
-from app.db.crud import produto_fiscal as crud
+from app.db.crud.fiscal import perfil_tributario as perfil_crud
+from app.db.crud.fiscal import produto as crud
 from app.db.crud import produto as produto_crud
 from app.db.models.produto_fiscal import ProdutoFiscal
-from app.schemas.produto_fiscal import ProdutoFiscalRead, ProdutoFiscalUpdate
+from app.schemas.fiscal.produto import ProdutoFiscalRead, ProdutoFiscalUpdate
 
 
 def get_dados_fiscais(db: Session, produto_id: int, empresa_id: int) -> Optional[ProdutoFiscal]:
