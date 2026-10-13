@@ -107,7 +107,10 @@ async function mover(indice: number, direcao: -1 | 1) {
 </script>
 
 <template>
-  <section id="secao-ambientes" class="scroll-mt-40 overflow-hidden rounded-2xl border border-zinc-200 bg-white" aria-labelledby="titulo-ambientes">
+  <!-- SEM `overflow-hidden` (remodelação item 6): ele cortava o menu "⋯" do último ambiente/móvel,
+       que abre para baixo e passa da borda da seção. Os cantos arredondados ficam por conta
+       do rodapé (`rounded-b-2xl`), o único fundo colorido encostado na borda. -->
+  <section id="secao-ambientes" class="scroll-mt-40 rounded-2xl border border-zinc-200 bg-white" aria-labelledby="titulo-ambientes">
     <header class="flex flex-wrap items-end justify-between gap-4 px-6 pb-4 pt-5">
       <div>
         <h2 id="titulo-ambientes" class="text-base font-semibold text-zinc-900">Ambientes e móveis</h2>
@@ -174,7 +177,7 @@ async function mover(indice: number, direcao: -1 | 1) {
         @descer="mover(indice, 1)"
       />
 
-      <footer class="flex flex-wrap justify-end gap-x-8 gap-y-1 border-t border-zinc-100 bg-zinc-50/80 px-6 py-3.5 text-sm text-zinc-500">
+      <footer class="flex flex-wrap justify-end gap-x-8 gap-y-1 rounded-b-2xl border-t border-zinc-100 bg-zinc-50/80 px-6 py-3.5 text-sm text-zinc-500">
         <span v-if="incluiCustos">Custo <strong class="ml-1.5 font-semibold tabular-nums text-zinc-700">{{ formatCurrency(custoMoveisCentavos) }}</strong></span>
         <span>Total dos móveis <strong class="ml-1.5 font-bold tabular-nums text-zinc-900">{{ formatCurrency(totalMoveisCentavos) }}</strong></span>
       </footer>
