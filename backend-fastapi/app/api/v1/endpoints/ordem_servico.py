@@ -26,7 +26,7 @@
 #   DELETE /{os_number}/fotos/{foto_id}   → Remover foto
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status, Path, Query, UploadFile, File, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
