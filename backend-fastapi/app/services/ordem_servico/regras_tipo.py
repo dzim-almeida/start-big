@@ -1,16 +1,13 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/ordem_servico_regras_tipo.py
+# ARQUIVO: services/ordem_servico/regras_tipo.py
 # DESCRICAO: Regras da OS ligadas ao tipo de trabalho e ao item que veio de
 #            outro documento (Specs 03A e 08A da marcenaria).
 #
-# Sairam de app/services/ordem_servico.py sem mudar uma linha de logica: aquele
-# arquivo passou de 64 KB e o PyArmor em licenca trial recusa ofuscar arquivo
-# desse tamanho ("out of license"), o que derrubava o build do sidecar.
+# Era services/ordem_servico_regras_tipo.py ate 13/10/2026.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
 from app.core import segmentos as reg
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.services.segmentos import get_segmento_atual
@@ -61,6 +58,7 @@ def _assert_tipo_pode_ser_criado(db: Session, dados_adicionais_os: dict | None, 
             "de um orçamento. Use a tela Orçamentos."
         ),
     )
+
 
 def _assert_tipo_pode_ser_trocado(db: Session, dados_atuais: dict | None, dados_novos: dict | None) -> None:
     """A OS não troca de tipo quando o antigo OU o novo só nasce de outro

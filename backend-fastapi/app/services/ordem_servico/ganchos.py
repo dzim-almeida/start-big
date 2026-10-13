@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/ordem_servico_ganchos.py
+# ARQUIVO: services/ordem_servico/ganchos.py (era services/ordem_servico_ganchos.py ate 13/10/2026)
 # DESCRICAO: Pontos onde outros modulos reagem ao ciclo de vida da OS, sem o
 #            servico da OS conhece-los (Spec 09A da marcenaria, secao 6.1).
 # ---------------------------------------------------------------------------

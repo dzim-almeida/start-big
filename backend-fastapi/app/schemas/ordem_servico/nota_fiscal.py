@@ -1,15 +1,16 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/ordem_servico_nota_fiscal.py
-# DESCRIÇÃO: Schemas Pydantic para nota fiscal por OS.
+# ARQUIVO: schemas/ordem_servico/nota_fiscal.py
+# DESCRICAO: Schemas Pydantic para nota fiscal por OS.
 #
 # A OS pode gerar dois documentos:
 # - NFe/NFCe para peças (itens de produto)
 # - NFSe para mão de obra (itens de serviço)
+#
+# Era schemas/ordem_servico_nota_fiscal.py ate 13/10/2026.
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 

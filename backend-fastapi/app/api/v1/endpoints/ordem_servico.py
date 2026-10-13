@@ -33,8 +33,8 @@ from app.core.depends import check_permission, get_current_active_user, _handle_
 from app.schemas.verificacao_fiscal import ResultadoVerificacaoFiscal
 from app.schemas.emissao_fiscal import EmissaoResponse
 from app.services import verificacao_fiscal as verificacao_fiscal_service
-from app.schemas.ordem_servico_nota_fiscal import OrdemServicoNotaFiscalRead, OrdemServicoNotaFiscalUpdate
-from app.services import ordem_servico_nota_fiscal as os_nota_fiscal_service
+from app.schemas.ordem_servico import OrdemServicoNotaFiscalRead, OrdemServicoNotaFiscalUpdate
+from app.services.ordem_servico import nota_fiscal as os_nota_fiscal_service
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
     OrdemServicoCreate,
@@ -54,7 +54,7 @@ from app.schemas.ordem_servico import (
     OSObjetoBuscaItem,
 )
 from app.services import ordem_servico as os_service
-from app.services import ordem_servico_foto as os_foto_service
+from app.services.ordem_servico import foto as os_foto_service
 from app.services import segmentos as segmentos_service
 
 router = APIRouter()

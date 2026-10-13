@@ -40,7 +40,7 @@ from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
 from app.db.models.ordem_servico import OrdemServico
 from app.schemas.configuracao_marcenaria import _lista_de_nomes
 from app.schemas.marcenaria.entrega import ChecklistEntrada, PendenciaEntrada, RegistroEntrada, ResolverEntrada
-from app.services import ordem_servico_foto as os_foto_service
+from app.services.ordem_servico import foto as os_foto_service
 from app.services.marcenaria import agenda_regras as regras
 from app.services.marcenaria import erros
 from app.services.marcenaria.orcamento_comum import os_aberta, os_e_orcamento_aprovado, registrar_evento, usuario_nome

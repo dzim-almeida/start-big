@@ -1,26 +1,19 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/ordem_servico.py
-# DESCRICAO: Queries SQL via SQLAlchemy para manipulação de Ordens de Serviço.
-#
-# Estrutura das funções:
-#   LEITURA  → select sem efeito colateral; retorna model ou None
-#   ESCRITA  → modifica estado do banco; usa flush() + refresh() (sem commit)
-#              O commit é responsabilidade do _handle_db_transaction no endpoint.
+# ARQUIVO: db/crud/ordem_servico/consultas.py
+# DESCRICAO: Ordem de servico (crud) - leitura da OS, numeracao, item e foto,
+#            abandono e atrasadas.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import select, func, or_, case
+from sqlalchemy import select, func, case
 from typing import Sequence
 from datetime import datetime
-
 from app.db.models.ordem_servico import OrdemServico as OSModel
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento as OSPagamentoModel
 from app.db.models.ordem_servico_foto import OrdemServicoFoto as OSFotoModel
 from app.db.models.objeto_servico import ObjetoServico as OSEquipamentoModel
-
 from app.db.models.cliente import Cliente as ClienteModel, ClientePF as ClientePFModel, ClientePJ as ClientePJModel
-
 from app.core.busca import filtro_busca
 from app.core.enum import OrdemServicoStatus, OrdemServicoPrioridade
 
@@ -37,131 +30,6 @@ def get_ordem_servico_by_id(db: Session, os_id: int) -> OSModel | None:
 def get_ordem_servico_by_numero_os(db: Session, numero_os: str) -> OSModel | None:
     """Busca OS pelo número sequencial público (ex: OS-2026-000001)."""
     return db.scalar(select(OSModel).where(OSModel.numero_os == numero_os))
-
-
-def get_ordens_by_objeto_id(db: Session, objeto_id: int) -> Sequence[OSModel]:
-    """Retorna todas as OS de um objeto/veículo, da mais antiga para a mais recente."""
-    stmt = (
-        select(OSModel)
-        .where(OSModel.objeto_id == objeto_id)
-        .order_by(OSModel.data_criacao.asc())
-    )
-    return db.scalars(stmt).all()
-
-
-def get_objetos_com_revisao_agendada(db: Session) -> Sequence[OSEquipamentoModel]:
-    """Objetos ativos que têm alguma revisão agendada (por data e/ou KM)."""
-    stmt = select(OSEquipamentoModel).where(
-        OSEquipamentoModel.ativo == True,  # noqa: E712
-        or_(
-            OSEquipamentoModel.proxima_revisao_data.isnot(None),
-            OSEquipamentoModel.proxima_revisao_km.isnot(None),
-        ),
-    )
-    return db.scalars(stmt).all()
-
-
-def get_objeto_ativo_by_cliente_e_serie(
-    db: Session, cliente_id: int, numero_serie: str
-) -> OSEquipamentoModel | None:
-    """
-    Objeto ativo do cliente com o mesmo identificador (placa/serial), se existir.
-    Base do reuso: o mesmo bem físico é UM registro que acumula histórico entre OSs
-    (KM, revisão), em vez de ser duplicado a cada nova OS. Match case-insensitive.
-    """
-    stmt = select(OSEquipamentoModel).where(
-        OSEquipamentoModel.cliente_id == cliente_id,
-        OSEquipamentoModel.ativo == True,  # noqa: E712
-        func.lower(OSEquipamentoModel.numero_serie) == numero_serie.strip().lower(),
-    )
-    return db.scalars(stmt).first()
-
-
-def _identificador_normalizado_sql(coluna):
-    """Coluna comparavel a `normalizar_identificador`: sem espaco nem hifen, maiusculo.
-
-    A placa e gravada como o usuario digitou ('ABC-1D23', 'abc 1d23'), entao a
-    igualdade crua erra o alvo. Normalizar dos dois lados e o que faz 'abc-1d23'
-    achar 'ABC1D23' ja cadastrado.
-    """
-    return func.upper(func.replace(func.replace(coluna, "-", ""), " ", ""))
-
-
-def get_objetos_ativos_por_identificador(
-    db: Session,
-    identificador: str,
-    cliente_id: int | None = None,
-    excluir_cliente_id: int | None = None,
-) -> Sequence[OSEquipamentoModel]:
-    """
-    Objetos ativos com o mesmo identificador (placa/serial), comparado de forma
-    normalizada. Diferente de `get_objeto_ativo_by_cliente_e_serie`, esta NAO se
-    limita a um cliente -- e o que permite avisar que a maquina ja esta cadastrada
-    no nome de outra pessoa.
-
-    cliente_id          → restringe a um cliente (checar se o dono atual ja o tem)
-    excluir_cliente_id  → tudo MENOS esse cliente (achar os donos concorrentes)
-    """
-    alvo = func.upper(func.replace(func.replace(identificador.strip(), "-", ""), " ", ""))
-
-    stmt = select(OSEquipamentoModel).where(
-        OSEquipamentoModel.ativo == True,  # noqa: E712
-        _identificador_normalizado_sql(OSEquipamentoModel.numero_serie) == alvo,
-    )
-    if cliente_id is not None:
-        stmt = stmt.where(OSEquipamentoModel.cliente_id == cliente_id)
-    if excluir_cliente_id is not None:
-        stmt = stmt.where(OSEquipamentoModel.cliente_id != excluir_cliente_id)
-
-    return db.scalars(stmt).all()
-
-
-def buscar_objetos_por_identificador(
-    db: Session,
-    termo: str,
-    limite: int = 20,
-) -> Sequence[OSEquipamentoModel]:
-    """
-    Objetos ativos cujo identificador (placa / n de serie / codigo da arte)
-    casa com o texto digitado -- de QUALQUER cliente.
-
-    Diferente de `get_objetos_ativos_por_identificador`, que compara por
-    igualdade normalizada para decidir dedup/aviso, aqui a comparacao e de
-    BUSCA: passa pelo `filtro_busca`, entao "1d23" acha "ABC1D23" e
-    "abc-1d23" acha "ABC1D23" (o ramo do termo colado cobre o hifen, que o
-    motor trata como separador de palavras).
-
-    Cliente inativo fica de fora: nao adianta oferecer no seletor da OS um
-    dono que o sistema nao deixa mais selecionar.
-    """
-    filtro = filtro_busca(termo, (OSEquipamentoModel.numero_serie,))
-    if filtro is None:
-        return []
-
-    stmt = (
-        select(OSEquipamentoModel)
-        .join(ClienteModel, ClienteModel.id == OSEquipamentoModel.cliente_id)
-        .where(
-            OSEquipamentoModel.ativo == True,  # noqa: E712
-            ClienteModel.ativo == True,  # noqa: E712
-            filtro,
-        )
-        .order_by(OSEquipamentoModel.data_atualizacao.desc())
-        .limit(limite)
-    )
-    return db.scalars(stmt).all()
-
-
-def get_ultima_os_do_objeto(db: Session, objeto_id: int) -> OSModel | None:
-    """OS mais recente de um objeto — usada para datar o cadastro no aviso de
-    duplicidade ('última OS em 12/03/2026')."""
-    stmt = (
-        select(OSModel)
-        .where(OSModel.objeto_id == objeto_id)
-        .order_by(OSModel.data_criacao.desc())
-        .limit(1)
-    )
-    return db.scalars(stmt).first()
 
 
 def get_ordens_servico_by_search(
@@ -346,83 +214,6 @@ def get_os_item_by_id(db: Session, item_id: int) -> OSItemModel | None:
 def get_os_foto_by_id(db: Session, foto_id: int) -> OSFotoModel | None:
     """Busca uma foto de OS pelo ID."""
     return db.scalar(select(OSFotoModel).where(OSFotoModel.id == foto_id))
-
-
-# ===========================================================================
-# ESCRITA (CREATE / UPDATE) — Ordem de Serviço
-# ===========================================================================
-
-def create_ordem_servico(db: Session, os_to_add: OSModel) -> OSModel:
-    """Adiciona e persiste uma nova OS no banco."""
-    db.add(os_to_add)
-    db.flush()
-    db.refresh(os_to_add)
-    return os_to_add
-
-
-def update_ordem_servico(db: Session, os_to_update: OSModel) -> OSModel:
-    """Persiste alterações em uma OS existente."""
-    db.flush()
-    db.refresh(os_to_update)
-    return os_to_update
-
-
-# ===========================================================================
-# ESCRITA (CREATE / UPDATE / DELETE) — Itens
-# ===========================================================================
-
-def create_os_item(db: Session, item_to_add: OSItemModel) -> OSItemModel:
-    """Adiciona um novo item a uma OS."""
-    db.add(item_to_add)
-    db.flush()
-    db.refresh(item_to_add)
-    return item_to_add
-
-
-def update_os_item(db: Session, item_to_update: OSItemModel) -> OSItemModel:
-    """Persiste alterações em um item de OS."""
-    db.flush()
-    db.refresh(item_to_update)
-    return item_to_update
-
-
-def delete_os_item(db: Session, item_to_delete: OSItemModel) -> None:
-    """Remove um item de OS do banco."""
-    db.delete(item_to_delete)
-    db.flush()
-
-
-# ===========================================================================
-# ESCRITA (CREATE) — Pagamentos
-# ===========================================================================
-
-def create_os_pagamento(db: Session, pagamento_to_add: OSPagamentoModel) -> OSPagamentoModel:
-    """
-    Adiciona um pagamento à OS.
-    Pagamentos são criados exclusivamente no fluxo de finalização.
-    """
-    db.add(pagamento_to_add)
-    db.flush()
-    db.refresh(pagamento_to_add)
-    return pagamento_to_add
-
-
-# ===========================================================================
-# ESCRITA (CREATE / DELETE) — Fotos
-# ===========================================================================
-
-def create_os_foto(db: Session, foto_to_add: OSFotoModel) -> OSFotoModel:
-    """Registra uma nova foto de OS no banco."""
-    db.add(foto_to_add)
-    db.flush()
-    db.refresh(foto_to_add)
-    return foto_to_add
-
-
-def delete_os_foto(db: Session, foto_to_delete: OSFotoModel) -> None:
-    """Remove o registro de uma foto de OS do banco."""
-    db.delete(foto_to_delete)
-    db.flush()
 
 
 # ===========================================================================

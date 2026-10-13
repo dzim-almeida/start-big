@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from app.db.models.conta_pagar import ContaPagar
 from app.db.models.ordem_servico import OrdemServico
 from app.main import app
-from app.services import ordem_servico_ganchos as ganchos_os
+from app.services.ordem_servico import ganchos as ganchos_os
 
 from test.apoio_orcamento_marcenaria import _criar_loja
 

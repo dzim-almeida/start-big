@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/ordem_servico_nota_fiscal.py
+# ARQUIVO: services/ordem_servico/nota_fiscal.py (era services/ordem_servico_nota_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Lógica de negócio para nota fiscal por OS.
 # ---------------------------------------------------------------------------
 
@@ -9,9 +9,9 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.crud import ordem_servico as os_crud
-from app.db.crud import ordem_servico_nota_fiscal as crud
+from app.db.crud.ordem_servico import nota_fiscal as crud
 from app.db.models.ordem_servico_nota_fiscal import OrdemServicoNotaFiscal
-from app.schemas.ordem_servico_nota_fiscal import OrdemServicoNotaFiscalUpdate
+from app.schemas.ordem_servico import OrdemServicoNotaFiscalUpdate
 
 
 def _get_os_id_or_raise(db: Session, numero_os: str) -> int:

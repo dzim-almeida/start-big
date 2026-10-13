@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/ordem_servico_nota_fiscal.py
+# ARQUIVO: db/crud/ordem_servico/nota_fiscal.py (era db/crud/ordem_servico_nota_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Operações CRUD para a tabela ordem_servico_nota_fiscal.
 # ---------------------------------------------------------------------------
 
@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.ordem_servico_nota_fiscal import OrdemServicoNotaFiscal
-from app.schemas.ordem_servico_nota_fiscal import OrdemServicoNotaFiscalUpdate
+from app.schemas.ordem_servico import OrdemServicoNotaFiscalUpdate
 
 
 def get_by_os_id(db: Session, os_id: int) -> Optional[OrdemServicoNotaFiscal]:

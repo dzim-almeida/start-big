@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/ordem_servico_foto.py
+# ARQUIVO: services/ordem_servico/foto.py (era services/ordem_servico_foto.py ate 13/10/2026)
 # DESCRICAO: Lógica de negócio para upload e remoção de fotos de OS.
 #
 # Estrutura de armazenamento:
@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.db.models.ordem_servico_foto import OrdemServicoFoto as OSFotoModel
 from app.db.crud import ordem_servico as os_crud
-from app.schemas.ordem_servico import OSFotoRead
 from app.core.imagem import salvar_imagem, deletar_imagem
 
 

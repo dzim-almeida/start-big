@@ -8,7 +8,7 @@ O arquiteto que indicou a venda recebe um percentual (RT). A conta a pagar dele
 nasce quando a OS do orcamento e FINALIZADA (nao se paga RT de obra que nao
 terminou), uma por arquiteto, na categoria "Comissao de arquitetos (RT)".
 
-Estas tres funcoes sao GANCHOS da OS (app/services/ordem_servico_ganchos.py):
+Estas tres funcoes sao GANCHOS da OS (app/services/ordem_servico/ganchos.py):
 o servico da OS as chama sem saber o que e marcenaria. Cada uma comeca
 procurando o orcamento da OS (consulta por indice) e SAI NA HORA se nao houver
 -- e o caso de toda OS de outro segmento.
