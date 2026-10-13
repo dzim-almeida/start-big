@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/configuracao_marcenaria.py
+# ARQUIVO: schemas/configuracao/marcenaria.py (era schemas/configuracao_marcenaria.py ate 13/10/2026)
 # DESCRICAO: Contrato de GET/PUT /configuracoes/marcenaria (Spec 04A, §4.1).
 #
 #            Percentuais em basis points (9000 = 90,00%) e dinheiro em centavos:

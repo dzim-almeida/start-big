@@ -26,7 +26,7 @@ from app.core.regras_preco import reais
 from app.core.tempo import hoje_local
 from app.db.crud import empresa as empresa_crud
 from app.db.crud import financeiro as financeiro_crud
-from app.db.crud.configuracao_marcenaria import get_configuracao_marcenaria
+from app.db.crud.configuracao.marcenaria import get_configuracao_marcenaria
 from app.db.crud.marcenaria import orcamento as crud
 from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, MarcenariaOrcamentoRT

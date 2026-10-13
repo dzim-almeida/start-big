@@ -21,9 +21,9 @@ from app.services import venda_atacado
 
 from app.db.crud import venda as venda_crud
 from app.db.crud import forma_pagamento as forma_pagamento_crud
-from app.db.crud import configuracao_produtos as config_produtos_crud
-from app.db.crud import configuracao_vendas as config_vendas_crud
-from app.db.crud import configuracao_seguranca as config_seg_crud
+from app.db.crud.configuracao import produtos as config_produtos_crud
+from app.db.crud.configuracao import vendas as config_vendas_crud
+from app.db.crud.configuracao import seguranca as config_seg_crud
 
 from app.core.enum import VendaStatus, TipoProdutoVenda
 

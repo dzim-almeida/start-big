@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.security import verify_token_data
 from app.services.acesso import usuario as usuario
 from app.db.crud.acesso import token as token_crud
-from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud.configuracao import licenca as licenca_crud
 from app.db.session import get_db
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.core.modulos import requer_modulo

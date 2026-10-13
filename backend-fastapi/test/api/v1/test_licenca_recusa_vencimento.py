@@ -24,7 +24,7 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
-from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud.configuracao import licenca as licenca_crud
 from app.db.crud import terminal_conectado as terminal_crud
 from app.services import licenca as licenca_service
 # conectar_terminal busca obter_hwid e decriptar_valor no proprio submodulo:

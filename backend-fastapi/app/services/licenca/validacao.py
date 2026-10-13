@@ -16,7 +16,7 @@ from app.schemas.licenca import (
     ConectarPayload,
 )
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
-from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud.configuracao import licenca as licenca_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.cadastro import resgatar_chave_publica_online
 from app.services.licenca.constantes import API_CONECTAR_URL, CONECTAR_TIMEOUT_SECONDS

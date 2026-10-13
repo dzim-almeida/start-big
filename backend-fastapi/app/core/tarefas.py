@@ -22,7 +22,7 @@ from app.services.backup import (
 )
 # `cloud` reexporta sync/CloudSyncError; o alias mantem o resto do arquivo igual.
 from app.services import cloud as cloud_sync
-from app.services.configuracao_backup import get_or_create_configuracao_backup
+from app.services.configuracao.backup import get_or_create_configuracao_backup
 from app.db.crud import terminal_conectado as terminal_crud
 
 from app.core.discovery import atualizar_anuncio, register_service, stop_discovery

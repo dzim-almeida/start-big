@@ -22,11 +22,11 @@ from app.schemas.backup import (
     DownloadChainResponse,
     PrepareRestoreResponse,
 )
-from app.schemas.configuracao_backup import ConfiguracaoBackupRead, ConfiguracaoBackupUpdate
+from app.schemas.configuracao.backup import ConfiguracaoBackupRead, ConfiguracaoBackupUpdate
 from app.services import backup as backup_service
 from app.services.cloud import journal as cloud_journal
 from app.services.cloud import download as cloud_download
-from app.services import configuracao_backup as configuracao_backup_service
+from app.services.configuracao import backup as configuracao_backup_service
 
 router = APIRouter()
 

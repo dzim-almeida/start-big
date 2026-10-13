@@ -62,7 +62,7 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
     # 1.5 Registrar Licença (ANTES de criar entidades locais — garante atomicidade)
     # Pula o registro na API se a licença já existir localmente (caso de reconexão)
     from app.core.hwid import obter_hwid
-    from app.db.crud import configuracao_licenca as licenca_crud
+    from app.db.crud.configuracao import licenca as licenca_crud
     
     hwid = obter_hwid()
     licenca_existente = licenca_crud.get_licenca_by_hwid(db, hwid)

@@ -1,11 +1,11 @@
 from sqlalchemy.orm import Session
 
-from app.db.crud.configuracao_backup import (
+from app.db.crud.configuracao.backup import (
     get_configuracao_backup,
     create_configuracao_backup,
 )
 from app.db.models.configuracao_backup import ConfiguracaoBackup
-from app.schemas.configuracao_backup import ConfiguracaoBackupUpdate
+from app.schemas.configuracao.backup import ConfiguracaoBackupUpdate
 
 
 def get_or_create_configuracao_backup(

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/configuracao_licenca.py
+# ARQUIVO: db/crud/configuracao/licenca.py (era db/crud/configuracao_licenca.py ate 13/10/2026)
 # DESCRIÇÃO: Queries SQL para a entidade ConfiguracaoLicenca.
 # ---------------------------------------------------------------------------
 

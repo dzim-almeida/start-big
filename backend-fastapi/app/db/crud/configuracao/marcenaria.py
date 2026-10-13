@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/configuracao_marcenaria.py
+# ARQUIVO: db/crud/configuracao/marcenaria.py (era db/crud/configuracao_marcenaria.py ate 13/10/2026)
 # DESCRICAO: Leitura e gravacao dos parametros da marcenaria (Spec 04A).
 #            So SQL; a regra fica no servico. Mesmo padrao de configuracao_os.
 # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from app.core.enum import OrdemServicoStatus
 from app.core.tempo import agora_utc
 from app.db.crud import empresa as empresa_crud
-from app.db.crud.configuracao_os import get_configuracao_os
+from app.db.crud.configuracao.ordem_servico import get_configuracao_os
 from app.db.models.fabrica_orcamento import (
     EventoFase,
     FabricaFaseLog,

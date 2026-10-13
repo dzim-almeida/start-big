@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.core.tempo import agora_utc, hoje_local
 from app.db.crud import empresa as empresa_crud
-from app.db.crud.configuracao_marcenaria import get_configuracao_marcenaria
+from app.db.crud.configuracao.marcenaria import get_configuracao_marcenaria
 from app.db.crud.marcenaria import entrega as crud
 from app.db.models.configuracao_marcenaria import CHECKLIST_PADRAO
 from app.db.models.marcenaria.entrega import (
@@ -38,7 +38,7 @@ from app.db.models.marcenaria.entrega import (
 )
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
 from app.db.models.ordem_servico import OrdemServico
-from app.schemas.configuracao_marcenaria import _lista_de_nomes
+from app.schemas.configuracao.marcenaria import _lista_de_nomes
 from app.schemas.marcenaria.entrega import ChecklistEntrada, PendenciaEntrada, RegistroEntrada, ResolverEntrada
 from app.services.ordem_servico import foto as os_foto_service
 from app.services.marcenaria import agenda_regras as regras

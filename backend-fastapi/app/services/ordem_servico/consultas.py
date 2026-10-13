@@ -85,7 +85,7 @@ def get_ordem_servico_stats(db: Session, funcionario_id: int | None = None) -> O
 
 def get_os_abandono(db: Session, empresa_id: int, funcionario_id: int | None = None) -> list[OSModel]:
     """Retorna OS finalizadas cujo prazo de abandono já venceu, usando config da empresa."""
-    from app.services.configuracao_os import get_or_create_configuracao_os
+    from app.services.configuracao.ordem_servico import get_or_create_configuracao_os
     config = get_or_create_configuracao_os(db, empresa_id)
     return os_crud.get_os_abandono(db, empresa_id, config.prazo_abandono_dias, funcionario_id=funcionario_id)
 

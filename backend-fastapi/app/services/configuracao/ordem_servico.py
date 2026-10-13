@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
 
-from app.db.crud.configuracao_os import (
+from app.db.crud.configuracao.ordem_servico import (
     get_configuracao_os,
     create_configuracao_os,
     update_configuracao_os,
 )
 from app.db.models.configuracao_os import ConfiguracaoOS
-from app.schemas.configuracao_os import ConfiguracaoOSUpdate
+from app.schemas.configuracao.ordem_servico import ConfiguracaoOSUpdate
 
 
 def get_or_create_configuracao_os(db: Session, empresa_id: int) -> ConfiguracaoOS:

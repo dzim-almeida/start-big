@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.enum import OrdemServicoStatus
 from app.core.tempo import agora_utc, hoje_local
 from app.db.crud import empresa as empresa_crud
-from app.db.crud.configuracao_marcenaria import get_configuracao_marcenaria
+from app.db.crud.configuracao.marcenaria import get_configuracao_marcenaria
 from app.db.crud.marcenaria import orcamento as crud
 from app.db.models.configuracao_marcenaria import ETAPAS_PADRAO
 from app.db.models.funcionario import Funcionario
@@ -35,7 +35,7 @@ from app.db.models.marcenaria.etapa import MarcenariaEtapa, StatusEtapa
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.pedido_compra import PedidoCompra
-from app.schemas.configuracao_marcenaria import _lista_de_nomes
+from app.schemas.configuracao.marcenaria import _lista_de_nomes
 from app.schemas.marcenaria.producao import EtapasDoMovelEntrada, LoteEntrada
 from app.services.marcenaria import erros
 from app.services.marcenaria import terceirizado_situacao as terceirizado

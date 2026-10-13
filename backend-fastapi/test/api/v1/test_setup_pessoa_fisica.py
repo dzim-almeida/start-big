@@ -31,7 +31,7 @@ def pular_registro_de_licenca(monkeypatch):
     inteiro sem alterar nada do que está sendo testado aqui.
     """
     import app.core.hwid as hwid_module
-    import app.db.crud.configuracao_licenca as licenca_crud
+    import app.db.crud.configuracao.licenca as licenca_crud
 
     monkeypatch.setattr(hwid_module, "obter_hwid", lambda: "hwid-de-teste")
     monkeypatch.setattr(

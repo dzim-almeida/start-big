@@ -1,11 +1,11 @@
 from sqlalchemy.orm import Session
 
-from app.db.crud.configuracao_produtos import (
+from app.db.crud.configuracao.produtos import (
     get_configuracao_produtos,
     create_configuracao_produtos,
 )
 from app.db.models.configuracao_produtos import ConfiguracaoProdutos
-from app.schemas.configuracao_produtos import ConfiguracaoProdutosUpdate
+from app.schemas.configuracao.produtos import ConfiguracaoProdutosUpdate
 
 
 def get_or_create_configuracao_produtos(

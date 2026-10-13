@@ -30,7 +30,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.hwid import obter_hwid
-from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud.configuracao import licenca as licenca_crud
 from app.schemas.licenca import (
     CobrancaRead,
     CobrancaStatusRead,

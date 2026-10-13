@@ -153,7 +153,7 @@ def embalagens_ligadas(db: Session, empresa_id: Optional[int]) -> bool:
     funciona exatamente como antes do recurso existir (plano, B8)."""
     if not empresa_id:
         return False
-    from app.db.crud import configuracao_produtos as config_produtos_crud
+    from app.db.crud.configuracao import produtos as config_produtos_crud
 
     config = config_produtos_crud.get_configuracao_produtos(db, empresa_id=empresa_id)
     return bool(config and config.usar_embalagens)

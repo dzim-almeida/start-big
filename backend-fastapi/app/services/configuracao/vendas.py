@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from app.db.crud.configuracao_vendas import (
+from app.db.crud.configuracao.vendas import (
     get_configuracao_vendas,
     create_configuracao_vendas,
 )
@@ -8,7 +8,7 @@ from app.db.models.configuracao_vendas import ConfiguracaoVendas
 from app.db.models.venda import Venda
 from app.db.models.funcionario import Funcionario
 from app.core.enum import VendaStatus
-from app.schemas.configuracao_vendas import ConfiguracaoVendasUpdate
+from app.schemas.configuracao.vendas import ConfiguracaoVendasUpdate
 
 
 def get_or_create_configuracao_vendas(

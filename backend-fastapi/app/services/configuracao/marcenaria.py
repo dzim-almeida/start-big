@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/configuracao_marcenaria.py
+# ARQUIVO: services/configuracao/marcenaria.py (era services/configuracao_marcenaria.py ate 13/10/2026)
 # DESCRICAO: Parametros padrao do orcamento de marcenaria (Spec 04A).
 #
 #            So existe para segmento que declara a capacidade
@@ -13,13 +13,13 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core import segmentos as reg
-from app.db.crud.configuracao_marcenaria import (
+from app.db.crud.configuracao.marcenaria import (
     create_configuracao_marcenaria,
     get_configuracao_marcenaria,
     update_configuracao_marcenaria,
 )
 from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
-from app.schemas.configuracao_marcenaria import ConfiguracaoMarcenariaUpdate
+from app.schemas.configuracao.marcenaria import ConfiguracaoMarcenariaUpdate
 from app.services.segmentos import get_segmento_atual
 
 

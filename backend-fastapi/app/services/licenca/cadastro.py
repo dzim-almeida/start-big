@@ -14,7 +14,7 @@ from app.schemas.licenca import (
     LicencaEnderecoPayload,
 )
 from app.db.models.configuracao_licenca import ConfiguracaoLicenca
-from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud.configuracao import licenca as licenca_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_AUTO_CADASTRO_URL, API_CHAVE_PUBLICA_URL, CONECTAR_TIMEOUT_SECONDS, MAX_RETRIES, TIMEOUT_SECONDS
 from app.services.licenca.cripto import encriptar_valor

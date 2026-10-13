@@ -148,7 +148,7 @@ def _entradas(produto: Produto, r1: bool, r2: bool, r3: bool, hoje: date) -> dic
 def aplicar_na_venda(db: Session, venda, hoje: Optional[date] = None) -> set[int]:
     """Recalcula as regras de preço do carrinho. Devolve os ids das linhas que
     mudaram (a tela precisa trocar as outras linhas do mesmo produto também)."""
-    from app.db.crud import configuracao_vendas as config_vendas_crud
+    from app.db.crud.configuracao import vendas as config_vendas_crud
     from app.services.produto.embalagem import embalagens_ligadas
 
     itens = list(venda.itens)

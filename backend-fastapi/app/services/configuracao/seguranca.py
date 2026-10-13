@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.db.crud.configuracao_seguranca import (
+from app.db.crud.configuracao.seguranca import (
     get_configuracao_seguranca,
     create_configuracao_seguranca,
 )
 from app.db.models.configuracao_seguranca import ConfiguracaoSeguranca
 from app.core.security import hash_password, verify_password
-from app.schemas.configuracao_seguranca import ConfiguracaoSegurancaUpdate
+from app.schemas.configuracao.seguranca import ConfiguracaoSegurancaUpdate
 
 
 def get_or_create_configuracao_seguranca(

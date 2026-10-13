@@ -35,7 +35,7 @@ from app.schemas.marcenaria.orcamento import (
     OrcamentoAtualizar,
     OrcamentoCriar,
 )
-from app.services import configuracao_marcenaria as configuracao_service
+from app.services.configuracao import marcenaria as configuracao_service
 from app.services.marcenaria import erros
 from app.services.marcenaria import orcamento_precos as precos
 from app.services.marcenaria.aprovacao_bloqueios import motivos_que_impedem_desfazer, os_cancelada

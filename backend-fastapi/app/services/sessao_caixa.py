@@ -25,8 +25,8 @@ from app.core.depends import is_visao_gerencial
 from app.core.security import verify_password
 from app.core.tempo import fim_do_dia_utc, inicio_do_dia_utc
 from app.helpers.exceptions import BadRequestException, NotFoundException
-from app.db.crud import configuracao_seguranca as config_seg_crud
-from app.db.crud import configuracao_vendas as config_vendas_crud
+from app.db.crud.configuracao import seguranca as config_seg_crud
+from app.db.crud.configuracao import vendas as config_vendas_crud
 from app.db.crud import financeiro as financeiro_crud
 from app.db.crud import sessao_caixa as caixa_crud
 from app.db.models.forma_pagamento import FormaPagamento

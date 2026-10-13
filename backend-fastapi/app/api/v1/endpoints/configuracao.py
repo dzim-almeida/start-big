@@ -3,22 +3,22 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.configuracao_clientes import ConfiguracaoClientesRead, ConfiguracaoClientesUpdate
-from app.schemas.configuracao_produtos import ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate
-from app.schemas.configuracao_os import ConfiguracaoOSRead, ConfiguracaoOSUpdate
-from app.schemas.configuracao_vendas import ConfiguracaoVendasRead, ConfiguracaoVendasUpdate
-from app.schemas.configuracao_seguranca import ConfiguracaoSegurancaRead, ConfiguracaoSegurancaUpdate, VerificarPinPayload
-from app.services import configuracao_clientes as configuracao_clientes_service
-from app.services import configuracao_produtos as configuracao_produtos_service
-from app.services import configuracao_os as configuracao_os_service
-from app.services import configuracao_vendas as configuracao_vendas_service
-from app.services import configuracao_seguranca as configuracao_seguranca_service
-from app.schemas.configuracao_marcenaria import (
+from app.schemas.configuracao.clientes import ConfiguracaoClientesRead, ConfiguracaoClientesUpdate
+from app.schemas.configuracao.produtos import ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate
+from app.schemas.configuracao.ordem_servico import ConfiguracaoOSRead, ConfiguracaoOSUpdate
+from app.schemas.configuracao.vendas import ConfiguracaoVendasRead, ConfiguracaoVendasUpdate
+from app.schemas.configuracao.seguranca import ConfiguracaoSegurancaRead, ConfiguracaoSegurancaUpdate, VerificarPinPayload
+from app.services.configuracao import clientes as configuracao_clientes_service
+from app.services.configuracao import produtos as configuracao_produtos_service
+from app.services.configuracao import ordem_servico as configuracao_os_service
+from app.services.configuracao import vendas as configuracao_vendas_service
+from app.services.configuracao import seguranca as configuracao_seguranca_service
+from app.schemas.configuracao.marcenaria import (
     ConfiguracaoMarcenariaCompleta,
     ConfiguracaoMarcenariaPublica,
     ConfiguracaoMarcenariaUpdate,
 )
-from app.services import configuracao_marcenaria as configuracao_marcenaria_service
+from app.services.configuracao import marcenaria as configuracao_marcenaria_service
 from app.services.marcenaria.permissoes import PERMISSOES_GERIR_CUSTOS, pode_ver_custos_marcenaria
 
 router = APIRouter()
