@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, toRef } from 'vue';
-import { HandCoins, Download, Printer, Lock, FileText } from 'lucide-vue-next';
+import { HandCoins, Download, Printer, Lock, FileText, UserCog } from 'lucide-vue-next';
 
 import { formatCurrency, formatCentsToInput } from '@/shared/utils/finance';
 import { saveCsv } from '@/shared/utils/csv';
@@ -10,8 +10,13 @@ import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { useComissaoQuery } from '../composables/useComissaoQuery';
 import ComissaoFolhaPrint from './ComissaoFolhaPrint.vue';
 import ExtratoFuncionarioModal from './ExtratoFuncionarioModal.vue';
+import AcessoComissoesModal from './AcessoComissoesModal.vue';
 
-const props = defineProps<{ inicio: string; fim: string }>();
+/**
+ * `podeLiberar`: só o Master. Mostra o botão "Quem pode ver", em que ele libera
+ * cargos (ex.: o gerente) para ver esta seção sem precisar da conta dele.
+ */
+const props = defineProps<{ inicio: string; fim: string; podeLiberar?: boolean }>();
 
 const { data } = useComissaoQuery(toRef(props, 'inicio'), toRef(props, 'fim'));
 const itens = computed(() => data.value?.itens ?? []);
@@ -20,6 +25,8 @@ const toast = useToast();
 
 /** Extrato de comissão de uma linha: o papel venda a venda, serviço a serviço. */
 const extratoDe = ref<number | null>(null);
+
+const acessoAberto = ref(false);
 
 /**
  * Loja sem Ordem de Servico nao tem coluna de servico.
@@ -95,6 +102,15 @@ async function exportar() {
         <HandCoins :size="15" class="text-brand-primary" /> Comissão por funcionário
       </h3>
       <div class="flex items-center gap-4">
+        <button
+          v-if="podeLiberar"
+          type="button"
+          class="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-brand-primary hover:text-brand-primary transition-colors cursor-pointer"
+          title="Liberar cargos (ex.: gerente) para ver as comissões da equipe"
+          @click="acessoAberto = true"
+        >
+          <UserCog :size="14" /> Quem pode ver
+        </button>
         <div class="text-right">
           <span class="text-[10px] uppercase text-slate-400 font-semibold tracking-wide">Total a pagar</span>
           <p class="text-lg font-bold text-brand-primary leading-none tabular-nums">{{ formatCurrency(totalPagar) }}</p>
@@ -194,5 +210,7 @@ async function exportar() {
       :fim="props.fim"
       @close="extratoDe = null"
     />
+
+    <AcessoComissoesModal v-if="podeLiberar" :is-open="acessoAberto" @close="acessoAberto = false" />
   </div>
 </template>

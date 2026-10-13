@@ -11,6 +11,9 @@
 #   - /faturamento continua aberto a quem tem a permissao do modulo, mas RECORTADO:
 #     master recebe a loja inteira, funcionario recebe so o que ele mesmo fez
 #     (get_faturamento_pessoal), sem juros, custo, lucro nem formas de pagamento.
+#   - /comissoes e /extrato-funcionario: Master, ou cargo que o Master LIBEROU
+#     na tela de Relatorios (services/relatorio/acesso_comissoes.py). Desligado
+#     por padrao; o "all" do cargo nao conta. So o Master muda a liberacao.
 #
 # O gate e o `is_master`, nao o nome do cargo. Mesma decisao do HomeView e do
 # dashboard: cargo por nome ("gerente"/"administrador") e fragil e ja divergiu
@@ -19,10 +22,16 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_current_master_user, get_db
+from app.core.depends import (
+    _handle_db_transaction,
+    check_permission,
+    get_current_active_user,
+    get_current_master_user,
+    get_db,
+)
 from app.schemas.relatorio import (
     RelatorioFaturamento,
     RelatorioRanking,
@@ -32,13 +41,26 @@ from app.schemas.relatorio import (
     RelatorioExtratoFuncionario,
     RelatorioRegrasPreco,
     RelatorioContador,
+    AcessoComissoes,
+    AcessoComissoesUpdate,
 )
 from app.services import relatorio as relatorio_service
+from app.services.relatorio import acesso_comissoes
 
 router = APIRouter()
 
 # Master e cargos com "all" ja furam a checagem; os demais precisam desta permissao.
 module_permission = ["relatorio", "view_reports", "manage_reports"]
+
+
+def get_usuario_comissoes(user_token: dict = Depends(get_current_active_user)) -> dict:
+    """Master, ou cargo que o Master liberou para ver as comissoes da equipe."""
+    if not user_token.get("empresa_id") or not acesso_comissoes.pode_ver_comissoes_equipe(user_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="As comissões da equipe são do Master ou de quem ele liberou.",
+        )
+    return user_token
 
 
 @router.get(
@@ -109,13 +131,47 @@ def obter_ranking_funcionarios(
     ),
 )
 def obter_comissoes(
-    user_token: dict = Depends(get_current_master_user),
+    user_token: dict = Depends(get_usuario_comissoes),
     *,
     db: Session = Depends(get_db),
     inicio: date = Query(..., description="Data inicial do periodo (YYYY-MM-DD)"),
     fim: date = Query(..., description="Data final do periodo (YYYY-MM-DD)"),
 ):
     return relatorio_service.get_comissao(db, inicio, fim, user_token["empresa_id"])
+
+
+@router.get(
+    "/comissoes/acesso",
+    response_model=AcessoComissoes,
+    summary="Cargos liberados para ver as comissoes da equipe",
+    description="Todos os cargos da empresa, com a liberacao de cada um. So o Master.",
+)
+def obter_acesso_comissoes(
+    user_token: dict = Depends(get_current_master_user),
+    *,
+    db: Session = Depends(get_db),
+):
+    return acesso_comissoes.listar_acesso(db, user_token["empresa_id"])
+
+
+@router.put(
+    "/comissoes/acesso",
+    response_model=AcessoComissoes,
+    summary="Liberar cargos para ver as comissoes da equipe",
+    description=(
+        "Deixa liberados exatamente os cargos enviados (comissoes e extrato de toda "
+        "a equipe); os outros perdem a liberacao. So o Master."
+    ),
+)
+def atualizar_acesso_comissoes(
+    dados: AcessoComissoesUpdate,
+    user_token: dict = Depends(get_current_master_user),
+    *,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db, acesso_comissoes.definir_acesso, user_token["empresa_id"], dados.cargo_ids
+    )
 
 
 @router.get(
@@ -150,7 +206,7 @@ def obter_estoque(
     ),
 )
 def obter_extrato_funcionario(
-    user_token: dict = Depends(get_current_master_user),
+    user_token: dict = Depends(get_usuario_comissoes),
     *,
     db: Session = Depends(get_db),
     funcionario_id: int = Query(..., ge=1, description="Funcionario do extrato"),

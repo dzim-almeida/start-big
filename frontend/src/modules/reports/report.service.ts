@@ -20,6 +20,7 @@ import {
   type RelatorioRegrasPreco,
 } from './schemas/regrasPreco.schema';
 import { RelatorioContadorSchema, type RelatorioContador } from './schemas/contador.schema';
+import { AcessoComissoesSchema, type AcessoComissoes } from './schemas/acessoComissoes.schema';
 
 /**
  * Faturamento (vendas + OS finalizadas) no intervalo [inicio, fim].
@@ -84,4 +85,16 @@ export async function getExtratoFuncionario(
     params: { funcionario_id: funcionarioId, inicio, fim },
   });
   return safeParseResponse(RelatorioExtratoFuncionarioSchema, data, 'getExtratoFuncionario');
+}
+
+/** Cargos da loja e quais o Master liberou para ver as comissões da equipe (só o Master). */
+export async function getAcessoComissoes(): Promise<AcessoComissoes> {
+  const { data } = await api.get('/relatorios/comissoes/acesso');
+  return safeParseResponse(AcessoComissoesSchema, data, 'getAcessoComissoes');
+}
+
+/** Deixa liberados exatamente estes cargos; os demais perdem a liberação (só o Master). */
+export async function salvarAcessoComissoes(cargoIds: number[]): Promise<AcessoComissoes> {
+  const { data } = await api.put('/relatorios/comissoes/acesso', { cargo_ids: cargoIds });
+  return safeParseResponse(AcessoComissoesSchema, data, 'salvarAcessoComissoes');
 }

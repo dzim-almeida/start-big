@@ -14,6 +14,8 @@
 #   regras_preco.py   - vendas por regra de preco (R1/R2/R3)
 #   contador.py       - receita segregada para o PGDAS-D
 #   os_performance.py - desempenho de OS
+#   acesso_comissoes.py - cargos que o Master liberou para ver as comissoes
+#                       (fica no submodulo, sem reexport)
 #
 # Este __init__ reexporta tudo: `from app.services import relatorio` continua
 # valendo como antes.

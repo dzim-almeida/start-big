@@ -6,9 +6,9 @@
  * total IGUAL ao da folha de comissão: o backend pega o total da folha e o
  * reparte pelas linhas, então a soma do papel nunca discorda da folha.
  *
- * Aberto pelo ícone de cada linha do Ranking. Só o Master chega aqui — o
- * backend responde 403 para os demais, e a seção inteira vive dentro do
- * `v-if="isMaster"` da tela de relatórios.
+ * Aberto pelo ícone de cada linha da Comissão. Só o Master, ou um cargo que
+ * ele liberou em "Quem pode ver", chega aqui — o backend responde 403 para os
+ * demais, e a seção vive dentro do `v-if="podeVerComissoes"` da tela.
  */
 import { computed, nextTick, ref, toRef } from 'vue';
 import { Printer, FileText, ShoppingCart, Wrench, AlertTriangle, CheckCircle2 } from 'lucide-vue-next';

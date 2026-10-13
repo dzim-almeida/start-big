@@ -5,7 +5,7 @@
 #
 # Era um arquivo so (relatorio.py) ate 13/10/2026; virou pacote:
 #   faturamento.py, equipe.py, estoque.py, regras_preco.py, contador.py,
-#   os_performance.py (os mesmos assuntos do services/relatorio/).
+#   os_performance.py, acesso_comissoes.py (os mesmos assuntos do services/relatorio/).
 #
 # Este __init__ reexporta tudo: `from app.schemas.relatorio import ...` continua
 # valendo como antes.
@@ -53,6 +53,12 @@ from app.schemas.relatorio.os_performance import (
     RelatorioOSPerformance,
 )
 
+from app.schemas.relatorio.acesso_comissoes import (
+    AcessoComissoesCargo,
+    AcessoComissoes,
+    AcessoComissoesUpdate,
+)
+
 __all__ = [
     "FaturamentoDiaItem",
     "FormaPagamentoResumo",
@@ -78,4 +84,7 @@ __all__ = [
     "OSStatusItem",
     "OSTecnicoItem",
     "RelatorioOSPerformance",
+    "AcessoComissoesCargo",
+    "AcessoComissoes",
+    "AcessoComissoesUpdate",
 ]

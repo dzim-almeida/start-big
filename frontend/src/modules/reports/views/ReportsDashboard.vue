@@ -51,6 +51,14 @@ const { caixaHabilitado } = useSessaoCaixaQuery();
 const authStore = useAuthStore();
 const { userData } = storeToRefs(authStore);
 const isMaster = computed(() => userData.value?.is_master === true);
+/**
+ * Comissão e extrato da equipe: o Master, ou um cargo que ele liberou em "Quem
+ * pode ver" (ex.: o gerente de uma loja grande). A chave é PRÓPRIA — o "all" do
+ * cargo não conta, igual ao backend (services/relatorio/acesso_comissoes.py).
+ */
+const podeVerComissoes = computed(
+  () => isMaster.value || userData.value?.cargo?.permissoes?.ver_comissoes_equipe === true,
+);
 
 // Vendas por regra de preço: só para quem ligou alguma regra (§6.1). Quem não
 // usa não vê o bloco nem dispara a consulta.
@@ -303,12 +311,14 @@ async function imprimirFinanceiro() {
       <!-- Blocos gerenciais: só o dono. O v-if desmonta o componente e, com
            ele, a query — assim a requisição nem sai e o funcionário não leva o
            403 do backend na tela. -->
-      <template v-if="isMaster">
-        <!-- Ranking por funcionário -->
-        <RankingSection :inicio="inicio" :fim="fim" />
+      <!-- Ranking por funcionário -->
+      <RankingSection v-if="isMaster" :inicio="inicio" :fim="fim" />
 
-        <!-- Comissão por funcionário -->
-        <ComissaoSection :inicio="inicio" :fim="fim" />
+      <!-- Comissão por funcionário: o dono, ou o cargo que ele liberou. Só o
+           dono vê o botão de liberar. -->
+      <ComissaoSection v-if="podeVerComissoes" :inicio="inicio" :fim="fim" :pode-liberar="isMaster" />
+
+      <template v-if="isMaster">
 
         <!-- Caixa: quem abriu, quem fechou e com qual diferenca. So aparece
              para quem usa controle de caixa. -->
