@@ -41,6 +41,10 @@ describe('botão do topo da tela de OS', () => {
     expect(mostrarBotaoAdicionar('producao', false)).toBe(false);
     expect(mostrarBotaoAdicionar('instalacoes', false)).toBe(false);
   });
+
+  it('aba Orçamento (marcenaria, remodelação item 1): sem "Novo Serviço"', () => {
+    expect(mostrarBotaoAdicionar('orcamentos', false)).toBe(false);
+  });
 });
 
 describe('atalhos do menu rápido', () => {
@@ -81,5 +85,7 @@ describe('"Novo orçamento" no lugar de "Criar OS"', () => {
     expect(mostrarBotaoNovoOrcamento('ordens', true, true)).toBe(false);     // informática: "Nova OS"
     expect(mostrarBotaoNovoOrcamento('ordens', false, false)).toBe(false);   // sem permissão
     expect(mostrarBotaoNovoOrcamento('servicos', false, true)).toBe(false);  // aba Serviços: "Novo Serviço"
+    expect(mostrarBotaoNovoOrcamento('orcamentos', false, true)).toBe(true); // aba Orçamento (remodelação item 1)
+    expect(mostrarBotaoNovoOrcamento('orcamentos', false, false)).toBe(false); // sem permissão
   });
 });

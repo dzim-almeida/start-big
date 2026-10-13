@@ -8,7 +8,7 @@
  * editor devolve a mesma lista, na mesma página.
  */
 import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router';
+import { useRoute, useRouter, type LocationQuery, type LocationQueryRaw } from 'vue-router';
 import { CheckCircle2, Clock, PencilLine, Plus, Send } from 'lucide-vue-next';
 import { refDebounced } from '@vueuse/core';
 
@@ -26,6 +26,15 @@ import { usePermissoesOrcamento } from '../composables/usePermissoesOrcamento';
 import type { FiltrosLista } from '../services/orcamento.service';
 import { useAbrirOS } from '../composables/useAbrirOS';
 
+/**
+ * `embutida`: a lista aparece DENTRO de outra tela (a aba "Orçamento" da tela
+ * de Ordens de Serviço, remodelação item 1). Nesse caso:
+ *   - não desenha o título nem o botão "Novo orçamento" (a tela de fora já tem os dois);
+ *   - não tira o espaçamento da página (quem está por fora já tem);
+ *   - não grava os filtros na URL (a URL é da tela de OS, não desta lista).
+ */
+const props = withDefaults(defineProps<{ embutida?: boolean }>(), { embutida: false });
+
 // Sem a capacidade do segmento (outro segmento digitou o endereço): volta ao início (D3).
 useExigeCapacidade('orcamento_tecnico');
 
@@ -39,16 +48,19 @@ const CHIPS_VALIDOS: ChipFiltro[] = ['TODOS', 'RASCUNHO', 'ENVIADO', 'VENCE_3', 
 // --- Estado dos filtros, lido da URL ao abrir ------------------------------
 const texto = (valor: unknown) => (typeof valor === 'string' ? valor : '');
 const chipDaUrl = (): ChipFiltro => {
+  if (props.embutida) return 'TODOS';            // embutida: a URL não é nossa, começa sem filtro
   if (route.query.vence === '3') return 'VENCE_3';
   const status = texto(route.query.status) as ChipFiltro;
   return CHIPS_VALIDOS.includes(status) ? status : 'TODOS';
 };
 
+// Embutida, a lista ignora a URL: `queryInicial` vira um objeto vazio e todo filtro começa "desligado".
+const queryInicial: LocationQuery = props.embutida ? {} : route.query;
 const chip = ref<ChipFiltro>(chipDaUrl());
-const busca = ref(texto(route.query.busca));
-const vendedorId = ref<number | null>(Number(route.query.vendedor) || null);
-const versoesAntigas = ref(route.query.versoes === '1');
-const pagina = ref(Number(route.query.pagina) || 1);
+const busca = ref(texto(queryInicial.busca));
+const vendedorId = ref<number | null>(Number(queryInicial.vendedor) || null);
+const versoesAntigas = ref(queryInicial.versoes === '1');
+const pagina = ref(Number(queryInicial.pagina) || 1);
 
 // A busca espera o usuário parar de digitar (não uma chamada por tecla).
 const buscaEsperada = refDebounced(busca, 300);
@@ -69,6 +81,7 @@ watch([chip, buscaEsperada, vendedorId, versoesAntigas], () => { pagina.value = 
 
 // Guarda os filtros na URL (replace: não enche o "voltar" do usuário de passos).
 watch([chip, buscaEsperada, vendedorId, versoesAntigas, pagina], () => {
+  if (props.embutida) return;                    // embutida: não mexe na URL da tela de fora
   const query: LocationQueryRaw = {};
   if (chip.value === 'VENCE_3') query.vence = '3';
   else if (chip.value !== 'TODOS') query.status = chip.value;
@@ -110,14 +123,16 @@ const novo = () => router.push({ name: 'marcenaria-orcamento-novo' });
 
 <template>
   <!-- Sem permissão de ver (o menu já esconde o item; isto é para quem digitou o endereço). -->
-  <div v-if="!podeVer" class="p-4 md:p-6 lg:p-8">
+  <!-- Embutida (aba da tela de OS), quem está por fora já dá o espaçamento: o `:class` tira o nosso. -->
+  <div v-if="!podeVer" :class="{ 'p-4 md:p-6 lg:p-8': !embutida }">
     <div class="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500" data-testid="sem-permissao">
       Você não tem permissão para ver orçamentos.
     </div>
   </div>
 
-  <div v-else class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
-    <div class="flex items-center justify-between gap-4">
+  <div v-else class="space-y-6 md:space-y-8" :class="{ 'p-4 md:p-6 lg:p-8': !embutida }">
+    <!-- Título e botão só na tela própria; embutida, a tela de OS já mostra os dois. -->
+    <div v-if="!embutida" class="flex items-center justify-between gap-4">
       <PageReview title="Todos os orçamentos" description="Acompanhe cada proposta, do rascunho até virar Ordem de Serviço." />
       <BaseButton v-if="podeGerir" variant="primary" data-testid="novo-orcamento" @click="novo">
         <Plus :size="20" class="mr-2" /> Novo orçamento

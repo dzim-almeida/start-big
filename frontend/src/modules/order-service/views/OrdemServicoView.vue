@@ -23,6 +23,11 @@ const InstalacoesTab = defineAsyncComponent(
 const TerceirizadosTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue'),
 );
+// Marcenaria (remodelação item 1): a aba "Orçamento" mostra a lista de orçamentos
+// aqui dentro, no lugar do "Cadastro de Serviços" (a marcenaria não usa o catálogo).
+const OrcamentosListaView = defineAsyncComponent(
+  () => import('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue'),
+);
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
@@ -40,11 +45,20 @@ const { podeCriarOSManual } = useTiposDeTrabalho();
 
 const activeTab = ref('ordens');
 
+// Abas fixas: "Ordens de Serviço" e "Cadastro de Serviços". Na marcenaria (quem tem
+// orçamento técnico), a segunda vira "Orçamento" (remodelação item 1): o `map` troca
+// só ela e mantém a mesma posição.
+const abasFixas = computed(() =>
+  TAB_OPTIONS.map((aba) =>
+    aba.id === 'servicos' && temOrcamentoTecnico.value ? { id: 'orcamentos', label: 'Orçamento' } : aba,
+  ),
+);
+
 // Abas extras por capacidade, na ordem: Revisões (oficina, pós-venda), Produção
 // (marcenaria, Spec 12B D15: o quadro que a fábrica abre de manhã), Instalações
 // (13B D15) e Terceirizados (11B D10). Sem nenhuma, a lista é a de sempre.
 const tabOptions = computed(() => [
-  ...TAB_OPTIONS,
+  ...abasFixas.value,
   ...(temRevisoes.value ? [{ id: 'revisoes', label: 'Revisões' }] : []),
   ...(temOrcamentoTecnico.value
     ? [
@@ -60,6 +74,7 @@ const pageTitle = computed(() => {
   if (activeTab.value === 'producao') return 'Produção';
   if (activeTab.value === 'instalacoes') return 'Instalações';
   if (activeTab.value === 'terceirizados') return 'Terceirizados';
+  if (activeTab.value === 'orcamentos') return 'Orçamentos';
   return activeTab.value === 'ordens' ? 'Ordens de Serviço' : 'Cadastro de Serviços';
 });
 
@@ -68,6 +83,7 @@ const pageDescription = computed(() => {
   if (activeTab.value === 'producao') return 'As OS em produção, com o progresso e a próxima etapa, na ordem da entrega.';
   if (activeTab.value === 'instalacoes') return 'Quem instala onde, por dia.';
   if (activeTab.value === 'terceirizados') return 'Móveis pedidos às centrais parceiras e ainda não conferidos.';
+  if (activeTab.value === 'orcamentos') return 'Acompanhe cada proposta, do rascunho até virar Ordem de Serviço.';
   return activeTab.value === 'ordens'
     ? 'Gerencie as ordens de serviço da sua organização.'
     : 'Gerencie o catálogo de serviços da sua organização.';
@@ -134,6 +150,8 @@ function handleAddClick() {
     <QuadroProducaoTab v-else-if="activeTab === 'producao'" />
     <InstalacoesTab v-else-if="activeTab === 'instalacoes'" />
     <TerceirizadosTab v-else-if="activeTab === 'terceirizados'" />
+    <!-- `embutida`: a lista não repete o título nem o botão que esta tela já mostra. -->
+    <OrcamentosListaView v-else-if="activeTab === 'orcamentos'" embutida />
     <ServicosTab v-else />
   </div>
 </template>

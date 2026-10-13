@@ -5,7 +5,7 @@
  * - informática / serigrafia: exatamente as abas de hoje;
  * - oficina: + "Revisões", no mesmo lugar;
  * - marcenaria: + "Produção" (12B D15), "Instalações" (13B D15) e "Terceirizados" (11B D10),
- *   sem botão de criar no topo.
+ *   sem botão de criar no topo; e "Cadastro de Serviços" vira "Orçamento" (remodelação item 1).
  *
  * As abas em si são trocadas por marcadores: aqui só importa QUAL aparece.
  */
@@ -40,6 +40,14 @@ vi.mock('../tabs/RevisoesPendentesTab.vue', () => marcador('aba-revisoes'));
 vi.mock('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue', () => marcador('aba-terceirizados'));
 vi.mock('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue', () => marcador('aba-quadro-producao'));
 vi.mock('@/modules/marcenaria/entrega/components/InstalacoesTab.vue', () => marcador('aba-instalacoes'));
+// A lista de orçamentos vira um marcador que mostra se recebeu `embutida` (a tela de OS sempre passa).
+vi.mock('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue', () => ({
+  __esModule: true,
+  default: defineComponent({
+    props: { embutida: Boolean },
+    render() { return h('div', { 'data-testid': 'aba-orcamentos', 'data-embutida': String(this.embutida) }); },
+  }),
+}));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -73,7 +81,7 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     temOrcamentoTecnico.value = true;
     podeCriarOSManual.value = false;
     const w = montar();
-    expect(abas(w)).toEqual(['Ordens de Serviço', 'Cadastro de Serviços', 'Produção', 'Instalações', 'Terceirizados']);
+    expect(abas(w)).toEqual(['Ordens de Serviço', 'Orçamento', 'Produção', 'Instalações', 'Terceirizados']);
 
     await w.findAll('button').find((b) => b.text() === 'Terceirizados')!.trigger('click');
     await flushPromises();
@@ -102,6 +110,19 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     await flushPromises();
     expect(w.find('h2').text()).toBe('Produção');
     expect(w.find('[data-testid="aba-quadro-producao"]').exists()).toBe(true);
+    expect(w.text()).not.toContain('Novo Serviço');
+  });
+
+  it('marcenaria: "Orçamento" no lugar de "Cadastro de Serviços", com a lista embutida (remodelação item 1)', async () => {
+    temOrcamentoTecnico.value = true;
+    podeCriarOSManual.value = false;
+    const w = montar();
+    expect(w.text()).not.toContain('Cadastro de Serviços');
+    await w.findAll('button').find((b) => b.text() === 'Orçamento')!.trigger('click');
+    await flushPromises();
+    expect(w.find('h2').text()).toBe('Orçamentos');
+    expect(w.find('[data-testid="aba-orcamentos"]').attributes('data-embutida')).toBe('true');
+    expect(w.find('[data-testid="aba-servicos"]').exists()).toBe(false);
     expect(w.text()).not.toContain('Novo Serviço');
   });
 });
