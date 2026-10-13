@@ -925,3 +925,136 @@ def test_extrato_e_exclusivo_do_master(client, db_session):
         headers=h_func,
     )
     assert r.status_code == status.HTTP_403_FORBIDDEN, r.text
+
+
+# ---------------------------------------------------------------------------
+# Regra do dono, por inteiro: relatorio completo e so do Master; o funcionario
+# ve so o que e dele. Os testes acima cobriam 4 das 7 rotas gerenciais e so a
+# parte de VENDAS do recorte pessoal; estes fecham o resto (13/10/2026).
+# ---------------------------------------------------------------------------
+
+ROTAS_SO_DO_MASTER = (
+    "ranking-funcionarios", "comissoes", "estoque", "os-performance",
+    "regras-preco", "contador",
+)
+
+
+def test_todo_relatorio_gerencial_barra_ate_o_cargo_gerente_com_tudo(client, db_session):
+    """Nem cargo chamado "Gerente", nem permissao "all", abre a visao da loja.
+
+    O gate e o `is_master`. Em outras telas (listagem de OS e vendas, caixa) o
+    nome do cargo "gerente"/"administrador" ainda libera a visao geral
+    (`is_visao_gerencial`); este teste impede que essa regra entre aqui.
+    """
+    _seed_contador_venda(db_session)
+    header = _auth(client)
+    r = client.post("/api/v1/cargos/", json={
+        "nome": "Gerente", "permissoes": {"all": True, "relatorio": True},
+    }, headers=header)
+    assert r.status_code in (200, 201), r.text
+    _funcionario_com_acesso(
+        client, header, nome="Gerente da Loja", cpf="11122255501",
+        email="gerente@empresa.com", senha="SenhaForte123!", cargo_id=r.json()["id"],
+    )
+    h_gerente = _login(client, "gerente@empresa.com", "SenhaForte123!")
+
+    hoje = datetime.now().date().isoformat()
+    periodo = f"inicio={hoje}&fim={hoje}"
+    for nome in ROTAS_SO_DO_MASTER:
+        r = client.get(f"/api/v1/relatorios/{nome}?{periodo}", headers=h_gerente)
+        assert r.status_code == status.HTTP_403_FORBIDDEN, (nome, r.status_code, r.text)
+    r = client.get(f"/api/v1/relatorios/extrato-funcionario?funcionario_id=1&{periodo}", headers=h_gerente)
+    assert r.status_code == status.HTTP_403_FORBIDDEN, r.text
+
+    # O dono entra em todas.
+    for nome in ROTAS_SO_DO_MASTER:
+        r = client.get(f"/api/v1/relatorios/{nome}?{periodo}", headers=header)
+        assert r.status_code == 200, (nome, r.text)
+
+
+def test_gerente_ve_so_o_proprio_faturamento_e_nao_o_da_loja(client, db_session):
+    """Cargo "Gerente" com permissao "all" cai no recorte pessoal, como qualquer funcionario."""
+    _seed_contador_venda(db_session)
+    header = _auth(client)
+    fp_id = _forma_pagamento(client, header)
+    produto_id = _produto(client, header, "P-GERENTE", varejo=10000, entrada=4000, quantidade=100)
+    r = client.post("/api/v1/cargos/", json={
+        "nome": "Gerente", "permissoes": {"all": True},
+    }, headers=header)
+    assert r.status_code in (200, 201), r.text
+    gerente = _funcionario_com_acesso(
+        client, header, nome="Gerente Escopo", cpf="11122255502",
+        email="gerente.escopo@empresa.com", senha="SenhaForte123!", cargo_id=r.json()["id"],
+    )
+    outro = _funcionario_com_acesso(
+        client, header, nome="Outro Escopo", cpf="11122255503",
+        email="outro.escopo@empresa.com", senha="SenhaForte123!",
+    )
+    _venda_finalizada(client, header, gerente, produto_id, 1, fp_id)  # R$ 100,00
+    _venda_finalizada(client, header, outro, produto_id, 4, fp_id)    # R$ 400,00
+
+    hoje = datetime.now().date().isoformat()
+    rota = f"/api/v1/relatorios/faturamento?inicio={hoje}&fim={hoje}"
+    assert client.get(rota, headers=header).json()["faturamento_total"] == 50000
+
+    meu = client.get(rota, headers=_login(client, "gerente.escopo@empresa.com", "SenhaForte123!")).json()
+    assert meu["faturamento_total"] == 10000
+    assert meu["cmv"] == 0
+    assert meu["formas_pagamento"] == []
+
+
+def test_faturamento_do_funcionario_nao_soma_a_os_do_colega(client, db_session):
+    """O recorte pessoal vale tambem para as OS, e nao so para as vendas."""
+    header = _auth(client)
+    fp_id = _forma_pagamento(client, header)
+    cliente_id = _cliente(client, header)
+    cargo_id = _cargo_com_relatorio(client, header, nome="Tecnico Relatorio")
+    eu = _funcionario_com_acesso(
+        client, header, nome="Tecnico Escopo", cpf="11122255504",
+        email="tecnico.escopo@empresa.com", senha="SenhaForte123!", cargo_id=cargo_id,
+    )
+    colega = _funcionario_com_acesso(
+        client, header, nome="Colega Tecnico", cpf="11122255505",
+        email="colega.tecnico@empresa.com", senha="SenhaForte123!",
+    )
+    _os_finalizada(client, header, cliente_id, fp_id, "SERIE-EU-1", 15000, funcionario_id=eu)
+    _os_finalizada(client, header, cliente_id, fp_id, "SERIE-COLEGA-1", 25000, funcionario_id=colega)
+
+    hoje = datetime.now().date().isoformat()
+    rota = f"/api/v1/relatorios/faturamento?inicio={hoje}&fim={hoje}"
+
+    dono = client.get(rota, headers=header).json()
+    assert dono["faturamento_os"] == 40000
+    assert dono["qtd_os"] == 2
+
+    meu = client.get(rota, headers=_login(client, "tecnico.escopo@empresa.com", "SenhaForte123!")).json()
+    assert meu["faturamento_os"] == 15000
+    assert meu["qtd_os"] == 1
+    assert meu["faturamento_total"] == 15000
+    assert sum(d["total_geral"] for d in meu["por_dia"]) == 15000
+
+
+def test_usuario_sem_ficha_de_funcionario_recebe_relatorio_vazio(client, db_session):
+    """Sem funcionario_id nao ha "o que ele fez": vazio, e NUNCA o da loja."""
+    from app.core import depends as depends_mod
+    from app.main import app
+
+    header = _auth(client)
+    fp_id = _forma_pagamento(client, header)
+    cliente_id = _cliente(client, header)
+    _os_finalizada(client, header, cliente_id, fp_id, "SERIE-LOJA-1", 30000)
+
+    def _sem_ficha():
+        return {"ativo": True, "is_master": False, "empresa_id": 1, "funcionario_id": None,
+                "cargo": "Vendedor", "permissoes": {"relatorio": True}}
+
+    app.dependency_overrides[depends_mod.get_current_active_user] = _sem_ficha
+    try:
+        hoje = datetime.now().date().isoformat()
+        r = client.get(f"/api/v1/relatorios/faturamento?inicio={hoje}&fim={hoje}", headers=header)
+    finally:
+        app.dependency_overrides.pop(depends_mod.get_current_active_user, None)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["faturamento_total"] == 0
+    assert r.json()["qtd_os"] == 0
