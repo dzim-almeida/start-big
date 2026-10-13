@@ -4,7 +4,7 @@
 # DESCRIÇÃO: Gerencia as ofertas de serviços (ex: Mão de obra, Consultoria).
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 

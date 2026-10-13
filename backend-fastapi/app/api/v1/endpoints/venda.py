@@ -16,7 +16,7 @@
 #   POST   /{venda_id}/finalizar          → Finalizar venda (checkout)
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
