@@ -267,16 +267,16 @@ onKeyStroke('Escape', () => {
         </div>
       </section>
 
-      <!-- 2. Dimensões (mm, D24) -->
+      <!-- 2. Dimensões (mm, D24). O "mm" também aparece dentro de cada campo (remodelação item 4). -->
       <section class="flex flex-col gap-4 py-6">
         <div class="flex items-center justify-between">
           <h3 :class="CLASSE_SECAO"><span :class="CLASSE_NUMERO">2</span>Dimensões</h3>
           <span class="text-xs text-zinc-500">em milímetros</span>
         </div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <BaseInput v-model.number="largura" type="number" label="Largura (L)" min="1" step="1" :error="erros.largura_mm" />
-          <BaseInput v-model.number="altura" type="number" label="Altura (A)" min="1" step="1" :error="erros.altura_mm" />
-          <BaseInput v-model.number="profundidade" type="number" label="Profundidade (P)" min="1" step="1" :error="erros.profundidade_mm" />
+          <BaseInput v-model.number="largura" type="number" label="Largura (L)" min="1" step="1" sufixo="mm" :error="erros.largura_mm" />
+          <BaseInput v-model.number="altura" type="number" label="Altura (A)" min="1" step="1" sufixo="mm" :error="erros.altura_mm" />
+          <BaseInput v-model.number="profundidade" type="number" label="Profundidade (P)" min="1" step="1" sufixo="mm" :error="erros.profundidade_mm" />
         </div>
       </section>
 

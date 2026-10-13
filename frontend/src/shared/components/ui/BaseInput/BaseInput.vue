@@ -29,6 +29,11 @@ interface InputProps {
   inputmode?: 'text' | 'decimal' | 'numeric' | 'tel' | 'email' | 'url' | 'search';
   /** Texto do "?" ao lado do rótulo. Sem ele, nada é renderizado a mais. */
   ajuda?: string;
+  /**
+   * Unidade escrita no fim do campo, por dentro da borda (ex.: "mm", "%", "kg").
+   * Só aparece; não entra no valor. Sem ele, o campo fica como sempre foi.
+   */
+  sufixo?: string;
 }
 
 const props = withDefaults(defineProps<InputProps>(), {
@@ -93,7 +98,9 @@ const inputClasses = computed(() => [
   props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
   props.type === 'password' ? 'pr-10' : '',
   props.type === 'date' ? 'pr-1' : '',
-  props.type === 'number' ? 'input-number-no-spinner' : ''
+  props.type === 'number' ? 'input-number-no-spinner' : '',
+  // Com sufixo, o texto digitado não pode passar por baixo da unidade: reserva espaço à direita.
+  props.sufixo ? 'pr-10' : '',
 ]);
 
 function togglePasswordVisibility() {
@@ -135,6 +142,15 @@ function togglePasswordVisibility() {
         :class="inputClasses"
         @blur="emit('blur', $event)"
       />
+
+      <!-- Unidade no fim do campo ("mm"). `pointer-events-none`: clicar nela ainda foca o campo. -->
+      <span
+        v-if="sufixo"
+        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs text-gray-500"
+        data-testid="input-sufixo"
+      >
+        {{ sufixo }}
+      </span>
 
       <button
         v-if="type === 'password'"
