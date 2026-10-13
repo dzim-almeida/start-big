@@ -178,7 +178,7 @@ def test_todos_os_mutadores_de_venda_chamam_o_guard():
 # =========================
 
 def test_lista_apenas_documentos_sem_resposta_definitiva(db):
-    from app.services.fiscal.reconciliacao import listar_documentos_pendentes
+    from app.services.fiscal.emissoes.reconciliacao import listar_documentos_pendentes
 
     db.add_all([
         DocumentoFiscal(tipo_documento="NFE", origem_tipo="VENDA", origem_id=1,
@@ -199,7 +199,7 @@ def test_lista_apenas_documentos_sem_resposta_definitiva(db):
 
 def test_documento_sem_ref_api_nao_entra_na_fila(db):
     """Sem referência não há o que consultar."""
-    from app.services.fiscal.reconciliacao import listar_documentos_pendentes
+    from app.services.fiscal.emissoes.reconciliacao import listar_documentos_pendentes
 
     db.add(DocumentoFiscal(tipo_documento="NFE", origem_tipo="VENDA", origem_id=1,
                            status="PROCESSANDO", ref_api=None))
@@ -209,7 +209,7 @@ def test_documento_sem_ref_api_nao_entra_na_fila(db):
 
 
 def test_reconciliacao_sem_pendencias_nao_faz_nada(db):
-    from app.services.fiscal.reconciliacao import reconciliar_pendentes
+    from app.services.fiscal.emissoes.reconciliacao import reconciliar_pendentes
 
     assert reconciliar_pendentes(db) == {
         "verificados": 0, "resolvidos": 0, "ainda_pendentes": 0,
@@ -218,7 +218,7 @@ def test_reconciliacao_sem_pendencias_nao_faz_nada(db):
 
 def _semear_pendente(db, status_final, monkeypatch):
     """Documento INDETERMINADA que a consulta resolve para `status_final`."""
-    from app.services.fiscal import reconciliacao as mod
+    from app.services.fiscal.emissoes import reconciliacao as mod
 
     db.add(Empresa(id=1, razao_social="Loja LTDA", documento="11222333000181", is_cnpj=True))
     db.flush()
@@ -264,7 +264,7 @@ def test_reconciliar_para_rejeitada_destrava_a_venda(db, monkeypatch):
 
 
 def test_falha_na_consulta_nao_derruba_a_reconciliacao(db, monkeypatch):
-    from app.services.fiscal import reconciliacao as mod
+    from app.services.fiscal.emissoes import reconciliacao as mod
 
     db.add(Empresa(id=1, razao_social="Loja LTDA", documento="11222333000181", is_cnpj=True))
     db.flush()

@@ -10,7 +10,7 @@ from datetime import datetime
 import pytest
 
 from app.schemas.fiscal.documento import DocumentoFiscalRead
-from app.services.fiscal.diagnostico_sefaz import TABELA, diagnosticar, ler_chave_da_mensagem
+from app.services.fiscal.emissoes.diagnostico_sefaz import TABELA, diagnosticar, ler_chave_da_mensagem
 
 MSG_481 = "Rejeição: Código Regime Tributário do emitente diverge do cadastro na SEFAZ"
 MSG_539 = (

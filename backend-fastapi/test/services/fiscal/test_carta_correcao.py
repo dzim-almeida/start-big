@@ -20,7 +20,7 @@ from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.schemas.fiscal.emissao import CartaCorrecaoRequest
-from app.services.fiscal.carta_correcao import (
+from app.services.fiscal.eventos.carta_correcao import (
     LIMITE_CARTAS_POR_NOTA,
     emitir_carta_correcao,
     listar_cartas_correcao,
@@ -89,9 +89,9 @@ class ClientEspiao(FiscalClientMock):
 def client(monkeypatch):
     espiao = ClientEspiao()
     monkeypatch.setattr(
-        "app.services.fiscal.carta_correcao.get_fiscal_client", lambda *a, **k: espiao,
+        "app.services.fiscal.eventos.carta_correcao.get_fiscal_client", lambda *a, **k: espiao,
     )
-    monkeypatch.setattr("app.services.fiscal.carta_correcao.crud.get_licenca_token", lambda _db: "tok")
+    monkeypatch.setattr("app.services.fiscal.eventos.carta_correcao.crud.get_licenca_token", lambda _db: "tok")
     return espiao
 
 
@@ -315,14 +315,14 @@ def test_listagem_de_documento_inexistente_da_404(db, empresa, client):
 
 @pytest.fixture
 def pasta_isolada(tmp_path, monkeypatch):
-    from app.services.fiscal import arquivos
+    from app.services.fiscal.documentos import arquivos as arquivos
     monkeypatch.setattr(arquivos, "PASTA_FISCAL", str(tmp_path / "fiscal"))
     monkeypatch.setattr(arquivos, "PASTA_DANFE", str(tmp_path / "danfe"))
     return tmp_path
 
 
 def test_xml_da_carta_e_guardado_com_sufixo_e_nao_no_lugar_da_nota(db, empresa, client, pasta_isolada, monkeypatch):
-    from app.services.fiscal import arquivos
+    from app.services.fiscal.documentos import arquivos as arquivos
 
     doc = _doc(db)
     caminho_da_nota = arquivos.guardar_xml("<nfe/>", chave=CHAVE, fallback="x")
@@ -342,7 +342,7 @@ def test_xml_da_carta_e_guardado_com_sufixo_e_nao_no_lugar_da_nota(db, empresa, 
 
 
 def test_sincronizacao_baixa_o_xml_da_carta_que_ficou_sem_arquivo(db, empresa, client, pasta_isolada, monkeypatch):
-    from app.services.fiscal.arquivos import sincronizar_pendentes
+    from app.services.fiscal.documentos.arquivos import sincronizar_pendentes
 
     doc = _doc(db)
     db.add(CartaCorrecaoFiscal(

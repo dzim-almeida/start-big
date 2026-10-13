@@ -21,7 +21,7 @@ from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.endereco import Endereco
 from app.schemas.empresa import FiscalSettingsUpdate
 from app.services.empresa import update_fiscal_settings
-from app.services.fiscal import validators
+from app.services.fiscal.completude import validators as validators
 from app.services.fiscal.emissao import emitir_teste_nfe
 
 
@@ -109,7 +109,8 @@ def test_sem_configuracao_fiscal_nao_duplica_a_pendencia(db):
 def test_emissao_barrada_nao_consome_numero_nem_chama_a_emissora(
     db, empresa_completa, monkeypatch
 ):
-    from app.services.fiscal import emissao as emissao_mod, emissao_teste
+    from app.services.fiscal import emissao as emissao_mod
+    from app.services.fiscal.emissoes import teste as emissao_teste
 
     chamadas = []
     monkeypatch.setattr(

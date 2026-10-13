@@ -18,7 +18,7 @@ from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.inutilizacao_fiscal import InutilizacaoFiscal
-from app.services.fiscal.inutilizacao import (
+from app.services.fiscal.eventos.inutilizacao import (
     _agrupar_em_faixas,
     listar_gaps_numeracao,
     solicitar_inutilizacao,
@@ -194,7 +194,7 @@ def test_nao_inutiliza_faixa_com_numero_em_uso(db, empresa, status_vivo):
 
 
 def test_faixa_apenas_com_rejeitadas_e_aceita(db, empresa, monkeypatch):
-    from app.services.fiscal import inutilizacao as mod
+    from app.services.fiscal.eventos import inutilizacao as mod
 
     class ClientFake:
         def inutilizar_numeracao(self, ref, payload, idempotency_key=None):

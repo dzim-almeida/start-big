@@ -31,7 +31,7 @@ from pathlib import Path
 from app.core.enum import State
 from app.db.models.cliente import ClientePF, ClientePJ
 from app.db.models.endereco import Endereco
-from app.services.fiscal.payload_builder import montar_payload_nfe
+from app.services.fiscal.payload.builder import montar_payload_nfe
 from app.services.fiscal.tax_engine.engine import calcular_impostos
 from app.services.fiscal.tax_engine.types import DadosNota
 

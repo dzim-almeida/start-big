@@ -19,7 +19,7 @@ from app.services.fiscal.helpers import (
     mascarar_csc,
     obter_csc_token,
 )
-from app.services.fiscal.payload_builder import _montar_pagamentos
+from app.services.fiscal.payload.builder import _montar_pagamentos
 
 from test.services.fiscal.test_payload_builder import (
     _item_venda,

@@ -10,7 +10,7 @@
 
 from types import SimpleNamespace
 
-from app.services.fiscal.tributacao import FiscalEfetivo, mesclar
+from app.services.fiscal.cadastro.tributacao import FiscalEfetivo, mesclar
 
 
 def _fonte(**campos) -> SimpleNamespace:

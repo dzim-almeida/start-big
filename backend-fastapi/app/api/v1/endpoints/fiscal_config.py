@@ -18,9 +18,9 @@ from app.db.crud import fiscal as fiscal_crud
 from app.schemas.fiscal.emissao import DiagnosticoPlataforma, EnvioPlataforma, FiscalConfiguracao
 from app.schemas.fiscal.perfil_tributario import PerfilTributarioCreate, PerfilTributarioListItem, PerfilTributarioRead, PerfilTributarioUpdate
 from app.schemas.fiscal.tributacao import RegraNcmRead, RegraNcmUpsert, TributacaoPadraoRead, TributacaoPadraoUpdate
-from app.services.fiscal import perfil_tributario as perfil_tributario_service
+from app.services.fiscal.cadastro import perfil_tributario as perfil_tributario_service
 from app.services.fiscal.helpers import dias_para_vencer_certificado, e_csc_mascarado, mascarar_csc, obter_csc_token
-from app.services.fiscal.payload_builder import _so_digitos
+from app.services.fiscal.payload.builder import _so_digitos
 from app.schemas.empresa import FiscalSettingsUpdate
 from app.services.empresa import update_fiscal_settings, upload_certificado_focus
 from fastapi import UploadFile, File, Form
@@ -501,6 +501,6 @@ def reconferir_certificado_endpoint(
     *,
     db: Session = Depends(get_db),
 ):
-    from app.services.fiscal.certificado import reconferir_certificado
+    from app.services.fiscal.configuracao.certificado import reconferir_certificado
 
     return _handle_db_transaction(db, reconferir_certificado, user_token["empresa_id"])

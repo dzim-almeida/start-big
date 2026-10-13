@@ -56,7 +56,7 @@ def test_grava_documento_a_documento(fabrica, monkeypatch):
     consultado. Com um commit só no fim, a escrita ficaria aberta durante
     todas as consultas — e no SQLite isso trava a venda no caixa.
     """
-    from app.services.fiscal import reconciliacao
+    from app.services.fiscal.emissoes import reconciliacao as reconciliacao
 
     db = fabrica()
     _semear(db, "venda-1", "venda-2")
@@ -81,7 +81,7 @@ def test_grava_documento_a_documento(fabrica, monkeypatch):
 
 def test_falha_no_meio_desfaz_so_aquele_documento(fabrica, monkeypatch):
     """A consulta que quebra no meio não deixa estado parcial para o próximo commit levar."""
-    from app.services.fiscal import reconciliacao
+    from app.services.fiscal.emissoes import reconciliacao as reconciliacao
 
     db = fabrica()
     _semear(db, "venda-1", "venda-2")
@@ -114,7 +114,7 @@ def test_no_boot_espera_e_roda_uma_vez_fora_do_loop(monkeypatch):
 
     monkeypatch.setattr(tarefas.asyncio, "sleep", dormir)
     monkeypatch.setattr(
-        "app.services.fiscal.reconciliacao.reconciliar_no_startup",
+        "app.services.fiscal.emissoes.reconciliacao.reconciliar_no_startup",
         lambda: chamadas.append("rodou"),
     )
 

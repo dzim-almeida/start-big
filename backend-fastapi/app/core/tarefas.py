@@ -253,7 +253,7 @@ async def _reconciliar_fiscal_apos_boot():
     o boot nem o caixa podem esperar por elas. Loja sem nota pendente não faz
     chamada nenhuma. Nunca levanta — `reconciliar_no_startup` engole e loga.
     """
-    from app.services.fiscal.reconciliacao import reconciliar_no_startup
+    from app.services.fiscal.emissoes.reconciliacao import reconciliar_no_startup
 
     await asyncio.sleep(ESPERA_RECONCILIACAO_FISCAL_SEGUNDOS)
     await asyncio.to_thread(reconciliar_no_startup)

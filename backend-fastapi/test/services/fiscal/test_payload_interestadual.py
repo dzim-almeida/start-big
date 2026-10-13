@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 
 from app.db.models.cliente import ClientePF
-from app.services.fiscal.payload_builder import montar_payload_nfe
+from app.services.fiscal.payload.builder import montar_payload_nfe
 from app.services.fiscal.tax_engine.engine import calcular_impostos
 from app.services.fiscal.tax_engine.types import DadosNota, ItemEntrada
 

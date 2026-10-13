@@ -13,7 +13,7 @@ from app.db.models.servico import Servico
 from app.db.models.servico_fiscal import ServicoFiscal
 from app.db.models.forma_pagamento import FormaPagamento
 from app.schemas.fiscal.documento import PendenciaGlobalItem, PendenciasGlobais
-from app.services.fiscal.verificacao import _verificar_emitente
+from app.services.fiscal.completude.verificacao import _verificar_emitente
 from app.services.fiscal.helpers import aviso_certificado, dias_para_vencer_certificado
 from app.db.crud import fiscal as fiscal_crud
 
@@ -114,7 +114,7 @@ def _avisos_do_emitente(db, empresa_id: int) -> list[str]:
 
     # Natureza MEI × regime: custou três números ao primeiro cliente em produção
     # (Rejeição 481, 06/10/2026). Aviso e não pendência — ver `fiscal/avisos.py`.
-    from app.services.fiscal.avisos import aviso_regime_mei
+    from app.services.fiscal.cadastro.avisos import aviso_regime_mei
 
     aviso_mei = aviso_regime_mei(empresa)
     if aviso_mei:

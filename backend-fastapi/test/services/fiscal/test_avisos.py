@@ -8,7 +8,7 @@ import pytest
 
 from app.db.models.cliente import ClientePF, ClientePJ
 from app.db.models.empresa import Empresa
-from app.services.fiscal.avisos import (
+from app.services.fiscal.cadastro.avisos import (
     aviso_destinatario_sem_ie,
     aviso_regime_mei,
     avisos_da_emissao,

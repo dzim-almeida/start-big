@@ -24,7 +24,7 @@ from app.schemas.vendas import VendaNotaFiscalRead, VendaNotaFiscalUpdate
 from app.schemas.vendas import VendaCorrecaoFiscalPayload, VendaCorrecaoFiscalRead
 from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal, ResultadoVerificacaoBatch
 from app.services.venda import nota_fiscal as venda_nota_fiscal_service
-from app.services.fiscal import verificacao as verificacao_fiscal_service
+from app.services.fiscal.completude import verificacao as verificacao_fiscal_service
 from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,

@@ -15,7 +15,7 @@ from app.db.models.empresa import Empresa
 from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.tributacao import RegraTributariaNcm, TributacaoPadrao
-from app.services.fiscal.validators import verificar_produto_fiscal
+from app.services.fiscal.completude.validators import verificar_produto_fiscal
 
 TEST_USER_EMAIL = "teste.funcionario@example.com"
 TEST_USER_PASSWORD = "senhaSegura456"
@@ -127,7 +127,7 @@ def test_produto_continua_podendo_discordar_da_loja(db_session, produto_so_com_n
     fiscal.cfop_padrao = "6102"  # venda interestadual
     db_session.commit()
 
-    from app.services.fiscal.tributacao import fiscal_efetivo
+    from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
 
     efetivo = fiscal_efetivo(db_session, produto_so_com_ncm)
     assert efetivo.cfop_padrao == "6102"

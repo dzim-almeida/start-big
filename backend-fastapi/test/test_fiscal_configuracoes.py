@@ -748,7 +748,7 @@ def test_instabilidade_da_plataforma_nao_vira_recusa(monkeypatch):
 
 def test_emitente_sem_endereco_vai_sem_o_bloco():
     from app.db.models.empresa import Empresa
-    from app.services.fiscal.ativacao import montar_emitente_para_ativacao
+    from app.services.fiscal.configuracao.ativacao import montar_emitente_para_ativacao
 
     empresa = Empresa(id=1, documento="58.348.941/0001-09", razao_social="X", regime_tributario="MEI", crt=4)
     emitente = montar_emitente_para_ativacao(empresa, None, None)

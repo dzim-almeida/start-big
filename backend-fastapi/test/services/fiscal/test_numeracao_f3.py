@@ -19,8 +19,8 @@ from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.schemas.empresa import FiscalSettingsUpdate
 from app.services.empresa import update_fiscal_settings
-from app.services.fiscal.inutilizacao import listar_gaps_numeracao, solicitar_inutilizacao
-from app.services.fiscal.numeracao import (
+from app.services.fiscal.eventos.inutilizacao import listar_gaps_numeracao, solicitar_inutilizacao
+from app.services.fiscal.emissoes.numeracao import (
     ajustar_numeracao_por_duplicidade,
     ler_chave_da_mensagem,
     validar_novo_ultimo_numero,

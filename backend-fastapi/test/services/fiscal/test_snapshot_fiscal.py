@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 
 from app.db.models.documento_fiscal import DocumentoFiscal
-from app.services.fiscal.snapshot import gravar_snapshot, montar_itens_snapshot
+from app.services.fiscal.emissoes.snapshot import gravar_snapshot, montar_itens_snapshot
 
 
 def _payload(**item_extra):

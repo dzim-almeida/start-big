@@ -101,7 +101,7 @@ def campos_fiscais_produto(
     cadastro incompleto que ninguém consegue explicar.
     """
     from app.db.crud import fiscal as crud
-    from app.services.fiscal.campos_produto import mapa_campos_da_empresa
+    from app.services.fiscal.cadastro.campos_produto import mapa_campos_da_empresa
 
     empresa = crud.get_empresa(db, user_token["empresa_id"])
     return mapa_campos_da_empresa(empresa)
@@ -260,8 +260,8 @@ def validar_produto_fiscal(
 
     from app.db.crud.fiscal import tributacao as tributacao_crud
     from app.services.fiscal.helpers import obter_crt, usa_csosn
-    from app.services.fiscal.tributacao import mesclar
-    from app.services.fiscal.validators import conferir_fiscal_do_produto
+    from app.services.fiscal.cadastro.tributacao import mesclar
+    from app.services.fiscal.completude.validators import conferir_fiscal_do_produto
 
     empresa_id = user_token["empresa_id"]
     empresa = fiscal_crud.get_empresa(db, empresa_id)

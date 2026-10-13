@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db, requer_modulo_fiscal, _handle_db_transaction
 from app.schemas.fiscal.documento import DocumentoFiscalRead
 from app.schemas.fiscal.emissao import EmissaoBatchResponse, EmissaoDevolucaoRequest, EmissaoNFeBatchRequest, EmissaoNFCeRequest, EmissaoNFeRequest, EmissaoResponse
-from app.services.fiscal import documento as documento_fiscal_service
+from app.services.fiscal.documentos import consultas as documento_fiscal_service
 from app.core.modulos import requer_modulo
 from app.schemas.fiscal.emissao import EmissaoPreviewResponse
 
@@ -43,7 +43,7 @@ def reemitir_documento(
     documento_id: int = Path(..., ge=1, description="ID do documento fiscal"),
 ):
     from app.services.fiscal.emissao import poll_nfe_status_async
-    from app.services.fiscal.reemissao import reemitir_documento as _reemitir
+    from app.services.fiscal.emissoes.reemissao import reemitir_documento as _reemitir
 
     doc = _handle_db_transaction(db, _reemitir, documento_id, user_token["empresa_id"])
 
@@ -281,7 +281,7 @@ def emitir_devolucao(
     documento_id: int = Path(..., ge=1, description="ID da nota de origem (autorizada)"),
     payload: EmissaoDevolucaoRequest = Body(...),
 ):
-    from app.services.fiscal.devolucao import emitir_devolucao as _emitir
+    from app.services.fiscal.eventos.devolucao import emitir_devolucao as _emitir
     from app.services.fiscal.emissao import poll_nfe_status_async
 
     doc = _handle_db_transaction(

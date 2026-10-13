@@ -23,7 +23,7 @@ from app.core.validators import validar_cnpj, validar_cpf
 from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.endereco import Endereco
-from app.services.fiscal.payload_builder import montar_payload_teste_nfe
+from app.services.fiscal.payload.builder import montar_payload_teste_nfe
 
 
 @pytest.fixture

@@ -17,9 +17,9 @@ from app.db.models.produto_embalagem import ProdutoEmbalagem
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
-from app.services.fiscal.embalagem_nota import conferir_valores_do_item
-from app.services.fiscal.payload_builder import _montar_itens, _montar_itens_devolucao
-from app.services.fiscal.snapshot import montar_itens_snapshot
+from app.services.fiscal.emissoes.embalagem_nota import conferir_valores_do_item
+from app.services.fiscal.payload.builder import _montar_itens, _montar_itens_devolucao
+from app.services.fiscal.emissoes.snapshot import montar_itens_snapshot
 
 GTIN_UNIDADE = "7891234567895"
 DUN_FARDO = "17891234567892"

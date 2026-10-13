@@ -17,8 +17,8 @@ from app.db.models.endereco import Endereco
 from app.db.models.funcionario import Funcionario
 from app.db.models.venda import Venda
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
-from app.services.fiscal.core import verificar_completude_venda
-from app.services.fiscal.validators import verificar_ie_destinatario_interestadual
+from app.services.fiscal.completude.core import verificar_completude_venda
+from app.services.fiscal.completude.validators import verificar_ie_destinatario_interestadual
 
 
 def _pj(ie) -> ClientePJ:

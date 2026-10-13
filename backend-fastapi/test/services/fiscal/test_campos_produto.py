@@ -8,7 +8,7 @@
 # Ver `docs/cadastro-produto-plano.md`, §2.B7 e D6b.
 # ---------------------------------------------------------------------------
 
-from app.services.fiscal.campos_produto import mapa_campos_produto
+from app.services.fiscal.cadastro.campos_produto import mapa_campos_produto
 from app.services.fiscal.helpers import (
     CRT_MEI,
     CRT_REGIME_NORMAL,

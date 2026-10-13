@@ -14,8 +14,8 @@ from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.regra_perfil_tributario import RegraPerfilTributario
 from app.schemas.fiscal.produto import ProdutoFiscalRead, ProdutoFiscalUpdate
-from app.services.fiscal import perfil_tributario as perfil_service
-from app.services.fiscal import produto as service
+from app.services.fiscal.cadastro import perfil_tributario as perfil_service
+from app.services.fiscal.cadastro import produto as service
 
 
 @pytest.fixture
@@ -146,7 +146,7 @@ def test_apagar_perfil_direto_no_banco_seta_null_no_produto(db_session, cenario)
 def test_fiscal_efetivo_carrega_o_perfil_do_produto_sem_cascata():
     """`perfil_tributario_id` desce para o efetivo como campo do produto; NCM e padrão não opinam."""
     from types import SimpleNamespace
-    from app.services.fiscal.tributacao import mesclar
+    from app.services.fiscal.cadastro.tributacao import mesclar
 
     produto = SimpleNamespace(ncm="85171200", perfil_tributario_id=7)
     padrao = SimpleNamespace(csosn="102", perfil_tributario_id=99)  # nunca lido

@@ -12,7 +12,7 @@ import pytest
 
 from app.services.fiscal.http.client_mock import FiscalClientMock
 from app.services.fiscal.http.client_startbig import FiscalClientStartBig
-from app.services.fiscal.tributos_xml import extrair_valor_tributos
+from app.services.fiscal.payload.tributos_xml import extrair_valor_tributos
 
 
 NS = 'xmlns="http://www.portalfiscal.inf.br/nfe"'
@@ -337,7 +337,7 @@ def test_resumo_por_tipo_nao_mistura_modelos():
 
     from app.db.base import Base
     from app.db.models.documento_fiscal import DocumentoFiscal
-    from app.services.fiscal.documento import obter_resumo
+    from app.services.fiscal.documentos.consultas import obter_resumo
 
     engine = create_engine(
         "sqlite:///:memory:",

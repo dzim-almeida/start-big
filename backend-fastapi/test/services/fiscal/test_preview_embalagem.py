@@ -11,7 +11,8 @@ from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.schemas.fiscal.emissao import EmissaoPreviewResponse
-from app.services.fiscal import emissao, emissao_nfe_venda
+from app.services.fiscal import emissao
+from app.services.fiscal.emissoes import nfe_venda as emissao_nfe_venda
 
 
 def _venda():

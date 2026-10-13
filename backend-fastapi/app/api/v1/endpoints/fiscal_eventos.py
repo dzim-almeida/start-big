@@ -68,7 +68,7 @@ def registrar_carta_correcao(
     documento_id: int = Path(..., ge=1, description="ID da NF-e"),
     payload: CartaCorrecaoRequest = Body(...),
 ):
-    from app.services.fiscal.carta_correcao import emitir_carta_correcao
+    from app.services.fiscal.eventos.carta_correcao import emitir_carta_correcao
 
     carta = _handle_db_transaction(
         db,
@@ -93,7 +93,7 @@ def listar_cartas_correcao(
     db: Session = Depends(get_db),
     documento_id: int = Path(..., ge=1, description="ID da NF-e"),
 ):
-    from app.services.fiscal.carta_correcao import listar_cartas_correcao as _listar
+    from app.services.fiscal.eventos.carta_correcao import listar_cartas_correcao as _listar
 
     return [
         CartaCorrecaoRead.de_registro(c)
@@ -104,8 +104,8 @@ def listar_cartas_correcao(
 def _arquivo_da_carta(db: Session, user_token: dict, carta_id: int, extensao: str):
     """XML ou PDF da carta: disco primeiro; emissora como plano B, guardando."""
     from fastapi.responses import Response
-    from app.services.fiscal.arquivos import guardar_pdf, guardar_xml, ler_pdf, ler_xml
-    from app.services.fiscal.carta_correcao import obter_carta_correcao
+    from app.services.fiscal.documentos.arquivos import guardar_pdf, guardar_xml, ler_pdf, ler_xml
+    from app.services.fiscal.eventos.carta_correcao import obter_carta_correcao
 
     carta = obter_carta_correcao(db, carta_id, user_token["empresa_id"])
     e_pdf = extensao == "pdf"
@@ -182,7 +182,7 @@ def listar_gaps_numeracao(
     *,
     db: Session = Depends(get_db),
 ):
-    from app.services.fiscal.inutilizacao import listar_gaps_numeracao as _gaps
+    from app.services.fiscal.eventos.inutilizacao import listar_gaps_numeracao as _gaps
 
     return _gaps(db, user_token["empresa_id"])
 
@@ -199,7 +199,7 @@ def listar_inutilizacoes(
     db: Session = Depends(get_db),
 ):
 
-    from app.services.fiscal.inutilizacao import listar_inutilizacoes as _listar
+    from app.services.fiscal.eventos.inutilizacao import listar_inutilizacoes as _listar
 
     return _listar(db, user_token["empresa_id"])
 
@@ -218,7 +218,7 @@ def ajustar_numeracao_duplicidade(
     db: Session = Depends(get_db),
     payload: AjusteNumeracaoRequest = Body(...),
 ):
-    from app.services.fiscal.numeracao import ajustar_numeracao_por_duplicidade
+    from app.services.fiscal.emissoes.numeracao import ajustar_numeracao_por_duplicidade
 
     return _handle_db_transaction(
         db, ajustar_numeracao_por_duplicidade,
@@ -241,7 +241,7 @@ def inutilizar_numeracao(
     db: Session = Depends(get_db),
     payload: InutilizacaoRequest = Body(...),
 ):
-    from app.services.fiscal.inutilizacao import solicitar_inutilizacao
+    from app.services.fiscal.eventos.inutilizacao import solicitar_inutilizacao
 
     return _handle_db_transaction(
         db,

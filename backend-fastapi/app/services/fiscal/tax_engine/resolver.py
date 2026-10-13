@@ -27,7 +27,7 @@ from app.services.fiscal.derivacao.cfop import (
     derivar_cfop_operacao,
 )
 from app.services.fiscal.derivacao.situacao import derivar_situacao_operacao
-from app.services.fiscal.tributacao import fiscal_efetivo
+from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
 from app.db.models.venda import Venda
 
 from .constants import (

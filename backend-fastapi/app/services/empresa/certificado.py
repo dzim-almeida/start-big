@@ -111,7 +111,7 @@ def upload_certificado_focus(
     from app.services.fiscal.http import get_fiscal_client
     from app.db.crud import fiscal as fiscal_crud
 
-    from app.services.fiscal.ativacao import contato_da_empresa, montar_emitente_para_ativacao
+    from app.services.fiscal.configuracao.ativacao import contato_da_empresa, montar_emitente_para_ativacao
 
     settings_fiscais = get_or_create_fiscal_settings(db, empresa_id)
 

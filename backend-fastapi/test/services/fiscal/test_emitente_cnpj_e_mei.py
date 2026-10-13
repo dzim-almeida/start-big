@@ -18,8 +18,8 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.db.models.empresa import Empresa
 from app.services.fiscal.helpers import CRT_MEI, CRT_SIMPLES_NACIONAL, crt_efetivo
-from app.services.fiscal.payload_builder import _so_digitos
-from app.services.fiscal.validators import verificar_emitente
+from app.services.fiscal.payload.builder import _so_digitos
+from app.services.fiscal.completude.validators import verificar_emitente
 
 
 @pytest.fixture

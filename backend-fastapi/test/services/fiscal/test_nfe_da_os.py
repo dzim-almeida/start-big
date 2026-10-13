@@ -12,7 +12,7 @@
 import pytest
 
 from app.core.enum import OrdemServicoItemAprovacao, OrdemServicoItemTipo
-from app.services.fiscal.adaptador_os import adaptar, itens_de_produto
+from app.services.fiscal.emissoes.adaptador_os import adaptar, itens_de_produto
 
 
 class _Forma:

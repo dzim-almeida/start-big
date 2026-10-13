@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from app.db.models.empresa import Empresa
 from app.db.models.regra_perfil_tributario import RegraPerfilTributario
 from app.schemas.fiscal.perfil_tributario import PerfilTributarioCreate
-from app.services.fiscal import perfil_tributario as service
+from app.services.fiscal.cadastro import perfil_tributario as service
 
 
 @pytest.fixture

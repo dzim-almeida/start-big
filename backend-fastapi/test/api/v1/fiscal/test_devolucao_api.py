@@ -28,8 +28,8 @@ DESTINATARIO = {
 @pytest.fixture(autouse=True)
 def _mock_da_emissora(monkeypatch):
     mock = FiscalClientMock(delay=0)
-    monkeypatch.setattr("app.services.fiscal.devolucao.get_fiscal_client", lambda *a, **k: mock)
-    monkeypatch.setattr("app.services.fiscal.devolucao.crud.get_licenca_token", lambda _db: "tok")
+    monkeypatch.setattr("app.services.fiscal.eventos.devolucao.get_fiscal_client", lambda *a, **k: mock)
+    monkeypatch.setattr("app.services.fiscal.eventos.devolucao.crud.get_licenca_token", lambda _db: "tok")
 
 
 @pytest.fixture

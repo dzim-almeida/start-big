@@ -96,9 +96,10 @@ def plataforma(monkeypatch):
     o patch vai em todos, senão a NFC-e ou o cancelamento falariam com a
     plataforma de verdade.
     """
-    from app.services.fiscal import (
-        emissao_eventos, emissao_nfce, emissao_nfe_os, emissao_nfe_venda, emissao_teste,
+    from app.services.fiscal.emissoes import (
+        nfce as emissao_nfce, nfe_os as emissao_nfe_os, nfe_venda as emissao_nfe_venda, teste as emissao_teste,
     )
+    from app.services.fiscal.eventos import consulta_cancelamento as emissao_eventos
 
     caixa = {}
 
@@ -415,7 +416,7 @@ def test_pacote_de_xml_do_periodo(client, db_session, header_with_token, venda_p
     """Autorizada vai para NFe/, o CSV relaciona, e o ZIP sai mesmo que um XML não venha."""
     from datetime import date
 
-    from app.services.fiscal import exportacao_xml as exp_mod
+    from app.services.fiscal.documentos import exportacao_xml as exp_mod
 
     venda_id, _ = venda_pronta
     falsa = plataforma(AUTORIZADA(11))
@@ -462,7 +463,7 @@ def test_pacote_lista_o_que_nao_veio_sem_derrubar_o_resto(
 ):
     from datetime import date
 
-    from app.services.fiscal import exportacao_xml as exp_mod
+    from app.services.fiscal.documentos import exportacao_xml as exp_mod
 
     venda_id, _ = venda_pronta
     falsa = plataforma(AUTORIZADA(11))
@@ -504,7 +505,7 @@ def test_pacote_recusa_periodo_invertido(client, header_with_token, venda_pronta
 def test_pacote_nao_inclui_rejeitada(client, db_session, header_with_token, venda_pronta, plataforma):
     from datetime import date
 
-    from app.services.fiscal import exportacao_xml as exp_mod
+    from app.services.fiscal.documentos import exportacao_xml as exp_mod
 
     venda_id, _ = venda_pronta
     falsa = plataforma(REJEITADA_539)

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db, requer_modulo_fiscal, _handle_db_transaction
 from app.db.crud import fiscal as fiscal_crud
 from app.schemas.fiscal.documento import DocumentoFiscalHistorico, DocumentoFiscalListRead, DocumentoFiscalRead, DocumentoFiscalResumo, PendenciasGlobais
-from app.services.fiscal import documento as documento_fiscal_service
+from app.services.fiscal.documentos import consultas as documento_fiscal_service
 from app.services import pendencias_globais as pendencias_globais_service
 
 # Sem `dependencies`: a trava do módulo NFE é herdada do router de `fiscal.py`.
@@ -126,7 +126,7 @@ def exportar_xml_periodo(
     tipo: Optional[str] = Query(None, description="NFE ou NFCE; vazio = os dois"),
 ):
     from fastapi.responses import Response
-    from app.services.fiscal.exportacao_xml import montar_pacote_xml
+    from app.services.fiscal.documentos.exportacao_xml import montar_pacote_xml
 
     if data_fim < data_inicio:
         raise HTTPException(status_code=422, detail="data_fim anterior a data_inicio.")
@@ -221,7 +221,7 @@ def baixar_xml_documento(
     db: Session = Depends(get_db),
 ):
     from fastapi.responses import Response
-    from app.services.fiscal.arquivos import obter_xml
+    from app.services.fiscal.documentos.arquivos import obter_xml
 
     doc = fiscal_crud.get_documento_fiscal(db, documento_id)
     if doc is None:
@@ -261,7 +261,7 @@ def baixar_pdf_documento(
     db: Session = Depends(get_db),
 ):
     from fastapi.responses import Response
-    from app.services.fiscal.arquivos import guardar_pdf, ler_pdf
+    from app.services.fiscal.documentos.arquivos import guardar_pdf, ler_pdf
 
     doc = fiscal_crud.get_documento_fiscal(db, documento_id)
     if doc is None:
@@ -308,7 +308,7 @@ def sincronizar_arquivos_fiscais(
     limite: int = Query(200, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    from app.services.fiscal.arquivos import sincronizar_pendentes
+    from app.services.fiscal.documentos.arquivos import sincronizar_pendentes
 
     def _sincronizar(db_: Session):
         cliente = _cliente_fiscal(db_, user_token["empresa_id"])

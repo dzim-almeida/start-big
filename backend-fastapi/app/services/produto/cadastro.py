@@ -10,7 +10,7 @@ from app.schemas.produto import ProdutoCreate, ProdutoSimpleRead, ProdutoUpdate
 from app.db.models.produto import Produto as ProdutoModel
 from app.db.models.estoque import Estoque as EstoqueModel
 from app.db.crud import produto as produto_crud
-from app.services.fiscal import produto as produto_fiscal_service
+from app.services.fiscal.cadastro import produto as produto_fiscal_service
 from app.core.enum import MovimentacaoTipo, MovimentacaoOrigem
 from app.services.produto.embalagem import codigo_de_produto_livre, embalagens_ligadas
 from app.services.produto.movimentacao import registrar_movimentacao

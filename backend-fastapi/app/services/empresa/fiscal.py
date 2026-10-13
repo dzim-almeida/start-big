@@ -91,7 +91,7 @@ def update_fiscal_settings(
     # Voltar o contador para trás de uma nota deste sistema repetiria o número
     # (Rejeição 204/539, número gasto). Confere com a série que vai valer.
     if update_dict.keys() & CAMPOS_QUE_CONFIRMAM_NUMERACAO:
-        from app.services.fiscal.numeracao import validar_novo_ultimo_numero
+        from app.services.fiscal.emissoes.numeracao import validar_novo_ultimo_numero
 
         for tipo, campo_serie, campo_ultimo in (
             ("NFE", "serie_nfe", "ultimo_numero_nfe"),

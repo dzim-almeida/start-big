@@ -38,7 +38,7 @@ from app.schemas.fiscal.emissao import (
     ItemDevolucaoRequest,
 )
 from app.services.fiscal.derivacao.cfop import cfop_devolucao
-from app.services.fiscal.devolucao import emitir_devolucao
+from app.services.fiscal.eventos.devolucao import emitir_devolucao
 from app.services.fiscal.http.client_mock import FiscalClientMock
 
 EMPRESA_ID = 1
@@ -129,8 +129,8 @@ class ClientEspiao(FiscalClientMock):
 @pytest.fixture
 def client(monkeypatch):
     espiao = ClientEspiao()
-    monkeypatch.setattr("app.services.fiscal.devolucao.get_fiscal_client", lambda *a, **k: espiao)
-    monkeypatch.setattr("app.services.fiscal.devolucao.crud.get_licenca_token", lambda _db: "tok")
+    monkeypatch.setattr("app.services.fiscal.eventos.devolucao.get_fiscal_client", lambda *a, **k: espiao)
+    monkeypatch.setattr("app.services.fiscal.eventos.devolucao.crud.get_licenca_token", lambda _db: "tok")
     return espiao
 
 

@@ -110,14 +110,14 @@ def _campos(pendencias):
 
 
 def test_gate_nao_barra_certificado_prestes_a_vencer(db):
-    from app.services.fiscal.validators import verificar_emitente
+    from app.services.fiscal.completude.validators import verificar_emitente
 
     _empresa_completa(db, _daqui(5))
     assert "certificado" not in _campos(verificar_emitente(db, 1))
 
 
 def test_gate_barra_certificado_vencido_e_diz_a_data(db):
-    from app.services.fiscal.validators import verificar_emitente
+    from app.services.fiscal.completude.validators import verificar_emitente
 
     _empresa_completa(db, _daqui(-1))
     pendencias = verificar_emitente(db, 1)
@@ -128,7 +128,7 @@ def test_gate_barra_certificado_vencido_e_diz_a_data(db):
 
 def test_gate_sem_validade_conhecida_nao_barra(db):
     """O certificado vive na plataforma; sem validade aqui, não há o que barrar."""
-    from app.services.fiscal.validators import verificar_emitente
+    from app.services.fiscal.completude.validators import verificar_emitente
 
     _empresa_completa(db, None)
     assert "certificado" not in _campos(verificar_emitente(db, 1))

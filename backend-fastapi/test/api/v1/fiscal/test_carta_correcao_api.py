@@ -17,9 +17,9 @@ CORRECAO = "Corrigido o complemento do endereço do destinatário: sala 302."
 def _mock_da_emissora(monkeypatch):
     mock = FiscalClientMock(delay=0)
     monkeypatch.setattr(
-        "app.services.fiscal.carta_correcao.get_fiscal_client", lambda *a, **k: mock,
+        "app.services.fiscal.eventos.carta_correcao.get_fiscal_client", lambda *a, **k: mock,
     )
-    monkeypatch.setattr("app.services.fiscal.carta_correcao.crud.get_licenca_token", lambda _db: "tok")
+    monkeypatch.setattr("app.services.fiscal.eventos.carta_correcao.crud.get_licenca_token", lambda _db: "tok")
 
 
 def _nfe(db: Session, tipo="NFE") -> DocumentoFiscal:

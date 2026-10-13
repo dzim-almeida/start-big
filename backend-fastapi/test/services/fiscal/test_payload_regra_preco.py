@@ -10,7 +10,7 @@ from app.db.models.produto import Produto
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
-from app.services.fiscal.payload_builder import _montar_itens
+from app.services.fiscal.payload.builder import _montar_itens
 
 
 def _produto():

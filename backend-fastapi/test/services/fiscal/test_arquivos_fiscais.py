@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pytest
 
-from app.services.fiscal import arquivos
+from app.services.fiscal.documentos import arquivos as arquivos
 
 
 CHAVE = "35260911222333000181550010000000041234567890"

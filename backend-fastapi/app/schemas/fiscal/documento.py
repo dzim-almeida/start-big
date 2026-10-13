@@ -123,7 +123,7 @@ class DocumentoFiscalRead(BaseModel):
         front sabia). Só para REJEITADA/DENEGADA — nos outros status não há o
         que explicar. Campo novo: terminal com front antigo simplesmente ignora.
         """
-        from app.services.fiscal.diagnostico_sefaz import STATUS_COM_DIAGNOSTICO, diagnosticar
+        from app.services.fiscal.emissoes.diagnostico_sefaz import STATUS_COM_DIAGNOSTICO, diagnosticar
 
         if self.status not in STATUS_COM_DIAGNOSTICO:
             return None

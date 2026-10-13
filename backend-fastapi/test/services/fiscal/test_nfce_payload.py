@@ -23,7 +23,7 @@ from app.services.fiscal.emissao import (
     _documento_do_consumidor,
 )
 from app.services.fiscal.helpers import cifrar_csc_token, obter_csc_token
-from app.services.fiscal.payload_builder import (
+from app.services.fiscal.payload.builder import (
     _montar_destinatario_nfce,
     expurgar_nulos,
     montar_payload_nfce,

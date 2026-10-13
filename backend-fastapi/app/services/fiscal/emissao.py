@@ -20,7 +20,7 @@
 
 from app.db.crud import fiscal as crud  # noqa: F401 — testes fazem patch em `emissao.crud.*`
 
-from app.services.fiscal.emissao_nucleo import (  # noqa: F401
+from app.services.fiscal.emissoes.nucleo import (  # noqa: F401
     STATUS_CONSULTAVEIS,
     STATUS_NAO_TRANSMITIDA,
     _fiscais_efetivos,
@@ -30,13 +30,13 @@ from app.services.fiscal.emissao_nucleo import (  # noqa: F401
     _obter_fiscal_settings,
     _avisos,
 )
-from app.services.fiscal.emissao_nfe_venda import (  # noqa: F401
+from app.services.fiscal.emissoes.nfe_venda import (  # noqa: F401
     _preparar_dados_emissao,
     preview_nfe_venda,
     emitir_nfe_venda,
     emitir_nfe_batch,
 )
-from app.services.fiscal.emissao_nfce import (  # noqa: F401
+from app.services.fiscal.emissoes.nfce import (  # noqa: F401
     preview_nfce_venda,
     _reais,
     _documento_do_consumidor,
@@ -45,12 +45,12 @@ from app.services.fiscal.emissao_nfce import (  # noqa: F401
     _completar_tributos_pelo_xml,
     emitir_nfce_venda,
 )
-from app.services.fiscal.emissao_nfe_os import (  # noqa: F401
+from app.services.fiscal.emissoes.nfe_os import (  # noqa: F401
     _preparar_dados_emissao_os,
     preview_nfe_os,
     emitir_nfe_os,
 )
-from app.services.fiscal.emissao_eventos import (  # noqa: F401
+from app.services.fiscal.eventos.consulta_cancelamento import (  # noqa: F401
     consultar_documento,
     poll_nfe_status_async,
     JANELA_CANCELAMENTO_NFE,
@@ -62,6 +62,6 @@ from app.services.fiscal.emissao_eventos import (  # noqa: F401
     cancelar_documento,
     obter_historico_tentativas,
 )
-from app.services.fiscal.emissao_teste import (  # noqa: F401
+from app.services.fiscal.emissoes.teste import (  # noqa: F401
     emitir_teste_nfe,
 )

@@ -26,7 +26,7 @@ from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.venda import Venda
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
 from app.db.models.venda_produto import ProdutoVenda
-from app.services.fiscal.payload_builder import (
+from app.services.fiscal.payload.builder import (
     SEM_GTIN,
     _codigo_barras_para_sefaz,
     _gtin_valido,
@@ -36,7 +36,7 @@ from app.services.fiscal.payload_builder import (
 )
 from app.services.fiscal.tax_engine.exceptions import OperacaoInterestadualError
 from app.services.fiscal.tax_engine.resolver import resolver_aliquotas_venda
-from app.services.fiscal.validators import (
+from app.services.fiscal.completude.validators import (
     _exige_cest,
     verificar_endereco_destinatario,
     verificar_produto_fiscal,
