@@ -1,13 +1,12 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: endereco.py
-# DESCRIÇÃO: Schemas Pydantic para validação de dados de Endereço.
-#            Define as estruturas de entrada (Endereco), saída (EnderecoRead)
-#            e atualização (EnderecoUpdate).
+# ARQUIVO: schemas/endereco/entrada.py
+# DESCRICAO: Schemas de endereco - entrada (criar e atualizar).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from app.core.enum import State  # Importa o Enum de Estados (UF)
+
 
 # =========================
 # Schema Pydantic: Endereco (Base/Criação)
@@ -32,33 +31,6 @@ class Endereco(BaseModel):
         from_attributes=True
     )
 
-
-# =========================
-# Schema Pydantic: EnderecoRead (Leitura/Resposta)
-# =========================
-class EnderecoRead(Endereco):
-    """
-    Schema para formatar a resposta da API de um Endereço.
-    Herda todos os campos de 'Endereco' e adiciona os campos
-    gerados pelo banco de dados (como 'id' e 'id_entidade').
-    """
-    # Campo 'id' do próprio endereço
-    id: int = Field(
-        ...,
-        description="ID do endereço"
-    )
-    
-    # Campo 'id_entidade' da relação polimórfica
-    id_entidade: int = Field(
-        ...,
-        description="ID da entidade (ex: Cliente ID) à qual o endereço pertence"
-    )
-    
-    # Campo 'tipo_entidade' da relação polimórfica
-    tipo_entidade: str = Field( # Nota: Poderia usar o Enum EntityType aqui
-        ...,
-        description="Tipo da entidade (ex: CLIENTE, FORNECEDOR)"
-    )
 
 # =========================
 # Schema Pydantic: EnderecoUpdate (Atualização)

@@ -1,17 +1,16 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/endereco.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Endereços.
-#            Contém funções utilitárias para criação e atualização
-#            de endereços polimórficos, usados por outras entidades (Empresa, Funcionario).
+# ARQUIVO: services/endereco/escrita.py
+# DESCRICAO: Endereco - criar, atualizar e apagar os enderecos de uma entidade.
 # ---------------------------------------------------------------------------
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-
 from app.schemas.endereco import Endereco, EnderecoUpdate # Importa os schemas Pydantic
 from app.db.models.endereco import Endereco as EnderecoModel # Importa o modelo SQLAlchemy
 from app.core.enum import State, EntityType # Importa os Enums necessários
 from app.db.crud import endereco as address_crud
+
 
 # =========================
 # Função Utilitária: Converter Schema Pydantic para Modelo ORM
