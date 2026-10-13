@@ -1,8 +1,7 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/venda_correcao_fiscal.py
-# DESCRIÇÃO: Schema Pydantic para correção cadastral e fiscal de uma venda.
-#            Permite atualizar cliente, observações e dados fiscais em vendas
-#            ativas ou finalizadas, sem impactar estoque ou financeiro.
+# ARQUIVO: schemas/vendas/correcao_fiscal.py
+# DESCRICAO: Schemas da venda - correcao fiscal.
+# Era schemas/venda_correcao_fiscal.py ate 13/10/2026.
 # ---------------------------------------------------------------------------
 
 from typing import Optional

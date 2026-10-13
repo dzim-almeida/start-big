@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/venda_nota_fiscal.py
+# ARQUIVO: db/crud/venda/nota_fiscal.py (era db/crud/venda_nota_fiscal.py ate 13/10/2026)
 # DESCRIÇÃO: Operações CRUD para a tabela venda_nota_fiscal.
 # ---------------------------------------------------------------------------
 
@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
-from app.schemas.venda_nota_fiscal import VendaNotaFiscalUpdate
+from app.schemas.vendas import VendaNotaFiscalUpdate
 
 
 def get_by_venda_id(db: Session, venda_id: int) -> Optional[VendaNotaFiscal]:

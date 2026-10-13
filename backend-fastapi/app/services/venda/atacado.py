@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/venda_atacado.py
+# ARQUIVO: services/venda/atacado.py (era services/venda_atacado.py ate 13/10/2026)
 # MÓDULO: Service — Venda no preço de atacado
 # ---------------------------------------------------------------------------
 """

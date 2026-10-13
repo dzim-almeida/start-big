@@ -1,12 +1,12 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/venda_nota_fiscal.py
-# DESCRIÇÃO: Schemas Pydantic para leitura e atualização de nota fiscal por venda.
+# ARQUIVO: schemas/vendas/nota_fiscal.py
+# DESCRICAO: Schemas da venda - dados fiscais.
+# Era schemas/venda_nota_fiscal.py ate 13/10/2026.
 # ---------------------------------------------------------------------------
 
 import re
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 

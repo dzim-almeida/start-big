@@ -20,10 +20,10 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
-from app.schemas.venda_nota_fiscal import VendaNotaFiscalRead, VendaNotaFiscalUpdate
-from app.schemas.venda_correcao_fiscal import VendaCorrecaoFiscalPayload, VendaCorrecaoFiscalRead
+from app.schemas.vendas import VendaNotaFiscalRead, VendaNotaFiscalUpdate
+from app.schemas.vendas import VendaCorrecaoFiscalPayload, VendaCorrecaoFiscalRead
 from app.schemas.verificacao_fiscal import ResultadoVerificacaoFiscal, ResultadoVerificacaoBatch
-from app.services import venda_nota_fiscal as venda_nota_fiscal_service
+from app.services.venda import nota_fiscal as venda_nota_fiscal_service
 from app.services import verificacao_fiscal as verificacao_fiscal_service
 from app.schemas.vendas import (
     ProdutosAlterSummary,

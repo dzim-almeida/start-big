@@ -1,31 +1,21 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: db/crud/venda/consultas.py
+# DESCRICAO: Venda (crud) - buscar venda e item, listar e resumo por status.
+# ---------------------------------------------------------------------------
+
 from sqlalchemy.orm import Session, aliased, joinedload
 from sqlalchemy import select, func, cast, String, extract, nullslast
 from datetime import datetime
-
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.db.models.cliente import ClientePF, ClientePJ
 from app.db.models.funcionario import Funcionario
-
 from app.schemas.vendas import VendaStatusSummary
-
 from app.core.busca import filtro_busca
 from app.core.enum import VendaStatus
-
 from typing import Sequence
 
-def create_sale(db: Session, sale_data: Venda) -> Venda:
-    db.add(sale_data)
-    db.flush()
-    db.refresh(sale_data)
-    return sale_data
-
-def add_product_to_sale(db: Session, product_data: ProdutoVenda) -> ProdutoVenda:
-    db.add(product_data)
-    db.flush()
-    db.refresh(product_data)
-    return product_data
 
 def get_sale_by_id(db: Session, sale_id: int) -> Venda:
     stmt = (
@@ -35,23 +25,11 @@ def get_sale_by_id(db: Session, sale_id: int) -> Venda:
     )
     return db.scalar(stmt)
 
-def update_sale(db: Session, sale: Venda) -> Venda:
-    db.flush()
-    db.refresh(sale)
-    return sale
-
-def update_product_in_sale(db: Session, product: ProdutoVenda) -> ProdutoVenda:
-    db.flush()
-    db.refresh(product)
-    return product
 
 def get_product_by_id(db: Session, item_id: int) -> ProdutoVenda:
     stmt = select(ProdutoVenda).where(ProdutoVenda.id == item_id)
     return db.scalar(stmt)
 
-def remove_product_from_sale(db: Session, product: ProdutoVenda) -> None:
-    db.delete(product)
-    db.flush()
 
 def get_sales_by_search(
     db: Session,
@@ -121,6 +99,7 @@ def get_sales_by_search(
 
     return sales, total 
 
+
 def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaStatusSummary:
     payments_subq = (
         select(
@@ -181,4 +160,3 @@ def get_sales_status(db: Session, funcionario_id: int | None = None) -> VendaSta
         vendas_canceladas=result.cancelada or 0,
         ticket_medio=int(round(ticket_medio)),
     )
- 

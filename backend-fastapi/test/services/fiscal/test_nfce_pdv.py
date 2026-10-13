@@ -12,7 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.db.models.forma_pagamento import FormaPagamento
-from app.schemas.venda_nota_fiscal import VendaNotaFiscalUpdate
+from app.schemas.vendas import VendaNotaFiscalUpdate
 from app.services.fiscal.helpers import (
     cifrar_csc_token,
     e_csc_mascarado,
