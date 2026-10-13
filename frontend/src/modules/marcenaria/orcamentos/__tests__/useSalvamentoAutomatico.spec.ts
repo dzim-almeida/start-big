@@ -106,6 +106,24 @@ describe('useSalvamentoAutomatico', () => {
     expect(patch).toHaveBeenCalledTimes(1);                      // 422 não melhora repetindo
   });
 
+  it('11b — 422 e depois volta ao valor SALVO: o erro some (nada a mandar), remodelação item 8', async () => {
+    const { salvamento } = preparar();
+    const perdaSalva = salvamento.form.perda_bp;               // o que o servidor tem
+    patch.mockRejectedValueOnce(erroApi(422, {
+      codigo: 'CALCULO_INVALIDO', campo: 'perda', mensagem: 'A perda deve ficar entre 0% e 1000%.',
+    }));
+    salvamento.form.perda_bp = 999_999;                          // valor absurdo: o servidor recusa
+    await andar(800);
+    expect(salvamento.estado.value).toBe('invalido');
+    expect(salvamento.errosPorCampo.value.perda).toBeTruthy();
+
+    salvamento.form.perda_bp = perdaSalva;                       // o usuário volta ao valor de antes
+    await andar(800);
+    expect(patch).toHaveBeenCalledTimes(1);                      // igual ao servidor: não manda nada...
+    expect(salvamento.errosPorCampo.value).toEqual({});          // ...mas o erro de antes some
+    expect(salvamento.estado.value).toBe('salvo');
+  });
+
   it('12 — erro de rede: tenta de novo em 2, 5 e 10 s; depois "Tentar agora"', async () => {
     const { salvamento } = preparar();
     patch.mockRejectedValue(erroRede());

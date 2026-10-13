@@ -29,7 +29,10 @@ _CENTESIMOS = Decimal(100)    # 1 hora em centesimos
 
 # --- Limites (os mesmos da Spec 04A §4.1) -----------------------------------
 _MARKUP_MAXIMO_BP = 100_000   # 1000%
-_PERDA_MAXIMA_BP = 5_000      # 50%
+# Perda: era 50%, passou a 1000% (remodelacao item 8). Ha insumo que perde mais
+# que a metade (sobra de chapa em peca pequena), e o teto de 50% recusava o
+# orcamento inteiro. 1000% ainda pega erro de digitacao (ex.: 50000%).
+_PERDA_MAXIMA_BP = 100_000    # 1000%
 _RT_MAXIMO_BP = 3_000         # 30%
 
 # --- Codigos de aviso (§6.7). As telas traduzem o codigo num texto. ---------
@@ -82,7 +85,7 @@ class OrcamentoCalc:
     """O orcamento inteiro, com os parametros copiados da configuracao (Spec 04A)."""
     ambientes: tuple[AmbienteCalc, ...]
     markup_bp: int                   # 0 a 100000
-    perda_bp: int                    # 0 a 5000
+    perda_bp: int                    # 0 a 100000
     custo_hora_centavos: int         # >= 0
     rt_bp: int                       # 0 a 3000
     rt_modo: Literal["MARGEM", "PRECO"]
@@ -222,7 +225,7 @@ def _validar(orcamento: OrcamentoCalc) -> None:
     if orcamento.markup_bp > _MARKUP_MAXIMO_BP:
         raise ValueError("O markup deve ficar entre 0% e 1000%.")
     if orcamento.perda_bp > _PERDA_MAXIMA_BP:
-        raise ValueError("A perda deve ficar entre 0% e 50%.")
+        raise ValueError("A perda deve ficar entre 0% e 1000%.")
     if orcamento.rt_bp > _RT_MAXIMO_BP:
         raise ValueError("O RT deve ficar entre 0% e 30%.")
     if orcamento.rt_modo not in ("MARGEM", "PRECO"):

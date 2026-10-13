@@ -58,7 +58,7 @@ def test_35_desconto_maior_que_o_bruto_aponta_o_campo(api, cenario):
 @pytest.mark.parametrize("corpo, campo", [
     ({"sinal": {"modo": "PERCENTUAL", "valor": 10001}}, "sinal"),
     ({"markup_bp": 100001}, "markup"),
-    ({"perda_bp": 5001}, "perda"),
+    ({"perda_bp": 100001}, "perda"),
     ({"custo_hora_centavos": -1}, "custo_hora"),
 ])
 def test_35b_outros_campos_do_motor(api, cenario, corpo, campo):
