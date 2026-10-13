@@ -50,7 +50,7 @@ const formatTime = formatHora;
 
 <template>
   <div
-    class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden"
+    class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col"
   >
     <!-- Header -->
     <div class="p-4 md:p-6 border-b border-zinc-100 flex items-center gap-2">
@@ -69,9 +69,9 @@ const formatTime = formatHora;
     </div>
 
     <!-- Table -->
-    <div v-else-if="vendas.length > 0" class="overflow-x-auto">
+    <div v-else-if="vendas.length > 0" class="overflow-auto flex-1 max-h-100">
       <table class="w-full text-left">
-        <thead>
+        <thead class="sticky top-0 z-10 bg-white">
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
           >

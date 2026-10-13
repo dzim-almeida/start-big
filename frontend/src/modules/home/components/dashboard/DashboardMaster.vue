@@ -217,6 +217,7 @@ const periods: { id: PeriodFilter; label: string }[] = [
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-3">
         <RankingFuncionarios
+          class="h-full"
           :items="rankingQuery.data.value?.items ?? []"
           :is-loading="rankingQuery.isLoading.value"
           :is-error="rankingQuery.isError.value"
@@ -224,32 +225,33 @@ const periods: { id: PeriodFilter; label: string }[] = [
       </div>
       <div class="lg:col-span-2">
         <OSPorStatusWidget v-if="usaOrdemServico"
+          class="h-full"
           :items="osPorStatusQuery.data.value?.items ?? []"
           :total-ativas="osPorStatusQuery.data.value?.total_ativas ?? 0"
           :is-loading="osPorStatusQuery.isLoading.value"
           :is-error="osPorStatusQuery.isError.value"
         />
-        <FormasPagamentoWidget v-else v-bind="formasPagamentoProps" />
+        <FormasPagamentoWidget v-else class="h-full" v-bind="formasPagamentoProps" />
       </div>
     </div>
 
     <!-- Linha 2: Formas de Pagamento (2/5) + OS Vencendo (3/5) -->
     <div v-if="usaOrdemServico" class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-2">
-        <FormasPagamentoWidget v-bind="formasPagamentoProps" />
+        <FormasPagamentoWidget class="h-full" v-bind="formasPagamentoProps" />
       </div>
       <div class="lg:col-span-3">
-        <OSVencendoTable :items="osVencendo" :is-loading="isLoadingOS" :is-error="isErrorOS" />
+        <OSVencendoTable class="h-full" :items="osVencendo" :is-loading="isLoadingOS" :is-error="isErrorOS" />
       </div>
     </div>
 
     <!-- Linha 3: Estoque Baixo (2/5) + Últimas Vendas (3/5) -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-2">
-        <EstoqueBaixoTable :items="estoqueBaixo" :is-loading="isLoadingEstoque" :is-error="isErrorEstoque" />
+        <EstoqueBaixoTable class="h-full" :items="estoqueBaixo" :is-loading="isLoadingEstoque" :is-error="isErrorEstoque" />
       </div>
       <div class="lg:col-span-3">
-        <RecentTransactions :vendas="ultimasVendas" :is-loading="isLoadingVendas" :is-error="isErrorVendas" />
+        <RecentTransactions class="h-full" :vendas="ultimasVendas" :is-loading="isLoadingVendas" :is-error="isErrorVendas" />
       </div>
     </div>
 
