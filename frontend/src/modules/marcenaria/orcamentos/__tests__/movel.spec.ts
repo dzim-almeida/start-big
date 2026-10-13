@@ -27,6 +27,7 @@ const { default: InsumosEditor } = await import('../components/modais/InsumosEdi
 const { default: InsumoRapidoModal } = await import('../components/modais/InsumoRapidoModal.vue');
 const { movelFormSchema, movelParaForm, movelVazio, paraApiMovel } = await import('../schemas/movelForm.schema');
 const { detalheFixture, novoQueryClient } = await import('./apoio');
+const { useFornecedorModal } = await import('@/modules/products/suppliers/composables/useFornecedorModal');
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -172,5 +173,48 @@ describe('22 — InsumoRapidoModal', () => {
     expect(corpo.nome).toBe('Puxador');
     expect(corpo.estoque).toEqual({ quantidade: 0, valor_entrada: 1250, valor_varejo: 1250 });
     expect(w.emitted('criado')?.[0]?.[0]).toMatchObject({ id: 99 });
+  });
+
+  it('central parceira: "+ Cadastrar central parceira" abre o cadastro e a nova vira a escolhida (remodelação item 5)', async () => {
+    abrirModal({ incluiCustos: true, podeCadastrarCentral: true });
+    await flushPromises();
+    (document.querySelector('[data-testid="producao-terceirizada"]') as HTMLInputElement).click();
+    await flushPromises();
+
+    // Abre a lista "Central parceira" com foco DE VERDADE e espera o `setTimeout(0)` do
+    // BaseSelect (ele dá `focus()` de novo; com um evento "focus" de mentira, esse
+    // segundo foco reabria a lista depois do clique e o teste falhava às vezes).
+    const campoCentral = document.querySelector('input[placeholder="Escolha a central"]') as HTMLInputElement;
+    campoCentral.focus();
+    await new Promise((fim) => setTimeout(fim, 0));
+    await flushPromises();
+    const atalho = [...document.querySelectorAll('li')].find((li) => li.textContent?.includes('+ Cadastrar central parceira'))!;
+    expect(atalho).toBeTruthy();
+    atalho.click();
+    await flushPromises();
+
+    // O cadastro de fornecedor abriu, já no tipo "produto"; a central ainda não mudou.
+    const fornecedorModal = useFornecedorModal();
+    expect(fornecedorModal.isOpen.value).toBe(true);
+    expect(fornecedorModal.selectedTipo.value).toBe('produto');
+    expect(campoCentral.value).toBe('');
+
+    // O fornecedor nasce: vira a central escolhida, com o nome na lista.
+    fornecedorModal.avisarCriado({ id: 9, nome: 'Central Nova', ativo: true } as never);
+    await flushPromises();
+    expect(campoCentral.value).toBe('Central Nova');
+    fornecedorModal.closeModal();
+  });
+
+  it('central parceira: sem permissão de cadastrar fornecedor, sem o atalho', async () => {
+    abrirModal({ incluiCustos: true });
+    await flushPromises();
+    (document.querySelector('[data-testid="producao-terceirizada"]') as HTMLInputElement).click();
+    await flushPromises();
+    (document.querySelector('input[placeholder="Escolha a central"]') as HTMLInputElement).focus();
+    await new Promise((fim) => setTimeout(fim, 0));
+    await flushPromises();
+    expect(document.body.textContent).not.toContain('+ Cadastrar central parceira');
+    expect(document.body.textContent).toContain('Madeiranit');
   });
 });

@@ -26,6 +26,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { getFornecedores } from '@/modules/products/suppliers/services/fornecedor.service';
+import { useFornecedorModal } from '@/modules/products/suppliers/composables/useFornecedorModal';
 import type { ProdutoRead } from '@/modules/products/inventory/types/products.types';
 import { formatCurrency } from '@/shared/utils/finance';
 
@@ -56,6 +57,11 @@ const props = defineProps<{
   custoHoraCentavos: number | null;
   editavel: boolean;
   podeCadastrarInsumo: boolean;
+  /**
+   * Pode cadastrar fornecedor? Com true, a lista "Central parceira" ganha
+   * "+ Cadastrar central parceira" (remodelação item 5). Opcional: sem ela, nada muda.
+   */
+  podeCadastrarCentral?: boolean;
   /** Grava pelo editor; devolve true se deu certo. */
   salvar: (dados: MovelParaSalvar) => Promise<boolean>;
 }>();
@@ -160,22 +166,54 @@ const opcoesAmbiente = computed(() => props.ambientes.map((a) => ({ value: a.id,
 
 // --- Central parceira (terceirizado, D29) ---------------------------------------------
 const terceirizado = computed(() => form.value.tipo_producao === 'TERCEIRIZADA');
-const { data: fornecedores } = useQuery({
+const { data: fornecedores, refetch: recarregarCentrais } = useQuery({
   queryKey: [CHAVE_RAIZ, 'centrais'],
   queryFn: () => getFornecedores(),
   enabled: computed(() => props.isOpen && terceirizado.value),   // só busca quando precisa
   retry: false,                                                   // 403 não melhora repetindo
 });
+
+/** Valor "de mentira" da opção que abre o cadastro (nenhum fornecedor tem esse id). */
+const NOVA_CENTRAL = 'nova-central';
+/**
+ * A central que acabou de ser cadastrada (remodelação item 5). Ela entra na
+ * lista na hora, sem esperar a lista de fornecedores ser buscada de novo.
+ */
+const centralCriada = ref<{ value: number; label: string } | null>(null);
+
 const opcoesCentral = computed(() => {
-  const lista = (fornecedores.value ?? []).filter((f) => f.ativo).map((f) => ({ value: f.id, label: f.nome }));
+  const lista: { value: number | string; label: string }[] = (fornecedores.value ?? [])
+    .filter((f) => f.ativo)
+    .map((f) => ({ value: f.id, label: f.nome }));
   const atual = props.movel?.central;
   // A central gravada aparece mesmo que a lista não carregue (sem permissão de fornecedores).
   if (atual && !lista.some((o) => o.value === atual.fornecedor_id)) lista.unshift({ value: atual.fornecedor_id, label: atual.nome });
+  // A recém-cadastrada também, enquanto a lista nova não chega.
+  const criada = centralCriada.value;
+  if (criada && !lista.some((o) => o.value === criada.value)) lista.push(criada);
+  // Por último, o atalho para cadastrar (só para quem pode cadastrar fornecedor).
+  if (props.podeCadastrarCentral) lista.push({ value: NOVA_CENTRAL, label: '+ Cadastrar central parceira' });
   return lista;
 });
+
+// O cadastro de fornecedor é o mesmo do "Cadastrar arquiteto" (Spec 09B D5).
+const { openCreateModalWithCallback } = useFornecedorModal();
+
 const central = computed({
   get: () => form.value.central_fornecedor_id ?? undefined,
-  set: (valor: string | number | undefined) => { form.value.central_fornecedor_id = valor == null || valor === '' ? null : Number(valor); },
+  set: (valor: string | number | undefined) => {
+    if (valor === NOVA_CENTRAL) {
+      // Escolheu "+ Cadastrar central parceira": abre o cadastro e NÃO muda a central ainda.
+      // Quando o fornecedor nascer, ele vira a central escolhida.
+      openCreateModalWithCallback('produto', (novo) => {
+        centralCriada.value = { value: novo.id, label: novo.nome };
+        form.value.central_fornecedor_id = novo.id;
+        void recarregarCentrais();                      // a lista passa a ter a central nova
+      });
+      return;
+    }
+    form.value.central_fornecedor_id = valor == null || valor === '' ? null : Number(valor);
+  },
 });
 
 // --- Prévia (D6, D30) ---------------------------------------------------------------

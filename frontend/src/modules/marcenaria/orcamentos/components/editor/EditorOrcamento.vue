@@ -554,6 +554,7 @@ const erroCarregar = computed(() => {
       :custo-hora-centavos="custoHora"
       :editavel="editavel"
       :pode-cadastrar-insumo="podeCriarProduto"
+      :pode-cadastrar-central="podeCadastrarFornecedor"
       :salvar="salvarMovel"
       @close="movelModal.aberto = false"
     />
@@ -569,7 +570,8 @@ const erroCarregar = computed(() => {
     />
     <AtualizarPrecosModal :is-open="precosAbertos" :precos="precos" :gravando="gravandoPrecos" @close="precosAbertos = false" @atualizar="atualizarPrecos" />
     <HistoricoDrawer :id="id" :aberto="historicoAberto" @fechar="historicoAberto = false" />
-    <!-- "Cadastrar arquiteto" (09B D5): o cadastro de fornecedor, sem sair do orçamento -->
+    <!-- "Cadastrar arquiteto" (09B D5) e "Cadastrar central parceira" (remodelação item 5):
+         o cadastro de fornecedor, sem sair do orçamento. Vem depois do MovelModal para abrir por cima dele. -->
     <FornecedorFormModal v-if="podeCadastrarFornecedor" />
     <!-- Aprovação (Spec 08B) -->
     <AprovarModal v-if="detalhe && acoes.aprovar" :is-open="aprovarAberto" :detalhe="detalhe" :aprovar="aprovar" @close="aprovarAberto = false" />
