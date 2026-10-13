@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/etiqueta_envio.py
+# ARQUIVO: schemas/etiquetas/envio.py (era schemas/etiqueta_envio.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Etiquetas de envio (Central de Etiquetas, fase 5)
 # ---------------------------------------------------------------------------
 """

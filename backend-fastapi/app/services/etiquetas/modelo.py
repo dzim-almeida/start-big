@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/modelo_etiqueta.py
+# ARQUIVO: services/etiquetas/modelo.py (era services/modelo_etiqueta.py ate 13/10/2026)
 # MÓDULO: Service — Modelos de etiqueta (Central de Etiquetas)
 # ---------------------------------------------------------------------------
 
@@ -8,9 +8,9 @@ from typing import Sequence
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.db.crud import modelo_etiqueta as modelo_crud
+from app.db.crud.etiquetas import modelo as modelo_crud
 from app.db.models.modelo_etiqueta import ModeloEtiqueta
-from app.schemas.modelo_etiqueta import ModeloEtiquetaCreate, ModeloEtiquetaUpdate
+from app.schemas.etiquetas.modelo import ModeloEtiquetaCreate, ModeloEtiquetaUpdate
 
 
 def _nao_encontrado() -> HTTPException:

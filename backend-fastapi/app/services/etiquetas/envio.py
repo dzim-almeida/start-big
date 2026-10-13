@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/etiqueta_envio.py
+# ARQUIVO: services/etiquetas/envio.py (era services/etiqueta_envio.py ate 13/10/2026)
 # MÓDULO: Service — Dados das etiquetas de envio (Central de Etiquetas, fase 5)
 # ---------------------------------------------------------------------------
 """
@@ -33,7 +33,7 @@ from app.db.models.empresa import Empresa
 from app.db.models.endereco import Endereco
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
-from app.schemas.etiqueta_envio import DadosEnvio, EnderecoEnvio, NfeEnvio, OrigemEnvioItem, ParteEnvio
+from app.schemas.etiquetas.envio import DadosEnvio, EnderecoEnvio, NfeEnvio, OrigemEnvioItem, ParteEnvio
 
 PERMISSOES_VENDA = ["venda", "view_sales", "manage_sales", "delete_sales"]
 

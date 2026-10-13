@@ -21,10 +21,10 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
-from app.schemas.modelo_etiqueta import ModeloEtiquetaCreate, ModeloEtiquetaRead, ModeloEtiquetaUpdate
-from app.schemas.etiqueta_envio import DadosEnvio, OrigemEnvioItem, ParteEnvio
-from app.services import etiqueta_envio as envio_service
-from app.services import modelo_etiqueta as modelo_service
+from app.schemas.etiquetas.modelo import ModeloEtiquetaCreate, ModeloEtiquetaRead, ModeloEtiquetaUpdate
+from app.schemas.etiquetas.envio import DadosEnvio, OrigemEnvioItem, ParteEnvio
+from app.services.etiquetas import envio as envio_service
+from app.services.etiquetas import modelo as modelo_service
 
 router = APIRouter()
 

@@ -18,7 +18,7 @@ from app.db.models.funcionario import Funcionario
 from app.db.models.objeto_servico import ObjetoServico
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.venda import Venda
-from app.services.etiqueta_envio import PERMISSOES_VENDA, pode
+from app.services.etiquetas.envio import PERMISSOES_VENDA, pode
 
 URL = "/api/v1/etiquetas/envio"
 CHAVE = "35260912345678000199550010000000111000000110"

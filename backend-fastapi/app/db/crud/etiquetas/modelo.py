@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/db/crud/modelo_etiqueta.py
+# ARQUIVO: db/crud/etiquetas/modelo.py (era db/crud/modelo_etiqueta.py ate 13/10/2026)
 # MÓDULO: Repository — Modelos de etiqueta
 # ---------------------------------------------------------------------------
 

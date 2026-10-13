@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/modelo_etiqueta.py
+# ARQUIVO: schemas/etiquetas/modelo.py (era schemas/modelo_etiqueta.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Modelos de etiqueta (Central de Etiquetas)
 # ---------------------------------------------------------------------------
 """
