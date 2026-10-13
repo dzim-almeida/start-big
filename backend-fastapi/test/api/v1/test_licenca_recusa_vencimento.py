@@ -24,7 +24,12 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
+from app.db.crud import configuracao_licenca as licenca_crud
+from app.db.crud import terminal_conectado as terminal_crud
 from app.services import licenca as licenca_service
+# conectar_terminal busca obter_hwid e decriptar_valor no proprio submodulo:
+# e nele que a troca tem que acontecer (no pacote ela nao alcanca o login).
+from app.services.licenca import terminal as licenca_terminal
 
 
 AGORA = datetime.now(timezone.utc)
@@ -87,7 +92,7 @@ def _fingir_resposta(monkeypatch, resposta: _Resposta):
         def post(self, *args, **kwargs):
             return resposta
 
-    monkeypatch.setattr(licenca_service.httpx, "Client", _Cliente)
+    monkeypatch.setattr(httpx, "Client", _Cliente)
 
 
 # =========================
@@ -196,14 +201,14 @@ def _login_isolado(monkeypatch):
     """Login sem banco e sem criptografia: aqui interessa so a decisao."""
     criados: list[str] = []
 
-    monkeypatch.setattr(licenca_service, "obter_hwid", lambda: "hwid-servidor")
-    monkeypatch.setattr(licenca_service, "decriptar_valor", lambda *a, **k: "chave-limpa")
+    monkeypatch.setattr(licenca_terminal, "obter_hwid", lambda: "hwid-servidor")
+    monkeypatch.setattr(licenca_terminal, "decriptar_valor", lambda *a, **k: "chave-limpa")
     monkeypatch.setattr(
-        licenca_service.terminal_crud, "get_terminal_by_hwid", lambda db, hwid: None
+        terminal_crud, "get_terminal_by_hwid", lambda db, hwid: None
     )
-    monkeypatch.setattr(licenca_service.terminal_crud, "get_todos_terminais", lambda db: [])
+    monkeypatch.setattr(terminal_crud, "get_todos_terminais", lambda db: [])
     monkeypatch.setattr(
-        licenca_service.terminal_crud,
+        terminal_crud,
         "create_terminal",
         lambda db, terminal: criados.append(terminal.hwid),
     )
@@ -217,7 +222,7 @@ def test_licenca_vencida_deixa_o_terminal_logar(monkeypatch, _login_isolado):
     LICENCA_EXPIRADA e o frontend prende tudo na renovacao.
     """
     monkeypatch.setattr(
-        licenca_service.licenca_crud, "get_licenca", lambda db: _licenca(vencimento_em_dias=-3)
+        licenca_crud, "get_licenca", lambda db: _licenca(vencimento_em_dias=-3)
     )
     _fingir_resposta(monkeypatch, _Resposta(403, {"msg": "Licença vencida. Acesso negado."}))
 
@@ -228,7 +233,7 @@ def test_licenca_vencida_deixa_o_terminal_logar(monkeypatch, _login_isolado):
 
 def test_limite_de_maquinas_continua_barrando(monkeypatch, _login_isolado):
     """A recusa que nao e vencimento nao ganhou passagem nenhuma."""
-    monkeypatch.setattr(licenca_service.licenca_crud, "get_licenca", lambda db: _licenca())
+    monkeypatch.setattr(licenca_crud, "get_licenca", lambda db: _licenca())
     _fingir_resposta(
         monkeypatch, _Resposta(400, {"msg": "Limite de dispositivos atingido."})
     )
@@ -255,7 +260,7 @@ def test_validacao_online_limpa_o_bloqueio_local(monkeypatch):
     gravadas: list = []
 
     monkeypatch.setattr(
-        licenca_service.licenca_crud, "update_licenca", lambda db, lic: gravadas.append(lic)
+        licenca_crud, "update_licenca", lambda db, lic: gravadas.append(lic)
     )
     _fingir_resposta(
         monkeypatch,
@@ -283,8 +288,8 @@ def test_validacao_online_limpa_o_bloqueio_local(monkeypatch):
 def test_login_aceito_pela_nuvem_limpa_o_bloqueio(monkeypatch, _login_isolado):
     """Sem isto o dono loga e leva 403 em toda tela ate o proximo /licenca/status."""
     licenca = _licenca(bloqueada=True)
-    monkeypatch.setattr(licenca_service.licenca_crud, "get_licenca", lambda db: licenca)
-    monkeypatch.setattr(licenca_service.licenca_crud, "update_licenca", lambda db, lic: None)
+    monkeypatch.setattr(licenca_crud, "get_licenca", lambda db: licenca)
+    monkeypatch.setattr(licenca_crud, "update_licenca", lambda db, lic: None)
     _fingir_resposta(monkeypatch, _Resposta(201, {"msg": "conectado"}))
 
     licenca_service.conectar_terminal(SimpleNamespace(commit=lambda: None), "hwid-terminal")

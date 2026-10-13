@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/licenca_renovacao.py
+# ARQUIVO: services/licenca/renovacao.py (era services/licenca_renovacao.py ate 13/10/2026)
 # DESCRICAO: Renovacao de assinatura pela loja (PIX e cartao).
 #
 # POR QUE E UM MODULO A PARTE, e nao mais funcoes em services/licenca.py:

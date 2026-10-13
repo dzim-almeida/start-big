@@ -21,6 +21,8 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
+from jose import jwt
+
 from app.services import licenca as licenca_service
 
 
@@ -59,7 +61,7 @@ def _jwt_sempre_valido(monkeypatch):
     Sem isto todo teste morreria na assinatura, e o que se quer provar (qual
     prazo barra primeiro) nunca seria exercitado.
     """
-    monkeypatch.setattr(licenca_service.jwt, "decode", lambda *a, **k: {"sub": "x"})
+    monkeypatch.setattr(jwt, "decode", lambda *a, **k: {"sub": "x"})
 
 
 # =========================

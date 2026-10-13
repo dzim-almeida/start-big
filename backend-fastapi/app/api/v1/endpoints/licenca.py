@@ -17,7 +17,7 @@ from app.schemas.licenca import (
     RenovacaoPlanosRead,
 )
 from app.services import licenca as licenca_service
-from app.services import licenca_renovacao as renovacao_service
+from app.services.licenca import renovacao as renovacao_service
 
 router = APIRouter()
 

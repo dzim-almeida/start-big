@@ -20,7 +20,7 @@ import pytest
 from fastapi import HTTPException
 from starlette import status
 
-from app.services import licenca_renovacao as renovacao
+from app.services.licenca import renovacao as renovacao
 
 
 # =========================
