@@ -14,15 +14,15 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.crud import fiscal as crud
-from .core import verificar_completude_venda
-from .helpers import obter_crt, regime_apuracao, usa_csosn
-from .http import get_fiscal_client
-from .payload_builder import montar_payload_nfe
-from .tax_engine import calcular_impostos
-from .tax_engine.resolver import resolver_aliquotas_venda
-from .snapshot import gravar_snapshot
-from .espelho_nota import espelhar_na_nota_da_venda
-from .emissao_nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos
+from app.services.fiscal.core import verificar_completude_venda
+from app.services.fiscal.helpers import obter_crt, regime_apuracao, usa_csosn
+from app.services.fiscal.http import get_fiscal_client
+from app.services.fiscal.payload_builder import montar_payload_nfe
+from app.services.fiscal.tax_engine import calcular_impostos
+from app.services.fiscal.tax_engine.resolver import resolver_aliquotas_venda
+from app.services.fiscal.snapshot import gravar_snapshot
+from app.services.fiscal.espelho_nota import espelhar_na_nota_da_venda
+from app.services.fiscal.emissao_nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos
 
 logger = logging.getLogger(__name__)
 

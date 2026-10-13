@@ -13,10 +13,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.crud import fiscal as crud
-from .http import get_fiscal_client
-from .payload_builder import montar_payload_teste_nfe
-from .snapshot import gravar_snapshot
-from .emissao_nucleo import _aplicar_resultado, _obter_fiscal_settings
+from app.services.fiscal.http import get_fiscal_client
+from app.services.fiscal.payload_builder import montar_payload_teste_nfe
+from app.services.fiscal.snapshot import gravar_snapshot
+from app.services.fiscal.emissao_nucleo import _aplicar_resultado, _obter_fiscal_settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def emitir_teste_nfe(db: Session, empresa_id: int) -> DocumentoFiscal:
     #
     # Verificar antes do `ultimo_numero_nfe + 1` também evita queimar numeração
     # à toa: a reversão existe, mas depende de o fluxo chegar até ela.
-    from . import validators
+    from app.services.fiscal import validators
 
     pendencias = validators.verificar_emitente(db, empresa_id)
     if pendencias:

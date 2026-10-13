@@ -8,7 +8,7 @@ from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.venda import Venda
 from app.db.models.ordem_servico import OrdemServico
 
-from .helpers import criar_pendencia as _p, dias_para_vencer_certificado, get_nome_cliente
+from app.services.fiscal.helpers import criar_pendencia as _p, dias_para_vencer_certificado, get_nome_cliente
 from app.db.crud import fiscal as crud
 
 from app.services.fiscal.tax_engine.constants import (

@@ -54,7 +54,7 @@ def reconciliar_documento(
     Nunca levanta: uma falha de rede aqui deve deixar o documento como está
     para a próxima execução, não derrubar o startup.
     """
-    from .emissao import consultar_documento
+    from app.services.fiscal.emissao import consultar_documento
 
     status_anterior = doc.status
     try:

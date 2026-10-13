@@ -12,8 +12,8 @@ import re
 from typing import Optional
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.endereco import Endereco
-from .tax_engine.types import ResultadoCalculo
-from .payload_comum import _sanitizar_texto_sefaz, _so_digitos
+from app.services.fiscal.tax_engine.types import ResultadoCalculo
+from app.services.fiscal.payload_comum import _sanitizar_texto_sefaz, _so_digitos
 
 
 def _montar_destinatario(cliente: Cliente) -> dict:

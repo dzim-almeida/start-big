@@ -10,9 +10,9 @@
 from decimal import Decimal
 from typing import Optional
 from app.db.models.venda import Venda
-from .embalagem_nota import campos_da_embalagem, conferir_valores_do_item
-from .tax_engine.types import ResultadoCalculo
-from .payload_comum import _centavos_para_reais, SEM_GTIN, _sanitizar_ncm, _gtin_valido, _codigo_barras_para_sefaz
+from app.services.fiscal.embalagem_nota import campos_da_embalagem, conferir_valores_do_item
+from app.services.fiscal.tax_engine.types import ResultadoCalculo
+from app.services.fiscal.payload_comum import _centavos_para_reais, SEM_GTIN, _sanitizar_ncm, _gtin_valido, _codigo_barras_para_sefaz
 
 
 def _montar_itens(

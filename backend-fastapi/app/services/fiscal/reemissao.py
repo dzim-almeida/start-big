@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 
-from .emissao import emitir_nfce_venda, emitir_nfe_os, emitir_nfe_venda
+from app.services.fiscal.emissao import emitir_nfce_venda, emitir_nfe_os, emitir_nfe_venda
 
 logger = logging.getLogger(__name__)
 

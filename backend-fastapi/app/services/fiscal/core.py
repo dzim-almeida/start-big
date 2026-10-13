@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.db.crud import fiscal as crud
 
-from . import validators
-from .helpers import obter_crt, usa_csosn, criar_pendencia as _p
-from .tax_engine.resolver import eh_operacao_interestadual
+from app.services.fiscal import validators
+from app.services.fiscal.helpers import obter_crt, usa_csosn, criar_pendencia as _p
+from app.services.fiscal.tax_engine.resolver import eh_operacao_interestadual
 
 def verificar_completude_venda(
     db: Session, venda_id: int, empresa_id: int, tipo_documento: str = "nfe",

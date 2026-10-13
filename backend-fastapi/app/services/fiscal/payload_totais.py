@@ -9,8 +9,8 @@
 
 from typing import Optional
 from app.db.models.venda import Venda
-from .tax_engine.types import ResultadoCalculo
-from .payload_comum import _centavos_para_reais
+from app.services.fiscal.tax_engine.types import ResultadoCalculo
+from app.services.fiscal.payload_comum import _centavos_para_reais
 
 
 def _totais_interestaduais(t) -> dict:

@@ -10,8 +10,8 @@
 from app.db.models.empresa import Empresa
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.endereco import Endereco
-from .helpers import obter_crt
-from .payload_comum import _sanitizar_texto_sefaz, _so_digitos
+from app.services.fiscal.helpers import obter_crt
+from app.services.fiscal.payload_comum import _sanitizar_texto_sefaz, _so_digitos
 
 
 def _montar_emitente(empresa: Empresa, endereco: Endereco, fiscal_settings: EmpresaFiscalSettings) -> dict:

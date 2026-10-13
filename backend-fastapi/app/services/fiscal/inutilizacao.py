@@ -230,7 +230,7 @@ def solicitar_inutilizacao(
     db.add(registro)
     db.flush()
 
-    from .http import get_fiscal_client
+    from app.services.fiscal.http import get_fiscal_client
 
     token = crud.get_licenca_token(db)
     client = get_fiscal_client(fs.ambiente_emissao, token)

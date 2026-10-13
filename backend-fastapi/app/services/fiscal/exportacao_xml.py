@@ -29,7 +29,7 @@ from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
 from app.db.models.inutilizacao_fiscal import InutilizacaoFiscal
 
-from .http import get_fiscal_client
+from app.services.fiscal.http import get_fiscal_client
 
 logger = logging.getLogger(__name__)
 

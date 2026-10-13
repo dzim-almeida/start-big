@@ -15,9 +15,9 @@ from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.crud import fiscal as crud
-from .helpers import ambiente_do_protocolo
-from .http import EmissaoResultado
-from .http.client import CODIGO_NOTA_INEXISTENTE, RESULTADO_AUTORIZADO, RESULTADO_CANCELADO, RESULTADO_NAO_ENCONTRADO, RESULTADO_NAO_TRANSMITIDO, RESULTADO_PROCESSANDO
+from app.services.fiscal.helpers import ambiente_do_protocolo
+from app.services.fiscal.http import EmissaoResultado
+from app.services.fiscal.http.client import CODIGO_NOTA_INEXISTENTE, RESULTADO_AUTORIZADO, RESULTADO_CANCELADO, RESULTADO_NAO_ENCONTRADO, RESULTADO_NAO_TRANSMITIDO, RESULTADO_PROCESSANDO
 
 logger = logging.getLogger(__name__)
 

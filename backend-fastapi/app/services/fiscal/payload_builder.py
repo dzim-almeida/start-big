@@ -19,32 +19,32 @@ from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.endereco import Endereco
 from app.db.models.venda import Venda
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
-from .helpers import obter_crt, usa_csosn
-from .tax_engine.types import ResultadoCalculo
-from .payload_comum import _sanitizar_texto_sefaz, expurgar_nulos, _so_digitos
-from .payload_emitente import _montar_emitente
-from .payload_destinatario import _montar_destinatario, _montar_destinatario_nfce, _local_destino
-from .payload_itens import _montar_itens, _montar_itens_devolucao
-from .payload_totais import _montar_totais_pagamentos
-from .payload_comum import (  # noqa: F401 — reexportado: testes e serviços importam daqui
+from app.services.fiscal.helpers import obter_crt, usa_csosn
+from app.services.fiscal.tax_engine.types import ResultadoCalculo
+from app.services.fiscal.payload_comum import _sanitizar_texto_sefaz, expurgar_nulos, _so_digitos
+from app.services.fiscal.payload_emitente import _montar_emitente
+from app.services.fiscal.payload_destinatario import _montar_destinatario, _montar_destinatario_nfce, _local_destino
+from app.services.fiscal.payload_itens import _montar_itens, _montar_itens_devolucao
+from app.services.fiscal.payload_totais import _montar_totais_pagamentos
+from app.services.fiscal.payload_comum import (  # noqa: F401 — reexportado: testes e serviços importam daqui
     _centavos_para_reais,
     SEM_GTIN,
     _sanitizar_ncm,
     _gtin_valido,
     _codigo_barras_para_sefaz,
 )
-from .payload_destinatario import (  # noqa: F401 — reexportado: testes e serviços importam daqui
+from app.services.fiscal.payload_destinatario import (  # noqa: F401 — reexportado: testes e serviços importam daqui
     _CAMPOS_ENDERECO_OBRIGATORIOS,
     _montar_endereco_destinatario,
     LOCAL_DESTINO_INTERNA,
     LOCAL_DESTINO_INTERESTADUAL,
     _montar_destinatario_avulso,
 )
-from .payload_itens import (  # noqa: F401 — reexportado: testes e serviços importam daqui
+from app.services.fiscal.payload_itens import (  # noqa: F401 — reexportado: testes e serviços importam daqui
     _campos_difal,
     _campos_icms_st,
 )
-from .payload_totais import (  # noqa: F401 — reexportado: testes e serviços importam daqui
+from app.services.fiscal.payload_totais import (  # noqa: F401 — reexportado: testes e serviços importam daqui
     _totais_interestaduais,
     _CODIGOS_SEFAZ_CARTAO,
     _TP_INTEGRA,

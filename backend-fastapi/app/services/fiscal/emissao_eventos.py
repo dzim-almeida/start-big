@@ -14,10 +14,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.crud import fiscal as crud
-from .http import get_fiscal_client
-from .espelho_nota import espelhar_na_nota_da_venda
+from app.services.fiscal.http import get_fiscal_client
+from app.services.fiscal.espelho_nota import espelhar_na_nota_da_venda
 from app.db.session import SessionLocal
-from .emissao_nucleo import STATUS_CONSULTAVEIS, _aplicar_resultado, _obter_fiscal_settings
+from app.services.fiscal.emissao_nucleo import STATUS_CONSULTAVEIS, _aplicar_resultado, _obter_fiscal_settings
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def consultar_documento(db: Session, documento_id: int, empresa_id: int) -> Docu
         # A devolução que ficou PROCESSANDO/INDETERMINADA na emissão só devolve
         # saldo e estoque quando a SEFAZ confirma -- e a confirmação chega aqui.
         if status_antes != "AUTORIZADA" and doc.status == "AUTORIZADA":
-            from .devolucao import aplicar_efeitos_autorizacao
+            from app.services.fiscal.devolucao import aplicar_efeitos_autorizacao
             aplicar_efeitos_autorizacao(db, doc)
     except NotImplementedError:
         pass

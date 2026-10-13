@@ -17,13 +17,13 @@ from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.crud import fiscal as crud
-from .http import get_fiscal_client
-from .payload_builder import montar_payload_nfce
-from .snapshot import gravar_snapshot
-from .espelho_nota import espelhar_na_nota_da_venda
-from .tributos_xml import extrair_valor_tributos
-from .emissao_nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings
-from .emissao_nfe_venda import _preparar_dados_emissao, preview_nfe_venda
+from app.services.fiscal.http import get_fiscal_client
+from app.services.fiscal.payload_builder import montar_payload_nfce
+from app.services.fiscal.snapshot import gravar_snapshot
+from app.services.fiscal.espelho_nota import espelhar_na_nota_da_venda
+from app.services.fiscal.tributos_xml import extrair_valor_tributos
+from app.services.fiscal.emissao_nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings
+from app.services.fiscal.emissao_nfe_venda import _preparar_dados_emissao, preview_nfe_venda
 
 logger = logging.getLogger(__name__)
 
