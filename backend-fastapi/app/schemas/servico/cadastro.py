@@ -1,12 +1,11 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/servico.py
-# DESCRIÇÃO: Schemas Pydantic (modelos de dados) para validação de
-#            entrada (Create/Update) e saída (Read) da API de Serviços.
+# ARQUIVO: schemas/servico/cadastro.py
+# DESCRICAO: Schemas de servico - entrada (criar e editar).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Sequence
-from app.schemas.pagination import PaginationBase as Pagination
+from typing import Optional
+
 
 # =========================
 # Schema: Criar Serviço
@@ -39,54 +38,6 @@ class ServicoCreate(BaseModel):
         }
     )
 
-# =========================
-# Schema: Ler Serviço
-# =========================
-class ServicoRead(ServicoCreate):
-    """
-    Schema usado para formatar os dados ao **ler** (retornar) um serviço.
-    Herda os campos de 'ServicoCreate' (descricao, valor) e adiciona o 'id'.
-    """
-    id: int = Field(
-        ..., # O ID é sempre esperado em uma resposta de leitura
-        description="ID único de cada serviço."
-    )
-
-    ativo: bool = Field(
-        ...,
-        description="Status de persistência do produto."
-    )
-    
-    # Nota: O 'model_config' e o 'example' são herdados de ServicoCreate
-    # e podem ser sobrescritos aqui se necessário.
-
-class ServicoFilterParams(BaseModel):
-    search: Optional[str] = Field(
-        None,
-        description="Query de Busca"
-    )
-    active: Optional[bool] = Field(
-        None,
-        description="Filtro de status ativo/inativo"
-    )
-
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
-
-class ServicoQuery(Pagination):
-    filters: ServicoFilterParams
-    items: Sequence[ServicoRead]
-
-# =========================
-# Schema: Estatísticas
-# =========================
-class ServicoStats(BaseModel):
-    """Estatísticas agregadas dos serviços."""
-    total: int = Field(..., description="Total de serviços cadastrados")
-    ativos: int = Field(..., description="Serviços ativos")
-    inativos: int = Field(..., description="Serviços inativos")
-    media_valor: int = Field(..., description="Valor médio dos serviços (em centavos)")
 
 # =========================
 # Schema: Atualizar Serviço

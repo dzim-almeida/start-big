@@ -1,20 +1,19 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: servico_crud.py
-# MÓDULO: Acesso a Dados (Repository)
-# DESCRIÇÃO: Executa queries SQL via SQLAlchemy para manipulação de Serviços.
+# ARQUIVO: db/crud/servico/consultas.py
+# DESCRICAO: Servico (crud) - buscas (com o resgate por similaridade) e estatisticas.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import Sequence
-
 from app.core.busca import filtro_busca, ordenacao_relevancia, por_similaridade
 from app.db.models.servico import Servico as ServicoModel
-from app.schemas.servico import ServicoFilterParams
+
 
 # O serviço só tem um campo textual, mas a lista existe para o filtro e a
 # relevância serem montados do mesmo jeito que nos demais módulos.
 _CAMPOS_BUSCA = (ServicoModel.descricao,)
+
 
 # Teto de serviços varridos no resgate por similaridade (ver crud/produto.py).
 _TETO_RESGATE = 2000
@@ -29,6 +28,7 @@ def get_servico_by_id(db: Session, servico_id: int) -> ServicoModel | None:
     stmt = select(ServicoModel).where(ServicoModel.id == servico_id)
     servico_in_db = db.scalars(stmt).first()
     return servico_in_db
+
 
 def _resgatar_por_similaridade(
     db: Session,
@@ -103,6 +103,7 @@ def get_servico_by_search(
 
     return servicos, total
 
+
 def get_servico_stats(db: Session) -> dict:
     """Retorna estatísticas agregadas dos serviços."""
     stmt = select(
@@ -125,20 +126,3 @@ def get_servico_by_description(db: Session, description_to_search: str) -> Servi
     stmt = select(ServicoModel).where(ServicoModel.descricao == description_to_search)
     servico_in_db = db.scalars(stmt).first()
     return servico_in_db
-
-# ===========================================================================
-# ESCRITA (CREATE / UPDATE)
-# ===========================================================================
-
-def create_servico(db: Session, servico_to_add: ServicoModel) -> ServicoModel:
-    """Adiciona e persiste um novo serviço no banco."""
-    db.add(servico_to_add)
-    db.flush() # Gera o ID sem comitar a transação final ainda
-    db.refresh(servico_to_add)
-    return servico_to_add
-
-def update_servico(db: Session, servico_to_update: ServicoModel) -> ServicoModel:
-    """Atualiza o estado de um serviço já anexado à sessão."""
-    db.flush()
-    db.refresh(servico_to_update)
-    return servico_to_update

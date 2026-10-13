@@ -1,21 +1,14 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: servicos/servico.py
-# MÓDULO: Regras de Negócio (Service Layer)
-# DESCRIÇÃO: Orquestra validações, verificação de conflitos e persistência
-#            para operações relacionadas a Serviços.
+# ARQUIVO: services/servico/cadastro.py
+# DESCRICAO: Servico - criar, editar, ativar e desativar.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
-# Schemas Pydantic (para validação de entrada e saída)
-from app.schemas.servico import ServicoCreate, ServicoUpdate, ServicoQuery, ServicoStats
-# Modelo SQLAlchemy (para mapeamento do DB)
+from app.schemas.servico import ServicoCreate, ServicoUpdate
 from app.db.models.servico import Servico as ServicoModel
-# Camada CRUD (para acesso direto ao DB)
 from app.db.crud import servico as servico_crud
 
-SERVICE_URL = 'servicos/'
 
 # Definição de exceções padrão para reutilização
 not_found_exce = HTTPException(
@@ -23,10 +16,12 @@ not_found_exce = HTTPException(
     detail="Serviço não encontrado no sistema"
 )
 
+
 conflict_exce = HTTPException(
     status_code=status.HTTP_409_CONFLICT,
     detail="Serviço já cadastrado no sistema"
 )
+
 
 # ===========================================================================
 # LÓGICA DE CRIAÇÃO (CREATE)
@@ -51,57 +46,6 @@ def create_servico(db: Session, servico_to_add: ServicoCreate) -> ServicoModel:
     servico_to_db = ServicoModel(**servico_data)
 
     return servico_crud.create_servico(db, servico_to_add=servico_to_db)
-
-
-# ===========================================================================
-# LÓGICA DE LEITURA (READ)
-# ===========================================================================
-
-def get_servico_by_search(db: Session, filters: dict, page: int, limit: int) -> ServicoQuery:
-    """
-    Intermediário para busca de serviços.
-    Repassa a query string para o CRUD realizar a filtragem.
-    """
-
-    # Quantidades de Elementos Desnecessários
-    skip = (page - 1) * limit
-
-    (servicos_in_db, total_items) = servico_crud.get_servico_by_search(db, filters=filters, skip=skip, limit=limit)
-
-    total_pages = (
-        # Retorna total_items // limit se resto 0
-        total_items // limit
-        if total_items % limit == 0 
-        # Caso contrário, retorna resultado + 1
-        else total_items // limit + 1
-    )
-
-    # Trata os valores para não aparecer "None" na URL
-    search_val = filters.get('search') if filters.get('search') is not None else ""
-    active_val = filters.get('active') if filters.get('active') is not None else ""
-
-    links = {
-        "next": f"{SERVICE_URL}?page={page + 1}&limit={limit}&search={search_val}&active={active_val}" if page < total_pages else None,
-        "prev": f"{SERVICE_URL}?page={page - 1}&limit={limit}&search={search_val}&active={active_val}" if page > 1 else None
-    }
-
-    servicos_query = ServicoQuery(
-        filters=filters,
-        items=servicos_in_db,
-        total_items=total_items,
-        page=page,
-        limit=limit,
-        total_pages=total_pages,
-        links=links,
-    )
-
-    return servicos_query
-
-
-def get_servico_stats(db: Session) -> ServicoStats:
-    """Retorna estatísticas agregadas dos serviços."""
-    stats_data = servico_crud.get_servico_stats(db)
-    return ServicoStats(**stats_data)
 
 
 # ===========================================================================
