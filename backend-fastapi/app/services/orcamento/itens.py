@@ -9,7 +9,7 @@ from app.db.models.orcamento_produto import OrcamentoProduto
 from app.schemas.orcamentos import OrcamentoProdutoCreate, OrcamentoProdutoUpdate
 from app.services import produto as produto_service
 from app.services.produto import embalagem as embalagem_service
-from app.services import quantidade_venda
+from app.services.precificacao import quantidade as quantidade_venda
 from app.db.crud import orcamento as orcamento_crud
 from app.core.enum import TipoProdutoVenda
 from app.helpers.exceptions import BadRequestException, NotFoundException

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import _handle_db_transaction, check_permission
 from app.core.segmentos.definicoes.marcenaria import SEGMENTO_MARCENARIA
 from app.db.session import get_db
-from app.schemas.fabrica import (
+from app.schemas.fabrica.geral import (
     Avancar,
     EstornoSeparacao,
     MargemRead,
@@ -58,7 +58,7 @@ from app.services.fabrica.permissoes import (
     permissao_separar,
     pode_ver_custos,
 )
-from app.services.segmentos import get_segmento_atual
+from app.services.sistema.segmentos import get_segmento_atual
 
 
 def requer_marcenaria(db: Session = Depends(get_db)) -> None:

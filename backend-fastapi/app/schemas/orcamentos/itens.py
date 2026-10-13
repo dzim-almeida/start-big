@@ -6,7 +6,7 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from typing import Optional
 from app.core.enum import TipoProdutoVenda
-from app.schemas.quantidade import Quantidade, QuantidadeLida
+from app.schemas.precificacao.quantidade import Quantidade, QuantidadeLida
 
 
 # --- Schemas para criacao de orcamento e produtos ---

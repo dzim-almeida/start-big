@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/segmentos.py
+# ARQUIVO: services/sistema/segmentos.py (era services/segmentos.py ate 13/10/2026)
 # DESCRICAO: Regras de negocio ligadas ao segmento da empresa.
 #
 #            Responsavel por:

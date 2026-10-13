@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from app.services.limpeza_temporal import limpar_temp_data
+from app.services.sistema.limpeza_temporal import limpar_temp_data
 
 
 def _pasta_mei(raiz, nome, *, do_startbig=True):

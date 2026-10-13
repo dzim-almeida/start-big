@@ -60,7 +60,7 @@ def converter_orcamento(db: Session, orcamento_id: int, payload: ConverterOrcame
     # Regras de preço por quantidade (§6.1): o orçamento sai com o preço de
     # tabela, e a venda nasce com as regras que a loja ligou — igual a montar
     # o carrinho no caixa. Sem regra ligada, não muda nada (B8).
-    from app.services import regras_preco as regras_preco_service
+    from app.services.precificacao import regras as regras_preco_service
     from app.services import venda as venda_service
     db.refresh(venda_in_db)
     if regras_preco_service.aplicar_na_venda(db, venda_in_db):

@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import text
 
 from app.core.config import DB_NAME, database_path
-from app.schemas.backup import ConfirmRestoreResponse, PrepareRestoreResponse
+from app.schemas.backup.operacoes import ConfirmRestoreResponse, PrepareRestoreResponse
 
 from ._constants import (
     LOCAL_BACKUP,

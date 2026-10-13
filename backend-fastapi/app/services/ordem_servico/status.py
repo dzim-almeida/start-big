@@ -13,7 +13,7 @@ from app.schemas.ordem_servico import (
 from app.db.models.ordem_servico import OrdemServico as OSModel
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento as OSPagamentoModel
 from app.db.crud import ordem_servico as os_crud
-from app.db.crud import forma_pagamento as fp_crud
+from app.db.crud.forma_pagamento import formas as fp_crud
 from app.db.crud.configuracao import seguranca as config_seg_crud
 from app.services.fabrica import trilho as trilho_fabrica
 from app.services.ordem_servico import ganchos as ganchos_os   # Spec 09A: quem reage ao ciclo da OS

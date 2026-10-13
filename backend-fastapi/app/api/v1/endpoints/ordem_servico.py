@@ -55,7 +55,7 @@ from app.schemas.ordem_servico import (
 )
 from app.services import ordem_servico as os_service
 from app.services.ordem_servico import foto as os_foto_service
-from app.services import segmentos as segmentos_service
+from app.services.sistema import segmentos as segmentos_service
 
 router = APIRouter()
 

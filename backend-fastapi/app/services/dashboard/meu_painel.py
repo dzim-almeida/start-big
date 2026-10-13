@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.db.crud import dashboard as dashboard_crud
-from app.schemas.dashboard import (
+from app.schemas.dashboard.paineis import (
     TendenciaResponse,
     OSVencendoItem,
     OSVencendoResponse,

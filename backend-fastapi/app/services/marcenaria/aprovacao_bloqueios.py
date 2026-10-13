@@ -20,7 +20,7 @@ from app.db.models.marcenaria.etapa import StatusEtapa
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.pedido_compra import PedidoCompra
 from app.services.marcenaria import terceirizado_situacao as terceirizado
-from app.services.segmentos import get_segmento_atual
+from app.services.sistema.segmentos import get_segmento_atual
 
 # Texto do status da OS quando o segmento nao declarou o seu (Spec 01A).
 _STATUS_OS = {

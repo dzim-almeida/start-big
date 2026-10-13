@@ -9,7 +9,7 @@ from typing import Optional
 from app.core.enum import (
     JurosResponsavel,
 )
-from app.schemas.forma_pagamento import FormaPagamentoRead
+from app.schemas.forma_pagamento.formas import FormaPagamentoRead
 
 
 # ===========================================================================

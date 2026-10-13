@@ -10,7 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.core import segmentos as reg
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
-from app.services.segmentos import get_segmento_atual
+from app.services.sistema.segmentos import get_segmento_atual
 
 
 # Item que veio de outro documento (ex.: orçamento técnico da marcenaria).

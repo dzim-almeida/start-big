@@ -14,7 +14,7 @@ from app.schemas.cliente import (
     EquipamentoHistoricoRead,
 )
 
-from app.schemas.pagination import ClientePaginationRead
+from app.schemas.comum.paginacao import ClientePaginationRead
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
 from app.services import cliente as cliente_service

@@ -48,7 +48,7 @@ from app.db.models.ordem_servico import OrdemServico
 from app.db.models.ordem_servico_item import OrdemServicoItem
 from app.db.models.pedido_compra import PedidoCompra
 from app.db.models.produto import Produto
-from app.schemas.fabrica import (
+from app.schemas.fabrica.geral import (
     AmbienteRead,
     InsumoDaAprovacao,
     MaterialRead,

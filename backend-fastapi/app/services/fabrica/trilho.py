@@ -322,7 +322,7 @@ def ao_reabrir(db: Session, os_: OrdemServico, usuario: str) -> None:
 # --- O retrato para a tela -----------------------------------------------------------------
 
 def estado(db: Session, numero_os: str):
-    from app.schemas.fabrica import EtapaRead, LogFaseRead, TravaRead, TrilhoRead
+    from app.schemas.fabrica.geral import EtapaRead, LogFaseRead, TravaRead, TrilhoRead
 
     os_ = _os(db, numero_os)
     fase = os_.fase_fabrica

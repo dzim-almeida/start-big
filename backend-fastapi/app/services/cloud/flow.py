@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-from app.schemas.backup import BackupInfo, FlowDecision
+from app.schemas.backup.operacoes import BackupInfo, FlowDecision
 
 
 class CloudSyncError(Exception):

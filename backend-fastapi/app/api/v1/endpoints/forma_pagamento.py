@@ -14,8 +14,8 @@ from typing import List
 from app.core.depends import check_permission, _handle_db_transaction
 from app.db.session import get_db
 from app.db.models.forma_pagamento import FormaPagamento as FormaPagamentoModel
-from app.db.crud import forma_pagamento as fp_crud
-from app.schemas.forma_pagamento import FormaPagamentoCreate, FormaPagamentoUpdate, FormaPagamentoRead
+from app.db.crud.forma_pagamento import formas as fp_crud
+from app.schemas.forma_pagamento.formas import FormaPagamentoCreate, FormaPagamentoUpdate, FormaPagamentoRead
 from fastapi import HTTPException
 
 router = APIRouter()

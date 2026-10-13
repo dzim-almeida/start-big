@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/dashboard.py
+# ARQUIVO: schemas/dashboard/paineis.py (era schemas/dashboard.py ate 13/10/2026)
 # DESCRICAO: Schemas Pydantic para os endpoints do Dashboard.
 # ---------------------------------------------------------------------------
 

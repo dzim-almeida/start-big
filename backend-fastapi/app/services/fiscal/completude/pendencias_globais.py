@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/pendencias_globais.py
+# ARQUIVO: services/fiscal/completude/pendencias_globais.py (era services/pendencias_globais.py ate 13/10/2026)
 # DESCRIÇÃO: Pendências fiscais globais para o painel do Centro Fiscal.
 #            Diferente de verificacao_fiscal.py que verifica uma venda/OS
 #            específica, aqui verificamos o cadastro geral da empresa.

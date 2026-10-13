@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.depends import get_current_active_user, get_current_master_user, get_db
-from app.schemas.dashboard import (
+from app.schemas.dashboard.paineis import (
     DashboardStats,
     TendenciaResponse,
     OSVencendoResponse,

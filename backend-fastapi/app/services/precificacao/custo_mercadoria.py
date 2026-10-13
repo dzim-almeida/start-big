@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/custo_mercadoria.py
+# ARQUIVO: services/precificacao/custo_mercadoria.py (era services/custo_mercadoria.py ate 13/10/2026)
 # DESCRIÇÃO: O CMV — quanto custou, para a loja, aquilo que ela vendeu.
 # ---------------------------------------------------------------------------
 """

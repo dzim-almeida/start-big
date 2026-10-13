@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_current_master_user, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.backup import (
+from app.schemas.backup.operacoes import (
     BackupCriadoComCota,
     BackupInfo,
     CicloNuvemInfo,

@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from app.core.tempo import fim_do_dia_utc, hoje_local, inicio_do_dia_utc
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import financeiro as financeiro_crud
-from app.services import custo_mercadoria
+from app.services.precificacao import custo_mercadoria as custo_mercadoria
 from app.schemas.financeiro import (
     AlertaFinanceiro,
     Projecao,

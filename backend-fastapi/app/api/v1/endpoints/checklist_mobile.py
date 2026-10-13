@@ -24,7 +24,7 @@ from app.core.enum import OrdemServicoStatus
 from app.db.crud import empresa as empresa_crud
 from app.db.crud import ordem_servico as os_crud
 from app.db.session import get_db
-from app.services import segmentos as segmentos_service
+from app.services.sistema import segmentos as segmentos_service
 
 router = APIRouter()
 

@@ -160,7 +160,7 @@ def _produto_kg():
 
 def _item_tres_e_meio_kg():
     """3,5 kg a R$ 30,01/kg = R$ 105,035 → R$ 105,04 (meio-para-cima, como o PDV)."""
-    from app.services.quantidade_venda import subtotal_da_linha
+    from app.services.precificacao.quantidade import subtotal_da_linha
 
     iv = _item_venda(1, _produto_kg(), quantidade=3.5, valor_unitario=3001)
     iv.subtotal = subtotal_da_linha(3.5, 3001)

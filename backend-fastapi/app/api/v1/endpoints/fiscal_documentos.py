@@ -16,7 +16,7 @@ from app.core.depends import get_current_active_user, get_db, requer_modulo_fisc
 from app.db.crud import fiscal as fiscal_crud
 from app.schemas.fiscal.documento import DocumentoFiscalHistorico, DocumentoFiscalListRead, DocumentoFiscalRead, DocumentoFiscalResumo, PendenciasGlobais
 from app.services.fiscal.documentos import consultas as documento_fiscal_service
-from app.services import pendencias_globais as pendencias_globais_service
+from app.services.fiscal.completude import pendencias_globais as pendencias_globais_service
 
 # Sem `dependencies`: a trava do módulo NFE é herdada do router de `fiscal.py`.
 router = APIRouter()

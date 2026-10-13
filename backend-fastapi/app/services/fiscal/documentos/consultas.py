@@ -13,7 +13,7 @@ from app.db.models.venda import Venda
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.crud import fiscal as fiscal_crud
 from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
-from app.schemas.quantidade import normalizar_quantidade
+from app.schemas.precificacao.quantidade import normalizar_quantidade
 from app.schemas.fiscal.documento import (
     DocumentoFiscalHistorico,
     DocumentoFiscalListRead,

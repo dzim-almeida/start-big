@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.fabrica_orcamento import EventoFase, SituacaoOrcamento
 from app.db.models.pedido_compra import PedidoCompra, PedidoCompraItem, SituacaoPedido, TipoPedido
-from app.schemas.fabrica import PedidoServicoEscrita, PedidoServicoRead
+from app.schemas.fabrica.geral import PedidoServicoEscrita, PedidoServicoRead
 from app.services.compras import pedidos as pedidos_service
 from app.services.fabrica import trilho
 from app.services.fabrica.separacao import movel_da_os

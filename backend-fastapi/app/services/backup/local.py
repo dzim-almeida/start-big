@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from app.core.config import DB_NAME
-from app.schemas.backup import BackupCriado, BackupInfo, BackupVerificacao
+from app.schemas.backup.operacoes import BackupCriado, BackupInfo, BackupVerificacao
 
 from ._constants import (
     BACKUP_FILENAME_REGEX,

@@ -38,7 +38,7 @@ from app.db.models.pedido_compra import PedidoCompra
 from app.db.models.produto import Produto
 from app.db.models.produto_embalagem import ProdutoEmbalagem
 from app.db.models.recebimento_compra import RecebimentoCompra
-from app.schemas.fabrica import (
+from app.schemas.fabrica.geral import (
     InsumoMargem,
     ItemSeparacao,
     MargemRead,

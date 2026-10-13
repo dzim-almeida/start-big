@@ -2,8 +2,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.models.comunicado import Comunicado
-from app.db.crud import comunicado as crud
-from app.schemas.comunicado import ComunicadoCreate, ComunicadoRead
+from app.db.crud.comunicado import comunicados as crud
+from app.schemas.comunicado.comunicados import ComunicadoCreate, ComunicadoRead
 
 
 def listar_comunicados(db: Session, empresa_id: int, funcionario_id: int) -> list[ComunicadoRead]:

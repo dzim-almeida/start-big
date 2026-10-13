@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
-from app.schemas.produto_regra_preco import RegraPrecoRead, RegrasPrecoSalvar
-from app.services import regras_preco as regras_service
+from app.schemas.precificacao.regras import RegraPrecoRead, RegrasPrecoSalvar
+from app.services.precificacao import regras as regras_service
 
 router = APIRouter()
 

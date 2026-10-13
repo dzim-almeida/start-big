@@ -29,7 +29,7 @@ from app.services.marcenaria import erros
 from app.services.marcenaria.calculo import OrcamentoResultado
 from app.services.marcenaria.orcamento_calculo import atualizar_resumo, calcular_orcamento_do_banco
 from app.services.marcenaria.permissoes import pode_ver_custos_marcenaria
-from app.services.segmentos import get_segmento_atual
+from app.services.sistema.segmentos import get_segmento_atual
 
 USUARIO_SISTEMA = "Sistema"     # quem assina o vencimento automatico (D14)
 

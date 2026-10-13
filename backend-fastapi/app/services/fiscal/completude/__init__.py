@@ -8,6 +8,7 @@
 #   core.py                    (era core.py)
 #   validators.py              (era validators.py)
 #   verificacao.py             (era verificacao.py)
+#   pendencias_globais.py (era services/pendencias_globais.py; entrou em 13/10/2026)
 #
 # Este __init__ NAO importa nada, de proposito: cada modulo se importa pelo
 # caminho completo. Assim o grafo de imports e o mesmo de antes, e cada modulo

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/quantidade_venda.py
+# ARQUIVO: services/precificacao/quantidade.py (era services/quantidade_venda.py ate 13/10/2026)
 # DESCRIÇÃO: Quem pode vender quantidade quebrada, e o dinheiro de uma linha.
 #
 # Venda fracionada (docs/venda-fracionada-plano.md), decisões aceitas pelo

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/setup.py
+# ARQUIVO: services/sistema/setup.py (era services/setup.py ate 13/10/2026)
 # MÓDULO: Regras de Negócio (Service Layer)
 # DESCRIÇÃO: Orquestra a criação atômica do setup inicial do sistema.
 #            Cria: Usuario Master + Empresa + Endereco + Cargo Master + Funcionario.

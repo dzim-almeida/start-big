@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/regras_preco.py
+# ARQUIVO: services/precificacao/regras.py (era services/regras_preco.py ate 13/10/2026)
 # MÓDULO: Service — Regras de preço por quantidade (plano de embalagens, §6.1)
 # ---------------------------------------------------------------------------
 """
@@ -31,9 +31,9 @@ from app.core.embalagem import preco_da_embalagem
 from app.core.enum import TipoProdutoVenda
 from app.db.models.produto import Produto
 from app.db.models.produto_regra_preco import ProdutoRegraPreco
-from app.schemas.produto_regra_preco import RegrasPrecoSalvar
-from app.schemas.quantidade import normalizar_quantidade
-from app.services.quantidade_venda import eh_fracionavel, subtotal_da_linha
+from app.schemas.precificacao.regras import RegrasPrecoSalvar
+from app.schemas.precificacao.quantidade import normalizar_quantidade
+from app.services.precificacao.quantidade import eh_fracionavel, subtotal_da_linha
 
 CAMPOS = ("tipo", "quantidade", "preco", "pague", "inicio", "fim", "ativo")
 MANUAL = "MANUAL"

@@ -14,7 +14,7 @@ from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.db.crud import ordem_servico as os_crud
 from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
-from app.services.segmentos import (
+from app.services.sistema.segmentos import (
     validar_objeto_por_segmento,
     identificador_pesquisavel_atual,
     get_segmento_atual,

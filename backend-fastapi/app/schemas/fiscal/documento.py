@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.quantidade import QuantidadeLida
+from app.schemas.precificacao.quantidade import QuantidadeLida
 
 
 class DocumentoItemResumo(BaseModel):

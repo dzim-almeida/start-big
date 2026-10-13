@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.models.ordem_servico import OrdemServico as OSModel
 from app.db.models.ordem_servico_item import OrdemServicoItem as OSItemModel
 from app.db.crud import ordem_servico as os_crud
-from app.db.crud import forma_pagamento as fp_crud
+from app.db.crud.forma_pagamento import formas as fp_crud
 from app.core.enum import (
     OrdemServicoStatus,
     OrdemServicoItemAprovacao,

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/forma_pagamento.py
+# ARQUIVO: schemas/forma_pagamento/formas.py (era schemas/forma_pagamento.py ate 13/10/2026)
 # DESCRICAO: Schemas Pydantic para o catálogo global de Formas de Pagamento.
 #
 # FormaPagamento é uma entidade do sistema (catálogo), não associada

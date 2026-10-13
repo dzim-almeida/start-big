@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core import segmentos as reg                      # registry (dado dos segmentos)
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import relatorio as relatorio_crud
-from app.schemas.dashboard import (
+from app.schemas.dashboard.paineis import (
     DashboardStats,
     TendenciaResponse,
     OSVencendoItem,
@@ -30,7 +30,7 @@ from app.schemas.dashboard import (
     OSAtrasadaEmpresaItem,
     OSAtrasadaEmpresaResponse,
 )
-from app.services import segmentos as segmentos_service    # descobre o segmento da empresa
+from app.services.sistema import segmentos as segmentos_service    # descobre o segmento da empresa
 from app.services.dashboard.periodo import _calcular_periodo, _calcular_ticket_medio, _calcular_urgencia, _calcular_variacao, _montar_serie
 
 

@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/terminal_conectado.py
+# ARQUIVO: db/crud/terminal/conectados.py (era db/crud/terminal_conectado.py ate 13/10/2026)
 # DESCRIÇÃO: Queries SQL para a entidade TerminalConectado.
 #            Segue o padrão flush-sem-commit (commit no caller).
 # ---------------------------------------------------------------------------

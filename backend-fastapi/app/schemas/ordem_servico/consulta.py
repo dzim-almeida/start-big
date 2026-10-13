@@ -9,7 +9,7 @@ from app.core.enum import (
     OrdemServicoStatus,
     SituacaoEquipamento,
 )
-from app.schemas.pagination import PaginationBase as Pagination
+from app.schemas.comum.paginacao import PaginationBase as Pagination
 from app.schemas.ordem_servico.ordem import OrdemServicoRead
 
 

@@ -8,10 +8,10 @@ from typing import Sequence
 from app.db.models.venda import Venda
 from app.db.models.venda_pagamento import PagamentoVenda
 from app.schemas.vendas import PagamentoVendaCreate
-from app.services import regras_preco as regras_preco_service
+from app.services.precificacao import regras as regras_preco_service
 from app.services.venda import atacado as venda_atacado
 from app.db.crud import venda as venda_crud
-from app.db.crud import forma_pagamento as forma_pagamento_crud
+from app.db.crud.forma_pagamento import formas as forma_pagamento_crud
 from app.helpers.exceptions import BadRequestException
 
 

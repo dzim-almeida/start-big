@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: pagination.py
+# ARQUIVO: schemas/comum/paginacao.py (era schemas/pagination.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic (DTOs)
 # DESCRIÇÃO: Define regras de validação, tipos e documentação OpenAPI.
 # ---------------------------------------------------------------------------

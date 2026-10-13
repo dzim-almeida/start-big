@@ -10,7 +10,7 @@ from calendar import monthrange
 
 from app.core.tempo import agora_utc, fim_do_dia_utc, hoje_local, inicio_do_dia_utc
 from app.db.crud import dashboard as dashboard_crud
-from app.schemas.dashboard import (
+from app.schemas.dashboard.paineis import (
     TendenciaDiaItem,
 )
 

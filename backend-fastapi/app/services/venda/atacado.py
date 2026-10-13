@@ -23,7 +23,7 @@ Regras (decididas com a loja em 10/10/2026):
 
 from app.core.enum import TipoProdutoVenda
 from app.helpers.exceptions import BadRequestException
-from app.services.quantidade_venda import subtotal_da_linha
+from app.services.precificacao.quantidade import subtotal_da_linha
 
 ATACADO = "ATACADO"
 DESCRICAO = "Preço de atacado"

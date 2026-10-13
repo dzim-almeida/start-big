@@ -9,8 +9,8 @@ from app.db.models.venda_produto import ProdutoVenda
 from app.schemas.vendas import ProdutoVendaCreate, ProdutoVendaUpdate
 from app.services import produto as produto_service
 from app.services.produto import embalagem as embalagem_service
-from app.services import quantidade_venda
-from app.services import regras_preco as regras_preco_service
+from app.services.precificacao import quantidade as quantidade_venda
+from app.services.precificacao import regras as regras_preco_service
 from app.db.crud import venda as venda_crud
 from app.db.crud.configuracao import produtos as config_produtos_crud
 from app.db.crud.configuracao import vendas as config_vendas_crud

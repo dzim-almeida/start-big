@@ -30,7 +30,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
-from app.services.quantidade_venda import UNIDADES_FRACIONAVEIS
+from app.services.precificacao.quantidade import UNIDADES_FRACIONAVEIS
 
 _BP = Decimal(10000)          # 100% em basis points
 _MILESIMOS = 1000             # uma unidade inteira em milesimos

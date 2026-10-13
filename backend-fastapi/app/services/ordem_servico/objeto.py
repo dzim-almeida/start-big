@@ -7,7 +7,7 @@
 from datetime import datetime, date
 from sqlalchemy.orm import Session
 from app.db.crud import ordem_servico as os_crud
-from app.services.segmentos import (
+from app.services.sistema.segmentos import (
     get_segmento_atual,
 )
 from app.core import segmentos as reg

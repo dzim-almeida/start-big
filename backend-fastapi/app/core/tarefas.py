@@ -12,7 +12,7 @@ from app.db.session import SessionLocal, engine
 from app.db.models.contador_venda import ContadorVenda
 from app.db.models.empresa import Empresa
 from app.db.models.forma_pagamento import FormaPagamento
-from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados, limpar_temp_data
+from app.services.sistema.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados, limpar_temp_data
 from app.services.licenca import enviar_heartbeat, renovar_licenca_background, desconectar_terminal
 from app.services.backup import (
     create_backup,
@@ -23,7 +23,7 @@ from app.services.backup import (
 # `cloud` reexporta sync/CloudSyncError; o alias mantem o resto do arquivo igual.
 from app.services import cloud as cloud_sync
 from app.services.configuracao.backup import get_or_create_configuracao_backup
-from app.db.crud import terminal_conectado as terminal_crud
+from app.db.crud.terminal import conectados as terminal_crud
 
 from app.core.discovery import atualizar_anuncio, register_service, stop_discovery
 

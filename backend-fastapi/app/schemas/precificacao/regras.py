@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/produto_regra_preco.py
+# ARQUIVO: schemas/precificacao/regras.py (era schemas/produto_regra_preco.py ate 13/10/2026)
 # MÓDULO: Schemas Pydantic — Regras de preço por quantidade do produto (R2, R3)
 # ---------------------------------------------------------------------------
 """

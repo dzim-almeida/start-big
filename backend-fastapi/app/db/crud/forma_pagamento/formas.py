@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/forma_pagamento.py
+# ARQUIVO: db/crud/forma_pagamento/formas.py (era db/crud/forma_pagamento.py ate 13/10/2026)
 # DESCRICAO: Queries SQL via SQLAlchemy para o catálogo de Formas de Pagamento.
 #
 # FormaPagamento é um catálogo global do sistema, independente de OS.

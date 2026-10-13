@@ -20,7 +20,7 @@ from app.db.crud.configuracao.marcenaria import (
 )
 from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
 from app.schemas.configuracao.marcenaria import ConfiguracaoMarcenariaUpdate
-from app.services.segmentos import get_segmento_atual
+from app.services.sistema.segmentos import get_segmento_atual
 
 
 def _exigir_orcamento_tecnico(db: Session) -> None:

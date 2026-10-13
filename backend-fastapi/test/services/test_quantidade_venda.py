@@ -11,8 +11,8 @@ from types import SimpleNamespace
 import pytest
 
 from app.helpers.exceptions import BadRequestException
-from app.schemas.quantidade import normalizar_quantidade
-from app.services.quantidade_venda import (
+from app.schemas.precificacao.quantidade import normalizar_quantidade
+from app.services.precificacao.quantidade import (
     UNIDADES_FRACIONAVEIS, eh_fracionavel, exigir_quantidade_permitida, subtotal_da_linha,
 )
 

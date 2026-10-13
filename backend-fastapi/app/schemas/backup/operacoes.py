@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/backup.py
+# ARQUIVO: schemas/backup/operacoes.py (era schemas/backup.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas Pydantic para backup local, sincronização com a nuvem
 #            e journal de envios.
 # ---------------------------------------------------------------------------

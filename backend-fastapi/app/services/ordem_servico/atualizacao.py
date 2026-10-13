@@ -12,7 +12,7 @@ from app.db.models.ordem_servico import OrdemServico as OSModel
 from app.db.crud import ordem_servico as os_crud
 from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
-from app.services.segmentos import (
+from app.services.sistema.segmentos import (
     validar_objeto_por_segmento,
 )
 from app.services.fabrica import trilho as trilho_fabrica

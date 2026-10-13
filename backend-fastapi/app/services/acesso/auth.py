@@ -12,7 +12,7 @@ from app.schemas.acesso.auth import UsuarioLogin
 from app.core.security import verify_password, create_access_token
 from app.services.acesso import usuario as usuario_service
 from app.services import licenca as licenca_service
-from app.services import terminal as terminal_service
+from app.services.terminal import estacoes as terminal_service
 from app.db.crud.acesso import token as token_crud
 from app.db.crud.acesso import usuario as usuario_crud
 from app.db.models.token import TokenBlocklist

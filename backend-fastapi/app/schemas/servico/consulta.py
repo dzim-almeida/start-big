@@ -5,7 +5,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Sequence
-from app.schemas.pagination import PaginationBase as Pagination
+from app.schemas.comum.paginacao import PaginationBase as Pagination
 from app.schemas.servico.leitura import ServicoRead
 
 

@@ -12,7 +12,7 @@ from app.schemas.licenca import (
 )
 from app.db.models.terminal_conectado import TerminalConectado
 from app.db.crud.configuracao import licenca as licenca_crud
-from app.db.crud import terminal_conectado as terminal_crud
+from app.db.crud.terminal import conectados as terminal_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_CONECTAR_URL, API_DESCONECTAR_URL, CONECTAR_TIMEOUT_SECONDS, DESCONECTAR_TIMEOUT
 from app.services.licenca.cripto import decriptar_valor

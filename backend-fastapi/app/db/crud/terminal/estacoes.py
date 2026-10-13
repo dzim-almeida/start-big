@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/terminal.py
+# ARQUIVO: db/crud/terminal/estacoes.py (era db/crud/terminal.py ate 13/10/2026)
 # MÓDULO: Acesso a Dados (Repository)
 # DESCRIÇÃO: Queries do cadastro durável de terminais.
 # ---------------------------------------------------------------------------

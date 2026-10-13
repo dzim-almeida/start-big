@@ -31,7 +31,7 @@ from app.schemas.financeiro import (
     DespesaPorCategoria,
     ResumoFinanceiro,
 )
-from app.services import custo_mercadoria
+from app.services.precificacao import custo_mercadoria as custo_mercadoria
 from app.services.financeiro.analise import alertas_de_tendencia
 from app.services.financeiro.comum import _funcionario_do_token
 from app.services.financeiro.contas_pagar import _serializar_conta

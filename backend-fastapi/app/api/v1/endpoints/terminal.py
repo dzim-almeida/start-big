@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
-from app.schemas.terminal import TerminalEsteRead, TerminalRead, TerminalUpdate
-from app.services import terminal as terminal_service
+from app.schemas.terminal.estacoes import TerminalEsteRead, TerminalRead, TerminalUpdate
+from app.services.terminal import estacoes as terminal_service
 
 router = APIRouter()
 

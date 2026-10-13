@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/terminal.py
+# ARQUIVO: services/terminal/estacoes.py (era services/terminal.py ate 13/10/2026)
 # DESCRIÇÃO: Regras do cadastro durável de terminais (nome e papel por máquina).
 # ---------------------------------------------------------------------------
 
@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import is_visao_gerencial
 from app.helpers.exceptions import BadRequestException, NotFoundException
-from app.db.crud import terminal as terminal_crud
+from app.db.crud.terminal import estacoes as terminal_crud
 from app.db.models.terminal import Terminal
-from app.schemas.terminal import TerminalEsteRead, TerminalRead, TerminalUpdate
+from app.schemas.terminal.estacoes import TerminalEsteRead, TerminalRead, TerminalUpdate
 
 
 # Papel ausente e papel 'PDV' são a mesma coisa. Escrito uma vez, aqui, para que

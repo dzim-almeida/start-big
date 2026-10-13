@@ -13,7 +13,7 @@ from app.core.enum import (
 )
 from app.schemas.cliente import ClienteRead
 from app.schemas.funcionario import FuncionarioRead
-from app.schemas.forma_pagamento import FormaPagamentoRead
+from app.schemas.forma_pagamento.formas import FormaPagamentoRead
 from app.schemas.examples.os_payload import os_example
 from app.schemas.ordem_servico.foto import OSFotoRead
 from app.schemas.ordem_servico.item import OSItemCreate, OSItemRead

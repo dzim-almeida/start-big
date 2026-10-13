@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/quantidade.py
+# ARQUIVO: schemas/precificacao/quantidade.py (era schemas/quantidade.py ate 13/10/2026)
 # DESCRIÇÃO: O tipo da quantidade de uma linha de venda/orçamento.
 #
 # Venda fracionada (docs/venda-fracionada-plano.md, F1): a linha aceita 3,5 kg.

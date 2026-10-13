@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.tempo import intervalo_utc
 from app.db.crud import dashboard as dashboard_crud
 from app.db.crud import relatorio as relatorio_crud
-from app.services import custo_mercadoria
+from app.services.precificacao import custo_mercadoria as custo_mercadoria
 from app.schemas.relatorio import (
     RelatorioFaturamento,
     FaturamentoDiaItem,

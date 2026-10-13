@@ -106,7 +106,7 @@ def listar_historico(
     # desligada agora. Enquanto o nome vinha da presença, a coluna Terminal
     # ficava vazia justamente nos turnos antigos — que são os que o dono abre o
     # relatório para ver.
-    from app.db.crud import terminal as terminal_crud
+    from app.db.crud.terminal import estacoes as terminal_crud
 
     hwids = {s.terminal_hwid for s in sessoes if s.terminal_hwid}
     nomes_terminal: Dict[str, Optional[str]] = terminal_crud.nomes_por_hwid(
@@ -199,7 +199,7 @@ def montar_resumo(
     # depois, com a máquina possivelmente desligada.
     terminal_nome = None
     if sessao.terminal_hwid:
-        from app.db.crud import terminal as terminal_crud
+        from app.db.crud.terminal import estacoes as terminal_crud
 
         terminal = terminal_crud.get_por_hwid(db, sessao.terminal_hwid)
         terminal_nome = getattr(terminal, "nome", None)

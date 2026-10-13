@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/fabrica.py
+# ARQUIVO: schemas/fabrica/geral.py (era schemas/fabrica.py ate 13/10/2026)
 # DESCRIÇÃO: Schemas da marcenaria-fábrica (docs/marcenaria-fabrica-plano.md).
 # ---------------------------------------------------------------------------
 
