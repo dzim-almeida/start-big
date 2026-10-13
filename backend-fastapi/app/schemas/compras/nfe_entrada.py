@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/schemas/nfe_entrada.py
+# ARQUIVO: schemas/compras/nfe_entrada.py (era schemas/nfe_entrada.py ate 13/10/2026)
 # DESCRIÇÃO: Entrada de mercadoria pela XML da NF-e (docs/entrada-xml-nfe-plano.md).
 #            Dinheiro em CENTAVOS; quantidades em float (a nota tem até 4 casas).
 # ---------------------------------------------------------------------------

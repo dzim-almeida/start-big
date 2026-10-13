@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: app/services/nfe_entrada.py
+# ARQUIVO: services/compras/nfe_entrada.py (era services/nfe_entrada.py ate 13/10/2026)
 # MÓDULO: Service — Entrada de mercadoria pela XML da NF-e do fornecedor
 # ---------------------------------------------------------------------------
 """
@@ -34,7 +34,7 @@ from app.db.models.produto import Produto
 from app.db.models.produto_codigo_fornecedor import ProdutoCodigoFornecedor
 from app.db.models.produto_embalagem import ProdutoEmbalagem
 from app.schemas.produto import EstoqueCreate
-from app.schemas.nfe_entrada import (
+from app.schemas.compras.nfe_entrada import (
     DecisaoItem,
     DuplicataPrevia,
     EntradaLancada,

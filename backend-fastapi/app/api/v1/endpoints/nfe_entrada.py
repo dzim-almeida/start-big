@@ -13,8 +13,8 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission, get_db
-from app.schemas.nfe_entrada import ImportarNota, NotaEntradaRead, NotaPrevia, ResultadoImportacao
-from app.services import nfe_entrada as service
+from app.schemas.compras.nfe_entrada import ImportarNota, NotaEntradaRead, NotaPrevia, ResultadoImportacao
+from app.services.compras import nfe_entrada as service
 
 router = APIRouter()
 
