@@ -7,21 +7,24 @@
  *
  * O nome do ambiente tem SUGESTÕES (Cozinha, Closet...) e aceita texto livre.
  * Na tela "novo", adicionar o primeiro ambiente cria o orçamento (D5).
+ *
+ * "Móvel avulso" (remodelação item 3): para o móvel que não é de um cômodo
+ * (uma mesa, um painel solto), sem precisar inventar um ambiente antes.
  */
 import { computed, nextTick, ref } from 'vue';
-import { Plus } from 'lucide-vue-next';
+import { PackagePlus, Plus } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import { formatCurrency } from '@/shared/utils/finance';
 
-import { LIMITES, SUGESTOES_AMBIENTE } from '../../constants/orcamento.constants';
+import { AMBIENTE_AVULSO, LIMITES, SUGESTOES_AMBIENTE } from '../../constants/orcamento.constants';
 import { useEditor } from '../../composables/useEditorContexto';
 import type { AmbienteDetalhe } from '../../schemas/orcamentoDetalhe.schema';
 import AmbienteCard from './AmbienteCard.vue';
 import { gradeMoveis } from './gradeMoveis';
 
-const { detalhe, editavel, incluiCustos, acoesOrcamento, garantirOrcamento } = useEditor();
+const { detalhe, editavel, incluiCustos, acoesOrcamento, garantirOrcamento, abrirMovel } = useEditor();
 
 const ambientes = computed<AmbienteDetalhe[]>(() => detalhe.value?.ambientes ?? []);
 
@@ -66,6 +69,33 @@ async function confirmar() {
   }
 }
 
+// --- Móvel avulso (remodelação item 3) ---------------------------------------------
+/** Compara nomes sem ligar para maiúsculas e espaços: "avulso " é o mesmo que "Avulso". */
+const ehAvulso = (a: AmbienteDetalhe) => a.nome.trim().toLowerCase() === AMBIENTE_AVULSO.toLowerCase();
+
+/**
+ * Abre o cadastro de um móvel no ambiente "Avulso". Se ele ainda não existe,
+ * cria primeiro (e, na tela "novo", isso também cria o orçamento, como em D5).
+ */
+async function adicionarMovelAvulso() {
+  if (gravando.value) return;                         // evita dois cliques criarem dois ambientes
+  gravando.value = true;
+  try {
+    const id = await garantirOrcamento();
+    if (id == null) return;                           // não deu para criar o orçamento
+    // Já existe um "Avulso"? Usa ele.
+    let avulso = ambientes.value.find(ehAvulso);
+    if (!avulso) {
+      // Não existe: cria. A API devolve o orçamento inteiro; o "Avulso" novo vem dentro dele.
+      const novoDetalhe = await acoesOrcamento.criarAmbiente(AMBIENTE_AVULSO);
+      avulso = novoDetalhe?.ambientes.find(ehAvulso);
+    }
+    if (avulso) abrirMovel(avulso.id);                // abre o modal do móvel já nesse ambiente
+  } finally {
+    gravando.value = false;
+  }
+}
+
 /** Troca o ambiente de lugar com o vizinho e manda a nova ordem (D20). */
 async function mover(indice: number, direcao: -1 | 1) {
   const ids = ambientes.value.map((a) => a.id);
@@ -86,9 +116,15 @@ async function mover(indice: number, direcao: -1 | 1) {
           <template v-else>Os móveis do projeto, agrupados por ambiente.</template>
         </p>
       </div>
-      <BaseButton v-if="editavel && !adicionando" variant="secondary" size="sm" data-testid="novo-ambiente" @click="abrirCampo">
-        <Plus :size="14" class="mr-1" /> Novo ambiente
-      </BaseButton>
+      <div v-if="editavel && !adicionando" class="flex flex-wrap gap-2">
+        <!-- Móvel solto, sem cômodo: vai para o ambiente "Avulso" (item 3) -->
+        <BaseButton variant="secondary" size="sm" :is-loading="gravando" data-testid="movel-avulso" @click="adicionarMovelAvulso">
+          <PackagePlus :size="14" class="mr-1" /> Móvel avulso
+        </BaseButton>
+        <BaseButton variant="secondary" size="sm" data-testid="novo-ambiente" @click="abrirCampo">
+          <Plus :size="14" class="mr-1" /> Novo ambiente
+        </BaseButton>
+      </div>
     </header>
 
     <!-- Nome com sugestões (datalist): escolher ou digitar livre (D19). -->
@@ -145,7 +181,8 @@ async function mover(indice: number, direcao: -1 | 1) {
     </template>
 
     <p v-else-if="!adicionando" class="border-t border-zinc-100 px-6 py-8 text-center text-sm text-zinc-500">
-      Nenhum ambiente ainda. Comece por "Novo ambiente" (ex.: Cozinha, Dormitório casal).
+      Nenhum ambiente ainda. Comece por "Novo ambiente" (ex.: Cozinha, Dormitório casal)
+      ou, para um móvel solto, por "Móvel avulso".
     </p>
   </section>
 </template>
