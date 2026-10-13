@@ -1,14 +1,13 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: crud/fornecedor.py
-# DESCRIÇÃO: Funções de CRUD (Create, Read, Update, Delete) para interagir
-#            com a tabela de Fornecedores no banco de dados (Repository Layer).
+# ARQUIVO: db/crud/fornecedor/consultas.py
+# DESCRICAO: Fornecedor (crud) - buscas e verificacao de conflito.
 # ---------------------------------------------------------------------------
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_, and_
-from typing import Sequence, Callable, Optional, TypeGuard # TypeGuard para o Callable
-
+from sqlalchemy import select, or_
+from typing import Sequence, Callable, Optional  # TypeGuard para o Callable
 from app.db.models.fornecedor import Fornecedor as FornecedorModel
+
 
 # =========================
 # Funções de Validação/Conflito (REGRA 4: Robustez)
@@ -16,6 +15,7 @@ from app.db.models.fornecedor import Fornecedor as FornecedorModel
 
 # Define o tipo da função de busca para clareza
 SearchMethod = Callable[[Session, str], Optional[FornecedorModel]]
+
 
 def verify_fornecedor_conflict(
     db: Session,
@@ -50,6 +50,7 @@ def verify_fornecedor_conflict(
 
     return None
 
+
 # Funções de Leitura (Read) (Docstrings detalhadas)
 # ... (demais funções de CRUD get_fornecedor_by_id, get_fornecedor_by_cnpj, etc., com Docstrings completas) ...
 
@@ -58,15 +59,18 @@ def get_fornecedor_by_id(db: Session, fornecedor_id: int) -> Optional[Fornecedor
     stmt = select(FornecedorModel).where(FornecedorModel.id == fornecedor_id)
     return db.scalars(stmt).first()
 
+
 def get_fornecedor_by_cnpj(db: Session, fornecedor_cnpj: str) -> Optional[FornecedorModel]:
     """Busca um único fornecedor pelo seu 'cnpj' exato."""
     stmt = select(FornecedorModel).where(FornecedorModel.cnpj == fornecedor_cnpj)
     return db.scalars(stmt).first()
 
+
 def get_fornecedor_by_ie(db: Session, fornecedor_ie: str) -> Optional[FornecedorModel]:
     """Busca um único fornecedor pelo seu 'ie' exato."""
     stmt = select(FornecedorModel).where(FornecedorModel.ie == fornecedor_ie)
     return db.scalars(stmt).first()
+
 
 def get_fornecedor_by_search(db: Session, search: Optional[str]) -> Sequence[FornecedorModel]:
     """
@@ -92,22 +96,3 @@ def get_fornecedor_by_search(db: Session, search: Optional[str]) -> Sequence[For
         stmt = base_stmt.where(conditions)
 
     return db.scalars(stmt).all()
-
-
-def create_fornecedor(db: Session, fornecedor_to_add: FornecedorModel) -> FornecedorModel:
-    """
-    Adiciona um novo fornecedor (e seus endereços associados em cascata)
-    ao banco de dados.
-    """
-    db.add(fornecedor_to_add)
-    db.flush()
-    db.refresh(fornecedor_to_add)
-    return fornecedor_to_add
-
-def update_fornecedor(db: Session, fornecedor_to_update: FornecedorModel) -> FornecedorModel:
-    """
-    Persiste as alterações feitas em um objeto Fornecedor na sessão.
-    """
-    db.flush()
-    db.refresh(fornecedor_to_update)
-    return fornecedor_to_update

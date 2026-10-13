@@ -1,14 +1,13 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: schemas/fornecedor.py
-# DESCRIÇÃO: Schemas Pydantic para validação de dados de Fornecedor.
-#            Define as estruturas de entrada (Create/Update) e saída (Read).
+# ARQUIVO: schemas/fornecedor/cadastro.py
+# DESCRICAO: Schemas de fornecedor - entrada (criar e editar).
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
-
-from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
+from app.schemas.endereco import Endereco, EnderecoUpdate
 from app.core.enum import BankAccountType
+
 
 # =========================
 # Schema Pydantic: FornecedorCreate (Criação)
@@ -123,19 +122,6 @@ class FornecedorCreate(BaseModel):
         }
     )
 
-# =========================
-# Schema Pydantic: FornecedorRead (Leitura/Resposta)
-# =========================
-class FornecedorRead(FornecedorCreate):
-    """
-    Schema para formatar os dados de SAÍDA (resposta da API) de um Fornecedor.
-    """
-    id: int = Field(..., description="ID do fornecedor")
-    ativo: bool = Field(..., description="Status do fornecedor")
-    endereco: Optional[List[EnderecoRead]] = Field(
-        None,
-        description="Endereço do fornecedor"
-    )
 
 # =========================
 # Schema Pydantic: FornecedorUpdate (Atualização)

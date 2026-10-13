@@ -1,49 +1,18 @@
 # ---------------------------------------------------------------------------
-# ARQUIVO: services/fornecedor.py
-# DESCRIÇÃO: Camada de serviço com a lógica de negócio para Fornecedores.
-#            Implementa o CRUD completo, incluindo a gestão de
-#            endereços polimórficos.
+# ARQUIVO: services/fornecedor/cadastro.py
+# DESCRICAO: Fornecedor - criar, editar, ativar e desativar.
 # ---------------------------------------------------------------------------
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Sequence, List, Optional, Dict, Any
-
-# Importa os schemas Pydantic (Create para entrada, Update para modificação)
+from typing import List, Optional, Dict, Any
 from app.schemas.fornecedor import FornecedorCreate, FornecedorUpdate
-# Importa o modelo ORM
 from app.db.models.fornecedor import Fornecedor as FornecedorModel
-
-# Importa os Enums e serviços necessários
 from app.core.enum import EntityType
 from app.services import endereco as endereco_service
 from app.db.crud import fornecedor as fornecedor_crud
+from app.services.fornecedor.validacao import not_found_exce, unique_fields, validation_exce, validators
 
-# Definição de exceções padrão para reutilização
-conflict_exce = HTTPException(
-    status_code=status.HTTP_409_CONFLICT,
-    detail="Fornecedor já cadastrado no sistema"
-)
-
-not_found_exce = HTTPException(
-    status_code=status.HTTP_404_NOT_FOUND,
-    detail="Fornecedor não encontrado no sistema"
-)
-
-# Nota: O Pydantic V2 permite que o 'detail' seja '...' para listas/erros customizados
-validation_exce = HTTPException(
-    status_code=status.HTTP_409_CONFLICT,
-    detail=...
-)
-
-# Campos que exigem verificação de unicidade no banco
-unique_fields = ["cnpj", "ie"]
-
-# Mapa de validadores mapeando campo -> função de busca no CRUD
-validators = {
-    "cnpj": fornecedor_crud.get_fornecedor_by_cnpj,
-    "ie": fornecedor_crud.get_fornecedor_by_ie
-}
 
 # =========================
 # Serviço: Criar Fornecedor
@@ -115,21 +84,6 @@ def create_fornecedor(db: Session, fornecedor_to_add: FornecedorCreate) -> Forne
     # 5. RETORNA O OBJETO PERSISTIDO
     return fornecedor_in_db
 
-# =========================
-# Serviço: Buscar Fornecedores
-# =========================
-def get_fornecedor_by_search(db: Session, search: Optional[str]) -> Sequence[FornecedorModel]:
-    """
-    Busca fornecedores ativos por critério de busca (nome, fantasia ou CNPJ).
-
-    Args:
-        db (Session): Sessão de banco de dados ativa.
-        search (str | None): Termo de busca opcional (nome, cnpj, ie).
-
-    Returns:
-        Sequence[FornecedorModel]: Lista de objetos FornecedorModel encontrados.
-    """
-    return fornecedor_crud.get_fornecedor_by_search(db, search)
 
 # =========================
 # Serviço: Atualizar Fornecedor
@@ -200,6 +154,7 @@ def update_fornecedor_by_id(
 
     # 5. Chama o CRUD para persistir as alterações (flush + refresh)
     return fornecedor_crud.update_fornecedor(db, fornecedor_to_update=fornecedor_in_db)
+
 
 # =========================
 # Serviço: Ativar Fornecedor
