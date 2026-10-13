@@ -1,10 +1,12 @@
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from datetime import datetime
-from typing import Optional, Sequence
+# ---------------------------------------------------------------------------
+# ARQUIVO: schemas/orcamentos/itens.py
+# DESCRICAO: Schemas do orcamento - itens.
+# ---------------------------------------------------------------------------
 
+from pydantic import BaseModel, Field, model_validator, ConfigDict
+from typing import Optional
 from app.core.enum import TipoProdutoVenda
 from app.schemas.quantidade import Quantidade, QuantidadeLida
-from app.schemas.funcionario import CargoBase
 
 
 # --- Schemas para criacao de orcamento e produtos ---
@@ -47,10 +49,6 @@ class OrcamentoProdutoCreate(BaseModel):
         return self
 
 
-class OrcamentoCreate(BaseModel):
-    funcionario_id: int = Field(..., description="ID do funcionario")
-
-
 # --- Schemas para atualizacao ---
 
 class OrcamentoProdutoUpdate(BaseModel):
@@ -66,13 +64,6 @@ class OrcamentoProdutoUpdate(BaseModel):
             if subtotal < 0:
                 raise ValueError("O desconto nao pode ser maior que o valor total do produto.")
         return self
-
-
-class OrcamentoUpdate(BaseModel):
-    funcionario_id: Optional[int] = Field(None, description="ID do funcionario")
-    entrega: Optional[int] = Field(None, ge=0, description="Valor da entrega")
-    desconto: Optional[int] = Field(None, ge=0, description="Desconto do orcamento")
-    observacao: Optional[str] = Field(None, max_length=500, description="Observacao do orcamento")
 
 
 # --- Schemas para leitura ---
@@ -95,73 +86,3 @@ class OrcamentoProdutoRead(BaseModel):
     embalagem_id: Optional[int] = Field(None, description="Embalagem vendida (nulo = unidade)")
     fator_embalagem: int = Field(1, ge=1, description="Unidades por embalagem, congelado na linha")
     sigla_embalagem: Optional[str] = Field(None, description="Sigla congelada (FD, CX...)")
-
-
-class FuncionarioOrcamentoRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(..., description="ID do funcionario")
-    nome: str = Field(..., description="Nome do funcionario")
-    cargo: Optional[CargoBase] = Field(None, description="Cargo do funcionario")
-
-
-class OrcamentoSimpleRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(..., description="ID do orcamento (numero do orcamento)")
-    funcionario_id: int = Field(..., description="ID do funcionario responsavel")
-    total: int = Field(0, ge=0, description="Total do orcamento")
-    convertido: bool = Field(False, description="Se foi convertido em venda")
-    venda_id: Optional[int] = Field(None, description="ID da venda criada a partir deste orcamento")
-    criado_em: datetime = Field(..., description="Data de criacao do orcamento")
-    atualizado_em: datetime = Field(..., description="Data da ultima atualizacao do orcamento")
-    funcionario: Optional[FuncionarioOrcamentoRead] = Field(None, description="Dados do funcionario responsavel")
-
-
-class OrcamentoRead(OrcamentoSimpleRead):
-    entrega: int = Field(0, ge=0, description="Valor da entrega")
-    subtotal: int = Field(0, ge=0, description="Subtotal do orcamento")
-    descontos: int = Field(0, ge=0, description="Total de descontos do orcamento")
-    observacao: Optional[str] = Field(None, max_length=500, description="Observacao do orcamento")
-    produtos: Optional[Sequence[OrcamentoProdutoRead]] = Field(default_factory=list, validation_alias="itens", description="Lista de produtos do orcamento")
-
-
-class OrcamentoFinanceSummary(BaseModel):
-    subtotal: int = Field(0, ge=0, description="Subtotal atualizado do orcamento")
-    descontos: int = Field(0, ge=0, description="Descontos atualizados do orcamento")
-    entrega: int = Field(0, ge=0, description="Valor da entrega atualizado")
-    total: int = Field(0, ge=0, description="Total atualizado do orcamento")
-
-
-class OrcamentoProdutosAlterSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    produto_adicionado: OrcamentoProdutoRead
-    financeiro_atualizado: OrcamentoFinanceSummary
-
-
-class OrcamentoStatusSummary(BaseModel):
-    orcamentos_ativos: int = Field(0, ge=0, description="Quantidade de orcamentos ativos")
-    orcamentos_convertidos: int = Field(0, ge=0, description="Quantidade de orcamentos convertidos")
-
-
-class ConverterOrcamentoPayload(BaseModel):
-    cliente_id: int = Field(..., description="ID do cliente para a venda")
-
-
-class OrcamentoSearchFilters(BaseModel):
-    search: Optional[str] = Field(None, max_length=255, description="Termo de busca")
-    convertido: Optional[bool] = Field(None, description="Filtrar por status de conversao")
-    funcionario_id: Optional[int] = Field(None, description="Filtrar por funcionario")
-
-
-class OrcamentoListRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    filters: OrcamentoSearchFilters = Field(..., description="Filtros aplicados")
-    orcamentos: Sequence[OrcamentoSimpleRead] = Field(default_factory=list, description="Lista de orcamentos")
-    total: int = Field(0, ge=0, description="Total de orcamentos encontrados")
-    page: int = Field(1, ge=1, description="Pagina atual")
-    limit: int = Field(20, ge=1, le=100, description="Limite por pagina")
-    total_pages: int = Field(1, ge=1, description="Total de paginas")
-    links: dict = Field(..., description="Links de navegacao")

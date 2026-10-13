@@ -1,28 +1,16 @@
-from sqlalchemy.orm import Session, aliased, joinedload
-from sqlalchemy import select, func, cast, String
+# ---------------------------------------------------------------------------
+# ARQUIVO: db/crud/orcamento/consultas.py
+# DESCRICAO: Orcamento (crud) - buscar orcamento e item, listar e resumo por status.
+# ---------------------------------------------------------------------------
 
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select, func, cast, String
 from app.core.busca import filtro_busca
 from app.db.models.orcamento import Orcamento
 from app.db.models.orcamento_produto import OrcamentoProduto
 from app.db.models.funcionario import Funcionario
-
 from app.schemas.orcamentos import OrcamentoStatusSummary
-
 from typing import Sequence
-
-
-def create_orcamento(db: Session, orcamento_data: Orcamento) -> Orcamento:
-    db.add(orcamento_data)
-    db.flush()
-    db.refresh(orcamento_data)
-    return orcamento_data
-
-
-def add_product_to_orcamento(db: Session, product_data: OrcamentoProduto) -> OrcamentoProduto:
-    db.add(product_data)
-    db.flush()
-    db.refresh(product_data)
-    return product_data
 
 
 def get_orcamento_by_id(db: Session, orcamento_id: int) -> Orcamento:
@@ -34,31 +22,9 @@ def get_orcamento_by_id(db: Session, orcamento_id: int) -> Orcamento:
     return db.scalar(stmt)
 
 
-def update_orcamento(db: Session, orcamento: Orcamento) -> Orcamento:
-    db.flush()
-    db.refresh(orcamento)
-    return orcamento
-
-
-def update_product_in_orcamento(db: Session, product: OrcamentoProduto) -> OrcamentoProduto:
-    db.flush()
-    db.refresh(product)
-    return product
-
-
 def get_product_by_id(db: Session, item_id: int) -> OrcamentoProduto:
     stmt = select(OrcamentoProduto).where(OrcamentoProduto.id == item_id)
     return db.scalar(stmt)
-
-
-def remove_product_from_orcamento(db: Session, product: OrcamentoProduto) -> None:
-    db.delete(product)
-    db.flush()
-
-
-def delete_orcamento(db: Session, orcamento: Orcamento) -> None:
-    db.delete(orcamento)
-    db.flush()
 
 
 def get_orcamentos_by_search(
