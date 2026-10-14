@@ -17,6 +17,7 @@ import { defineComponent, h, ref } from 'vue';
 const getSeparacao = vi.fn();
 const retirar = vi.fn();
 const concluir = vi.fn();
+const reabrir = vi.fn();
 const lerCodigo = vi.fn();
 const getFaltas = vi.fn();
 const getDisponivel = vi.fn();
@@ -25,6 +26,7 @@ vi.mock('../services/separacao.service', async (original) => ({
   getSeparacao: (...a: unknown[]) => getSeparacao(...a),
   retirar: (...a: unknown[]) => retirar(...a),
   concluir: (...a: unknown[]) => concluir(...a),
+  reabrir: (...a: unknown[]) => reabrir(...a),
   lerCodigo: (...a: unknown[]) => lerCodigo(...a),
   getFaltas: (...a: unknown[]) => getFaltas(...a),
   getDisponivel: (...a: unknown[]) => getDisponivel(...a),
@@ -88,7 +90,7 @@ const corpo = () => document.body.textContent ?? '';
 const el = (testid: string) => document.body.querySelector(`[data-testid="${testid}"]`) as HTMLElement | null;
 
 beforeEach(() => {
-  for (const f of [getSeparacao, retirar, concluir, lerCodigo, getFaltas, getDisponivel, getProdutos, ...Object.values(toast)]) f.mockReset();
+  for (const f of [getSeparacao, retirar, concluir, reabrir, lerCodigo, getFaltas, getDisponivel, getProdutos, ...Object.values(toast)]) f.mockReset();
   getTerceirizados.mockReset();
   conferirTerceirizados.mockReset();
   // Padrão: OS sem móvel terceirizado (a resposta real da 11A, com a lista vazia).
@@ -415,5 +417,45 @@ describe('15 — disponível na busca de insumo (D21)', () => {
     expect(mdf.text()).toBe('Estoque 2 un · faltam 1 un');
     expect(mdf.classes()).toContain('text-red-600');
     expect(w.find('[data-testid="disponivel-4"]').text()).toBe('Estoque 4 par · disponível 4 par');
+  });
+});
+
+describe('"Retirar" depois de devolver (remodelação item 13)', () => {
+  /** A fixture com a Corrediça (item 4, concluída 6 de 6) trocada pelo estado pedido. */
+  function comCorredica(campos: Record<string, unknown>) {
+    const dados = structuredClone(fixtures.separacao) as { linhas: Record<string, unknown>[] };
+    dados.linhas = dados.linhas.map((l) => (l.item_id === 4 ? { ...l, ...campos } : l));
+    return dados;
+  }
+  /** Mostra também as concluídas (por padrão a aba mostra só as pendentes). */
+  async function verTodas(w: Awaited<ReturnType<typeof montarAba>>) {
+    const filtro = w.find('[data-testid="so-pendentes"]');
+    if ((filtro.element as HTMLInputElement).checked) await filtro.setValue(false);
+    await flushPromises();
+  }
+  const retirarDa = (w: Awaited<ReturnType<typeof montarAba>>) => w.find('[data-testid="linha-4"] [data-testid="acao-retirar"]');
+
+  it('separada por inteiro (6 de 6): sem "Retirar", como antes', async () => {
+    const w = await montarAba();
+    await verTodas(w);
+    expect(retirarDa(w).exists()).toBe(false);
+  });
+
+  it('devolveu parte (ficou 4 de 6, a linha se fechou): "Retirar" volta', async () => {
+    const w = await montarAba(comCorredica({ separada_milesimos: 4000, quantidade_milesimos: 4000 }));
+    await verTodas(w);
+    expect(retirarDa(w).exists()).toBe(true);
+  });
+
+  it('devolveu tudo ("Não usado"): "Retirar" aparece, reabre a linha sozinho e abre a retirada', async () => {
+    const naoUsado = comCorredica({ separada_milesimos: 0, nao_usado: true, concluida: true, falta_milesimos: 0 });
+    const reaberta = comCorredica({ separada_milesimos: 0, nao_usado: false, concluida: false, falta_milesimos: 6000 });
+    reabrir.mockResolvedValue(schemas.separacaoSchema.parse(reaberta));
+    const w = await montarAba(naoUsado);
+    await verTodas(w);
+    await retirarDa(w).trigger('click');
+    await flushPromises();
+    expect(reabrir).toHaveBeenCalledTimes(1);                       // o backend só retira de linha reaberta
+    expect(el('quantidade-retirar')).not.toBeNull();                // e a retirada abriu
   });
 });

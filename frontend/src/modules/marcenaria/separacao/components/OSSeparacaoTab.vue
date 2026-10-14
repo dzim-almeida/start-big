@@ -180,8 +180,18 @@ async function moverStatus() {
 }
 
 // --- Ações ------------------------------------------------------------------------------
-function abrirRetirar(linha: LinhaSeparacao) {
-  retirarModal.value = { aberto: true, linha, quantidade: null };
+async function abrirRetirar(linha: LinhaSeparacao) {
+  let alvo = linha;
+  // Linha "Não usado" (devolveu tudo ou marcou que não usa): o backend só deixa retirar
+  // depois de reabrir (Spec 10A D11/D12). Em vez de obrigar o usuário a achar o "Reabrir"
+  // no menu, o "Retirar" reabre sozinho e segue (remodelação item 13).
+  if (linha.nao_usado) {
+    const nova = await reabrirLinha(linha);
+    const reaberta = nova?.linhas.find((l) => l.item_id === linha.item_id);
+    if (!reaberta) return;                               // não reabriu (o erro já virou aviso)
+    alvo = reaberta;                                     // a linha nova, com o retirado de agora
+  }
+  retirarModal.value = { aberto: true, linha: alvo, quantidade: null };
 }
 
 async function confirmarRetirar(quantidade: number) {
