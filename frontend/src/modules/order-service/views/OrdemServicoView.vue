@@ -35,7 +35,7 @@ import { useCapacidades } from '../shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
 import { mostrarBotaoAdicionar, mostrarBotaoNovoOrcamento } from '../shared/segmento/botoesCriacaoOS';
 import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS } = useOSCreateFlow();
@@ -43,7 +43,10 @@ const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
 
-const activeTab = ref('ordens');
+// Aba inicial: `?aba=orcamentos` abre direto em "Orçamento" (é para onde a rota
+// /orcamentos redireciona: "voltar à lista" do editor). Sem isso, "Ordens de Serviço".
+const route = useRoute();
+const activeTab = ref(route.query.aba === 'orcamentos' ? 'orcamentos' : 'ordens');
 
 // Abas fixas: "Ordens de Serviço" e "Cadastro de Serviços". Na marcenaria (quem tem
 // orçamento técnico), a segunda vira "Orçamento" (remodelação item 1): o `map` troca
@@ -117,7 +120,8 @@ function handleAddClick() {
         :description="pageDescription"
       />
 
-      <div class="flex gap-5">
+      <!-- Abas à esquerda e o botão de criar à direita (justify-between, remodelação item 1). -->
+      <div class="flex w-full flex-wrap items-center justify-between gap-5">
         <BaseTab2 :options="tabOptions" v-model="activeTab" />
         <BaseButton
           v-if="exibirBotaoAdicionar"

@@ -1,9 +1,7 @@
 /**
- * Spec 06B (marcenaria, D2; casos 15 e 16) — o item "Orçamentos" do menu.
- *
- * Ele exige a CAPACIDADE `orcamento_tecnico` do segmento (contrato do backend)
- * e a permissão de ver orçamentos. Sem a capacidade, some (não fica com
- * cadeado). Nos outros segmentos, o menu fica exatamente como antes.
+ * O item "Orçamentos" do menu (Spec 06B D2) saiu na remodelação da marcenaria
+ * (item 1): a lista de orçamentos virou a aba "Orçamento" da tela de Serviços.
+ * Estes testes garantem que ele não volta.
  *
  * Tudo em volta é SIMULADO: usuário com todas as permissões, todos os módulos.
  */
@@ -44,27 +42,18 @@ function rotulosDoMenu(): string[] {
   return wrapper.findAll('.item').map((item) => item.text());
 }
 
-describe('menu "Orçamentos"', () => {
-  it('15 — informática (sem a capacidade): sem "Orçamentos", mesma lista de antes', () => {
-    capacidades.value = ['diagnostico', 'garantia_prazo'];
+describe('menu "Orçamentos" (saiu do menu lateral: remodelação item 1)', () => {
+  it('marcenaria: sem "Orçamentos" no menu (a lista é a aba "Orçamento" de Serviços)', () => {
+    capacidades.value = ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'];
     const rotulos = rotulosDoMenu();
     expect(rotulos.slice(0, 3)).toEqual(['Início', 'Vendas', 'Serviços']);   // o menu de fato montou
     expect(rotulos).not.toContain('Orçamentos');
-    // A lista de sempre: o item novo é o ÚNICO que depende da capacidade.
-    capacidades.value = ['orcamento_tecnico'];
-    expect(rotulosDoMenu().filter((r) => r !== 'Orçamentos')).toEqual(rotulos);
   });
 
-  it('16 — marcenaria com a permissão: "Orçamentos" logo depois de "Serviços"', () => {
-    capacidades.value = ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'];
-    const rotulos = rotulosDoMenu();
-    expect(rotulos[rotulos.indexOf('Serviços') + 1]).toBe('Orçamentos');
-  });
-
-  it('marcenaria SEM a permissão de ver orçamentos: o item some', () => {
+  it('o menu é o mesmo com ou sem a capacidade de orçamento técnico', () => {
+    capacidades.value = ['diagnostico', 'garantia_prazo'];
+    const semCapacidade = rotulosDoMenu();
     capacidades.value = ['orcamento_tecnico'];
-    permitido.value = (chave) => chave !== 'view_orcamentos_marcenaria';
-    expect(rotulosDoMenu()).not.toContain('Orçamentos');
-    permitido.value = () => true;
+    expect(rotulosDoMenu()).toEqual(semCapacidade);
   });
 });

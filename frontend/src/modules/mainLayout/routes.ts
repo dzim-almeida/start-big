@@ -158,28 +158,25 @@ const homeRoutes: RouteRecordRaw[] = [
       // A guarda da capacidade fica na tela (useExigeCapacidade): o guard do
       // router não enxerga o contrato do segmento (TanStack Query).
       {
-        path: '/orcamentos',                                    // lista
+        // A lista mora na aba "Orçamento" da tela de Serviços (remodelação item 1):
+        // esta rota só redireciona. O NOME fica, para quem já navega por ele
+        // ("voltar à lista" do editor, links salvos) cair no lugar certo.
+        path: '/orcamentos',
         name: 'marcenaria-orcamentos',
-        component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue'),
-        meta: {
-          title: 'Orçamentos',
-          subtitle: 'Propostas de móveis planejados, do rascunho à aprovação.',
-          tabId: 'marcenaria-orcamentos',                       // marca o item do menu como ativo
-          requiresAuth: true,
-        },
+        redirect: { name: 'services', query: { aba: 'orcamentos' } },
       },
       {
         path: '/orcamentos/novo',                               // editor ainda sem gravar (D5)
         name: 'marcenaria-orcamento-novo',
         component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
-        meta: { title: 'Orçamentos', subtitle: 'Novo orçamento', tabId: 'marcenaria-orcamentos', requiresAuth: true, telaCheia: true },
+        meta: { title: 'Orçamentos', subtitle: 'Novo orçamento', tabId: 'services', requiresAuth: true, telaCheia: true },
       },
       {
         path: '/orcamentos/:id(\\d+)',                          // só número: "novo" não cai aqui
         name: 'marcenaria-orcamento',
         component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
         props: (rota) => ({ id: Number(rota.params.id) }),      // a tela recebe o id já como número
-        meta: { title: 'Orçamentos', subtitle: 'Orçamento de móveis planejados', tabId: 'marcenaria-orcamentos', requiresAuth: true, telaCheia: true },
+        meta: { title: 'Orçamentos', subtitle: 'Orçamento de móveis planejados', tabId: 'services', requiresAuth: true, telaCheia: true },
       },
       // A rota '/fabrica/separacao/:numeroOs' saiu com a aposentadoria da
       // fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D14): ela só abria OS do

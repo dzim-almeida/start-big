@@ -24,7 +24,8 @@ vi.mock('@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento', ()
 }));
 vi.mock('../../servicos/composables/useServicoModal', () => ({ useServicoModal: () => ({ openCreateModal: vi.fn() }) }));
 vi.mock('../../ordens/composables/useOSCreateFlow', () => ({ useOSCreateFlow: () => ({ openNovaOS: vi.fn() }) }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const rotaQuery: Record<string, string> = {};
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }), useRoute: () => ({ query: rotaQuery }) }));
 
 /**
  * Um marcador no lugar de cada aba (as de verdade buscam dados). O
@@ -124,5 +125,15 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     expect(w.find('[data-testid="aba-orcamentos"]').attributes('data-embutida')).toBe('true');
     expect(w.find('[data-testid="aba-servicos"]').exists()).toBe(false);
     expect(w.text()).not.toContain('Novo Serviço');
+  });
+
+  it('marcenaria: "?aba=orcamentos" (para onde /orcamentos redireciona) abre direto na aba Orçamento', async () => {
+    temOrcamentoTecnico.value = true;
+    podeCriarOSManual.value = false;
+    rotaQuery.aba = 'orcamentos';
+    const w = montar();
+    await flushPromises();
+    expect(w.find('[data-testid="aba-orcamentos"]').exists()).toBe(true);
+    delete rotaQuery.aba;
   });
 });
