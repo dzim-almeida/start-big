@@ -328,10 +328,14 @@ async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
       </section>
 
       <!-- As linhas, na ordem do depósito (D3) -->
-      <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <!-- SEM `overflow-hidden` (remodelação item 16): ele cortava o menu "⋯" da última
+           linha, e o "Reabrir" ficava por baixo do bloco seguinte: o clique caía nele e
+           "não funcionava". Os cantos ficam com o cabeçalho (`rounded-t-2xl`) e com a
+           última linha (`last:rounded-b-2xl`, em SeparacaoLinha). -->
+      <section class="rounded-2xl border border-zinc-200 bg-white">
         <div
           v-if="linhasVisiveis.length"
-          class="hidden gap-x-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+          class="hidden gap-x-4 rounded-t-2xl border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
           aria-hidden="true"
         >
           <span>Insumo · usado em</span><span>Quantidades</span><span>Local no estoque</span><span>Situação</span><span class="w-28" />

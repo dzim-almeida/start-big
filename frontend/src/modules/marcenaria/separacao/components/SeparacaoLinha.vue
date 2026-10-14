@@ -86,7 +86,7 @@ function escolher(id: 'devolver' | 'concluir' | 'naoUsado' | 'reabrir') {
   <!-- Uma linha da tabela de separação (redesign 10/2026). As colunas batem com o cabeçalho de OSSeparacaoTab. -->
   <div
     :id="`separacao-linha-${linha.item_id}`"
-    class="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+    class="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors last:rounded-b-2xl md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
     :class="[
       linha.concluida ? 'bg-zinc-50/70' : alertas.some((a) => a.tom === 'perigo') ? 'bg-red-50/40' : 'bg-white',
       destacada ? 'ring-2 ring-inset ring-brand-primary/60' : '',
