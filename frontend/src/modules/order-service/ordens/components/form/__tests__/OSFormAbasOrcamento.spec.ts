@@ -100,9 +100,9 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Visão Geral" no lugar do objeto, "Separação" (10B), "Produção" (12B), "Entrega & Fotos" (13B) e "Orçamento"', () => {
+  it('02 — marcenaria, OS existente: "Visão Geral" no lugar do objeto, "Separação" (10B), "Produção" (12B), "Entrega & Fotos" (13B) e "Orçamento"; sem "Imagens" (remodelação item 11)', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Visão Geral', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega & Fotos', 'Orçamento',
+      'Visão Geral', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega & Fotos', 'Orçamento',
     ]);
   });
 
