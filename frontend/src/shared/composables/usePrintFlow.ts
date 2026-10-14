@@ -17,7 +17,13 @@ export function usePrintFlow<T extends string>(
   // por aqui: ela é uma classe no container, aplicada pelo próprio template.
   const { opcoesPaginaDe } = usePerfilComprovante();
   const printType = ref<T>('' as T);
-  const printFormat = ref<PrintFormat>('A4');
+  // Começa VAZIO: nenhum formato escolhido = nenhum modelo de impressão montado.
+  // Começava em 'A4', e isso deixava o recibo da OS (OSPrintTemplate, que só
+  // aparece com `printFormat === 'A4'`) no <body> desde a abertura da OS. Qualquer
+  // outra impressão feita com a OS aberta (faltas da separação, etiquetas dos
+  // móveis) saía com o recibo e termo de garantia junto (remodelação itens 15 e 18).
+  // Quem imprime escolhe o formato antes (handlePrintFormatSelected / printDirect).
+  const printFormat = ref<PrintFormat>('' as PrintFormat);
   const isPrintSelectModalOpen = ref(false);
   const pendingPrintAction = ref<(() => void) | null>(null);
 
