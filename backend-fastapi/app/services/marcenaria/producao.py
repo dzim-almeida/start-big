@@ -30,7 +30,7 @@ from app.db.crud.configuracao_marcenaria import get_configuracao_marcenaria
 from app.db.crud.marcenaria import orcamento as crud
 from app.db.models.configuracao_marcenaria import ETAPAS_PADRAO
 from app.db.models.funcionario import Funcionario
-from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel
+from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel, ordem_na_os
 from app.db.models.marcenaria.etapa import MarcenariaEtapa, StatusEtapa
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.ordem_servico import OrdemServico
@@ -41,6 +41,7 @@ from app.services.marcenaria import erros
 from app.services.marcenaria import terceirizado_situacao as terceirizado
 from app.services.marcenaria.aprovacao_bloqueios import rotulo_status_os
 from app.services.marcenaria.orcamento_comum import (
+    OrcamentosDaOS,
     exigir_orcamento_tecnico,
     os_aberta,
     os_e_orcamento_aprovado,
@@ -77,7 +78,7 @@ def _aprovados(orc: MarcenariaOrcamento) -> list[tuple[MarcenariaAmbiente, Marce
     """Os moveis APROVADOS, na ordem da tela (ambiente, movel)."""
     return [
         (ambiente, movel)
-        for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id))
+        for ambiente in sorted(orc.ambientes, key=ordem_na_os)
         for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id))
         if movel.aprovado
     ]
@@ -448,6 +449,17 @@ def quadro(db: Session) -> dict[str, Any]:
             .selectinload(MarcenariaMovel.etapas),
         )
     ).all()
+    # Remodelacao item 20: o aditivo aprovado tambem aponta para a OS, mas o
+    # quadro tem UMA linha por OS. Os aditivos entram na linha do principal
+    # (a vista OrcamentosDaOS soma os moveis deles), em vez de virar outra linha.
+    aditivos_por_os: dict[int, list[MarcenariaOrcamento]] = {}
+    for orc in orcamentos:
+        if orc.aditivo_os_id is not None:
+            aditivos_por_os.setdefault(orc.aditivo_os_id, []).append(orc)
+    orcamentos = [
+        OrcamentosDaOS(orc, sorted(aditivos_por_os.get(orc.os_id, []), key=lambda a: a.id))
+        for orc in orcamentos if orc.aditivo_os_id is None
+    ]
     ids = sorted({m.pedido_compra_id for orc in orcamentos for _a, m in _aprovados(orc) if m.pedido_compra_id})
     pedidos = crud.buscar_por_ids(db, PedidoCompra, ids)
     hoje = hoje_local()

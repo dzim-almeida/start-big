@@ -29,7 +29,7 @@ from app.schemas.marcenaria.orcamento import (
     RecusarEntrada,
 )
 from app.schemas.marcenaria.aprovacao import AprovacaoEntrada, DesfazerEntrada
-from app.services.marcenaria import aprovacao, erros, rt
+from app.services.marcenaria import aditivo, aprovacao, erros, rt
 from app.services.marcenaria import orcamento as servico
 from app.services.marcenaria.orcamento_comum import exigir_custos
 from app.services.marcenaria.permissoes import (
@@ -120,6 +120,15 @@ def por_os(
     db: Session = Depends(get_db),
 ):
     return executar(db, aprovacao.resumo_por_os, numero_os)
+
+
+@router.post("/por-os/{numero_os}/aditivos", status_code=status.HTTP_201_CREATED,
+             summary="Criar um ADITIVO da OS (moveis a mais, em RASCUNHO)")
+def criar_aditivo(numero_os: str, usuario_token: dict = GERIR, db: Session = Depends(get_db)):
+    """Remodelacao item 20: copia cliente, vendedor, projeto, parametros e
+    arquitetos do orcamento que gerou a OS; sem moveis. Aprovado, soma na OS."""
+    novo_id = executar(db, aditivo.criar_aditivo, numero_os, usuario_token)
+    return executar(db, servico.detalhe, novo_id, usuario_token)
 
 
 # ===========================================================================

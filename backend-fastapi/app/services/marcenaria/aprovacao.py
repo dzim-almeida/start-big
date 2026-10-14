@@ -45,6 +45,7 @@ from app.schemas.marcenaria.aprovacao import AprovacaoEntrada, DesfazerEntrada, 
 from app.schemas.ordem_servico import OrdemServicoCancelar, OrdemServicoCreate, OSItemCreate, OSObjetoCreate
 from app.services import ordem_servico as os_service
 from app.services.marcenaria import erros
+from app.services.marcenaria.aditivo import aprovar_aditivo, desfazer_aditivo
 from app.services.marcenaria.calculo import AjusteCalc, OrcamentoResultado
 from app.services.marcenaria.aprovacao_bloqueios import motivos_que_impedem_desfazer
 from app.services.marcenaria.insumos_os import InsumoDaOS, insumos_da_os, ordenar_para_a_os
@@ -55,6 +56,7 @@ from app.services.marcenaria.orcamento_comum import (
     conferir_revisao,
     exigir_orcamento_tecnico,
     fechar_escrita,
+    os_aberta,
     registrar_evento,
 )
 from app.services.marcenaria.permissoes import pode_ver_custos_marcenaria
@@ -319,6 +321,13 @@ def aprovar(db: Session, orcamento_id: int, revisao: int, dados: AprovacaoEntrad
         erros.invalido(f"O móvel {sem_preco[0]} está sem preço. Complete o móvel ou deixe-o de fora.")
     sinal = _resolver_sinal(dados.sinal, resultado)
 
+    if orc.aditivo_os_id is not None:
+        # Remodelacao item 20: o ADITIVO nao cria OS; os moveis dele somam na OS
+        # que ja existe (itens, material, etapas, entregas). Mesma transacao.
+        aprovar_aditivo(db, orc, resultado, sinal, usuario_token)
+        fechar_escrita(db, orc)
+        return orc.id
+
     itens, fontes = _itens_da_os(orc, resultado, _pecas_embutidas(db, orc))
     os_criada = os_service.create_ordem_servico(
         db,
@@ -402,6 +411,12 @@ def desfazer_aprovacao(db: Session, orcamento_id: int, revisao: int, dados: Desf
     conferir_revisao(orc, revisao)
     if orc.status != StatusOrcamento.APROVADO:
         erros.transicao_invalida(orc.status)
+    if orc.aditivo_os_id is not None:
+        # Remodelacao item 20: desfazer o ADITIVO tira dele o que somou na OS;
+        # a OS continua (nao e cancelada), com o orcamento principal.
+        desfazer_aditivo(db, orc, dados, usuario_token)
+        fechar_escrita(db, orc)
+        return
     motivos = motivos_que_impedem_desfazer(db, orc)
     if motivos:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
@@ -473,6 +488,25 @@ def resumo_por_os(db: Session, numero_os: str) -> dict:
         for a, m in _todos_os_moveis(orc) if m.aprovado
     ]
     motivos = motivos_que_impedem_desfazer(db, orc)
+    aditivos = [
+        {
+            "orcamento_id": a.id,
+            "codigo": a.codigo,
+            "versao": a.versao,
+            "status": a.status,
+            "data_aprovacao": a.data_aprovacao,
+            # Aprovado: o que somou na OS. Antes disso: o total atual da proposta.
+            "total_aprovado_centavos": a.resumo_aprovado_total_centavos,
+            "total_centavos": a.resumo_total_centavos,
+            "moveis": [
+                {"nome": m.nome, "ambiente": amb.nome, "quantidade": m.quantidade,
+                 "medidas": {"largura_mm": m.largura_mm, "altura_mm": m.altura_mm, "profundidade_mm": m.profundidade_mm},
+                 "os_item_id": m.os_item_id}
+                for amb, m in _todos_os_moveis(a) if a.status != StatusOrcamento.APROVADO or m.aprovado
+            ],
+        }
+        for a in crud.listar_aditivos_da_os(db, os_.id)
+    ]
     return {
         "orcamento_id": orc.id,
         "codigo": orc.codigo,
@@ -490,4 +524,12 @@ def resumo_por_os(db: Session, numero_os: str) -> dict:
         "sinal_recebido_centavos": os_.valor_entrada or 0,
         "pode_desfazer": not motivos,
         "motivos_desfazer": motivos,
+        # Remodelacao item 20: os aditivos desta OS (todos os status atuais) e o
+        # total aprovado SOMADO (principal + aditivos aprovados).
+        "aditivos": aditivos,
+        "total_geral_aprovado_centavos": (orc.resumo_aprovado_total_centavos or 0) + sum(
+            a["total_aprovado_centavos"] or 0 for a in aditivos if a["status"] == StatusOrcamento.APROVADO
+        ),
+        # Novo aditivo: so com o orcamento aprovado e a OS ainda aberta.
+        "pode_criar_aditivo": orc.status == StatusOrcamento.APROVADO and os_aberta(os_),
     }

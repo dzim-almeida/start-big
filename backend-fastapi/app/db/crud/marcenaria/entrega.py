@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.db.models.marcenaria.ambiente import ordem_na_os
 from app.db.models.marcenaria.entrega import MarcenariaAgendamento, MarcenariaEntrega, MarcenariaEntregaFoto
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 
@@ -27,7 +28,7 @@ def entregas_da_os(db: Session, os_id: int) -> list[MarcenariaEntrega]:
             selectinload(MarcenariaEntrega.fotos).selectinload(MarcenariaEntregaFoto.foto),
         )
     ).all()
-    return sorted(entregas, key=lambda e: (e.ambiente.ordem, e.ambiente.id))
+    return sorted(entregas, key=lambda e: ordem_na_os(e.ambiente))
 
 
 def entregas_das_os(db: Session, os_ids: list[int]) -> list[MarcenariaEntrega]:

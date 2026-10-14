@@ -54,9 +54,33 @@ def get_orcamento(db: Session, orcamento_id: int) -> Optional[MarcenariaOrcament
 
 
 def get_orcamento_por_os(db: Session, os_id: int) -> Optional[MarcenariaOrcamento]:
-    """O orcamento cuja aprovacao gerou a OS (Spec 08A), com a arvore."""
-    orcamento_id = db.scalar(select(MarcenariaOrcamento.id).where(MarcenariaOrcamento.os_id == os_id))
+    """O orcamento cuja aprovacao GEROU a OS (Spec 08A), com a arvore.
+
+    So o principal: um aditivo aprovado tambem aponta `os_id` para a OS
+    (remodelacao item 20), mas nao foi ele que a criou.
+    """
+    orcamento_id = db.scalar(
+        select(MarcenariaOrcamento.id)
+        .where(MarcenariaOrcamento.os_id == os_id, MarcenariaOrcamento.aditivo_os_id.is_(None))
+        .order_by(MarcenariaOrcamento.id)
+        .limit(1)
+    )
     return get_orcamento(db, orcamento_id) if orcamento_id is not None else None
+
+
+def listar_aditivos_da_os(db: Session, os_id: int, so_aprovados: bool = False) -> list[MarcenariaOrcamento]:
+    """Os aditivos de uma OS (remodelacao item 20), com a arvore, na ordem em que nasceram.
+
+    Sem `so_aprovados`: todas as versoes atuais (rascunho, enviado, aprovado...);
+    as SUBSTITUIDAS ficam de fora (sao versoes antigas de um mesmo aditivo).
+    """
+    stmt = select(MarcenariaOrcamento.id).where(MarcenariaOrcamento.aditivo_os_id == os_id)
+    if so_aprovados:
+        stmt = stmt.where(MarcenariaOrcamento.status == StatusOrcamento.APROVADO)
+    else:
+        stmt = stmt.where(MarcenariaOrcamento.status != StatusOrcamento.SUBSTITUIDO)
+    ids = db.scalars(stmt.order_by(MarcenariaOrcamento.codigo, MarcenariaOrcamento.versao)).all()
+    return [get_orcamento(db, i) for i in ids]
 
 
 def ultimo_codigo_com_prefixo(db: Session, prefixo: str) -> Optional[str]:

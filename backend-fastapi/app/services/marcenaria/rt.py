@@ -35,7 +35,7 @@ from app.schemas.conta_pagar import ContaPagarCreate
 from app.services import financeiro as financeiro_service
 from app.services.marcenaria.calculo import repartir_maior_resto
 from app.services.marcenaria.orcamento_calculo import calcular, montar_entrada_motor
-from app.services.marcenaria.orcamento_comum import exigir_orcamento_tecnico, registrar_evento
+from app.services.marcenaria.orcamento_comum import exigir_orcamento_tecnico, orcamentos_da_os, registrar_evento
 
 NOME_CATEGORIA_RT = "Comissão de arquitetos (RT)"     # D5: o dono pode renomear depois
 
@@ -133,59 +133,76 @@ def _rts_com_conta(orc: MarcenariaOrcamento) -> list[MarcenariaOrcamentoRT]:
 # GANCHOS
 # ===========================================================================
 
+def _orcamentos_com_rt(db: Session, os_) -> list[MarcenariaOrcamento]:
+    """O orcamento que gerou a OS e os ADITIVOS aprovados dela (remodelacao item 20).
+
+    Cada um tem os seus arquitetos e o seu RT; vazio = OS que nao veio de orcamento.
+    """
+    vista = orcamentos_da_os(db, os_)
+    return vista.orcamentos if vista is not None else []
+
+
 def criar_contas_ao_finalizar(db: Session, os_, usuario: Optional[dict], contexto: Optional[dict] = None) -> None:
-    """Uma conta a pagar por arquiteto, na finalizacao da OS (D1-D7, D9)."""
-    orc = crud.get_orcamento_por_os(db, os_.id)
-    if orc is None or not orc.rts:                    # OS sem orcamento, ou orcamento sem arquiteto
+    """Uma conta a pagar por arquiteto, na finalizacao da OS (D1-D7, D9).
+
+    Com aditivos (remodelacao item 20), cada orcamento paga o RT do que ELE
+    aprovou: o principal e cada aditivo geram as suas contas.
+    """
+    orcamentos = _orcamentos_com_rt(db, os_)
+    if not any(orc.rts for orc in orcamentos):         # OS sem orcamento, ou sem arquiteto
         return
 
-    # D2: o RT do APROVADO, repartido pelo maior resto (a soma e exata).
-    resultado = calcular(montar_entrada_motor(orc, so_aprovados=True))
-    linhas = [rt for rt in orc.rts if rt.rt_bp > 0]
-    if not linhas:
-        return
-    valores = repartir_maior_resto(resultado.rt_total_centavos, [rt.rt_bp for rt in linhas])
+    # D2: o RT do APROVADO de cada orcamento. A divergencia (D3) compara a OS
+    # com a SOMA do que foi aprovado (principal + aditivos).
+    resultados = [(orc, calcular(montar_entrada_motor(orc, so_aprovados=True))) for orc in orcamentos]
+    total_aprovado = sum(r.total_centavos for _orc, r in resultados)
 
     empresa_id = _empresa_da_os(db, os_)
     config = _configuracao(db, empresa_id)
     plano_id = None
     vencimento = hoje_local() + timedelta(days=config.rt_vencimento_dias)    # D6
-    observacao = _observacao_de_divergencia(os_, resultado.total_centavos)
+    observacao = _observacao_de_divergencia(os_, total_aprovado)
 
-    criadas = []
-    for rt, valor in zip(linhas, valores):
-        if valor <= 0:
-            continue                                   # percentual tao pequeno que deu zero
-        atual = rt.conta_pagar
-        if atual is not None and atual.status in (ContaPagarStatus.PAGA.value, ContaPagarStatus.PENDENTE.value):
-            continue                                   # D9: reabrir e refinalizar nao duplica
-        if plano_id is None:
-            plano_id = _plano_do_rt(db, config, empresa_id)
-        conta = financeiro_service.criar_conta_pagar(  # o caminho de sempre (auditoria inclusa)
-            db, empresa_id,
-            ContaPagarCreate(
-                descricao=_descricao(rt, os_, orc),
-                valor=valor,
-                vencimento=vencimento,
-                plano_conta_id=plano_id,
-                fornecedor_id=rt.fornecedor_id,
-                observacao=observacao,
-            ),
-            usuario or {},
-        )
-        rt.conta_pagar_id = conta["id"]                # D11: a conta atual
-        criadas.append({"fornecedor_id": rt.fornecedor_id,
-                        "nome": rt.fornecedor.nome if rt.fornecedor else None,
-                        "valor_centavos": valor, "conta_id": conta["id"]})
+    for orc, resultado in resultados:
+        linhas = [rt for rt in orc.rts if rt.rt_bp > 0]
+        if not linhas:
+            continue
+        valores = repartir_maior_resto(resultado.rt_total_centavos, [rt.rt_bp for rt in linhas])
 
-    if criadas:
-        frase = "; ".join(f"RT de {reais(c['valor_centavos'])} para {c['nome']}" for c in criadas) + "."
-        if observacao:
-            frase = f"{frase} {observacao}"
-        registrar_evento(db, orc, "RT_CONTAS_CRIADAS", frase, usuario,
-                         {"contas": criadas, "total_aprovado_centavos": resultado.total_centavos,
-                          "total_os_centavos": os_.valor_total},
-                         os_id=os_.id)
+        criadas = []
+        for rt, valor in zip(linhas, valores):
+            if valor <= 0:
+                continue                                   # percentual tao pequeno que deu zero
+            atual = rt.conta_pagar
+            if atual is not None and atual.status in (ContaPagarStatus.PAGA.value, ContaPagarStatus.PENDENTE.value):
+                continue                                   # D9: reabrir e refinalizar nao duplica
+            if plano_id is None:
+                plano_id = _plano_do_rt(db, config, empresa_id)
+            conta = financeiro_service.criar_conta_pagar(  # o caminho de sempre (auditoria inclusa)
+                db, empresa_id,
+                ContaPagarCreate(
+                    descricao=_descricao(rt, os_, orc),
+                    valor=valor,
+                    vencimento=vencimento,
+                    plano_conta_id=plano_id,
+                    fornecedor_id=rt.fornecedor_id,
+                    observacao=observacao,
+                ),
+                usuario or {},
+            )
+            rt.conta_pagar_id = conta["id"]                # D11: a conta atual
+            criadas.append({"fornecedor_id": rt.fornecedor_id,
+                            "nome": rt.fornecedor.nome if rt.fornecedor else None,
+                            "valor_centavos": valor, "conta_id": conta["id"]})
+
+        if criadas:
+            frase = "; ".join(f"RT de {reais(c['valor_centavos'])} para {c['nome']}" for c in criadas) + "."
+            if observacao:
+                frase = f"{frase} {observacao}"
+            registrar_evento(db, orc, "RT_CONTAS_CRIADAS", frase, usuario,
+                             {"contas": criadas, "total_aprovado_centavos": resultado.total_centavos,
+                              "total_os_centavos": os_.valor_total},
+                             os_id=os_.id)
 
 
 def cancelar_pendentes_ao_reabrir(db: Session, os_, usuario: Optional[dict], contexto: Optional[dict] = None) -> None:
@@ -193,11 +210,11 @@ def cancelar_pendentes_ao_reabrir(db: Session, os_, usuario: Optional[dict], con
 
     Conta PAGA fica: o que ja foi pago ao arquiteto nao se desfaz sozinho.
     """
-    orc = crud.get_orcamento_por_os(db, os_.id)
-    if orc is None:
+    orcamentos = _orcamentos_com_rt(db, os_)       # principal + aditivos (remodelacao item 20)
+    if not orcamentos:
         return
     empresa_id = _empresa_da_os(db, os_)
-    for rt in _rts_com_conta(orc):
+    for rt in (rt for orc in orcamentos for rt in _rts_com_conta(orc)):
         if rt.conta_pagar.status == ContaPagarStatus.PENDENTE.value:
             financeiro_service.cancelar_conta_pagar(db, empresa_id, rt.conta_pagar_id, usuario or {})
 
@@ -206,11 +223,12 @@ def tratar_cancelamento(db: Session, os_, usuario: Optional[dict], contexto: Opt
     """D10: so importa se a OS estava FINALIZADA (so ai existe conta de RT)."""
     if (contexto or {}).get("status_anterior") != "FINALIZADA":
         return
-    orc = crud.get_orcamento_por_os(db, os_.id)
-    if orc is None:                                    # OS que nao veio de orcamento
+    orcamentos = _orcamentos_com_rt(db, os_)       # principal + aditivos (remodelacao item 20)
+    if not orcamentos:                                 # OS que nao veio de orcamento
         return
+    orc = orcamentos[0]                                # o historico fica no principal
     cancelar_pendentes_ao_reabrir(db, os_, usuario)    # mesma regra para as pendentes
-    pagas = [rt for rt in _rts_com_conta(orc) if rt.conta_pagar.status == ContaPagarStatus.PAGA.value]
+    pagas = [rt for o in orcamentos for rt in _rts_com_conta(o) if rt.conta_pagar.status == ContaPagarStatus.PAGA.value]
     if pagas:                                          # a loja precisa saber que ha dinheiro com o arquiteto
         frase = " ".join(
             f"RT já pago ao arquiteto {rt.fornecedor.nome if rt.fornecedor else rt.fornecedor_id} "

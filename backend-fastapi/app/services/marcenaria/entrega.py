@@ -23,6 +23,7 @@ from typing import Any, Optional
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+from app.db.models.marcenaria.ambiente import ordem_na_os
 from app.core.tempo import agora_utc, hoje_local
 from app.db.crud import empresa as empresa_crud
 from app.db.crud.configuracao_marcenaria import get_configuracao_marcenaria
@@ -94,7 +95,7 @@ def criar_entregas_da_aprovacao(db: Session, orc: MarcenariaOrcamento, os_id: in
     com pelo menos um movel aprovado, com a COPIA do checklist. A instalacao
     nao tem entrega propria (D3): ela acontece dentro dos ambientes."""
     textos = checklist_da_configuracao(db)
-    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+    for ambiente in sorted(orc.ambientes, key=ordem_na_os):
         if any(m.aprovado for m in ambiente.moveis):
             db.add(MarcenariaEntrega(os_id=os_id, ambiente_id=ambiente.id, checklist=_checklist_vazio(textos),
                                      situacao=SituacaoEntrega.PENDENTE))

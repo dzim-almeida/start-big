@@ -50,6 +50,18 @@ class MarcenariaAmbiente(Base):
     )
 
 
+def ordem_na_os(ambiente: "MarcenariaAmbiente") -> tuple:
+    """Chave para ordenar ambientes numa OS que tem ADITIVOS (remodelacao item 20).
+
+    O orcamento principal primeiro, depois cada aditivo (na ordem em que nasceu)
+    e, dentro de cada um, a ordem da tela. Num orcamento sem aditivo, todos os
+    ambientes tem o mesmo orcamento: fica a ordem de sempre (ordem, id).
+    """
+    orcamento = ambiente.orcamento
+    eh_aditivo = orcamento is not None and orcamento.aditivo_os_id is not None
+    return (eh_aditivo, ambiente.orcamento_id if eh_aditivo else 0, ambiente.ordem, ambiente.id)
+
+
 class MarcenariaMovel(Base):
     """Um movel do ambiente: medidas, quantidade, producao e mao de obra."""
     __tablename__ = "marcenaria_moveis"

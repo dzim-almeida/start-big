@@ -250,6 +250,14 @@ def _recalcular_valor_total_os(os_in_db: OSModel) -> None:
     os_in_db.valor_total = max(0, valor_bruto - (os_in_db.desconto or 0) + (os_in_db.taxa_entrega or 0) + (os_in_db.acrescimo or 0))
 
 
+def recalcular_totais(os_in_db: OSModel) -> None:
+    """Versão pública de `_recalcular_valor_total_os`, para quem acrescenta ou
+    tira itens de uma OS por fora deste serviço (ex.: o aditivo do orçamento de
+    marcenaria, remodelação item 20). Não grava: quem chama faz o flush/commit.
+    """
+    _recalcular_valor_total_os(os_in_db)
+
+
 # ===========================================================================
 # CRIAÇÃO (CREATE)
 # ===========================================================================

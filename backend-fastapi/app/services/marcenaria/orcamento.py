@@ -202,6 +202,14 @@ def atualizar_cabecalho(
     if any(campo in enviados for campo in CAMPOS_DE_CUSTO):
         exigir_custos(usuario_token)
 
+    # Remodelacao item 20: o ADITIVO e da obra da OS. Trocar o cliente ou o
+    # projeto faria ele somar moveis de outra obra na OS errada.
+    if orc.aditivo_os_id is not None and (
+        ("cliente_id" in enviados and dados.cliente_id != orc.cliente_id)
+        or ("objeto_id" in enviados and dados.objeto_id != orc.objeto_id)
+    ):
+        erros.invalido("O aditivo é da obra da OS: o cliente e o projeto não mudam.")
+
     # --- Cliente, vendedor e projeto ---
     if "cliente_id" in enviados:
         if dados.cliente_id is not None:
@@ -388,6 +396,7 @@ _CAMPOS_COPIADOS = (
     "medicao_observacoes", "markup_bp", "perda_bp", "custo_hora_centavos", "rt_padrao_bp",
     "rt_modo", "validade_dias", "prazo_entrega_dias", "instalacao_custo_centavos",
     "desconto_modo", "desconto_valor", "sinal_modo", "sinal_valor", "observacoes_proposta",
+    "aditivo_os_id",            # a nova versao de um aditivo continua sendo aditivo da mesma OS (item 20)
 )
 _CAMPOS_DO_MOVEL = (
     "nome", "descricao", "largura_mm", "altura_mm", "profundidade_mm", "quantidade",
