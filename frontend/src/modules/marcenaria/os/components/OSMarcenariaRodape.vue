@@ -47,11 +47,17 @@ const proximo = computed(() => (props.travada ? null : proximoStatus(props.statu
 const avancando = ref(false);
 
 async function avancarStatus() {
-  if (!proximo.value) return;
+  // Guarda o destino ANTES de gravar (remodelação item 21). Depois do `await`, o status
+  // da OS já é o novo e `proximo` passa a ser o seguinte (ou nenhum, na última etapa).
+  // Ler `proximo` depois dava o nome errado no aviso ("movida para Aguardando Entrega"
+  // ao ir para Em Produção) e, em "Aguardando Entrega", `rotulo(null)` quebrava:
+  // o status era salvo, mas a tela dizia "Não foi possível mudar a situação da OS".
+  const destino = proximo.value;
+  if (!destino) return;
   avancando.value = true;
   try {
-    await props.avancar(proximo.value);
-    toast.success(`OS movida para ${props.rotulo(proximo.value)}.`);
+    await props.avancar(destino);
+    toast.success(`OS movida para ${props.rotulo(destino)}.`);
   } catch {
     toast.error('Não foi possível mudar a situação da OS. Tente de novo.');
   } finally {
