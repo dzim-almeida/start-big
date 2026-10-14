@@ -24,6 +24,11 @@ const props = defineProps<{
   /** Sinal que já entrou na OS (adiantamento). Zero: a pergunta do destino some. */
   sinalRecebidoCentavos: number;
   gravando: boolean;
+  /**
+   * É um ADITIVO (remodelação item 20)? Desfazer o aditivo NÃO cancela a OS: só
+   * tira dela os móveis do aditivo. Muda o aviso e o botão; o resto é igual.
+   */
+  aditivo?: boolean;
 }>();
 
 const emit = defineEmits<{ close: []; confirmar: [entrada: DesfazerEntrada] }>();
@@ -48,7 +53,11 @@ const podeConfirmar = computed(() => !!texto.value && !erroMotivo.value && !prop
   <BaseModal :is-open="isOpen" title="Desfazer a aprovação" size="md" @close="emit('close')">
     <p class="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" data-testid="aviso-desfazer">
       <AlertTriangle :size="16" class="mt-0.5 shrink-0" />
-      <span>Desfazer a aprovação vai <strong>cancelar a OS {{ numeroOs }}</strong> e devolver o orçamento para Enviado.</span>
+      <span v-if="aditivo">
+        Desfazer a aprovação vai <strong>tirar os móveis deste aditivo da OS {{ numeroOs }}</strong> (a OS continua)
+        e devolver o aditivo para Enviado.
+      </span>
+      <span v-else>Desfazer a aprovação vai <strong>cancelar a OS {{ numeroOs }}</strong> e devolver o orçamento para Enviado.</span>
     </p>
 
     <BaseTextarea v-model="motivo" label="Motivo" required :rows="3" :error="erroMotivo" placeholder="Ex.: aprovado por engano; o cliente mudou de ideia" />
@@ -70,7 +79,7 @@ const podeConfirmar = computed(() => !!texto.value && !erroMotivo.value && !prop
           data-testid="confirmar-desfazer"
           @click="emit('confirmar', { motivo: texto, destino_sinal: destino })"
         >
-          Desfazer e cancelar a OS
+          {{ aditivo ? 'Desfazer e tirar da OS' : 'Desfazer e cancelar a OS' }}
         </BaseButton>
       </div>
     </template>

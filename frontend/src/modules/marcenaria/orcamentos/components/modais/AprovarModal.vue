@@ -197,7 +197,12 @@ const avisoStatus = computed(() => {
 </script>
 
 <template>
-  <BaseModal :is-open="isOpen" :title="`Aprovar orçamento ${detalhe.codigo} v${detalhe.versao}`" size="xl" @close="pedirFechar">
+  <BaseModal
+    :is-open="isOpen"
+    :title="`${detalhe.aditivo_de ? 'Aprovar aditivo' : 'Aprovar orçamento'} ${detalhe.codigo} v${detalhe.versao}`"
+    size="xl"
+    @close="pedirFechar"
+  >
     <p v-if="avisoStatus" class="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="aviso-status">
       <AlertTriangle :size="16" class="mt-0.5 shrink-0" /> {{ avisoStatus }}
     </p>
@@ -299,7 +304,8 @@ const avisoStatus = computed(() => {
       <div class="flex justify-end gap-2">
         <BaseButton variant="secondary" @click="pedirFechar">Cancelar</BaseButton>
         <BaseButton variant="primary" :disabled="!podeAprovar" :is-loading="gravando" data-testid="confirmar-aprovacao" @click="confirmar">
-          Aprovar e gerar OS
+          <!-- Aditivo (remodelação item 20): não gera OS, soma na que já existe. -->
+          {{ detalhe.aditivo_de ? `Aprovar e somar na ${detalhe.aditivo_de.numero_os}` : 'Aprovar e gerar OS' }}
         </BaseButton>
       </div>
     </template>

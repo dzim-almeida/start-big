@@ -15,19 +15,23 @@ import type { OrcamentoDetalhe } from '../../schemas/orcamentoDetalhe.schema';
 const props = defineProps<{ isOpen: boolean; detalhe: OrcamentoDetalhe | undefined }>();
 const emit = defineEmits<{ close: []; abrirOs: []; imprimirAprovada: [] }>();
 
-/** "OS OS-2026-000512 criada com 3 móveis e a instalação." */
+/** É um aditivo (remodelação item 20)? Ele não cria OS: soma na que já existe. */
+const ehAditivo = computed(() => !!props.detalhe?.aditivo_de);
+
+/** "OS OS-2026-000512 criada com 3 móveis e a instalação." (aditivo: "somado na OS ...") */
 const frase = computed(() => {
   const d = props.detalhe;
   if (!d?.os) return '';
   const qtd = d.ambientes.reduce((soma, a) => soma + a.moveis.filter((m) => m.aprovado === true).length, 0);
   const moveis = qtd === 1 ? '1 móvel' : `${qtd} móveis`;
   const instalacao = d.aprovacao?.instalacao_aprovada ? ' e a instalação' : '';
+  if (ehAditivo.value) return `Aditivo somado na ${d.os.numero_os}: ${moveis}${instalacao}.`;
   return `OS ${d.os.numero_os} criada com ${moveis}${instalacao}.`;
 });
 </script>
 
 <template>
-  <BaseModal :is-open="isOpen" title="Orçamento aprovado" size="sm" @close="emit('close')">
+  <BaseModal :is-open="isOpen" :title="ehAditivo ? 'Aditivo aprovado' : 'Orçamento aprovado'" size="sm" @close="emit('close')">
     <p class="flex items-start gap-2 text-sm text-zinc-700" data-testid="frase-os-criada">
       <CheckCircle2 :size="18" class="mt-0.5 shrink-0 text-emerald-600" /> {{ frase }}
     </p>

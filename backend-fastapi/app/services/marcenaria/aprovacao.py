@@ -498,6 +498,8 @@ def resumo_por_os(db: Session, numero_os: str) -> dict:
             # Aprovado: o que somou na OS. Antes disso: o total atual da proposta.
             "total_aprovado_centavos": a.resumo_aprovado_total_centavos,
             "total_centavos": a.resumo_total_centavos,
+            # Para o editor do aditivo explicar por que nao da para desfazer (as regras dele).
+            "motivos_desfazer": motivos_que_impedem_desfazer(db, a) if a.status == StatusOrcamento.APROVADO else [],
             "moveis": [
                 {"nome": m.nome, "ambiente": amb.nome, "quantidade": m.quantidade,
                  "medidas": {"largura_mm": m.largura_mm, "altura_mm": m.altura_mm, "profundidade_mm": m.profundidade_mm},

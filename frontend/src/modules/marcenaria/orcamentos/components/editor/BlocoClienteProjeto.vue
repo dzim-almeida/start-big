@@ -34,6 +34,9 @@ import EnderecoObraModal from '../modais/EnderecoObraModal.vue';
 
 const { form, detalhe, editavel } = useEditor();
 
+/** Aditivo (remodelação item 20): cliente e projeto são os da OS e não mudam. */
+const travadoPeloAditivo = computed(() => !!detalhe.value?.aditivo_de);
+
 // --- Cliente ----------------------------------------------------------------
 const buscaAberta = ref(false);
 /** Nome escolhido agora (antes de o servidor responder com o detalhe). */
@@ -176,7 +179,7 @@ watch(botaoCliente, (botao) => {
             <span v-if="contatoCliente" class="block truncate text-xs tabular-nums text-zinc-500">{{ contatoCliente }}</span>
           </span>
           <BaseButton
-            v-if="editavel"
+            v-if="editavel && !travadoPeloAditivo"
             ref="botaoCliente"
             :variant="form.cliente_id ? 'secondary' : 'primary'"
             size="sm"
@@ -202,7 +205,7 @@ watch(botaoCliente, (botao) => {
 
       <!-- Projeto (D21): os do cliente, ou um novo -->
       <div v-if="projetos?.length">
-        <BaseSelect v-model="escolhaProjeto" label="Projeto" :options="opcoesProjeto" :disabled="!editavel" />
+        <BaseSelect v-model="escolhaProjeto" label="Projeto" :options="opcoesProjeto" :disabled="!editavel || travadoPeloAditivo" />
         <p class="mt-1.5 text-xs text-zinc-500">
           {{ projetos.length }} {{ projetos.length === 1 ? 'projeto' : 'projetos' }} deste cliente · ou um novo
         </p>

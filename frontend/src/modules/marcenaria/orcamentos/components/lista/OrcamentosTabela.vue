@@ -78,6 +78,14 @@ function classeValidade(validade: string): string {
           <span v-if="item.versao > 1" class="ml-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
             v{{ item.versao }}
           </span>
+          <!-- Aditivo (remodelação item 20): móveis a mais para uma OS que já existe. -->
+          <span
+            v-if="item.aditivo_os_numero"
+            class="mt-0.5 block text-[11px] font-medium text-brand-primary"
+            :data-testid="`aditivo-${item.id}`"
+          >
+            Aditivo da {{ item.aditivo_os_numero }}
+          </span>
         </td>
         <td class="px-5 py-3 max-w-48 truncate text-zinc-700">{{ item.cliente_nome ?? '—' }}</td>
         <td class="px-5 py-3 max-w-56 truncate text-zinc-700">{{ item.projeto_nome ?? '—' }}</td>

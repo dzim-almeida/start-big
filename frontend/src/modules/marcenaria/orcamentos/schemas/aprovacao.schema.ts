@@ -58,8 +58,35 @@ export const resumoPorOsSchema = z.object({
   sinal_recebido_centavos: centavos,              // lido da OS: o adiantamento lançado depois aparece aqui
   pode_desfazer: z.boolean(),
   motivos_desfazer: z.array(z.string()),
+  // Remodelação item 20: os aditivos desta OS (móveis a mais), o total aprovado
+  // SOMADO (principal + aditivos aprovados) e se dá para criar outro agora.
+  // `default`: um backend antigo não manda os campos; a tela fica como antes.
+  aditivos: z.array(z.object({
+    orcamento_id: z.number(),
+    codigo: z.string(),
+    versao: z.number(),
+    status: z.string(),
+    data_aprovacao: z.string().nullable(),
+    total_aprovado_centavos: centavos.nullable(),   // o que somou na OS (só aprovado)
+    total_centavos: centavos,                       // o total atual da proposta
+    motivos_desfazer: z.array(z.string()).default([]),   // as regras do aditivo (a OS segue)
+    moveis: z.array(z.object({
+      nome: z.string(),
+      ambiente: z.string(),
+      quantidade: z.number().int(),
+      medidas: z.object({
+        largura_mm: z.number().nullable(),
+        altura_mm: z.number().nullable(),
+        profundidade_mm: z.number().nullable(),
+      }),
+      os_item_id: z.number().nullable(),
+    })),
+  })).default([]),
+  total_geral_aprovado_centavos: centavos.nullable().default(null),
+  pode_criar_aditivo: z.boolean().default(false),
 });
 export type ResumoPorOs = z.infer<typeof resumoPorOsSchema>;
+export type AditivoDaOS = ResumoPorOs['aditivos'][number];
 
 /** Corpo de simular e aprovar (08A `AprovacaoEntrada`). */
 export interface AprovacaoEntrada {

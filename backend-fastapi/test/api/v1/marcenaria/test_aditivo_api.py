@@ -137,6 +137,7 @@ def test_abas_da_os_mostram_o_aditivo(api, os_aprovada, db_session, produto):
     # A aba Orcamento da OS lista o aditivo e soma o total aprovado.
     resumo = api.req("GET", f"/por-os/{numero}").json()
     assert [x["codigo"] for x in resumo["aditivos"]] == [a["codigo"]]
+    assert resumo["aditivos"][0]["motivos_desfazer"] == []               # nada dele comecou
     assert resumo["total_geral_aprovado_centavos"] == (
         resumo["total_aprovado_centavos"] + resumo["aditivos"][0]["total_aprovado_centavos"]
     )
