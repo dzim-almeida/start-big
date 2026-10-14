@@ -153,6 +153,19 @@ describe('abas do modal de OS', () => {
   });
 });
 
+describe('botão "Adicionar item" (remodelação item 12)', () => {
+  it('padrão (todos os segmentos de antes): o botão aparece', () => {
+    const w = mount(OSServicesTab, { props: { itens: [] } });
+    expect(w.find('[data-testid="adicionar-item-os"]').exists()).toBe(true);
+  });
+
+  it('marcenaria (podeAdicionar = false): sem o botão e sem a dica que manda clicar nele', () => {
+    const w = mount(OSServicesTab, { props: { itens: [], podeAdicionar: false } });
+    expect(w.find('[data-testid="adicionar-item-os"]').exists()).toBe(false);
+    expect(w.text()).not.toContain('Clique em "Adicionar Item"');
+  });
+});
+
 describe('cadeado nos itens que vieram do orçamento', () => {
   const base = { ordem_servico_id: 1, quantidade: 1, valor_unitario: 1000, valor_total: 1000, unidade_medida: 'UN' };
   const montar = (itens: Record<string, unknown>[]) => mount(OSServicesTab, { props: { itens: itens as never } });

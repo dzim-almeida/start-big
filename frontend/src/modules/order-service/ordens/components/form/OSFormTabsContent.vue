@@ -288,6 +288,7 @@ const objetoModel = computed<ObjetoFormData>({
           v-if="activeTab === 'servicos'"
           :itens="view.displayItems.value"
           :is-locked="view.isItemsLocked.value"
+          :pode-adicionar="!marcenaria"
           @add-item="view.openAddItemModal"
           @edit-item="view.openEditItemModal"
           @remove-item="view.handleRemoveItem"
