@@ -223,10 +223,12 @@ watch(botaoCliente, (botao) => {
             placeholder="Rua, número, bairro"
             :disabled="!editavel || form.objeto_id != null"
           />
+          <!-- Mesma altura do campo ao lado (38px; o BaseButton "md" tem 44px de mínimo) e cor da marca. -->
           <BaseButton
             v-if="editavel && form.objeto_id == null"
-            variant="secondary"
+            variant="primary"
             size="md"
+            class="h-[38px] min-h-0! px-3"
             title="Preencher o endereço pelo CEP"
             aria-label="Preencher o endereço pelo CEP"
             data-testid="abrir-endereco-obra"
