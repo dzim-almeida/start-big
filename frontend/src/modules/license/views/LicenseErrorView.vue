@@ -16,6 +16,7 @@ import { useLicencaStore } from '@/shared/stores/licenca.store';
 import { LINKS } from '@/shared/config/links';
 
 import AppLogo from '@/shared/components/AppLogo.vue';
+import ReativarNestaMaquina from '../components/ReativarNestaMaquina.vue';
 
 const props = defineProps<{
   codigo: string;
@@ -26,6 +27,14 @@ const router = useRouter();
 const licencaStore = useLicencaStore();
 const isRetrying = ref(false);
 const retryError = ref('');
+
+/**
+ * CLONAGEM_DETECTADA é, na prática, troca de computador: o banco foi copiado
+ * e a licença dentro dele está cifrada com o HWID da máquina antiga. Tentar de
+ * novo nunca resolve; o que resolve é reativar com o login da conta StartBig.
+ */
+const trocaDeMaquina = computed(() => props.codigo === 'CLONAGEM_DETECTADA');
+const reativando = ref(false);
 
 /**
  * Sai desta tela e entra no sistema para pagar.
@@ -58,7 +67,7 @@ onMounted(() => {
 const titulo = computed(() => {
   switch (props.codigo) {
     case 'CLONAGEM_DETECTADA':
-      return 'Licença Inválida';
+      return 'Licença de Outro Computador';
     case 'REQUISITA_CONEXAO_INTERNET':
       return 'Conexão com Internet Necessária';
     case 'LICENCA_EXPIRADA':
@@ -185,6 +194,19 @@ async function tentarNovamente() {
         {{ retryError }}
       </div>
 
+      <!-- Troca de computador: reativar aqui mesmo, com o login da conta -->
+      <ReativarNestaMaquina v-if="trocaDeMaquina && reativando" @cancelar="reativando = false" />
+      <template v-else>
+      <BaseButton
+        v-if="trocaDeMaquina"
+        type="button"
+        variant="primary"
+        class="w-full mb-2"
+        @click="reativando = true"
+      >
+        Trocou de computador? Reativar nesta máquina
+      </BaseButton>
+
       <!-- Ação principal quando o que falta é pagar -->
       <!--
         Vai para o navegador, e não para a tela de renovação do sistema, por um
@@ -210,7 +232,7 @@ async function tentarNovamente() {
            precisa dizer isso com todas as letras. -->
       <BaseButton
         type="button"
-        :variant="casoComercial ? 'secondary' : 'primary'"
+        :variant="casoComercial || trocaDeMaquina ? 'secondary' : 'primary'"
         class="w-full"
         :disabled="isRetrying"
         @click="tentarNovamente"
@@ -223,6 +245,7 @@ async function tentarNovamente() {
         Depois de pagar, a liberação é automática: basta estar conectado à
         internet e clicar em <strong>Já paguei — liberar acesso</strong>.
       </p>
+      </template>
 
       <button
         type="button"

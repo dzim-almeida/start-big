@@ -22,6 +22,22 @@ def get_licenca_by_hwid(db: Session, hwid: str) -> Optional[ConfiguracaoLicenca]
     return db.scalars(stmt).first()
 
 
+def remover_licencas_de_outras_maquinas(db: Session, hwid: str) -> int:
+    """Apaga as licenças cifradas com o HWID de OUTRA máquina; devolve quantas.
+
+    Só o reconectar chama isto, e só depois que a nuvem aprovou: é a linha que
+    veio junto com um banco copiado de outro computador. Ela não decifra aqui
+    e ocupa o `licenca_id` (unique) que a licença nova precisa.
+    """
+    antigas = db.scalars(
+        select(ConfiguracaoLicenca).where(ConfiguracaoLicenca.hwid != hwid)
+    ).all()
+    for antiga in antigas:
+        db.delete(antiga)
+    db.flush()
+    return len(antigas)
+
+
 def create_licenca(db: Session, licenca: ConfiguracaoLicenca) -> ConfiguracaoLicenca:
     """Persiste a licença no banco de dados."""
     db.add(licenca)

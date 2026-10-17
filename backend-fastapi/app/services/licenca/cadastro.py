@@ -308,7 +308,19 @@ def reconnect_licenca(
     chave_ativacao_enc = encriptar_valor(resposta.chaveAtivacao, hwid)
     public_key_enc = encriptar_valor(public_key_pem, hwid)
 
-    # 5. Criar registro no banco
+    # 5. Troca de computador: o banco veio copiado do servidor antigo e trouxe
+    # a licença DE LÁ, cifrada com o HWID de lá. Aqui ela não decifra (é o que
+    # levanta CLONAGEM_DETECTADA no boot) e segura o `licenca_id` unique que a
+    # linha nova vai usar. Sai só agora, com a nuvem já tendo aprovado o login:
+    # quem decide se a conta pode rodar nesta máquina é ela, não o arquivo.
+    removidas = licenca_crud.remover_licencas_de_outras_maquinas(db, hwid)
+    if removidas:
+        logger.info(
+            "[licenca] Reconexão em máquina nova: %d licença(s) de outra máquina substituída(s).",
+            removidas,
+        )
+
+    # 6. Criar registro no banco
     licenca = ConfiguracaoLicenca(
         cliente_id=resposta.clienteId or "000000000-0000000000-0000000000",
         hwid=hwid,
