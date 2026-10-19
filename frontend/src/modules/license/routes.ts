@@ -15,6 +15,21 @@ const routes: RouteRecordRaw[] = [
   },
   {
     /**
+     * Troca de servidor: a licença do banco é de outro computador.
+     *
+     * `skipLicenseCheck` porque é justamente a checagem que manda para cá —
+     * sem isso o guard a recarregaria em laço. Pública: o banco copiado não
+     * deixa ninguém logar enquanto a licença não for transferida.
+     */
+    path: '/licenca/transferir',
+    name: 'licenca.transferir',
+    component: () => import('./views/TransferirLicencaView.vue'),
+    meta: {
+      skipLicenseCheck: true,
+    },
+  },
+  {
+    /**
      * A parede da licença vencida — com a porta de pagamento ao lado.
      *
      * `requiresAuth` porque a cobrança é do dono da licença: só faz sentido

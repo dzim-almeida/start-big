@@ -34,6 +34,28 @@ def _erro_licenca(codigo: str, mensagem: str) -> HTTPException:
 
 
 # ===========================================================================
+# Licença de outro computador (troca de servidor)
+# ===========================================================================
+# A licença local é cifrada com o HWID da máquina que a ativou. Se ela não
+# decifra aqui, o banco veio de outro computador -- na vida real, quase sempre
+# uma troca de servidor, e não uma fraude. Até 19/10/2026 isto se chamava
+# CLONAGEM_DETECTADA e era levantado em dois lugares com textos próprios; só um
+# deles (a tela de erro) oferecia saída, e o cliente que caía pelo login ficava
+# preso. Agora há um código, uma frase e uma saída: transferir com a conta.
+
+CODIGO_LICENCA_DE_OUTRA_MAQUINA = "LICENCA_DE_OUTRA_MAQUINA"
+
+
+def erro_licenca_de_outra_maquina() -> HTTPException:
+    """403 padrão de "a licença deste banco foi ativada em outro computador"."""
+    return _erro_licenca(
+        CODIGO_LICENCA_DE_OUTRA_MAQUINA,
+        "A licença deste sistema está ativada em outro computador. "
+        "Entre com a conta StartBig para transferi-la para este.",
+    )
+
+
+# ===========================================================================
 # Recusa da nuvem: vencimento ou outra coisa?
 # ===========================================================================
 # A nuvem responde 4xx tanto para "o plano acabou" quanto para "esta licenca

@@ -16,7 +16,7 @@ from app.db.crud.terminal import conectados as terminal_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_CONECTAR_URL, API_DESCONECTAR_URL, CONECTAR_TIMEOUT_SECONDS, DESCONECTAR_TIMEOUT
 from app.services.licenca.cripto import decriptar_valor
-from app.services.licenca.recusa import _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento
+from app.services.licenca.recusa import _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento, erro_licenca_de_outra_maquina
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +94,11 @@ def conectar_terminal(db: Session, terminal_hwid: str) -> None:
     try:
         chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid_servidor)
     except Exception as e:
-        logger.warning("[licenca] Falha na descriptografia — possível clonagem: %s", e)
-        raise _erro_licenca(
-            "CLONAGEM_DETECTADA",
-            "Falha na verificação de integridade. "
-            "O banco de dados pode ter sido copiado de outra máquina.",
-        )
+        # Mesmo erro do /licenca/status, de propósito: o login é a outra porta
+        # por onde se descobre a troca de servidor, e as duas levam à mesma tela
+        # de transferência no frontend.
+        logger.warning("[licenca] Licença ativada em outra máquina (login): %s", e)
+        raise erro_licenca_de_outra_maquina()
 
     # 5. Chamar API externa
     payload = ConectarPayload(chave=chave_ativacao, hwid=terminal_hwid)

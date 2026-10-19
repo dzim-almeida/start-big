@@ -24,6 +24,11 @@ API_DESCONECTAR_URL = "https://api.startbig.com.br/licenca/desconectar"
 API_CHAVE_PUBLICA_URL = "https://api.startbig.com.br/licenca/chave-publica"
 
 
+# Login da conta StartBig (e-mail + senha + HWID): ativa ESTE computador.
+# Usado no primeiro acesso e na troca de servidor (services/licenca/transferencia.py).
+API_ERP_LOGIN_URL = "https://api.startbig.com.br/erp/auth/login"
+
+
 TIMEOUT_SECONDS = 30
 
 

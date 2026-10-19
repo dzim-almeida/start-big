@@ -7,7 +7,8 @@
 # Era um arquivo so (licenca.py, 52 KB) ate 13/10/2026; virou pacote:
 #   constantes.py   - URLs da API e tempos de espera
 #   cripto.py       - AES-256-GCM com chave derivada do HWID
-#   cadastro.py     - auto-cadastro, chave publica e reconexao
+#   cadastro.py     - auto-cadastro e chave publica
+#   transferencia.py - login da conta: primeiro acesso e troca de servidor
 #   recusa.py       - erro padrao, vencimento x recusa, bloqueio local, carencia
 #   validacao.py    - validacao online/offline e modulos liberados
 #   terminal.py     - conectar e desconectar terminal
@@ -31,6 +32,7 @@ from app.services.licenca.constantes import (
     API_VALIDAR_URL,
     API_DESCONECTAR_URL,
     API_CHAVE_PUBLICA_URL,
+    API_ERP_LOGIN_URL,
     TIMEOUT_SECONDS,
     CONECTAR_TIMEOUT_SECONDS,
     HEARTBEAT_TIMEOUT,
@@ -49,10 +51,19 @@ from app.services.licenca.cadastro import (
     _buscar_chave_publica_online,
     resgatar_chave_publica_online,
     registrar_licenca,
+)
+
+from app.services.licenca.transferencia import (
+    licenca_ativada_nesta_maquina,
     reconnect_licenca,
+    transferir_para_esta_maquina,
+    situacao_desta_maquina,
+    desativar_esta_maquina,
 )
 
 from app.services.licenca.recusa import (
+    CODIGO_LICENCA_DE_OUTRA_MAQUINA,
+    erro_licenca_de_outra_maquina,
     _erro_licenca,
     _CODIGOS_DE_VENCIMENTO,
     _TERMOS_DE_VENCIMENTO,
@@ -92,6 +103,7 @@ __all__ = [
     "API_VALIDAR_URL",
     "API_DESCONECTAR_URL",
     "API_CHAVE_PUBLICA_URL",
+    "API_ERP_LOGIN_URL",
     "TIMEOUT_SECONDS",
     "CONECTAR_TIMEOUT_SECONDS",
     "HEARTBEAT_TIMEOUT",
@@ -105,6 +117,12 @@ __all__ = [
     "resgatar_chave_publica_online",
     "registrar_licenca",
     "reconnect_licenca",
+    "licenca_ativada_nesta_maquina",
+    "transferir_para_esta_maquina",
+    "situacao_desta_maquina",
+    "desativar_esta_maquina",
+    "CODIGO_LICENCA_DE_OUTRA_MAQUINA",
+    "erro_licenca_de_outra_maquina",
     "_erro_licenca",
     "_CODIGOS_DE_VENCIMENTO",
     "_TERMOS_DE_VENCIMENTO",

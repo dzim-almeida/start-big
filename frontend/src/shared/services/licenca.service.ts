@@ -42,6 +42,20 @@ export interface LicencaErroResponse {
 }
 
 /**
+ * Códigos de "a licença deste banco foi ativada em outro computador".
+ *
+ * Na prática é troca de servidor (o banco foi copiado), e a saída é uma só:
+ * a tela de transferência. `CLONAGEM_DETECTADA` é o nome antigo — continua
+ * aqui porque um caixa atualizado pode falar com um servidor ainda na versão
+ * anterior.
+ */
+const CODIGOS_LICENCA_DE_OUTRA_MAQUINA = ['LICENCA_DE_OUTRA_MAQUINA', 'CLONAGEM_DETECTADA'];
+
+export function ehLicencaDeOutraMaquina(codigo: string | undefined | null): boolean {
+  return !!codigo && CODIGOS_LICENCA_DE_OUTRA_MAQUINA.includes(codigo);
+}
+
+/**
  * Verifica o status da licença via GET /licenca/status.
  * Endpoint público (sem autenticação).
  */

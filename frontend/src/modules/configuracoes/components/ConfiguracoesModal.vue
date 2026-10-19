@@ -18,6 +18,7 @@ import {
   Wallet,
   Network,
   Hammer,
+  KeyRound,
 } from 'lucide-vue-next'
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
@@ -44,6 +45,8 @@ import { useToast } from '@/shared/composables/useToast'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 import { useImpressaoStore } from '@/shared/stores/impressao.store'
+import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
+import { useUserQuery } from '@/shared/composables/useUser'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
 import GestaoFinanceira from './sections/gestao-financeira/components/GestaoFinanceira.vue'
@@ -61,6 +64,7 @@ import FormatosExibicao from './sections/formatos-exibicao/components/FormatosEx
 import BackupDados from './sections/backup-dados/components/BackupDados.vue'
 import Suporte from './sections/suporte/components/Suporte.vue'
 import RedeConexao from './sections/rede/components/RedeConexao.vue'
+import LicencaComputador from './sections/licenca/components/LicencaComputador.vue'
 
 const props = defineProps<{ isOpen: boolean; secaoInicial?: SecaoId }>()
 const emit = defineEmits<{ close: [] }>()
@@ -322,6 +326,7 @@ const secoes: SecaoConfiguracao[] = [
   { id: 'formatos-exibicao', label: 'Formatos e Exibição',   icone: Monitor },
   { id: 'backup-dados',      label: 'Backup dos Dados',      icone: HardDrive },
   { id: 'rede',              label: 'Rede e Conexão',        icone: Network },
+  { id: 'licenca',           label: 'Licença',               icone: KeyRound },
   { id: 'suporte',           label: 'Suporte',               icone: Headphones },
 ]
 
@@ -339,6 +344,7 @@ const componenteMap: Record<SecaoId, Component> = {
   'formatos-exibicao': FormatosExibicao,
   'backup-dados':      BackupDados,
   'rede':              RedeConexao,
+  'licenca':           LicencaComputador,
   'suporte':           Suporte,
 }
 
@@ -350,6 +356,8 @@ const componenteMap: Record<SecaoId, Component> = {
  * Configuracoes e encontra prazos e numeracao de OS.
  */
 const { controlarCaixa } = storeToRefs(configuracoesStore)
+const { papel } = storeToRefs(useNetworkConfigStore())
+const { data: usuarioLogado } = useUserQuery()
 
 const secoesVisiveis = computed(() =>
   secoes.filter((s) => {
@@ -359,6 +367,9 @@ const secoesVisiveis = computed(() =>
     // Nomear maquina e marcar retaguarda so faz sentido onde ha turno de caixa.
     // Loja que nao usa caixa nao ganha uma aba nova que nao explica nada.
     if (s.id === 'terminais') return controlarCaixa.value
+    // Licença e troca de servidor: só no próprio servidor e só para o dono.
+    // Num caixa, "desativar" derrubaria a loja inteira.
+    if (s.id === 'licenca') return papel.value === 'servidor' && usuarioLogado.value?.is_master === true
     return true
   }),
 )

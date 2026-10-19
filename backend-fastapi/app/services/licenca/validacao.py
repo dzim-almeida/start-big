@@ -21,7 +21,7 @@ from app.core.hwid import obter_hwid
 from app.services.licenca.cadastro import resgatar_chave_publica_online
 from app.services.licenca.constantes import API_CONECTAR_URL, CONECTAR_TIMEOUT_SECONDS
 from app.services.licenca.cripto import decriptar_valor
-from app.services.licenca.recusa import _carencia_vigente, _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento
+from app.services.licenca.recusa import _carencia_vigente, _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento, erro_licenca_de_outra_maquina
 
 logger = logging.getLogger(__name__)
 
@@ -350,7 +350,7 @@ def verificar_licenca_ativa(db: Session) -> dict:
     except RuntimeError as e:
         logger.error("[licenca] Falha ao obter HWID: %s", e)
         raise _erro_licenca(
-            "CLONAGEM_DETECTADA",
+            "MAQUINA_NAO_IDENTIFICADA",
             "Não foi possível identificar a máquina. Verifique a instalação.",
         )
 
@@ -362,16 +362,12 @@ def verificar_licenca_ativa(db: Session) -> dict:
             "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
         )
 
-    # 3. Descriptografar chave de ativação (teste anti-clonagem)
+    # 3. Descriptografar chave de ativação: só decifra na máquina que a ativou
     try:
         chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
     except Exception as e:
-        logger.warning("[licenca] Falha na descriptografia — possível clonagem: %s", e)
-        raise _erro_licenca(
-            "CLONAGEM_DETECTADA",
-            "Falha na verificação de integridade. "
-            "O banco de dados pode ter sido copiado de outra máquina.",
-        )
+        logger.warning("[licenca] Licença ativada em outra máquina: %s", e)
+        raise erro_licenca_de_outra_maquina()
 
     # 4. Tentar validação online (prioridade)
     try:

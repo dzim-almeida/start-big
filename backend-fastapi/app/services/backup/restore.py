@@ -240,7 +240,7 @@ def confirm_restore(cycle: str, pre_restore_backup_path: str) -> ConfirmRestoreR
 # `configuracoes_licenca.chave_ativacao` e gravada cifrada em AES-256-GCM com
 # uma chave derivada do HWID da maquina (services/licenca.py: _derivar_chave).
 # No boot, verificar_licenca_ativa decifra esse campo com o HWID LOCAL e, se
-# falhar, levanta CLONAGEM_DETECTADA — ANTES de consultar a nuvem, que nem
+# falhar, levanta LICENCA_DE_OUTRA_MAQUINA (antes CLONAGEM_DETECTADA) — ANTES de consultar a nuvem, que nem
 # chega a ser chamada.
 #
 # Como o restore troca o ARQUIVO inteiro do banco, a linha de licenca do backup
@@ -278,7 +278,7 @@ def _preserve_local_license(staged_db_path: str) -> str:
 
     Se a maquina atual nao tiver licenca, a do backup e apenas REMOVIDA — o
     sistema cai em LICENCA_NAO_ENCONTRADA e pede o login normalmente, em vez de
-    subir bloqueado por CLONAGEM_DETECTADA.
+    subir bloqueado por LICENCA_DE_OUTRA_MAQUINA.
 
     As colunas sao lidas via PRAGMA e cruzadas entre os dois bancos: um backup
     antigo pode ter sido feito antes de uma migracao que mexeu nesta tabela.

@@ -14,6 +14,7 @@ export type SecaoId =
   | 'formatos-exibicao'
   | 'backup-dados'
   | 'rede'
+  | 'licenca'
   | 'suporte'
 
 export interface SecaoConfiguracao {

@@ -11,12 +11,11 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import axios from 'axios';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
-import { verificarLicenca } from '@/shared/services/licenca.service';
+import { verificarLicenca, ehLicencaDeOutraMaquina } from '@/shared/services/licenca.service';
 import { useLicencaStore } from '@/shared/stores/licenca.store';
 import { LINKS } from '@/shared/config/links';
 
 import AppLogo from '@/shared/components/AppLogo.vue';
-import ReativarNestaMaquina from '../components/ReativarNestaMaquina.vue';
 
 const props = defineProps<{
   codigo: string;
@@ -29,12 +28,16 @@ const isRetrying = ref(false);
 const retryError = ref('');
 
 /**
- * CLONAGEM_DETECTADA é, na prática, troca de computador: o banco foi copiado
- * e a licença dentro dele está cifrada com o HWID da máquina antiga. Tentar de
- * novo nunca resolve; o que resolve é reativar com o login da conta StartBig.
+ * Licença de outro computador é troca de servidor: o banco foi copiado e a
+ * ativação dentro dele é da máquina antiga. Tentar de novo nunca resolve; o
+ * que resolve é a tela de transferência. O router já manda direto para lá —
+ * este caminho cobre quem chegar aqui por link antigo.
  */
-const trocaDeMaquina = computed(() => props.codigo === 'CLONAGEM_DETECTADA');
-const reativando = ref(false);
+const trocaDeMaquina = computed(() => ehLicencaDeOutraMaquina(props.codigo));
+
+function irParaTransferencia() {
+  router.replace({ name: 'licenca.transferir' });
+}
 
 /**
  * Sai desta tela e entra no sistema para pagar.
@@ -61,11 +64,14 @@ function entrarParaRenovar(msg?: string) {
 onMounted(() => {
   if (props.codigo === 'LICENCA_EXPIRADA') {
     entrarParaRenovar();
+  } else if (trocaDeMaquina.value) {
+    irParaTransferencia();
   }
 });
 
 const titulo = computed(() => {
   switch (props.codigo) {
+    case 'LICENCA_DE_OUTRA_MAQUINA':
     case 'CLONAGEM_DETECTADA':
       return 'Licença de Outro Computador';
     case 'REQUISITA_CONEXAO_INTERNET':
@@ -85,6 +91,7 @@ const titulo = computed(() => {
 
 const icone = computed(() => {
   switch (props.codigo) {
+    case 'LICENCA_DE_OUTRA_MAQUINA':
     case 'CLONAGEM_DETECTADA':
       return '🔒';
     case 'REQUISITA_CONEXAO_INTERNET':
@@ -157,6 +164,10 @@ async function tentarNovamente() {
         entrarParaRenovar(detail.mensagem);
         return;
       }
+      if (ehLicencaDeOutraMaquina(detail.codigo)) {
+        irParaTransferencia();
+        return;
+      }
     }
     retryError.value = 'A verificação falhou novamente. Verifique sua conexão e tente mais tarde.';
   } finally {
@@ -194,17 +205,15 @@ async function tentarNovamente() {
         {{ retryError }}
       </div>
 
-      <!-- Troca de computador: reativar aqui mesmo, com o login da conta -->
-      <ReativarNestaMaquina v-if="trocaDeMaquina && reativando" @cancelar="reativando = false" />
-      <template v-else>
+      <!-- Troca de servidor: a saída é transferir a licença com a conta -->
       <BaseButton
         v-if="trocaDeMaquina"
         type="button"
         variant="primary"
         class="w-full mb-2"
-        @click="reativando = true"
+        @click="irParaTransferencia"
       >
-        Trocou de computador? Reativar nesta máquina
+        Transferir a licença para este computador
       </BaseButton>
 
       <!-- Ação principal quando o que falta é pagar -->
@@ -245,7 +254,6 @@ async function tentarNovamente() {
         Depois de pagar, a liberação é automática: basta estar conectado à
         internet e clicar em <strong>Já paguei — liberar acesso</strong>.
       </p>
-      </template>
 
       <button
         type="button"

@@ -46,7 +46,7 @@ class LicencaErroResponse(BaseModel):
     codigo: str = Field(
         ...,
         description=(
-            "CLONAGEM_DETECTADA | REQUISITA_CONEXAO_INTERNET | "
+            "LICENCA_DE_OUTRA_MAQUINA | MAQUINA_NAO_IDENTIFICADA | REQUISITA_CONEXAO_INTERNET | "
             "LICENCA_EXPIRADA | LICENCA_NAO_ENCONTRADA | CHAVE_CORROMPIDA"
         ),
     )

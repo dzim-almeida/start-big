@@ -7,16 +7,21 @@
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.depends import get_current_master_user
+from app.core.depends import _handle_db_transaction, get_current_master_user
 from app.db.session import get_db
 from app.schemas.licenca import (
     CobrancaCreate,
     CobrancaRead,
     CobrancaStatusRead,
+    DesativarMaquinaPayload,
+    LicencaEstaMaquinaRead,
     LicencaStatusResponse,
     RenovacaoPlanosRead,
+    TransferenciaResultado,
+    TransferirLicencaPayload,
 )
 from app.services import licenca as licenca_service
+from app.services.acesso import auth as auth_service
 from app.services.licenca import renovacao as renovacao_service
 
 router = APIRouter()
@@ -71,6 +76,74 @@ async def desconectar_licenca(
     Sempre retorna 200 — falhas de rede são tratadas internamente.
     """
     return await licenca_service.desconectar_terminal(db, hwid)
+
+
+# ===========================================================================
+# TROCA DE SERVIDOR
+#
+# O caminho de mercado: desativar no computador antigo (libera a vaga) e
+# ativar no novo com o login da conta. Se o antigo morreu, só o segundo passo
+# basta -- a nuvem derruba a sessão antiga e avisa o dono por e-mail.
+# ===========================================================================
+
+
+@router.post(
+    "/transferir",
+    response_model=TransferenciaResultado,
+    status_code=status.HTTP_200_OK,
+    summary="Transferir a licença para este computador (banco copiado de outro)",
+    description=(
+        "Público, como o /auth/reconnect: roda ANTES do login, porque o banco "
+        "copiado não deixa ninguém logar enquanto a licença for de outra máquina. "
+        "Quem autoriza é o e-mail e a senha da conta StartBig, conferidos na nuvem. "
+        "Sem aprovação da nuvem nada muda no banco."
+    ),
+)
+def transferir_licenca(
+    payload: TransferirLicencaPayload,
+    db: Session = Depends(get_db),
+):
+    _handle_db_transaction(
+        db,
+        licenca_service.transferir_para_esta_maquina,
+        payload.email,
+        payload.senha,
+    )
+    return TransferenciaResultado(
+        inicializado=auth_service.verificar_sistema_inicializado(db),
+    )
+
+
+@router.get(
+    "/esta-maquina",
+    response_model=LicencaEstaMaquinaRead,
+    status_code=status.HTTP_200_OK,
+    summary="Licença deste computador (Configurações › Licença)",
+)
+def licenca_desta_maquina(
+    user_token: dict = Depends(get_current_master_user),
+    db: Session = Depends(get_db),
+):
+    return licenca_service.situacao_desta_maquina(db)
+
+
+@router.post(
+    "/desativar",
+    status_code=status.HTTP_200_OK,
+    summary="Desativar a licença neste computador (antes de trocar de servidor)",
+    description=(
+        "Libera a vaga na nuvem e apaga a ativação local. Só no próprio servidor "
+        "(o HWID de quem pede tem que ser o do backend) e só para o master. "
+        "Sem internet, nada é alterado."
+    ),
+)
+async def desativar_licenca(
+    payload: DesativarMaquinaPayload,
+    user_token: dict = Depends(get_current_master_user),
+    db: Session = Depends(get_db),
+):
+    await licenca_service.desativar_esta_maquina(db, payload.hwid)
+    return {"desativada": True}
 
 
 # ===========================================================================

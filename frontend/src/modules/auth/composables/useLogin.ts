@@ -22,6 +22,8 @@ import { useToast } from '@/shared/composables/useToast';
 import type { AxiosError } from 'axios';
 import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
+import { ehLicencaDeOutraMaquina } from '@/shared/services/licenca.service';
 
 /**
  * Composable que gerencia o formulário de login
@@ -29,6 +31,7 @@ import { storeToRefs } from 'pinia';
  */
 export function useLogin() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const authStore = useAuthStore();
   const { userData } = storeToRefs(authStore);
   const { goToHome, goToSignIn } = useAppNavigation();
@@ -112,6 +115,15 @@ export function useLogin() {
       const detail = error.response?.data?.detail;
       if (typeof detail === 'object' && detail !== null && 'codigo' in detail) {
         const errorDetail = detail as unknown as { codigo: string; mensagem: string };
+
+        // Troca de servidor descoberta no login (o caso comum: o serviço
+        // demora a subir e a checagem de licença do boot passa direto). Antes
+        // a mensagem aparecia aqui sem saída nenhuma.
+        if (ehLicencaDeOutraMaquina(errorDetail.codigo)) {
+          router.push({ name: 'licenca.transferir' });
+          return;
+        }
+
         apiError.value = errorDetail.mensagem;
 
         if (errorDetail.codigo === 'LIMITE_TERMINAIS') {

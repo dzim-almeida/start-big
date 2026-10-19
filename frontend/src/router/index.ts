@@ -1,6 +1,6 @@
 import { useLayoutStore } from '@/modules/mainLayout/store/layout.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
-import { verificarLicenca } from '@/shared/services/licenca.service';
+import { verificarLicenca, ehLicencaDeOutraMaquina } from '@/shared/services/licenca.service';
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
 import { useLicencaStore } from '@/shared/stores/licenca.store';
 import { useModulosStore } from '@/shared/stores/modulos.store';
@@ -65,6 +65,10 @@ router.beforeEach(async (to) => {
             // lugar errado.
             if (codigo === 'LICENCA_EXPIRADA') {
               useLicencaStore().marcarExpirada(mensagem);
+            } else if (ehLicencaDeOutraMaquina(codigo)) {
+              // Banco copiado de outro computador (troca de servidor): a saída
+              // é transferir a licença com a conta, não "tentar de novo".
+              return { name: 'licenca.transferir' };
             } else {
               return {
                 name: 'licenca.erro',

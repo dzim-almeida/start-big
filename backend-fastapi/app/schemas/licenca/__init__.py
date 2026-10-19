@@ -7,6 +7,7 @@
 #   terminal.py  - conectar, heartbeat e desconectar
 #   status.py    - status, erro e validacao
 #   renovacao.py - renovacao paga (periodos, planos, cobranca)
+#   transferencia.py - troca de servidor (transferir, desativar, situacao)
 #
 # Este __init__ reexporta tudo: `from app.schemas.licenca import ...` continua
 # valendo como antes.
@@ -43,6 +44,13 @@ from app.schemas.licenca.renovacao import (
     CobrancaStatusRead,
 )
 
+from app.schemas.licenca.transferencia import (
+    TransferirLicencaPayload,
+    TransferenciaResultado,
+    DesativarMaquinaPayload,
+    LicencaEstaMaquinaRead,
+)
+
 __all__ = [
     "LicencaEnderecoPayload",
     "AutoCadastroPayload",
@@ -63,4 +71,8 @@ __all__ = [
     "CobrancaCreate",
     "CobrancaRead",
     "CobrancaStatusRead",
+    "TransferirLicencaPayload",
+    "TransferenciaResultado",
+    "DesativarMaquinaPayload",
+    "LicencaEstaMaquinaRead",
 ]
