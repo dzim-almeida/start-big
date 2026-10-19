@@ -6,7 +6,9 @@
  *
  * - Cliente: a mesma busca da OS (com cadastro de cliente novo e CNPJ, Spec 02).
  * - Projeto: depois do cliente, uma lista com os projetos que ele já tem,
- *   ou "Novo projeto" (nome + endereço da obra). TROCAR O CLIENTE LIMPA o
+ *   ou "Novo projeto" (nome + endereço da obra). O endereço pode ser digitado
+ *   ou preenchido pelo modal, em partes e com busca por CEP (remodelação item 2).
+ *   TROCAR O CLIENTE LIMPA o
  *   projeto escolhido (o nome digitado fica): um projeto de outro cliente nunca
  *   fica preso ao orçamento.
  * - Vendedor: funcionários ativos; vem preenchido com o do usuário logado.
@@ -14,7 +16,7 @@
  * Tudo aqui é do cabeçalho: muda o `form` e o salvamento automático grava.
  */
 import { computed, ref, watch } from 'vue';
-import { MapPin } from 'lucide-vue-next';
+import { MapPin, MapPinned } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -28,8 +30,12 @@ import { formatCNPJ, formatCPF, formatTelefone } from '@/shared/utils/document.u
 import { useEditor } from '../../composables/useEditorContexto';
 import { useProjetosDoClienteQuery } from '../../composables/useOrcamentoQuery';
 import BlocoArquiteto from './BlocoArquiteto.vue';
+import EnderecoObraModal from '../modais/EnderecoObraModal.vue';
 
 const { form, detalhe, editavel } = useEditor();
+
+/** Aditivo (remodelação item 20): cliente e projeto são os da OS e não mudam. */
+const travadoPeloAditivo = computed(() => !!detalhe.value?.aditivo_de);
 
 // --- Cliente ----------------------------------------------------------------
 const buscaAberta = ref(false);
@@ -116,6 +122,14 @@ const enderecoObra = computed({
   set: (valor: string) => { form.endereco_obra = valor.trim() ? valor : null; },
 });
 
+// Modal do endereço em partes (remodelação item 2). `enderecoAberto` diz se ele está na tela.
+const enderecoAberto = ref(false);
+/** O modal devolve o endereço já montado: vai para o campo e o salvamento automático grava. */
+function usarEnderecoDoModal(endereco: string) {
+  enderecoObra.value = endereco;
+  enderecoAberto.value = false;
+}
+
 // --- Vendedor ---------------------------------------------------------------
 // Sem a permissão de funcionários (403), a lista falha: fica só o vendedor atual.
 const { data: funcionarios, isError: erroFuncionarios } = useOsEmployeesGet();
@@ -165,7 +179,7 @@ watch(botaoCliente, (botao) => {
             <span v-if="contatoCliente" class="block truncate text-xs tabular-nums text-zinc-500">{{ contatoCliente }}</span>
           </span>
           <BaseButton
-            v-if="editavel"
+            v-if="editavel && !travadoPeloAditivo"
             ref="botaoCliente"
             :variant="form.cliente_id ? 'secondary' : 'primary'"
             size="sm"
@@ -191,7 +205,7 @@ watch(botaoCliente, (botao) => {
 
       <!-- Projeto (D21): os do cliente, ou um novo -->
       <div v-if="projetos?.length">
-        <BaseSelect v-model="escolhaProjeto" label="Projeto" :options="opcoesProjeto" :disabled="!editavel" />
+        <BaseSelect v-model="escolhaProjeto" label="Projeto" :options="opcoesProjeto" :disabled="!editavel || travadoPeloAditivo" />
         <p class="mt-1.5 text-xs text-zinc-500">
           {{ projetos.length }} {{ projetos.length === 1 ? 'projeto' : 'projetos' }} deste cliente · ou um novo
         </p>
@@ -203,17 +217,36 @@ watch(botaoCliente, (botao) => {
         :disabled="!editavel || form.objeto_id != null"
       />
       <div :class="projetos?.length ? '' : 'lg:col-span-2'">
-        <BaseInput
-          v-model="enderecoObra"
-          label="Endereço da obra"
-          placeholder="Rua, número, bairro"
-          :disabled="!editavel || form.objeto_id != null"
-        />
+        <!-- Campo + botão lado a lado: digita direto ou abre o modal com CEP (item 2) -->
+        <div class="flex items-end gap-2">
+          <BaseInput
+            v-model="enderecoObra"
+            class="min-w-0 flex-1"
+            label="Endereço da obra"
+            placeholder="Rua, número, bairro"
+            :disabled="!editavel || form.objeto_id != null"
+          />
+          <!-- Mesma altura do campo ao lado (38px; o BaseButton "md" tem 44px de mínimo) e cor da marca. -->
+          <BaseButton
+            v-if="editavel && form.objeto_id == null"
+            variant="primary"
+            size="md"
+            class="h-[38px] min-h-0! px-3"
+            title="Preencher o endereço pelo CEP"
+            aria-label="Preencher o endereço pelo CEP"
+            data-testid="abrir-endereco-obra"
+            @click="enderecoAberto = true"
+          >
+            <MapPinned :size="16" />
+          </BaseButton>
+        </div>
         <p v-if="form.objeto_id != null && editavel" class="mt-1.5 flex items-center gap-1 text-xs text-zinc-500">
           <MapPin :size="12" /> Do projeto escolhido. Para mudar, escolha "Novo projeto".
         </p>
       </div>
     </div>
+
+    <EnderecoObraModal :is-open="enderecoAberto" @close="enderecoAberto = false" @confirmar="usarEnderecoDoModal" />
 
     <OSClienteSearchModal
       :is-open="buscaAberta"

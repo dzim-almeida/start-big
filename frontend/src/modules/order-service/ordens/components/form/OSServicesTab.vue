@@ -29,10 +29,17 @@ const garantiaLabel = formatGarantiaItem;
 interface Props {
   itens: OsItem[];
   isLocked?: boolean;
+  /**
+   * Mostra o botão "Adicionar item"? Padrão: sim. A marcenaria passa `false`
+   * (remodelação item 12): lá os itens vêm do orçamento aprovado, e o que for
+   * a mais entra por um aditivo do orçamento, não à mão na OS.
+   */
+  podeAdicionar?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLocked: false,
+  podeAdicionar: true,
 });
 
 const emit = defineEmits<{
@@ -125,7 +132,7 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
         </div>
       </div>
 
-      <BaseButton v-if="!isLocked" variant="primary" size="sm" @click="emit('addItem')">
+      <BaseButton v-if="!isLocked && podeAdicionar" variant="primary" size="sm" data-testid="adicionar-item-os" @click="emit('addItem')">
         <Plus :size="16" class="mr-2" />
         ADICIONAR ITEM
       </BaseButton>
@@ -140,7 +147,8 @@ function margemDoItem(item: OsItem): { custo: number; sobra: number } | null {
           <Package :size="28" stroke-width="1.5" class="text-slate-300" />
         </div>
         <p class="text-sm font-semibold text-slate-500">Nenhum item adicionado</p>
-        <p class="text-xs text-slate-400 mt-1">Clique em "Adicionar Item" para incluir serviços ou peças.</p>
+        <!-- Sem o botão (marcenaria), a dica não pode mandar clicar nele. -->
+        <p v-if="podeAdicionar" class="text-xs text-slate-400 mt-1">Clique em "Adicionar Item" para incluir serviços ou peças.</p>
       </div>
 
       <div v-else class="space-y-2">

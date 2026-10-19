@@ -67,6 +67,7 @@ class MarcenariaOrcamento(Base):
         Index("ix_marcenaria_orcamentos_cliente", "cliente_id"),
         Index("ix_marcenaria_orcamentos_validade", "data_validade"),
         Index("ix_marcenaria_orcamentos_os", "os_id"),                 # Spec 08A: achar pela OS
+        Index("ix_marcenaria_orcamentos_aditivo_os", "aditivo_os_id"),  # aditivos de uma OS
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -118,6 +119,11 @@ class MarcenariaOrcamento(Base):
     motivo_recusa: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     data_aprovacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)   # Spec 08A
     os_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ordens_servico.id"), nullable=True)  # Spec 08A
+    # ADITIVO (remodelacao item 20): orcamento de moveis A MAIS para uma OS que ja
+    # existe. Preenchido desde a criacao (o aditivo nasce "da OS"); ao aprovar,
+    # os itens SOMAM nesta OS em vez de criar outra, e `os_id` passa a ser ela
+    # tambem. NULL = orcamento comum (o que cria a OS na aprovacao).
+    aditivo_os_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ordens_servico.id"), nullable=True)
 
     # --- Aprovacao (Spec 08A, secao 5): o que virou OS ----------------------
     instalacao_aprovada: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)   # NULL ate aprovar
@@ -145,7 +151,8 @@ class MarcenariaOrcamento(Base):
     cliente: Mapped[Optional["Cliente"]] = relationship("Cliente")
     funcionario: Mapped[Optional["Funcionario"]] = relationship("Funcionario")
     objeto: Mapped[Optional["ObjetoServico"]] = relationship("ObjetoServico")
-    os: Mapped[Optional["OrdemServico"]] = relationship("OrdemServico")       # a OS da aprovacao (08A)
+    os: Mapped[Optional["OrdemServico"]] = relationship("OrdemServico", foreign_keys=[os_id])   # a OS da aprovacao (08A)
+    aditivo_os: Mapped[Optional["OrdemServico"]] = relationship("OrdemServico", foreign_keys=[aditivo_os_id])  # a OS do aditivo
 
     # A arvore: apagar o orcamento apaga os ambientes (e, deles, moveis e insumos).
     ambientes: Mapped[List["MarcenariaAmbiente"]] = relationship(

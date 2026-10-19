@@ -72,7 +72,8 @@ class ConfiguracaoMarcenariaUpdate(BaseModel):
     @field_validator("perda_padrao_bp")
     @classmethod
     def _perda(cls, v):
-        return _entre(v, 0, 5_000, "A perda deve ficar entre 0% e 50%.")
+        # Mesmo teto do orcamento (remodelacao item 8): 1000%.
+        return _entre(v, 0, 100_000, "A perda deve ficar entre 0% e 1000%.")
 
     @field_validator("custo_hora_centavos")
     @classmethod

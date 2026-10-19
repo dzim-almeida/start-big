@@ -126,7 +126,8 @@ function handleAddClick() {
         :description="pageDescription"
       />
 
-      <div class="flex gap-5">
+      <!-- Abas à esquerda e o botão de criar à direita (André, remodelação item 1). -->
+      <div class="flex w-full flex-wrap items-center justify-between gap-5">
         <BaseTab2 :options="tabOptions" v-model="activeTab" />
         <BaseButton
           v-if="exibirBotaoAdicionar"

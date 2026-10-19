@@ -88,7 +88,8 @@ export function errosDoFormulario(form: FormMarcenaria): Record<string, string> 
   if (fora(form.prazo_entrega_dias, 1, 365)) erros.prazo_entrega_dias = 'O prazo de entrega deve ficar entre 1 e 365 dias.';
   if (form.markup_percentual !== undefined) {          // só quem vê custo edita estes
     if (fora(form.markup_percentual, 0, 1000)) erros.markup_percentual = 'O markup deve ficar entre 0% e 1000%.';
-    if (fora(form.perda_percentual, 0, 50)) erros.perda_percentual = 'A perda deve ficar entre 0% e 50%.';
+    // Perda até 1000%, como no orçamento (remodelação item 8; antes era 50%).
+    if (fora(form.perda_percentual, 0, 1000)) erros.perda_percentual = 'A perda deve ficar entre 0% e 1000%.';
     if (fora(form.custo_hora_reais, 0)) erros.custo_hora_reais = 'O custo por hora não pode ser negativo.';
     if (fora(form.rt_percentual, 0, 30)) erros.rt_percentual = 'O RT deve ficar entre 0% e 30%.';
     // Mesma regra e mensagem do backend (Spec 09A).

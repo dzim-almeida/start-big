@@ -26,6 +26,7 @@ COLUNAS_DE_SPECS_SEGUINTES = {
     "marcenaria_orcamentos": {   # 971eb6cc5a33 (Spec 08A)
         "instalacao_aprovada", "resumo_aprovado_total_centavos",
         "resumo_aprovado_sinal_centavos", "sinal_recebido_centavos",
+        "aditivo_os_id",                                                # a7d1t1v0os01 (remodelacao item 20)
     },
     "marcenaria_moveis": {
         "os_item_id",                                                   # 971eb6cc5a33 (Spec 08A)

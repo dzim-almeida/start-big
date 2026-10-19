@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.enum import OrdemServicoStatus
 from app.core.tempo import hoje_local
 from app.db.crud.marcenaria import orcamento as crud
-from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel
+from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel, ordem_na_os
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento, StatusOrcamento
 from app.db.models.ordem_servico import OrdemServico
 from app.db.models.pedido_compra import PedidoCompra, PedidoCompraItem, SituacaoPedido, TipoPedido
@@ -48,6 +48,7 @@ from app.services.marcenaria import terceirizado_situacao as sit
 from app.services.marcenaria.orcamento_comum import (
     exigir_orcamento_tecnico,
     os_aberta,
+    orcamentos_da_os,
     os_e_orcamento_aprovado,
     registrar_evento,
 )
@@ -90,7 +91,7 @@ def _aprovados(orc: MarcenariaOrcamento) -> list[tuple[MarcenariaAmbiente, Marce
     """Os moveis APROVADOS do orcamento, na ordem da tela (ambiente, movel)."""
     return [
         (ambiente, movel)
-        for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id))
+        for ambiente in sorted(orc.ambientes, key=ordem_na_os)
         for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id))
         if movel.aprovado
     ]
@@ -480,7 +481,7 @@ def avisar_no_cancelamento(db: Session, os_, usuario: Optional[dict], contexto: 
     Roda dentro da transacao do cancelamento (sem commit). OS de outro
     segmento (ou sem orcamento) sai na hora.
     """
-    orc = crud.get_orcamento_por_os(db, os_.id)
+    orc = orcamentos_da_os(db, os_)              # principal + aditivos aprovados (remodelacao item 20)
     if orc is None:
         return
     pares = _terceirizados(orc)

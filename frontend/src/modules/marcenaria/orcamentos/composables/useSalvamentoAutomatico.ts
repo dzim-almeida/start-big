@@ -90,6 +90,12 @@ export function useSalvamentoAutomatico(
     limparNovaTentativa();
     const mudancas = diferencaCabecalho(ultimoSalvo, form);   // só o que mudou (D8)
     if (!Object.keys(mudancas).length) {
+      // Nada a mandar: a tela é igual ao servidor. Se havia um erro (422), ele era de
+      // um valor que já saiu da tela; limpa a mensagem. Sem isto, voltar ao valor salvo
+      // (ex.: perda 500% recusada → de volta aos 10% gravados) deixava o erro
+      // na tela para sempre e o orçamento parecia travado (remodelação item 8).
+      errosPorCampo.value = {};
+      mensagemErro.value = '';
       estado.value = 'salvo';
       return;
     }

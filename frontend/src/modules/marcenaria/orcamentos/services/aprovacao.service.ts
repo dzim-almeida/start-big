@@ -33,6 +33,16 @@ export async function desfazerAprovacao(id: number, revisao: number, entrada: De
   return orcamentoDetalheSchema.parse(data);
 }
 
+/**
+ * Cria um ADITIVO da OS (remodelação item 20): um orçamento novo, em rascunho,
+ * já com o cliente, o projeto e os parâmetros do orçamento da OS, sem móveis.
+ * Aprovado, os móveis dele SOMAM nesta OS. Devolve o detalhe do aditivo.
+ */
+export async function criarAditivo(numeroOs: string): Promise<OrcamentoDetalhe> {
+  const { data } = await api.post(`${URL_ORCAMENTOS}/por-os/${encodeURIComponent(numeroOs)}/aditivos`);
+  return orcamentoDetalheSchema.parse(data);
+}
+
 /** O orçamento que gerou a OS (aba "Orçamento" da OS). 404 = OS sem orçamento. */
 export async function getResumoPorOs(numeroOs: string): Promise<ResumoPorOs> {
   const { data } = await api.get(`${URL_ORCAMENTOS}/por-os/${encodeURIComponent(numeroOs)}`);

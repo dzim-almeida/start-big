@@ -328,7 +328,8 @@ async function desfazer(entrada: DesfazerEntrada) {
     });
     if (novo) {
       desfazerAberto.value = false;
-      toast.success('Aprovação desfeita. A OS foi cancelada.');
+      // Aditivo (remodelação item 20): a OS NÃO é cancelada, só perde os móveis dele.
+      toast.success(ehAditivo.value ? 'Aprovação do aditivo desfeita. Os móveis dele saíram da OS.' : 'Aprovação desfeita. A OS foi cancelada.');
     }
   } catch (erro) {
     if (codigoDoErro(erro) !== 'REVISAO_DESATUALIZADA') toast.error('Não foi possível desfazer a aprovação.', mensagemDoErro(erro));
@@ -340,6 +341,22 @@ async function desfazer(entrada: DesfazerEntrada) {
 // Aprovado: quem aprovou e por que não dá para desfazer vêm do resumo da OS (08A Revisão 1).
 const numeroOs = computed(() => (detalhe.value?.status === 'APROVADO' ? detalhe.value.os?.numero_os ?? null : null));
 const { data: resumoOs } = useOrcamentoDaOS(numeroOs, computed(() => numeroOs.value != null));
+
+// --- Aditivo (remodelação item 20) ----------------------------------------------------
+/** Este orçamento é um ADITIVO de uma OS que já existe? */
+const ehAditivo = computed(() => !!detalhe.value?.aditivo_de);
+/** A linha deste aditivo no resumo da OS (o resumo da OS fala do orçamento PRINCIPAL). */
+const aditivoNoResumo = computed(() => resumoOs.value?.aditivos.find((a) => a.orcamento_id === detalhe.value?.id) ?? null);
+/** Por que não dá para desfazer: as regras do aditivo, ou as do principal. */
+const motivosDesfazer = computed(() =>
+  ehAditivo.value ? aditivoNoResumo.value?.motivos_desfazer ?? [] : resumoOs.value?.motivos_desfazer ?? [],
+);
+/** O sinal recebido que sai da OS ao desfazer: o DESTE aditivo, não o da OS inteira. */
+const sinalRecebidoDesfazer = computed(() =>
+  ehAditivo.value
+    ? detalhe.value?.aprovacao?.sinal_recebido_centavos ?? 0
+    : resumoOs.value?.sinal_recebido_centavos ?? detalhe.value?.aprovacao?.sinal_recebido_centavos ?? 0,
+);
 const { rotuloStatus } = useRotulosStatusOS();
 const rotuloStatusOs = computed(() =>
   detalhe.value?.os ? rotuloStatus(detalhe.value.os.status as OsStatusEnumDataType) : null,
@@ -481,9 +498,9 @@ const erroCarregar = computed(() => {
         v-if="detalhe"
         :detalhe="detalhe"
         :versao-substituta="versaoSubstituta"
-        :aprovado-por="resumoOs?.aprovado_por ?? null"
+        :aprovado-por="ehAditivo ? null : resumoOs?.aprovado_por ?? null"
         :rotulo-status-os="rotuloStatusOs"
-        :motivos-desfazer="resumoOs?.motivos_desfazer ?? []"
+        :motivos-desfazer="motivosDesfazer"
         :tem-financeiro="temFinanceiro"
         @abrir-os="detalhe?.os && abrirOS(detalhe.os.numero_os)"
         @proposta-aprovada="imprimir(undefined, 'aprovada')"
@@ -495,6 +512,21 @@ const erroCarregar = computed(() => {
         @abrir-versao="abrirVersao"
         @contas-pagar="abrirContasPagar"
       />
+
+      <!-- Aditivo (remodelação item 20): deixa claro para onde os móveis vão. -->
+      <div
+        v-if="detalhe?.aditivo_de"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/30 bg-brand-primary-light/60 px-5 py-3.5 text-sm text-brand-primary"
+        data-testid="faixa-aditivo"
+      >
+        <span>
+          <strong>Aditivo da {{ detalhe.aditivo_de.numero_os }}.</strong>
+          Aprovado, os móveis daqui somam nessa OS (itens, material, produção e entrega). O cliente e o projeto são os da OS.
+        </span>
+        <BaseButton variant="secondary" size="sm" data-testid="abrir-os-do-aditivo" @click="abrirOS(detalhe.aditivo_de.numero_os)">
+          Abrir OS
+        </BaseButton>
+      </div>
 
       <EditorAvisos :codigos="detalhe?.avisos ?? []" :inclui-custos="incluiCustos" :aviso-precos="avisoPrecos" />
 
@@ -554,6 +586,7 @@ const erroCarregar = computed(() => {
       :custo-hora-centavos="custoHora"
       :editavel="editavel"
       :pode-cadastrar-insumo="podeCriarProduto"
+      :pode-cadastrar-central="podeCadastrarFornecedor"
       :salvar="salvarMovel"
       @close="movelModal.aberto = false"
     />
@@ -569,7 +602,8 @@ const erroCarregar = computed(() => {
     />
     <AtualizarPrecosModal :is-open="precosAbertos" :precos="precos" :gravando="gravandoPrecos" @close="precosAbertos = false" @atualizar="atualizarPrecos" />
     <HistoricoDrawer :id="id" :aberto="historicoAberto" @fechar="historicoAberto = false" />
-    <!-- "Cadastrar arquiteto" (09B D5): o cadastro de fornecedor, sem sair do orçamento -->
+    <!-- "Cadastrar arquiteto" (09B D5) e "Cadastrar central parceira" (remodelação item 5):
+         o cadastro de fornecedor, sem sair do orçamento. Vem depois do MovelModal para abrir por cima dele. -->
     <FornecedorFormModal v-if="podeCadastrarFornecedor" />
     <!-- Aprovação (Spec 08B) -->
     <AprovarModal v-if="detalhe && acoes.aprovar" :is-open="aprovarAberto" :detalhe="detalhe" :aprovar="aprovar" @close="aprovarAberto = false" />
@@ -584,7 +618,8 @@ const erroCarregar = computed(() => {
       v-if="detalhe?.os"
       :is-open="desfazerAberto"
       :numero-os="detalhe.os.numero_os"
-      :sinal-recebido-centavos="resumoOs?.sinal_recebido_centavos ?? detalhe.aprovacao?.sinal_recebido_centavos ?? 0"
+      :sinal-recebido-centavos="sinalRecebidoDesfazer"
+      :aditivo="ehAditivo"
       :gravando="desfazendo"
       @close="desfazerAberto = false"
       @confirmar="desfazer"

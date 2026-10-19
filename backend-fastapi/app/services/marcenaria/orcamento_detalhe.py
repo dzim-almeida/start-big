@@ -274,6 +274,14 @@ def _os_resumo(orc: MarcenariaOrcamento) -> Optional[dict]:
     return {"id": orc.os.id, "numero_os": orc.os.numero_os, "status": getattr(orc.os.status, "value", orc.os.status)}
 
 
+def _aditivo_de(orc: MarcenariaOrcamento) -> Optional[dict]:
+    """Remodelacao item 20: este orcamento e ADITIVO de qual OS (nulo = orcamento comum)."""
+    if orc.aditivo_os_id is None or orc.aditivo_os is None:
+        return None
+    os_ = orc.aditivo_os
+    return {"id": os_.id, "numero_os": os_.numero_os, "status": getattr(os_.status, "value", os_.status)}
+
+
 def _aprovacao(orc: MarcenariaOrcamento, resultado_aprovado: Optional[OrcamentoResultado], custos: bool) -> Optional[dict]:
     """O que virou OS (08A, secao 6.4). `calculo` aqui e SO o aprovado; o de
     fora (o orcamento inteiro) continua sendo o que foi proposto."""
@@ -364,6 +372,7 @@ def montar_detalhe(
         "motivo_recusa": orc.motivo_recusa,
         "aprovacao": _aprovacao(orc, resultado_aprovado, custos),   # 08A
         "os": _os_resumo(orc),                                       # 08A
+        "aditivo_de": _aditivo_de(orc),                              # remodelacao item 20
         "inclui_custos": custos,
         "acoes": montar_acoes(orc, usuario_token, pode_desfazer),
     })
@@ -394,6 +403,8 @@ def montar_item_lista(orc: MarcenariaOrcamento, custos: bool) -> dict:
         "data_validade": orc.data_validade,
         "data_atualizacao": orc.data_atualizacao,
         "os_numero": orc.os.numero_os if orc.status == StatusOrcamento.APROVADO and orc.os else None,
+        # Remodelacao item 20: aditivo de qual OS (a lista marca "Aditivo da OS-...").
+        "aditivo_os_numero": orc.aditivo_os.numero_os if orc.aditivo_os_id and orc.aditivo_os else None,
     }
     if custos:
         item["resumo_margem_bp"] = orc.resumo_margem_bp     # margem: so com permissao

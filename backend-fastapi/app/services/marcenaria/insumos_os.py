@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
+from app.db.models.marcenaria.ambiente import ordem_na_os
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
 from app.services.precificacao.quantidade import UNIDADES_FRACIONAVEIS
 
@@ -51,6 +52,17 @@ class InsumoDaOS:
 def _arredondar(valor: Decimal) -> int:
     """Meio para cima (ROUND_HALF_UP), como o motor da Spec 05."""
     return int(valor.quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def _perda_bp(orc, ambiente) -> int:
+    """A perda do orcamento DONO do ambiente (remodelacao item 20).
+
+    Numa OS com aditivo, `orc` e a vista da OS (o principal + os aditivos), e
+    cada aditivo tem a sua perda: o ambiente do aditivo usa a dele. Num
+    orcamento comum, o dono do ambiente e o proprio `orc` (mesma perda de sempre).
+    """
+    dono = getattr(ambiente, "orcamento", None)
+    return dono.perda_bp if dono is not None else orc.perda_bp
 
 
 def sugerido(planejado_milesimos: int, unidade: str) -> int:
@@ -77,14 +89,14 @@ def insumos_da_os(
     nome: dict[int, str] = {}
     por_movel: dict[int, list[tuple[str, str, Decimal]]] = {}
 
-    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+    for ambiente in sorted(orc.ambientes, key=ordem_na_os):
         for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id)):
             if not movel.aprovado or movel.tipo_producao != "INTERNA":
                 continue                                    # D1a, D1d
             for insumo in sorted(movel.insumos, key=lambda i: (i.ordem, i.id)):
                 if insumo.produto_id is None:
                     continue                                # D1c: nada a baixar
-                fator = (_BP + orc.perda_bp) / _BP if insumo.sofre_perda else Decimal(1)
+                fator = (_BP + _perda_bp(orc, ambiente)) / _BP if insumo.sofre_perda else Decimal(1)
                 planejado = Decimal(insumo.quantidade_milesimos) * movel.quantidade * fator
                 pid = insumo.produto_id
                 total[pid] = total.get(pid, Decimal(0)) + planejado
@@ -124,14 +136,14 @@ def insumos_sem_produto(orc: MarcenariaOrcamento) -> list[tuple[str, int]]:
     (quantidade x quantidade do movel x perda, so onde `sofre_perda`).
     """
     total: dict[str, Decimal] = {}             # descricao -> planejado sem arredondar
-    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+    for ambiente in sorted(orc.ambientes, key=ordem_na_os):
         for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id)):
             if not movel.aprovado or movel.tipo_producao != "INTERNA":
                 continue                                    # so o que a fabrica produz
             for insumo in sorted(movel.insumos, key=lambda i: (i.ordem, i.id)):
                 if insumo.produto_id is not None:
                     continue                                # com produto: e peca embutida
-                fator = (_BP + orc.perda_bp) / _BP if insumo.sofre_perda else Decimal(1)
+                fator = (_BP + _perda_bp(orc, ambiente)) / _BP if insumo.sofre_perda else Decimal(1)
                 planejado = Decimal(insumo.quantidade_milesimos) * movel.quantidade * fator
                 total[insumo.descricao] = total.get(insumo.descricao, Decimal(0)) + planejado
     return [(descricao, _arredondar(valor)) for descricao, valor in total.items()]

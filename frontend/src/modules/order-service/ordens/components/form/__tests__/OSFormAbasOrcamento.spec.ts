@@ -100,9 +100,9 @@ describe('abas do modal de OS', () => {
     expect(abas(['imagem_na_entrada'])).toEqual(['Equipamento', 'Imagens', 'Serviços e Peças']);
   });
 
-  it('02 — marcenaria, OS existente: "Visão Geral" no lugar do objeto, "Separação" (10B), "Produção" (12B), "Entrega & Fotos" (13B) e "Orçamento"', () => {
+  it('02 — marcenaria, OS existente: "Visão Geral" no lugar do objeto, "Separação" (10B), "Produção" (12B), "Entrega & Fotos" (13B) e "Orçamento"; sem "Imagens" (remodelação item 11)', () => {
     expect(abas(['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'])).toEqual([
-      'Visão Geral', 'Imagens', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega & Fotos', 'Orçamento',
+      'Visão Geral', 'Serviços e Peças', 'Separação', 'Produção', 'Entrega & Fotos', 'Orçamento',
     ]);
   });
 
@@ -150,6 +150,19 @@ describe('abas do modal de OS', () => {
       expect(fonte).not.toContain('OrcamentoFabricaTab');
       expect(fonte).not.toContain('status-da-etapa');
     }
+  });
+});
+
+describe('botão "Adicionar item" (remodelação item 12)', () => {
+  it('padrão (todos os segmentos de antes): o botão aparece', () => {
+    const w = mount(OSServicesTab, { props: { itens: [] } });
+    expect(w.find('[data-testid="adicionar-item-os"]').exists()).toBe(true);
+  });
+
+  it('marcenaria (podeAdicionar = false): sem o botão e sem a dica que manda clicar nele', () => {
+    const w = mount(OSServicesTab, { props: { itens: [], podeAdicionar: false } });
+    expect(w.find('[data-testid="adicionar-item-os"]').exists()).toBe(false);
+    expect(w.text()).not.toContain('Clique em "Adicionar Item"');
   });
 });
 

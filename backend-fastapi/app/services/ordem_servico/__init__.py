@@ -59,6 +59,7 @@ from app.services.ordem_servico.regras import (
     _assert_item_nao_gerado_pela_fabrica,
     _item_conta_no_total,
     _recalcular_valor_total_os,
+    recalcular_totais,
 )
 
 from app.services.ordem_servico.regras_tipo import (
@@ -137,6 +138,7 @@ __all__ = [
     "_assert_item_nao_gerado_pela_fabrica",
     "_item_conta_no_total",
     "_recalcular_valor_total_os",
+    "recalcular_totais",
     "item_de_outro_documento_exce",
     "_assert_item_sem_origem",
     "CHAVE_TIPO_TRABALHO",

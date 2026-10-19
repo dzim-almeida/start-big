@@ -13,6 +13,7 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from app.db.models.marcenaria.ambiente import ordem_na_os
 from app.core import segmentos as reg
 from app.core.enum import OrdemServicoStatus
 from app.db.models.marcenaria.entrega import MarcenariaEntrega, SituacaoEntrega
@@ -67,7 +68,7 @@ def _bloqueio_material_retirado(db: Session, orc: MarcenariaOrcamento) -> list[s
 def _bloqueio_pedido_a_central(db: Session, orc: MarcenariaOrcamento) -> list[str]:
     """Spec 11A D15: desfazer com pedido feito deixaria a central produzindo sem OS."""
     motivos = []
-    for ambiente in sorted(orc.ambientes, key=lambda a: (a.ordem, a.id)):
+    for ambiente in sorted(orc.ambientes, key=ordem_na_os):
         for movel in sorted(ambiente.moveis, key=lambda m: (m.ordem, m.id)):
             if not movel.aprovado or movel.tipo_producao != terceirizado.TERCEIRIZADA:
                 continue
@@ -115,8 +116,22 @@ def _bloqueio_entrega(db: Session, orc: MarcenariaOrcamento) -> list[str]:
     ]
     if not registradas:
         return []
-    nomes = ", ".join(e.ambiente.nome for e in sorted(registradas, key=lambda e: (e.ambiente.ordem, e.ambiente.id)))
+    nomes = ", ".join(e.ambiente.nome for e in sorted(registradas, key=lambda e: ordem_na_os(e.ambiente)))
     return [f"Já há entrega registrada ({nomes})."]
+
+
+def _bloqueio_aditivos(db: Session, orc: MarcenariaOrcamento) -> list[str]:
+    """Remodelacao item 20: com aditivo aprovado, a OS e maior que este orcamento.
+
+    Cancelar a OS levaria junto o que o aditivo vendeu: desfaz-se o aditivo antes.
+    """
+    from app.db.crud.marcenaria import orcamento as crud
+
+    aditivos = crud.listar_aditivos_da_os(db, orc.os_id, so_aprovados=True) if orc.os_id else []
+    if not aditivos:
+        return []
+    codigos = ", ".join(a.codigo for a in aditivos)
+    return [f"A OS tem aditivo aprovado ({codigos}). Desfaça a aprovação do aditivo antes."]
 
 
 # Ponto de extensao: cada spec seguinte acrescenta a regra que ELA conhece
@@ -128,11 +143,16 @@ BLOQUEIOS_DESFAZER: list[Callable[[Session, MarcenariaOrcamento], list[str]]] = 
     _bloqueio_pedido_a_central,           # 11A
     _bloqueio_producao,                   # 12A
     _bloqueio_entrega,                    # 13A
+    _bloqueio_aditivos,                   # remodelacao item 20
 ]
 
 
 def motivos_que_impedem_desfazer(db: Session, orc: MarcenariaOrcamento) -> list[str]:
     """TODOS os motivos, para a tela explicar de uma vez (nao o primeiro que falhar)."""
+    if orc.aditivo_os_id is not None:
+        # O aditivo tem as regras dele: a OS segue, so nada DELE pode ter comecado.
+        from app.services.marcenaria.aditivo import motivos_do_aditivo
+        return motivos_do_aditivo(db, orc)
     if orc.status != StatusOrcamento.APROVADO or orc.os is None:
         return ["O orçamento não está aprovado."]
     return [motivo for regra in BLOQUEIOS_DESFAZER for motivo in regra(db, orc)]

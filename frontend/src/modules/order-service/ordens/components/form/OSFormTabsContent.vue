@@ -123,15 +123,17 @@ const allTabs = computed<{ id: TabType; label: string; icon: Component }[]>(() =
   if (temVistoria.value) {
     tabs.push({ id: 'vistoria', label: 'Vistoria', icon: ClipboardCheck });
   }
-  tabs.push(
-    // Sem diagnóstico a aba não some: ela guarda a galeria de fotos, e em
-    // serigrafia a foto É a arte que o cliente aprova pelo celular. Muda só o
-    // nome, para não prometer laudo onde não há o que laudar.
-    temDiagnostico.value
-      ? { id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList }
-      : { id: 'diagnostico', label: 'Imagens', icon: ImageIcon },
-    { id: 'servicos', label: 'Serviços e Peças', icon: Package },
-  );
+  // Sem diagnóstico a aba não some: ela guarda a galeria de fotos, e em
+  // serigrafia a foto É a arte que o cliente aprova pelo celular. Muda só o
+  // nome, para não prometer laudo onde não há o que laudar.
+  // Exceção: a marcenaria (remodelação item 11). Lá as fotos são as da obra,
+  // e já têm lugar na aba "Entrega & Fotos"; a aba "Imagens" sobrava.
+  if (temDiagnostico.value) {
+    tabs.push({ id: 'diagnostico', label: 'Diagnóstico', icon: ClipboardList });
+  } else if (!temOrcamentoTecnico.value) {
+    tabs.push({ id: 'diagnostico', label: 'Imagens', icon: ImageIcon });
+  }
+  tabs.push({ id: 'servicos', label: 'Serviços e Peças', icon: Package });
   // Orçamento: só onde o segmento declara orçamento técnico, e só numa OS que
   // já existe (D19). Os outros segmentos não têm a capacidade: abas de sempre.
   if (temOrcamentoTecnico.value && !view.isCreateMode.value) {
@@ -286,6 +288,7 @@ const objetoModel = computed<ObjetoFormData>({
           v-if="activeTab === 'servicos'"
           :itens="view.displayItems.value"
           :is-locked="view.isItemsLocked.value"
+          :pode-adicionar="!marcenaria"
           @add-item="view.openAddItemModal"
           @edit-item="view.openEditItemModal"
           @remove-item="view.handleRemoveItem"

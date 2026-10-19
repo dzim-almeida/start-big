@@ -56,8 +56,59 @@ def exigir_orcamento_tecnico(db: Session) -> None:
 STATUS_OS_FECHADOS = ("FINALIZADA", "CANCELADA")
 
 
+class OrcamentosDaOS:
+    """O orcamento principal da OS e os ADITIVOS aprovados, lidos como UM so
+    (remodelacao item 20).
+
+    As abas da OS (separacao, producao, terceirizados, entrega) foram feitas
+    para um orcamento: leem `orc.ambientes`, `orc.cliente`, `orc.codigo`...
+    Esta vista responde tudo pelo PRINCIPAL, menos `ambientes`, que traz os do
+    principal e, depois, os de cada aditivo aprovado. Assim os moveis de um
+    aditivo aparecem em todas as abas sem que cada uma precise saber o que e
+    um aditivo.
+
+    Somente LEITURA: nenhuma aba grava campos do orcamento por aqui (quem grava
+    e a aprovacao, no orcamento de verdade). `principal` e `aditivos` dao
+    acesso aos orcamentos de verdade quando preciso.
+    """
+
+    def __init__(self, principal: MarcenariaOrcamento, aditivos: list[MarcenariaOrcamento]):
+        # `object.__setattr__`: o __getattr__ abaixo nao pode ver estes nomes como "faltando".
+        object.__setattr__(self, "principal", principal)
+        object.__setattr__(self, "aditivos", list(aditivos))
+
+    @property
+    def ambientes(self) -> list:
+        """Os ambientes do principal e, depois, os de cada aditivo aprovado."""
+        return [*self.principal.ambientes, *(a for aditivo in self.aditivos for a in aditivo.ambientes)]
+
+    @property
+    def orcamentos(self) -> list[MarcenariaOrcamento]:
+        """Todos os orcamentos de verdade da OS: o principal e os aditivos aprovados."""
+        return [self.principal, *self.aditivos]
+
+    def __getattr__(self, nome: str):
+        # Qualquer outro atributo (id, codigo, cliente, perda_bp, os...) vem do principal.
+        return getattr(self.principal, nome)
+
+    def __setattr__(self, nome: str, valor) -> None:
+        raise AttributeError("OrcamentosDaOS e so leitura: grave no orcamento de verdade.")
+
+
+def orcamentos_da_os(db: Session, os_) -> Optional[OrcamentosDaOS]:
+    """A vista da OS (principal + aditivos aprovados), ou None se a OS nao veio de orcamento."""
+    principal = crud.get_orcamento_por_os(db, os_.id)
+    if principal is None:
+        return None
+    return OrcamentosDaOS(principal, crud.listar_aditivos_da_os(db, os_.id, so_aprovados=True))
+
+
 def os_e_orcamento_aprovado(db: Session, numero_os: str, mensagem_404: str) -> tuple:
-    """(OS, orcamento APROVADO que a gerou), ou 404 com a frase de cada aba.
+    """(OS, orcamentos APROVADOS da OS), ou 404 com a frase de cada aba.
+
+    O segundo valor e a vista `OrcamentosDaOS`: o orcamento que gerou a OS com
+    os aditivos aprovados somados (remodelacao item 20). Sem aditivo, ela se
+    comporta exatamente como o orcamento de antes.
 
     Tambem 404 fora da marcenaria (capacidade `orcamento_tecnico`, lida no
     registry): para os outros segmentos, estas abas nao existem.
@@ -65,10 +116,10 @@ def os_e_orcamento_aprovado(db: Session, numero_os: str, mensagem_404: str) -> t
     if not reg.segmento_tem_capacidade(get_segmento_atual(db), reg.CAP_ORCAMENTO_TECNICO):
         erros.nao_encontrado(mensagem_404)
     os_ = os_crud.get_ordem_servico_by_numero_os(db, numero_os)
-    orc = crud.get_orcamento_por_os(db, os_.id) if os_ is not None and os_.ativo else None
-    if orc is None or orc.status != StatusOrcamento.APROVADO:
+    vista = orcamentos_da_os(db, os_) if os_ is not None and os_.ativo else None
+    if vista is None or vista.status != StatusOrcamento.APROVADO:
         erros.nao_encontrado(mensagem_404)
-    return os_, orc
+    return os_, vista
 
 
 def os_aberta(os_) -> bool:

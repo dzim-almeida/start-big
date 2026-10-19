@@ -35,7 +35,9 @@ const acoes = computed(() => props.detalhe?.acoes);
   <div v-if="detalhe" class="flex flex-col gap-2" data-testid="acoes-orcamento">
     <!-- Aprovar (08B D1): é o objetivo do orçamento, por isso é o botão principal. -->
     <BaseButton v-if="acoes?.aprovar" variant="primary" size="md" class="w-full" data-testid="acao-aprovar" @click="emit('aprovar')">
-      <CheckCheck :size="16" class="mr-1.5" /> Aprovar e gerar OS
+      <CheckCheck :size="16" class="mr-1.5" />
+      <!-- Aditivo (remodelação item 20): não gera OS, soma na que já existe. -->
+      {{ detalhe.aditivo_de ? 'Aprovar e somar na OS' : 'Aprovar e gerar OS' }}
     </BaseButton>
     <!-- Enviar fica sempre visível no rascunho: o modal explica o que falta (D36). -->
     <BaseButton v-if="acoes?.enviar" variant="ghost" size="md" class="w-full" data-testid="acao-enviar" @click="emit('enviar')">

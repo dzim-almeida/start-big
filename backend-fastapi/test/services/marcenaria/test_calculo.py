@@ -220,7 +220,7 @@ def test_14_orcamento_vazio():
         (_orcamento(ambientes=(AmbienteCalc("a", (replace(TORRE, terceirizado_centavos=-1),)),)),
          "Valores não podem ser negativos."),
         (_orcamento(markup_bp=100_001), "O markup deve ficar entre 0% e 1000%."),
-        (_orcamento(perda_bp=5_001), "A perda deve ficar entre 0% e 50%."),
+        (_orcamento(perda_bp=100_001), "A perda deve ficar entre 0% e 1000%."),
         (_orcamento(rt_bp=3_001), "O RT deve ficar entre 0% e 30%."),
         (_orcamento(desconto=AjusteCalc("PERCENTUAL", 10_001)), "O percentual não pode passar de 100%."),
         (_orcamento(sinal=AjusteCalc("VALOR", 972516)), "O sinal não pode ser maior que o total do orçamento."),

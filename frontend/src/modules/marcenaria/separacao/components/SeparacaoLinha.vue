@@ -43,6 +43,17 @@ const q = (milesimos: number) => quantidadeComUnidade(milesimos, props.linha.uni
 /** O "sugerido" do orçamento; sem ele (produto mudou de unidade), o que a OS consome. */
 const sugerido = computed(() => props.linha.sugerido_milesimos ?? props.linha.quantidade_milesimos);
 
+/**
+ * Mostra o botão "Retirar"? (remodelação item 13)
+ * - linha aberta: sempre (D3);
+ * - linha concluída ou "não usado" que ficou ABAIXO do sugerido: também. É o que
+ *   sobra depois de "Devolver" (a devolução baixa a quantidade da OS e a linha se
+ *   fecha sozinha) ou de "Concluir (usou menos)". Sem isto, o "Retirar" sumia e não
+ *   havia como tirar de novo o que foi devolvido por engano.
+ * Linha separada por inteiro (retirado ≥ sugerido) continua sem o botão.
+ */
+const mostrarRetirar = computed(() => !props.linha.concluida || props.linha.separada_milesimos < sugerido.value);
+
 /** Os avisos da linha, em frase (D8). Código desconhecido não aparece. */
 const ALERTAS: Record<string, { texto: string; tom: TomStatus }> = {
   [ALERTAS_SEPARACAO.semCobertura]: { texto: 'Falta no estoque', tom: 'alerta' },
@@ -75,7 +86,7 @@ function escolher(id: 'devolver' | 'concluir' | 'naoUsado' | 'reabrir') {
   <!-- Uma linha da tabela de separação (redesign 10/2026). As colunas batem com o cabeçalho de OSSeparacaoTab. -->
   <div
     :id="`separacao-linha-${linha.item_id}`"
-    class="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+    class="grid grid-cols-1 items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors last:rounded-b-2xl md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
     :class="[
       linha.concluida ? 'bg-zinc-50/70' : alertas.some((a) => a.tom === 'perigo') ? 'bg-red-50/40' : 'bg-white',
       destacada ? 'ring-2 ring-inset ring-brand-primary/60' : '',
@@ -141,7 +152,7 @@ function escolher(id: 'devolver' | 'concluir' | 'naoUsado' | 'reabrir') {
 
     <!-- Ações: Retirar em destaque; o resto no menu (D3) -->
     <div v-if="editavel" class="flex shrink-0 items-center justify-end gap-2">
-      <BaseButton v-if="!linha.concluida" size="sm" data-testid="acao-retirar" @click="emit('retirar')">Retirar</BaseButton>
+      <BaseButton v-if="mostrarRetirar" size="sm" data-testid="acao-retirar" @click="emit('retirar')">Retirar</BaseButton>
       <div v-if="opcoes.length" ref="menuRef" class="relative">
         <BaseButton variant="secondary" size="sm" aria-haspopup="menu" :aria-expanded="menuAberto" aria-label="Mais ações" data-testid="menu-linha" @click="menuAberto = !menuAberto">
           <MoreHorizontal :size="16" />

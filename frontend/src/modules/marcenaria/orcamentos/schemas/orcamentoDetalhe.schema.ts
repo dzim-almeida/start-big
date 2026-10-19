@@ -182,6 +182,8 @@ const comum = {
   }),
   motivo_recusa: z.string().nullable(),
   os: z.object({ id: z.number(), numero_os: z.string(), status: z.string() }).nullable().optional(),
+  // Remodelação item 20: este orçamento é ADITIVO de qual OS (nulo = orçamento comum).
+  aditivo_de: z.object({ id: z.number(), numero_os: z.string(), status: z.string() }).nullable().optional(),
   acoes,
 };
 
@@ -247,6 +249,7 @@ export const itemListaSchema = z.object({
   data_validade: dataTexto,
   data_atualizacao: dataTexto,
   os_numero: z.string().nullable().optional(),        // aprovado: a OS gerada (08A)
+  aditivo_os_numero: z.string().nullable().optional(), // aditivo de qual OS (remodelação item 20)
   resumo_margem_bp: z.number().optional(),             // só com custos
 });
 export type ItemListaOrcamento = z.infer<typeof itemListaSchema>;

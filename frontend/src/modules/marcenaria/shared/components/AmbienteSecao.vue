@@ -30,10 +30,15 @@ withDefaults(
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+  <!-- SEM `overflow-hidden` (remodelação item 19): ele cortava os menus que abrem para
+       baixo dentro do ambiente (o da etapa, com "Concluir"/"Reabrir", e o "⋯" do móvel):
+       o item de baixo ficava escondido e o clique não pegava. Os cantos arredondados
+       ficam com quem tem fundo: o cabeçalho (em cima; e embaixo quando está sozinho)
+       e o rodapé. -->
+  <section class="rounded-2xl border border-zinc-200 bg-white">
     <header
       :class="[
-        'flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 px-6 py-4',
+        'flex flex-wrap items-center justify-between gap-4 rounded-t-2xl border-b border-zinc-200 px-6 py-4 last:rounded-b-2xl last:border-b-0',
         destaque ? 'bg-brand-primary-light/50' : 'bg-white',
       ]"
     >
@@ -75,7 +80,7 @@ withDefaults(
       <slot />
     </div>
 
-    <footer v-if="$slots.rodape" class="border-t border-zinc-200 bg-zinc-50 px-6 py-3.5">
+    <footer v-if="$slots.rodape" class="rounded-b-2xl border-t border-zinc-200 bg-zinc-50 px-6 py-3.5">
       <slot name="rodape" />
     </footer>
   </section>

@@ -45,7 +45,14 @@ export const SUGESTOES_AMBIENTE = [
   'Área de serviço',
   'Home office',
   'Varanda gourmet',
+  'Avulso',
 ] as const;
+
+/**
+ * Nome do ambiente dos móveis "soltos", que não são de um cômodo (remodelação
+ * item 3): o botão "Móvel avulso" usa (ou cria) o ambiente com este nome.
+ */
+export const AMBIENTE_AVULSO = 'Avulso';
 
 /** Atalhos do motivo de recusa (D38): preenchem o texto, que continua livre. */
 export const ATALHOS_RECUSA = ['Preço', 'Prazo', 'Fechou com outra marcenaria', 'Desistiu do projeto'] as const;
