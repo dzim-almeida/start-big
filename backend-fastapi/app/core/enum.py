@@ -177,6 +177,10 @@ class MovimentacaoOrigem(str, enum.Enum):
     NFE_ENTRADA = "NFE_ENTRADA"
     # Recebimento de um pedido de compra (módulo Compras, fase 3).
     COMPRA = "COMPRA"
+    # Marcenaria: o móvel pronto entra como produto acabado e sai na NF-e
+    # (docs/marcenaria-faturamento-plano.md). FICA FORA DO CMV de propósito: o
+    # material já entrou no custo pela baixa da separação (origem ORDEM_SERVICO).
+    PRODUCAO = "PRODUCAO"
 
 
 class JurosResponsavel(str, enum.Enum):

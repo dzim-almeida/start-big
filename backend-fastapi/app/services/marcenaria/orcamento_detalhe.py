@@ -168,6 +168,7 @@ def _movel(m: MarcenariaMovel, r: Optional[MovelResultado], custos: bool) -> dic
         ),
         "aprovado": m.aprovado,
         "os_item_id": m.os_item_id,       # o item da OS que o movel virou (08A)
+        "produto_acabado_id": m.produto_acabado_id,   # o tipo fiscal do movel (faturamento, D3)
     }
     if custos:
         saida["terceirizado_centavos"] = m.terceirizado_centavos

@@ -163,6 +163,9 @@ class DocumentoFiscal(Base):
     # que pode chegar pelo polling em outra requisição. Só faz sentido na
     # devolução; nos demais fica NULL.
     devolver_estoque: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    # Marcenaria (docs/marcenaria-faturamento-plano.md): VENDA_MARCENARIA,
+    # SIMPLES_FATURAMENTO ou REMESSA_ENTREGA_FUTURA. NULL em toda outra nota.
+    papel: Mapped[Optional[str]] = mapped_column(String(25), nullable=True)
 
     itens: Mapped[list["DocumentoFiscalItem"]] = relationship(
         "DocumentoFiscalItem",

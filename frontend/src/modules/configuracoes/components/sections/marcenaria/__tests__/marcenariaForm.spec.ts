@@ -131,3 +131,33 @@ describe('prazo do RT', () => {
     expect(errosDoFormulario({ ...paraTela(COMPLETA), rt_vencimento_dias: 0 }).rt_vencimento_dias).toBeUndefined();
   });
 });
+
+describe('faturamento dos móveis (docs/marcenaria-faturamento-plano.md)', () => {
+  it('resposta sem os campos novos (backend anterior): o zod preenche desligado', () => {
+    const lida = configuracaoMarcenariaSchema.parse(PUBLICA);
+    expect(lida.faturamento_modo).toBe('DESLIGADO');
+    expect(lida.instalacao_modo).toBe('EMBUTIDA');
+    expect(lida.produto_acabado_padrao_id).toBeNull();
+    expect(lida.pendencias_faturamento).toEqual([]);
+  });
+
+  it('paraTela/paraApi levam o modo, a instalação e os dois produtos', () => {
+    const form = paraTela({
+      ...COMPLETA, faturamento_modo: 'NOTA_NA_ENTREGA', instalacao_modo: 'FORA',
+      produto_acabado_padrao_id: 7, produto_acabado_revenda_id: 8,
+    });
+    expect(paraApi(form)).toMatchObject({
+      faturamento_modo: 'NOTA_NA_ENTREGA', instalacao_modo: 'FORA',
+      produto_acabado_padrao_id: 7, produto_acabado_revenda_id: 8,
+    });
+  });
+
+  it('ligar sem o produto do móvel fabricado é erro (mesma mensagem do backend)', () => {
+    const form = { ...paraTela(COMPLETA), faturamento_modo: 'NOTA_NA_ENTREGA' as const };
+    expect(errosDoFormulario(form).produto_acabado_padrao_id)
+      .toBe('Para faturar os móveis, escolha o produto do móvel fabricado.');
+    expect(errosDoFormulario({ ...form, produto_acabado_padrao_id: 7 }).produto_acabado_padrao_id).toBeUndefined();
+    // Desligado, nada a escolher.
+    expect(errosDoFormulario(paraTela(COMPLETA)).produto_acabado_padrao_id).toBeUndefined();
+  });
+});

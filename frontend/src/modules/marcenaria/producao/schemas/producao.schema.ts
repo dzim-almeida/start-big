@@ -41,6 +41,8 @@ export const movelProducaoSchema = z.object({
   terceirizado: z.object({
     situacao: z.enum(SITUACOES), previsao: z.string().nullable(), atrasado: z.boolean(),
   }).optional(),
+  // Faturamento dos móveis (F2): no estoque como produto acabado, ou já na nota.
+  faturamento: z.enum(['NO_ESTOQUE', 'FATURADO']).nullable().optional(),
 });
 export type MovelProducao = z.infer<typeof movelProducaoSchema>;
 

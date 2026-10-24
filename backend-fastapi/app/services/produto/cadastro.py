@@ -153,6 +153,13 @@ def get_produto_simple_by_search(
     produtos = produto_crud.get_produto_simple_by_search(
         db, search=search, limite=limite, com_embalagens=com_embalagens
     )
+    # Marcenaria: o produto acabado do movel so sai na nota da OS, nunca no
+    # balcao (docs/marcenaria-faturamento-plano.md, D10). Fora dela, vazio.
+    from app.services.marcenaria.faturamento import ids_produtos_acabados
+
+    escondidos = ids_produtos_acabados(db, empresa_id)
+    if escondidos:
+        produtos = [p for p in produtos if p.id not in escondidos]
     if com_embalagens:
         for produto in produtos:
             preco_unidade = produto.estoque.valor_varejo if produto.estoque else 0

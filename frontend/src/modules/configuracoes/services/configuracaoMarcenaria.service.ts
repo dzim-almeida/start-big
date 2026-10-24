@@ -25,3 +25,28 @@ export async function updateConfiguracaoMarcenaria(
   const response = await api.put(URL, data);
   return configuracaoMarcenariaSchema.parse(response.data);
 }
+
+/**
+ * Cria (ou reaproveita, pelo código) os produtos acabados "Móvel planejado" e
+ * "Móvel planejado (revenda)" e os liga ao faturamento. Não liga o faturamento.
+ */
+export async function criarProdutosAcabados(): Promise<ConfiguracaoMarcenaria> {
+  const response = await api.post(`${URL}/produtos-acabados`);
+  return configuracaoMarcenariaSchema.parse(response.data);
+}
+
+/** Resposta de "dar entrada dos móveis já prontos". */
+export interface SincronizacaoMoveis {
+  os_conferidas: number;
+  moveis_no_estoque: number;
+  entraram_agora: number;
+}
+
+/**
+ * Dá entrada, como produto acabado, nos móveis que já estavam prontos nas OS
+ * abertas (ao ligar o faturamento com obras em andamento). Idempotente.
+ */
+export async function sincronizarMoveisProntos(): Promise<SincronizacaoMoveis> {
+  const response = await api.post<SincronizacaoMoveis>('/marcenaria/faturamento/sincronizar');
+  return response.data;
+}

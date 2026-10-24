@@ -30,6 +30,12 @@ import {
   type FormMarcenaria,
 } from '../marcenariaForm';
 import ListaTextosEditavel from '@/shared/components/ui/ListaTextosEditavel/ListaTextosEditavel.vue';
+import { useToast } from '@/shared/composables/useToast';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+import type { ApiError } from '@/shared/types/axios.types';
+import type { AxiosError } from 'axios';
+import { criarProdutosAcabados, sincronizarMoveisProntos } from '../../../../services/configuracaoMarcenaria.service';
+import ProdutoAcabadoCampo from '@/modules/marcenaria/shared/components/ProdutoAcabadoCampo.vue';
 
 const { data, isPending, isError, refetch } = useConfiguracaoMarcenariaQuery();
 
@@ -74,6 +80,59 @@ const exemploPerda = computed(() => {
   const chapas = 1 + perda / 100;                        // 1 chapa + a perda do corte
   return `1 chapa no projeto → ${chapas.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} chapa no custo com ${perda.toLocaleString('pt-BR')}%.`;
 });
+
+// --- Faturamento dos móveis (docs/marcenaria-faturamento-plano.md) ---------
+const faturamentoLigado = computed(() => !!form.value && form.value.faturamento_modo !== 'DESLIGADO');
+/** O aviso do cadastro fiscal vem do que está SALVO (é o backend que confere). */
+const pendenciasFaturamento = computed(() => data.value?.pendencias_faturamento ?? []);
+const faltaProduto = computed(
+  () => !!form.value && (form.value.produto_acabado_padrao_id === null || form.value.produto_acabado_revenda_id === null),
+);
+
+const toast = useToast();
+const criandoProdutos = ref(false);
+/**
+ * Cria os dois produtos acabados no backend (já ficam ligados lá). Com a tela
+ * limpa, relê; com edição em andamento, só preenche os dois campos, para não
+ * apagar o que a pessoa digitou.
+ */
+async function criarProdutos() {
+  criandoProdutos.value = true;
+  try {
+    const salvo = await criarProdutosAcabados();
+    if (!isDirty.value) {
+      await refetch();
+    } else if (form.value) {
+      form.value.produto_acabado_padrao_id = salvo.produto_acabado_padrao_id;
+      form.value.produto_acabado_revenda_id = salvo.produto_acabado_revenda_id;
+    }
+    toast.success('Produtos acabados criados. Peça ao contador para preencher o cadastro fiscal deles.');
+  } catch (erro) {
+    toast.error(getErrorMessage(erro as AxiosError<ApiError>, 'Não foi possível criar os produtos acabados.'));
+  } finally {
+    criandoProdutos.value = false;
+  }
+}
+
+/** O faturamento está ligado no que está SALVO (a entrada roda no backend). */
+const faturamentoSalvoLigado = computed(() => !!data.value && data.value.faturamento_modo !== 'DESLIGADO');
+const sincronizando = ref(false);
+/** Móveis que já estavam prontos antes de ligar: entram no estoque agora. */
+async function darEntradaDosProntos() {
+  sincronizando.value = true;
+  try {
+    const { entraram_agora } = await sincronizarMoveisProntos();
+    toast.success(
+      entraram_agora
+        ? `${entraram_agora} móvel(is) pronto(s) entraram no estoque como produto acabado.`
+        : 'Nenhum móvel pronto ficou de fora: o estoque já estava em dia.',
+    );
+  } catch (erro) {
+    toast.error(getErrorMessage(erro as AxiosError<ApiError>, 'Não foi possível dar entrada nos móveis prontos.'));
+  } finally {
+    sincronizando.value = false;
+  }
+}
 
 defineExpose({ form, isDirty, resetar, paraApi, podeGerir, erros });
 
@@ -194,6 +253,108 @@ const CLASSE_NUMERO =
           <span class="ml-2 text-xs text-zinc-400">dias</span>
           <p v-if="erros.prazo_entrega_dias" class="text-[11px] text-red-600 mt-1">{{ erros.prazo_entrega_dias }}</p>
         </div>
+      </div>
+
+      <!-- FATURAMENTO DOS MÓVEIS (docs/marcenaria-faturamento-plano.md) -->
+      <div class="flex flex-col" data-testid="bloco-faturamento">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Faturamento dos móveis</p>
+
+        <fieldset class="py-3 border-b border-zinc-100">
+          <legend class="text-xs font-medium text-zinc-600">Como os móveis saem na nota fiscal</legend>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="DESLIGADO" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Não faturar pelo sistema</span>
+              <span class="block text-[11px] text-zinc-400">Como hoje: a nota dos móveis não sai pelo sistema.</span>
+            </span>
+          </label>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="NOTA_NA_ENTREGA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">NF-e a cada entrega</span>
+              <span class="block text-[11px] text-zinc-400">O móvel pronto entra no estoque e sai numa NF-e de venda quando é entregue.</span>
+            </span>
+          </label>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="ENTREGA_FUTURA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Venda para entrega futura</span>
+              <span class="block text-[11px] text-zinc-400">Uma nota de simples faturamento no fechamento e uma nota de remessa a cada entrega.</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <template v-if="faturamentoLigado">
+          <fieldset class="py-3 border-b border-zinc-100">
+            <legend class="text-xs font-medium text-zinc-600">Instalação</legend>
+            <label class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="EMBUTIDA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Dentro do preço dos móveis</span>
+                <span class="block text-[11px] text-zinc-400">O valor da instalação é dividido entre os móveis da NF-e.</span>
+              </span>
+            </label>
+            <label class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="FORA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Fora da NF-e</span>
+                <span class="block text-[11px] text-zinc-400">A nota de serviço da instalação é emitida na prefeitura.</span>
+              </span>
+            </label>
+          </fieldset>
+
+          <ProdutoAcabadoCampo
+            v-model="form.produto_acabado_padrao_id"
+            rotulo="Produto do móvel fabricado"
+            ajuda="O que sai na nota do móvel que a marcenaria faz. Cada móvel do orçamento pode trocar."
+            :disabled="!podeGerir"
+            :erro="erros.produto_acabado_padrao_id"
+          />
+          <ProdutoAcabadoCampo
+            v-model="form.produto_acabado_revenda_id"
+            rotulo="Produto do móvel comprado pronto"
+            ajuda="O que sai na nota do móvel terceirizado (revenda)."
+            :disabled="!podeGerir"
+          />
+
+          <div v-if="podeGerir && faltaProduto" class="py-3">
+            <button
+              type="button"
+              class="text-xs font-medium text-brand-primary hover:underline disabled:opacity-50"
+              :disabled="criandoProdutos"
+              data-testid="criar-produtos-acabados"
+              @click="criarProdutos"
+            >
+              {{ criandoProdutos ? 'Criando…' : 'Criar os produtos "Móvel planejado" automaticamente' }}
+            </button>
+          </div>
+
+          <div v-if="podeGerir && faturamentoSalvoLigado" class="py-3 border-b border-zinc-100">
+            <p class="text-[11px] text-zinc-400">
+              Ligou o faturamento com obras em andamento? Os móveis que já estavam prontos entram no estoque por aqui.
+            </p>
+            <button
+              type="button"
+              class="mt-1 text-xs font-medium text-brand-primary hover:underline disabled:opacity-50"
+              :disabled="sincronizando"
+              data-testid="sincronizar-moveis"
+              @click="darEntradaDosProntos"
+            >
+              {{ sincronizando ? 'Conferindo…' : 'Dar entrada dos móveis já prontos' }}
+            </button>
+          </div>
+
+          <div
+            v-if="pendenciasFaturamento.length"
+            class="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+            data-testid="pendencias-faturamento"
+          >
+            <p class="font-medium">Falta no cadastro fiscal (sem isso a NF-e não sai):</p>
+            <ul class="mt-1 list-disc pl-4">
+              <li v-for="pendencia in pendenciasFaturamento" :key="pendencia">{{ pendencia }}</li>
+            </ul>
+          </div>
+        </template>
       </div>
 
       <!-- Cada OS copia as listas: mudar aqui não altera as que já existem (D15). -->

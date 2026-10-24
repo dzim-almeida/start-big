@@ -83,6 +83,9 @@ onClickOutside(menuRef, () => { menuAberto.value = false; });
             <span v-if="movel.pronto" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700" data-testid="pronto">
               <CheckCircle2 :size="14" /> Pronto
             </span>
+            <!-- Faturamento dos móveis (F2): o móvel pronto entrou no estoque, ou já saiu na NF-e. -->
+            <BaseStatusPill v-if="movel.faturamento === 'NO_ESTOQUE'" tom="neutro" data-testid="selo-faturamento">No estoque</BaseStatusPill>
+            <BaseStatusPill v-else-if="movel.faturamento === 'FATURADO'" tom="sucesso" data-testid="selo-faturamento">Faturado</BaseStatusPill>
           </p>
           <p class="text-xs tabular-nums text-zinc-500">
             <template v-if="medidas">{{ medidas }} · </template>{{ movel.quantidade }}×

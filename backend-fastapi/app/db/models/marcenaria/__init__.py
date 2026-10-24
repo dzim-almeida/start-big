@@ -14,6 +14,7 @@ from app.db.models.marcenaria.entrega import (
 )
 from app.db.models.marcenaria.etapa import MarcenariaEtapa
 from app.db.models.marcenaria.evento import MarcenariaEvento
+from app.db.models.marcenaria.faturamento import MarcenariaMovelFaturamento
 from app.db.models.marcenaria.orcamento import (
     MarcenariaOrcamento,
     MarcenariaOrcamentoAnexo,
@@ -33,4 +34,5 @@ __all__ = [
     "MarcenariaPendencia",
     "MarcenariaEntregaFoto",
     "MarcenariaAgendamento",
+    "MarcenariaMovelFaturamento",   # faturamento dos moveis (docs/marcenaria-faturamento-plano.md)
 ]

@@ -51,7 +51,9 @@ def _montar_itens(
         item_dict = {
             "numero_item": idx,
             "codigo_produto": produto.codigo_produto or str(produto.id),
-            "descricao": produto.nome,
+            # `descricao_nota`: so o adaptador da marcenaria manda (o nome do
+            # movel no lugar do produto generico). Venda e OS comum: o produto.
+            "descricao": getattr(item, "descricao_nota", None) or produto.nome,
             "quantidade_comercial": float(item.quantidade),
             "valor_unitario_comercial": _centavos_para_reais(item.valor_unitario),
             "valor_bruto": _centavos_para_reais(item.subtotal),

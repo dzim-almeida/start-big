@@ -101,6 +101,15 @@ class MarcenariaMovel(Base):
         ForeignKey("ordem_servico_itens.id", ondelete="SET NULL"), nullable=True,
     )
     ordem: Mapped[int] = mapped_column(Integer, nullable=False)
+    # O produto acabado em que o movel vira na nota (faturamento, D3). NULL = o
+    # padrao da configuracao (producao propria ou revenda, pelo tipo_producao).
+    produto_acabado_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("produtos.id", ondelete="SET NULL"), nullable=True,
+    )
+    # Entrega futura (F4): a nota de simples faturamento (5922) que cobre o movel.
+    simples_faturamento_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("documento_fiscal.id", ondelete="SET NULL"), nullable=True,
+    )
 
     # --- Movel TERCEIRIZADO depois da aprovacao (Spec 11A) ------------------------
     # Com o Compras: o pedido de SERVICO a central; a situacao acompanha o pedido.

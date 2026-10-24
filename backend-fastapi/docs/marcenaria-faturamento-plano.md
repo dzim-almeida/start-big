@@ -1,8 +1,9 @@
 # Faturamento da marcenaria — plano de implementação
 
-> **Status:** plano, 24/10/2026. Nada implementado. Branch sugerida:
-> `feat/marcenaria-faturamento`, saindo de `feat/marcenaria-remodelacao`.
-> Head de migration hoje: `a7d1t1v0os01`.
+> **Status (24/10/2026):** F0–F4 implementadas na branch `feat/marcenaria-faturamento`
+> (saiu de `feat/marcenaria-remodelacao`). Falta a F5 (homologação e canário) e
+> as confirmações do contador da §8. Head de migration: `f4t1m0v3l002`
+> (era `a7d1t1v0os01`). O que mudou em relação ao plano está na §8.
 
 ## 0. O problema, em uma frase
 
@@ -21,7 +22,7 @@ na nota ou fora dela.
 
 > **NFS-e fica fora** (decisão do Alan, 24/10/2026): o sistema ainda não emite
 > NFS-e, e isso só será tratado depois que a marcenaria estiver organizada.
-> Ver §8.
+> Ver §9.
 
 ## 1. Regras que não mudam (para não quebrar quem usa)
 
@@ -43,7 +44,7 @@ na nota ou fora dela.
 | D3 | Cada móvel do orçamento ganha o campo **"Tipo fiscal"** (qual produto acabado), com o padrão vindo da configuração. | Uma OS pode ter cozinha (9403.40) e dormitório (9403.50). | — |
 | D4 | Móvel **interno** → CFOP de **produção própria** (5101/6101/6107). Móvel **terceirizado** (comprado pronto da central) → **revenda** (5102/6102/6108), com produto acabado próprio. | Quem fabrica é outro estabelecimento. | Sim: terceirizado é revenda mesmo? |
 | D5 | O CFOP de produção própria é **forçado pelo modo marcenaria**, sem depender de `empresa.tipo_atividade == INDUSTRIA`. | Hoje `MISTO` vira 5102 (`derivacao/cfop.py`), o que estaria errado para quem fabrica. | — |
-| D6 | **Instalação**: dois modos. `EMBUTIDA` (padrão: o valor é rateado no preço dos móveis da NF-e; é acessória à venda) ou `FORA` (a instalação não entra na NF-e; a nota de serviço é emitida fora do sistema, na prefeitura). O modo `NFSE` entra depois (§8). | As fontes tratam a instalação como acessória à venda e alertam para não separar só para pagar menos imposto. | Qual modo |
+| D6 | **Instalação**: dois modos. `EMBUTIDA` (padrão: o valor é rateado no preço dos móveis da NF-e; é acessória à venda) ou `FORA` (a instalação não entra na NF-e; a nota de serviço é emitida fora do sistema, na prefeitura). O modo `NFSE` entra depois (§9). | As fontes tratam a instalação como acessória à venda e alertam para não separar só para pagar menos imposto. | Qual modo |
 | D7 | **Modo de faturamento**: `NOTA_NA_ENTREGA` (5101 a cada entrega) ou `ENTREGA_FUTURA` (5922 no fechamento + 5116/5117 a cada entrega, referenciando a 5922). | São as duas práticas do mercado de planejados. | Qual o cliente usa (ver a nota dele) |
 | D8 | O **desconto, o acréscimo e a taxa de entrega** da OS são rateados entre os móveis faturados, como o adaptador já faz para as peças (`_desconto_dos_produtos`). Em nota parcial (um ambiente), entra a fatia proporcional daquela entrega. | Mesma regra que já passou pela SEFAZ. | — |
 | D9 | **Custo do produto acabado** = custo de material do móvel no orçamento (insumos × perda), não o `custo_os_unit_centavos` (que inclui RT e mão de obra). | Estoque de acabado se avalia pelo material; RT e mão de obra entram no resultado pelos seus registros (F2a). | Sim, se ele quer mão de obra no custo do acabado |
@@ -56,7 +57,7 @@ na nota ou fora dela.
 
 - `configuracoes_marcenaria` + colunas (ADD COLUMN só se faltar):
   - `faturamento_modo` `VARCHAR(20)` default `'DESLIGADO'` — `DESLIGADO | NOTA_NA_ENTREGA | ENTREGA_FUTURA`
-  - `instalacao_modo` `VARCHAR(10)` default `'EMBUTIDA'` — `EMBUTIDA | FORA` (o `NFSE` da §8 será só um valor a mais, sem migration)
+  - `instalacao_modo` `VARCHAR(10)` default `'EMBUTIDA'` — `EMBUTIDA | FORA` (o `NFSE` da §9 será só um valor a mais, sem migration)
   - `produto_acabado_padrao_id` FK `produtos.id` NULL
   - `produto_acabado_revenda_id` FK `produtos.id` NULL (terceirizado, D4)
 - `marcenaria_moveis` + `produto_acabado_id` FK `produtos.id` NULL (D3; NULL = usa o padrão).
@@ -89,7 +90,7 @@ em produção.
 - Validação no PUT: modo ≠ `DESLIGADO` exige `produto_acabado_padrao_id` com cadastro fiscal completo (reusa `verificar_produto_fiscal`).
 - Ação "Criar produtos acabados sugeridos": cria "Móvel planejado (produção própria)" e "Móvel planejado (revenda)" com unidade UN, sem preço, com estoque controlado, e o fiscal em branco para o contador preencher.
 - `marcenaria_moveis.produto_acabado_id` no schema do orçamento (leitura e edição), copiado na nova versão e no aditivo.
-- Filtro D10 no PDV e nas Necessidades.
+- Filtro D10 na busca do PDV (`get_produto_simple_by_search`). As Necessidades do Compras não precisam dele: o produto acabado nunca vira item de OS nem tem estoque mínimo, então nunca aparece ali.
 
 **Frontend**
 - Configurações › **Marcenaria** › bloco **"Faturamento dos móveis"**: modo, instalação, produto acabado padrão, produto de revenda; aviso do que falta no cadastro fiscal, com link para o produto.
@@ -157,7 +158,30 @@ em produção.
 2. Como os produtos acabados estão cadastrados lá (NCM de cada tipo).
 3. Se a instalação sai na mesma nota ou numa nota de serviço à parte.
 
-## 8. Depois: NFS-e (fora deste plano)
+## 8. Implementação (24/10/2026): o que ficou diferente do plano e o que confirmar
+
+**Decisões tomadas na implementação, cada uma com teste:**
+- **CFOP pelo cadastro do produto acabado (D4/D5).** O resolver já tira o CFOP interno do `cfop_padrao` do produto, não da atividade da empresa. Os dois produtos que o sistema cria já vêm com **5101** (fabricado) e **5102** (revenda), origem 0 e unidade UN; NCM e CST/CSOSN ficam para o contador (o aviso aparece em Configurações › Marcenaria). Na entrega futura, o sufixo é forçado pelo papel da nota (922, 116 ou 117) e o grupo 5/6 segue a derivação de sempre.
+- **Instalação EMBUTIDA vai como acréscimo (`vOutro`)**, rateada pelo valor dos móveis da nota, pelo mesmo caminho do acréscimo da venda. Mexer no `vUnCom` com quantidade maior que 1 arriscaria a Rejeição 629.
+- **Fatia acumulada (D8).** Desconto, acréscimo, taxa de entrega e instalação: `round(T × (antes+nesta)/base) − round(T × antes/base)`. Somadas as notas de todas as entregas, cada total fecha ao centavo. O desconto e o acréscimo da OS entram pela parte do escopo da nota (sem a instalação, quando ela fica FORA).
+- **Pagamento (D11) — A CONFIRMAR.** O que já foi pago na OS entra pela proporção da nota; o que falta receber vai como forma **"99"**, o mesmo código que o sistema já manda hoje para forma sem código SEFAZ. A remessa leva **"90" (sem pagamento)**, valor zero.
+- **5922 sem destaque de ICMS (D13 — A CONFIRMAR).** No regime normal: CST **41**. No Simples: o CSOSN do produto (102 já não destaca). PIS/COFINS seguem o produto.
+- **O caminho da OS comum recusa a OS da marcenaria** (`OS_DA_MARCENARIA`), antes do gate. Era a nota "só com as chapas a R$ 0".
+- **A emissão não exige a OS finalizada**: a obra é entregue por ambiente.
+- **O aditivo ganha a própria 5922.** `marcenaria_moveis.simples_faturamento_id` (migration `f4t1m0v3l002`) diz qual 5922 cobre cada móvel; a nova é emitida só para os que ainda não têm.
+- **Travas novas:** a 5922 não cai com remessa viva; a OS não é cancelada com 5922 valendo nem com móvel faturado (409, a mensagem diz o que cancelar antes).
+- **Ligar com obra em andamento:** "Dar entrada dos móveis já prontos" em Configurações › Marcenaria (OS abertas; idempotente).
+
+**Onde mora cada coisa:**
+- Backend: `services/marcenaria/faturamento/` (estoque de acabados e painel), `services/fiscal/emissoes/{adaptador_marcenaria,nfe_marcenaria}.py`, `api/v1/endpoints/marcenaria_faturamento.py`.
+- Hooks no fiscal compartilhado, todos desligados para quem não é marcenaria: `descricao_nota` (`payload/itens.py`); `cfop_sufixo_forcado` e `icms_sem_destaque` (resolver); `sem_pagamento` (`payload/totais.py`); `chaves_referenciadas` (builder); devolução do móvel ao estoque na consulta e no cancelamento (`consulta_cancelamento.py`).
+- Frontend: bloco "Faturamento dos móveis" (Configurações › Marcenaria), "Tipo fiscal na nota" no modal do móvel, selo na aba Produção, painel "Notas fiscais dos móveis" na aba Entrega.
+
+**Testes que travam o resto (R4):** `test_payload_fotografias_os.py` (NF-e de OS da informática e da serigrafia) continua idêntico. A suíte fiscal inteira (952) e a do frontend passam.
+
+**A confirmar com o contador antes da F5:** D4 (terceirizado = revenda), D6 (instalação dentro ou fora), D7 (qual modo), D9 (custo do acabado só com material), D11 (forma "99" para o que falta receber), D13 (CST 41 na 5922 do regime normal) e o NCM de cada tipo de móvel.
+
+## 9. Depois: NFS-e (fora deste plano)
 
 Só depois de a marcenaria estar organizada. Anotado para não se perder:
 - A plataforma **não tem rota de NFS-e**: `/erp/fiscal/nfse/*` deu 404 no curl de 24/10 (`/erp/fiscal/nfe/emitir` deu 401). O trabalho começa pelo lado web.

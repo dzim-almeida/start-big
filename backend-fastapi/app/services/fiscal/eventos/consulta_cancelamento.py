@@ -47,6 +47,7 @@ def consultar_documento(db: Session, documento_id: int, empresa_id: int) -> Docu
         resultado = client.consultar_nfe(doc.ref_api, doc.tipo_documento)
         _aplicar_resultado(doc, resultado, client)
         espelhar_na_nota_da_venda(db, doc)
+        _devolver_moveis_se_caiu(db, doc)
         # A devolução que ficou PROCESSANDO/INDETERMINADA na emissão só devolve
         # saldo e estoque quando a SEFAZ confirma -- e a confirmação chega aqui.
         if status_antes != "AUTORIZADA" and doc.status == "AUTORIZADA":
@@ -167,6 +168,9 @@ def cancelar_documento(
         )
 
     _assert_dentro_da_janela_de_cancelamento(doc)
+    # Marcenaria, entrega futura: o simples faturamento nao cai com remessa viva.
+    from app.services.marcenaria.faturamento.estoque_acabado import assert_pode_cancelar
+    assert_pode_cancelar(db, doc)
 
     if not doc.ref_api:
         raise HTTPException(
@@ -196,7 +200,17 @@ def cancelar_documento(
         )
 
     espelhar_na_nota_da_venda(db, doc)
+    _devolver_moveis_se_caiu(db, doc)
     return doc
+
+
+def _devolver_moveis_se_caiu(db: Session, doc: DocumentoFiscal) -> None:
+    """Marcenaria: nota de movel rejeitada/cancelada devolve o movel ao estoque
+    de acabados (docs/marcenaria-faturamento-plano.md). Nota de venda ou de OS
+    comum nao tem movel nenhum e sai na hora."""
+    from app.services.marcenaria.faturamento.estoque_acabado import ao_mudar_documento
+
+    ao_mudar_documento(db, doc)
 
 
 def obter_historico_tentativas(db: Session, documento_id: int) -> list[DocumentoFiscal]:

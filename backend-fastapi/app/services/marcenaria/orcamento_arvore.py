@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.db.models.fornecedor import Fornecedor
 from app.db.models.marcenaria.ambiente import MarcenariaAmbiente, MarcenariaMovel, MarcenariaMovelInsumo
 from app.db.models.marcenaria.orcamento import MarcenariaOrcamento
+from app.db.models.produto import Produto
 from app.schemas.marcenaria.orcamento import AmbienteEntrada, MovelEntrada, OrdemEntrada, SimularEntrada
 from app.services.marcenaria import erros
 from app.services.marcenaria import orcamento_precos as precos
@@ -226,6 +227,15 @@ def _resolver_movel(db: Session, existente: Optional[MarcenariaMovel], dados: Mo
         campos["mao_obra_horas_centesimos"] = existente.mao_obra_horas_centesimos
     else:
         campos["mao_obra_modo"], campos["mao_obra_centavos"], campos["mao_obra_horas_centesimos"] = "NENHUMA", 0, 0
+    # Faturamento (D3): ausente = mantem o gravado; enviado = confere o produto.
+    if "produto_acabado_id" in dados.model_fields_set:
+        if dados.produto_acabado_id is not None:
+            produto = db.get(Produto, dados.produto_acabado_id)
+            if produto is None or not produto.ativo:
+                erros.invalido("Tipo fiscal do móvel: produto não encontrado ou desativado.")
+        campos["produto_acabado_id"] = dados.produto_acabado_id
+    else:
+        campos["produto_acabado_id"] = existente.produto_acabado_id if existente else None
     return campos
 
 

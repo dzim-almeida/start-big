@@ -21,6 +21,8 @@ export interface MovelEntrada {
   mao_obra?: { modo: 'FIXA' | 'HORAS' | 'NENHUMA'; centavos: number; horas_centesimos: number };
   insumos: { id?: number; produto_id?: number | null; quantidade_milesimos: number; custo_unit_centavos?: number }[];
   ambiente_id?: number;
+  /** Faturamento (D3): ausente mantém o gravado; null volta ao padrão. */
+  produto_acabado_id?: number | null;
 }
 
 const detalhe = (data: unknown): OrcamentoDetalhe => orcamentoDetalheSchema.parse(data);

@@ -64,6 +64,7 @@ const movelBase = z.object({
   central: z.object({ fornecedor_id: z.number(), nome: z.string() }).nullable(),
   aprovado: z.boolean().nullable(),                  // null até a aprovação (08A)
   os_item_id: z.number().nullable().optional(),      // o item da OS que o móvel virou (08A)
+  produto_acabado_id: z.number().nullable().optional(),   // o tipo fiscal do móvel (faturamento, D3)
   insumos: z.array(insumoBase),
   calculo: calculoMovelBase.nullable(),
 });

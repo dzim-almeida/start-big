@@ -25,6 +25,10 @@ from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resu
 
 logger = logging.getLogger(__name__)
 
+# O `origem` dos itens que vieram do orcamento da marcenaria (o mesmo valor de
+# `services/marcenaria/aprovacao.ORIGEM`, repetido para nao importar a marcenaria aqui).
+ORIGEM_MARCENARIA = "ORCAMENTO_MARCENARIA"
+
 
 # ===========================================================================
 # NF-e A PARTIR DE ORDEM DE SERVIÇO
@@ -46,6 +50,23 @@ def _preparar_dados_emissao_os(db: Session, numero_os: str, empresa_id: int):
     """
     from app.services.fiscal.emissoes.adaptador_os import adaptar, itens_de_produto
     from app.services.fiscal.completude.core import verificar_completude_os
+
+    # OS da marcenaria: o movel e SERVICO e os insumos sao PRODUTO a R$ 0, entao
+    # por aqui a nota sairia so com as chapas a zero. Ela tem caminho proprio
+    # (docs/marcenaria-faturamento-plano.md, F3). Antes do gate: a mensagem
+    # certa e "use a aba Entrega", nao a lista de pendencias deste caminho.
+    os_antes = crud.get_os_completa(db, numero_os)
+    if os_antes is not None and any(getattr(i, "origem", None) == ORIGEM_MARCENARIA for i in os_antes.itens):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "codigo": "OS_DA_MARCENARIA",
+                "mensagem": (
+                    "A nota dos móveis sai pela aba Entrega da OS (faturamento dos móveis, "
+                    "em Configurações › Marcenaria)."
+                ),
+            },
+        )
 
     verificacao = verificar_completude_os(db, numero_os, empresa_id, tipo_documento="nfe")
     if not verificacao.completo:

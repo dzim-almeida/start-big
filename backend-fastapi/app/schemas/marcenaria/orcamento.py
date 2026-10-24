@@ -230,6 +230,9 @@ class MovelEntrada(_Entrada):
     insumos: list[InsumoEntrada] = Field(default_factory=list)
     # PUT: pode mudar o movel de ambiente (secao 6.1).
     ambiente_id: Optional[int] = None
+    # Faturamento (D3): o produto acabado que o movel vira na nota. AUSENTE =
+    # mantem o gravado (como os custos, D24a); null = volta ao padrao.
+    produto_acabado_id: Optional[int] = None
 
     @field_validator("nome")
     @classmethod

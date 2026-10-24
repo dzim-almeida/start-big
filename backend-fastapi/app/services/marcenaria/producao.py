@@ -231,10 +231,25 @@ def sugestao(db: Session, os_: OrdemServico, antes: str, producao: dict[str, Any
     return {"de": status_os, "para": para, "rotulo": rotulo_status_os(db, para)}
 
 
+def _com_faturamento(db: Session, os_: OrdemServico, producao: dict[str, Any]) -> dict[str, Any]:
+    """O selo de cada movel: no estoque de acabados, faturado ou nada (F2).
+
+    Chave `faturamento` em cada movel: None quando o movel nunca entrou (ou o
+    faturamento esta desligado) -- a tela de antes ignora a chave.
+    """
+    from app.services.marcenaria.faturamento import estoque_acabado
+
+    situacoes = estoque_acabado.situacao_dos_moveis(db, os_.id)
+    for linha in producao["moveis"]:
+        situacao = situacoes.get(linha["movel_id"])
+        linha["faturamento"] = None if situacao in (None, "ESTORNADO") else situacao
+    return producao
+
+
 def ler(db: Session, numero_os: str) -> dict[str, Any]:
     """GET /os/{numero_os}/producao."""
     os_, orc = os_e_orcamento_aprovado(db, numero_os, MSG_SEM_ORCAMENTO)
-    return montar_producao(db, os_, orc)
+    return _com_faturamento(db, os_, montar_producao(db, os_, orc))
 
 
 # ===========================================================================
@@ -249,10 +264,18 @@ def _preparar(db: Session, numero_os: str) -> tuple:
     return os_, orc, andamento(montar_producao(db, os_, orc))
 
 
-def _responder(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento, antes: str) -> dict[str, Any]:
-    """Grava e devolve a producao atualizada com a sugestao de status (secao 6)."""
+def _responder(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento, antes: str,
+               usuario: Optional[dict] = None) -> dict[str, Any]:
+    """Grava e devolve a producao atualizada com a sugestao de status (secao 6).
+
+    Antes de gravar, o movel que ficou (ou deixou de ficar) pronto entra (ou
+    sai) do estoque de produto acabado -- so com o faturamento ligado.
+    """
+    from app.services.marcenaria.faturamento import estoque_acabado
+
+    estoque_acabado.sincronizar(db, os_, orc, usuario)
     db.commit()
-    producao = montar_producao(db, os_, orc)
+    producao = _com_faturamento(db, os_, montar_producao(db, os_, orc))
     producao["sugestao_status"] = sugestao(db, os_, antes, producao)
     return producao
 
@@ -304,7 +327,7 @@ def iniciar(db: Session, numero_os: str, dados: LoteEntrada, usuario: dict) -> d
     if mudaram:
         registrar_evento(db, orc, "ETAPAS_INICIADAS", _frase_lote("iniciada", mudaram, usuario), usuario,
                          {"etapa_ids": [e.id for _m, e in mudaram]}, os_id=os_.id)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 def _concluir(db: Session, os_, orc, pares: list, funcionario_id: Optional[int], usuario: dict) -> None:
@@ -326,7 +349,7 @@ def _concluir(db: Session, os_, orc, pares: list, funcionario_id: Optional[int],
 def concluir(db: Session, numero_os: str, dados: LoteEntrada, usuario: dict) -> dict[str, Any]:
     os_, orc, antes = _preparar(db, numero_os)
     _concluir(db, os_, orc, _etapas_por_id(orc, dados.etapa_ids), dados.responsavel_funcionario_id, usuario)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 def concluir_em_todos(db: Session, numero_os: str, nome: str, usuario: dict) -> dict[str, Any]:
@@ -337,7 +360,7 @@ def concluir_em_todos(db: Session, numero_os: str, nome: str, usuario: dict) -> 
     if not pares:
         erros.invalido(f"Nenhum móvel desta OS tem a etapa {nome.strip()}.")
     _concluir(db, os_, orc, pares, None, usuario)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 def reabrir(db: Session, numero_os: str, etapa_id: int, usuario: dict) -> dict[str, Any]:
@@ -353,7 +376,7 @@ def reabrir(db: Session, numero_os: str, etapa_id: int, usuario: dict) -> dict[s
         registrar_evento(db, orc, "ETAPA_REABERTA",
                          f"Etapa {etapa.nome} do móvel {movel.nome} reaberta (estava {de}) por {usuario_nome(usuario)}.",
                          usuario, {"etapa_id": etapa.id}, os_id=os_.id)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 def _movel_interno(orc: MarcenariaOrcamento, movel_id: int) -> MarcenariaMovel:
@@ -405,7 +428,7 @@ def editar_etapas(db: Session, numero_os: str, movel_id: int, dados: EtapasDoMov
             movel.etapas.append(MarcenariaEtapa(nome=nome, ordem=ordem, status=StatusEtapa.PENDENTE))
     registrar_evento(db, orc, "ETAPAS_EDITADAS", f"Etapas do móvel {movel.nome}: {', '.join(nomes)}.",
                      usuario, {"movel_id": movel.id, "etapas": nomes}, os_id=os_.id)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 def aplicar_padrao(db: Session, numero_os: str, movel_id: int, usuario: dict) -> dict[str, Any]:
@@ -419,7 +442,7 @@ def aplicar_padrao(db: Session, numero_os: str, movel_id: int, usuario: dict) ->
     movel.etapas = _novas_etapas(nomes)
     registrar_evento(db, orc, "ETAPAS_EDITADAS", f"Etapas padrão aplicadas ao móvel {movel.nome}: {', '.join(nomes)}.",
                      usuario, {"movel_id": movel.id, "etapas": nomes}, os_id=os_.id)
-    return _responder(db, os_, orc, antes)
+    return _responder(db, os_, orc, antes, usuario)
 
 
 # ===========================================================================

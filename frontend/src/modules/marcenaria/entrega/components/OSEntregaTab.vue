@@ -41,6 +41,7 @@ import PendenciaModal from './PendenciaModal.vue';
 import RegistrarEntregaModal from './RegistrarEntregaModal.vue';
 import ResolverPendenciaModal from './ResolverPendenciaModal.vue';
 import TermoEntregaPrint from './TermoEntregaPrint.vue';
+import FaturamentoMoveisPanel from '@/modules/marcenaria/faturamento/components/FaturamentoMoveisPanel.vue';
 
 const props = withDefaults(defineProps<{
   numeroOs: string;
@@ -254,6 +255,9 @@ function imprimirTermosDoAgendamento(agendamento: Agendamento) {
           </li>
         </ul>
       </div>
+
+      <!-- Faturamento dos móveis: só aparece com ele ligado (docs/marcenaria-faturamento-plano.md). -->
+      <FaturamentoMoveisPanel :numero-os="numeroOs" />
 
       <!-- Um cartão por ambiente (D3) -->
       <EntregaAmbienteCard

@@ -72,6 +72,24 @@ class ConfiguracaoMarcenaria(Base):
         JSON, default=lambda: list(CHECKLIST_PADRAO), nullable=False,
     )
 
+    # --- Faturamento dos moveis (docs/marcenaria-faturamento-plano.md) ------
+    # DESLIGADO (padrao) = nada muda; NOTA_NA_ENTREGA (5101 a cada entrega) ou
+    # ENTREGA_FUTURA (5922 no fechamento + 5116/5117 a cada entrega).
+    faturamento_modo: Mapped[str] = mapped_column(
+        String(20), default="DESLIGADO", server_default="DESLIGADO", nullable=False,
+    )
+    # EMBUTIDA (padrao: a instalacao entra no preco dos moveis da NF-e) ou FORA.
+    instalacao_modo: Mapped[str] = mapped_column(
+        String(10), default="EMBUTIDA", server_default="EMBUTIDA", nullable=False,
+    )
+    # Os produtos acabados: o movel fabricado aqui e o comprado pronto (D4).
+    produto_acabado_padrao_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("produtos.id", ondelete="SET NULL"), nullable=True,
+    )
+    produto_acabado_revenda_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("produtos.id", ondelete="SET NULL"), nullable=True,
+    )
+
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),

@@ -25,3 +25,13 @@ def registrar() -> None:
     ganchos_os.registrar(ganchos_os.ao_cancelar, separacao.avisar_material_no_cancelamento)
     # Spec 11A D16: moveis pedidos a central (o pedido e as contas ficam).
     ganchos_os.registrar(ganchos_os.ao_cancelar, terceirizado.avisar_no_cancelamento)
+    # Faturamento dos moveis (docs/marcenaria-faturamento-plano.md, F2): movel
+    # ja faturado barra o cancelamento; os que estao no estoque sao estornados.
+    ganchos_os.registrar(ganchos_os.ao_cancelar, _estoque_acabado_ao_cancelar)
+
+
+def _estoque_acabado_ao_cancelar(db, os_, usuario_token, contexto) -> None:
+    """Import tardio: o faturamento puxa o fiscal, que nao precisa carregar no boot."""
+    from app.services.marcenaria.faturamento import estoque_acabado
+
+    estoque_acabado.ao_cancelar_os(db, os_, usuario_token, contexto)

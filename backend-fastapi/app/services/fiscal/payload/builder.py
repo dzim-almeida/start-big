@@ -287,6 +287,12 @@ def montar_payload_nfe(
         "totais": totais,
     }
 
+    # Remessa da entrega futura (marcenaria, F4): aponta para a(s) nota(s) de
+    # simples faturamento pela chave (refNFe). Venda e OS comum nao mandam.
+    chaves = getattr(venda, "chaves_referenciadas", None)
+    if chaves:
+        payload["notas_referenciadas"] = [{"chave_nfe": chave} for chave in chaves]
+
     return payload
 
 

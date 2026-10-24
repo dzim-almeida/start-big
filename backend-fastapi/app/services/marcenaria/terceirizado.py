@@ -208,6 +208,14 @@ def _com_sugestao(db: Session, os_: OrdemServico, orc: MarcenariaOrcamento, ante
 # ESCRITAS
 # ===========================================================================
 
+def _sincronizar_estoque(db: Session, os_: OrdemServico, orc, usuario: dict) -> None:
+    """Conferir (ou voltar/registrar problema) muda a prontidao: o movel entra
+    (ou sai) do estoque de produto acabado -- so com o faturamento ligado."""
+    from app.services.marcenaria.faturamento import estoque_acabado
+
+    estoque_acabado.sincronizar(db, os_, orc, usuario)
+
+
 def _preparar(db: Session, numero_os: str, movel_ids: list[int]) -> tuple:
     """OS aberta (D7) e os moveis pedidos: todos desta OS e terceirizados."""
     os_, orc = os_e_orcamento_aprovado(db, numero_os, MSG_SEM_ORCAMENTO)
@@ -376,6 +384,7 @@ def conferir(db: Session, numero_os: str, dados: MoveisEntrada, usuario: dict) -
             movel.terc_situacao = sit.CONFERIDO
     registrar_evento(db, orc, "TERCEIRIZADO_CONFERIDO", f"Conferido: {_nomes(pares)}.",
                      usuario, {"movel_ids": dados.movel_ids}, os_id=os_.id)
+    _sincronizar_estoque(db, os_, orc, usuario)
     db.commit()
     return _com_sugestao(db, os_, orc, antes, usuario)
 
@@ -394,6 +403,7 @@ def registrar_problema(db: Session, numero_os: str, movel_id: int, dados: Proble
         movel.terc_situacao = sit.RECEBIDO
     registrar_evento(db, orc, "TERCEIRIZADO_PROBLEMA", f"Problema no móvel {movel.nome}: {dados.texto}",
                      usuario, {"movel_id": movel.id}, os_id=os_.id)
+    _sincronizar_estoque(db, os_, orc, usuario)
     db.commit()
     return _leitura(db, os_, orc, usuario)
 
@@ -430,6 +440,7 @@ def voltar(db: Session, numero_os: str, movel_id: int, usuario: dict) -> dict[st
     registrar_evento(db, orc, "TERCEIRIZADO_VOLTOU",
                      f"{movel.nome} voltou de {ROTULO[situacao.situacao]} para {ROTULO[para]}.",
                      usuario, {"movel_id": movel.id}, os_id=os_.id)
+    _sincronizar_estoque(db, os_, orc, usuario)
     db.commit()
     return _com_sugestao(db, os_, orc, antes, usuario)
 

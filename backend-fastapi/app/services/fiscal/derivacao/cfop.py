@@ -77,6 +77,13 @@ NATUREZA_POR_CFOP = {
     "6403": "Venda de producao do estabelecimento sujeita a ST (substituto)",
     "6404": "Venda de merc. adq. de terceiros sujeita a ST (substituto)",
     "6933": "Prestacao de servico",
+    # Venda para entrega futura (marcenaria, F4).
+    "5922": "Simples faturamento - venda para entrega futura",
+    "6922": "Simples faturamento - venda para entrega futura",
+    "5116": "Venda de producao do estabelecimento - entrega futura",
+    "6116": "Venda de producao do estabelecimento - entrega futura",
+    "5117": "Venda de mercadoria adquirida de terceiros - entrega futura",
+    "6117": "Venda de mercadoria adquirida de terceiros - entrega futura",
 }
 
 # Naturezas que DESLIGAM o cálculo do vTotTrib na integradora.

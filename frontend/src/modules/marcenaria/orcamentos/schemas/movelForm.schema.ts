@@ -82,6 +82,8 @@ export const movelFormSchema = z
     insumos: z
       .array(insumoFormSchema)
       .max(LIMITES.insumosPorMovel, `Um móvel aceita até ${LIMITES.insumosPorMovel} insumos.`),
+    /** Faturamento (D3): o produto acabado que o móvel vira na nota; null = o padrão. */
+    produto_acabado_id: z.number().nullable(),
   })
   // Terceirizado é pedido a uma central parceira (E6): sem ela, não há a quem pedir.
   .refine((m) => m.tipo_producao !== 'TERCEIRIZADA' || m.central_fornecedor_id != null, {
@@ -111,6 +113,7 @@ export function movelVazio(ambienteId: number): MovelForm {
     mao_obra_reais: 0,
     mao_obra_horas: 0,
     insumos: [],
+    produto_acabado_id: null,
   };
 }
 
@@ -145,6 +148,7 @@ export function movelParaForm(movel: MovelDetalhe): MovelForm {
       custo_origem: 'custo_origem' in insumo ? insumo.custo_origem : null,
       custo_editado: false,
     })),
+    produto_acabado_id: movel.produto_acabado_id ?? null,
   };
 }
 
@@ -170,6 +174,7 @@ export function paraApiMovel(form: MovelForm, incluiCustos: boolean): MovelEntra
     tipo_producao: form.tipo_producao,
     central_fornecedor_id: terceirizado ? form.central_fornecedor_id : null,
     ambiente_id: form.ambiente_id,
+    produto_acabado_id: form.produto_acabado_id,
     insumos: form.insumos.map((insumo) => {
       const linha: MovelEntrada['insumos'][number] = {
         quantidade_milesimos: quantidadeParaMilesimos(insumo.quantidade),

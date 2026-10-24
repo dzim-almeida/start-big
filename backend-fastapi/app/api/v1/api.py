@@ -46,6 +46,7 @@ from app.api.v1.endpoints import (
     marcenaria_entrega,
     marcenaria_orcamento,
     marcenaria_orcamento_itens,
+    marcenaria_faturamento,
     marcenaria_producao,
     marcenaria_separacao,
     marcenaria_terceirizado,
@@ -203,6 +204,8 @@ router.include_router(marcenaria_terceirizado.router, prefix="/marcenaria", tags
 router.include_router(marcenaria_producao.router, prefix="/marcenaria", tags=["Marcenaria - Produção"])
 # Spec 13A: entrega por ambiente, pendencias, fotos e agenda de instalacao.
 router.include_router(marcenaria_entrega.router, prefix="/marcenaria", tags=["Marcenaria - Entrega"])
+# Faturamento dos moveis (docs/marcenaria-faturamento-plano.md): produto acabado e NF-e.
+router.include_router(marcenaria_faturamento.router, prefix="/marcenaria", tags=["Marcenaria - Faturamento"])
 # Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
 # do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
 marcenaria_ganchos.registrar()

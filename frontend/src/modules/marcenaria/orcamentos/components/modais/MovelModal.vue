@@ -36,6 +36,8 @@ import type { MovelDetalhe } from '../../schemas/orcamentoDetalhe.schema';
 import { movelFormSchema, movelParaForm, movelVazio, paraApiMovel, type MovelForm } from '../../schemas/movelForm.schema';
 import type { MovelEntrada } from '../../services/orcamentoMovel.service';
 import InsumoRapidoModal from './InsumoRapidoModal.vue';
+import ProdutoAcabadoCampo from '@/modules/marcenaria/shared/components/ProdutoAcabadoCampo.vue';
+import { useConfiguracaoMarcenariaQuery } from '@/modules/configuracoes/composables/queries/useConfiguracaoMarcenariaQuery';
 import InsumosEditor from './InsumosEditor.vue';
 
 /** O que o editor recebe para gravar. */
@@ -166,6 +168,12 @@ const opcoesAmbiente = computed(() => props.ambientes.map((a) => ({ value: a.id,
 
 // --- Central parceira (terceirizado, D29) ---------------------------------------------
 const terceirizado = computed(() => form.value.tipo_producao === 'TERCEIRIZADA');
+
+// Faturamento dos móveis (D3): o "tipo fiscal" só aparece com o faturamento ligado.
+const { data: configMarcenaria } = useConfiguracaoMarcenariaQuery();
+const faturamentoLigado = computed(
+  () => !!configMarcenaria.value && configMarcenaria.value.faturamento_modo !== 'DESLIGADO',
+);
 const { data: fornecedores, refetch: recarregarCentrais } = useQuery({
   queryKey: [CHAVE_RAIZ, 'centrais'],
   queryFn: () => getFornecedores(),
@@ -344,6 +352,17 @@ onKeyStroke('Escape', () => {
           </div>
         </div>
         <p v-if="erros.central_fornecedor_id" class="text-xs text-red-600" data-testid="erro-central">{{ erros.central_fornecedor_id }}</p>
+        <!-- Faturamento (D3): o produto acabado que este móvel vira na NF-e. -->
+        <div v-if="faturamentoLigado" class="rounded-xl border border-zinc-200 p-4" data-testid="tipo-fiscal">
+          <ProdutoAcabadoCampo
+            v-model="form.produto_acabado_id"
+            rotulo="Tipo fiscal na nota"
+            :ajuda="terceirizado ? 'Sem escolha, sai como o produto do móvel comprado pronto.' : 'Sem escolha, sai como o produto do móvel fabricado.'"
+            texto-vazio="O padrão da configuração"
+            :disabled="!editavel"
+            sem-divisoria
+          />
+        </div>
       </section>
 
       <!-- 4. Insumos (D25-D27) -->

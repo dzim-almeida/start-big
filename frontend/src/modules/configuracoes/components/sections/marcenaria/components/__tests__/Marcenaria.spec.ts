@@ -81,3 +81,16 @@ describe('Configurações › Marcenaria', () => {
     expect(vm.isDirty).toBe(false);
   });
 });
+
+describe('Configurações › Marcenaria — faturamento dos móveis', () => {
+  it('desligado (padrão): só a escolha do modo, sem produtos nem instalação', () => {
+    dados.value = COMPLETA;
+    podeGerirSimulado.value = true;
+    const wrapper = mount(Marcenaria);
+
+    expect(wrapper.find('[data-testid="bloco-faturamento"]').exists()).toBe(true);
+    expect(wrapper.find('input[value="DESLIGADO"]').element).toHaveProperty('checked', true);
+    expect(wrapper.find('input[value="EMBUTIDA"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="criar-produtos-acabados"]').exists()).toBe(false);
+  });
+});

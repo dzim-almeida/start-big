@@ -48,6 +48,17 @@ PADROES = {
     "inclui_custos": True,
 }
 
+# Faturamento dos moveis (docs/marcenaria-faturamento-plano.md): nasce
+# DESLIGADO, e qualquer usuario ve (nao e custo).
+FATURAMENTO_PADRAO = {
+    "faturamento_modo": "DESLIGADO",
+    "instalacao_modo": "EMBUTIDA",
+    "produto_acabado_padrao_id": None,
+    "produto_acabado_revenda_id": None,
+    "pendencias_faturamento": [],
+}
+PADROES.update(FATURAMENTO_PADRAO)
+
 
 @pytest.fixture
 def client():
@@ -117,6 +128,7 @@ def test_cargo_sem_permissao_recebe_so_o_que_nao_e_custo(client, marcenaria, com
         "etapas_producao": PADROES["etapas_producao"],
         "checklist_vistoria": PADROES["checklist_vistoria"],
         "inclui_custos": False,
+        **FATURAMENTO_PADRAO,
     }
 
 
@@ -211,3 +223,71 @@ def test_fora_da_marcenaria_a_rota_nao_existe(client, db_session):
     r = client.put(URL, json={"markup_padrao_bp": 8000}, headers=header)
     assert r.status_code == 404
     assert r.json()["detail"] == "Parâmetros de marcenaria não disponíveis para este segmento."
+
+
+# =========================
+# Faturamento dos moveis (docs/marcenaria-faturamento-plano.md, F1)
+# =========================
+
+URL_PRODUTOS_ACABADOS = f"{URL}/produtos-acabados"
+
+
+def test_ligar_o_faturamento_sem_o_produto_do_movel_e_recusado(client, marcenaria):
+    r = client.put(URL, json={"faturamento_modo": "NOTA_NA_ENTREGA"}, headers=marcenaria)
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "Para faturar os móveis, escolha o produto do móvel fabricado."
+    # Nada foi gravado: continua desligado.
+    assert client.get(URL, headers=marcenaria).json()["faturamento_modo"] == "DESLIGADO"
+
+
+def test_produto_inexistente_e_recusado(client, marcenaria):
+    r = client.put(URL, json={"produto_acabado_padrao_id": 999_999}, headers=marcenaria)
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "Produto do móvel fabricado: produto não encontrado ou desativado."
+
+
+def test_criar_produtos_acabados_liga_os_dois_e_nao_duplica(client, marcenaria, db_session):
+    from app.db.models.produto import Produto
+
+    r = client.post(URL_PRODUTOS_ACABADOS, headers=marcenaria)
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    padrao, revenda = corpo["produto_acabado_padrao_id"], corpo["produto_acabado_revenda_id"]
+    assert padrao and revenda and padrao != revenda
+    assert corpo["faturamento_modo"] == "DESLIGADO"          # criar o produto nao liga nada
+
+    # Pedir de novo nao cria outro par (o vinculo ja escolhido fica).
+    de_novo = client.post(URL_PRODUTOS_ACABADOS, headers=marcenaria).json()
+    assert (de_novo["produto_acabado_padrao_id"], de_novo["produto_acabado_revenda_id"]) == (padrao, revenda)
+    db_session.expire_all()
+    codigos = {p.codigo_produto for p in db_session.query(Produto).all()}
+    assert {"MOVEL-PLANEJADO", "MOVEL-PLANEJADO-REV"} <= codigos
+    assert db_session.query(Produto).filter(Produto.codigo_produto == "MOVEL-PLANEJADO").count() == 1
+
+
+def test_ligado_avisa_o_que_falta_no_cadastro_fiscal(client, marcenaria):
+    client.post(URL_PRODUTOS_ACABADOS, headers=marcenaria)
+
+    r = client.put(URL, json={"faturamento_modo": "NOTA_NA_ENTREGA", "instalacao_modo": "FORA"}, headers=marcenaria)
+
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert (corpo["faturamento_modo"], corpo["instalacao_modo"]) == ("NOTA_NA_ENTREGA", "FORA")
+    # Os produtos nasceram com o fiscal em branco: o aviso diz o que falta (o
+    # NCM e do contador). So aviso; quem barra a nota e a emissao.
+    assert corpo["pendencias_faturamento"]
+    assert all(p.startswith("Móvel planejado") for p in corpo["pendencias_faturamento"])
+
+
+def test_so_quem_gere_cria_os_produtos(client, marcenaria, como):
+    como(view_custos_marcenaria=True)
+    assert client.post(URL_PRODUTOS_ACABADOS).status_code == 403
+
+
+def test_produto_acabado_some_da_busca_do_pdv(client, marcenaria):
+    client.post(URL_PRODUTOS_ACABADOS, headers=marcenaria)
+
+    r = client.get("/api/v1/produtos/search", params={"search": "Móvel planejado"}, headers=marcenaria)
+
+    assert r.status_code == 200, r.text
+    assert r.json() == []

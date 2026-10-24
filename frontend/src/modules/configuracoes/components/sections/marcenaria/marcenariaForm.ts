@@ -9,8 +9,10 @@
  * §6.4), com as mesmas mensagens: o erro aparece ao digitar, não ao salvar.
  */
 import type {
-  ConfiguracaoMarcenaria,
+  ConfiguracaoMarcenariaEntrada,
   ConfiguracaoMarcenariaUpdate,
+  FaturamentoModo,
+  InstalacaoModo,
   RtModo,
 } from '../../../schemas/configuracaoMarcenaria.schema';
 import { errosDosItens } from '@/shared/components/ui/ListaTextosEditavel/errosDosItens';
@@ -27,6 +29,11 @@ export interface FormMarcenaria {
   rt_percentual?: number;       // 8 = 8%
   rt_modo?: RtModo;
   rt_vencimento_dias?: number;  // dias depois de finalizar a OS (Spec 09B D11)
+  // Faturamento dos móveis (docs/marcenaria-faturamento-plano.md).
+  faturamento_modo: FaturamentoModo;
+  instalacao_modo: InstalacaoModo;
+  produto_acabado_padrao_id: number | null;
+  produto_acabado_revenda_id: number | null;
 }
 
 /** Limites das listas (Spec 04A §4.1). */
@@ -36,12 +43,17 @@ export const LIMITES_LISTA = {
 } as const;
 
 /** API → tela: basis points viram %, centavos viram R$ (D10). */
-export function paraTela(api: ConfiguracaoMarcenaria): FormMarcenaria {
+export function paraTela(api: ConfiguracaoMarcenariaEntrada): FormMarcenaria {
   const form: FormMarcenaria = {
     validade_dias: api.validade_dias,
     prazo_entrega_dias: api.prazo_entrega_dias,
     etapas_producao: [...api.etapas_producao],        // cópia: editar não mexe no cache da query
     checklist_vistoria: [...api.checklist_vistoria],
+    // `??`: a resposta de um backend anterior ao faturamento não traz estes campos.
+    faturamento_modo: api.faturamento_modo ?? 'DESLIGADO',
+    instalacao_modo: api.instalacao_modo ?? 'EMBUTIDA',
+    produto_acabado_padrao_id: api.produto_acabado_padrao_id ?? null,
+    produto_acabado_revenda_id: api.produto_acabado_revenda_id ?? null,
   };
   if (api.inclui_custos) {                            // só quem vê custo recebe estes campos
     form.markup_percentual = api.markup_padrao_bp / 100;     // 9000 bp -> 90 %
@@ -61,6 +73,10 @@ export function paraApi(form: FormMarcenaria): ConfiguracaoMarcenariaUpdate {
     prazo_entrega_dias: form.prazo_entrega_dias,
     etapas_producao: form.etapas_producao.map((t) => t.trim()),     // espaços das pontas saem
     checklist_vistoria: form.checklist_vistoria.map((t) => t.trim()),
+    faturamento_modo: form.faturamento_modo,
+    instalacao_modo: form.instalacao_modo,
+    produto_acabado_padrao_id: form.produto_acabado_padrao_id,
+    produto_acabado_revenda_id: form.produto_acabado_revenda_id,
   };
   if (form.markup_percentual !== undefined) {         // a tela mostrou o bloco de custos
     corpo.markup_padrao_bp = Math.round(form.markup_percentual * 100);          // arredonda, nunca trunca
@@ -96,6 +112,10 @@ export function errosDoFormulario(form: FormMarcenaria): Record<string, string> 
     if (fora(form.rt_vencimento_dias, 0, 180) || !Number.isInteger(form.rt_vencimento_dias)) {
       erros.rt_vencimento_dias = 'O prazo do RT deve ficar entre 0 e 180 dias.';
     }
+  }
+  // Mesma regra e mensagem do backend: ligar o faturamento exige o produto do móvel.
+  if (form.faturamento_modo !== 'DESLIGADO' && form.produto_acabado_padrao_id === null) {
+    erros.produto_acabado_padrao_id = 'Para faturar os móveis, escolha o produto do móvel fabricado.';
   }
   for (const [campo, limites] of [['etapas_producao', LIMITES_LISTA.etapas], ['checklist_vistoria', LIMITES_LISTA.checklist]] as const) {
     const itens = form[campo];

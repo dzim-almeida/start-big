@@ -32,6 +32,8 @@ COLUNAS_DE_SPECS_SEGUINTES = {
         "os_item_id",                                                   # 971eb6cc5a33 (Spec 08A)
         "pedido_compra_id", "terc_situacao", "terc_pedido", "terc_enviado_em",   # 642b2e8f79fa (Spec 11A)
         "terc_previsao", "terc_recebido_em", "terc_conferido_em", "terc_problema",
+        "produto_acabado_id",                                           # f4t1m0v3l001 (faturamento dos moveis)
+        "simples_faturamento_id",                                       # f4t1m0v3l002 (entrega futura)
     },
     "marcenaria_orcamento_rt": {"conta_pagar_id"},   # 195109da93f7 (Spec 09A)
 }

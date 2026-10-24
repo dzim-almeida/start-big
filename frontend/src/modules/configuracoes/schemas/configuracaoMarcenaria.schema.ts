@@ -12,12 +12,26 @@ import { z } from 'zod';
 /** Como o RT do arquiteto entra no orçamento (SPEC-00, C5c). */
 export const rtModoSchema = z.enum(['MARGEM', 'PRECO']);
 
+/** Como os móveis viram nota (docs/marcenaria-faturamento-plano.md, D7). */
+export const faturamentoModoSchema = z.enum(['DESLIGADO', 'NOTA_NA_ENTREGA', 'ENTREGA_FUTURA']);
+
+/** Onde a instalação entra (D6): no preço dos móveis da NF-e ou fora dela. */
+export const instalacaoModoSchema = z.enum(['EMBUTIDA', 'FORA']);
+
 /** O que qualquer usuário logado recebe. */
 const base = z.object({
   validade_dias: z.number().int(),
   prazo_entrega_dias: z.number().int(),
   etapas_producao: z.array(z.string()),
   checklist_vistoria: z.array(z.string()),
+  // Faturamento dos móveis: não é custo, todo usuário vê. Os `default` cobrem
+  // um backend anterior a ele (nasce desligado, como no banco).
+  faturamento_modo: faturamentoModoSchema.default('DESLIGADO'),
+  instalacao_modo: instalacaoModoSchema.default('EMBUTIDA'),
+  produto_acabado_padrao_id: z.number().int().nullable().default(null),
+  produto_acabado_revenda_id: z.number().int().nullable().default(null),
+  /** O que falta no cadastro fiscal dos produtos acabados (só aviso). */
+  pendencias_faturamento: z.array(z.string()).default([]),
 });
 
 /** Resposta do GET: sem custo (`inclui_custos: false`) ou completa (`true`). */
@@ -36,7 +50,11 @@ export const configuracaoMarcenariaSchema = z.discriminatedUnion('inclui_custos'
 ]);
 
 export type ConfiguracaoMarcenaria = z.infer<typeof configuracaoMarcenariaSchema>;
+/** A resposta ANTES dos `default` do zod (o faturamento pode faltar num backend antigo). */
+export type ConfiguracaoMarcenariaEntrada = z.input<typeof configuracaoMarcenariaSchema>;
 export type RtModo = z.infer<typeof rtModoSchema>;
+export type FaturamentoModo = z.infer<typeof faturamentoModoSchema>;
+export type InstalacaoModo = z.infer<typeof instalacaoModoSchema>;
 
 /** Corpo do PUT: parcial, só os campos enviados mudam. */
 export interface ConfiguracaoMarcenariaUpdate {
@@ -50,4 +68,8 @@ export interface ConfiguracaoMarcenariaUpdate {
   prazo_entrega_dias?: number;
   etapas_producao?: string[];
   checklist_vistoria?: string[];
+  faturamento_modo?: FaturamentoModo;
+  instalacao_modo?: InstalacaoModo;
+  produto_acabado_padrao_id?: number | null;
+  produto_acabado_revenda_id?: number | null;
 }

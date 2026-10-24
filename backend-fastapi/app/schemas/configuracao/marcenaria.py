@@ -19,6 +19,19 @@ class RtModo(str, Enum):
     PRECO = "PRECO"     # o RT e embutido no preco
 
 
+class FaturamentoModo(str, Enum):
+    """Como os moveis viram nota (docs/marcenaria-faturamento-plano.md, D7)."""
+    DESLIGADO = "DESLIGADO"               # padrao: nada muda
+    NOTA_NA_ENTREGA = "NOTA_NA_ENTREGA"   # NF-e de venda (5101) a cada entrega
+    ENTREGA_FUTURA = "ENTREGA_FUTURA"     # 5922 no fechamento + 5116/5117 a cada entrega
+
+
+class InstalacaoModo(str, Enum):
+    """Onde a instalacao entra (D6)."""
+    EMBUTIDA = "EMBUTIDA"   # padrao: no preco dos moveis da NF-e (acessoria a venda)
+    FORA = "FORA"           # fora da NF-e (a nota de servico sai na prefeitura)
+
+
 def _entre(valor: Optional[int], minimo: int, maximo: Optional[int], mensagem: str) -> Optional[int]:
     """Recusa numero fora de [minimo, maximo] com a mensagem dada. None passa (PUT parcial)."""
     if valor is None:
@@ -62,6 +75,11 @@ class ConfiguracaoMarcenariaUpdate(BaseModel):
     prazo_entrega_dias: Optional[int] = None
     etapas_producao: Optional[list[str]] = None
     checklist_vistoria: Optional[list[str]] = None
+    # Faturamento dos moveis: null em produto = "nenhum" (limpa o vinculo).
+    faturamento_modo: Optional[FaturamentoModo] = None
+    instalacao_modo: Optional[InstalacaoModo] = None
+    produto_acabado_padrao_id: Optional[int] = None
+    produto_acabado_revenda_id: Optional[int] = None
 
     # --- Limites da §4.1 da Spec 04A, cada um com a sua mensagem -----------
     @field_validator("markup_padrao_bp")
@@ -119,6 +137,14 @@ class ConfiguracaoMarcenariaPublica(BaseModel):
     prazo_entrega_dias: int
     etapas_producao: list[str]
     checklist_vistoria: list[str]
+    # Faturamento dos moveis: nao e custo, entao todo usuario logado ve.
+    faturamento_modo: FaturamentoModo = FaturamentoModo.DESLIGADO
+    instalacao_modo: InstalacaoModo = InstalacaoModo.EMBUTIDA
+    produto_acabado_padrao_id: Optional[int] = None
+    produto_acabado_revenda_id: Optional[int] = None
+    # O que falta no cadastro fiscal dos produtos acabados (so aviso: a
+    # emissao e que barra). Preenchido pelo endpoint, nao vem do banco.
+    pendencias_faturamento: list[str] = []
     # Diz a tela se os campos de custo foram omitidos de proposito, para ela
     # nao confundir "sem permissao" com "zerado".
     inclui_custos: bool = False

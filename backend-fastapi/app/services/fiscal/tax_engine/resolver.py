@@ -352,6 +352,11 @@ def _aplicar_regra(
     return replace(item, aliquota_icms=None if simples_nacional else inter, st=st)
 
 
+# Simples faturamento da marcenaria no regime normal (F4): nao tributada.
+# A CONFIRMAR com o contador (D13 do plano); no Simples o CSOSN do produto fica.
+CST_ICMS_SEM_DESTAQUE = "41"
+
+
 def resolver_aliquotas_venda(
     db: Session,
     venda: Venda,
@@ -482,6 +487,20 @@ def resolver_aliquotas_venda(
             cst_pis = fiscal.cst_pis if fiscal and fiscal.cst_pis else "01"
             cst_cofins = fiscal.cst_cofins if fiscal and fiscal.cst_cofins else "01"
 
+        cfop_item = inter.cfop if inter else _cfop_interno(fiscal, produto, idx)
+        cst_icms_item = inter.cst_icms if inter else (fiscal.cst_icms if fiscal else None)
+        # Entrega futura da marcenaria (docs/marcenaria-faturamento-plano.md, F4):
+        # a operacao manda no sufixo (922 simples faturamento, 116/117 remessa) e
+        # o grupo (5/6) continua o da derivacao. Venda e OS comum nao mandam nada.
+        sufixo_forcado = getattr(item_venda, "cfop_sufixo_forcado", None)
+        if sufixo_forcado:
+            cfop_item = f"{(cfop_item or '5')[0]}{sufixo_forcado}"
+        # Simples faturamento: sem destaque de ICMS (o imposto sai na remessa).
+        # No Simples o CSOSN do produto (102) ja nao destaca; no regime normal, CST 41.
+        if getattr(item_venda, "icms_sem_destaque", False) and not simples_nacional:
+            cst_icms_item = CST_ICMS_SEM_DESTAQUE
+            aliq_icms = ZERO
+
         itens_entrada.append(ItemEntrada(
             numero_item=idx,
             produto_id=item_venda.produto_id,
@@ -495,9 +514,9 @@ def resolver_aliquotas_venda(
                 (item_venda.desconto or 0) + (getattr(item_venda, "desconto_regra", 0) or 0)
             ),
             ncm=fiscal.ncm if fiscal else None,
-            cfop=inter.cfop if inter else _cfop_interno(fiscal, produto, idx),
+            cfop=cfop_item,
             origem_mercadoria=fiscal.origem_mercadoria if fiscal and fiscal.origem_mercadoria is not None else 0,
-            cst_icms=inter.cst_icms if inter else (fiscal.cst_icms if fiscal else None),
+            cst_icms=cst_icms_item,
             csosn=inter.csosn if inter else (fiscal.csosn if fiscal else None),
             aliquota_icms=aliq_icms,
             reducao_base_icms=reducao,

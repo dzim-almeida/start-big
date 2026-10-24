@@ -250,11 +250,18 @@ def get_configuracao_marcenaria(
 ):
     empresa_id = int(usuario_token.get("empresa_id"))
     config = _handle_db_transaction(db, configuracao_marcenaria_service.obter_configuracao, empresa_id)
+    _com_pendencias(db, config, empresa_id)
     # Recorte por permissao: sem view_custos, so os campos sem custo (D9). Os
     # campos de custo NAO aparecem (nem como null) na resposta publica.
     if pode_ver_custos_marcenaria(usuario_token):
         return ConfiguracaoMarcenariaCompleta.model_validate(config)
     return ConfiguracaoMarcenariaPublica.model_validate(config)
+
+
+def _com_pendencias(db: Session, config, empresa_id: int):
+    """Pendura no objeto o aviso do cadastro fiscal dos produtos acabados."""
+    config.pendencias_faturamento = configuracao_marcenaria_service.pendencias_faturamento(db, config, empresa_id)
+    return config
 
 
 @router.put(
@@ -277,4 +284,28 @@ def update_configuracao_marcenaria(
         empresa_id,
         data,
     )
-    return ConfiguracaoMarcenariaCompleta.model_validate(config)
+    return ConfiguracaoMarcenariaCompleta.model_validate(_com_pendencias(db, config, empresa_id))
+
+
+@router.post(
+    "/marcenaria/produtos-acabados",
+    response_model=ConfiguracaoMarcenariaCompleta,
+    status_code=status.HTTP_200_OK,
+    summary="Criar os produtos acabados da marcenaria",
+    description=(
+        "Cria (ou reaproveita, pelo código) 'Móvel planejado' e 'Móvel planejado (revenda)' e os liga "
+        "ao faturamento dos móveis. Vínculo já escolhido não é trocado. Exige 'manage_custos_marcenaria'."
+    ),
+)
+def criar_produtos_acabados_marcenaria(
+    usuario_token: dict = Depends(check_permission(required_permission=PERMISSOES_GERIR_CUSTOS)),
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(usuario_token.get("empresa_id"))
+    config = _handle_db_transaction(
+        db,
+        configuracao_marcenaria_service.criar_produtos_acabados,
+        empresa_id,
+        usuario_token,
+    )
+    return ConfiguracaoMarcenariaCompleta.model_validate(_com_pendencias(db, config, empresa_id))

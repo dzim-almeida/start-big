@@ -402,6 +402,7 @@ _CAMPOS_DO_MOVEL = (
     "nome", "descricao", "largura_mm", "altura_mm", "profundidade_mm", "quantidade",
     "tipo_producao", "central_fornecedor_id", "terceirizado_centavos", "mao_obra_modo",
     "mao_obra_centavos", "mao_obra_horas_centesimos", "ordem",
+    "produto_acabado_id",       # o tipo fiscal do movel vai junto para a nova versao (faturamento, D3)
 )
 _CAMPOS_DO_INSUMO = (
     "produto_id", "descricao", "codigo", "unidade", "quantidade_milesimos",

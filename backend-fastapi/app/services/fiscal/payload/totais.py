@@ -113,6 +113,11 @@ def _montar_totais_pagamentos(
             "valor_total": _centavos_para_reais(venda.total),
         }
 
+    # Remessa da entrega futura (marcenaria, F4): o pagamento foi na nota de
+    # simples faturamento; esta leva "90 - sem pagamento", valor zero.
+    if getattr(venda, "sem_pagamento", False):
+        return totais, [{"forma_pagamento": "90", "valor_pagamento": 0.0}], 0.0
+
     formas_pagamento = _montar_pagamentos(venda)
     valor_troco = _centavos_para_reais(venda.troco or 0)
 
