@@ -86,12 +86,16 @@ async function exportar() {
   const cabecalho = usaOrdemServico.value
     ? ['Funcionário', 'Vendas (R$)', '% Venda', 'Serviços (R$)', '% Serviço', 'Comissão (R$)']
     : ['Funcionário', 'Vendas (R$)', '% Venda', 'Comissão (R$)'];
-  const caminho = await saveCsv(
-    `comissao_${d.inicio}_a_${d.fim}.csv`,
-    cabecalho,
-    linhas,
-  );
-  if (caminho) toast.success(`Folha de comissão salva em: ${caminho}`);
+  try {
+    const caminho = await saveCsv(
+      `comissao_${d.inicio}_a_${d.fim}.csv`,
+      cabecalho,
+      linhas,
+    );
+    if (caminho) toast.success(`Folha de comissão salva em: ${caminho}`);
+  } catch (err) {
+    toast.error('Não foi possível salvar a planilha', err instanceof Error ? err.message : undefined);
+  }
 }
 </script>
 

@@ -13,7 +13,7 @@ import { useFiscalDocumentosQuery } from '../../composables/useFiscalDocumentosQ
 import { useFiscalConsultarMutation } from '../../composables/useFiscalConsultarMutation';
 import { useFiscalReemitirMutation } from '../../composables/useFiscalReemitirMutation';
 import { STATUS_COLORS, STATUS_LABELS, ORIGEM_LABELS } from '../../constants/fiscal.constants';
-import { abrirArquivo } from '../../utils/abrirArquivo';
+import { salvarDocumentoFiscal } from '../../utils/salvarDocumentoFiscal';
 import FiscalCancelarModal from '../detalhes/FiscalCancelarModal.vue';
 import type { DocumentoFiscalFilters, DocumentoFiscalStatus, DocumentoFiscalTipo } from '../../types/fiscal.types';
 
@@ -75,6 +75,20 @@ const tipoFilterConfig: Record<string, { label: string; class: string; color: st
   NFCE: { label: 'NFC-e', class: '', color: 'bg-emerald-400' },
   NFSE: { label: 'NFS-e', class: '', color: 'bg-purple-400' },
 };
+
+// DANFE/XML pelo "Salvar como", da cópia guardada na loja (a emissora só se
+// faltar) -- o mesmo caminho da tela de detalhes, e não o link que expira.
+const salvando = ref<string | null>(null);
+
+async function salvarDaLista(doc: { id: number; chave_acesso: string | null }, extensao: 'pdf' | 'xml') {
+  if (salvando.value) return;
+  salvando.value = `${doc.id}-${extensao}`;
+  try {
+    await salvarDocumentoFiscal(doc, extensao);
+  } finally {
+    salvando.value = null;
+  }
+}
 
 // A reemissão vai à SEFAZ e o toast diz o desfecho -- um lugar só para isso.
 const reemitirMutation = useFiscalReemitirMutation();
@@ -291,20 +305,22 @@ async function reemitirLote() {
             <div class="flex items-center justify-end h-full">
               <div class="hidden group-hover:flex items-center justify-end gap-1">
                 <button
-                  v-if="doc.url_pdf"
+                  v-if="doc.url_pdf || doc.pdf_local"
                   type="button"
-                  class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
-                  title="Abrir PDF"
-                  @click.stop="abrirArquivo(doc.url_pdf!)"
+                  class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                  title="Salvar DANFE (PDF)"
+                  :disabled="salvando === `${doc.id}-pdf`"
+                  @click.stop="salvarDaLista(doc, 'pdf')"
                 >
                   <FileText :size="18" />
                 </button>
                 <button
-                  v-if="doc.url_xml"
+                  v-if="doc.url_xml || doc.xml_local"
                   type="button"
-                  class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
-                  title="Abrir XML"
-                  @click.stop="abrirArquivo(doc.url_xml!)"
+                  class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                  title="Salvar XML"
+                  :disabled="salvando === `${doc.id}-xml`"
+                  @click.stop="salvarDaLista(doc, 'xml')"
                 >
                   <FileCode :size="18" />
                 </button>

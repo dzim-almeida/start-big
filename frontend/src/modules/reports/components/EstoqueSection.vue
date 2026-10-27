@@ -39,12 +39,16 @@ async function exportarAbc() {
     String(i.participacao_pct),
     String(i.acumulado_pct),
   ]);
-  const caminho = await saveCsv(
-    `curva_abc_${d.inicio}_a_${d.fim}.csv`,
-    ['Classe', 'Produto', 'SKU', 'Qtd vendida', 'Faturamento (R$)', '% Part.', '% Acum.'],
-    linhas,
-  );
-  if (caminho) toast.success(`Curva ABC salva em: ${caminho}`);
+  try {
+    const caminho = await saveCsv(
+      `curva_abc_${d.inicio}_a_${d.fim}.csv`,
+      ['Classe', 'Produto', 'SKU', 'Qtd vendida', 'Faturamento (R$)', '% Part.', '% Acum.'],
+      linhas,
+    );
+    if (caminho) toast.success(`Curva ABC salva em: ${caminho}`);
+  } catch (err) {
+    toast.error('Não foi possível salvar a planilha', err instanceof Error ? err.message : undefined);
+  }
 }
 </script>
 

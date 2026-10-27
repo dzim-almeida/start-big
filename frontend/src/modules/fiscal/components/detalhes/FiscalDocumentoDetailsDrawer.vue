@@ -30,7 +30,8 @@ import {
 } from 'lucide-vue-next';
 
 import { useToast } from '@/shared/composables/useToast';
-import { salvarArquivo } from '@/shared/utils/arquivo';
+import { ErroAoSalvar, salvarArquivo } from '@/shared/utils/arquivo';
+import { salvarDocumentoFiscal } from '../../utils/salvarDocumentoFiscal';
 import { fiscalService } from '../../services/fiscal.service';
 import {
   CARTA_CORRECAO_MAXIMO,
@@ -284,16 +285,7 @@ const salvarDanfeLocal = async () => {
   if (!documento.value) return;
   isBaixandoPdf.value = true;
   try {
-    const blob = await fiscalService.baixarPdfDocumento(documento.value.id);
-    const nome = `${documento.value.chave_acesso || `documento-${documento.value.id}`}.pdf`;
-    const r = await salvarArquivo(nome, blob);
-    if (r.cancelado) return;
-    toast.success('DANFE salvo', r.caminho ? `Salvo em ${r.caminho}` : undefined);
-  } catch {
-    toast.error(
-      'Não foi possível obter o DANFE',
-      'Ele não está guardado nesta máquina e a emissora não respondeu.',
-    );
+    await salvarDocumentoFiscal(documento.value, 'pdf');
   } finally {
     isBaixandoPdf.value = false;
   }
@@ -303,16 +295,7 @@ const salvarXmlLocal = async () => {
   if (!documento.value) return;
   isBaixandoXml.value = true;
   try {
-    const blob = await fiscalService.baixarXmlDocumento(documento.value.id);
-    const nome = `${documento.value.chave_acesso || `documento-${documento.value.id}`}.xml`;
-    const r = await salvarArquivo(nome, blob);
-    if (r.cancelado) return;
-    toast.success('XML salvo', r.caminho ? `Salvo em ${r.caminho}` : undefined);
-  } catch {
-    toast.error(
-      'Não foi possível obter o XML',
-      'Ele não está guardado nesta máquina e a emissora não respondeu.',
-    );
+    await salvarDocumentoFiscal(documento.value, 'xml');
   } finally {
     isBaixandoXml.value = false;
   }
@@ -365,11 +348,15 @@ const salvarArquivoCarta = async (carta: CartaCorrecaoRead, extensao: 'pdf' | 'x
     const r = await salvarArquivo(nome, blob);
     if (r.cancelado) return;
     toast.success(`${extensao.toUpperCase()} da carta salvo`, r.caminho ? `Salvo em ${r.caminho}` : undefined);
-  } catch {
-    toast.error(
-      `Não foi possível obter o ${extensao.toUpperCase()} da carta`,
-      'Ele não está guardado nesta máquina e a emissora não respondeu.',
-    );
+  } catch (err) {
+    if (err instanceof ErroAoSalvar) {
+      toast.error(`Não foi possível salvar o ${extensao.toUpperCase()} da carta`, err.message);
+    } else {
+      toast.error(
+        `Não foi possível obter o ${extensao.toUpperCase()} da carta`,
+        'Ele não está guardado nesta máquina e a emissora não respondeu.',
+      );
+    }
   } finally {
     isBaixandoCarta.value = null;
   }

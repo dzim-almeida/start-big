@@ -50,12 +50,16 @@ async function exportar() {
     formatCentsToInput(i.faturamento),
     formatCentsToInput(i.abatimento),
   ]);
-  const caminho = await saveCsv(
-    `vendas_por_regra_${d.inicio}_a_${d.fim}.csv`,
-    ['Regra', 'Descrição', 'Produto', 'SKU', 'Vendas', 'Unidades', 'Faturamento (R$)', 'Deixou de cobrar (R$)'],
-    linhas,
-  );
-  if (caminho) toast.success(`Relatório salvo em: ${caminho}`);
+  try {
+    const caminho = await saveCsv(
+      `vendas_por_regra_${d.inicio}_a_${d.fim}.csv`,
+      ['Regra', 'Descrição', 'Produto', 'SKU', 'Vendas', 'Unidades', 'Faturamento (R$)', 'Deixou de cobrar (R$)'],
+      linhas,
+    );
+    if (caminho) toast.success(`Relatório salvo em: ${caminho}`);
+  } catch (err) {
+    toast.error('Não foi possível salvar a planilha', err instanceof Error ? err.message : undefined);
+  }
 }
 </script>
 

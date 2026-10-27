@@ -60,8 +60,12 @@ async function exportar() {
     corpo.push(['Produtos sem classificação fiscal', '']);
     for (const p of semClassificacao.value) corpo.push([`${p.nome} — ${p.motivo}`, formatCentsToInput(p.valor)]);
   }
-  const caminho = await saveCsv(`receita_contador_${d.inicio}_a_${d.fim}.csv`, ['Grupo', 'Receita (R$)'], corpo);
-  if (caminho) toast.success(`Relatório salvo em: ${caminho}`);
+  try {
+    const caminho = await saveCsv(`receita_contador_${d.inicio}_a_${d.fim}.csv`, ['Grupo', 'Receita (R$)'], corpo);
+    if (caminho) toast.success(`Relatório salvo em: ${caminho}`);
+  } catch (err) {
+    toast.error('Não foi possível salvar a planilha', err instanceof Error ? err.message : undefined);
+  }
 }
 </script>
 

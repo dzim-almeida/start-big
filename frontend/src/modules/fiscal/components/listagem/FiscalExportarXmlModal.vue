@@ -18,7 +18,7 @@ import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
 import { useToast } from '@/shared/composables/useToast';
 import { getErrorMessage } from '@/shared/utils/error.utils';
-import { salvarArquivo } from '@/shared/utils/arquivo';
+import { ErroAoSalvar, salvarArquivo } from '@/shared/utils/arquivo';
 import type { ApiError } from '@/shared/types/axios.types';
 
 import { fiscalService } from '../../services/fiscal.service';
@@ -111,7 +111,11 @@ async function baixar() {
     }
     emit('close');
   } catch (err) {
-    toast.error('Não foi possível gerar o pacote', getErrorMessage(err as AxiosError<ApiError>));
+    if (err instanceof ErroAoSalvar) {
+      toast.error('Não foi possível salvar o pacote', err.message);
+    } else {
+      toast.error('Não foi possível gerar o pacote', getErrorMessage(err as AxiosError<ApiError>));
+    }
   } finally {
     isBaixando.value = false;
   }

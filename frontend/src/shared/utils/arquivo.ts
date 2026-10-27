@@ -5,18 +5,33 @@ export type ResultadoSalvarArquivo =
   | { cancelado: true }
   | { cancelado: false; caminho: string | null };
 
+/**
+ * Falha ao GRAVAR (não ao obter o conteúdo): a janela não abriu ou o Windows
+ * recusou o arquivo. A mensagem já vem pronta para o usuário — quem chama
+ * separa este caso do "não consegui buscar o documento".
+ */
+export class ErroAoSalvar extends Error {
+  constructor(mensagem: string) {
+    super(mensagem);
+    this.name = 'ErroAoSalvar';
+  }
+}
+
 const FILTROS: Record<string, string> = {
   pdf: 'PDF',
   xml: 'XML',
   zip: 'Arquivo ZIP',
+  csv: 'Planilha CSV',
 };
 
 /**
  * Pergunta ao usuário onde salvar (janela "Salvar como" do Windows). Devolve
- * o caminho escolhido, null se cancelou, ou undefined se a janela não pôde
- * ser aberta (sem o plugin/permissão) — aí cai no comportamento antigo.
+ * o caminho escolhido ou null se cancelou.
+ *
+ * Se a janela não abrir, é erro — não gravamos escondido na pasta de dados do
+ * app: o usuário nunca achava o arquivo lá.
  */
-async function perguntarOndeSalvar(nome: string): Promise<string | null | undefined> {
+async function perguntarOndeSalvar(nome: string): Promise<string | null> {
   try {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const { downloadDir, join } = await import('@tauri-apps/api/path');
@@ -32,30 +47,33 @@ async function perguntarOndeSalvar(nome: string): Promise<string | null | undefi
       filters: FILTROS[extensao] ? [{ name: FILTROS[extensao], extensions: [extensao] }] : undefined,
     });
   } catch {
-    return undefined;
+    throw new ErroAoSalvar('A janela "Salvar como" do Windows não abriu. Feche e abra o sistema e tente de novo.');
   }
 }
 
 /**
- * Entrega um arquivo binário ao usuário:
+ * Entrega um arquivo ao usuário:
  * - No app (Tauri/WebView bloqueia download por blob): abre o "Salvar como"
  *   do Windows, grava onde o usuário escolher e tenta abrir no programa
- *   padrão. Se a janela não abrir, grava na pasta de dados do app (como antes).
+ *   padrão. A janela libera a gravação naquele caminho (o plugin-dialog põe o
+ *   arquivo escolhido no escopo do plugin-fs).
  * - No navegador (dev): download por blob; caminho null.
+ *
+ * Lança `ErroAoSalvar` quando não consegue gravar.
  */
 export async function salvarArquivo(nome: string, conteudo: Blob): Promise<ResultadoSalvarArquivo> {
   if (isTauri()) {
-    const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    const bytes = new Uint8Array(await conteudo.arrayBuffer());
-
-    let caminho = await perguntarOndeSalvar(nome);
+    const caminho = await perguntarOndeSalvar(nome);
     if (caminho === null) return { cancelado: true };
-    if (caminho) {
-      await writeFile(caminho, bytes);
-    } else {
-      const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
-      await writeFile(nome, bytes, { baseDir: BaseDirectory.AppLocalData });
-      caminho = await join(await appLocalDataDir(), nome);
+
+    try {
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      await writeFile(caminho, new Uint8Array(await conteudo.arrayBuffer()));
+    } catch {
+      throw new ErroAoSalvar(
+        'O Windows não deixou gravar o arquivo. Se ele estiver aberto em outro programa, '
+        + 'feche-o ou salve com outro nome.',
+      );
     }
 
     try {
