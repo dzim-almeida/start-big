@@ -46,11 +46,12 @@ export const ContaBancariaSchema = z.object({
   tipo: z.string(),
   principal: z.boolean(),
   ativo: z.boolean(),
-  // Saldo DECLARADO pelo dono, com a data em que ele declarou. O sistema não
-  // calcula esse número (ver ContaBancaria.saldo_informado no backend), e a
-  // data é o que permite avisar "informado há 12 dias".
+  // A ÂNCORA declarada pelo dono, com a data em que ele declarou -- e o saldo
+  // de AGORA (âncora + o que o livro moveu depois). Nulo enquanto a loja não
+  // declarou nada. É o `saldo_atual` que o dono confere no "Saldo de hoje".
   saldo_informado: z.number().default(0),
   saldo_informado_em: z.string().nullable().optional(),
+  saldo_atual: z.number().nullable().optional(),
   criado_em: z.string(),
 });
 export type ContaBancaria = z.infer<typeof ContaBancariaSchema>;

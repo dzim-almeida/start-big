@@ -617,3 +617,70 @@ def test_a_projecao_parte_do_saldo_de_hoje_e_nao_da_declaracao_velha(client, db_
     assert fluxo["primeiro_dia_negativo"] is None, (
         "com a gaveta cheia, a tela nao pode anunciar que o dinheiro vai acabar"
     )
+
+
+# ===========================================================================
+# CONFERIR O SALDO (27/10/2026)
+#
+# O "Saldo de hoje" mostrava a ANCORA (o que o dono digitou semanas atras) e so
+# gravava o que mudasse. Resultado: o dono via um numero velho, conferia a
+# gaveta, ela batia com o saldo de verdade -- e nao havia como dizer "bateu".
+# O lembrete nunca saia. E ele vinha toda semana, de quando o saldo era foto.
+# ===========================================================================
+
+def _envelhecer_declaracao(db_session, dias: int):
+    from datetime import datetime, timezone
+
+    for conta in db_session.query(ContaBancaria).all():
+        if conta.saldo_informado_em:
+            conta.saldo_informado_em = date.today() - timedelta(days=dias)
+            conta.saldo_informado_instante = datetime.now(timezone.utc) - timedelta(days=dias)
+    db_session.commit()
+
+
+def _contas(client, header):
+    r = client.get("/api/v1/financeiro/contas-bancarias", headers=header)
+    assert r.status_code == status.HTTP_200_OK, r.text
+    return r.json()
+
+
+def test_sem_declaracao_a_conta_nao_tem_saldo_atual(client, db_session):
+    header = _auth(client)
+    assert [c["saldo_atual"] for c in _contas(client, header)] == [None]
+
+
+def test_a_lista_de_contas_traz_o_saldo_de_agora_e_nao_a_ancora(client, db_session):
+    header = _auth(client)
+    _informar_saldo(client, header, 50000)
+    _os_finalizada(client, header, _cliente(client, header), _funcionario(client, header), valor=15000)
+
+    [conta] = _contas(client, header)
+    assert (conta["saldo_informado"], conta["saldo_atual"]) == (50000, 65000)
+
+
+def test_o_lembrete_de_conferir_e_mensal(client, db_session):
+    header = _auth(client)
+    _informar_saldo(client, header, 50000)
+
+    _envelhecer_declaracao(db_session, 10)
+    assert "SALDO_DESATUALIZADO" not in {a["codigo"] for a in _resumo(client, header)["alertas"]}
+
+    _envelhecer_declaracao(db_session, 30)
+    alerta = next(a for a in _resumo(client, header)["alertas"] if a["codigo"] == "SALDO_DESATUALIZADO")
+    assert alerta["quantidade"] == 30
+
+
+def test_confirmar_o_saldo_que_bateu_renova_a_data_sem_mudar_o_valor(client, db_session):
+    header = _auth(client)
+    _informar_saldo(client, header, 50000)
+    _os_finalizada(client, header, _cliente(client, header), _funcionario(client, header), valor=15000)
+    _envelhecer_declaracao(db_session, 40)
+
+    # O dono confere a gaveta, ela bate com o que a tela mostra, e ele confirma.
+    [conta] = _contas(client, header)
+    _informar_saldo(client, header, conta["saldo_atual"])
+
+    assert _fluxo(client, header)["saldo_inicial"] == 65000, "confirmar nao pode somar a OS duas vezes"
+    assert "SALDO_DESATUALIZADO" not in {a["codigo"] for a in _resumo(client, header)["alertas"]}
+    [conta] = _contas(client, header)
+    assert conta["saldo_informado_em"] == date.today().isoformat()

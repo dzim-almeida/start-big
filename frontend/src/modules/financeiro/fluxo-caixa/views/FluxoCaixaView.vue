@@ -63,9 +63,10 @@ const diasDesdeSaldo = computed(() => {
   );
 });
 
-// Uma semana é o ponto em que o retrato deixa de servir: nele já couberam um
-// fim de semana de vendas e as contas do começo do mês.
-const saldoVelho = computed(() => (diasDesdeSaldo.value ?? 0) >= 7);
+// Lembrete MENSAL de conferir (o mesmo prazo do alerta da Visão Geral,
+// `DIAS_ATE_O_SALDO_ENVELHECER` no backend). O saldo anda sozinho; conferir
+// pega o que o livro não vê, como troco errado ou tarifa do banco.
+const saldoVelho = computed(() => (diasDesdeSaldo.value ?? 0) >= 30);
 
 function diaSemana(iso: string): string {
   const [ano, mes, dia] = iso.split('-').map(Number);
@@ -80,7 +81,7 @@ function diaSemana(iso: string): string {
     <div class="flex items-center justify-between gap-4">
       <PageReview title="Fluxo de Caixa" description="A projeção de entradas e saídas do período" />
       <BaseButton variant="secondary" class="px-4" @click="modalSaldo = true">
-        <Wallet :size="16" class="mr-2" /> Atualizar saldo
+        <Wallet :size="16" class="mr-2" /> Conferir saldo
       </BaseButton>
     </div>
 
@@ -196,7 +197,7 @@ function diaSemana(iso: string): string {
               Nada entrou nem saiu desde então.
             </p>
             <p v-if="saldoVelho" class="mt-1 text-xs font-semibold text-amber-600">
-              A declaração é de {{ diasDesdeSaldo }} dias atrás — confira a gaveta e atualize.
+              Conferido há {{ diasDesdeSaldo }} dias — confira a gaveta e o banco e confirme o saldo.
             </p>
           </template>
           <p v-else class="mt-1 text-xs text-amber-600 font-semibold">Você ainda não informou</p>

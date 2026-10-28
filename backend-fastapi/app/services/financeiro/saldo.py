@@ -36,6 +36,55 @@ class SaldoDasContas:
         self.informado_em = informado_em
 
 
+def _movimento_por_conta(db: Session, empresa_id: int, contas) -> dict[int, tuple[int, int]]:
+    """(entrou, saiu) de cada conta depois do corte dela. Vazio enquanto a loja
+    não declarou nada. As regras do corte estão em `saldo_atual_das_contas`."""
+    principal = financeiro_crud.get_conta_principal(db, empresa_id)
+    principal_id = principal.id if principal else None
+
+    def _corte(conta) -> Optional[datetime]:
+        if not conta.saldo_informado_em:
+            return None
+        return conta.saldo_informado_instante or fim_do_dia_utc(conta.saldo_informado_em)
+
+    cortes = [c for c in (_corte(conta) for conta in contas) if c is not None]
+    if not cortes:
+        return {}  # a loja inteira nunca declarou nada
+    corte_da_loja = min(cortes)
+
+    movimento = {}
+    for conta in contas:
+        movimento[conta.id] = financeiro_crud.entradas_e_saidas_desde(
+            db,
+            empresa_id,
+            conta_id=conta.id,
+            desde=_corte(conta) or corte_da_loja,
+            # As linhas órfãs (antigas, ou de uma conta apagada) caem na
+            # principal -- que é para onde os lançamentos novos vão. Jogá-las
+            # fora faria o saldo derivado ficar abaixo do real.
+            incluir_sem_conta=(conta.id == principal_id),
+        )
+    return movimento
+
+
+def saldo_atual_por_conta(db: Session, empresa_id: int) -> dict[int, int]:
+    """Quanto cada conta ATIVA tem agora (âncora + movimento). Vazio enquanto a
+    loja não declarou nada -- aí não há saldo, só movimento.
+
+    É o número que o "Saldo de hoje" mostra para o dono conferir. Mostrar a
+    âncora (o que ele digitou semanas atrás) fazia parecer que o saldo estava
+    parado, e confirmar o mesmo valor não renovava nada.
+    """
+    contas = financeiro_crud.listar_contas_bancarias(db, empresa_id, apenas_ativas=True)
+    movimento = _movimento_por_conta(db, empresa_id, contas)
+    saldos = {}
+    for conta in contas:
+        if conta.id in movimento:
+            entrou, saiu = movimento[conta.id]
+            saldos[conta.id] = int(conta.saldo_informado or 0) + entrou - saiu
+    return saldos
+
+
 def saldo_atual_das_contas(db: Session, empresa_id: int) -> SaldoDasContas:
     """Âncora declarada + tudo que o livro moveu depois dela.
 
@@ -70,37 +119,12 @@ def saldo_atual_das_contas(db: Session, empresa_id: int) -> SaldoDasContas:
     vezes).
     """
     contas = financeiro_crud.listar_contas_bancarias(db, empresa_id, apenas_ativas=True)
-    principal = financeiro_crud.get_conta_principal(db, empresa_id)
-    principal_id = principal.id if principal else None
-
     ancora = sum(int(c.saldo_informado or 0) for c in contas)
     datas = [c.saldo_informado_em for c in contas if c.saldo_informado_em]
 
-    def _corte(conta) -> Optional[datetime]:
-        if not conta.saldo_informado_em:
-            return None
-        return conta.saldo_informado_instante or fim_do_dia_utc(conta.saldo_informado_em)
-
-    cortes = [c for c in (_corte(conta) for conta in contas) if c is not None]
-    corte_da_loja = min(cortes) if cortes else None
-
-    entrou = saiu = 0
-    for conta in contas:
-        corte = _corte(conta) or corte_da_loja
-        if corte is None:
-            continue  # a loja inteira nunca declarou nada
-        conta_entrou, conta_saiu = financeiro_crud.entradas_e_saidas_desde(
-            db,
-            empresa_id,
-            conta_id=conta.id,
-            desde=corte,
-            # As linhas órfãs (antigas, ou de uma conta apagada) caem na
-            # principal -- que é para onde os lançamentos novos vão. Jogá-las
-            # fora faria o saldo derivado ficar abaixo do real.
-            incluir_sem_conta=(conta.id == principal_id),
-        )
-        entrou += conta_entrou
-        saiu += conta_saiu
+    movimento = _movimento_por_conta(db, empresa_id, contas)
+    entrou = sum(e for e, _ in movimento.values())
+    saiu = sum(s for _, s in movimento.values())
 
     return SaldoDasContas(
         saldo=ancora + entrou - saiu,

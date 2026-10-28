@@ -101,6 +101,7 @@ from app.services.financeiro.conciliacao import (
 from app.services.financeiro.saldo import (
     SaldoDasContas,
     saldo_atual_das_contas,
+    saldo_atual_por_conta,
 )
 
 from app.services.financeiro.resumo import (
@@ -201,6 +202,7 @@ __all__ = [
     "baixar_lote",
     "SaldoDasContas",
     "saldo_atual_das_contas",
+    "saldo_atual_por_conta",
     "DIAS_ATE_O_SALDO_ENVELHECER",
     "FRACAO_MATERIAL_DO_FATURAMENTO",
     "PISO_VALOR_MATERIAL",

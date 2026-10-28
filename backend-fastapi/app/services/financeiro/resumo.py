@@ -42,9 +42,11 @@ from app.services.financeiro.fluxo_caixa import get_fluxo_caixa
 # RESUMO — a Visão Geral
 # ===========================================================================
 
-# Uma semana é o ponto em que o retrato do saldo deixa de servir: nele já
-# couberam um fim de semana de vendas e as contas do começo do mês.
-DIAS_ATE_O_SALDO_ENVELHECER = 7
+# Um mês: o lembrete de CONFERIR a gaveta e o banco. Era uma semana quando o
+# saldo era uma foto parada; desde 02/09/2026 ele anda sozinho com o livro, e
+# pedir a declaração toda semana virou incômodo sem motivo (decisão do Alan,
+# 27/10/2026). O mês pega o que o livro não vê: troco errado, tarifa do banco.
+DIAS_ATE_O_SALDO_ENVELHECER = 30
 
 
 # ---------------------------------------------------------------------------

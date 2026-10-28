@@ -4,7 +4,7 @@
 #            atualizar) e a conta padrao dos lancamentos.
 # ---------------------------------------------------------------------------
 
-from typing import Optional, Sequence
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.core.enum import (
     ContaBancariaTipo,
@@ -13,7 +13,8 @@ from app.core.tempo import agora_utc, hoje_local
 from app.db.crud import financeiro as financeiro_crud
 from app.db.models.conta_bancaria import ContaBancaria
 from app.helpers.exceptions import BadRequestException, NotFoundException
-from app.schemas.financeiro import ContaBancariaCreate, ContaBancariaUpdate
+from app.schemas.financeiro import ContaBancariaCreate, ContaBancariaRead, ContaBancariaUpdate
+from app.services.financeiro.saldo import saldo_atual_por_conta
 
 
 # ===========================================================================
@@ -58,9 +59,15 @@ def _conta_padrao_id(db: Session, empresa_id: int) -> Optional[int]:
 
 def listar_contas_bancarias(
     db: Session, empresa_id: int, apenas_ativas: bool = False
-) -> Sequence[ContaBancaria]:
+) -> list[ContaBancariaRead]:
+    """As contas, cada uma com o saldo de AGORA (`saldo_atual`), e não só a
+    âncora declarada: é o número que o dono confere no "Saldo de hoje"."""
     _semear_conta_padrao(db, empresa_id)
-    return financeiro_crud.listar_contas_bancarias(db, empresa_id, apenas_ativas)
+    saldos = saldo_atual_por_conta(db, empresa_id)
+    return [
+        ContaBancariaRead.model_validate(conta).model_copy(update={"saldo_atual": saldos.get(conta.id)})
+        for conta in financeiro_crud.listar_contas_bancarias(db, empresa_id, apenas_ativas)
+    ]
 
 
 def criar_conta_bancaria(

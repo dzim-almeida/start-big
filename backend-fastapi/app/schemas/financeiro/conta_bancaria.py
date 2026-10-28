@@ -47,4 +47,9 @@ class ContaBancariaRead(BaseModel):
     saldo_informado_em: Optional[date] = Field(
         None, description="Quando foi declarado; NULL = nunca, e a tela precisa pedir"
     )
+    saldo_atual: Optional[int] = Field(
+        None,
+        description="Quanto a conta tem AGORA: a âncora mais o que o livro moveu "
+        "depois dela. NULL enquanto a loja não declarou saldo nenhum",
+    )
     criado_em: datetime

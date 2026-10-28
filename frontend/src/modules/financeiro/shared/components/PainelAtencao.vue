@@ -97,9 +97,9 @@ function traduzir(alerta: AlertaFinanceiro): Texto | null {
       };
     case 'SALDO_DESATUALIZADO':
       return {
-        titulo: `Saldo informado há ${alerta.quantidade} dias`,
-        detalhe: 'O saldo não anda sozinho: dar baixa numa conta não o move. Confira e atualize.',
-        acao: 'Atualizar saldo',
+        titulo: `Saldo conferido há ${alerta.quantidade} dias`,
+        detalhe: 'O saldo anda sozinho com as vendas e as contas pagas. Uma vez por mês, confira a gaveta e o banco: se bater, é só confirmar.',
+        acao: 'Conferir saldo',
         evento: 'informarSaldo',
       };
     // --- TENDÊNCIA: o que a série sabe e a fotografia do mês não sabe ---

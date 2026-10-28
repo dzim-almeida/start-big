@@ -410,16 +410,23 @@ export function useBaixarLote() {
   });
 }
 
-export function useAtualizarContaBancaria() {
+/**
+ * Grava o saldo conferido de cada conta. Toda conta vai, mesmo a que bateu:
+ * confirmar o mesmo número é o que renova a data e tira o lembrete mensal.
+ */
+export function useInformarSaldos() {
   const invalidar = useInvalidarFinanceiro();
   const toast = useToast();
 
   return useMutation({
-    mutationFn: ({ id, ...payload }: { id: number; saldo_informado?: number }) =>
-      service.atualizarContaBancaria(id, payload),
+    mutationFn: async (saldos: { id: number; saldo_informado: number }[]) => {
+      for (const { id, saldo_informado } of saldos) {
+        await service.atualizarContaBancaria(id, { saldo_informado });
+      }
+    },
     onSuccess: () => {
       invalidar();
-      toast.success('Saldo atualizado');
+      toast.success('Saldo confirmado');
     },
   });
 }
