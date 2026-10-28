@@ -83,6 +83,24 @@ class FiscalClientMock:
         )
         return resultado
 
+    def emitir_nfse(
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+    ) -> EmissaoResultado:
+        logger.info("[FISCAL MOCK] emitir_nfse ref=%s", ref)
+        self._simular_latencia()
+        return {
+            "status": "autorizado",
+            "chave_acesso": None,
+            "protocolo": None,
+            "numero": _gerar_numero_nota(),
+            "serie": None,
+            "url_pdf": f"https://mock.startbig.com.br/danfse/{ref}.pdf",
+            "url_xml": f"https://mock.startbig.com.br/xml/{ref}.xml",
+            "codigo_sefaz": None,
+            "mensagem_sefaz": "NFS-e autorizada (MOCK - SEM VALOR FISCAL)",
+            "codigo_verificacao": "MOCK123",
+        }
+
     def emitir_nfce(
         self, ref: str, payload: dict, idempotency_key: Optional[str] = None
     ) -> EmissaoResultado:

@@ -46,7 +46,7 @@ def consultar_documento(db: Session, documento_id: int, empresa_id: int) -> Docu
     try:
         resultado = client.consultar_nfe(doc.ref_api, doc.tipo_documento)
         _aplicar_resultado(doc, resultado, client)
-        espelhar_na_nota_da_venda(db, doc)
+        espelhar_na_nota_da_venda(db, doc, resultado)
         _devolver_moveis_se_caiu(db, doc)
         # A devolução que ficou PROCESSANDO/INDETERMINADA na emissão só devolve
         # saldo e estoque quando a SEFAZ confirma -- e a confirmação chega aqui.
@@ -120,6 +120,12 @@ def _assert_dentro_da_janela_de_cancelamento(doc: DocumentoFiscal) -> None:
     dinheiro ao cliente. Melhor recusar aqui e orientar a emitir devolução.
     """
     if not doc.data_autorizacao:
+        return
+
+    # NFS-e: o prazo é de cada município (e muda), e o Sistema Nacional recusa
+    # fora dele com um erro claro (V999). Sem esta saída ela cairia no prazo
+    # mais curto da tabela abaixo — os 30 minutos da NFC-e.
+    if doc.tipo_documento == "NFSE":
         return
 
     autorizacao = doc.data_autorizacao

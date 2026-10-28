@@ -604,3 +604,42 @@ export interface InutilizacaoRequest {
   /** Mínimo de 15 caracteres — é o que a SEFAZ exige. */
   justificativa: string;
 }
+
+// ===========================================================================
+// NFS-e DA OS (backend-fastapi/docs/nfse-plano.md, F3)
+// ===========================================================================
+
+/** Uma NFS-e na lista da aba (GET /fiscal/nfse/documentos). */
+export interface NfseDocumento {
+  id: number;
+  numero_os: string | null;
+  status: DocumentoFiscalStatus;
+  numero: number | null;
+  /** Com ele o tomador confere a nota no portal da NFS-e. */
+  codigo_verificacao: string | null;
+  valor_total: number | null;
+  tomador: string | null;
+  mensagem: string | null;
+  url_pdf: string | null;
+  /** Link público da nota no portal (não expira, não pede login). */
+  url_consulta: string | null;
+  ambiente: number | null;
+  data_emissao: string | null;
+  data_autorizacao: string | null;
+}
+
+/** A DPS que sairia — campos no formato da Focus (só os que a tela mostra). */
+export interface NfsePreview {
+  numero_os: string;
+  dps: {
+    descricao_servico: string;
+    valor_servico: number;
+    desconto_incondicionado?: number;
+    codigo_tributacao_nacional_iss: string;
+    codigo_nbs?: string;
+    razao_social_tomador?: string;
+    cpf_tomador?: string;
+    cnpj_tomador?: string;
+    codigo_opcao_simples_nacional: string;
+  };
+}

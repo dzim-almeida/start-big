@@ -175,7 +175,10 @@ class FiscalClientStartBig:
         /erp/fiscal/nfce/... --, com módulo e cota próprios cada uma. Consultar
         um cupom no caminho da NF-e não acha a referência.
         """
-        return "nfce" if (tipo_documento or "").upper() == "NFCE" else "nfe"
+        tipo = (tipo_documento or "").upper()
+        if tipo == "NFSE":
+            return "nfse"
+        return "nfce" if tipo == "NFCE" else "nfe"
 
     @staticmethod
     def _primeiro(dados: dict, *chaves: str):
@@ -245,6 +248,9 @@ class FiscalClientStartBig:
             "numero_carta_correcao": self._primeiro(
                 response_data, "numero_carta_correcao", "sequencia",
             ),
+            # Só a NFS-e devolve; nas demais vêm None.
+            "codigo_verificacao": response_data.get("codigo_verificacao"),
+            "codigo_erro": response_data.get("codigo_erro"),
         }
 
     def _recusa_local(self, resposta, operacao: str = "emissao") -> EmissaoResultado:
@@ -321,6 +327,38 @@ class FiscalClientStartBig:
             raise EmissaoIncertaError(str(exc)) from exc
         except Exception as exc:
             logger.error("[FISCAL] Falha na requisição de emissão: %s", exc)
+            raise EmissaoIncertaError(str(exc)) from exc
+
+    def emitir_nfse(
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+    ) -> EmissaoResultado:
+        """NFS-e Nacional: mesmo contrato e mesmo tratamento de erro da NF-e."""
+        url = f"{self.base_url}/erp/fiscal/nfse/emitir"
+        body = {"ref": ref, "payload": payload}
+        headers = dict(self.headers)
+        if idempotency_key:
+            headers["X-Idempotency-Key"] = idempotency_key
+
+        _registrar_payload("NFSE", ref, body)
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json=body, headers=headers)
+                response.raise_for_status()
+                return self._parse_response(response.json())
+        except httpx.HTTPStatusError as exc:
+            logger.error("[FISCAL] Erro HTTP ao emitir NFS-e: %s - %s",
+                         exc.response.status_code, _resposta_para_log(exc.response))
+            if exc.response.status_code >= 500:
+                raise EmissaoIncertaError(
+                    f"Servidor respondeu {exc.response.status_code} ao emitir."
+                ) from exc
+            return self._recusa_local(exc.response)
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            logger.error("[FISCAL] Sem resposta ao emitir NFS-e: %s", exc)
+            raise EmissaoIncertaError(str(exc)) from exc
+        except Exception as exc:
+            logger.error("[FISCAL] Falha na requisição de emissão da NFS-e: %s", exc)
             raise EmissaoIncertaError(str(exc)) from exc
 
     def emitir_nfce(

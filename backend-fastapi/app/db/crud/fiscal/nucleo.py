@@ -188,16 +188,35 @@ def get_documento_ativo_por_venda(db: Session, numero_venda: int):
         _SO_NOTA_DA_OPERACAO,
     ).first()
 
+# A OS pode ter DUAS notas legítimas: a NF-e das peças e a NFS-e da mão de obra
+# (docs/nfse-plano.md, F3). Uma não tranca a outra, e cada uma conta as próprias
+# tentativas na `ref`. Antes da NFS-e não havia documento NFSE nenhum, então
+# este filtro não muda nada do que já existe.
+_SO_NFE_DA_OS = DocumentoFiscal.tipo_documento != "NFSE"
+
+
 def get_documento_ativo_por_os(db: Session, numero_os: str):
-    """Documento fiscal vivo desta OS — o que bloqueia uma segunda emissão.
+    """NF-e viva desta OS — o que bloqueia uma segunda emissão.
 
     Mesmos status de `get_documento_ativo_por_venda` — ver STATUS_DOCUMENTO_VIVO.
+    A NFS-e tem a sua: `get_nfse_ativa_por_os`.
     """
     return db.query(DocumentoFiscal).filter(
         DocumentoFiscal.origem_tipo == "OS",
         DocumentoFiscal.origem_numero_os == numero_os,
         DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
         _SO_NOTA_DA_OPERACAO,
+        _SO_NFE_DA_OS,
+    ).first()
+
+
+def get_nfse_ativa_por_os(db: Session, numero_os: str):
+    """NFS-e viva desta OS (mesma regra de STATUS_DOCUMENTO_VIVO)."""
+    return db.query(DocumentoFiscal).filter(
+        DocumentoFiscal.origem_tipo == "OS",
+        DocumentoFiscal.origem_numero_os == numero_os,
+        DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
+        DocumentoFiscal.tipo_documento == "NFSE",
     ).first()
 
 def get_documentos_ativos_por_vendas(db: Session, numeros_venda: list[int]) -> dict[int, DocumentoFiscal]:
@@ -260,12 +279,18 @@ def contar_documentos_por_venda(db: Session, numero_venda: int) -> int:
         DocumentoFiscal.origem_id == numero_venda,
     ).scalar() or 0
 
-def contar_documentos_por_os(db: Session, numero_os: str) -> int:
-    """Tentativas já feitas para esta OS — usado para compor a `ref` única."""
+def contar_documentos_por_os(db: Session, numero_os: str, tipo_documento: Optional[str] = None) -> int:
+    """Tentativas já feitas para esta OS — usado para compor a `ref` única.
+
+    Sem `tipo_documento`, conta as NF-e (as da NFS-e não entram, ver
+    `_SO_NFE_DA_OS`); com "NFSE", só as NFS-e.
+    """
     from sqlalchemy import func
+    filtro_tipo = (DocumentoFiscal.tipo_documento == tipo_documento) if tipo_documento else _SO_NFE_DA_OS
     return db.query(func.count(DocumentoFiscal.id)).filter(
         DocumentoFiscal.origem_tipo == "OS",
         DocumentoFiscal.origem_numero_os == numero_os,
+        filtro_tipo,
     ).scalar() or 0
 
 def get_nomes_destinatarios_por_vendas(db: Session, numeros_venda: list[int]) -> dict[int, str]:

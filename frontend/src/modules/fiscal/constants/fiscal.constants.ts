@@ -56,6 +56,8 @@ export const fiscalKeys = {
   inutilizacoes: () => ['fiscal', 'numeracao', 'inutilizacoes'] as const,
   /** NBS que a Receita correlaciona com um código nacional — tabela oficial, não muda. */
   nbsSugeridos: (codigoNacional: string) => ['fiscal', 'nfse', 'nbs-sugeridos', codigoNacional] as const,
+  /** NFS-e emitidas — mudam a cada emissão, consulta e cancelamento. */
+  nfseDocumentos: () => ['fiscal', 'nfse', 'documentos'] as const,
 };
 
 /**

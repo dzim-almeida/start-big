@@ -133,7 +133,8 @@ const homeRoutes: RouteRecordRaw[] = [
               subtitle: 'Notas Fiscais de Serviço',
               tabId: 'fiscal-nfse',
               requiresAuth: true,
-              exigeModulo: MODULOS.NFE,
+              // Módulo próprio: o prestador MEI contrata só a NFS-e.
+              exigeModulo: MODULOS.NFSE,
             },
           },
         ],

@@ -1,0 +1,285 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: test/api/v1/test_nfse_os.py
+# DESCRICAO: NFS-e da mao de obra da OS (F3 do docs/nfse-plano.md), com a
+#            plataforma simulada. O caso e o do canario: MEI em Iguatu/CE,
+#            suporte em informatica (01.07.01 / NBS 1.1501.30.00).
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.core.enum import OrdemServicoStatus
+from app.db.crud import fiscal as crud
+from app.db.models.documento_fiscal import DocumentoFiscal
+from app.db.models.empresa import Empresa
+from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
+from app.db.models.endereco import Endereco
+from app.db.models.ordem_servico import OrdemServico
+from app.db.models.ordem_servico_nota_fiscal import OrdemServicoNotaFiscal
+from app.main import app
+
+from test.apoio_orcamento_marcenaria import _criar_loja
+
+NFSE = "/api/v1/fiscal/nfse"
+OS_URL = "/api/v1/ordens-servico"
+CNPJ_MEI = "66544279000100"
+
+
+class PlataformaFalsa:
+    """O client fiscal, gravando o que recebeu e respondendo o roteiro."""
+
+    def __init__(self):
+        self.enviados = []
+        self.resposta = {
+            "status": "autorizado", "numero": 74798, "codigo_verificacao": "ABC123",
+            "url_pdf": "https://homologacao.focusnfe.com.br/arquivos/danfse.pdf",
+            "url_consulta": "https://www.nfse.gov.br/consultapublica?chave=1",
+            "mensagem_sefaz": None,
+        }
+        self.falha = None
+
+    def emitir_nfse(self, ref, payload, idempotency_key=None):
+        self.enviados.append((ref, payload))
+        if self.falha:
+            raise self.falha
+        return dict(self.resposta)
+
+    def baixar_xml(self, caminho):
+        return None
+
+    def baixar_pdf(self, caminho):
+        return None
+
+
+@pytest.fixture
+def client():
+    yield TestClient(app)
+
+
+@pytest.fixture
+def plataforma(monkeypatch):
+    falsa = PlataformaFalsa()
+    monkeypatch.setattr("app.services.fiscal.nfse.emissao_os.get_fiscal_client", lambda *a, **k: falsa)
+    return falsa
+
+
+@pytest.fixture
+def licenca(monkeypatch):
+    from app.core import modulos as modulos_mod
+
+    def _com(*modulos):
+        monkeypatch.setattr(modulos_mod.licenca_service, "modulos_da_licenca", lambda db: list(modulos))
+    _com("NFSE")
+    return _com
+
+
+@pytest.fixture
+def loja(client, db_session, licenca) -> dict:
+    """MEI de Iguatu/CE, so com a NFS-e."""
+    header = _criar_loja(client, "assistencia_tecnica")
+    empresa = db_session.query(Empresa).first()
+    empresa.documento = CNPJ_MEI
+    empresa.crt = 4
+    end = db_session.query(Endereco).filter(Endereco.id_entidade == empresa.id).first()
+    end.cidade, end.estado = "Iguatu", "CE"
+    db_session.add(EmpresaFiscalSettings(empresa_id=empresa.id, serie_nfe=1, ultimo_numero_nfe=0, ambiente_emissao=2))
+    db_session.commit()
+    return header
+
+
+@pytest.fixture
+def servico(client, loja) -> int:
+    r = client.post("/api/v1/servicos/", json={"descricao": "Suporte em informatica", "valor": 15000}, headers=loja)
+    assert r.status_code == 201, r.text
+    sid = r.json()["id"]
+    r = client.put(f"/api/v1/servicos/{sid}/fiscal", json={
+        "codigo_servico_lc116": "01.07", "codigo_tributacao_nacional": "01.07.01", "codigo_nbs": "1.1501.30.00",
+    }, headers=loja)
+    assert r.status_code == 200, r.text
+    return sid
+
+
+def _criar_os(client, loja, db_session, itens, desconto=0, finalizar=True) -> str:
+    cliente = client.post("/api/v1/clientes/cliente_pf", json={"nome": "Maria Souza", "cpf": "11144477735", "tipo": "PF"},
+                          headers=loja).json()["id"]
+    r = client.post(f"{OS_URL}/", json={
+        "cliente_id": cliente, "prioridade": "NORMAL", "defeito_relatado": "Notebook lento", "dados_adicionais": {},
+        "objeto": {"marca": "Dell", "modelo": "G15", "numero_serie": "SN12345"},
+        "itens": itens,
+    }, headers=loja)
+    assert r.status_code == 201, r.text
+    numero = r.json()["numero_os"]
+    os_obj = db_session.query(OrdemServico).filter_by(numero_os=numero).first()
+    if desconto:
+        os_obj.desconto = desconto
+    if finalizar:
+        os_obj.status = OrdemServicoStatus.FINALIZADA
+    db_session.commit()
+    return numero
+
+
+def _item_servico(servico_id=None, valor=15000, nome="Formatacao e backup"):
+    item = {"tipo": "SERVICO", "nome": nome, "unidade_medida": "UN", "quantidade": 1, "valor_unitario": valor}
+    if servico_id:
+        item["item_id"] = servico_id
+    return item
+
+
+# =========================
+# Trava e conferencia
+# =========================
+
+def test_sem_o_modulo_nfse_nao_emite(client, loja, servico, db_session, licenca, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    licenca("NFE")
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    assert r.status_code == 403
+    assert plataforma.enviados == []
+
+
+def test_servico_avulso_e_sem_codigos_viram_pendencia_nomeada(client, loja, db_session, plataforma):
+    sem_codigo = client.post("/api/v1/servicos/", json={"descricao": "Limpeza", "valor": 5000}, headers=loja).json()["id"]
+    numero = _criar_os(client, loja, db_session, [_item_servico(), _item_servico(sem_codigo, nome="Limpeza interna")])
+
+    r = client.get(f"{NFSE}/os/{numero}/verificar", headers=loja)
+
+    campos = {p["campo"] for p in r.json()["pendencias"]}
+    assert r.json()["completo"] is False
+    assert {"avulso_servico", "codigo_tributacao_nacional"} <= campos
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    assert r.status_code == 422 and r.json()["detail"]["codigo"] == "PENDENCIAS_FISCAIS"
+    assert plataforma.enviados == []
+
+
+def test_os_nao_finalizada_nao_emite(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)], finalizar=False)
+    assert client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).status_code == 422
+    assert plataforma.enviados == []
+
+
+# =========================
+# Emissao
+# =========================
+
+def test_emite_a_dps_do_mei_de_iguatu(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [
+        _item_servico(servico, 15000),
+        {"tipo": "PRODUTO", "nome": "Pente de memoria", "unidade_medida": "UN", "quantidade": 1, "valor_unitario": 25000},
+    ], desconto=4000)
+
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "AUTORIZADA"
+    ref, dps = plataforma.enviados[0]
+    assert ref == f"os-{numero}-nfse"
+    assert dps["cnpj_prestador"] == CNPJ_MEI
+    assert dps["codigo_opcao_simples_nacional"] == "2"            # MEI
+    assert dps["codigo_municipio_emissora"] == 2305506            # Iguatu/CE
+    assert dps["codigo_municipio_prestacao"] == "2305506"
+    assert dps["codigo_tributacao_nacional_iss"] == "010701"
+    assert dps["codigo_nbs"] == "115013000"
+    assert dps["valor_servico"] == 150.0                          # so o servico, nao a peca
+    assert dps["desconto_incondicionado"] == 15.0                 # 40,00 x 150/400
+    assert dps["cpf_tomador"] == "11144477735"
+    assert "percentual_aliquota_relativa_municipio" not in dps    # MEI: ISS no DAS
+    assert "serie_dps" not in dps and "numero_dps" not in dps     # D3: a Focus numera
+
+    doc = db_session.query(DocumentoFiscal).filter_by(tipo_documento="NFSE").one()
+    assert (doc.numero_documento, doc.valor_total) == (74798, 13500)
+    nota = db_session.query(OrdemServicoNotaFiscal).filter_by(os_id=doc.origem_id).one()
+    assert (nota.status_nfse, nota.numero_nfse, nota.codigo_verificacao_nfse) == ("AUTORIZADA", "74798", "ABC123")
+    assert nota.url_nfse == "https://www.nfse.gov.br/consultapublica?chave=1"
+
+
+def test_nfse_nao_trava_a_nfe_das_pecas_e_nao_repete(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    assert client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).status_code == 200
+
+    assert crud.get_documento_ativo_por_os(db_session, numero) is None   # a NF-e continua livre
+    assert crud.contar_documentos_por_os(db_session, numero) == 0
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    assert r.status_code == 409 and r.json()["detail"]["codigo"] == "NFSE_JA_AUTORIZADA"
+    assert len(plataforma.enviados) == 1
+
+
+def test_sem_resposta_vira_indeterminada_e_nao_rejeitada(client, loja, servico, db_session, plataforma):
+    plataforma.falha = TimeoutError("sem resposta")
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.json()["status"] == "INDETERMINADA"
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    assert r.status_code == 409 and r.json()["detail"]["codigo"] == "NFSE_INDETERMINADA"
+
+
+def test_rejeitada_libera_nova_tentativa_com_outra_ref(client, loja, servico, db_session, plataforma):
+    plataforma.resposta = {"status": "erro", "status_focus": "erro_autorizacao", "codigo_erro": "E0312",
+                           "mensagem_sefaz": "E0312 - Código de tributação nacional inexistente"}
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    assert client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).json()["status"] == "REJEITADA"
+
+    plataforma.resposta = {"status": "autorizado", "numero": 2}
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.json()["status"] == "AUTORIZADA"
+    assert plataforma.enviados[1][0] == f"os-{numero}-nfse-2"
+
+
+def test_os_da_marcenaria_ainda_nao_emite_nfse(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    os_obj = db_session.query(OrdemServico).filter_by(numero_os=numero).first()
+    os_obj.itens[0].origem = "ORCAMENTO_MARCENARIA"
+    db_session.commit()
+
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.status_code == 422 and r.json()["detail"]["codigo"] == "OS_DA_MARCENARIA"
+
+
+# =========================
+# Cancelamento: o prazo e do municipio
+# =========================
+
+def test_nfse_nao_cai_no_prazo_de_30_minutos_da_nfce():
+    from app.services.fiscal.eventos.consulta_cancelamento import _assert_dentro_da_janela_de_cancelamento
+
+    doc = DocumentoFiscal(tipo_documento="NFSE", data_autorizacao=datetime.now(timezone.utc) - timedelta(days=3))
+    _assert_dentro_da_janela_de_cancelamento(doc)          # nao levanta: quem decide e o Sistema Nacional
+
+
+# =========================
+# Client: a NFS-e usa a familia /erp/fiscal/nfse da plataforma
+# =========================
+
+def test_client_consulta_e_cancela_a_nfse_na_rota_dela():
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    assert FiscalClientStartBig._segmento("NFSE") == "nfse"
+    assert FiscalClientStartBig._segmento("NFE") == "nfe"       # o resto nao muda
+    assert FiscalClientStartBig._segmento("NFCE") == "nfce"
+
+
+def test_client_le_o_codigo_de_verificacao_e_o_erro_alfanumerico():
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    r = FiscalClientStartBig()._parse_response({
+        "status": "autorizado", "numero": 74798, "codigo_verificacao": "ABC123", "codigo_erro": None,
+        "mensagem_sefaz": "ok",
+    })
+    assert (r["status"], r["numero"], r["codigo_verificacao"]) == ("autorizado", 74798, "ABC123")
+
+
+def test_lista_as_nfse_com_o_codigo_de_verificacao(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    r = client.get(f"{NFSE}/documentos", headers=loja)
+
+    assert r.status_code == 200, r.text
+    [nota] = r.json()
+    assert (nota["numero_os"], nota["status"], nota["numero"], nota["codigo_verificacao"]) == (numero, "AUTORIZADA", 74798, "ABC123")
+    assert nota["tomador"] == "Maria Souza"

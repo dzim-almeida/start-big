@@ -9,6 +9,8 @@
 # polling nunca chegava à venda. Um lugar só, chamado por quem muda o status.
 # ---------------------------------------------------------------------------
 
+from typing import Optional
+
 from sqlalchemy.orm import Session
 
 from app.db.crud import fiscal as crud
@@ -16,12 +18,18 @@ from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
 
 
-def espelhar_na_nota_da_venda(db: Session, doc: DocumentoFiscal) -> None:
+def espelhar_na_nota_da_venda(db: Session, doc: DocumentoFiscal, resultado: Optional[dict] = None) -> None:
     """Copia o estado do documento para a nota da venda de origem, se houver.
 
-    Só documentos de VENDA têm espelho; a OS guarda o seu do lado dela.
+    Só documentos de VENDA têm espelho; a OS guarda o seu do lado dela — com
+    uma exceção: a NFS-e da OS, cujos campos `*_nfse` vivem na nota da OS
+    (`nfse/espelho.py`; `resultado` leva o código de verificação).
     Nunca levanta: espelho é conveniência da tela, não parte da emissão.
     """
+    if doc.tipo_documento == "NFSE":
+        from app.services.fiscal.nfse.espelho import espelhar_nfse_na_os
+        espelhar_nfse_na_os(db, doc, resultado)
+        return
     if doc.origem_tipo != "VENDA" or doc.origem_id is None:
         return
 

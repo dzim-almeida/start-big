@@ -8,6 +8,9 @@ import { recursoDisponivel } from '@/shared/config/planos';
 import { useFiscalConfiguracaoQuery } from '../composables/useFiscalConfiguracaoQuery';
 
 const nfeDisponivel = recursoDisponivel('nfe');
+// O prestador só com NFS-e também entra: a aba dele exige o módulo NFSE, e as
+// demais seguem travadas pela rota (exigeModulo).
+const centroLiberado = nfeDisponivel || recursoDisponivel('nfse');
 const upgradeSolicitado = ref(false);
 
 // Só consulta a configuração fiscal se o recurso estiver liberado. Sem o
@@ -36,7 +39,7 @@ function solicitarUpgrade() {
 <template>
   <div class="h-full flex flex-col p-6 overflow-y-auto">
     <!-- Estado bloqueado (plano Start) -->
-    <div v-if="!nfeDisponivel" class="flex-1 flex items-start justify-center">
+    <div v-if="!centroLiberado" class="flex-1 flex items-start justify-center">
       <div class="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
         <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-primary-light flex items-center justify-center mb-5">
           <Lock :size="28" class="text-brand-primary" />

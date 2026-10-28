@@ -82,6 +82,13 @@ class EmissaoResultado(TypedDict):
     # `numero_carta_correcao`. Só `emitir_carta_correcao` a preenche.
     numero_carta_correcao: NotRequired[Optional[int]]
 
+    # --- Só na NFS-e (docs/nfse-plano.md, F3) ---
+    # `codigo_verificacao` é com o que o tomador confere a nota no portal; os
+    # erros do Sistema Nacional são alfanuméricos ("E0312") e vêm em
+    # `codigo_erro`, não no `codigo_sefaz` numérico.
+    codigo_verificacao: NotRequired[Optional[str]]
+    codigo_erro: NotRequired[Optional[str]]
+
 
 class EnvioCertificadoResultado(TypedDict):
     """Retorno do envio do certificado A1 para a plataforma.
@@ -149,6 +156,17 @@ class FiscalClientProtocol(Protocol):
         `idempotency_key` viaja em X-Idempotency-Key: a retentativa após
         timeout reusa a chave e a API intermediária reconhece a mesma emissão
         em vez de criar uma segunda nota.
+        """
+        ...
+
+    def emitir_nfse(
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+    ) -> EmissaoResultado:
+        """
+        Envia a DPS da NFS-e Nacional (`payload` já no formato da Focus).
+        Assíncrona como a NF-e: volta 'processando' e o polling resolve.
+        Consulta e cancelamento usam `consultar_nfe`/`cancelar_nfe` com
+        `tipo_documento="NFSE"`.
         """
         ...
 

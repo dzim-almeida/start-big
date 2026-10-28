@@ -201,15 +201,16 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         icon: FileText,
         label: 'Centro Fiscal',
         requiredPermission: PERMISSIONS.enterprise,
-        // Basta UM dos dois para o Centro Fiscal existir: NF-e e NFC-e sao
-        // contratacoes separadas, e ha loja que so emite cupom.
-        featureFlag: () => recursoDisponivel('nfe') || recursoDisponivel('nfce'),
+        // Basta UM para o Centro Fiscal existir: NF-e, NFC-e e NFS-e sao
+        // contratacoes separadas -- ha loja que so emite cupom, e prestador
+        // MEI que so emite nota de servico.
+        featureFlag: () => recursoDisponivel('nfe') || recursoDisponivel('nfce') || recursoDisponivel('nfse'),
         children: [
           // Cada aba carrega o SEU modulo: quem tem NF-e e nao tem cupom ve a
           // aba de NFC-e com cadeado, e nao um 403 depois da venda fechada.
           { id: 'fiscal-nfe', label: 'NF-e', requiredModule: MODULOS.NFE },
           { id: 'fiscal-nfce', label: 'NFC-e', requiredModule: MODULOS.NFCE },
-          { id: 'fiscal-nfse', label: 'NFS-e' },
+          { id: 'fiscal-nfse', label: 'NFS-e', requiredModule: MODULOS.NFSE },
         ],
       },
       {

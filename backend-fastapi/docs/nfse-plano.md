@@ -223,6 +223,41 @@ idênticas e um commit próprio, e não depende de ligar a anterior em produçã
 - Diagnóstico das rejeições do sistema nacional (códigos `E…`) com mensagem em
   português, no estilo de `diagnostico_sefaz.py`.
 
+**Entrega da F3 (28/10/2026, ERP, branch `feat/nfse`):**
+- `services/fiscal/nfse/`:
+  - `payload.py` monta a DPS da mão de obra (formato plano da Focus). D2: um
+    código nacional por nota. D3: sem série nem número (a Focus numera). D4:
+    desconto rateado como `desconto_incondicionado`. MEI e Simples não mandam
+    alíquota. IBS/CBS só se o serviço tiver CST e classificação.
+  - `completude.py` lista as pendências da NFS-e e é chamada **só** pela emissão
+    dela.
+  - `emissao_os.py` faz a emissão, com trava própria (`get_nfse_ativa_por_os`) e
+    `ref` `os-<n>-nfse[-k]`.
+  - `espelho.py` grava o resultado nos `*_nfse` da nota da OS, inclusive o
+    código de verificação.
+- `get_documento_ativo_por_os` e `contar_documentos_por_os` deixaram de contar a
+  NFS-e, para que a NF-e das peças não seja travada pela nota de serviço. Antes
+  não havia documento NFSE nenhum, então o comportamento existente não muda.
+- Cliente HTTP:
+  - `emitir_nfse`;
+  - `_segmento("NFSE") = "nfse"`, o que faz a consulta, o cancelamento, o polling
+    e a reconciliação de boot da NF-e servirem à NFS-e;
+  - `codigo_verificacao` e `codigo_erro` na resposta.
+- O prazo de cancelamento da NFS-e não é barrado no ERP: quem recusa é o Sistema
+  Nacional (V999). Antes ela cairia nos 30 minutos da NFC-e.
+- Rotas `/fiscal/nfse/os/{n}/verificar|preview|emitir`, `/documentos` (lista),
+  `/documentos/{id}/consultar|cancelar`, com o módulo NFSE e a permissão
+  `servico`.
+- OS da marcenaria recusa a emissão (`OS_DA_MARCENARIA`) até a D8.
+- Front: a aba **NFS-e** do Centro Fiscal deixou de ser "em breve". Ela tem
+  "Emitir NFS-e" (conferir → nota que vai sair → emitir) e a lista com número,
+  código de verificação, link do portal, PDF, consultar e cancelar. A aba, o
+  menu e o layout passaram a exigir o módulo **NFSE**, e não mais o NFE.
+- Achado: a `NotaFiscalSection` da OS também nunca foi montada; a NF-e da OS só
+  sai pelo Centro Fiscal ou pela aba Entrega da marcenaria.
+- Fuso: o payload usa `core/tempo.fuso_local()`. O `ZoneInfo("America/Sao_Paulo")`
+  quebra no Windows sem `tzdata`.
+
 ### F4 — Cancelamento e documentos
 - Cancelar (síncrono, com justificativa) a partir da OS e da lista de documentos.
 - DANFSe/XML na lista de documentos e no ZIP do contador (passando pelo "Salvar
