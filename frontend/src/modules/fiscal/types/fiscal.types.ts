@@ -534,6 +534,27 @@ export interface BuscaNcmResposta {
 }
 
 // ===========================================================================
+// NFS-E — tabelas oficiais (código de tributação nacional e NBS)
+// ===========================================================================
+
+/** Um código das tabelas da NFS-e Nacional (mesma forma do NCM). */
+export interface CodigoFiscalItem {
+  codigo: string;
+  descricao: string;
+  descricao_completa: string | null;
+}
+
+export interface BuscaServicoNacionalResposta {
+  resultados: CodigoFiscalItem[];
+}
+
+export interface BuscaNbsResposta {
+  /** Os NBS que a Receita correlaciona com o código nacional informado. */
+  sugeridos: CodigoFiscalItem[];
+  resultados: CodigoFiscalItem[];
+}
+
+// ===========================================================================
 // NUMERAÇÃO — buracos e inutilização
 // ===========================================================================
 

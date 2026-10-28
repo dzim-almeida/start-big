@@ -292,6 +292,36 @@ def requer_modulo_fiscal(
     # 1. A loja contratou? Levanta 403 MODULO_NAO_CONTRATADO se não.
     requer_modulo("NFE")(db=db)
 
+    return _exigir_fiscal_configurado(usuario_token, db)
+
+
+def requer_modulo_fiscal_servico(
+    usuario_token: Dict[str, Any] = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    O `requer_modulo_fiscal` do CADASTRO FISCAL DO SERVIÇO: aceita NFE **ou** NFSE.
+
+    O serviço tem campos das duas notas (CFOP/CST para nota mista; LC 116,
+    código nacional e NBS para a NFS-e). Um prestador MEI contrata só a NFS-e,
+    e sem esta porta não conseguiria preencher o próprio serviço
+    (docs/nfse-plano.md, F1). Para quem tem NFE, nada muda: a primeira
+    pergunta responde igual a antes, e o 403 de quem não tem nenhum dos dois é
+    o mesmo de sempre (o da NFE).
+    """
+    try:
+        requer_modulo("NFE")(db=db)
+    except HTTPException as sem_nfe:
+        try:
+            requer_modulo("NFSE")(db=db)
+        except HTTPException:
+            raise sem_nfe
+
+    return _exigir_fiscal_configurado(usuario_token, db)
+
+
+def _exigir_fiscal_configurado(usuario_token: Dict[str, Any], db: Session) -> Dict[str, Any]:
+    """A pergunta (2) do `requer_modulo_fiscal`: ESTA empresa já configurou?"""
     empresa_id = usuario_token.get("empresa_id")
     if not empresa_id:
         raise HTTPException(

@@ -55,6 +55,14 @@ export const ServiceFormSchema = z.object({
   fiscal_aliquota_ibs_display: z.string().optional().or(z.literal('')),
   fiscal_aliquota_cbs_display: z.string().optional().or(z.literal('')),
   fiscal_c_benef: z.string().max(10).optional().or(z.literal('')),
+
+  // NFS-e Nacional (só dígitos)
+  fiscal_codigo_tributacao_nacional: z.string()
+    .refine((v) => !v || /^\d{6}$/.test(v), { message: 'Escolha o código na lista ou digite os 6 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_codigo_nbs: z.string()
+    .refine((v) => !v || /^\d{9}$/.test(v), { message: 'Escolha o NBS na lista ou digite os 9 dígitos' })
+    .optional().or(z.literal('')),
 });
 
 const FiltersServiceSchema = z.object({

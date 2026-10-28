@@ -43,6 +43,11 @@ class ServicoFiscal(Base):
     aliquota_iss: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Código de tributação no município (opcional, varia por prefeitura)
     codigo_tributacao_municipio: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # NFS-e Nacional (docs/nfse-plano.md, F1): código de tributação nacional,
+    # 6 dígitos = item + subitem + desdobro da LC 116 (ex: "010701")
+    codigo_tributacao_nacional: Mapped[Optional[str]] = mapped_column(String(6), nullable=True)
+    # NBS, a "NCM dos serviços", 9 dígitos sem pontuação (ex: "115013000")
+    codigo_nbs: Mapped[Optional[str]] = mapped_column(String(9), nullable=True)
 
     # --- Campos compartilhados com NF-e (quando serviço consta em nota mista) ---
     cfop_padrao: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)

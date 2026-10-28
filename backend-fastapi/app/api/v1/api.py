@@ -36,6 +36,7 @@ from app.api.v1.endpoints import checklist_mobile
 from app.api.v1.endpoints import backup
 from app.api.v1.endpoints import fiscal
 from app.api.v1.endpoints import fiscal_produto
+from app.api.v1.endpoints import fiscal_nfse
 from app.api.v1.endpoints import etiquetas
 from app.api.v1.endpoints import produto_embalagem
 from app.api.v1.endpoints import produto_regra_preco
@@ -182,6 +183,8 @@ router.include_router(fiscal.router, prefix="/fiscal", tags=["Fiscal"])
 # O lado fiscal do cadastro de produto (sugestão, campos, NCM, pré-validação).
 # MESMO prefixo: saiu de fiscal.py pelo teto do PyArmor, e nenhuma URL mudou.
 router.include_router(fiscal_produto.router, prefix="/fiscal", tags=["Fiscal"])
+# NFS-e (docs/nfse-plano.md): o router inteiro exige o módulo NFSE na licença.
+router.include_router(fiscal_nfse.router, prefix="/fiscal/nfse", tags=["Fiscal"])
 
 # Central de Etiquetas: modelos de layout compartilhados pela loja. Imprimir é
 # papel do terminal (Tauri), não do backend -- ver docs/etiquetas-plano.md.

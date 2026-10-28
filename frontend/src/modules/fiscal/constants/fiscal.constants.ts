@@ -54,6 +54,8 @@ export const fiscalKeys = {
   numeracaoGaps: () => ['fiscal', 'numeracao', 'gaps'] as const,
   /** Histórico de inutilizações pedidas à SEFAZ. */
   inutilizacoes: () => ['fiscal', 'numeracao', 'inutilizacoes'] as const,
+  /** NBS que a Receita correlaciona com um código nacional — tabela oficial, não muda. */
+  nbsSugeridos: (codigoNacional: string) => ['fiscal', 'nfse', 'nbs-sugeridos', codigoNacional] as const,
 };
 
 /**

@@ -4,9 +4,10 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { useServicoModal } from '../composables/useServicoModal';
 import { useServicoFormProvider } from '../composables/useServicoForm';
 import ServicoDadosSection from './form/ServicoDadosSection.vue';
+import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
 
 const { isOpen, isCreateMode, isViewMode, modalTitle, closeModal } = useServicoModal();
-const { onSubmit, isPending, submitCount, apiError } = useServicoFormProvider();
+const { onSubmit, isPending, submitCount, apiError, nfseDisponivel } = useServicoFormProvider();
 </script>
 
 <template>
@@ -26,6 +27,15 @@ const { onSubmit, isPending, submitCount, apiError } = useServicoFormProvider();
 
       <form id="servico-form" @submit.prevent="onSubmit" class="space-y-8">
         <ServicoDadosSection :submit-count="submitCount" :disabled="isViewMode" />
+        <!-- A seção fiscal existia desde o Centro Fiscal (97e64d39) mas nunca
+             foi montada. Entra com a NFS-e (docs/nfse-plano.md, F1), só para
+             quem tem o módulo: para as outras lojas o modal não muda. -->
+        <DadosFiscaisSection
+          v-if="nfseDisponivel"
+          :submit-count="submitCount"
+          :disabled="isViewMode"
+          :is-create-mode="isCreateMode"
+        />
       </form>
     </div>
 

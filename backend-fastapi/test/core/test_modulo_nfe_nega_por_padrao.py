@@ -101,4 +101,5 @@ def test_a_lista_de_excecao_e_estreita():
     """
     # COMPRAS entrou em 03/10/2026 (docs/compras-plano.md, D2): módulo novo,
     # ninguém em campo o usa, e é vendido à parte.
-    assert MODULOS_NEGADOS_SEM_RESPOSTA == frozenset({"NFE", "NFCE", "COMPRAS"})
+    # NFSE entrou em 28/10/2026 (docs/nfse-plano.md, R1): mesmo caso da NFE.
+    assert MODULOS_NEGADOS_SEM_RESPOSTA == frozenset({"NFE", "NFCE", "NFSE", "COMPRAS"})

@@ -4,12 +4,17 @@
  * @description Seção de dados fiscais do serviço (LC116, CNAE, ISS etc.)
  *
  * Componente de apresentação — os campos pertencem ao form principal
- * gerenciado por useServicoFormProvider. Não possui lógica própria de
- * query/mutation; dados fiscais são salvos junto com o serviço.
+ * gerenciado por useServicoFormProvider. Dados fiscais são salvos junto com o
+ * serviço. A única consulta própria é a das tabelas da NFS-e (busca do código
+ * nacional e NBS sugeridos), que não grava nada.
  */
 
 import { computed } from 'vue';
 import { FileText, Info } from 'lucide-vue-next';
+import CodigoFiscalBuscaInput from '@/modules/fiscal/components/shared/CodigoFiscalBuscaInput.vue';
+import { fiscalService } from '@/modules/fiscal/services/fiscal.service';
+import { useNbsSugeridos } from '@/modules/fiscal/composables/useNbsSugeridos';
+import { formatarCodigoNacional, formatarNbs } from '@/modules/fiscal/utils/nfse.utils';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -52,8 +57,22 @@ const {
   fiscal_aliquota_ibs_display,
   fiscal_aliquota_cbs_display,
   fiscal_c_benef,
+  fiscal_codigo_tributacao_nacional,
+  fiscal_codigo_nbs,
+  nfseDisponivel,
   errors,
 } = useServicoForm();
+
+// =============================================
+// NFS-e Nacional (código nacional → NBS sugeridos)
+// =============================================
+
+const nbsSugeridos = useNbsSugeridos(fiscal_codigo_tributacao_nacional, nfseDisponivel);
+
+const buscarServicoNacional = async (termo: string) =>
+  (await fiscalService.buscarServicoNacional(termo)).resultados;
+
+const buscarNbs = async (termo: string) => (await fiscalService.buscarNbs(termo)).resultados;
 
 // =============================================
 // Regime tributário (CST vs CSOSN)
@@ -194,6 +213,46 @@ const regimeDefinido = computed(() => !!regimeTributario.value);
         placeholder="Pesquise o CSOSN..."
         :error="submitCount > 0 ? errors.fiscal_csosn : undefined"
       />
+    </div>
+
+    <!-- NFS-e Nacional (só com o módulo NFSE) -->
+    <div v-if="nfseDisponivel" class="mt-6 pt-5 border-t border-zinc-200">
+      <div class="flex items-center gap-2 mb-2">
+        <h4 class="text-sm font-semibold text-zinc-700">NFS-e Nacional</h4>
+        <span class="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-emerald-100 text-emerald-700 rounded-full">Novo</span>
+      </div>
+      <p class="text-xs text-zinc-500 mb-4">
+        Procure pelo que o serviço é (ex: "suporte informática"). Escolhido o código nacional,
+        o NBS mostra as opções que a Receita indica para ele. Na dúvida, compare com uma nota
+        que você já emitiu pelo portal.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CodigoFiscalBuscaInput
+          v-model="fiscal_codigo_tributacao_nacional"
+          label="Código de Tributação Nacional"
+          placeholder="Ex: 01.07.01 ou suporte informática"
+          :digitos="6"
+          :formatar="formatarCodigoNacional"
+          :buscar="buscarServicoNacional"
+          :disabled="disabled"
+          :error="submitCount > 0 ? errors.fiscal_codigo_tributacao_nacional : undefined"
+          ajuda="Item, subitem e desdobro da LC 116 (6 dígitos). Na nota que você já emitiu pelo portal da NFS-e, aparece como 'Código de Tributação Nacional'."
+        />
+
+        <CodigoFiscalBuscaInput
+          v-model="fiscal_codigo_nbs"
+          label="NBS"
+          placeholder="Ex: 1.1501.30.00 ou suporte TI"
+          :digitos="9"
+          :formatar="formatarNbs"
+          :buscar="buscarNbs"
+          :sugeridos="nbsSugeridos"
+          :disabled="disabled"
+          :error="submitCount > 0 ? errors.fiscal_codigo_nbs : undefined"
+          ajuda="Nomenclatura Brasileira de Serviços — a 'NCM dos serviços' (9 dígitos)."
+        />
+      </div>
     </div>
 
     <!-- Reforma Tributária (IBS/CBS) -->

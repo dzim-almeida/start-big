@@ -41,6 +41,16 @@ class ServicoFiscalBase(BaseModel):
         max_length=20,
         description="Código de tributação no município (varia por prefeitura)",
     )
+    codigo_tributacao_nacional: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Código de tributação nacional da NFS-e, 6 dígitos (ex: '01.07.01')",
+    )
+    codigo_nbs: Optional[str] = Field(
+        None,
+        max_length=14,
+        description="NBS do serviço, 9 dígitos (ex: '1.1501.30.00')",
+    )
 
     # --- Campos NF-e ---
     cfop_padrao: Optional[str] = Field(
@@ -106,6 +116,28 @@ class ServicoFiscalBase(BaseModel):
         digitos = _apenas_digitos(str(v))
         if len(digitos) != 7:
             raise ValueError(f"CNAE deve ter exatamente 7 dígitos numéricos (recebido: {len(digitos)})")
+        return digitos
+
+    @field_validator("codigo_tributacao_nacional", mode="before")
+    @classmethod
+    def validar_codigo_tributacao_nacional(cls, v):
+        """Aceita '01.07.01'; grava os 6 dígitos."""
+        if v is None or v == "":
+            return None
+        digitos = _apenas_digitos(str(v))
+        if len(digitos) != 6:
+            raise ValueError(f"Código de tributação nacional deve ter 6 dígitos (recebido: {len(digitos)})")
+        return digitos
+
+    @field_validator("codigo_nbs", mode="before")
+    @classmethod
+    def validar_codigo_nbs(cls, v):
+        """Aceita '1.1501.30.00'; grava os 9 dígitos."""
+        if v is None or v == "":
+            return None
+        digitos = _apenas_digitos(str(v))
+        if len(digitos) != 9:
+            raise ValueError(f"NBS deve ter 9 dígitos (recebido: {len(digitos)})")
         return digitos
 
     @field_validator("cfop_padrao", mode="before")

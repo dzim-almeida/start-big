@@ -35,6 +35,11 @@ type Recursos = {
    */
   nfce: boolean;
   /**
+   * Emissão de NFS-e (nota de serviço). Contratação SEPARADA: o prestador MEI
+   * pode ter só ela. Nega sem resposta da licença, como a NF-e.
+   */
+  nfse: boolean;
+  /**
    * Módulo de Compras (necessidades, pedido, recebimento). Contratável:
    * plano Business e avulso. Nega sem resposta da licença, como a NF-e.
    */
@@ -47,6 +52,7 @@ export type Recurso = keyof Recursos;
 const MODULO_DO_RECURSO: Record<Recurso, string> = {
   nfe: MODULOS.NFE,
   nfce: MODULOS.NFCE,
+  nfse: MODULOS.NFSE,
   compras: MODULOS.COMPRAS,
 };
 

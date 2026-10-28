@@ -155,6 +155,35 @@ idênticas e um commit próprio, e não depende de ligar a anterior em produçã
 - "Verificar NFS-e" na configuração fiscal: roda a completude da empresa e de todos
   os serviços, com correção em lote (padrão Omie).
 
+**Entrega da F1 (28/10/2026, branch `feat/nfse`):**
+- Tabelas oficiais embarcadas em `app/data/` (geradas por
+  `scripts/gerar_tabelas_nfse.py` a partir dos anexos do gov.br/nfse):
+  - `municipios_ibge.csv.gz` (5.570, Anexo A v1.00 de 10/12/2025);
+  - `nfse_servicos_nacionais.csv.gz` (338 códigos, Anexo B v1.01 de 22/01/2026);
+  - `nbs.csv.gz` (917, NBS 2.0 do Anexo B);
+  - `nfse_correlacao_nbs.csv.gz` (895 pares, Anexo VIII v1.00).
+- Tabelas `nfse_servicos_nacionais`, `nbs` e `nfse_correlacao_nbs`, criadas pelo
+  `create_all` e carregadas no boot (`core/seed_nfse.py`, mesmo padrão do NCM).
+- `services/fiscal/nfse/municipio.py`: `codigo_ibge(cidade, uf)`, sem coluna nova e
+  sem internet. `tabelas.py`: busca e `nbs_sugeridos`.
+- `GET /fiscal/nfse/servicos-nacionais` e `GET /fiscal/nfse/nbs`, com o router
+  inteiro atrás do módulo `NFSE` (que entrou em `MODULOS_NEGADOS_SEM_RESPOSTA`, no
+  backend e no front).
+- Migration `n5f0s3rv1c01`: `servico_fiscal.codigo_tributacao_nacional` e
+  `codigo_nbs`.
+- O cadastro fiscal do serviço (`GET/PUT /servicos/{id}/fiscal`) aceita NFE **ou**
+  NFSE (`requer_modulo_fiscal_servico`). Sem nenhum dos dois, a recusa é a mesma de
+  antes.
+- Front: `DadosFiscaisSection` **nunca tinha sido montada** (existia desde
+  97e64d39). Entra no modal do serviço **só com o módulo NFSE**, com o bloco "NFS-e
+  Nacional" (`CodigoFiscalBuscaInput`; o NBS sugerido aparece ao focar). Sem o
+  módulo, o modal não muda e o salvar não envia os campos novos.
+- **Fica para a F3:** a completude da OS (`verificar_itens_os_nfse`) ainda **não**
+  cobra código nacional, NBS nem IBGE. Ela já roda hoje para todas as OS, e cobrar
+  agora mostraria pendência nova a quem não usa NFS-e.
+- Ainda **não** entrou o "Verificar NFS-e" em lote da §1.1. Fica junto com a F3,
+  quando a completude da NFS-e existir.
+
 ### F2 — Plataforma: rota e ativação
 - `RecursoFocus` ganha `'nfsen'` (e `'nfse'`, sem uso até a municipal).
 - Rotas `POST /erp/fiscal/nfse/emitir`, `GET /consultar` e `POST /cancelar`, com

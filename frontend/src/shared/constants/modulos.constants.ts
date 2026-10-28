@@ -52,6 +52,14 @@ export const MODULOS = {
   NFCE: 'NFCE',
 
   /**
+   * Nota fiscal de serviço (NFS-e), backend-fastapi/docs/nfse-plano.md.
+   *
+   * SEPARADO do NFE pelo mesmo motivo da NFC-e: rotas e cota próprias na
+   * plataforma — e o prestador MEI contrata só ela. Também NEGA por padrão.
+   */
+  NFSE: 'NFSE',
+
+  /**
    * Módulo de Compras: fornecedores do produto, necessidades, pedido e
    * recebimento (backend-fastapi/docs/compras-plano.md). Plano Business e
    * avulso por cliente.

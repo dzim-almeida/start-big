@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
-from app.core.depends import check_permission, requer_modulo_fiscal, _handle_db_transaction
+from app.core.depends import check_permission, requer_modulo_fiscal_servico, _handle_db_transaction
 from app.schemas.fiscal.servico import ServicoFiscalRead, ServicoFiscalUpdate
 from app.services.fiscal.cadastro import servico as servico_fiscal_service
 from app.db.session import get_db
@@ -181,7 +181,7 @@ def toggle_status_servico(
 )
 def get_dados_fiscais_servico(
     user_token: dict = Depends(check_permission(required_permission="servico")),
-    _fiscal: dict = Depends(requer_modulo_fiscal),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
     servico_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
 ):
@@ -200,7 +200,7 @@ def get_dados_fiscais_servico(
 )
 def upsert_dados_fiscais_servico(
     user_token: dict = Depends(check_permission(required_permission="servico")),
-    _fiscal: dict = Depends(requer_modulo_fiscal),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
     *,
     servico_id: int = Path(..., ge=1),
     dados: ServicoFiscalUpdate,

@@ -31,6 +31,10 @@ export interface ServicoFormData {
   fiscal_aliquota_ibs_display: string;
   fiscal_aliquota_cbs_display: string;
   fiscal_c_benef: string;
+
+  // NFS-e Nacional (só dígitos; a tela formata)
+  fiscal_codigo_tributacao_nacional: string;
+  fiscal_codigo_nbs: string;
 }
 
 export interface QueryParams {
@@ -63,6 +67,8 @@ export interface ServicoFiscalRead {
   aliquota_ibs?: number | null;
   aliquota_cbs?: number | null;
   c_benef?: string | null;
+  codigo_tributacao_nacional?: string | null;
+  codigo_nbs?: string | null;
   data_atualizacao: string;
 }
 
@@ -80,4 +86,6 @@ export interface ServicoFiscalUpdate {
   aliquota_ibs?: number | null;
   aliquota_cbs?: number | null;
   c_benef?: string | null;
+  codigo_tributacao_nacional?: string | null;
+  codigo_nbs?: string | null;
 }

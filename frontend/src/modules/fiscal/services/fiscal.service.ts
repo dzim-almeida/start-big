@@ -22,6 +22,8 @@ import type { EmissaoPreviewResponse,
   TributacaoPadrao,
   ValidacaoFiscalProduto,
   BuscaNcmResposta,
+  BuscaNbsResposta,
+  BuscaServicoNacionalResposta,
   GapNumeracao,
   InutilizacaoRead,
   InutilizacaoRequest,
@@ -336,6 +338,34 @@ export const fiscalService = {
   async buscarNcm(termo: string, limite = 20): Promise<BuscaNcmResposta> {
     const { data } = await api.get<BuscaNcmResposta>(`${FISCAL_ENDPOINT}/ncm`, {
       params: { buscar: termo, limite },
+      timeout: TIMEOUT_CONSULTA,
+    });
+    return data;
+  },
+
+  /**
+   * Busca na lista de serviços nacional embarcada (código de tributação
+   * nacional da NFS-e). Exige o módulo NFSE. Funciona sem internet.
+   */
+  async buscarServicoNacional(termo: string, limite = 20): Promise<BuscaServicoNacionalResposta> {
+    const { data } = await api.get<BuscaServicoNacionalResposta>(
+      `${FISCAL_ENDPOINT}/nfse/servicos-nacionais`,
+      { params: { buscar: termo, limite }, timeout: TIMEOUT_CONSULTA },
+    );
+    return data;
+  },
+
+  /**
+   * Busca na tabela NBS. Com `codigoTributacaoNacional`, `sugeridos` traz os
+   * NBS que a Receita correlaciona com ele (Anexo VIII).
+   */
+  async buscarNbs(
+    termo: string,
+    codigoTributacaoNacional = '',
+    limite = 20,
+  ): Promise<BuscaNbsResposta> {
+    const { data } = await api.get<BuscaNbsResposta>(`${FISCAL_ENDPOINT}/nfse/nbs`, {
+      params: { buscar: termo, codigo_tributacao_nacional: codigoTributacaoNacional, limite },
       timeout: TIMEOUT_CONSULTA,
     });
     return data;

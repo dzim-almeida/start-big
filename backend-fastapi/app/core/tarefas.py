@@ -26,6 +26,7 @@ from app.services.configuracao.backup import get_or_create_configuracao_backup
 from app.db.crud.terminal import conectados as terminal_crud
 
 from app.core.discovery import atualizar_anuncio, register_service, stop_discovery
+from app.core.seed_nfse import seed_tabelas_nfse
 
 logger = logging.getLogger(__name__)
 
@@ -397,6 +398,7 @@ async def lifespan(app: FastAPI):
     aplicar_migracoes()
     _seed_formas_pagamento()
     _seed_ncm()
+    seed_tabelas_nfse()
     _seed_contador_venda()
     print("Iniciando tarefa de baixa automatica de recebimentos...")
     tarefa_baixa_automatica = asyncio.create_task(_loop_baixa_automatica())

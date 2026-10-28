@@ -49,7 +49,10 @@ from app.services import licenca as licenca_service
 # Ninguém em campo tem, então "não sei" não tira nada de ninguém -- e o módulo
 # é vendido à parte (plano Business e avulso, D19). Liberar por falta de
 # resposta daria de graça o que é pago.
-MODULOS_NEGADOS_SEM_RESPOSTA = frozenset({"NFE", "NFCE", "COMPRAS"})
+#
+# NFSE pelo mesmo motivo do NFE (docs/nfse-plano.md, R1): recurso novo, e
+# liberar por engano emitiria nota de serviço em nome da loja.
+MODULOS_NEGADOS_SEM_RESPOSTA = frozenset({"NFE", "NFCE", "NFSE", "COMPRAS"})
 
 
 def requer_modulo(identificador: str) -> Callable:

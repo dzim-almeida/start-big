@@ -34,6 +34,8 @@ const DEFAULT_FORM_VALUES: ServicoFormData = {
   fiscal_aliquota_ibs_display: '',
   fiscal_aliquota_cbs_display: '',
   fiscal_c_benef: '',
+  fiscal_codigo_tributacao_nacional: '',
+  fiscal_codigo_nbs: '',
 };
 
 export interface ServicoFormContext {
@@ -53,7 +55,10 @@ export interface ServicoFormContext {
   fiscal_aliquota_ibs_display: Ref<string>;
   fiscal_aliquota_cbs_display: Ref<string>;
   fiscal_c_benef: Ref<string>;
+  fiscal_codigo_tributacao_nacional: Ref<string>;
+  fiscal_codigo_nbs: Ref<string>;
   nfeDisponivel: boolean;
+  nfseDisponivel: boolean;
   submitCount: Ref<number>;
   errors: Ref<Record<string, string | undefined>>;
   apiError: Ref<string | null>;
@@ -78,6 +83,10 @@ export function useServicoFormProvider() {
 
   const apiError = ref<string | null>(null);
   const nfeDisponivel = recursoDisponivel('nfe');
+  const nfseDisponivel = recursoDisponivel('nfse');
+  // O cadastro fiscal do serviço serve às duas notas: o prestador MEI tem só
+  // a NFS-e, e precisa preencher o serviço do mesmo jeito.
+  const fiscalDisponivel = nfeDisponivel || nfseDisponivel;
 
   const [descricao] = defineField('descricao');
   const [valor] = defineField('valor');
@@ -96,6 +105,8 @@ export function useServicoFormProvider() {
   const [fiscal_aliquota_ibs_display] = defineField('fiscal_aliquota_ibs_display');
   const [fiscal_aliquota_cbs_display] = defineField('fiscal_aliquota_cbs_display');
   const [fiscal_c_benef] = defineField('fiscal_c_benef');
+  const [fiscal_codigo_tributacao_nacional] = defineField('fiscal_codigo_tributacao_nacional');
+  const [fiscal_codigo_nbs] = defineField('fiscal_codigo_nbs');
 
   async function populateForm() {
     if (!selectedServico.value) {
@@ -109,7 +120,7 @@ export function useServicoFormProvider() {
     });
 
     // Carrega dados fiscais (se módulo ativo)
-    if (nfeDisponivel) {
+    if (fiscalDisponivel) {
       try {
         const fiscal = await getServicoFiscal(selectedServico.value.id);
         if (fiscal) {
@@ -131,6 +142,8 @@ export function useServicoFormProvider() {
             fiscal_aliquota_ibs_display: fiscal.aliquota_ibs != null ? String(Math.round(fiscal.aliquota_ibs / 100)) : '',
             fiscal_aliquota_cbs_display: fiscal.aliquota_cbs != null ? String(Math.round(fiscal.aliquota_cbs / 100)) : '',
             fiscal_c_benef: fiscal.c_benef ?? '',
+            fiscal_codigo_tributacao_nacional: fiscal.codigo_tributacao_nacional ?? '',
+            fiscal_codigo_nbs: fiscal.codigo_nbs ?? '',
           } as any, false);
         }
       } catch {
@@ -176,7 +189,7 @@ export function useServicoFormProvider() {
       const request: Record<string, unknown> = { ...transformToUpdateRequest(formData) };
 
       // Inclui dados fiscais no payload (o service chama o endpoint separado)
-      if (nfeDisponivel) {
+      if (fiscalDisponivel) {
         const stripSeparadores = (v: string) => v.replace(/[.\-\/]/g, '');
         request.fiscal = {
           codigo_servico_lc116: formData.fiscal_codigo_servico_lc116
@@ -203,6 +216,14 @@ export function useServicoFormProvider() {
             : null,
           c_benef: formData.fiscal_c_benef || null,
         };
+        // Só quem vê os campos da NFS-e os envia: sem o módulo eles ficam
+        // de fora do payload, e o backend (exclude_unset) não os apaga.
+        if (nfseDisponivel) {
+          Object.assign(request.fiscal as Record<string, unknown>, {
+            codigo_tributacao_nacional: formData.fiscal_codigo_tributacao_nacional || null,
+            codigo_nbs: formData.fiscal_codigo_nbs || null,
+          });
+        }
       }
 
       updateMutation.mutate(
@@ -240,7 +261,10 @@ export function useServicoFormProvider() {
     fiscal_aliquota_ibs_display,
     fiscal_aliquota_cbs_display,
     fiscal_c_benef,
+    fiscal_codigo_tributacao_nacional,
+    fiscal_codigo_nbs,
     nfeDisponivel,
+    nfseDisponivel,
     submitCount,
     errors,
     apiError,

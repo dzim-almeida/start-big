@@ -20,7 +20,12 @@ import { MODULOS } from '@/shared/constants/modulos.constants';
  * O backend aplica a MESMA exceção em app/core/modulos.py. Mudar de ideia
  * exige mexer nos dois: aqui só se esconde o menu, lá é que se barra a rota.
  */
-const MODULOS_NEGADOS_SEM_RESPOSTA = new Set<string>([MODULOS.NFE, MODULOS.NFCE, MODULOS.COMPRAS]);
+const MODULOS_NEGADOS_SEM_RESPOSTA = new Set<string>([
+  MODULOS.NFE,
+  MODULOS.NFCE,
+  MODULOS.NFSE,
+  MODULOS.COMPRAS,
+]);
 
 /**
  * Os módulos que esta licença tem contratados.
