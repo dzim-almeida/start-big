@@ -10,6 +10,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import _handle_db_transaction, check_permission, get_current_active_user, get_db
 from app.core.modulos import requer_modulo
 from app.schemas.fiscal.emissao import CancelamentoRequest, EmissaoResponse
+from app.schemas.fiscal.nfse import NfseConfiguracao
 from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.services.fiscal.nfse import tabelas
 
@@ -99,8 +101,10 @@ def verificar_nfse_da_os(
     if not os_obj:
         raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada.")
     empresa_id = user_token["empresa_id"]
+    fs = crud.get_fiscal_settings(db, empresa_id)
     pendencias, _ = verificar_nfse_os(
         db, os_obj, crud.get_empresa(db, empresa_id), crud.get_endereco_empresa(db, empresa_id),
+        uma_nota_por_codigo=bool(fs and fs.nfse_uma_nota_por_codigo),
     )
     return ResultadoVerificacaoFiscal(completo=not pendencias, pendencias=pendencias)
 
@@ -124,6 +128,9 @@ def emitir_nfse_da_os(
     confirmar_duplicidade: bool = Query(
         False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
     ),
+    codigo_nacional: Optional[str] = Query(
+        None, max_length=10, description="Com uma nota por código (G3): qual código emitir.",
+    ),
     db: Session = Depends(get_db),
 ):
     from app.services.fiscal.emissao import poll_nfe_status_async
@@ -131,7 +138,7 @@ def emitir_nfse_da_os(
 
     empresa_id = user_token["empresa_id"]
     doc = _handle_db_transaction(
-        db, emitir_nfse_os, numero_os, empresa_id, None, confirmar_duplicidade,
+        db, emitir_nfse_os, numero_os, empresa_id, None, confirmar_duplicidade, codigo_nacional,
     )
     if doc.status == "PROCESSANDO":
         background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
@@ -219,7 +226,7 @@ def listar_nfse(
             "numero_os": doc.origem_numero_os,
             "status": doc.status,
             "numero": doc.numero_documento,
-            "codigo_verificacao": codigo,
+            "codigo_verificacao": doc.codigo_verificacao or codigo,
             "valor_total": doc.valor_total,
             "tomador": doc.destinatario_nome_enviado,
             "mensagem": doc.mensagem_sefaz,
@@ -231,3 +238,40 @@ def listar_nfse(
         }
         for doc, codigo in linhas
     ]
+
+
+# ===========================================================================
+# CONFIGURAÇÃO DA NFS-e (G3): as decisões do contador como opção
+# ===========================================================================
+
+def _settings_ou_422(db: Session, empresa_id: int):
+    from app.db.crud import fiscal as crud
+
+    fs = crud.get_fiscal_settings(db, empresa_id)
+    if not fs:
+        raise HTTPException(status_code=422, detail="Configurações fiscais não cadastradas para esta empresa.")
+    return fs
+
+
+@router.get("/configuracao", response_model=NfseConfiguracao, summary="Configuração da NFS-e")
+def obter_configuracao_nfse(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    db: Session = Depends(get_db),
+):
+    return NfseConfiguracao.model_validate(_settings_ou_422(db, user_token["empresa_id"]))
+
+
+@router.put("/configuracao", response_model=NfseConfiguracao, summary="Salvar a configuração da NFS-e")
+def salvar_configuracao_nfse(
+    dados: NfseConfiguracao,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    db: Session = Depends(get_db),
+):
+    def _salvar(db: Session):
+        fs = _settings_ou_422(db, user_token["empresa_id"])
+        for campo, valor in dados.model_dump(exclude_unset=True).items():
+            setattr(fs, campo, valor)
+        db.flush()
+        return NfseConfiguracao.model_validate(fs)
+
+    return _handle_db_transaction(db, _salvar)

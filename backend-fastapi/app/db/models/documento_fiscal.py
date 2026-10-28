@@ -166,6 +166,8 @@ class DocumentoFiscal(Base):
     # Marcenaria (docs/marcenaria-faturamento-plano.md): VENDA_MARCENARIA,
     # SIMPLES_FATURAMENTO ou REMESSA_ENTREGA_FUTURA. NULL em toda outra nota.
     papel: Mapped[Optional[str]] = mapped_column(String(25), nullable=True)
+    # NFS-e: com ele o tomador confere a nota no portal (n5f0s3rv1c02). NULL nas demais.
+    codigo_verificacao: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     itens: Mapped[list["DocumentoFiscalItem"]] = relationship(
         "DocumentoFiscalItem",

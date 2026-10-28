@@ -104,14 +104,21 @@ def _tomador(cliente) -> dict:
 def montar_dps_os(
     empresa, endereco_empresa, fiscal_settings, os_obj, fiscal_servico,
     agora: Optional[datetime] = None,
+    itens: Optional[list] = None,
 ) -> dict:
-    """A DPS da mão de obra da OS. `fiscal_servico` é o `ServicoFiscal` comum aos itens."""
+    """A DPS da mão de obra da OS. `fiscal_servico` é o `ServicoFiscal` comum aos itens.
+
+    `itens`: só estes serviços (G3, uma nota por código); sem ele, todos os da OS.
+    O desconto da OS entra na proporção dos itens desta nota.
+    """
     # Fuso da loja (core/tempo.py): sem `tzdata` no Windows, ZoneInfo("America/Sao_Paulo") quebra.
     agora = (agora or datetime.now(fuso_local())).astimezone(fuso_local())
     uf = endereco_empresa.estado.value if hasattr(endereco_empresa.estado, "value") else endereco_empresa.estado
     municipio = codigo_ibge(endereco_empresa.cidade, uf)
 
-    itens = servicos_da_os(os_obj)
+    itens = servicos_da_os(os_obj) if itens is None else itens
+    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
+    tomador_pj = isinstance(cliente, ClientePJ)
     base = sum(i.valor_total for i in itens)
     desconto = desconto_dos_servicos(os_obj, base)
 
@@ -140,19 +147,24 @@ def montar_dps_os(
         "valor_servico": _centavos_para_reais(base),
         "desconto_incondicionado": _centavos_para_reais(desconto) if desconto else None,
         "tributacao_iss": "1",
-        "tipo_retencao_iss": "1",
+        # G3: retenção só com a opção ligada E tomador PJ (pessoa física não retém).
+        "tipo_retencao_iss": "2" if (tomador_pj and getattr(fiscal_settings, "nfse_reter_iss_pj", False)) else "1",
         "finalidade_emissao": "0",
-        "consumidor_final": "1",
+        # Serviço para empresa não é para consumidor final.
+        "consumidor_final": "0" if tomador_pj else "1",
         "indicador_destinatario": "0",
         "informacoes_complementares": f"OS {os_obj.numero_os}",
-        **_tomador(getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None),
+        **_tomador(cliente),
     }
 
     if opcao_sn == "1" and fiscal_servico.aliquota_iss:
         dps["percentual_aliquota_relativa_municipio"] = fiscal_servico.aliquota_iss / 100
 
-    if fiscal_servico.cst_ibs_cbs and fiscal_servico.c_class_trib:
-        dps["ibs_cbs_situacao_tributaria"] = fiscal_servico.cst_ibs_cbs
-        dps["ibs_cbs_classificacao_tributaria"] = fiscal_servico.c_class_trib
+    # IBS/CBS: o do serviço; sem ele, o padrão da configuração (G3); sem os dois, nada.
+    cst = fiscal_servico.cst_ibs_cbs or getattr(fiscal_settings, "nfse_ibs_cbs_cst", None)
+    cclass = fiscal_servico.c_class_trib or getattr(fiscal_settings, "nfse_ibs_cbs_cclass", None)
+    if cst and cclass:
+        dps["ibs_cbs_situacao_tributaria"] = cst
+        dps["ibs_cbs_classificacao_tributaria"] = cclass
 
     return expurgar_nulos(dps)

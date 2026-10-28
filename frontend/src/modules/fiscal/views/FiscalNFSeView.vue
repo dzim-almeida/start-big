@@ -7,7 +7,7 @@
  * as empresas) entra cidade por cidade.
  */
 import { ref } from 'vue';
-import { FolderArchive, Send } from 'lucide-vue-next';
+import { FolderArchive, Send, Settings } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import FranquiaFiscalCard from '../components/shared/FranquiaFiscalCard.vue';
@@ -16,9 +16,11 @@ import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import NfseDocumentosTable from '../components/nfse/NfseDocumentosTable.vue';
 import NfseEmitirModal from '../components/nfse/NfseEmitirModal.vue';
 import FiscalExportarXmlModal from '../components/listagem/FiscalExportarXmlModal.vue';
+import NfseConfiguracaoModal from '../components/nfse/NfseConfiguracaoModal.vue';
 
 const showEmitirModal = ref(false);
 const showExportarXmlModal = ref(false);
+const showConfiguracaoModal = ref(false);
 </script>
 
 <template>
@@ -28,6 +30,10 @@ const showExportarXmlModal = ref(false);
 
       <div class="flex items-center gap-2">
         <FranquiaFiscalCard />
+        <BaseButton type="button" variant="ghost" class="text-sm" @click="showConfiguracaoModal = true">
+          <Settings :size="16" class="mr-1.5" />
+          Configuração
+        </BaseButton>
         <BaseButton type="button" variant="ghost" class="text-sm" @click="showExportarXmlModal = true">
           <FolderArchive :size="16" class="mr-1.5" />
           XMLs do período
@@ -43,5 +49,6 @@ const showExportarXmlModal = ref(false);
 
     <NfseEmitirModal :is-open="showEmitirModal" @close="showEmitirModal = false" />
     <FiscalExportarXmlModal :is-open="showExportarXmlModal" tipo-inicial="NFSE" @close="showExportarXmlModal = false" />
+    <NfseConfiguracaoModal :is-open="showConfiguracaoModal" @close="showConfiguracaoModal = false" />
   </div>
 </template>

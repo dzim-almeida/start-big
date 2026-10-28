@@ -78,3 +78,34 @@ def test_downgrade_tira_as_colunas(banco):
     command.downgrade(_config(url), REVISAO_ANTERIOR)
 
     assert not COLUNAS & _colunas(engine)
+
+
+# =========================
+# n5f0s3rv1c02: configuracao da NFS-e (G3)
+# =========================
+
+def test_configuracao_da_nfse_nasce_desligada(tmp_path, monkeypatch):
+    url = f"sqlite:///{tmp_path / 'loja.db'}"
+    monkeypatch.setattr(settings, "DATABASE_URL", url)
+    engine = sa.create_engine(url)
+    with engine.begin() as conn:
+        conn.execute(sa.text("CREATE TABLE servico_fiscal (id INTEGER PRIMARY KEY)"))
+        conn.execute(sa.text("CREATE TABLE empresa_fiscal_settings (id INTEGER PRIMARY KEY, empresa_id INTEGER)"))
+        conn.execute(sa.text("INSERT INTO empresa_fiscal_settings (empresa_id) VALUES (1)"))
+    command.stamp(_config(url), REVISAO)
+
+    command.upgrade(_config(url), "n5f0s3rv1c02")
+
+    engine.dispose()
+    with engine.connect() as conn:
+        linha = conn.execute(sa.text(
+            "SELECT nfse_reter_iss_pj, nfse_uma_nota_por_codigo, nfse_ibs_cbs_cst, nfse_ibs_cbs_cclass "
+            "FROM empresa_fiscal_settings"
+        )).one()
+    assert tuple(linha) == (0, 0, None, None)
+
+    command.downgrade(_config(url), REVISAO)
+    engine.dispose()
+    colunas = {c["name"] for c in sa.inspect(engine).get_columns("empresa_fiscal_settings")}
+    assert not {"nfse_reter_iss_pj", "nfse_uma_nota_por_codigo"} & colunas
+    engine.dispose()

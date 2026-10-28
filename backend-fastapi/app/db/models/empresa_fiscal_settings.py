@@ -164,6 +164,26 @@ class EmpresaFiscalSettings(Base):
         doc="Regime de tributação ISS: 1-Microempresa Municipal, 2-Estimativa, 3-Sociedade de Profissionais, 4-Cooperativa, 5-MEI, 6-ME/EPP Simples Nacional"
     )
 
+    # --- NFS-e: as decisões do contador como opção (docs/nfse-fase2-plano.md, G3) ---
+    # Todas nascem no comportamento da fase 1: desligadas / vazias.
+    nfse_reter_iss_pj: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Tomador PJ retém o ISS (tpRetISSQN 2). Desligado: ISS não retido.",
+    )
+    nfse_uma_nota_por_codigo: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="OS com serviços de códigos nacionais diferentes vira uma NFS-e por código "
+            "(desligado: é pendência).",
+    )
+    nfse_ibs_cbs_cst: Mapped[Optional[str]] = mapped_column(
+        String(3), nullable=True,
+        doc="CST IBS/CBS padrão para o serviço que não tem o seu.",
+    )
+    nfse_ibs_cbs_cclass: Mapped[Optional[str]] = mapped_column(
+        String(6), nullable=True,
+        doc="cClassTrib IBS/CBS padrão para o serviço que não tem o seu.",
+    )
+
     # --- Certificado Digital ---
     tipo_certificado: Mapped[str] = mapped_column(
         String(10),

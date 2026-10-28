@@ -244,6 +244,9 @@ def _aplicar_resultado(doc: DocumentoFiscal, resultado: EmissaoResultado, client
         doc.qrcode = resultado["qrcode"]
     if resultado.get("url_consulta"):
         doc.url_consulta = resultado["url_consulta"]
+    # Só a NFS-e devolve (n5f0s3rv1c02); o `if` não apaga numa reconsulta sem ele.
+    if resultado.get("codigo_verificacao"):
+        doc.codigo_verificacao = str(resultado["codigo_verificacao"])[:50]
     if resultado.get("valor_tributos") is not None:
         doc.valor_tributos = int(round(float(resultado["valor_tributos"]) * 100))
 

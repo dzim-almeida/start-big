@@ -374,3 +374,91 @@ def test_aba_nfse_baixa_o_zip_so_de_nfse_sem_o_modulo_nfe(client, loja, servico,
 
     assert r.status_code == 200, r.text                     # licença só com NFSE
     assert r.headers["x-fiscal-documentos"] == "1"
+
+
+# =========================
+# G3: configuracao da NFS-e (as decisoes do contador viram opcao)
+# =========================
+
+def _segundo_servico(client, loja, codigo="140101", nbs="120100000", nome="Manutencao de impressora"):
+    sid = client.post("/api/v1/servicos/", json={"descricao": nome, "valor": 8000}, headers=loja).json()["id"]
+    r = client.put(f"/api/v1/servicos/{sid}/fiscal", json={
+        "codigo_tributacao_nacional": codigo, "codigo_nbs": nbs,
+    }, headers=loja)
+    assert r.status_code == 200, r.text
+    return sid
+
+
+def test_configuracao_nasce_no_comportamento_da_fase_1(client, loja):
+    r = client.get(f"{NFSE}/configuracao", headers=loja)
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "regime_tributacao_iss": None, "nfse_reter_iss_pj": False, "nfse_uma_nota_por_codigo": False,
+        "nfse_ibs_cbs_cst": None, "nfse_ibs_cbs_cclass": None,
+    }
+
+
+def test_ibs_cbs_padrao_entra_quando_o_servico_nao_tem(client, loja, servico, db_session, plataforma):
+    r = client.put(f"{NFSE}/configuracao", json={"nfse_ibs_cbs_cst": "000", "nfse_ibs_cbs_cclass": "000001"}, headers=loja)
+    assert r.status_code == 200, r.text
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+
+    client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    dps = plataforma.enviados[0][1]
+    assert (dps["ibs_cbs_situacao_tributaria"], dps["ibs_cbs_classificacao_tributaria"]) == ("000", "000001")
+
+
+def test_retencao_so_para_tomador_pj_com_a_opcao(client, loja, servico, db_session, plataforma):
+    client.put(f"{NFSE}/configuracao", json={"nfse_reter_iss_pj": True}, headers=loja)
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])   # tomador PF
+
+    client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    dps = plataforma.enviados[0][1]
+    assert dps["tipo_retencao_iss"] == "1"          # pessoa fisica nao retem
+    assert dps["consumidor_final"] == "1"
+
+
+def test_codigos_diferentes_sao_pendencia_sem_a_opcao(client, loja, servico, db_session, plataforma):
+    outro = _segundo_servico(client, loja)
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico, 15000), _item_servico(outro, 8000, "Impressora")])
+
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.status_code == 422
+    assert "codigos_diferentes" in {p["campo"] for p in r.json()["detail"]["pendencias"]}
+    assert plataforma.enviados == []
+
+
+def test_uma_nota_por_codigo_emite_cada_codigo_com_a_sua_trava(client, loja, servico, db_session, plataforma):
+    client.put(f"{NFSE}/configuracao", json={"nfse_uma_nota_por_codigo": True}, headers=loja)
+    outro = _segundo_servico(client, loja)
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico, 15000), _item_servico(outro, 5000, "Impressora")],
+                       desconto=4000)
+
+    preview = client.post(f"{NFSE}/os/{numero}/preview", headers=loja).json()
+    assert [n["codigo"] for n in preview["notas"]] == ["010701", "140101"]
+
+    sem_codigo = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    assert sem_codigo.status_code == 422 and sem_codigo.json()["detail"]["codigo"] == "NFSE_ESCOLHA_O_CODIGO"
+
+    r1 = client.post(f"{NFSE}/os/{numero}/emitir", params={"codigo_nacional": "01.07.01"}, headers=loja)
+    r2 = client.post(f"{NFSE}/os/{numero}/emitir", params={"codigo_nacional": "140101"}, headers=loja)
+    assert (r1.json()["status"], r2.json()["status"]) == ("AUTORIZADA", "AUTORIZADA")
+
+    (ref1, dps1), (ref2, dps2) = plataforma.enviados
+    assert (ref1, ref2) == (f"os-{numero}-nfse-010701", f"os-{numero}-nfse-140101")
+    assert (dps1["valor_servico"], dps2["valor_servico"]) == (150.0, 50.0)
+    assert (dps1["desconto_incondicionado"], dps2["desconto_incondicionado"]) == (30.0, 10.0)   # 40 rateado
+    repetida = client.post(f"{NFSE}/os/{numero}/emitir", params={"codigo_nacional": "140101"}, headers=loja)
+    assert repetida.status_code == 409 and repetida.json()["detail"]["codigo"] == "NFSE_JA_AUTORIZADA"
+    assert client.post(f"{NFSE}/os/{numero}/preview", headers=loja).json()["notas"][0]["ja_emitida"] is True
+
+
+def test_codigo_de_verificacao_fica_no_documento(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    doc = db_session.query(DocumentoFiscal).filter_by(tipo_documento="NFSE").one()
+    db_session.refresh(doc)
+    assert doc.codigo_verificacao == "ABC123"

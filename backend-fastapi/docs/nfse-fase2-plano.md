@@ -134,6 +134,36 @@ regime especial, retenção, uma nota por código, IBS/CBS padrão — cada camp
 
 **Testes:** payload com e sem cada opção; OS com 2 códigos vira 2 notas.
 
+**Entrega G3 (28/10):**
+- Migration `n5f0s3rv1c02`:
+  - `empresa_fiscal_settings`: `nfse_reter_iss_pj`, `nfse_uma_nota_por_codigo`,
+    `nfse_ibs_cbs_cst` e `nfse_ibs_cbs_cclass`, nascendo 0/NULL, ou seja, o
+    comportamento da fase 1;
+  - **`documento_fiscal.codigo_verificacao`**, porque com várias NFS-e na mesma
+    OS o espelho da OS guardava uma só. `_aplicar_resultado` grava o campo quando
+    vem.
+- `payload.py`:
+  - retenção `2` só quando a opção está ligada **e** o tomador é PJ;
+  - `consumidor_final` passa a ser 0 para tomador PJ;
+  - IBS/CBS do serviço, ou o padrão da configuração;
+  - parâmetro `itens` para montar a nota de um grupo.
+- `completude.py` devolve os **grupos por código**: sem a opção, códigos
+  diferentes são pendência, como antes; com a opção, um grupo por nota.
+- `emissao_os.py` passa a aceitar `codigo_nacional` (com vários grupos, sem ele →
+  422 `NFSE_ESCOLHA_O_CODIGO`). Trava e tentativas por `papel="NFSE:<código>"`,
+  `ref os-<n>-nfse-<código>`, desconto rateado por grupo. **OS de um código fica
+  idêntica** (ref `os-<n>-nfse`).
+- O preview devolve `notas[]` (com `ja_emitida`), e `dps` continua sendo a
+  primeira.
+- `GET/PUT /fiscal/nfse/configuracao` (módulo NFSE, permissão de serviço).
+- Front:
+  - "Configuração" na aba NFS-e (`NfseConfiguracaoModal`). O CST é digitado com
+    3 dígitos, porque a lista `CST_IBS_CBS_OPTIONS` do sistema é provisória e usa
+    2;
+  - modal de emissão com "Emitir esta" por código;
+  - a `NfseSection` da Empresa também nunca foi montada; a configuração ficou na
+    aba NFS-e.
+
 ---
 
 ## G4 — NFS-e avulsa (sem OS)

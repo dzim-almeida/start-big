@@ -71,13 +71,28 @@ async function conferir() {
   }
 }
 
-async function emitir(confirmar = false) {
+/**
+ * Uma nota por código nacional (G3). Com um código só, uma entrada — e a tela
+ * é a de sempre (o botão do rodapé). Com vários, cada nota tem o seu botão.
+ */
+const notas = computed(() =>
+  preview.value?.notas ?? (preview.value ? [{ codigo: preview.value.dps.codigo_tributacao_nacional_iss, dps: preview.value.dps, ja_emitida: false }] : []),
+);
+const variasNotas = computed(() => notas.value.length > 1);
+/** O código da nota que pediu "Emitir mesmo assim" (nota repetida). */
+const codigoDoAviso = ref<string | undefined>(undefined);
+
+async function emitir(confirmar = false, codigo?: string) {
   if (!preview.value) return;
   try {
-    await emitirMutation.mutateAsync({ numeroOs: preview.value.numero_os, confirmar });
-    emit('close');
+    await emitirMutation.mutateAsync({ numeroOs: preview.value.numero_os, confirmar, codigo });
+    avisoRepetida.value = null;
+    // Com várias notas, fica aberto para a próxima: a conferência marca a emitida.
+    if (variasNotas.value) await conferir();
+    else emit('close');
   } catch (e: any) {
     if (codigoDoErro(e) === CODIGO_NOTA_REPETIDA) {
+      codigoDoAviso.value = codigo;
       avisoRepetida.value = e?.response?.data?.detail?.mensagem ?? 'Esta nota é igual a outra emitida há pouco.';
     }
   }
@@ -137,13 +152,45 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
           <AlertCircle :size="16" class="mt-0.5 shrink-0" />
           <span>{{ avisoRepetida }} Se for mesmo outro serviço, confirme para emitir.</span>
         </p>
-        <BaseButton type="button" variant="secondary" :is-loading="emitirMutation.isPending.value" @click="emitir(true)">
+        <BaseButton type="button" variant="secondary" :is-loading="emitirMutation.isPending.value" @click="emitir(true, codigoDoAviso)">
           Emitir mesmo assim
         </BaseButton>
       </div>
 
+      <!-- Uma nota por código (G3): cada uma com o seu botão -->
+      <div v-if="variasNotas" class="space-y-3" data-varias-notas>
+        <p class="text-sm text-zinc-600">
+          Esta OS tem serviços de <strong>{{ notas.length }} códigos</strong> diferentes: sai uma NFS-e para cada.
+        </p>
+        <div
+          v-for="nota in notas"
+          :key="nota.codigo"
+          class="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 flex items-center justify-between gap-4"
+        >
+          <div class="text-sm">
+            <p class="font-semibold text-zinc-800">
+              {{ formatarCodigoNacional(nota.codigo) }} · {{ formatCurrency(emCentavos(nota.dps.valor_servico)) }}
+            </p>
+            <p class="text-xs text-zinc-500 truncate max-w-md">{{ nota.dps.descricao_servico }}</p>
+          </div>
+          <span v-if="nota.ja_emitida" class="text-xs font-semibold text-emerald-700 flex items-center gap-1 shrink-0">
+            <CheckCircle2 :size="14" /> Emitida
+          </span>
+          <BaseButton
+            v-else
+            type="button"
+            variant="primary"
+            class="text-sm shrink-0"
+            :disabled="!!avisoRepetida || emitirMutation.isPending.value"
+            @click="emitir(false, nota.codigo)"
+          >
+            <Send :size="14" class="mr-1.5" /> Emitir esta
+          </BaseButton>
+        </div>
+      </div>
+
       <!-- A nota que vai sair -->
-      <div v-if="preview" class="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-3" data-preview-nfse>
+      <div v-if="preview && !variasNotas" class="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-3" data-preview-nfse>
         <div class="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
           <CheckCircle2 :size="16" /> Tudo certo para emitir
         </div>
@@ -180,6 +227,7 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
       <div class="flex items-center justify-end gap-3 w-full">
         <BaseButton type="button" variant="secondary" @click="emit('close')">Cancelar</BaseButton>
         <BaseButton
+          v-if="!variasNotas"
           type="button"
           variant="primary"
           :disabled="!preview || !!avisoRepetida || emitirMutation.isPending.value"

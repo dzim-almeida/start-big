@@ -210,14 +210,26 @@ def get_documento_ativo_por_os(db: Session, numero_os: str):
     ).first()
 
 
-def get_nfse_ativa_por_os(db: Session, numero_os: str):
-    """NFS-e viva desta OS (mesma regra de STATUS_DOCUMENTO_VIVO)."""
-    return db.query(DocumentoFiscal).filter(
+def papel_nfse(codigo_nacional: str) -> str:
+    """O `papel` da NFS-e da OS: um por código nacional (G3, uma nota por código)."""
+    return f"NFSE:{codigo_nacional}"
+
+
+def get_nfse_ativa_por_os(db: Session, numero_os: str, codigo_nacional: Optional[str] = None):
+    """NFS-e viva desta OS (mesma regra de STATUS_DOCUMENTO_VIVO).
+
+    Com `codigo_nacional`, só a daquele código: com uma nota por código, a OS
+    pode ter uma NFS-e viva por código.
+    """
+    query = db.query(DocumentoFiscal).filter(
         DocumentoFiscal.origem_tipo == "OS",
         DocumentoFiscal.origem_numero_os == numero_os,
         DocumentoFiscal.status.in_(STATUS_DOCUMENTO_VIVO),
         DocumentoFiscal.tipo_documento == "NFSE",
-    ).first()
+    )
+    if codigo_nacional:
+        query = query.filter(DocumentoFiscal.papel == papel_nfse(codigo_nacional))
+    return query.first()
 
 def get_documentos_ativos_por_vendas(db: Session, numeros_venda: list[int]) -> dict[int, DocumentoFiscal]:
     """Retorna {numero_venda: DocumentoFiscal} para docs ativos (bloqueiam nova emissão)."""
@@ -279,7 +291,9 @@ def contar_documentos_por_venda(db: Session, numero_venda: int) -> int:
         DocumentoFiscal.origem_id == numero_venda,
     ).scalar() or 0
 
-def contar_documentos_por_os(db: Session, numero_os: str, tipo_documento: Optional[str] = None) -> int:
+def contar_documentos_por_os(
+    db: Session, numero_os: str, tipo_documento: Optional[str] = None, papel: Optional[str] = None,
+) -> int:
     """Tentativas já feitas para esta OS — usado para compor a `ref` única.
 
     Sem `tipo_documento`, conta as NF-e (as da NFS-e não entram, ver
@@ -287,11 +301,14 @@ def contar_documentos_por_os(db: Session, numero_os: str, tipo_documento: Option
     """
     from sqlalchemy import func
     filtro_tipo = (DocumentoFiscal.tipo_documento == tipo_documento) if tipo_documento else _SO_NFE_DA_OS
-    return db.query(func.count(DocumentoFiscal.id)).filter(
+    query = db.query(func.count(DocumentoFiscal.id)).filter(
         DocumentoFiscal.origem_tipo == "OS",
         DocumentoFiscal.origem_numero_os == numero_os,
         filtro_tipo,
-    ).scalar() or 0
+    )
+    if papel:
+        query = query.filter(DocumentoFiscal.papel == papel)
+    return query.scalar() or 0
 
 def get_nomes_destinatarios_por_vendas(db: Session, numeros_venda: list[int]) -> dict[int, str]:
     """Retorna {numero_venda: nome_destinatario} para uma lista de números de venda."""

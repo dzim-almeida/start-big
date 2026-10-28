@@ -25,8 +25,24 @@ def _p(categoria: str, campo: str, mensagem: str, ref_id: Optional[int] = None, 
                            referencia_id=ref_id, referencia_nome=ref_nome)
 
 
-def verificar_nfse_os(db: Session, os_obj, empresa, endereco) -> tuple[list[PendenciaFiscal], Optional[object]]:
-    """Pendências da NFS-e da OS e o `ServicoFiscal` que vai na nota (D2: um só código)."""
+class GrupoNfse:
+    """Os serviços de UM código nacional: uma NFS-e (D2)."""
+
+    __slots__ = ("codigo", "fiscal", "itens")
+
+    def __init__(self, codigo: str, fiscal, itens: list):
+        self.codigo, self.fiscal, self.itens = codigo, fiscal, itens
+
+
+def verificar_nfse_os(
+    db: Session, os_obj, empresa, endereco, uma_nota_por_codigo: bool = False,
+) -> tuple[list[PendenciaFiscal], list[GrupoNfse]]:
+    """Pendências da NFS-e da OS e os grupos que viram nota (um por código nacional).
+
+    Sem `uma_nota_por_codigo` (o padrão, G3), códigos diferentes na mesma OS são
+    pendência — a DPS leva um serviço só, e juntar códigos é declarar errado.
+    Com a opção, cada código vira a sua nota. Com pendência, os grupos vêm vazios.
+    """
     pendencias: list[PendenciaFiscal] = []
 
     documento = "".join(c for c in (getattr(empresa, "documento", None) or "") if c.isdigit())
@@ -43,9 +59,9 @@ def verificar_nfse_os(db: Session, os_obj, empresa, endereco) -> tuple[list[Pend
     itens = servicos_da_os(os_obj)
     if not itens:
         pendencias.append(_p("item", "itens_servico", "A OS não tem serviço aprovado para a nota de serviço."))
-        return pendencias, None
+        return pendencias, []
 
-    fiscais = []
+    grupos: dict[str, GrupoNfse] = {}
     for item in itens:
         if not item.servico_id or not item.servico:
             pendencias.append(_p("item", "avulso_servico",
@@ -61,20 +77,22 @@ def verificar_nfse_os(db: Session, os_obj, empresa, endereco) -> tuple[list[Pend
         if not fiscal.codigo_nbs:
             pendencias.append(_p("item", "codigo_nbs",
                                  "Sem NBS (cadastro do serviço › NFS-e Nacional).", item.servico.id, nome))
-        fiscais.append(fiscal)
+        codigo = fiscal.codigo_tributacao_nacional
+        if codigo not in grupos:
+            grupos[codigo] = GrupoNfse(codigo, fiscal, [])
+        grupos[codigo].itens.append(item)
 
-    codigos = {f.codigo_tributacao_nacional for f in fiscais}
-    if len(codigos) > 1:
-        # D2: a DPS leva UM serviço. Juntar códigos diferentes numa nota é
-        # declarar errado; uma nota por código fica para quando alguém precisar.
+    if len(grupos) > 1 and not uma_nota_por_codigo:
         pendencias.append(_p(
             "item", "codigos_diferentes",
             "Os serviços desta OS têm códigos de tributação nacional diferentes "
-            f"({', '.join(sorted(codigos))}). A NFS-e leva um código por nota.",
+            f"({', '.join(sorted(grupos))}). A NFS-e leva um código por nota "
+            "(ou ligue 'uma nota por código' na configuração da NFS-e).",
         ))
 
-    base = sum(i.valor_total for i in itens)
-    if base - desconto_dos_servicos(os_obj, base) <= 0:
-        pendencias.append(_p("item", "valor", "O valor dos serviços desta OS é zero."))
+    for grupo in grupos.values():
+        base = sum(i.valor_total for i in grupo.itens)
+        if base - desconto_dos_servicos(os_obj, base) <= 0:
+            pendencias.append(_p("item", "valor", f"O valor dos serviços do código {grupo.codigo} é zero."))
 
-    return pendencias, (fiscais[0] if fiscais and len(codigos) == 1 else None)
+    return pendencias, ([] if pendencias else list(grupos.values()))

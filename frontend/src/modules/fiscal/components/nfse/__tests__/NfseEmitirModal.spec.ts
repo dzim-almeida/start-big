@@ -105,3 +105,33 @@ describe('Emitir NFS-e', () => {
     wrapper.unmount();
   });
 });
+
+describe('Uma nota por código (G3)', () => {
+  it('cada código tem o seu botão; a emitida aparece marcada', async () => {
+    const dps = (codigo: string, valor: number) => ({
+      descricao_servico: `Serviço ${codigo}`, valor_servico: valor,
+      codigo_tributacao_nacional_iss: codigo, codigo_opcao_simples_nacional: '2',
+    });
+    verificarOs.mockResolvedValue({ completo: true, pendencias: [] });
+    previewOs.mockResolvedValue({
+      numero_os: 'OS-2026-000123',
+      dps: dps('010701', 150),
+      notas: [
+        { codigo: '010701', dps: dps('010701', 150), ja_emitida: true },
+        { codigo: '140101', dps: dps('140101', 50), ja_emitida: false },
+      ],
+    });
+    const wrapper = await conferir();
+
+    await vi.waitFor(() => expect(document.body.querySelector('[data-varias-notas]')).not.toBeNull());
+    const texto = document.body.textContent ?? '';
+    expect(texto).toContain('01.07.01');
+    expect(texto).toContain('14.01.01');
+    expect(texto).toContain('Emitida');
+    expect(botao('Emitir NFS-e')).toBeUndefined();          // o rodapé some: cada nota tem o seu
+
+    botao('Emitir esta')!.click();
+    await vi.waitFor(() => expect(emitir).toHaveBeenCalledWith({ numeroOs: 'OS-2026-000123', confirmar: false, codigo: '140101' }));
+    wrapper.unmount();
+  });
+});

@@ -661,4 +661,18 @@ export interface NfsePreview {
     cnpj_tomador?: string;
     codigo_opcao_simples_nacional: string;
   };
+  /**
+   * Uma nota por código nacional (G3). Com um código só, uma entrada igual a
+   * `dps`. `ja_emitida`: aquele código já tem NFS-e viva.
+   */
+  notas?: { codigo: string; dps: NfsePreview['dps']; ja_emitida: boolean }[];
+}
+
+/** Configuração da NFS-e (G3): as decisões do contador como opção. */
+export interface NfseConfiguracao {
+  regime_tributacao_iss: number | null;
+  nfse_reter_iss_pj: boolean;
+  nfse_uma_nota_por_codigo: boolean;
+  nfse_ibs_cbs_cst: string | null;
+  nfse_ibs_cbs_cclass: string | null;
 }

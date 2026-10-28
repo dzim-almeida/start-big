@@ -1,6 +1,6 @@
 import api from '@/api/axios';
 import type { ResultadoVerificacaoFiscal } from '@/shared/types/fiscal.types';
-import type { EmissaoResponse, NfseDocumento, NfsePreview } from '../types/fiscal.types';
+import type { EmissaoResponse, NfseConfiguracao, NfseDocumento, NfsePreview } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
 const NFSE_ENDPOINT = '/fiscal/nfse';
@@ -41,15 +41,32 @@ export const nfseService = {
    * `confirmarDuplicidade`: o operador viu o aviso de nota repetida (409
    * NOTA_DUPLICADA_SUSPEITA da plataforma) e confirmou que é outro serviço.
    */
-  async emitirOs(numeroOs: string, confirmarDuplicidade = false): Promise<EmissaoResponse> {
+  async emitirOs(
+    numeroOs: string,
+    confirmarDuplicidade = false,
+    /** Com uma nota por código (G3): qual código emitir. */
+    codigoNacional?: string,
+  ): Promise<EmissaoResponse> {
+    const params: Record<string, unknown> = {};
+    if (confirmarDuplicidade) params.confirmar_duplicidade = true;
+    if (codigoNacional) params.codigo_nacional = codigoNacional;
     const { data } = await api.post<EmissaoResponse>(
       `${NFSE_ENDPOINT}/os/${encodeURIComponent(numeroOs)}/emitir`,
       null,
-      {
-        params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined,
-        timeout: TIMEOUT_EMISSAO,
-      },
+      { params, timeout: TIMEOUT_EMISSAO },
     );
+    return data;
+  },
+
+  async obterConfiguracao(): Promise<NfseConfiguracao> {
+    const { data } = await api.get<NfseConfiguracao>(`${NFSE_ENDPOINT}/configuracao`, { timeout: TIMEOUT_CONSULTA });
+    return data;
+  },
+
+  async salvarConfiguracao(dados: NfseConfiguracao): Promise<NfseConfiguracao> {
+    const { data } = await api.put<NfseConfiguracao>(`${NFSE_ENDPOINT}/configuracao`, dados, {
+      timeout: TIMEOUT_CONSULTA,
+    });
     return data;
   },
 

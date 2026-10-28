@@ -59,8 +59,9 @@ function useNfseMutation<T>(fn: (v: T) => Promise<EmissaoResponse>) {
 }
 
 export const useNfseEmitirMutation = () =>
-  useNfseMutation(({ numeroOs, confirmar = false }: { numeroOs: string; confirmar?: boolean }) =>
-    nfseService.emitirOs(numeroOs, confirmar),
+  useNfseMutation(
+    ({ numeroOs, confirmar = false, codigo }: { numeroOs: string; confirmar?: boolean; codigo?: string }) =>
+      nfseService.emitirOs(numeroOs, confirmar, codigo),
   );
 
 export const useNfseConsultarMutation = () => useNfseMutation((id: number) => nfseService.consultar(id));
