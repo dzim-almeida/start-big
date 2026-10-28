@@ -16,6 +16,7 @@ import { ref, computed } from 'vue';
 import { Activity, Clock, Receipt, FolderArchive } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+import FranquiaFiscalCard from '../components/shared/FranquiaFiscalCard.vue';
 
 import FiscalStats from '../components/listagem/FiscalStats.vue';
 import FiscalDocumentosTable from '../components/listagem/FiscalDocumentosTable.vue';
@@ -99,6 +100,7 @@ const healthTextColor = computed(() => {
       />
 
       <div class="flex items-center gap-2">
+        <FranquiaFiscalCard />
         <!-- Saúde fiscal -->
         <div class="relative">
           <button

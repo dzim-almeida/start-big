@@ -23,6 +23,7 @@ export function useFiscalEmitirNfeMutation() {
       }
       queryClient.invalidateQueries({ queryKey: fiscalKeys.documentos() });
       queryClient.invalidateQueries({ queryKey: fiscalKeys.resumo() });
+      queryClient.invalidateQueries({ queryKey: fiscalKeys.franquia() });
     },
     onError: (error) => {
       const axiosErr = error as AxiosError<ApiError>;
@@ -37,6 +38,7 @@ export function useFiscalEmitirNfeMutation() {
         toast.warning('Documento fiscal existente', msg);
         queryClient.invalidateQueries({ queryKey: fiscalKeys.documentos() });
         queryClient.invalidateQueries({ queryKey: fiscalKeys.resumo() });
+        queryClient.invalidateQueries({ queryKey: fiscalKeys.franquia() });
         return;
       }
 

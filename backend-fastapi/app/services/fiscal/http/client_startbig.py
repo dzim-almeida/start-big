@@ -688,6 +688,25 @@ class FiscalClientStartBig:
             dados = {}
         return {"aceito": True, "indisponivel": False, "mensagem": dados.get("mensagem")}
 
+    def consultar_franquia(self) -> dict:
+        """
+        A franquia fiscal do mês (70 notas somando NF-e, NFC-e e NFS-e de
+        produção; docs/integracao-erp-local.md da plataforma, 13.4.1).
+
+        Só informa: quem barra é o `emitir` da plataforma. Devolve {} quando não
+        dá para saber (plataforma antiga sem a rota, rede fora) -- a tela some
+        com o cartão, e nada trava.
+        """
+        url = f"{self.base_url}/erp/fiscal/franquia"
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers=self.headers)
+                response.raise_for_status()
+                return response.json() or {}
+        except Exception as exc:
+            logger.warning("[FISCAL] Não foi possível ler a franquia da plataforma: %s", exc)
+            return {}
+
     def consultar_config(self) -> dict:
         """
         Configuração fiscal desta licença, como a PLATAFORMA a enxerga.

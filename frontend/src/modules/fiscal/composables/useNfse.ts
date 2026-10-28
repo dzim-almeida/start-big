@@ -51,6 +51,7 @@ function useNfseMutation<T>(fn: (v: T) => Promise<EmissaoResponse>) {
     onSuccess: (r) => {
       avisarDesfecho(toast, r);
       queryClient.invalidateQueries({ queryKey: fiscalKeys.nfseDocumentos() });
+      queryClient.invalidateQueries({ queryKey: fiscalKeys.franquia() });
     },
     onError: (error) => {
       // A nota repetida não é erro para toast: o modal pergunta ao operador.

@@ -37,6 +37,7 @@ from app.api.v1.endpoints import backup
 from app.api.v1.endpoints import fiscal
 from app.api.v1.endpoints import fiscal_produto
 from app.api.v1.endpoints import fiscal_nfse
+from app.api.v1.endpoints import fiscal_franquia
 from app.api.v1.endpoints import etiquetas
 from app.api.v1.endpoints import produto_embalagem
 from app.api.v1.endpoints import produto_regra_preco
@@ -185,6 +186,8 @@ router.include_router(fiscal.router, prefix="/fiscal", tags=["Fiscal"])
 router.include_router(fiscal_produto.router, prefix="/fiscal", tags=["Fiscal"])
 # NFS-e (docs/nfse-plano.md): o router inteiro exige o módulo NFSE na licença.
 router.include_router(fiscal_nfse.router, prefix="/fiscal/nfse", tags=["Fiscal"])
+# Franquia fiscal do mês (docs/nfse-fase2-plano.md, G1): sem trava de módulo.
+router.include_router(fiscal_franquia.router, prefix="/fiscal", tags=["Fiscal"])
 
 # Central de Etiquetas: modelos de layout compartilhados pela loja. Imprimir é
 # papel do terminal (Tauri), não do backend -- ver docs/etiquetas-plano.md.

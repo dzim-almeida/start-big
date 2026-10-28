@@ -58,6 +58,8 @@ export const fiscalKeys = {
   nbsSugeridos: (codigoNacional: string) => ['fiscal', 'nfse', 'nbs-sugeridos', codigoNacional] as const,
   /** NFS-e emitidas — mudam a cada emissão, consulta e cancelamento. */
   nfseDocumentos: () => ['fiscal', 'nfse', 'documentos'] as const,
+  /** Franquia fiscal do mês — muda a cada nota de produção (G1). */
+  franquia: () => ['fiscal', 'franquia'] as const,
 };
 
 /**

@@ -4,6 +4,7 @@ import { FlaskConical, Send, Activity, FolderArchive } from 'lucide-vue-next';
 
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+import FranquiaFiscalCard from '../components/shared/FranquiaFiscalCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import FiscalStats from '../components/listagem/FiscalStats.vue';
@@ -94,6 +95,7 @@ const healthTextColor = computed(() => {
       />
 
       <div class="flex items-center gap-2">
+        <FranquiaFiscalCard />
         <!-- Saúde Fiscal — card clicável -->
         <div class="relative">
           <button

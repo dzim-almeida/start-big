@@ -204,6 +204,14 @@ class FiscalClientMock:
             "valido_ate": None,
         }
 
+    def consultar_franquia(self) -> dict:
+        """No mock a franquia está sempre folgada."""
+        return {
+            "competencia": "2026-11", "vigente": True, "franquia": 70, "emitidas": 0,
+            "restantesNaFranquia": 70, "excedentes": 0, "precoExcedente": 1,
+            "valorExcedente": 0, "formaCobranca": "CARTAO", "limite": 300, "restantes": 300,
+        }
+
     def consultar_config(self) -> dict:
         """No mock tudo está configurado -- senão o modo de teste barraria a si mesmo."""
         return {

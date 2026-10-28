@@ -609,6 +609,25 @@ export interface InutilizacaoRequest {
 // NFS-e DA OS (backend-fastapi/docs/nfse-plano.md, F3)
 // ===========================================================================
 
+/** Franquia fiscal do mês (GET /fiscal/franquia — eco da plataforma, 13.4.1). */
+export interface FranquiaFiscal {
+  /** false = a plataforma não respondeu: a tela esconde o cartão. */
+  consultou: boolean;
+  competencia: string;
+  /** false antes de a franquia valer (2026-11). */
+  vigente: boolean;
+  franquia: number;
+  emitidas: number;
+  restantesNaFranquia: number;
+  excedentes: number;
+  precoExcedente: number;
+  /** Em reais. */
+  valorExcedente: number;
+  formaCobranca: 'CARTAO' | 'PIX' | string;
+  limite: number;
+  restantes: number | null;
+}
+
 /** Uma NFS-e na lista da aba (GET /fiscal/nfse/documentos). */
 export interface NfseDocumento {
   id: number;

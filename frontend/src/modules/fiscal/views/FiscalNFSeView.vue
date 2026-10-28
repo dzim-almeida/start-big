@@ -10,6 +10,7 @@ import { ref } from 'vue';
 import { FolderArchive, Send } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
+import FranquiaFiscalCard from '../components/shared/FranquiaFiscalCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import NfseDocumentosTable from '../components/nfse/NfseDocumentosTable.vue';
@@ -26,6 +27,7 @@ const showExportarXmlModal = ref(false);
       <PageReview title="NFS-e" description="Notas Fiscais de Serviço (padrão nacional)" />
 
       <div class="flex items-center gap-2">
+        <FranquiaFiscalCard />
         <BaseButton type="button" variant="ghost" class="text-sm" @click="showExportarXmlModal = true">
           <FolderArchive :size="16" class="mr-1.5" />
           XMLs do período

@@ -27,6 +27,7 @@ export function useFiscalEmitirBatchMutation() {
       }
       queryClient.invalidateQueries({ queryKey: fiscalKeys.documentos() });
       queryClient.invalidateQueries({ queryKey: fiscalKeys.resumo() });
+      queryClient.invalidateQueries({ queryKey: fiscalKeys.franquia() });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error as AxiosError<ApiError>));
