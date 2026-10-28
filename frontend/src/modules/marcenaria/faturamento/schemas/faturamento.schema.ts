@@ -38,11 +38,23 @@ export type MovelFaturamento = z.infer<typeof movelFaturamentoSchema>;
 export const faturamentoDaOSSchema = z.object({
   numero_os: z.string(),
   faturamento_modo: z.enum(['DESLIGADO', 'NOTA_NA_ENTREGA', 'ENTREGA_FUTURA']),
-  instalacao_modo: z.enum(['EMBUTIDA', 'FORA']),
+  instalacao_modo: z.enum(['EMBUTIDA', 'FORA', 'NFSE']),
   moveis: z.array(movelFaturamentoSchema),
   notas: z.array(documentoSchema),
   /** Entrega futura (F4): algum móvel ainda sem simples faturamento (o aditivo ganha o seu). */
   falta_simples_faturamento: z.boolean().default(false),
+  /** Instalação em NFS-e (G5): null fora desse modo (e num backend anterior). */
+  nfse_instalacao: z.object({
+    valor: z.number(),
+    documento: z.object({
+      id: z.number(),
+      status: z.string(),
+      numero: z.number().nullable(),
+      codigo_verificacao: z.string().nullable(),
+      url_consulta: z.string().nullable(),
+      mensagem: z.string().nullable(),
+    }).nullable(),
+  }).nullable().default(null),
 });
 export type FaturamentoDaOS = z.infer<typeof faturamentoDaOSSchema>;
 

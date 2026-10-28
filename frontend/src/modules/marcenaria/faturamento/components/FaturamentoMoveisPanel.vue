@@ -23,6 +23,8 @@ import BaseStatusPill from '@/shared/components/ui/BaseStatusPill/BaseStatusPill
 import { useToast } from '@/shared/composables/useToast';
 import { formatCurrency } from '@/shared/utils/finance';
 import { mensagemDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
+import { nfseService } from '@/modules/fiscal/services/nfse.service';
+import { ehNotaRepetida, mensagemNotaRepetida } from '@/modules/fiscal/utils/notaRepetida';
 
 import type { MovelFaturamento, PreviaNota } from '../schemas/faturamento.schema';
 import {
@@ -48,6 +50,34 @@ const { data } = useQuery({
 });
 
 const ligado = computed(() => !!data.value && data.value.faturamento_modo !== 'DESLIGADO');
+
+/**
+ * Instalação em NFS-e (docs/nfse-fase2-plano.md, G5): uma por OS. A nota
+ * repetida pergunta antes (aviso com "Emitir mesmo assim").
+ */
+const instalacao = computed(() => data.value?.nfse_instalacao ?? null);
+const emitindoInstalacao = ref(false);
+
+async function emitirInstalacao(confirmar = false) {
+  emitindoInstalacao.value = true;
+  try {
+    const r = await nfseService.emitirInstalacao(numeroOs.value, confirmar);
+    if (r.status === 'AUTORIZADA') toast.success('NFS-e da instalação autorizada.');
+    else if (r.status === 'PROCESSANDO') toast.info('NFS-e da instalação enviada. A autorização aparece aqui em instantes.');
+    else toast.error(r.mensagem || `NFS-e ${r.status.toLowerCase()}.`);
+  } catch (erro) {
+    if (ehNotaRepetida(erro)) {
+      toast.warning('Nota igual a outra emitida há pouco', mensagemNotaRepetida(erro), {
+        action: { label: 'Emitir mesmo assim', onClick: () => emitirInstalacao(true) },
+      });
+    } else {
+      toast.error(mensagemDoErro(erro, 'Não foi possível emitir a NFS-e da instalação.'));
+    }
+  } finally {
+    emitindoInstalacao.value = false;
+    await queryClient.invalidateQueries({ queryKey: chave.value });
+  }
+}
 const entregaFutura = computed(() => data.value?.faturamento_modo === 'ENTREGA_FUTURA');
 
 /** Os móveis agrupados por ambiente, na ordem da OS. */
@@ -152,7 +182,13 @@ const reais = (valor: number) => formatCurrency(Math.round(valor * 100));
           <h3 class="text-base font-semibold text-zinc-900">Notas fiscais dos móveis</h3>
           <p class="text-xs text-zinc-500">
             {{ entregaFutura ? 'Venda para entrega futura: uma nota de remessa a cada entrega.' : 'Uma NF-e a cada entrega, com os móveis que saíram.' }}
-            {{ data.instalacao_modo === 'EMBUTIDA' ? 'A instalação entra no preço dos móveis.' : 'A instalação fica fora da NF-e.' }}
+            {{
+              data.instalacao_modo === 'EMBUTIDA'
+                ? 'A instalação entra no preço dos móveis.'
+                : data.instalacao_modo === 'NFSE'
+                  ? 'A instalação sai numa NFS-e (abaixo).'
+                  : 'A instalação fica fora da NF-e.'
+            }}
           </p>
         </div>
       </div>
@@ -164,6 +200,30 @@ const reais = (valor: number) => formatCurrency(Math.round(valor * 100));
         @click="preVisualizar('entrega')"
       >
         Emitir NF-e ({{ marcados.length }})
+      </BaseButton>
+    </div>
+
+    <!-- Instalação em NFS-e (G5): uma por OS, com a cidade da obra -->
+    <div
+      v-if="instalacao"
+      class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700"
+      data-testid="nfse-instalacao"
+    >
+      <span>
+        <strong>Instalação</strong> · {{ formatCurrency(instalacao.valor) }}
+        <template v-if="instalacao.documento">
+          · NFS-e {{ instalacao.documento.numero ?? '' }} ({{ instalacao.documento.status.toLowerCase() }})
+          <template v-if="instalacao.documento.codigo_verificacao">· verificação {{ instalacao.documento.codigo_verificacao }}</template>
+        </template>
+      </span>
+      <BaseButton
+        v-if="!instalacao.documento && instalacao.valor > 0"
+        size="sm"
+        :is-loading="emitindoInstalacao"
+        data-testid="emitir-nfse-instalacao"
+        @click="emitirInstalacao()"
+      >
+        Emitir NFS-e da instalação
       </BaseButton>
     </div>
 

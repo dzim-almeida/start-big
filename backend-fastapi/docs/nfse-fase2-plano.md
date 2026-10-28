@@ -236,6 +236,31 @@ da OS: botão "Emitir NFS-e da instalação" ao lado da NF-e da entrega.
 em NFSE, NF-e sem a instalação e NFS-e com a fatia certa; soma das fatias =
 instalação total.
 
+**Entrega G5 (28/10) — decisão do Alan: UMA NFS-e de instalação por OS** (não por
+entrega; o rateio por entrega fica para quando um cliente pedir):
+- `InstalacaoModo.NFSE` + `configuracoes_marcenaria.servico_instalacao_id` (FK
+  serviços, migration `m4rc3n5f5e01`, só cria a coluna se faltar). Escolher NFSE
+  sem um serviço ativo → 422 "escolha o serviço da instalação"; as pendências do
+  faturamento avisam se o serviço não tem código nacional/NBS.
+- `nfse/marcenaria.py`:
+  - valor = instalação do orçamento menos a fatia proporcional do desconto;
+  - local da prestação = cidade da OBRA (`endereco_obra`, último "Cidade/UF")
+    → cliente → loja;
+  - `ref os-<n>-nfse-inst`, papel `NFSE:INSTALACAO`;
+  - segunda emissão → 409 `NFSE_INSTALACAO_JA_EMITIDA`; modo desligado → 409
+    `INSTALACAO_SEM_NFSE`.
+- `GET/POST /fiscal/nfse/os/{n}/instalacao/preview|emitir` (módulo NFSE). O painel
+  do faturamento devolve `nfse_instalacao {valor, documento}` e ignora os
+  documentos NFSE na conta das NF-e.
+- O adaptador da NF-e já tirava a instalação em todo modo ≠ EMBUTIDA: NFSE se
+  comporta como FORA (teste novo), e a fotografia da NF-e não mudou.
+- Front:
+  - Configurações › Marcenaria: terceira opção (só com o módulo NFSE) e o
+    `BaseSelect` "Serviço da instalação";
+  - aba Entrega: bloco "Instalação" com o valor, a nota emitida (número e
+    verificação) ou o botão "Emitir NFS-e da instalação", com a nota repetida
+    perguntando "Emitir mesmo assim".
+
 ---
 
 ## G6 — Rota municipal (cidade por cidade)

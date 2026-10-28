@@ -21,6 +21,14 @@ vi.mock('@/modules/mainLayout/composables/useCheckPermission', () => ({
 vi.mock('@/shared/stores/auth.store', () => ({
   useAuthStore: () => ({ userData: ref({ is_master: false }) }),
 }));
+// Módulo NFSE da licença (instalação em NFS-e, G5) e a lista de serviços dela.
+const recursos: Record<string, boolean> = {};
+vi.mock('@/shared/config/planos', () => ({
+  recursoDisponivel: (recurso: string) => !!recursos[recurso],
+}));
+vi.mock('@tanstack/vue-query', () => ({
+  useQuery: () => ({ data: ref({ items: [{ id: 7, descricao: 'Montagem de móveis' }] }) }),
+}));
 
 const { default: Marcenaria } = await import('../Marcenaria.vue');
 
@@ -92,5 +100,22 @@ describe('Configurações › Marcenaria — faturamento dos móveis', () => {
     expect(wrapper.find('input[value="DESLIGADO"]').element).toHaveProperty('checked', true);
     expect(wrapper.find('input[value="EMBUTIDA"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="criar-produtos-acabados"]').exists()).toBe(false);
+  });
+
+  it('instalação em NFS-e (G5): a opção só existe com o módulo NFSE e pede o serviço', async () => {
+    dados.value = { ...COMPLETA, faturamento_modo: 'NOTA_NA_ENTREGA', instalacao_modo: 'FORA' };
+    podeGerirSimulado.value = true;
+
+    recursos.nfse = false;
+    const sem = mount(Marcenaria);
+    expect(sem.find('input[value="FORA"]').exists()).toBe(true);
+    expect(sem.find('input[value="NFSE"]').exists()).toBe(false);
+
+    recursos.nfse = true;
+    const com = mount(Marcenaria);
+    expect(com.find('[data-servico-instalacao]').exists()).toBe(false);
+    await com.find('input[value="NFSE"]').setValue(true);
+    expect(com.find('[data-servico-instalacao]').text()).toContain('Serviço da instalação');
+    recursos.nfse = false;
   });
 });

@@ -80,6 +80,16 @@ export const nfseService = {
     return data;
   },
 
+  /** A NFS-e da instalação dos móveis da marcenaria (G5): uma por OS. */
+  async emitirInstalacao(numeroOs: string, confirmarDuplicidade = false): Promise<EmissaoResponse> {
+    const { data } = await api.post<EmissaoResponse>(
+      `${NFSE_ENDPOINT}/os/${encodeURIComponent(numeroOs)}/instalacao/emitir`,
+      null,
+      { params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined, timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
   async obterConfiguracao(): Promise<NfseConfiguracao> {
     const { data } = await api.get<NfseConfiguracao>(`${NFSE_ENDPOINT}/configuracao`, { timeout: TIMEOUT_CONSULTA });
     return data;

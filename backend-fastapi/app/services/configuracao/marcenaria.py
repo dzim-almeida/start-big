@@ -91,6 +91,15 @@ def _conferir_faturamento(db: Session, config: ConfiguracaoMarcenaria) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Para faturar os móveis, escolha o produto do móvel fabricado.",
         )
+    if config.instalacao_modo == "NFSE":
+        from app.db.models.servico import Servico
+
+        servico = db.get(Servico, config.servico_instalacao_id) if config.servico_instalacao_id else None
+        if servico is None or not getattr(servico, "ativo", True):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Para emitir a NFS-e da instalação, escolha o serviço da instalação.",
+            )
 
 
 def pendencias_faturamento(db: Session, config: ConfiguracaoMarcenaria, empresa_id: int) -> list[str]:
@@ -116,6 +125,12 @@ def pendencias_faturamento(db: Session, config: ConfiguracaoMarcenaria, empresa_
         pendencias: list = []
         verificar_produto_fiscal(db, produto, pendencias, simples)
         avisos.extend(f"{produto.nome}: {p.mensagem}" for p in pendencias)
+    if config.instalacao_modo == "NFSE" and config.servico_instalacao_id:
+        from app.db.crud import fiscal as fiscal_crud
+
+        fiscal = fiscal_crud.get_servico_fiscal(db, config.servico_instalacao_id)
+        if not fiscal or not fiscal.codigo_tributacao_nacional or not fiscal.codigo_nbs:
+            avisos.append("Serviço da instalação: falta o código de tributação nacional ou o NBS (cadastro do serviço).")
     return avisos
 
 

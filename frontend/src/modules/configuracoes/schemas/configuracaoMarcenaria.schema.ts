@@ -15,8 +15,11 @@ export const rtModoSchema = z.enum(['MARGEM', 'PRECO']);
 /** Como os móveis viram nota (docs/marcenaria-faturamento-plano.md, D7). */
 export const faturamentoModoSchema = z.enum(['DESLIGADO', 'NOTA_NA_ENTREGA', 'ENTREGA_FUTURA']);
 
-/** Onde a instalação entra (D6): no preço dos móveis da NF-e ou fora dela. */
-export const instalacaoModoSchema = z.enum(['EMBUTIDA', 'FORA']);
+/**
+ * Onde a instalação entra (D6): no preço dos móveis da NF-e, fora dela, ou numa
+ * NFS-e da OS emitida aqui (NFSE — docs/nfse-fase2-plano.md, G5; módulo NFSE).
+ */
+export const instalacaoModoSchema = z.enum(['EMBUTIDA', 'FORA', 'NFSE']);
 
 /** O que qualquer usuário logado recebe. */
 const base = z.object({
@@ -30,6 +33,8 @@ const base = z.object({
   instalacao_modo: instalacaoModoSchema.default('EMBUTIDA'),
   produto_acabado_padrao_id: z.number().int().nullable().default(null),
   produto_acabado_revenda_id: z.number().int().nullable().default(null),
+  /** Com a instalação em NFS-e: o serviço do catálogo com o código nacional/NBS dela. */
+  servico_instalacao_id: z.number().int().nullable().default(null),
   /** O que falta no cadastro fiscal dos produtos acabados (só aviso). */
   pendencias_faturamento: z.array(z.string()).default([]),
 });
@@ -72,4 +77,5 @@ export interface ConfiguracaoMarcenariaUpdate {
   instalacao_modo?: InstalacaoModo;
   produto_acabado_padrao_id?: number | null;
   produto_acabado_revenda_id?: number | null;
+  servico_instalacao_id?: number | null;
 }

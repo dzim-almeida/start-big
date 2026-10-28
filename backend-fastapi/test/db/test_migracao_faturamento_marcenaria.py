@@ -122,3 +122,27 @@ def test_entrega_futura_papel_e_simples_faturamento_do_movel(banco):
     insp = _inspector(engine)
     assert "papel" not in {c["name"] for c in insp.get_columns("documento_fiscal")}
     assert "simples_faturamento_id" not in {c["name"] for c in insp.get_columns("marcenaria_moveis")}
+
+
+# =========================
+# m4rc3n5f5e01: instalacao em NFS-e (docs/nfse-fase2-plano.md, G5)
+# =========================
+
+def test_servico_da_instalacao_nasce_vazio_e_o_modo_nao_muda(banco):
+    url, engine = banco
+    with engine.begin() as conn:
+        conn.execute(sa.text("CREATE TABLE servicos (id INTEGER PRIMARY KEY)"))
+        conn.execute(sa.text("CREATE TABLE servico_fiscal (id INTEGER PRIMARY KEY)"))
+        conn.execute(sa.text("CREATE TABLE empresa_fiscal_settings (id INTEGER PRIMARY KEY)"))
+    command.upgrade(_config(url), "m4rc3n5f5e01")
+
+    insp = _inspector(engine)
+    assert "servico_instalacao_id" in {c["name"] for c in insp.get_columns("configuracoes_marcenaria")}
+    with engine.connect() as conn:
+        linha = conn.execute(sa.text(
+            "SELECT instalacao_modo, servico_instalacao_id FROM configuracoes_marcenaria"
+        )).one()
+    assert tuple(linha) == ("EMBUTIDA", None)
+
+    command.downgrade(_config(url), "n5f0s3rv1c02")
+    assert "servico_instalacao_id" not in {c["name"] for c in _inspector(engine).get_columns("configuracoes_marcenaria")}

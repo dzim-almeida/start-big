@@ -78,9 +78,14 @@ class ConfiguracaoMarcenaria(Base):
     faturamento_modo: Mapped[str] = mapped_column(
         String(20), default="DESLIGADO", server_default="DESLIGADO", nullable=False,
     )
-    # EMBUTIDA (padrao: a instalacao entra no preco dos moveis da NF-e) ou FORA.
+    # EMBUTIDA (padrao: a instalacao entra no preco dos moveis da NF-e), FORA,
+    # ou NFSE (a instalacao sai numa NFS-e da OS; docs/nfse-fase2-plano.md, G5).
     instalacao_modo: Mapped[str] = mapped_column(
         String(10), default="EMBUTIDA", server_default="EMBUTIDA", nullable=False,
+    )
+    # Com NFSE: o servico do catalogo com o codigo nacional/NBS da instalacao.
+    servico_instalacao_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("servicos.id", ondelete="SET NULL"), nullable=True,
     )
     # Os produtos acabados: o movel fabricado aqui e o comprado pronto (D4).
     produto_acabado_padrao_id: Mapped[Optional[int]] = mapped_column(

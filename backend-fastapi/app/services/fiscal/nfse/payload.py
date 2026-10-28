@@ -105,6 +105,7 @@ def _dps_comum(
     empresa, endereco_empresa, fiscal_settings, fiscal_servico, *,
     descricao: str, base: int, desconto: int, tomador: dict, tomador_pj: bool,
     informacoes: Optional[str], agora: Optional[datetime],
+    municipio_prestacao: Optional[str] = None,
 ) -> dict:
     """A DPS com o que é igual para a NFS-e da OS e a avulsa (G4).
 
@@ -128,7 +129,9 @@ def _dps_comum(
         "regime_especial_tributacao": REGIME_ESPECIAL_ABRASF_PARA_NACIONAL.get(
             fiscal_settings.regime_tributacao_iss or 0, "0"
         ),
-        "codigo_municipio_prestacao": municipio,
+        # Onde o serviço foi prestado: a loja, salvo quando a nota diz outro
+        # lugar (a instalação da marcenaria é na OBRA, G5).
+        "codigo_municipio_prestacao": municipio_prestacao or municipio,
         "codigo_tributacao_nacional_iss": fiscal_servico.codigo_tributacao_nacional,
         "codigo_tributacao_municipal_iss": (getattr(fiscal_servico, "codigo_tributacao_municipio", None) or None),
         "codigo_nbs": fiscal_servico.codigo_nbs,
@@ -206,4 +209,21 @@ def montar_dps_avulsa(
         descricao=descricao, base=valor, desconto=desconto,
         tomador=tomador, tomador_pj="cnpj_tomador" in tomador,
         informacoes=None, agora=agora,
+    )
+
+
+def montar_dps_instalacao(
+    empresa, endereco_empresa, fiscal_settings, fiscal_servico, os_obj, *,
+    valor: int, desconto: int, municipio_obra: Optional[str], agora: Optional[datetime] = None,
+) -> dict:
+    """A DPS da instalação dos móveis da marcenaria (G5): uma por OS, com o local
+    da prestação na cidade da OBRA. Valores em centavos."""
+    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
+    return _dps_comum(
+        empresa, endereco_empresa, fiscal_settings, fiscal_servico,
+        descricao=f"Instalação e montagem de móveis planejados - OS {os_obj.numero_os}",
+        base=valor, desconto=desconto,
+        tomador=_tomador(cliente), tomador_pj=isinstance(cliente, ClientePJ),
+        informacoes=f"OS {os_obj.numero_os}", agora=agora,
+        municipio_prestacao=municipio_obra,
     )

@@ -34,6 +34,8 @@ export interface FormMarcenaria {
   instalacao_modo: InstalacaoModo;
   produto_acabado_padrao_id: number | null;
   produto_acabado_revenda_id: number | null;
+  /** Instalação em NFS-e (G5): o serviço da instalação. */
+  servico_instalacao_id: number | null;
 }
 
 /** Limites das listas (Spec 04A §4.1). */
@@ -54,6 +56,7 @@ export function paraTela(api: ConfiguracaoMarcenariaEntrada): FormMarcenaria {
     instalacao_modo: api.instalacao_modo ?? 'EMBUTIDA',
     produto_acabado_padrao_id: api.produto_acabado_padrao_id ?? null,
     produto_acabado_revenda_id: api.produto_acabado_revenda_id ?? null,
+    servico_instalacao_id: api.servico_instalacao_id ?? null,
   };
   if (api.inclui_custos) {                            // só quem vê custo recebe estes campos
     form.markup_percentual = api.markup_padrao_bp / 100;     // 9000 bp -> 90 %
@@ -78,6 +81,8 @@ export function paraApi(form: FormMarcenaria): ConfiguracaoMarcenariaUpdate {
     produto_acabado_padrao_id: form.produto_acabado_padrao_id,
     produto_acabado_revenda_id: form.produto_acabado_revenda_id,
   };
+  // Só no modo NFSE: nos outros o campo não existe na tela (e o corpo fica o de sempre).
+  if (form.instalacao_modo === 'NFSE') corpo.servico_instalacao_id = form.servico_instalacao_id;
   if (form.markup_percentual !== undefined) {         // a tela mostrou o bloco de custos
     corpo.markup_padrao_bp = Math.round(form.markup_percentual * 100);          // arredonda, nunca trunca
     corpo.perda_padrao_bp = Math.round((form.perda_percentual ?? 0) * 100);

@@ -30,6 +30,7 @@ class InstalacaoModo(str, Enum):
     """Onde a instalacao entra (D6)."""
     EMBUTIDA = "EMBUTIDA"   # padrao: no preco dos moveis da NF-e (acessoria a venda)
     FORA = "FORA"           # fora da NF-e (a nota de servico sai na prefeitura)
+    NFSE = "NFSE"           # fora da NF-e, numa NFS-e da OS emitida aqui (G5; modulo NFSE)
 
 
 def _entre(valor: Optional[int], minimo: int, maximo: Optional[int], mensagem: str) -> Optional[int]:
@@ -80,6 +81,7 @@ class ConfiguracaoMarcenariaUpdate(BaseModel):
     instalacao_modo: Optional[InstalacaoModo] = None
     produto_acabado_padrao_id: Optional[int] = None
     produto_acabado_revenda_id: Optional[int] = None
+    servico_instalacao_id: Optional[int] = None
 
     # --- Limites da §4.1 da Spec 04A, cada um com a sua mensagem -----------
     @field_validator("markup_padrao_bp")
@@ -142,6 +144,7 @@ class ConfiguracaoMarcenariaPublica(BaseModel):
     instalacao_modo: InstalacaoModo = InstalacaoModo.EMBUTIDA
     produto_acabado_padrao_id: Optional[int] = None
     produto_acabado_revenda_id: Optional[int] = None
+    servico_instalacao_id: Optional[int] = None
     # O que falta no cadastro fiscal dos produtos acabados (so aviso: a
     # emissao e que barra). Preenchido pelo endpoint, nao vem do banco.
     pendencias_faturamento: list[str] = []

@@ -16,6 +16,10 @@ import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import { useQuery } from '@tanstack/vue-query';
+import { recursoDisponivel } from '@/shared/config/planos';
+import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
 import { useCheckPermission } from '@/modules/mainLayout/composables/useCheckPermission';
 import { PERMISSIONS } from '@/shared/constants/permissions.constants';
 import { useAuthStore } from '@/shared/stores/auth.store';
@@ -48,6 +52,21 @@ const podeGerir = computed(
 
 /** O formulário da tela (% e R$). Vazio até a API responder. */
 const form = ref<FormMarcenaria | null>(null);
+
+/**
+ * Instalação em NFS-e (docs/nfse-fase2-plano.md, G5): a opção só aparece com o
+ * módulo NFSE. Os serviços do catálogo viram a lista do "serviço da instalação"
+ * (só buscados quando a opção está escolhida).
+ */
+const nfseDisponivel = recursoDisponivel('nfse');
+const { data: servicosAtivos } = useQuery({
+  queryKey: ['marcenaria', 'servicos-para-instalacao'],
+  queryFn: () => getServicos({ active: true, limit: 200 }),
+  enabled: computed(() => nfseDisponivel && form.value?.instalacao_modo === 'NFSE'),
+});
+const opcoesServico = computed(() =>
+  (servicosAtivos.value?.items ?? []).map((s) => ({ value: s.id, label: s.descricao })),
+);
 
 /** Volta ao que está salvo (também usado pelo "Descartar" do modal). */
 function resetar() {
@@ -301,6 +320,26 @@ const CLASSE_NUMERO =
                 <span class="block text-[11px] text-zinc-400">A nota de serviço da instalação é emitida na prefeitura.</span>
               </span>
             </label>
+            <label v-if="nfseDisponivel || form.instalacao_modo === 'NFSE'" class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="NFSE" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Nota de serviço (NFS-e) emitida aqui</span>
+                <span class="block text-[11px] text-zinc-400">A instalação sai numa NFS-e da OS, com a cidade da obra. Fora da NF-e dos móveis.</span>
+              </span>
+            </label>
+            <div v-if="form.instalacao_modo === 'NFSE'" class="mt-3 ml-6 max-w-sm" data-servico-instalacao>
+              <BaseSelect
+                :model-value="form.servico_instalacao_id ?? undefined"
+                @update:model-value="form.servico_instalacao_id = $event === undefined || $event === '' ? null : Number($event)"
+                label="Serviço da instalação"
+                :options="opcoesServico"
+                placeholder="Escolha o serviço"
+                :disabled="!podeGerir"
+              />
+              <p class="mt-1 text-[11px] text-zinc-400">
+                O código nacional e o NBS da NFS-e vêm do cadastro fiscal deste serviço.
+              </p>
+            </div>
           </fieldset>
 
           <ProdutoAcabadoCampo

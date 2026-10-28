@@ -55,6 +55,7 @@ FATURAMENTO_PADRAO = {
     "instalacao_modo": "EMBUTIDA",
     "produto_acabado_padrao_id": None,
     "produto_acabado_revenda_id": None,
+    "servico_instalacao_id": None,       # instalacao em NFS-e (docs/nfse-fase2-plano.md, G5)
     "pendencias_faturamento": [],
 }
 PADROES.update(FATURAMENTO_PADRAO)

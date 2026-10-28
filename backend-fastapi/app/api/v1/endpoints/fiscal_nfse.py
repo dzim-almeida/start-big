@@ -308,3 +308,37 @@ def emitir_nfse_avulsa(
     if doc.status == "PROCESSANDO":
         background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
     return EmissaoResponse.de_documento(doc, "NFS-e")
+
+
+# ===========================================================================
+# MARCENARIA (G5): a NFS-e da instalação, uma por OS
+# ===========================================================================
+
+@router.post("/os/{numero_os}/instalacao/preview", summary="A DPS da instalação (não envia nada)")
+def preview_nfse_instalacao(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    numero_os: str = Path(...),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.nfse.marcenaria import preview_nfse_instalacao as _preview
+
+    return _preview(db, numero_os, user_token["empresa_id"])
+
+
+@router.post("/os/{numero_os}/instalacao/emitir", response_model=EmissaoResponse,
+             summary="Emitir a NFS-e da instalação dos móveis")
+def emitir_nfse_instalacao(
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    numero_os: str = Path(...),
+    confirmar_duplicidade: bool = Query(False),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.emissao import poll_nfe_status_async
+    from app.services.fiscal.nfse.marcenaria import emitir_nfse_instalacao as _emitir
+
+    empresa_id = user_token["empresa_id"]
+    doc = _handle_db_transaction(db, _emitir, numero_os, empresa_id, confirmar_duplicidade)
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
+    return EmissaoResponse.de_documento(doc, "NFS-e")

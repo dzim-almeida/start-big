@@ -34,8 +34,11 @@ def ler(db: Session, numero_os: str) -> dict[str, Any]:
     config = get_configuracao_marcenaria(db, empresa_atual_id(db))
     modo = config.faturamento_modo if config is not None else DESLIGADO
     linhas = linhas_da_os(db, os_.id)
+    # Só as NF-e dos móveis: a NFS-e da instalação (G5) tem campo próprio, e
+    # na lista de notas dos móveis ela pareceria uma nota de móvel.
     docs = {d.id: d for d in db.query(DocumentoFiscal).filter(
-        DocumentoFiscal.origem_tipo == "OS", DocumentoFiscal.origem_id == os_.id).all()}
+        DocumentoFiscal.origem_tipo == "OS", DocumentoFiscal.origem_id == os_.id,
+        DocumentoFiscal.tipo_documento != "NFSE").all()}
 
     entrega_futura = modo == "ENTREGA_FUTURA"
     sf_por_movel = {m.id: docs.get(m.simples_faturamento_id) for a in orc.ambientes for m in a.moveis
@@ -70,4 +73,12 @@ def ler(db: Session, numero_os: str) -> dict[str, Any]:
         # Entrega futura: falta simples faturamento para algum movel? (o aditivo ganha o seu)
         "falta_simples_faturamento": entrega_futura and any(
             m["simples_faturamento"] is None or m["simples_faturamento"]["status"] not in vivos for m in moveis),
+        # Instalação em NFS-e (G5): None fora do modo NFSE.
+        "nfse_instalacao": _nfse_instalacao(db, os_),
     }
+
+
+def _nfse_instalacao(db: Session, os_) -> Any:
+    from app.services.fiscal.nfse.marcenaria import situacao
+
+    return situacao(db, empresa_atual_id(db), os_)

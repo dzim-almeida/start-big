@@ -191,3 +191,13 @@ def test_remessa_5116_com_icms_sem_pagamento_e_apontando_a_5922(sp):
     assert payload["items"][0]["icms_valor"] > 0                          # o ICMS sai na remessa
     assert payload["formas_pagamento"] == [{"forma_pagamento": "90", "valor_pagamento": 0.0}]
     assert payload["notas_referenciadas"] == [{"chave_nfe": "3" * 44}]
+
+
+def test_instalacao_em_nfse_fica_fora_da_nfe_igual_a_fora():
+    """G5 (docs/nfse-fase2-plano.md): no modo NFSE a instalação sai na NFS-e da
+    OS, então a NF-e dos móveis é EXATAMENTE a do modo FORA — sem cobrar duas vezes."""
+    os_ = _OS(valor_bruto=1_000_000, desconto=100_000)
+    kwargs = dict(valor_moveis_total=900_000, valor_moveis_ja_faturados=0, instalacao_valor=100_000)
+    nfse = adaptar_entrega(os_, [_movel("Balcão", 900_000)], instalacao_modo="NFSE", **kwargs)
+    fora = adaptar_entrega(os_, [_movel("Balcão", 900_000)], instalacao_modo="FORA", **kwargs)
+    assert (nfse.acrescimo, nfse.total) == (fora.acrescimo, fora.total) == (0, 810_000)

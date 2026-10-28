@@ -19,6 +19,10 @@ vi.mock('../services/faturamento.service', () => ({
   previaDoSimplesFaturamento: (...args: unknown[]) => previaSimples(...args),
   emitirSimplesFaturamento: vi.fn(),
 }));
+const emitirInstalacao = vi.fn();
+vi.mock('@/modules/fiscal/services/nfse.service', () => ({
+  nfseService: { emitirInstalacao: (...args: unknown[]) => emitirInstalacao(...args) },
+}));
 
 const { default: FaturamentoMoveisPanel } = await import('../components/FaturamentoMoveisPanel.vue');
 
@@ -93,5 +97,37 @@ describe('FaturamentoMoveisPanel — entrega futura (F4)', () => {
     await wrapper.find('[data-testid="previa-simples"]').trigger('click');
     await flushPromises();
     expect(previaSimples).toHaveBeenCalledWith('OS-2026-000001');
+  });
+});
+
+describe('FaturamentoMoveisPanel — instalação em NFS-e (G5)', () => {
+  it('fora do modo NFSE: sem o bloco da instalação', async () => {
+    const wrapper = await montar(LIGADO);
+    expect(wrapper.find('[data-testid="nfse-instalacao"]').exists()).toBe(false);
+  });
+
+  it('sem nota ainda: o botão emite a NFS-e da instalação da OS', async () => {
+    emitirInstalacao.mockResolvedValue({ status: 'AUTORIZADA', mensagem: null });
+    const wrapper = await montar({ ...LIGADO, instalacao_modo: 'NFSE', nfse_instalacao: { valor: 750, documento: null } });
+
+    expect(wrapper.text()).toContain('A instalação sai numa NFS-e');
+    await wrapper.find('[data-testid="emitir-nfse-instalacao"]').trigger('click');
+    await flushPromises();
+    expect(emitirInstalacao).toHaveBeenCalledWith('OS-2026-000001', false);
+  });
+
+  it('já emitida: mostra a nota e some o botão (uma por OS)', async () => {
+    const wrapper = await montar({
+      ...LIGADO,
+      instalacao_modo: 'NFSE',
+      nfse_instalacao: {
+        valor: 750,
+        documento: { id: 4, status: 'AUTORIZADA', numero: 12, codigo_verificacao: 'AB12', url_consulta: null, mensagem: null },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="nfse-instalacao"]').text()).toContain('NFS-e 12');
+    expect(wrapper.text()).toContain('verificação AB12');
+    expect(wrapper.find('[data-testid="emitir-nfse-instalacao"]').exists()).toBe(false);
   });
 });
