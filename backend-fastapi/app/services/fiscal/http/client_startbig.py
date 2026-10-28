@@ -199,7 +199,10 @@ class FiscalClientStartBig:
 
     def _parse_response(self, response_data: dict) -> EmissaoResultado:
         """Converte a resposta padrão da API para EmissaoResultado."""
-        mensagem = response_data.get("mensagem_sefaz")
+        # `mensagem`: as recusas da plataforma com código (franquia, nota
+        # repetida -- 28/10/2026) vêm como {codigo, mensagem}; sem esta leitura
+        # chegavam ao operador como "Erro desconhecido".
+        mensagem = response_data.get("mensagem_sefaz") or response_data.get("mensagem")
         if not mensagem:
             msg_api = response_data.get("message")
             if isinstance(msg_api, list):
@@ -251,6 +254,9 @@ class FiscalClientStartBig:
             # Só a NFS-e devolve; nas demais vêm None.
             "codigo_verificacao": response_data.get("codigo_verificacao"),
             "codigo_erro": response_data.get("codigo_erro"),
+            # Código estável da recusa da plataforma (FRANQUIA_ESGOTADA,
+            # NOTA_DUPLICADA_SUSPEITA...). Ver docs/integracao-erp-local.md, 13.5.
+            "codigo": response_data.get("codigo"),
         }
 
     def _recusa_local(self, resposta, operacao: str = "emissao") -> EmissaoResultado:
@@ -330,14 +336,21 @@ class FiscalClientStartBig:
             raise EmissaoIncertaError(str(exc)) from exc
 
     def emitir_nfse(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
-        """NFS-e Nacional: mesmo contrato e mesmo tratamento de erro da NF-e."""
+        """NFS-e Nacional: mesmo contrato e mesmo tratamento de erro da NF-e.
+
+        `confirmar_duplicidade`: o operador viu o aviso de nota repetida (409
+        NOTA_DUPLICADA_SUSPEITA) e confirmou que é outro serviço.
+        """
         url = f"{self.base_url}/erp/fiscal/nfse/emitir"
         body = {"ref": ref, "payload": payload}
         headers = dict(self.headers)
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
+        if confirmar_duplicidade:
+            headers["X-Confirmar-Duplicidade"] = "sim"
 
         _registrar_payload("NFSE", ref, body)
 

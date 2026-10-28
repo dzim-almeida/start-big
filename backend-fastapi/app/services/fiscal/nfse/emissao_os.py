@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 # Mesmo valor de `nfe_os.ORIGEM_MARCENARIA`.
 ORIGEM_MARCENARIA = "ORCAMENTO_MARCENARIA"
 
+# 409 da plataforma: mesma nota, outra ref, há menos de 1 h (franquia fiscal, 28/10/2026).
+CODIGO_NOTA_REPETIDA = "NOTA_DUPLICADA_SUSPEITA"
+
 
 def _preparar(db: Session, numero_os: str, empresa_id: int):
     os_obj = crud.get_os_completa(db, numero_os)
@@ -103,6 +106,7 @@ def preview_nfse_os(db: Session, numero_os: str, empresa_id: int) -> dict:
 def emitir_nfse_os(
     db: Session, numero_os: str, empresa_id: int,
     tentativa_anterior_id: Optional[int] = None,
+    confirmar_duplicidade: bool = False,
 ) -> DocumentoFiscal:
     from app.core.enum import OrdemServicoStatus
 
@@ -157,8 +161,9 @@ def emitir_nfse_os(
     client = get_fiscal_client(fiscal_settings.ambiente_emissao, crud.get_licenca_token(db))
     resultado = None
     try:
-        resultado = client.emitir_nfse(ref, dps, idempotency_key=doc.idempotency_key)
-        _aplicar_resultado(doc, resultado, client)
+        resultado = client.emitir_nfse(
+            ref, dps, idempotency_key=doc.idempotency_key, confirmar_duplicidade=confirmar_duplicidade,
+        )
     except Exception as e:
         # Falha de comunicação NÃO é rejeição (mesma regra da NF-e): a nota pode
         # ter saído, e a reconciliação de boot / o polling resolvem.
@@ -168,6 +173,17 @@ def emitir_nfse_os(
             f"Não foi possível confirmar o resultado da NFS-e: {str(e)[:300]}. "
             "O documento será reconsultado automaticamente."
         )
+    else:
+        # Nota repetida (docs/integracao-erp-local.md da plataforma, 13.4.2): a
+        # plataforma não emitiu e quer a confirmação do operador. Vira 409 para
+        # a tela perguntar — e o documento não fica gravado (o
+        # `_handle_db_transaction` desfaz), porque nada saiu daqui.
+        if resultado.get("codigo") == CODIGO_NOTA_REPETIDA:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"codigo": CODIGO_NOTA_REPETIDA, "mensagem": resultado.get("mensagem_sefaz")},
+            )
+        _aplicar_resultado(doc, resultado, client)
 
     espelhar_nfse_na_os(db, doc, resultado)
     return doc

@@ -84,7 +84,8 @@ class FiscalClientMock:
         return resultado
 
     def emitir_nfse(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         logger.info("[FISCAL MOCK] emitir_nfse ref=%s", ref)
         self._simular_latencia()

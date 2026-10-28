@@ -1,7 +1,7 @@
 import api from '@/api/axios';
 import type { ResultadoVerificacaoFiscal } from '@/shared/types/fiscal.types';
 import type { EmissaoResponse, NfseDocumento, NfsePreview } from '../types/fiscal.types';
-import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO } from '../constants/fiscal.constants';
+import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
 const NFSE_ENDPOINT = '/fiscal/nfse';
 
@@ -37,11 +37,18 @@ export const nfseService = {
     return data;
   },
 
-  async emitirOs(numeroOs: string): Promise<EmissaoResponse> {
+  /**
+   * `confirmarDuplicidade`: o operador viu o aviso de nota repetida (409
+   * NOTA_DUPLICADA_SUSPEITA da plataforma) e confirmou que é outro serviço.
+   */
+  async emitirOs(numeroOs: string, confirmarDuplicidade = false): Promise<EmissaoResponse> {
     const { data } = await api.post<EmissaoResponse>(
       `${NFSE_ENDPOINT}/os/${encodeURIComponent(numeroOs)}/emitir`,
       null,
-      { timeout: TIMEOUT_EMISSAO },
+      {
+        params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined,
+        timeout: TIMEOUT_EMISSAO,
+      },
     );
     return data;
   },
@@ -53,6 +60,26 @@ export const nfseService = {
       { timeout: TIMEOUT_CONSULTA },
     );
     return data;
+  },
+
+  /** O ZIP do contador só com NFS-e (mesmo formato do `fiscalService.exportarXmlPeriodo`). */
+  async exportarXmlPeriodo(
+    dataInicio: string,
+    dataFim: string,
+  ): Promise<{ arquivo: Blob; nome: string; documentos: number; baixados: number; naoBaixados: number }> {
+    const resposta = await api.get<Blob>(`${NFSE_ENDPOINT}/exportar-xml`, {
+      params: { data_inicio: dataInicio, data_fim: dataFim },
+      responseType: 'blob',
+      timeout: TIMEOUT_LOTE,
+    });
+    const h = resposta.headers as Record<string, string | undefined>;
+    return {
+      arquivo: resposta.data,
+      nome: `xml-nfse-${dataInicio}_${dataFim}.zip`,
+      documentos: Number(h['x-fiscal-documentos'] ?? 0),
+      baixados: Number(h['x-fiscal-baixados'] ?? 0),
+      naoBaixados: Number(h['x-fiscal-nao-baixados'] ?? 0),
+    };
   },
 
   async cancelar(documentoId: number, justificativa: string): Promise<EmissaoResponse> {

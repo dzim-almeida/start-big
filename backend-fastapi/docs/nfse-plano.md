@@ -263,6 +263,25 @@ idênticas e um commit próprio, e não depende de ligar a anterior em produçã
 - DANFSe/XML na lista de documentos e no ZIP do contador (passando pelo "Salvar
   como", d51ed867).
 
+**Entrega da F4 (28/10/2026, ERP, branch `feat/nfse`):**
+- **Franquia fiscal da plataforma** (main 9e80f77: 70 notas por mês, recusas 402
+  `FRANQUIA_ESGOTADA` e `TETO_MENSAL_ATINGIDO`, e 409 `NOTA_DUPLICADA_SUSPEITA`):
+  - o cliente HTTP passou a ler `mensagem` e `codigo` das recusas com código.
+    Antes chegavam como "Erro desconhecido", **também na NF-e e na NFC-e**;
+  - a NFS-e trata a nota repetida: a emissão devolve 409 sem gravar documento, o
+    modal mostra o aviso da plataforma e "Emitir mesmo assim" reenvia com
+    `confirmar_duplicidade` (cabeçalho `X-Confirmar-Duplicidade: sim`).
+- **ZIP do contador:** a NFS-e vai para a pasta `NFSe/`, com "modelo" NFSE na
+  relação. Antes cairia em `NFe/` como 55. Na aba NFS-e há "XMLs do período" com
+  `/fiscal/nfse/exportar-xml` (módulo NFSE), só com NFS-e, sem inutilizações nem
+  CC-e.
+- **Ainda não:**
+  - o ERP não mostra o saldo da franquia (`GET /erp/fiscal/franquia`). É assunto
+    das três notas, não só da NFS-e;
+  - a NF-e e a NFC-e não têm o fluxo de confirmação da nota repetida. Com o
+    cliente novo, elas já mostram a mensagem certa (NAO_TRANSMITIDA com o texto
+    da plataforma), mas não oferecem "emitir mesmo assim".
+
 ### F5 — Homologação e canário
 - Ciclo completo em homologação na empresa do Alan: emitir, consultar e cancelar.
 - Ligar produção **só** para a empresa do Alan, emitir **uma** NFS-e real de valor

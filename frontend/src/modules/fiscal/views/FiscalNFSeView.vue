@@ -7,15 +7,17 @@
  * as empresas) entra cidade por cidade.
  */
 import { ref } from 'vue';
-import { Send } from 'lucide-vue-next';
+import { FolderArchive, Send } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import NfseDocumentosTable from '../components/nfse/NfseDocumentosTable.vue';
 import NfseEmitirModal from '../components/nfse/NfseEmitirModal.vue';
+import FiscalExportarXmlModal from '../components/listagem/FiscalExportarXmlModal.vue';
 
 const showEmitirModal = ref(false);
+const showExportarXmlModal = ref(false);
 </script>
 
 <template>
@@ -23,14 +25,21 @@ const showEmitirModal = ref(false);
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview title="NFS-e" description="Notas Fiscais de Serviço (padrão nacional)" />
 
-      <BaseButton type="button" variant="primary" class="text-sm" @click="showEmitirModal = true">
-        <Send :size="16" class="mr-1.5" />
-        Emitir NFS-e
-      </BaseButton>
+      <div class="flex items-center gap-2">
+        <BaseButton type="button" variant="ghost" class="text-sm" @click="showExportarXmlModal = true">
+          <FolderArchive :size="16" class="mr-1.5" />
+          XMLs do período
+        </BaseButton>
+        <BaseButton type="button" variant="primary" class="text-sm" @click="showEmitirModal = true">
+          <Send :size="16" class="mr-1.5" />
+          Emitir NFS-e
+        </BaseButton>
+      </div>
     </div>
 
     <NfseDocumentosTable />
 
     <NfseEmitirModal :is-open="showEmitirModal" @close="showEmitirModal = false" />
+    <FiscalExportarXmlModal :is-open="showExportarXmlModal" tipo-inicial="NFSE" @close="showExportarXmlModal = false" />
   </div>
 </template>

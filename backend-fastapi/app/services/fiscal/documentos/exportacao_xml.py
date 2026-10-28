@@ -64,11 +64,19 @@ def _reais(centavos: Optional[int]) -> str:
     return f"{(centavos or 0) / 100:.2f}".replace(".", ",")
 
 
+# Pasta e "modelo" de cada documento no pacote. A NFS-e não é modelo SEFAZ
+# (55/65): sem a entrada dela, caía em NFe/ e na relação como 55.
+PASTA_POR_TIPO = {"NFE": "NFe", "NFCE": "NFCe", "NFSE": "NFSe"}
+MODELO_POR_TIPO = {"NFE": "55", "NFCE": "65", "NFSE": "NFSE"}
+
+
 def _nome_xml(doc: DocumentoFiscal) -> str:
     chave = (doc.chave_acesso or "").strip()
     if chave:
         return f"{chave}.xml"
     # Sem chave não há nome canônico; número+série identifica dentro da loja.
+    if doc.tipo_documento == "NFSE":
+        return f"NFSE-{doc.numero_documento or doc.id}.xml"   # a DPS não tem série nossa
     return f"{doc.tipo_documento}-{doc.serie}-{doc.numero_documento or doc.id}.xml"
 
 
@@ -122,8 +130,11 @@ def montar_pacote_xml(
 ) -> tuple[bytes, dict]:
     """Devolve (zip_em_bytes, resumo). Nunca levanta por XML que não veio."""
     documentos = listar_documentos_do_periodo(db, data_inicio, data_fim, tipo)
-    inutilizacoes = listar_inutilizacoes_do_periodo(db, empresa_id, data_inicio, data_fim)
-    cartas = listar_cartas_correcao_do_periodo(db, empresa_id, data_inicio, data_fim)
+    # Inutilização e carta de correção são eventos da NF-e: o pacote só de
+    # NFS-e (aba NFS-e, módulo NFSE) não os leva.
+    so_nfse = (tipo or "").upper() == "NFSE"
+    inutilizacoes = [] if so_nfse else listar_inutilizacoes_do_periodo(db, empresa_id, data_inicio, data_fim)
+    cartas = [] if so_nfse else listar_cartas_correcao_do_periodo(db, empresa_id, data_inicio, data_fim)
 
     fiscal_settings = crud.get_fiscal_settings(db, empresa_id)
     ambiente = fiscal_settings.ambiente_emissao if fiscal_settings else 2
@@ -143,9 +154,7 @@ def montar_pacote_xml(
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as pacote:
         for doc in documentos:
             nome = _nome_xml(doc)
-            pasta = "Cancelados" if doc.status == "CANCELADA" else (
-                "NFCe" if doc.tipo_documento == "NFCE" else "NFe"
-            )
+            pasta = "Cancelados" if doc.status == "CANCELADA" else PASTA_POR_TIPO.get(doc.tipo_documento, "NFe")
             caminho = f"{pasta}/{nome}"
 
             # DISCO PRIMEIRO. O pacote do contador deixou de depender da
@@ -183,7 +192,7 @@ def montar_pacote_xml(
                 else f"Venda {doc.origem_id}"
             )
             escritor.writerow([
-                "65" if doc.tipo_documento == "NFCE" else "55",
+                MODELO_POR_TIPO.get(doc.tipo_documento, "55"),
                 doc.serie, doc.numero_documento, doc.chave_acesso or "", doc.status,
                 _local(doc.data_emissao), _local(doc.data_autorizacao),
                 doc.protocolo_autorizacao or "", _reais(doc.valor_total), origem, caminho,

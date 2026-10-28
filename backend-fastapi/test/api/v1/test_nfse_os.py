@@ -40,7 +40,7 @@ class PlataformaFalsa:
         }
         self.falha = None
 
-    def emitir_nfse(self, ref, payload, idempotency_key=None):
+    def emitir_nfse(self, ref, payload, idempotency_key=None, confirmar_duplicidade=False):
         self.enviados.append((ref, payload))
         if self.falha:
             raise self.falha
@@ -283,3 +283,94 @@ def test_lista_as_nfse_com_o_codigo_de_verificacao(client, loja, servico, db_ses
     [nota] = r.json()
     assert (nota["numero_os"], nota["status"], nota["numero"], nota["codigo_verificacao"]) == (numero, "AUTORIZADA", 74798, "ABC123")
     assert nota["tomador"] == "Maria Souza"
+
+
+# =========================
+# Franquia fiscal da plataforma (28/10/2026): nota repetida e recusas com codigo
+# =========================
+
+def test_nota_repetida_pergunta_e_a_confirmacao_reenvia(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    plataforma.resposta = {"status": "nao_transmitido", "codigo": "NOTA_DUPLICADA_SUSPEITA",
+                           "mensagem_sefaz": 'Esta nota é igual à ref "os-9-nfse", autorizada há 3 min.'}
+
+    r = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+
+    assert r.status_code == 409
+    assert r.json()["detail"]["codigo"] == "NOTA_DUPLICADA_SUSPEITA"
+    assert "autorizada há 3 min" in r.json()["detail"]["mensagem"]
+    assert db_session.query(DocumentoFiscal).filter_by(tipo_documento="NFSE").count() == 0  # nada ficou
+
+    plataforma.resposta = {"status": "autorizado", "numero": 5}
+    confirmados = []
+    original = plataforma.emitir_nfse
+    plataforma.emitir_nfse = lambda ref, payload, idempotency_key=None, confirmar_duplicidade=False: (
+        confirmados.append(confirmar_duplicidade) or original(ref, payload, idempotency_key)
+    )
+    r = client.post(f"{NFSE}/os/{numero}/emitir", params={"confirmar_duplicidade": True}, headers=loja)
+
+    assert r.json()["status"] == "AUTORIZADA"
+    assert confirmados == [True]
+
+
+def test_client_le_a_recusa_com_codigo_da_plataforma():
+    """Antes vinha "Erro desconhecido": o corpo e {codigo, mensagem}, sem mensagem_sefaz."""
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    r = FiscalClientStartBig()._parse_response({
+        "codigo": "FRANQUIA_ESGOTADA", "mensagem": "As 70 notas do mês acabaram.",
+    })
+    assert (r["codigo"], r["mensagem_sefaz"]) == ("FRANQUIA_ESGOTADA", "As 70 notas do mês acabaram.")
+
+
+# =========================
+# F4: o ZIP do contador separa a NFS-e
+# =========================
+
+def test_pacote_do_contador_poe_a_nfse_na_pasta_dela(db_session, monkeypatch, loja):
+    import io
+    import zipfile
+    from datetime import date
+
+    from app.services.fiscal.documentos import exportacao_xml
+
+    class Cliente:
+        def baixar_xml(self, url):
+            return "<NFSe/>"
+
+    monkeypatch.setattr(exportacao_xml, "get_fiscal_client", lambda *a, **k: Cliente())
+    monkeypatch.setattr(exportacao_xml, "guardar_xml", lambda *a, **k: None)   # nada no disco real
+    db_session.add(DocumentoFiscal(
+        tipo_documento="NFSE", origem_tipo="OS", origem_numero_os="OS-1", status="AUTORIZADA",
+        numero_documento=74798, url_xml="https://x/nfse.xml", valor_total=15000,
+        data_emissao=datetime.now(timezone.utc), data_autorizacao=datetime.now(timezone.utc),
+    ))
+    db_session.commit()
+    empresa_id = db_session.query(Empresa).first().id
+
+    conteudo, _resumo = exportacao_xml.montar_pacote_xml(db_session, empresa_id, date.today(), date.today())
+
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+        nomes = z.namelist()
+        assert "NFSe/NFSE-74798.xml" in nomes
+        relacao = next(n for n in nomes if n.endswith(".csv"))
+        linha = [l for l in z.read(relacao).decode("utf-8-sig").splitlines() if "74798" in l][0]
+    assert linha.startswith("NFSE;")
+
+
+def test_aba_nfse_baixa_o_zip_so_de_nfse_sem_o_modulo_nfe(client, loja, servico, db_session, plataforma, monkeypatch):
+    from datetime import date
+
+    from app.services.fiscal.documentos import exportacao_xml
+
+    monkeypatch.setattr(exportacao_xml, "get_fiscal_client", lambda *a, **k: type("C", (), {"baixar_xml": lambda s, u: "<x/>"})())
+    monkeypatch.setattr(exportacao_xml, "guardar_xml", lambda *a, **k: None)
+    plataforma.resposta["url_xml"] = "https://x/nfse.xml"
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    client.post(f"{NFSE}/os/{numero}/emitir", headers=loja)
+    hoje = date.today().isoformat()
+
+    r = client.get(f"{NFSE}/exportar-xml", params={"data_inicio": hoje, "data_fim": hoje}, headers=loja)
+
+    assert r.status_code == 200, r.text                     # licença só com NFSE
+    assert r.headers["x-fiscal-documentos"] == "1"

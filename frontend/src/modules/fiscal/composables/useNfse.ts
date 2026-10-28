@@ -36,6 +36,13 @@ function avisarDesfecho(toast: ReturnType<typeof useToast>, r: EmissaoResponse) 
   else toast.error(r.mensagem || `NFS-e ${r.status.toLowerCase()}.`);
 }
 
+/** O 409 da plataforma para nota igual a outra autorizada há menos de 1 h. */
+export const CODIGO_NOTA_REPETIDA = 'NOTA_DUPLICADA_SUSPEITA';
+
+export function codigoDoErro(error: unknown): string | undefined {
+  return (error as AxiosError<{ detail?: { codigo?: string } }>)?.response?.data?.detail?.codigo;
+}
+
 function useNfseMutation<T>(fn: (v: T) => Promise<EmissaoResponse>) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -45,11 +52,18 @@ function useNfseMutation<T>(fn: (v: T) => Promise<EmissaoResponse>) {
       avisarDesfecho(toast, r);
       queryClient.invalidateQueries({ queryKey: fiscalKeys.nfseDocumentos() });
     },
-    onError: (error) => toast.error(getErrorMessage(error as AxiosError<ApiError>)),
+    onError: (error) => {
+      // A nota repetida não é erro para toast: o modal pergunta ao operador.
+      if (codigoDoErro(error) === CODIGO_NOTA_REPETIDA) return;
+      toast.error(getErrorMessage(error as AxiosError<ApiError>));
+    },
   });
 }
 
-export const useNfseEmitirMutation = () => useNfseMutation((numeroOs: string) => nfseService.emitirOs(numeroOs));
+export const useNfseEmitirMutation = () =>
+  useNfseMutation(({ numeroOs, confirmar = false }: { numeroOs: string; confirmar?: boolean }) =>
+    nfseService.emitirOs(numeroOs, confirmar),
+  );
 
 export const useNfseConsultarMutation = () => useNfseMutation((id: number) => nfseService.consultar(id));
 

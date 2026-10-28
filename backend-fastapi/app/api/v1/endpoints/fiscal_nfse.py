@@ -9,6 +9,8 @@
 # 403 MODULO_NAO_CONTRATADO.
 # ---------------------------------------------------------------------------
 
+from datetime import date
+
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
@@ -119,13 +121,18 @@ def emitir_nfse_da_os(
     background_tasks: BackgroundTasks,
     user_token: dict = Depends(check_permission(required_permission="servico")),
     numero_os: str = Path(...),
+    confirmar_duplicidade: bool = Query(
+        False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
+    ),
     db: Session = Depends(get_db),
 ):
     from app.services.fiscal.emissao import poll_nfe_status_async
     from app.services.fiscal.nfse.emissao_os import emitir_nfse_os
 
     empresa_id = user_token["empresa_id"]
-    doc = _handle_db_transaction(db, emitir_nfse_os, numero_os, empresa_id)
+    doc = _handle_db_transaction(
+        db, emitir_nfse_os, numero_os, empresa_id, None, confirmar_duplicidade,
+    )
     if doc.status == "PROCESSANDO":
         background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
     return EmissaoResponse.de_documento(doc, "NFS-e")
@@ -156,6 +163,35 @@ def cancelar_nfse(
     _nfse_ou_404(db, documento_id)
     doc = _handle_db_transaction(db, cancelar_documento, documento_id, user_token["empresa_id"], payload.justificativa)
     return EmissaoResponse.de_documento(doc, "NFS-e")
+
+
+@router.get("/exportar-xml", summary="XMLs das NFS-e do período (ZIP para o contador)")
+def exportar_xml_nfse(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    data_inicio: date = Query(...),
+    data_fim: date = Query(...),
+    db: Session = Depends(get_db),
+):
+    """O mesmo pacote do Centro Fiscal (`fiscal_documentos.exportar_xml_periodo`),
+    só com NFS-e — aquela rota exige o módulo NFE, e o MEI tem só a NFS-e."""
+    from fastapi.responses import Response
+    from app.services.fiscal.documentos.exportacao_xml import montar_pacote_xml
+
+    if data_fim < data_inicio:
+        raise HTTPException(status_code=422, detail="data_fim anterior a data_inicio.")
+    if (data_fim - data_inicio).days > 366:
+        raise HTTPException(status_code=422, detail="O período máximo é de um ano.")
+    conteudo, resumo = montar_pacote_xml(db, user_token["empresa_id"], data_inicio, data_fim, "NFSE")
+    return Response(
+        content=conteudo,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="xml-nfse-{data_inicio:%Y-%m-%d}_{data_fim:%Y-%m-%d}.zip"',
+            "X-Fiscal-Documentos": str(resumo["documentos"]),
+            "X-Fiscal-Baixados": str(resumo["baixados"]),
+            "X-Fiscal-Nao-Baixados": str(resumo["nao_baixados"]),
+        },
+    )
 
 
 @router.get("/documentos", summary="As NFS-e emitidas (mais recentes primeiro)")

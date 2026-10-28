@@ -160,7 +160,8 @@ class FiscalClientProtocol(Protocol):
         ...
 
     def emitir_nfse(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         """
         Envia a DPS da NFS-e Nacional (`payload` já no formato da Focus).

@@ -18,7 +18,7 @@ import { formatCPF, formatCNPJ } from '@/shared/utils/document.utils';
 import type { PendenciaFiscal } from '@/shared/types/fiscal.types';
 
 import { nfseService } from '../../services/nfse.service';
-import { useNfseEmitirMutation } from '../../composables/useNfse';
+import { CODIGO_NOTA_REPETIDA, codigoDoErro, useNfseEmitirMutation } from '../../composables/useNfse';
 import { formatarCodigoNacional, formatarNbs } from '../../utils/nfse.utils';
 import type { NfsePreview } from '../../types/fiscal.types';
 
@@ -30,6 +30,8 @@ const conferindo = ref(false);
 const erro = ref<string | null>(null);
 const pendencias = ref<PendenciaFiscal[]>([]);
 const preview = ref<NfsePreview | null>(null);
+/** A plataforma achou uma nota igual há menos de 1 h: a mensagem dela, para o operador decidir. */
+const avisoRepetida = ref<string | null>(null);
 
 const emitirMutation = useNfseEmitirMutation();
 
@@ -39,6 +41,7 @@ watch(() => props.isOpen, (aberto) => {
     erro.value = null;
     pendencias.value = [];
     preview.value = null;
+    avisoRepetida.value = null;
   }
 });
 
@@ -47,6 +50,7 @@ watch(numeroOs, () => {
   pendencias.value = [];
   preview.value = null;
   erro.value = null;
+  avisoRepetida.value = null;
 });
 
 async function conferir() {
@@ -67,10 +71,16 @@ async function conferir() {
   }
 }
 
-async function emitir() {
+async function emitir(confirmar = false) {
   if (!preview.value) return;
-  await emitirMutation.mutateAsync(preview.value.numero_os);
-  emit('close');
+  try {
+    await emitirMutation.mutateAsync({ numeroOs: preview.value.numero_os, confirmar });
+    emit('close');
+  } catch (e: any) {
+    if (codigoDoErro(e) === CODIGO_NOTA_REPETIDA) {
+      avisoRepetida.value = e?.response?.data?.detail?.mensagem ?? 'Esta nota é igual a outra emitida há pouco.';
+    }
+  }
 }
 
 const tomador = computed(() => {
@@ -121,6 +131,17 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
         </ul>
       </div>
 
+      <!-- Nota repetida: a plataforma não emitiu e pede a confirmação do operador -->
+      <div v-if="avisoRepetida" class="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3" data-aviso-repetida>
+        <p class="text-sm text-amber-800 flex items-start gap-2">
+          <AlertCircle :size="16" class="mt-0.5 shrink-0" />
+          <span>{{ avisoRepetida }} Se for mesmo outro serviço, confirme para emitir.</span>
+        </p>
+        <BaseButton type="button" variant="secondary" :is-loading="emitirMutation.isPending.value" @click="emitir(true)">
+          Emitir mesmo assim
+        </BaseButton>
+      </div>
+
       <!-- A nota que vai sair -->
       <div v-if="preview" class="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-3" data-preview-nfse>
         <div class="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
@@ -161,9 +182,9 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
         <BaseButton
           type="button"
           variant="primary"
-          :disabled="!preview || emitirMutation.isPending.value"
+          :disabled="!preview || !!avisoRepetida || emitirMutation.isPending.value"
           :is-loading="emitirMutation.isPending.value"
-          @click="emitir"
+          @click="emitir()"
         >
           <Send :size="16" class="mr-1.5" />
           Emitir NFS-e

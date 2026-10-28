@@ -16,6 +16,8 @@ vi.mock('../../../services/nfse.service', () => ({
 
 const emitir = vi.fn().mockResolvedValue({ status: 'AUTORIZADA' });
 vi.mock('../../../composables/useNfse', () => ({
+  CODIGO_NOTA_REPETIDA: 'NOTA_DUPLICADA_SUSPEITA',
+  codigoDoErro: (e: any) => e?.response?.data?.detail?.codigo,
   useNfseEmitirMutation: () => ({ mutateAsync: emitir, isPending: ref(false) }),
 }));
 
@@ -77,7 +79,29 @@ describe('Emitir NFS-e', () => {
     expect(texto).toContain('150,00');
 
     botao('Emitir NFS-e')!.click();
-    await vi.waitFor(() => expect(emitir).toHaveBeenCalledWith('OS-2026-000123'));
+    await vi.waitFor(() => expect(emitir).toHaveBeenCalledWith({ numeroOs: 'OS-2026-000123', confirmar: false }));
+    wrapper.unmount();
+  });
+
+  it('nota repetida: mostra o aviso da plataforma e só emite com a confirmação', async () => {
+    verificarOs.mockResolvedValue({ completo: true, pendencias: [] });
+    previewOs.mockResolvedValue({
+      numero_os: 'OS-2026-000123',
+      dps: { descricao_servico: 'Formatação', valor_servico: 150, codigo_tributacao_nacional_iss: '010701', codigo_opcao_simples_nacional: '2' },
+    });
+    emitir.mockRejectedValueOnce({
+      response: { data: { detail: { codigo: 'NOTA_DUPLICADA_SUSPEITA', mensagem: 'Igual à ref os-9-nfse, autorizada há 3 min.' } } },
+    });
+    const wrapper = await conferir();
+    await vi.waitFor(() => expect(document.body.querySelector('[data-preview-nfse]')).not.toBeNull());
+
+    botao('Emitir NFS-e')!.click();
+    await vi.waitFor(() => expect(document.body.querySelector('[data-aviso-repetida]')).not.toBeNull());
+    expect(document.body.textContent).toContain('autorizada há 3 min');
+    expect(botao('Emitir NFS-e')!.disabled).toBe(true);
+
+    botao('Emitir mesmo assim')!.click();
+    await vi.waitFor(() => expect(emitir).toHaveBeenLastCalledWith({ numeroOs: 'OS-2026-000123', confirmar: true }));
     wrapper.unmount();
   });
 });

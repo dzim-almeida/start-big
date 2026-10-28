@@ -22,12 +22,18 @@ import { ErroAoSalvar, salvarArquivo } from '@/shared/utils/arquivo';
 import type { ApiError } from '@/shared/types/axios.types';
 
 import { fiscalService } from '../../services/fiscal.service';
+import { nfseService } from '../../services/nfse.service';
 
 const props = defineProps<{
   isOpen: boolean;
-  /** Pré-seleciona o modelo da tela de origem; o operador pode trocar. */
-  tipoInicial?: 'NFE' | 'NFCE';
+  /**
+   * Pré-seleciona o modelo da tela de origem; o operador pode trocar.
+   * 'NFSE' (aba NFS-e) é outro pacote, por outra rota (módulo NFSE): sem troca.
+   */
+  tipoInicial?: 'NFE' | 'NFCE' | 'NFSE';
 }>();
+
+const somenteNfse = props.tipoInicial === 'NFSE';
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -64,7 +70,7 @@ const modo = ref<'mes' | 'intervalo'>('mes');
 const mesEscolhido = ref<string>('');
 const dataInicio = ref('');
 const dataFim = ref('');
-const tipo = ref<'' | 'NFE' | 'NFCE'>(props.tipoInicial ?? '');
+const tipo = ref<'' | 'NFE' | 'NFCE'>(props.tipoInicial === 'NFSE' ? '' : (props.tipoInicial ?? ''));
 
 // O mês anterior é o padrão porque é o que se fecha; o atual ainda está aberto.
 if (opcoesMes.value.length > 1) mesEscolhido.value = opcoesMes.value[1].value;
@@ -92,9 +98,9 @@ async function baixar() {
   if (!periodo.value || isBaixando.value) return;
   isBaixando.value = true;
   try {
-    const r = await fiscalService.exportarXmlPeriodo(
-      periodo.value.inicio, periodo.value.fim, tipo.value || undefined,
-    );
+    const r = somenteNfse
+      ? await nfseService.exportarXmlPeriodo(periodo.value.inicio, periodo.value.fim)
+      : await fiscalService.exportarXmlPeriodo(periodo.value.inicio, periodo.value.fim, tipo.value || undefined);
     if (r.documentos === 0) {
       toast.info('Nenhum documento no período', 'Não há nota autorizada ou cancelada nessas datas.');
       return;
@@ -167,7 +173,7 @@ async function baixar() {
         <BaseDateInput v-model="dataFim" label="Até" />
       </div>
 
-      <BaseSelect v-model="tipo" label="Modelo" :options="TIPO_OPTIONS" />
+      <BaseSelect v-if="!somenteNfse" v-model="tipo" label="Modelo" :options="TIPO_OPTIONS" />
 
       <p v-if="modo === 'intervalo' && dataInicio && dataFim && dataFim < dataInicio" class="text-xs text-rose-600">
         A data final é anterior à inicial.
