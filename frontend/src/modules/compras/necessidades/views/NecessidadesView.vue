@@ -17,9 +17,14 @@
  *
  * As OS abertas (fase 6) entram sempre: a peça aprovada numa OS já tem dono,
  * então as contas olham o saldo LIVRE, e a OS a que a peça falta vira origem.
+ *
+ * Produto sem fornecedor no cadastro NÃO fica travado: a linha oferece todos
+ * os fornecedores da loja, e o rascunho sai com o custo do estoque (o backend
+ * já trata o item sem vínculo). Exigir o cadastro antes empacava a compra.
  */
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useQuery } from '@tanstack/vue-query';
 import { AlertTriangle, PackageCheck, ShoppingCart, TrendingDown, TrendingUp, Wrench } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -28,6 +33,8 @@ import { formatCurrency } from '@/shared/utils/finance';
 
 import { useAcessoCompras } from '../../shared/composables/useAcessoCompras';
 import { useGerarPedidos, useNecessidadesQuery } from '../../shared/composables/useCompras';
+import { comprasKeys } from '../../shared/constants/queryKeys';
+import { getFornecedoresQueVendem } from '../../shared/services/compras.service';
 import type { BaseNecessidade, NecessidadeItem, OpcaoFornecedor } from '../../shared/types/compras.types';
 
 const router = useRouter();
@@ -42,6 +49,14 @@ const params = computed(() => ({
 }));
 const { data: grupos, isLoading, isError } = useNecessidadesQuery(params);
 const gerar = useGerarPedidos();
+
+// Para o produto sem fornecedor no cadastro: a lista de todos que vendem.
+const { data: fornecedores } = useQuery({
+  queryKey: comprasKeys.fornecedores(),
+  queryFn: getFornecedoresQueVendem,
+  enabled: podeGerenciar,
+  staleTime: 60_000,
+});
 
 interface Escolha {
   marcado: boolean;
@@ -100,6 +115,14 @@ function usarAlternativa(item: NecessidadeItem) {
   // Mantém as UNIDADES do produto: 5 fardos de 12 viram 60 avulsas, não 5.
   const nova = unidadeDaLinha(item);
   escolha.quantidade = Math.max(1, Math.ceil((escolha.quantidade * atual.fator) / nova.fator));
+}
+
+/** Produto sem fornecedor no cadastro: escolher um já marca a linha. */
+function escolherFornecedor(item: NecessidadeItem, valor: string) {
+  const escolha = escolhas.value[item.produto_id];
+  if (!escolha) return;
+  escolha.fornecedorId = valor ? Number(valor) : null;
+  escolha.marcado = !!escolha.fornecedorId;
 }
 
 function formatQtd(n: number): string {
@@ -207,7 +230,7 @@ function gerarPedidos() {
               {{ grupo.itens.length }} {{ grupo.itens.length === 1 ? 'produto' : 'produtos' }}
             </p>
           </div>
-          <div v-if="grupo.fornecedor_id && podeGerenciar" class="flex items-center gap-3 text-xs">
+          <div v-if="podeGerenciar" class="flex items-center gap-3 text-xs">
             <button type="button" class="font-medium text-brand-primary cursor-pointer" @click="marcarGrupo(grupo.itens, true)">
               Marcar todos
             </button>
@@ -239,7 +262,7 @@ function gerarPedidos() {
                     type="checkbox"
                     class="mt-1 accent-brand-primary"
                     :disabled="!escolhas[item.produto_id]?.fornecedorId"
-                    :title="escolhas[item.produto_id]?.fornecedorId ? '' : 'Cadastre um fornecedor no produto'"
+                    :title="escolhas[item.produto_id]?.fornecedorId ? '' : 'Escolha o fornecedor na linha'"
                   />
                 </td>
                 <td class="px-3 py-3">
@@ -336,7 +359,21 @@ function gerarPedidos() {
                     </option>
                   </select>
                   <span v-else-if="item.fornecedor_nome" class="text-zinc-700">{{ item.fornecedor_nome }}</span>
-                  <span v-else class="text-xs text-zinc-400">Cadastre um fornecedor no produto</span>
+                  <template v-else-if="podeGerenciar">
+                    <select
+                      :value="escolhas[item.produto_id].fornecedorId ?? ''"
+                      class="w-44 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-brand-primary"
+                      data-escolher-fornecedor
+                      @change="escolherFornecedor(item, ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">Escolha o fornecedor…</option>
+                      <option v-for="f in fornecedores ?? []" :key="f.id" :value="f.id">
+                        {{ f.nome_fantasia || f.nome }}
+                      </option>
+                    </select>
+                    <p class="mt-1 text-[11px] text-zinc-400">Sem fornecedor no cadastro do produto</p>
+                  </template>
+                  <span v-else class="text-xs text-zinc-400">Sem fornecedor no cadastro</span>
                 </td>
                 <td v-if="podeVerCusto" class="px-5 py-3 text-right tabular-nums text-zinc-700">
                   {{ precoDaLinha(item) != null ? formatCurrency(precoDaLinha(item) as number) : '—' }}
