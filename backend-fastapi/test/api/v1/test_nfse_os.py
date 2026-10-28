@@ -462,3 +462,66 @@ def test_codigo_de_verificacao_fica_no_documento(client, loja, servico, db_sessi
     doc = db_session.query(DocumentoFiscal).filter_by(tipo_documento="NFSE").one()
     db_session.refresh(doc)
     assert doc.codigo_verificacao == "ABC123"
+
+
+# =========================
+# G4: NFS-e avulsa (sem OS)
+# =========================
+
+@pytest.fixture
+def plataforma_avulsa(monkeypatch, plataforma):
+    monkeypatch.setattr("app.services.fiscal.nfse.avulsa.get_fiscal_client", lambda *a, **k: plataforma)
+    return plataforma
+
+
+AVULSA = {
+    "codigo_tributacao_nacional": "01.07.01", "codigo_nbs": "1.1501.30.00",
+    "descricao": "Consultoria em informatica", "valor": 20000, "desconto": 2000,
+    "tomador_documento": "11.222.333/0001-81", "tomador_nome": "Cliente LTDA", "tomador_email": "a@b.com",
+}
+
+
+def test_avulsa_emite_sem_os(client, loja, db_session, plataforma_avulsa):
+    r = client.post(f"{NFSE}/avulsa/emitir", json=AVULSA, headers=loja)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "AUTORIZADA"
+    ref, dps = plataforma_avulsa.enviados[0]
+    assert ref.startswith("nfse-av-")
+    assert dps["codigo_tributacao_nacional_iss"] == "010701"
+    assert (dps["valor_servico"], dps["desconto_incondicionado"]) == (200.0, 20.0)
+    assert dps["cnpj_tomador"] == "11222333000181"
+    assert dps["consumidor_final"] == "0"                 # tomador empresa
+    doc = db_session.query(DocumentoFiscal).filter_by(origem_tipo="AVULSA").one()
+    assert (doc.valor_total, doc.destinatario_nome_enviado) == (18000, "Cliente LTDA")
+    lista = client.get(f"{NFSE}/documentos", headers=loja).json()
+    assert lista[0]["numero_os"] is None and lista[0]["tomador"] == "Cliente LTDA"
+
+
+def test_avulsa_usa_os_codigos_do_servico_do_catalogo(client, loja, servico, plataforma_avulsa):
+    corpo = {"servico_id": servico, "descricao": "Suporte remoto", "valor": 5000}
+    r = client.post(f"{NFSE}/avulsa/preview", json=corpo, headers=loja)
+    assert r.status_code == 200, r.text
+    dps = r.json()["dps"]
+    assert (dps["codigo_tributacao_nacional_iss"], dps["codigo_nbs"]) == ("010701", "115013000")
+    assert "cpf_tomador" not in dps and "cnpj_tomador" not in dps     # sem tomador
+    assert plataforma_avulsa.enviados == []                         # preview nao envia
+
+
+def test_avulsa_sem_codigo_e_pendencia_nomeada(client, loja, plataforma_avulsa):
+    r = client.post(f"{NFSE}/avulsa/emitir", json={"descricao": "Aula", "valor": 5000}, headers=loja)
+    assert r.status_code == 422
+    assert {"codigo_tributacao_nacional", "codigo_nbs"} <= {p["campo"] for p in r.json()["detail"]["pendencias"]}
+    assert plataforma_avulsa.enviados == []
+
+
+def test_avulsa_nota_repetida_nao_grava_documento(client, loja, db_session, plataforma_avulsa):
+    plataforma_avulsa.resposta = {"status": "nao_transmitido", "codigo": "NOTA_DUPLICADA_SUSPEITA", "mensagem_sefaz": "igual"}
+    r = client.post(f"{NFSE}/avulsa/emitir", json=AVULSA, headers=loja)
+    assert r.status_code == 409
+    assert db_session.query(DocumentoFiscal).filter_by(origem_tipo="AVULSA").count() == 0
+
+
+def test_avulsa_sem_o_modulo_nao_emite(client, loja, licenca, plataforma_avulsa):
+    licenca("NFE")
+    assert client.post(f"{NFSE}/avulsa/emitir", json=AVULSA, headers=loja).status_code == 403

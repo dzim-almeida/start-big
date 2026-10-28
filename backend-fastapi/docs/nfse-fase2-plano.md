@@ -187,6 +187,25 @@ código e NBS, `BaseMoneyInput`).
 
 **Testes:** payload avulso; tomador digitado; lista mostra a origem "Avulsa".
 
+**Entrega G4 (28/10):**
+- `payload.py`: a parte comum da DPS foi extraída para `_dps_comum`, e
+  `montar_dps_os` e `montar_dps_avulsa` passaram a usá-la (a NFS-e da OS saiu
+  igual: os 22 testes dela passam). Entrou `tomador_digitado` (CPF ou CNPJ pelo
+  tamanho; sem documento, sem tomador).
+- `nfse/avulsa.py`:
+  - serviço do catálogo (`servico_id`), com códigos digitados que valem por cima;
+  - pendências nomeadas;
+  - `origem_tipo="AVULSA"`, `ref nfse-av-<8 hex>`, sem trava de origem (o clique
+    duplo é segurado pela nota repetida da plataforma);
+  - a nota repetida não grava documento.
+- `POST /fiscal/nfse/avulsa/preview|emitir` (módulo NFSE).
+- ZIP do contador rotula "Avulsa" (antes sairia "Venda None").
+- Front: botão "NFS-e avulsa" na aba NFS-e (`NfseAvulsaModal`), com código e NBS
+  pela busca, NBS sugerido, valor e desconto (em reais na tela, centavos na API),
+  tomador opcional, conferir → emitir. A lista mostra "Avulsa" no lugar da OS.
+- Não entrou a busca de cliente cadastrado: o componente da OS mistura cliente e
+  objeto. O tomador é digitado.
+
 ---
 
 ## G5 — NFS-e na marcenaria (D8: a instalação como serviço)

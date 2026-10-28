@@ -189,6 +189,7 @@ def montar_pacote_xml(
 
             origem = (
                 f"OS {doc.origem_numero_os}" if doc.origem_tipo == "OS"
+                else "Avulsa" if doc.origem_tipo == "AVULSA"   # NFS-e sem OS (G4)
                 else f"Venda {doc.origem_id}"
             )
             escritor.writerow([

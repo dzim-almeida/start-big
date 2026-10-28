@@ -668,6 +668,19 @@ export interface NfsePreview {
   notas?: { codigo: string; dps: NfsePreview['dps']; ja_emitida: boolean }[];
 }
 
+/** NFS-e avulsa, sem OS (G4). Valores em centavos. */
+export interface NfseAvulsaRequest {
+  servico_id?: number | null;
+  codigo_tributacao_nacional?: string | null;
+  codigo_nbs?: string | null;
+  descricao: string;
+  valor: number;
+  desconto?: number;
+  tomador_documento?: string | null;
+  tomador_nome?: string | null;
+  tomador_email?: string | null;
+}
+
 /** Configuração da NFS-e (G3): as decisões do contador como opção. */
 export interface NfseConfiguracao {
   regime_tributacao_iss: number | null;

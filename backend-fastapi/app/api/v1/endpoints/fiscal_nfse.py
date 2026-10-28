@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.depends import _handle_db_transaction, check_permission, get_current_active_user, get_db
 from app.core.modulos import requer_modulo
 from app.schemas.fiscal.emissao import CancelamentoRequest, EmissaoResponse
-from app.schemas.fiscal.nfse import NfseConfiguracao
+from app.schemas.fiscal.nfse import NfseAvulsaRequest, NfseConfiguracao
 from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.services.fiscal.nfse import tabelas
 
@@ -275,3 +275,36 @@ def salvar_configuracao_nfse(
         return NfseConfiguracao.model_validate(fs)
 
     return _handle_db_transaction(db, _salvar)
+
+
+# ===========================================================================
+# NFS-e AVULSA (G4): serviço que não passou por OS
+# ===========================================================================
+
+@router.post("/avulsa/preview", summary="A DPS da NFS-e avulsa (não envia nada)")
+def preview_nfse_avulsa(
+    dados: NfseAvulsaRequest,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.nfse.avulsa import preview_nfse_avulsa as _preview
+
+    return _preview(db, user_token["empresa_id"], dados)
+
+
+@router.post("/avulsa/emitir", response_model=EmissaoResponse, summary="Emitir NFS-e avulsa")
+def emitir_nfse_avulsa(
+    dados: NfseAvulsaRequest,
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    confirmar_duplicidade: bool = Query(False),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.emissao import poll_nfe_status_async
+    from app.services.fiscal.nfse.avulsa import emitir_nfse_avulsa as _emitir
+
+    empresa_id = user_token["empresa_id"]
+    doc = _handle_db_transaction(db, _emitir, empresa_id, dados, confirmar_duplicidade)
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
+    return EmissaoResponse.de_documento(doc, "NFS-e")

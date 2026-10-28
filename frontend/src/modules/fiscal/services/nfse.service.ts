@@ -1,6 +1,12 @@
 import api from '@/api/axios';
 import type { ResultadoVerificacaoFiscal } from '@/shared/types/fiscal.types';
-import type { EmissaoResponse, NfseConfiguracao, NfseDocumento, NfsePreview } from '../types/fiscal.types';
+import type {
+  EmissaoResponse,
+  NfseAvulsaRequest,
+  NfseConfiguracao,
+  NfseDocumento,
+  NfsePreview,
+} from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
 const NFSE_ENDPOINT = '/fiscal/nfse';
@@ -55,6 +61,22 @@ export const nfseService = {
       null,
       { params, timeout: TIMEOUT_EMISSAO },
     );
+    return data;
+  },
+
+  /** A DPS da NFS-e avulsa (G4), sem enviar nada. */
+  async previewAvulsa(dados: NfseAvulsaRequest): Promise<{ dps: NfsePreview['dps'] }> {
+    const { data } = await api.post<{ dps: NfsePreview['dps'] }>(`${NFSE_ENDPOINT}/avulsa/preview`, dados, {
+      timeout: TIMEOUT_CONSULTA,
+    });
+    return data;
+  },
+
+  async emitirAvulsa(dados: NfseAvulsaRequest, confirmarDuplicidade = false): Promise<EmissaoResponse> {
+    const { data } = await api.post<EmissaoResponse>(`${NFSE_ENDPOINT}/avulsa/emitir`, dados, {
+      params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined,
+      timeout: TIMEOUT_EMISSAO,
+    });
     return data;
   },
 

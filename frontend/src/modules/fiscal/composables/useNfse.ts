@@ -8,7 +8,7 @@ import type { ApiError } from '@/shared/types/axios.types';
 
 import { nfseService } from '../services/nfse.service';
 import { fiscalKeys } from '../constants/fiscal.constants';
-import type { EmissaoResponse } from '../types/fiscal.types';
+import type { EmissaoResponse, NfseAvulsaRequest } from '../types/fiscal.types';
 import { CODIGO_NOTA_REPETIDA, codigoDoErro } from '../utils/notaRepetida';
 
 /**
@@ -62,6 +62,11 @@ export const useNfseEmitirMutation = () =>
   useNfseMutation(
     ({ numeroOs, confirmar = false, codigo }: { numeroOs: string; confirmar?: boolean; codigo?: string }) =>
       nfseService.emitirOs(numeroOs, confirmar, codigo),
+  );
+
+export const useNfseEmitirAvulsaMutation = () =>
+  useNfseMutation(({ dados, confirmar = false }: { dados: NfseAvulsaRequest; confirmar?: boolean }) =>
+    nfseService.emitirAvulsa(dados, confirmar),
   );
 
 export const useNfseConsultarMutation = () => useNfseMutation((id: number) => nfseService.consultar(id));

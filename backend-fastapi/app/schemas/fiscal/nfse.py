@@ -44,3 +44,40 @@ class NfseConfiguracao(BaseModel):
         if len(d) != 6:
             raise ValueError("cClassTrib deve ter 6 dígitos")
         return d
+
+
+class NfseAvulsaRequest(BaseModel):
+    """NFS-e sem OS (G4). Valores em centavos.
+
+    O serviço vem do catálogo (`servico_id`, com os códigos dele) ou só dos
+    códigos digitados; os digitados vencem os do catálogo nesta nota.
+    """
+    servico_id: Optional[int] = None
+    codigo_tributacao_nacional: Optional[str] = None
+    codigo_nbs: Optional[str] = None
+    descricao: str = Field(..., min_length=3, max_length=1000)
+    valor: int = Field(..., gt=0, description="Centavos")
+    desconto: int = Field(0, ge=0, description="Centavos")
+    tomador_documento: Optional[str] = Field(None, max_length=18)
+    tomador_nome: Optional[str] = Field(None, max_length=150)
+    tomador_email: Optional[str] = Field(None, max_length=80)
+
+    @field_validator("codigo_tributacao_nacional", mode="before")
+    @classmethod
+    def _codigo(cls, v):
+        if v in (None, ""):
+            return None
+        d = re.sub(r"\D", "", str(v))
+        if len(d) != 6:
+            raise ValueError("Código de tributação nacional deve ter 6 dígitos")
+        return d
+
+    @field_validator("codigo_nbs", mode="before")
+    @classmethod
+    def _nbs(cls, v):
+        if v in (None, ""):
+            return None
+        d = re.sub(r"\D", "", str(v))
+        if len(d) != 9:
+            raise ValueError("NBS deve ter 9 dígitos")
+        return d

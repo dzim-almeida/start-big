@@ -101,31 +101,20 @@ def _tomador(cliente) -> dict:
     return tomador
 
 
-def montar_dps_os(
-    empresa, endereco_empresa, fiscal_settings, os_obj, fiscal_servico,
-    agora: Optional[datetime] = None,
-    itens: Optional[list] = None,
+def _dps_comum(
+    empresa, endereco_empresa, fiscal_settings, fiscal_servico, *,
+    descricao: str, base: int, desconto: int, tomador: dict, tomador_pj: bool,
+    informacoes: Optional[str], agora: Optional[datetime],
 ) -> dict:
-    """A DPS da mão de obra da OS. `fiscal_servico` é o `ServicoFiscal` comum aos itens.
+    """A DPS com o que é igual para a NFS-e da OS e a avulsa (G4).
 
-    `itens`: só estes serviços (G3, uma nota por código); sem ele, todos os da OS.
-    O desconto da OS entra na proporção dos itens desta nota.
+    `fiscal_servico` é qualquer objeto com os campos do `ServicoFiscal`
+    (`codigo_tributacao_nacional`, `codigo_nbs`, `aliquota_iss`...).
     """
     # Fuso da loja (core/tempo.py): sem `tzdata` no Windows, ZoneInfo("America/Sao_Paulo") quebra.
     agora = (agora or datetime.now(fuso_local())).astimezone(fuso_local())
     uf = endereco_empresa.estado.value if hasattr(endereco_empresa.estado, "value") else endereco_empresa.estado
     municipio = codigo_ibge(endereco_empresa.cidade, uf)
-
-    itens = servicos_da_os(os_obj) if itens is None else itens
-    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
-    tomador_pj = isinstance(cliente, ClientePJ)
-    base = sum(i.valor_total for i in itens)
-    desconto = desconto_dos_servicos(os_obj, base)
-
-    descricao = "; ".join(
-        f"{i.quantidade:g} x {i.nome}" if i.quantidade and i.quantidade != 1 else i.nome
-        for i in itens
-    )
     opcao_sn = opcao_simples_nacional(empresa)
 
     dps = {
@@ -141,7 +130,7 @@ def montar_dps_os(
         ),
         "codigo_municipio_prestacao": municipio,
         "codigo_tributacao_nacional_iss": fiscal_servico.codigo_tributacao_nacional,
-        "codigo_tributacao_municipal_iss": (fiscal_servico.codigo_tributacao_municipio or None),
+        "codigo_tributacao_municipal_iss": (getattr(fiscal_servico, "codigo_tributacao_municipio", None) or None),
         "codigo_nbs": fiscal_servico.codigo_nbs,
         "descricao_servico": descricao[:1000],
         "valor_servico": _centavos_para_reais(base),
@@ -153,18 +142,68 @@ def montar_dps_os(
         # Serviço para empresa não é para consumidor final.
         "consumidor_final": "0" if tomador_pj else "1",
         "indicador_destinatario": "0",
-        "informacoes_complementares": f"OS {os_obj.numero_os}",
-        **_tomador(cliente),
+        "informacoes_complementares": informacoes,
+        **tomador,
     }
 
-    if opcao_sn == "1" and fiscal_servico.aliquota_iss:
-        dps["percentual_aliquota_relativa_municipio"] = fiscal_servico.aliquota_iss / 100
+    aliquota = getattr(fiscal_servico, "aliquota_iss", None)
+    if opcao_sn == "1" and aliquota:
+        dps["percentual_aliquota_relativa_municipio"] = aliquota / 100
 
     # IBS/CBS: o do serviço; sem ele, o padrão da configuração (G3); sem os dois, nada.
-    cst = fiscal_servico.cst_ibs_cbs or getattr(fiscal_settings, "nfse_ibs_cbs_cst", None)
-    cclass = fiscal_servico.c_class_trib or getattr(fiscal_settings, "nfse_ibs_cbs_cclass", None)
+    cst = getattr(fiscal_servico, "cst_ibs_cbs", None) or getattr(fiscal_settings, "nfse_ibs_cbs_cst", None)
+    cclass = getattr(fiscal_servico, "c_class_trib", None) or getattr(fiscal_settings, "nfse_ibs_cbs_cclass", None)
     if cst and cclass:
         dps["ibs_cbs_situacao_tributaria"] = cst
         dps["ibs_cbs_classificacao_tributaria"] = cclass
 
     return expurgar_nulos(dps)
+
+
+def montar_dps_os(
+    empresa, endereco_empresa, fiscal_settings, os_obj, fiscal_servico,
+    agora: Optional[datetime] = None,
+    itens: Optional[list] = None,
+) -> dict:
+    """A DPS da mão de obra da OS. `fiscal_servico` é o `ServicoFiscal` comum aos itens.
+
+    `itens`: só estes serviços (G3, uma nota por código); sem ele, todos os da OS.
+    O desconto da OS entra na proporção dos itens desta nota.
+    """
+    itens = servicos_da_os(os_obj) if itens is None else itens
+    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
+    base = sum(i.valor_total for i in itens)
+    descricao = "; ".join(
+        f"{i.quantidade:g} x {i.nome}" if i.quantidade and i.quantidade != 1 else i.nome
+        for i in itens
+    )
+    return _dps_comum(
+        empresa, endereco_empresa, fiscal_settings, fiscal_servico,
+        descricao=descricao, base=base, desconto=desconto_dos_servicos(os_obj, base),
+        tomador=_tomador(cliente), tomador_pj=isinstance(cliente, ClientePJ),
+        informacoes=f"OS {os_obj.numero_os}", agora=agora,
+    )
+
+
+def tomador_digitado(documento: Optional[str], nome: Optional[str], email: Optional[str]) -> dict:
+    """O tomador da NFS-e avulsa, digitado na tela (G4). Sem documento, sem tomador."""
+    digitos = _so_digitos(documento) or ""
+    if not digitos:
+        return {}
+    chave = "cnpj_tomador" if len(digitos) == 14 else "cpf_tomador"
+    return {chave: digitos, "razao_social_tomador": (nome or "")[:150] or None, "email_tomador": (email or "")[:80] or None}
+
+
+def montar_dps_avulsa(
+    empresa, endereco_empresa, fiscal_settings, fiscal_servico, *,
+    descricao: str, valor: int, desconto: int = 0, tomador: Optional[dict] = None,
+    agora: Optional[datetime] = None,
+) -> dict:
+    """A DPS de um serviço que não passou por OS (G4). Valores em centavos."""
+    tomador = tomador or {}
+    return _dps_comum(
+        empresa, endereco_empresa, fiscal_settings, fiscal_servico,
+        descricao=descricao, base=valor, desconto=desconto,
+        tomador=tomador, tomador_pj="cnpj_tomador" in tomador,
+        informacoes=None, agora=agora,
+    )

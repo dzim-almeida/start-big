@@ -64,7 +64,7 @@ function corDoStatus(status: string) {
             <div class="flex flex-col">
               <span class="text-sm font-semibold text-zinc-900 truncate max-w-xs">{{ doc.tomador || 'Tomador não identificado' }}</span>
               <span class="text-[10px] text-zinc-400 mt-0.5">
-                {{ doc.numero_os }}
+                {{ doc.numero_os ?? 'Avulsa' }}
                 <template v-if="doc.codigo_verificacao"> · verificação {{ doc.codigo_verificacao }}</template>
               </span>
               <div
