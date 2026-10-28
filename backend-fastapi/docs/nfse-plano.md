@@ -194,6 +194,25 @@ idênticas e um commit próprio, e não depende de ligar a anterior em produçã
   rota da NFS-e.
 - Testes na plataforma (`cd apps/server && npm test`).
 
+**Entrega da F2 (28/10/2026, plataforma, branch `feat/nfse`, commit 56eb9c4):**
+- `/erp/fiscal/nfse/emitir|consultar|cancelar|consumo`, atrás de `@RequerModulo(NFSE)`.
+  Corpo: `{ref, payload}`, em que o payload é a DPS **já no formato plano da Focus**
+  (vai sem o tradutor da NF-e), e `{ref, justificativa}` (mínimo de 15).
+- A resposta segue o `ResultadoNota` da NF-e, mais `codigo_verificacao` e
+  `codigo_erro` (o primeiro código alfanumérico de `erros[]`). O `mensagem_sefaz`
+  é montado de `erros[]` como `"E0312 - mensagem (correção)"`. O `url_consulta` é o
+  link público da nota.
+- Mesmas travas da NF-e: idempotência por cabeçalho e por `ref` na Focus (na
+  dúvida, 503 e não emite), `cnpj_prestador` = ficha, cota `NFSE` só em produção,
+  trilha na `EmissaoLog` com `tipoDocumento=NFSE`.
+- Ativação: `rotaNfseDaAtivacao`. Com NFSE explícito na licença, MEI recebe
+  `NACIONAL` (`habilita_nfsen_producao` + `_homologacao`; nunca `habilita_nfse`) e
+  os demais recebem `MUNICIPAL_PENDENTE`, sem ligar nada. A resposta da ativação
+  ganhou o campo `nfse`. A ficha também nasce com NFSE.
+- Ainda **não** existe a tabela `MunicipioNfse` nem a rota municipal (`/nfse`).
+  Entram quando aparecer o primeiro cliente que não é MEI. Também não entrou a
+  NFS-e no painel "Saúde fiscal".
+
 ### F3 — Emissão da NFS-e da OS (ERP)
 - `payload/nfse_nacional.py` (montagem da DPS), `emissoes/nfse_os.py` (emitir, consultar
   e gravar em `documento_fiscal` com `tipo_documento='NFSE'` e em
