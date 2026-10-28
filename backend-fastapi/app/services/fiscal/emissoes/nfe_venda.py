@@ -22,7 +22,7 @@ from app.services.fiscal.tax_engine import calcular_impostos
 from app.services.fiscal.tax_engine.resolver import resolver_aliquotas_venda
 from app.services.fiscal.emissoes.snapshot import gravar_snapshot
 from app.services.fiscal.emissoes.espelho_nota import espelhar_na_nota_da_venda
-from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos
+from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos, recusar_se_nota_repetida
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +169,7 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
 def emitir_nfe_venda(
     db: Session, venda_id: int, empresa_id: int,
     tentativa_anterior_id: Optional[int] = None,
+    confirmar_duplicidade: bool = False,
 ) -> DocumentoFiscal:
     """
     Emite NF-e para uma venda.
@@ -277,8 +278,15 @@ def emitir_nfe_venda(
     client = get_fiscal_client(fiscal_settings.ambiente_emissao, token)
 
     try:
-        resultado = client.emitir_nfe(ref, payload, idempotency_key=doc.idempotency_key)
+        resultado = client.emitir_nfe(
+            ref, payload, idempotency_key=doc.idempotency_key,
+            confirmar_duplicidade=confirmar_duplicidade,
+        )
+        recusar_se_nota_repetida(resultado)
         _aplicar_resultado(doc, resultado, client)
+    except HTTPException:
+        # Nota repetida (G2): sobe para o rollback desfazer documento e número.
+        raise
     except NotImplementedError as e:
         # Client sem implementação: nada foi transmitido, é recusa local.
         doc.status = "REJEITADA"

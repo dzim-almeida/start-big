@@ -46,8 +46,9 @@ class PlataformaFalsa:
         self.respostas = list(respostas)
         self.chamadas = []
 
-    def emitir_nfe(self, ref, payload, idempotency_key=None):
-        self.chamadas.append({"ref": ref, "payload": payload, "idempotency_key": idempotency_key})
+    def emitir_nfe(self, ref, payload, idempotency_key=None, confirmar_duplicidade=False):
+        self.chamadas.append({"ref": ref, "payload": payload, "idempotency_key": idempotency_key,
+                              "confirmar_duplicidade": confirmar_duplicidade})
         return self.respostas.pop(0)
 
     # A NFC-e não é exercitada aqui, mas o factory exige a interface inteira.
@@ -592,3 +593,70 @@ def test_nota_de_teste_mostra_o_cnpj_ficticio_enviado(client, db_session, header
     det = client.get(f"/api/v1/fiscal/documentos/{doc_id}", headers=header_with_token).json()
     assert det["destinatario_documento"] == "99999999000191"
     assert "HOMOLOGACAO" in det["destinatario_nome"]
+
+
+# =========================
+# Nota repetida (franquia fiscal da plataforma; docs/nfse-fase2-plano.md, G2)
+# =========================
+
+NOTA_REPETIDA = {
+    "status": "nao_transmitido",
+    "codigo": "NOTA_DUPLICADA_SUSPEITA",
+    "mensagem_sefaz": 'Esta nota é igual à ref "venda-7", autorizada há 3 min.',
+}
+
+
+def test_nota_repetida_nao_queima_numero_nem_deixa_documento(
+    client, db_session, header_with_token, venda_pronta, plataforma,
+):
+    """A SEFAZ não viu nada: o número reservado volta (rollback), sem buraco a inutilizar."""
+    venda_id, _ = venda_pronta
+    plataforma(NOTA_REPETIDA)
+
+    r = _emitir(client, header_with_token, venda_id)
+
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["codigo"] == "NOTA_DUPLICADA_SUSPEITA"
+    assert "autorizada há 3 min" in r.json()["detail"]["mensagem"]
+    fs = db_session.query(EmpresaFiscalSettings).first()
+    db_session.refresh(fs)
+    assert fs.ultimo_numero_nfe == 10, "nota repetida não pode queimar número"
+    assert db_session.query(DocumentoFiscal).count() == 0
+
+
+def test_confirmar_a_nota_repetida_reenvia_com_o_aviso_e_usa_o_mesmo_numero(
+    client, db_session, header_with_token, venda_pronta, plataforma,
+):
+    venda_id, _ = venda_pronta
+    falsa = plataforma(NOTA_REPETIDA, AUTORIZADA(11))
+    assert _emitir(client, header_with_token, venda_id).status_code == 409
+
+    r = client.post("/api/v1/fiscal/emitir/nfe", json={"venda_id": venda_id},
+                    params={"confirmar_duplicidade": True}, headers=header_with_token)
+
+    assert r.json()["status"] == "AUTORIZADA"
+    assert [c["confirmar_duplicidade"] for c in falsa.chamadas] == [False, True]
+    assert [c["payload"]["numero"] for c in falsa.chamadas] == [11, 11]
+
+
+def test_client_manda_o_cabecalho_de_confirmacao(monkeypatch):
+    import httpx
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    enviados = {}
+
+    class Resposta:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self): return {"status": "autorizado"}
+
+    def post(self, url, json=None, headers=None):
+        enviados.update(headers)
+        return Resposta()
+
+    monkeypatch.setattr(httpx.Client, "post", post)
+    FiscalClientStartBig().emitir_nfe("venda-1", {}, confirmar_duplicidade=True)
+    assert enviados["X-Confirmar-Duplicidade"] == "sim"
+    enviados.clear()
+    FiscalClientStartBig().emitir_nfce("nfce-1", {})
+    assert "X-Confirmar-Duplicidade" not in enviados

@@ -121,7 +121,7 @@ class ClientEspiao(FiscalClientMock):
         super().__init__(delay=0)
         self.payloads = []
 
-    def emitir_nfe(self, ref, payload, idempotency_key=None):
+    def emitir_nfe(self, ref, payload, idempotency_key=None, confirmar_duplicidade=False):
         self.payloads.append((ref, payload))
         return super().emitir_nfe(ref, payload, idempotency_key=idempotency_key)
 
@@ -424,7 +424,7 @@ def test_falha_de_rede_consome_o_numero_e_fica_indeterminada(db, cenario, client
 
 
 def test_rejeicao_da_sefaz_nao_consome_saldo(db, cenario, client, monkeypatch):
-    monkeypatch.setattr(client, "emitir_nfe", lambda ref, payload, idempotency_key=None: {
+    monkeypatch.setattr(client, "emitir_nfe", lambda ref, payload, idempotency_key=None, confirmar_duplicidade=False: {
         "status": "erro", "codigo_sefaz": 327, "mensagem_sefaz": "Rejeicao: CFOP invalido",
         "chave_acesso": None, "protocolo": None, "numero": None, "serie": None, "url_pdf": None, "url_xml": None,
     })

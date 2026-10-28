@@ -8,7 +8,7 @@
 # este router sem prefixo, e a trava do módulo NFE vem de lá.
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Path
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Path, Query
 from sqlalchemy.orm import Session
 from app.core.depends import get_current_active_user, get_db, requer_modulo_fiscal, _handle_db_transaction
 from app.schemas.fiscal.documento import DocumentoFiscalRead
@@ -86,6 +86,9 @@ def emitir_nfe(
     *,
     db: Session = Depends(get_db),
     payload: EmissaoNFeRequest = Body(...),
+    confirmar_duplicidade: bool = Query(
+        False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
+    ),
 ):
     from app.services.fiscal.emissao import (
         emitir_nfe_os, emitir_nfe_venda, poll_nfe_status_async,
@@ -98,10 +101,12 @@ def emitir_nfe(
     if payload.venda_id:
         doc = _handle_db_transaction(
             db, emitir_nfe_venda, payload.venda_id, empresa_id,
+            confirmar_duplicidade=confirmar_duplicidade,
         )
     else:
         doc = _handle_db_transaction(
             db, emitir_nfe_os, payload.numero_os, empresa_id,
+            confirmar_duplicidade=confirmar_duplicidade,
         )
 
     if doc.status == "PROCESSANDO":
@@ -157,6 +162,9 @@ def emitir_nfce(
     *,
     db: Session = Depends(get_db),
     payload: EmissaoNFCeRequest = Body(...),
+    confirmar_duplicidade: bool = Query(
+        False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
+    ),
 ):
     # Sem BackgroundTasks de propósito: a NFC-e é síncrona. Agendar polling
     # aqui atrasaria o cupom que o operador está esperando para entregar.
@@ -164,6 +172,7 @@ def emitir_nfce(
 
     doc = _handle_db_transaction(
         db, emitir_nfce_venda, payload.venda_id, user_token["empresa_id"],
+        confirmar_duplicidade=confirmar_duplicidade,
     )
     return EmissaoResponse.de_documento(doc, "NFC-e")
 

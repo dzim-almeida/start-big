@@ -7,14 +7,18 @@ import type { ApiError } from '@/shared/types/axios.types';
 
 import { fiscalService } from '../services/fiscal.service';
 import { fiscalKeys } from '../constants/fiscal.constants';
+import { ehNotaRepetida, mensagemNotaRepetida } from '../utils/notaRepetida';
 import type { EmissaoNFeRequest, FiscalConflictDetail } from '../types/fiscal.types';
 
 export function useFiscalEmitirNfeMutation() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (payload: EmissaoNFeRequest) => fiscalService.emitirNfe(payload),
+  const mutation = useMutation({
+    mutationFn: (payload: EmissaoNFeRequest & { confirmar?: boolean }) => {
+      const { confirmar, ...corpo } = payload;
+      return fiscalService.emitirNfe(corpo, !!confirmar);
+    },
     onSuccess: (data) => {
       if (data.status === 'AUTORIZADA' || data.status === 'PROCESSANDO') {
         toast.success(data.mensagem || 'NF-e emitida com sucesso.');
@@ -25,8 +29,16 @@ export function useFiscalEmitirNfeMutation() {
       queryClient.invalidateQueries({ queryKey: fiscalKeys.resumo() });
       queryClient.invalidateQueries({ queryKey: fiscalKeys.franquia() });
     },
-    onError: (error) => {
+    onError: (error, payload) => {
       const axiosErr = error as AxiosError<ApiError>;
+
+      // Nota repetida (G2): nada foi emitido nem numerado. O operador decide.
+      if (ehNotaRepetida(error)) {
+        toast.warning('Nota igual a outra emitida há pouco', mensagemNotaRepetida(error), {
+          action: { label: 'Emitir mesmo assim', onClick: () => mutation.mutate({ ...payload, confirmar: true }) },
+        });
+        return;
+      }
 
       // Só o conflito de documento vem como objeto ({codigo, mensagem}). O
       // `_handle_db_transaction` também devolve 409 para QUALQUER ValueError
@@ -45,4 +57,5 @@ export function useFiscalEmitirNfeMutation() {
       toast.error(getErrorMessage(axiosErr));
     },
   });
+  return mutation;
 }

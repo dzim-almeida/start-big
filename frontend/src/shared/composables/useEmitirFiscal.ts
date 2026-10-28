@@ -10,6 +10,7 @@ import {
   MENSAGEM_EMISSAO_INCERTA,
 } from '@/modules/fiscal/composables/useEmissaoIncerta';
 import { useNumeracaoConfirmada } from '@/modules/fiscal/composables/useNumeracaoConfirmada';
+import { ehNotaRepetida, mensagemNotaRepetida } from '@/modules/fiscal/utils/notaRepetida';
 import type { PendenciaFiscal } from '@/shared/types/fiscal.types';
 import type { DocumentoFiscalRead, EmissaoResponse } from '@/modules/fiscal/types/fiscal.types';
 import type { VendaNotaFiscalUpdate } from '@/modules/sales/schemas/sale.schema';
@@ -43,6 +44,26 @@ export function useEmitirFiscal() {
       'A nota fiscal não foi emitida',
       getErrorMessage(err as AxiosError<ApiError>),
     );
+  }
+
+  /**
+   * Nota repetida (409 da plataforma, G2): nada foi emitido nem numerado. O
+   * aviso traz "Emitir mesmo assim", que reenvia com a confirmação. Num toast
+   * (e não num modal) para não mexer na tela da venda nem na do PDV.
+   */
+  function avisarNotaRepetida(err: unknown, reenviar: () => Promise<EmissaoResponse>, rotulo: string) {
+    toast.warning('Nota igual a outra emitida há pouco', mensagemNotaRepetida(err), {
+      action: {
+        label: 'Emitir mesmo assim',
+        onClick: async () => {
+          try {
+            informarDesfecho(rotulo, await reenviar());
+          } catch (e) {
+            handleErroEmissao(e);
+          }
+        },
+      },
+    });
   }
 
   /**
@@ -100,6 +121,10 @@ export function useEmitirFiscal() {
         informarDesfecho('NF-e', emissao);
         return emissao;
       } catch (err) {
+        if (ehNotaRepetida(err)) {
+          avisarNotaRepetida(err, () => fiscalService.emitirNfe({ venda_id: vendaId }, true), 'NF-e');
+          return null;
+        }
         if (ehEmissaoIncerta(err)) {
           await handleEmissaoIncerta(vendaId);
           return null;
@@ -205,6 +230,11 @@ export function useEmitirFiscal() {
         // Não autorizada: não há cupom fiscal a imprimir.
         return null;
       } catch (err) {
+        // Nota repetida: o cupom confirmado sai pelo aviso (reimpressão pelo Centro Fiscal).
+        if (ehNotaRepetida(err)) {
+          avisarNotaRepetida(err, () => fiscalService.emitirNfce({ venda_id: vendaId }, true), 'NFC-e');
+          return null;
+        }
         // Timeout numa emissão não é falha — a nota pode existir.
         if (ehEmissaoIncerta(err)) return await handleEmissaoIncerta(vendaId);
         handleErroEmissao(err);

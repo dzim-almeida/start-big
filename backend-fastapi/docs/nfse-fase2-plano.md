@@ -89,6 +89,24 @@ documento fica NAO_TRANSMITIDA e não há como confirmar.
 **Testes:** fotografias de payload intactas; 409 não deixa documento nem buraco
 de numeração; confirmação manda o cabeçalho.
 
+**Entrega G1 (28/10, 0c8506e7):** `consultar_franquia` + `GET /fiscal/franquia`;
+`FranquiaFiscalCard` nas abas NF-e, NFC-e e NFS-e; emitir NF-e, lote e NFS-e
+atualizam o saldo.
+
+**Entrega G2 (28/10):**
+- `nucleo.recusar_se_nota_repetida` + `except HTTPException: raise` em
+  `nfe_venda`, `nfe_os` e `nfce`. Teste ponta a ponta: o contador **continua em
+  10** depois da nota repetida (rollback desfaz a reserva) e nenhum documento
+  fica. Confirmar reenvia com o MESMO número (11).
+- `confirmar_duplicidade` nas rotas `/fiscal/emitir/nfe` e `/emitir/nfce` e nos
+  clients (cabeçalho só quando confirmado).
+- Front: `utils/notaRepetida.ts` (um lugar só, também usado pela NFS-e); aviso em
+  toast com "Emitir mesmo assim" no modal do Centro Fiscal, no modal da venda e
+  no PDV. Nenhuma tela mudou de layout.
+- O lote (`emitir/nfe/batch`) não confirma: a venda repetida aparece no
+  resultado como ERRO com a mensagem, sem número queimado.
+- Fakes dos testes antigos ganharam o parâmetro novo (só assinatura).
+
 ---
 
 ## G3 — Configuração da NFS-e (as decisões do contador viram opção)

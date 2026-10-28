@@ -38,7 +38,7 @@ class PlataformaFalsa:
     def __init__(self):
         self.respostas, self.payloads = [], []
 
-    def emitir_nfe(self, ref, payload, idempotency_key=None):
+    def emitir_nfe(self, ref, payload, idempotency_key=None, confirmar_duplicidade=False):
         self.payloads.append(payload)
         return self.respostas.pop(0)
 

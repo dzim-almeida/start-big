@@ -132,6 +132,29 @@ def _arquivar_xml(doc: DocumentoFiscal, client) -> Optional[str]:
     return xml
 
 
+# 409 da plataforma (franquia fiscal, 28/10/2026): a mesma nota, com outra ref,
+# foi autorizada há menos de 1 h. Nada foi transmitido.
+CODIGO_NOTA_REPETIDA = "NOTA_DUPLICADA_SUSPEITA"
+
+
+def recusar_se_nota_repetida(resultado: EmissaoResultado) -> None:
+    """Transforma o aviso de nota repetida da plataforma num 409 para a tela.
+
+    Levanta HTTPException, e quem emite deixa passar (`except HTTPException:
+    raise`) para o `_handle_db_transaction` desfazer TUDO: o documento e a
+    reserva do número. A SEFAZ não viu nada, então o número não foi usado —
+    sem o rollback ele virava buraco a inutilizar.
+
+    A tela pergunta ao operador e reenvia com `confirmar_duplicidade`.
+    docs/nfse-fase2-plano.md, G2.
+    """
+    if (resultado or {}).get("codigo") == CODIGO_NOTA_REPETIDA:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"codigo": CODIGO_NOTA_REPETIDA, "mensagem": resultado.get("mensagem_sefaz")},
+        )
+
+
 def _aplicar_resultado(doc: DocumentoFiscal, resultado: EmissaoResultado, client=None) -> None:
     """Atualiza DocumentoFiscal com o resultado da API.
 

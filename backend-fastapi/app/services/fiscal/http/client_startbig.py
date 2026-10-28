@@ -297,7 +297,8 @@ class FiscalClientStartBig:
         return resultado
 
     def emitir_nfe(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         url = f"{self.base_url}/erp/fiscal/nfe/emitir"
         body = {
@@ -307,6 +308,8 @@ class FiscalClientStartBig:
         headers = dict(self.headers)
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
+        if confirmar_duplicidade:
+            headers["X-Confirmar-Duplicidade"] = "sim"
 
         _registrar_payload("NFE", ref, body)
 
@@ -375,7 +378,8 @@ class FiscalClientStartBig:
             raise EmissaoIncertaError(str(exc)) from exc
 
     def emitir_nfce(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         """Emite NFC-e. Mesmo contrato da NF-e, outro endpoint e sem polling."""
         url = f"{self.base_url}/erp/fiscal/nfce/emitir"
@@ -386,6 +390,8 @@ class FiscalClientStartBig:
         headers = dict(self.headers)
         if idempotency_key:
             headers["X-Idempotency-Key"] = idempotency_key
+        if confirmar_duplicidade:
+            headers["X-Confirmar-Duplicidade"] = "sim"
 
         _registrar_payload("NFCE", ref, body)
 

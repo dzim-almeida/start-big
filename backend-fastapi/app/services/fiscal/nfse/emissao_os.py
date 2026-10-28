@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.models.documento_fiscal_item import DocumentoFiscalItem
-from app.services.fiscal.emissoes.nucleo import _aplicar_resultado, _obter_fiscal_settings
+from app.services.fiscal.emissoes.nucleo import CODIGO_NOTA_REPETIDA, _aplicar_resultado, _obter_fiscal_settings
 from app.services.fiscal.http import get_fiscal_client
 from app.services.fiscal.nfse.completude import verificar_nfse_os
 from app.services.fiscal.nfse.espelho import espelhar_nfse_na_os
@@ -34,9 +34,6 @@ logger = logging.getLogger(__name__)
 
 # Mesmo valor de `nfe_os.ORIGEM_MARCENARIA`.
 ORIGEM_MARCENARIA = "ORCAMENTO_MARCENARIA"
-
-# 409 da plataforma: mesma nota, outra ref, há menos de 1 h (franquia fiscal, 28/10/2026).
-CODIGO_NOTA_REPETIDA = "NOTA_DUPLICADA_SUSPEITA"
 
 
 def _preparar(db: Session, numero_os: str, empresa_id: int):

@@ -9,6 +9,7 @@ import type { ApiError } from '@/shared/types/axios.types';
 import { nfseService } from '../services/nfse.service';
 import { fiscalKeys } from '../constants/fiscal.constants';
 import type { EmissaoResponse } from '../types/fiscal.types';
+import { CODIGO_NOTA_REPETIDA, codigoDoErro } from '../utils/notaRepetida';
 
 /**
  * A aba NFS-e: a lista e as três ações (emitir, consultar, cancelar).
@@ -36,12 +37,8 @@ function avisarDesfecho(toast: ReturnType<typeof useToast>, r: EmissaoResponse) 
   else toast.error(r.mensagem || `NFS-e ${r.status.toLowerCase()}.`);
 }
 
-/** O 409 da plataforma para nota igual a outra autorizada há menos de 1 h. */
-export const CODIGO_NOTA_REPETIDA = 'NOTA_DUPLICADA_SUSPEITA';
-
-export function codigoDoErro(error: unknown): string | undefined {
-  return (error as AxiosError<{ detail?: { codigo?: string } }>)?.response?.data?.detail?.codigo;
-}
+/** Reexportados: o modal da NFS-e já os importava daqui. */
+export { CODIGO_NOTA_REPETIDA, codigoDoErro };
 
 function useNfseMutation<T>(fn: (v: T) => Promise<EmissaoResponse>) {
   const toast = useToast();

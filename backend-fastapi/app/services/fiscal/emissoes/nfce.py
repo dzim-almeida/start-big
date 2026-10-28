@@ -22,7 +22,7 @@ from app.services.fiscal.payload.builder import montar_payload_nfce
 from app.services.fiscal.emissoes.snapshot import gravar_snapshot
 from app.services.fiscal.emissoes.espelho_nota import espelhar_na_nota_da_venda
 from app.services.fiscal.payload.tributos_xml import extrair_valor_tributos
-from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings
+from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, recusar_se_nota_repetida
 from app.services.fiscal.emissoes.nfe_venda import _preparar_dados_emissao, preview_nfe_venda
 
 logger = logging.getLogger(__name__)
@@ -190,6 +190,7 @@ def _completar_tributos_pelo_xml(doc: DocumentoFiscal, client) -> None:
 def emitir_nfce_venda(
     db: Session, venda_id: int, empresa_id: int,
     tentativa_anterior_id: Optional[int] = None,
+    confirmar_duplicidade: bool = False,
 ) -> DocumentoFiscal:
     """
     Emite NFC-e (modelo 65) para uma venda do PDV.
@@ -305,8 +306,15 @@ def emitir_nfce_venda(
     crud.salvar_documento(db, doc)
 
     try:
-        resultado = client.emitir_nfce(ref, payload, idempotency_key=doc.idempotency_key)
+        resultado = client.emitir_nfce(
+            ref, payload, idempotency_key=doc.idempotency_key,
+            confirmar_duplicidade=confirmar_duplicidade,
+        )
+        recusar_se_nota_repetida(resultado)
         _aplicar_resultado(doc, resultado, client)
+    except HTTPException:
+        # Nota repetida (G2): sobe para o rollback desfazer documento e número.
+        raise
     except NotImplementedError as e:
         doc.status = "REJEITADA"
         doc.mensagem_sefaz = str(e)

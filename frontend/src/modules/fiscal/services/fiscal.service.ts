@@ -104,11 +104,15 @@ export const fiscalService = {
     return data;
   },
 
-  async emitirNfe(payload: EmissaoNFeRequest): Promise<EmissaoResponse> {
+  /** `confirmarDuplicidade`: o operador confirmou o aviso de nota repetida (utils/notaRepetida). */
+  async emitirNfe(payload: EmissaoNFeRequest, confirmarDuplicidade = false): Promise<EmissaoResponse> {
     const { data } = await api.post<EmissaoResponse>(
       `${FISCAL_ENDPOINT}/emitir/nfe`,
       payload,
-      { timeout: TIMEOUT_EMISSAO },
+      {
+        params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined,
+        timeout: TIMEOUT_EMISSAO,
+      },
     );
     return data;
   },
@@ -117,11 +121,14 @@ export const fiscalService = {
    * Emite NFC-e (modelo 65). Síncrono: a resposta já traz o resultado da
    * SEFAZ, porque o cliente está no balcão esperando o cupom.
    */
-  async emitirNfce(payload: EmissaoNFeRequest): Promise<EmissaoResponse> {
+  async emitirNfce(payload: EmissaoNFeRequest, confirmarDuplicidade = false): Promise<EmissaoResponse> {
     const { data } = await api.post<EmissaoResponse>(
       `${FISCAL_ENDPOINT}/emitir/nfce`,
       payload,
-      { timeout: TIMEOUT_EMISSAO },
+      {
+        params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined,
+        timeout: TIMEOUT_EMISSAO,
+      },
     );
     return data;
   },

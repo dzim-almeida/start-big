@@ -148,7 +148,8 @@ class FiscalClientProtocol(Protocol):
         ...
 
     def emitir_nfe(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         """
         Envia NF-e para emissão. Retorna resultado imediato ou 'processando'.
@@ -172,7 +173,8 @@ class FiscalClientProtocol(Protocol):
         ...
 
     def emitir_nfce(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         """
         Envia NFC-e (modelo 65) para emissão SÍNCRONA.

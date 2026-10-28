@@ -57,7 +57,8 @@ class FiscalClientMock:
             time.sleep(self._delay)
 
     def emitir_nfe(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         logger.info("[FISCAL MOCK] emitir_nfe ref=%s", ref)
         self._simular_latencia()
@@ -103,7 +104,8 @@ class FiscalClientMock:
         }
 
     def emitir_nfce(
-        self, ref: str, payload: dict, idempotency_key: Optional[str] = None
+        self, ref: str, payload: dict, idempotency_key: Optional[str] = None,
+        confirmar_duplicidade: bool = False,
     ) -> EmissaoResultado:
         logger.info("[FISCAL MOCK] emitir_nfce ref=%s", ref)
         self._simular_latencia()
