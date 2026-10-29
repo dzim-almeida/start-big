@@ -59,6 +59,7 @@ const estoqueClasses = computed(() => {
     case 'sem_estoque': return 'bg-red-100 text-red-600';
     case 'baixo': return 'bg-orange-100 text-orange-600';
     case 'normal': return 'bg-blue-100 text-blue-600';
+    default: return '';
   }
 });
 

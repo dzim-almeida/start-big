@@ -137,10 +137,10 @@ function getStatusIcon(status: string) {
       return AlertTriangle;
     case 'CANCELADA':
       return Ban;
-    case 'PENDENTE':
-    case 'PROCESSANDO':
     // Sem retorno confirmado ainda conta como "em aberto" — o relogio diz isso
     // melhor que o triangulo de alerta, que sugeriria recusa.
+    case 'PENDENTE':
+    case 'PROCESSANDO':
     case 'INDETERMINADA':
       return Clock;
     case 'NAO_TRANSMITIDA':

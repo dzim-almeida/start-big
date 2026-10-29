@@ -11,7 +11,7 @@ import { CustomerSimpleRead } from "../../schemas/customers.schema";
 export function useCustomersQuery(term: MaybeRef<string | null | undefined>) {
     return useQuery<CustomerSimpleRead>({
         queryKey: computed(() => 
-            !!unref(term)
+            unref(term)
               ? customerKeys.search(unref(term)!)
               : [...customerKeys.all, 'venda-busca', 'empty']
         ),

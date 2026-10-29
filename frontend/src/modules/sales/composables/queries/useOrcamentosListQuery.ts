@@ -11,7 +11,7 @@ export function useOrcamentosListQuery(
 ) {
   return useQuery<OrcamentoList>({
     queryKey: computed(() =>
-      !!unref(filters)
+      unref(filters)
         ? orcamentoKeys.list(unref(filters) ?? undefined, unref(page) ?? 1)
         : orcamentoKeys.list(undefined, unref(page) ?? 1)
     ),

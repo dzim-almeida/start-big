@@ -190,7 +190,7 @@ export function useServicoFormProvider() {
 
       // Inclui dados fiscais no payload (o service chama o endpoint separado)
       if (fiscalDisponivel) {
-        const stripSeparadores = (v: string) => v.replace(/[.\-\/]/g, '');
+        const stripSeparadores = (v: string) => v.replace(/[.\-/]/g, '');
         request.fiscal = {
           codigo_servico_lc116: formData.fiscal_codigo_servico_lc116
             ? stripSeparadores(formData.fiscal_codigo_servico_lc116)

@@ -60,7 +60,7 @@ export const useLayoutStore = defineStore('layout', () => {
   }
 
   function toggleSidebar() {
-    if (isMobile) {
+    if (isMobile.value) {
       isMobileOpen.value = !isMobileOpen.value;
     }
   }

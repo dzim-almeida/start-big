@@ -15,7 +15,7 @@ export const ProductSaleBaseSchema = z.object({
     .number()
     .min(0)
     .optional()
-    .transform((val) => (!!val ? 0 : val)),
+    .transform((val) => (val ? 0 : val)),
   desconto: z.number().nullable().optional(),
   // Venda por embalagem (fardo/caixa): a quantidade é de embalagens e o preço é
   // o dela; o estoque baixa quantidade × fator. Só com `usarEmbalagens` ligado.

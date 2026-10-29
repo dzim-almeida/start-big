@@ -3,8 +3,10 @@ import { User2, UserX, RefreshCw } from 'lucide-vue-next';
 import { getInitials } from '@/shared/utils/string.utils';
 import type { CustomerSimpleRead } from '../../schemas/customers.schema';
 
-const props = defineProps<{
-  customer: CustomerSimpleRead[number] | undefined | null;
+type ClienteDoCard = CustomerSimpleRead[number] | undefined | null;
+
+defineProps<{
+  customer: ClienteDoCard;
   readonly?: boolean;
 }>();
 
@@ -12,12 +14,12 @@ const emit = defineEmits<{
   changeCliente: [];
 }>();
 
-function getNome(c: typeof props.customer) {
+function getNome(c: ClienteDoCard) {
   if (!c) return '';
   return c.tipo === 'PF' ? c.nome : c.razao_social;
 }
 
-function getDoc(c: typeof props.customer) {
+function getDoc(c: ClienteDoCard) {
   if (!c) return '';
   return c.tipo === 'PF' ? c.cpf : c.cnpj;
 }

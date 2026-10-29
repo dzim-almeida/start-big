@@ -47,6 +47,7 @@ const createdAt = computed(() =>
     <!-- Observação -->
     <div class="flex flex-col gap-1">
       <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Observação</span>
+      <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
       <BaseTextarea
         v-model="form.observacao"
         :disabled="isSaving || readonly"
@@ -55,11 +56,13 @@ const createdAt = computed(() =>
         class="w-full text-sm"
         @blur="onSave"
       />
+      <!-- eslint-enable vue/no-mutating-props -->
     </div>
 
     <!-- Observação Interna -->
     <div class="flex flex-col gap-1">
       <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Obs. Interna</span>
+      <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
       <BaseTextarea
         v-model="form.observacao_interna"
         :disabled="isSaving || readonly"
@@ -68,6 +71,7 @@ const createdAt = computed(() =>
         class="w-full text-sm"
         @blur="onSave"
       />
+      <!-- eslint-enable vue/no-mutating-props -->
     </div>
 
     <!-- Motivo do Cancelamento (apenas para vendas canceladas) -->

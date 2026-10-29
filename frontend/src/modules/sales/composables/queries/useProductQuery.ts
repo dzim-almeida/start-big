@@ -10,7 +10,7 @@ import { ProductSaleListItem } from '../../schemas/productSale.schema';
 export function useProductQuery(term: MaybeRef<string | null | undefined>) {
   return useQuery<ProductSaleListItem>({
     queryKey: computed(() => 
-      !!unref(term)
+      unref(term)
         ? productKeys.search(unref(term)!)
         : [...productKeys.all, 'venda-busca', 'empty']
     ),

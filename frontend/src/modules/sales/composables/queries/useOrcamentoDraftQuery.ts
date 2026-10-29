@@ -10,7 +10,7 @@ import { OrcamentoRead } from '../../schemas/orcamento.schema';
 export function useOrcamentoDraftQuery(orcamentoId: MaybeRef<number | null | undefined>) {
   return useQuery<OrcamentoRead>({
     queryKey: computed(() =>
-      !!unref(orcamentoId)
+      unref(orcamentoId)
         ? orcamentoKeys.draft(unref(orcamentoId)!)
         : ([...orcamentoKeys.all, 'draft', 'empty'] as const),
     ),

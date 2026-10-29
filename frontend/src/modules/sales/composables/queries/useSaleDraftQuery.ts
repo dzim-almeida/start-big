@@ -11,7 +11,7 @@ import { SaleRead } from '../../schemas/sale.schema';
 export function useSaleDraftQuery(saleId: MaybeRef<number | null | undefined>) {
   return useQuery<SaleRead>({
     queryKey: computed(() =>
-      !!unref(saleId)
+      unref(saleId)
         ? saleKeys.draft(unref(saleId)!)
         : ([...saleKeys.all, 'draft', 'empty'] as const),
     ),

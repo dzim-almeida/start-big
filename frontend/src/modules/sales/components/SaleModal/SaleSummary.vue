@@ -93,6 +93,7 @@ const hasDelivery = computed(() => {
         >
           Desconto
         </p>
+        <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.desconto"
@@ -103,6 +104,7 @@ const hasDelivery = computed(() => {
           @blur="onSave"
           @enter="salvarEVoltarParaBusca"
         />
+        <!-- eslint-enable vue/no-mutating-props -->
         <div v-else class="h-9.5 flex items-center">
           <span
             :class="[
@@ -136,6 +138,7 @@ const hasDelivery = computed(() => {
         >
           Entrega
         </p>
+        <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.entrega"
@@ -146,6 +149,7 @@ const hasDelivery = computed(() => {
           @blur="onSave"
           @enter="salvarEVoltarParaBusca"
         />
+        <!-- eslint-enable vue/no-mutating-props -->
         <div v-else class="h-9.5 flex items-center">
           <span
             :class="[
