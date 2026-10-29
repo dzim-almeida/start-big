@@ -5,6 +5,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 
 const push = vi.fn();
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }));
@@ -17,6 +18,9 @@ vi.mock('../../../composables/useNfse', () => ({
   useNfseConsultarMutation: () => ({ mutate: vi.fn(), isPending: ref(false) }),
   useNfseCancelarMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: ref(false) }),
 }));
+
+const obterDocumento = vi.fn();
+vi.mock('../../../services/nfse.service', () => ({ nfseService: { obterDocumento: (id: number) => obterDocumento(id) } }));
 
 const { default: NfseSaudeCard } = await import('../NfseSaudeCard.vue');
 const { default: NfseDocumentosTable } = await import('../NfseDocumentosTable.vue');
@@ -70,7 +74,10 @@ describe('Cards de status filtram a tabela de NFS-e', () => {
 
   it('"Pendentes" inclui as em processamento; "Canceladas" inclui as denegadas', async () => {
     documentos.value = [doc(1, 'AUTORIZADA'), doc(2, 'PROCESSANDO'), doc(3, 'PENDENTE'), doc(4, 'DENEGADA'), doc(5, 'CANCELADA')];
-    const wrapper = mount(NfseDocumentosTable, { props: { statusFiltro: 'PENDENTE' } });
+    const wrapper = mount(NfseDocumentosTable, {
+      props: { statusFiltro: 'PENDENTE' },
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
     expect(wrapper.findAll('[data-nfse-linha]').length).toBe(2);
 
     await wrapper.setProps({ statusFiltro: 'CANCELADA' });
@@ -78,6 +85,34 @@ describe('Cards de status filtram a tabela de NFS-e', () => {
 
     await wrapper.setProps({ statusFiltro: null });
     expect(wrapper.findAll('[data-nfse-linha]').length).toBe(5);
+    wrapper.unmount();
+  });
+});
+
+describe('Clicar na linha abre o detalhe da NFS-e (pedido do Alan, 29/10)', () => {
+  it('mostra o motivo inteiro e o que fazer', async () => {
+    documentos.value = [{ id: 7, status: 'NAO_TRANSMITIDA', numero: null, tomador: 'JOSE WELLINGTON', valor_total: 8000,
+      numero_os: 'OS-2026-000158', mensagem: 'Empresa não habilitada para emissão de NFSe no am' }];
+    obterDocumento.mockResolvedValue({
+      id: 7, status: 'NAO_TRANSMITIDA', numero: null, numero_os: 'OS-2026-000158', ambiente: 1,
+      tomador: 'JOSE WELLINGTON', tomador_documento: '02961941318', valor_total: 8000,
+      motivo: 'Empresa não habilitada para emissão de NFSe no ambiente de produção',
+      dica: 'A NFS-e ainda não está ligada na emissora para este ambiente. Peça ao suporte StartBig para ativar.',
+      itens: [{ descricao: 'MANUTENÇÃO EM SISTEMA DE TINTAS HP 416', codigo: '140101', valor: 8000, desconto: 0 }],
+      tentativas_anteriores: [], data_emissao: '2026-10-29T12:33:00', data_autorizacao: null,
+    });
+    const wrapper = mount(NfseDocumentosTable, {
+      attachTo: document.body,
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
+
+    await wrapper.find('[data-nfse-linha]').trigger('click');
+
+    await vi.waitFor(() => expect(document.body.querySelector('[data-motivo]')?.textContent).toContain('ambiente de produção'));
+    expect(obterDocumento).toHaveBeenCalledWith(7);
+    expect(document.body.querySelector('[data-dica]')?.textContent).toContain('suporte StartBig');
+    expect(document.body.textContent).toContain('MANUTENÇÃO EM SISTEMA DE TINTAS HP 416');
+    expect(document.body.textContent).toContain('Produção');
     wrapper.unmount();
   });
 });

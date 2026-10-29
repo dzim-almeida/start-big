@@ -159,6 +159,20 @@ def emitir_nfse_da_os(
     return EmissaoResponse.de_documento(doc, "NFS-e")
 
 
+@router.get("/documentos/{documento_id}", summary="Detalhe da NFS-e (motivo inteiro, o que fazer, tentativas)")
+def obter_nfse(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    documento_id: int = Path(...),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.nfse.detalhe import detalhe_nfse
+
+    detalhe = detalhe_nfse(db, documento_id)
+    if detalhe is None:
+        raise HTTPException(status_code=404, detail="NFS-e não encontrada.")
+    return detalhe
+
+
 @router.post("/documentos/{documento_id}/consultar", response_model=EmissaoResponse, summary="Consultar a NFS-e")
 def consultar_nfse(
     user_token: dict = Depends(check_permission(required_permission="servico")),

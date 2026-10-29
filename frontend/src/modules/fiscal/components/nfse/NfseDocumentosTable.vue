@@ -17,6 +17,7 @@ import { useNfseConsultarMutation, useNfseDocumentosQuery } from '../../composab
 import { STATUS_COLORS, STATUS_LABELS } from '../../constants/fiscal.constants';
 import { abrirArquivo } from '../../utils/abrirArquivo';
 import NfseCancelarModal from './NfseCancelarModal.vue';
+import NfseDocumentoDrawer from './NfseDocumentoDrawer.vue';
 import type { DocumentoFiscalStatus, NfseDocumento } from '../../types/fiscal.types';
 
 const props = defineProps<{
@@ -38,6 +39,13 @@ const documentos = computed(() => {
 });
 const consultarMutation = useNfseConsultarMutation();
 const paraCancelar = ref<NfseDocumento | null>(null);
+/** A NFS-e aberta na gaveta de detalhes (clique na linha, como na NF-e). */
+const detalheId = ref<number | null>(null);
+
+function cancelarPelaGaveta(id: number) {
+  paraCancelar.value = todos.value.find((d) => d.id === id) ?? null;
+  detalheId.value = null;
+}
 
 /** Sem resposta definitiva: só a consulta resolve (nunca reemitir por cima). */
 const podeConsultar = (status: string) => ['PROCESSANDO', 'INDETERMINADA'].includes(status);
@@ -69,7 +77,14 @@ function corDoStatus(status: string) {
         </tr>
       </thead>
       <tbody class="divide-y divide-zinc-100">
-        <tr v-for="doc in documentos" :key="doc.id" class="hover:bg-zinc-50/50 transition-colors group" data-nfse-linha>
+        <tr
+          v-for="doc in documentos"
+          :key="doc.id"
+          class="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
+          data-nfse-linha
+          title="Ver detalhes"
+          @click="detalheId = doc.id"
+        >
           <td class="px-4 md:px-6 py-3 md:py-4">
             <div class="w-12 h-10 bg-brand-primary/10 rounded-xl flex flex-col items-center justify-center text-brand-primary">
               <span class="text-[7px] opacity-70 font-bold leading-none">NFS-E</span>
@@ -111,7 +126,7 @@ function corDoStatus(status: string) {
                 type="button"
                 class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
                 title="Abrir a nota no portal da NFS-e"
-                @click="abrirArquivo(doc.url_consulta)"
+                @click.stop="abrirArquivo(doc.url_consulta)"
               >
                 <ExternalLink :size="18" />
               </button>
@@ -120,7 +135,7 @@ function corDoStatus(status: string) {
                 type="button"
                 class="p-2 rounded-lg text-zinc-400 hover:text-brand-primary hover:bg-brand-primary/10 transition-colors cursor-pointer"
                 title="DANFSe (PDF)"
-                @click="abrirArquivo(doc.url_pdf)"
+                @click.stop="abrirArquivo(doc.url_pdf)"
               >
                 <FileText :size="18" />
               </button>
@@ -130,7 +145,7 @@ function corDoStatus(status: string) {
                 class="p-2 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50"
                 title="Consultar o resultado"
                 :disabled="consultarMutation.isPending.value"
-                @click="consultarMutation.mutate(doc.id)"
+                @click.stop="consultarMutation.mutate(doc.id)"
               >
                 <RefreshCw :size="18" />
               </button>
@@ -139,7 +154,7 @@ function corDoStatus(status: string) {
                 type="button"
                 class="p-2 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                 title="Cancelar NFS-e"
-                @click="paraCancelar = doc"
+                @click.stop="paraCancelar = doc"
               >
                 <Ban :size="18" />
               </button>
@@ -151,4 +166,10 @@ function corDoStatus(status: string) {
   </BaseTableContainer>
 
   <NfseCancelarModal :documento="paraCancelar" @close="paraCancelar = null" />
+  <NfseDocumentoDrawer
+    :documento-id="detalheId"
+    @close="detalheId = null"
+    @consultar="consultarMutation.mutate($event)"
+    @cancelar="cancelarPelaGaveta"
+  />
 </template>

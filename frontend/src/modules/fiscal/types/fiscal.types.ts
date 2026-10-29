@@ -647,6 +647,35 @@ export interface NfseDocumento {
   data_autorizacao: string | null;
 }
 
+/** O detalhe de uma NFS-e para a gaveta (`GET /fiscal/nfse/documentos/{id}`). */
+export interface NfseDetalhe {
+  id: number;
+  status: DocumentoFiscalStatus;
+  status_focus: string | null;
+  origem: string | null;
+  numero_os: string | null;
+  numero: number | null;
+  codigo_verificacao: string | null;
+  chave_acesso: string | null;
+  ref: string | null;
+  ambiente: number | null;
+  valor_total: number | null;
+  tomador: string | null;
+  tomador_documento: string | null;
+  /** O motivo inteiro da emissora (a linha da tabela corta). */
+  motivo: string | null;
+  codigo_status: string | null;
+  /** O que fazer, em português de loja (só nas recusas conhecidas e sem retorno). */
+  dica: string | null;
+  url_pdf: string | null;
+  url_xml: string | null;
+  url_consulta: string | null;
+  data_emissao: string | null;
+  data_autorizacao: string | null;
+  itens: { descricao: string; codigo: string | null; valor: number; desconto: number }[];
+  tentativas_anteriores: { id: number; status: DocumentoFiscalStatus; motivo: string | null; data: string | null; ref: string | null }[];
+}
+
 /** A DPS que sairia — campos no formato da Focus (só os que a tela mostra). */
 export interface NfsePreview {
   numero_os: string;

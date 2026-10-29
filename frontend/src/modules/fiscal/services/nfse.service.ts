@@ -8,6 +8,7 @@ import type {
   NfsePreview,
   NfseSaude,
   NfseOsParaEmitir,
+  NfseDetalhe,
   DocumentoFiscalResumo,
 } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
@@ -47,6 +48,12 @@ export const nfseService = {
       params: { buscar },
       timeout: TIMEOUT_CONSULTA,
     });
+    return data;
+  },
+
+  /** Tudo de uma NFS-e: o motivo inteiro, o que fazer e as tentativas anteriores. */
+  async obterDocumento(id: number): Promise<NfseDetalhe> {
+    const { data } = await api.get<NfseDetalhe>(`${NFSE_ENDPOINT}/documentos/${id}`, { timeout: TIMEOUT_CONSULTA });
     return data;
   },
 
