@@ -365,6 +365,16 @@ rejeições do mês por `codigo_erro`, município sem `status_nfse = ativo`.
 (`npm run fiscal:censo`) conta NFS-e.
 **ERP:** nada (o painel é do suporte).
 
+### Entrega do G7 (29/10/2026)
+
+Plataforma, branch `feat/nfse-saude-fiscal` (saída da `feat/nfse-municipal`),
+e34416f, sem push e sem deploy. Item "NFS-e" no painel de saúde (só com o
+módulo NFSE): rota da ficha + decisão/status da cidade + `habilita_nfse`/
+`habilita_nfsen_*` lidos na Focus. "Última NFS-e autorizada" separada.
+Rejeições agrupadas por documento e código (na NFS-e, o alfanumérico que abre
+a mensagem). Censo com rota, cidade e última NFS-e. Janela das rejeições
+continua de 7 dias (a mesma da NF-e), não o mês. Testes: 214.
+
 ---
 
 ## G8 — ESLint (pendência anotada, fora da NFS-e)
