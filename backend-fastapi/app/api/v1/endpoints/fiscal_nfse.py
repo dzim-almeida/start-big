@@ -279,6 +279,18 @@ def salvar_configuracao_nfse(
     return _handle_db_transaction(db, _salvar)
 
 
+@router.get("/rota", summary="Por onde sai a NFS-e e o que a nota pede (para a tela)")
+def obter_rota_nfse(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Rota (Nacional/Municipal/pendente), cidade, campos que a cidade exige e o
+    regime da empresa. Sem resposta da plataforma, vale a Nacional."""
+    from app.services.fiscal.nfse.rota import perfil_para_tela
+
+    return perfil_para_tela(db, user_token["empresa_id"])
+
+
 # ===========================================================================
 # NFS-e AVULSA (G4): serviço que não passou por OS
 # ===========================================================================

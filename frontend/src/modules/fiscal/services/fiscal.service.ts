@@ -27,6 +27,7 @@ import type { EmissaoPreviewResponse,
   GapNumeracao,
   InutilizacaoRead,
   InutilizacaoRequest,
+  NfseRota,
 } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
@@ -375,6 +376,12 @@ export const fiscalService = {
       params: { buscar: termo, codigo_tributacao_nacional: codigoTributacaoNacional, limite },
       timeout: TIMEOUT_CONSULTA,
     });
+    return data;
+  },
+
+  /** Rota da NFS-e e o que a nota pede (M1 do plano de melhoria). */
+  async obterRotaNfse(): Promise<NfseRota> {
+    const { data } = await api.get<NfseRota>(`${FISCAL_ENDPOINT}/nfse/rota`, { timeout: TIMEOUT_CONSULTA });
     return data;
   },
 

@@ -35,6 +35,18 @@ vi.mock('@/modules/fiscal/composables/useNbsSugeridos', () => ({
   useNbsSugeridos: () => computed(() => []),
 }));
 
+// A rota da NFS-e (M1 do plano de melhoria): o teste escolhe Nacional ou municipal.
+const rotaAtual = ref<{ rota: string; cidade: string | null; obrigatorios: Record<string, boolean>; regime: string }>({
+  rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'mei',
+});
+vi.mock('@/modules/fiscal/composables/useNfseRota', () => ({
+  useNfseRota: () => ({
+    rota: computed(() => rotaAtual.value),
+    municipal: computed(() => rotaAtual.value.rota === 'MUNICIPAL'),
+    exige: (campo: string) => rotaAtual.value.rota === 'MUNICIPAL' && rotaAtual.value.obrigatorios[campo] === true,
+  }),
+}));
+
 const { default: ServicoFormModal } = await import('../ServicoFormModal.vue');
 const { useServicoModal } = await import('../../composables/useServicoModal');
 
@@ -51,6 +63,7 @@ async function salvar() {
 }
 
 afterEach(() => {
+  rotaAtual.value = { rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'mei' };
   Object.keys(recursos).forEach((k) => delete recursos[k]);
   update.mockClear();
   document.body.innerHTML = '';
@@ -82,7 +95,7 @@ describe('Modal do serviço e a NFS-e', () => {
   it('com o módulo NFSE: mostra a NFS-e Nacional com os códigos formatados e os salva em dígitos', async () => {
     recursos.nfse = true;            // prestador MEI: só NFS-e, sem NF-e
     const wrapper = abrirEdicao();
-    await vi.waitFor(() => expect(document.body.textContent).toContain('NFS-e Nacional'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Código de Tributação Nacional'));
     await vi.waitFor(() => {
       const valores = [...document.body.querySelectorAll('input')].map((i) => i.value);
       expect(valores).toContain('01.07.01');
@@ -92,6 +105,65 @@ describe('Modal do serviço e a NFS-e', () => {
     const dados = await salvar();
 
     expect(dados.fiscal).toMatchObject({ codigo_tributacao_nacional: '010701', codigo_nbs: '115013000' });
+    wrapper.unmount();
+  });
+});
+
+describe('Dados fiscais do serviço mostram só o que a nota pede (M1)', () => {
+  it('Nacional/MEI: sem CFOP, CST, unidade nem alíquota de ISS; o salvar não manda (nem apaga) esses campos', async () => {
+    recursos.nfse = true;
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('padrão nacional'));
+
+    const texto = document.body.textContent ?? '';
+    expect(texto).not.toContain('CFOP');
+    expect(texto).not.toContain('CST ICMS');
+    expect(texto).not.toContain('Unidade Tributável');
+    expect(texto).not.toContain('Alíquota ISS');
+    expect(texto).not.toContain('Código LC 116 e');      // o aviso antigo apontava o LC 116 e o CNAE
+
+    const dados = await salvar();
+    for (const campo of ['cfop_padrao', 'cst_icms', 'csosn', 'unidade_tributavel']) {
+      expect(dados.fiscal).not.toHaveProperty(campo);
+    }
+    wrapper.unmount();
+  });
+
+  it('o item da LC 116 acompanha o código nacional', async () => {
+    recursos.nfse = true;
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('preenchido pelo código nacional'));
+    expect(document.body.textContent).toContain('01.07');
+    wrapper.unmount();
+  });
+
+  it('rota municipal: mostra o que a cidade exige, marcado como obrigatório', async () => {
+    recursos.nfse = true;
+    rotaAtual.value = { rota: 'MUNICIPAL', cidade: 'Iguatu/CE', obrigatorios: { codigo_cnae: true }, regime: 'simples' };
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('prefeitura de Iguatu/CE'));
+    expect(document.body.textContent).toContain('CNAE (obrigatório)');
+    expect(document.body.textContent).toContain('Código tributário municipal');
+    wrapper.unmount();
+  });
+
+  it('regime normal: aparece a alíquota de ISS', async () => {
+    recursos.nfse = true;
+    rotaAtual.value = { rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'normal' };
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Alíquota ISS'));
+    wrapper.unmount();
+  });
+
+  it('"Detalhes" tem um Editar visível que leva à edição', async () => {
+    recursos.nfse = true;
+    useServicoModal().openViewModal({ id: 7, descricao: 'Suporte em informática', valor: 15000 } as never);
+    const wrapper = mount(ServicoFormModal, { attachTo: document.body });
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Detalhes do Serviço'));
+
+    const editar = [...document.body.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Editar')!;
+    editar.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Salvar Alterações'));
     wrapper.unmount();
   });
 });

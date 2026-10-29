@@ -6,7 +6,7 @@ import { useServicoFormProvider } from '../composables/useServicoForm';
 import ServicoDadosSection from './form/ServicoDadosSection.vue';
 import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
 
-const { isOpen, isCreateMode, isViewMode, modalTitle, closeModal } = useServicoModal();
+const { isOpen, isCreateMode, isViewMode, modalTitle, closeModal, switchToEdit } = useServicoModal();
 const { onSubmit, isPending, submitCount, apiError, nfseDisponivel } = useServicoFormProvider();
 </script>
 
@@ -49,7 +49,15 @@ const { onSubmit, isPending, submitCount, apiError, nfseDisponivel } = useServic
           {{ isViewMode ? 'Fechar' : 'Cancelar' }}
         </BaseButton>
         <BaseButton
-          v-if="!isViewMode"
+          v-if="isViewMode"
+          type="button"
+          variant="primary"
+          @click="switchToEdit"
+        >
+          Editar
+        </BaseButton>
+        <BaseButton
+          v-else
           type="submit"
           variant="primary"
           :is-loading="isPending"

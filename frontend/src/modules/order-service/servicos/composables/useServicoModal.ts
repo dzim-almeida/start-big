@@ -25,6 +25,11 @@ export function useServicoModal() {
     isOpen.value = true;
   }
 
+  /** Da tela "Detalhes" para a edição, sem fechar o modal. */
+  function switchToEdit() {
+    if (selectedServico.value) mode.value = 'edit';
+  }
+
   function closeModal() {
     isOpen.value = false;
     setTimeout(() => {
@@ -61,6 +66,7 @@ export function useServicoModal() {
     openCreateModal,
     openEditModal,
     openViewModal,
+    switchToEdit,
     closeModal,
   };
 }

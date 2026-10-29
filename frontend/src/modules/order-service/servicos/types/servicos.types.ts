@@ -22,10 +22,6 @@ export interface ServicoFormData {
   fiscal_cnae: string;
   fiscal_aliquota_iss_display: string;
   fiscal_codigo_tributacao_municipio: string;
-  fiscal_cfop_padrao: string;
-  fiscal_cst_icms: string;
-  fiscal_csosn: string;
-  fiscal_unidade_tributavel: string;
   fiscal_c_class_trib: string;
   fiscal_cst_ibs_cbs: string;
   fiscal_aliquota_ibs_display: string;

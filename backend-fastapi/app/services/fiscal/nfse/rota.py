@@ -158,3 +158,35 @@ def extensao_municipal(rota: Optional[RotaNfse], fiscal) -> Optional[dict]:
     }
     ext = {k: v for k, v in ext.items() if v}
     return ext or None
+
+
+def regime_da_empresa(empresa) -> str:
+    """"mei", "simples" ou "normal": o que decide alíquota de ISS e campos do Simples."""
+    from app.services.fiscal.helpers import CRT_MEI, CRT_SIMPLES_EXCESSO, CRT_SIMPLES_NACIONAL, obter_crt
+
+    crt = obter_crt(empresa) if empresa is not None else None
+    if crt == CRT_MEI:
+        return "mei"
+    if crt in (CRT_SIMPLES_NACIONAL, CRT_SIMPLES_EXCESSO):
+        return "simples"
+    return "normal"
+
+
+def perfil_para_tela(db, empresa_id: int) -> dict:
+    """O que a tela do serviço precisa para mostrar só os campos que a nota pede
+    (M1 de docs/nfse-melhorias-plano.md). Nunca levanta."""
+    from app.db.crud import fiscal as crud
+
+    rota = rota_da_empresa(db, empresa_id)
+    try:
+        regime = regime_da_empresa(crud.get_empresa(db, empresa_id))
+    except Exception:  # pragma: no cover - rede de segurança
+        regime = "mei"
+    return {
+        "rota": rota.rota,
+        "cidade": rota.cidade,
+        "obrigatorios": rota.obrigatorios,
+        "exige_login": rota.exige_login,
+        "confirmada": rota.confirmada,
+        "regime": regime,
+    }

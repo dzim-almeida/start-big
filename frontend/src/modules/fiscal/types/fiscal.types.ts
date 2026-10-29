@@ -681,6 +681,21 @@ export interface NfseAvulsaRequest {
   tomador_email?: string | null;
 }
 
+/**
+ * Por onde sai a NFS-e da empresa e o que a nota pede (`GET /fiscal/nfse/rota`).
+ * A tela do serviço mostra só os campos que importam para esta rota e regime.
+ */
+export interface NfseRota {
+  rota: 'NACIONAL' | 'MUNICIPAL' | 'MUNICIPAL_PENDENTE' | string;
+  cidade: string | null;
+  /** `*_obrigatorio_nfse` da cidade, sem o sufixo: { codigo_cnae: true, ... }. */
+  obrigatorios: Record<string, boolean | null>;
+  exige_login: boolean;
+  /** false = a plataforma não respondeu; valem as regras da Nacional. */
+  confirmada: boolean;
+  regime: 'mei' | 'simples' | 'normal';
+}
+
 /** Configuração da NFS-e (G3): as decisões do contador como opção. */
 export interface NfseConfiguracao {
   regime_tributacao_iss: number | null;

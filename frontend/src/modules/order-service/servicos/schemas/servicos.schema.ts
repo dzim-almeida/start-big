@@ -36,16 +36,6 @@ export const ServiceFormSchema = z.object({
     .optional().or(z.literal('')),
   fiscal_aliquota_iss_display: z.string().optional().or(z.literal('')),
   fiscal_codigo_tributacao_municipio: z.string().optional().or(z.literal('')),
-  fiscal_cfop_padrao: z.string()
-    .refine((v) => !v || /^\d{4}$/.test(v), { message: 'CFOP deve ter exatamente 4 dígitos' })
-    .optional().or(z.literal('')),
-  fiscal_cst_icms: z.string()
-    .refine((v) => !v || /^\d{2,3}$/.test(v), { message: 'CST deve ter 2 ou 3 dígitos' })
-    .optional().or(z.literal('')),
-  fiscal_csosn: z.string()
-    .refine((v) => !v || /^\d{3}$/.test(v), { message: 'CSOSN deve ter 3 dígitos' })
-    .optional().or(z.literal('')),
-  fiscal_unidade_tributavel: z.string().max(6).optional().or(z.literal('')),
 
   // Reforma Tributária (IBS/CBS)
   fiscal_c_class_trib: z.string().max(20).optional().or(z.literal('')),

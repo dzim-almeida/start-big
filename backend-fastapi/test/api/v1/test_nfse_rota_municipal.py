@@ -209,3 +209,28 @@ def test_ativacao_manda_o_codigo_ibge_e_o_login_da_prefeitura(db_session, loja, 
     enviado.clear()
     cli.ativar_emissao(emitente, None, None, "MIIPFX", "senha")
     assert "nfse_login_prefeitura" not in enviado
+
+
+# =========================
+# Tela do serviço (M1 do plano de melhoria)
+# =========================
+
+def test_rota_para_a_tela_traz_rota_cidade_exigencias_e_regime(client, loja, cidade):
+    cidade(_resposta(MUNICIPAL, codigo_cnae=True))
+    r = client.get(f"{NFSE}/rota", headers=loja)
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "rota": MUNICIPAL, "cidade": "Iguatu/CE", "obrigatorios": {"codigo_cnae": True},
+        "exige_login": False, "confirmada": True, "regime": "mei",   # a loja do teste é MEI (crt 4)
+    }
+
+
+def test_rota_para_a_tela_sem_plataforma_e_a_nacional(client, loja, cidade):
+    cidade({})
+    corpo = client.get(f"{NFSE}/rota", headers=loja).json()
+    assert (corpo["rota"], corpo["confirmada"]) == (NACIONAL, False)
+
+
+def test_rota_para_a_tela_exige_o_modulo(client, loja, licenca, cidade):
+    licenca("NFE")
+    assert client.get(f"{NFSE}/rota", headers=loja).status_code == 403

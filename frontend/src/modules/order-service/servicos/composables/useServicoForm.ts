@@ -25,10 +25,6 @@ const DEFAULT_FORM_VALUES: ServicoFormData = {
   fiscal_cnae: '',
   fiscal_aliquota_iss_display: '',
   fiscal_codigo_tributacao_municipio: '',
-  fiscal_cfop_padrao: '',
-  fiscal_cst_icms: '',
-  fiscal_csosn: '',
-  fiscal_unidade_tributavel: '',
   fiscal_c_class_trib: '',
   fiscal_cst_ibs_cbs: '',
   fiscal_aliquota_ibs_display: '',
@@ -46,10 +42,6 @@ export interface ServicoFormContext {
   fiscal_cnae: Ref<string>;
   fiscal_aliquota_iss_display: Ref<string>;
   fiscal_codigo_tributacao_municipio: Ref<string>;
-  fiscal_cfop_padrao: Ref<string>;
-  fiscal_cst_icms: Ref<string>;
-  fiscal_csosn: Ref<string>;
-  fiscal_unidade_tributavel: Ref<string>;
   fiscal_c_class_trib: Ref<string>;
   fiscal_cst_ibs_cbs: Ref<string>;
   fiscal_aliquota_ibs_display: Ref<string>;
@@ -96,10 +88,6 @@ export function useServicoFormProvider() {
   const [fiscal_cnae] = defineField('fiscal_cnae');
   const [fiscal_aliquota_iss_display] = defineField('fiscal_aliquota_iss_display');
   const [fiscal_codigo_tributacao_municipio] = defineField('fiscal_codigo_tributacao_municipio');
-  const [fiscal_cfop_padrao] = defineField('fiscal_cfop_padrao');
-  const [fiscal_cst_icms] = defineField('fiscal_cst_icms');
-  const [fiscal_csosn] = defineField('fiscal_csosn');
-  const [fiscal_unidade_tributavel] = defineField('fiscal_unidade_tributavel');
   const [fiscal_c_class_trib] = defineField('fiscal_c_class_trib');
   const [fiscal_cst_ibs_cbs] = defineField('fiscal_cst_ibs_cbs');
   const [fiscal_aliquota_ibs_display] = defineField('fiscal_aliquota_ibs_display');
@@ -107,6 +95,18 @@ export function useServicoFormProvider() {
   const [fiscal_c_benef] = defineField('fiscal_c_benef');
   const [fiscal_codigo_tributacao_nacional] = defineField('fiscal_codigo_tributacao_nacional');
   const [fiscal_codigo_nbs] = defineField('fiscal_codigo_nbs');
+
+  // O item da LC 116 está dentro do código nacional (01.07.01 → 01.07): ao
+  // trocar o código, o item acompanha — a não ser que alguém o tenha digitado
+  // diferente de propósito (rota municipal que pede outro).
+  const itemDaLc116 = (codigo: string | undefined) =>
+    /^\d{6}$/.test(codigo ?? '') ? `${codigo!.slice(0, 2)}.${codigo!.slice(2, 4)}` : '';
+  watch(fiscal_codigo_tributacao_nacional, (novo, antigo) => {
+    const item = itemDaLc116(novo);
+    if (!item) return;
+    const atual = fiscal_codigo_servico_lc116.value ?? '';
+    if (!atual || atual === itemDaLc116(antigo)) fiscal_codigo_servico_lc116.value = item;
+  });
 
   async function populateForm() {
     if (!selectedServico.value) {
@@ -133,10 +133,6 @@ export function useServicoFormProvider() {
               : '',
             fiscal_aliquota_iss_display: fiscal.aliquota_iss != null ? String(Math.round(fiscal.aliquota_iss / 100)) : '',
             fiscal_codigo_tributacao_municipio: fiscal.codigo_tributacao_municipio ?? '',
-            fiscal_cfop_padrao: fiscal.cfop_padrao ?? '',
-            fiscal_cst_icms: fiscal.cst_icms ?? '',
-            fiscal_csosn: fiscal.csosn ?? '',
-            fiscal_unidade_tributavel: fiscal.unidade_tributavel ?? '',
             fiscal_c_class_trib: fiscal.c_class_trib ?? '',
             fiscal_cst_ibs_cbs: fiscal.cst_ibs_cbs ?? '',
             fiscal_aliquota_ibs_display: fiscal.aliquota_ibs != null ? String(Math.round(fiscal.aliquota_ibs / 100)) : '',
@@ -202,10 +198,8 @@ export function useServicoFormProvider() {
             ? Math.round(Number(formData.fiscal_aliquota_iss_display) * 100)
             : null,
           codigo_tributacao_municipio: formData.fiscal_codigo_tributacao_municipio || null,
-          cfop_padrao: formData.fiscal_cfop_padrao || null,
-          cst_icms: formData.fiscal_cst_icms || null,
-          csosn: formData.fiscal_csosn || null,
-          unidade_tributavel: formData.fiscal_unidade_tributavel || null,
+          // CFOP, CST, CSOSN e unidade não vão: fora do payload, o backend
+          // (exclude_unset) não os apaga.
           c_class_trib: formData.fiscal_c_class_trib || null,
           cst_ibs_cbs: formData.fiscal_cst_ibs_cbs || null,
           aliquota_ibs: formData.fiscal_aliquota_ibs_display
@@ -252,10 +246,6 @@ export function useServicoFormProvider() {
     fiscal_cnae,
     fiscal_aliquota_iss_display,
     fiscal_codigo_tributacao_municipio,
-    fiscal_cfop_padrao,
-    fiscal_cst_icms,
-    fiscal_csosn,
-    fiscal_unidade_tributavel,
     fiscal_c_class_trib,
     fiscal_cst_ibs_cbs,
     fiscal_aliquota_ibs_display,
