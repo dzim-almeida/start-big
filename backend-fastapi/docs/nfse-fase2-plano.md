@@ -384,6 +384,17 @@ eslint-plugin-vue 10 + typescript-eslint), mantendo as regras e o override da
 marcenaria (`no-restricted-html-elements`). Branch própria. A primeira execução
 vai apontar avisos antigos: corrigir só erros reais; avisos ficam listados.
 
+### Entrega do G8 (29/10/2026)
+
+Branch `chore/eslint-flat-config` (cb40c2c5), fast-forward na `feat/nfse`.
+`eslint.config.js` com as mesmas regras e o override da marcenaria (provado
+com `<select>` de teste); `.eslintrc.cjs` e o `plugin:storybook` (nunca
+instalado) saem. `lint:check`: 0 erros, 112 avisos `no-explicit-any` (listados).
+41 erros iniciais: ~14 eram padrão da casa (regras ajustadas), os mecânicos
+foram corrigidos sem mudar comportamento, 1 defeito real (`layout.store`:
+`if (isMobile)` sem `.value`), e PDV/auto-descoberta ganharam `eslint-disable`
+com motivo. vue-tsc limpo; vitest 760/760.
+
 ---
 
 ## G9 — Homologação, canário e release
