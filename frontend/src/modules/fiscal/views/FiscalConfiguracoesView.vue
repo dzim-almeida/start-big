@@ -17,6 +17,32 @@ import { useTributacaoPadrao } from '../composables/useTributacaoPadrao';
 import { useFiscalPlataformaQuery } from '../composables/useFiscalPlataformaQuery';
 import { fiscalKeys } from '../constants/fiscal.constants';
 import { api } from '@/api/axios';
+import { recursoDisponivel } from '@/shared/config/planos';
+import { useNfseRota } from '../composables/useNfseRota';
+import { useNfseSaudeQuery } from '../composables/useNfse';
+
+// Cartão "Emissão Municipal (NFS-e)": deixou de ser "Em breve" (M4 do
+// docs/nfse-melhorias-plano.md). Só consulta a NFS-e com o módulo contratado.
+const nfseDisponivel = recursoDisponivel('nfse');
+const { rota: rotaNfse } = useNfseRota(nfseDisponivel);
+const { data: saudeNfse } = nfseDisponivel ? useNfseSaudeQuery() : { data: ref(undefined) };
+const situacaoNfse = computed(() => {
+  if (!nfseDisponivel) return { rotulo: 'Não contratado', classe: 'bg-zinc-50 text-zinc-500 border-zinc-200' };
+  if (rotaNfse.value.rota === 'MUNICIPAL_PENDENTE') {
+    return { rotulo: 'Aguardando suporte', classe: 'bg-amber-50 text-amber-700 border-amber-200' };
+  }
+  if ((saudeNfse.value?.pendencias ?? 0) > 0) {
+    return { rotulo: `${saudeNfse.value!.pendencias} pendência(s)`, classe: 'bg-amber-50 text-amber-700 border-amber-200' };
+  }
+  return { rotulo: 'Ativa', classe: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+});
+const descricaoRotaNfse = computed(() =>
+  rotaNfse.value.rota === 'MUNICIPAL'
+    ? `As notas saem pelo sistema da prefeitura de ${rotaNfse.value.cidade ?? 'sua cidade'}.`
+    : rotaNfse.value.rota === 'MUNICIPAL_PENDENTE'
+      ? `A NFS-e de ${rotaNfse.value.cidade ?? 'sua cidade'} está sendo configurada pelo suporte StartBig.`
+      : 'As notas saem pelo padrão nacional (nfse.gov.br), a partir da OS ou avulsas.',
+);
 
 const showCertificadoModal = ref(false);
 const showEstadualModal = ref(false);
@@ -404,17 +430,32 @@ async function reconferirCertificado() {
             <div class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary">
               <LucideIcon :icon="MapPin" />
             </div>
-            <div>
-              <h3 class="text-base font-bold text-zinc-900">Emissão Municipal (NFS-e)</h3>
-              <p class="text-xs text-zinc-500">Notas de Serviços e RPS junto à Prefeitura</p>
+            <div class="flex-1">
+              <h3 class="text-base font-bold text-zinc-900">Nota de Serviço (NFS-e)</h3>
+              <p class="text-xs text-zinc-500">Mão de obra da OS e serviços avulsos</p>
             </div>
+            <span :class="['inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border', situacaoNfse.classe]">
+              {{ situacaoNfse.rotulo }}
+            </span>
           </div>
           <p class="text-sm text-zinc-500 mb-6 leading-relaxed">
-            Integre com o portal tributário do seu município para emissão de notas fiscais de serviço a partir de Ordens de Serviço (OS).
+            <template v-if="nfseDisponivel">{{ descricaoRotaNfse }}</template>
+            <template v-else>
+              Emita a nota da mão de obra das suas OS e de serviços avulsos. Fale com a StartBig para
+              contratar o módulo de NFS-e.
+            </template>
           </p>
         </div>
-        <BaseButton variant="secondary" class="w-full sm:w-auto self-start" disabled>
-          Em breve
+        <BaseButton
+          v-if="nfseDisponivel"
+          variant="primary"
+          class="w-full sm:w-auto self-start"
+          @click="router.push({ name: 'fiscal-nfse' })"
+        >
+          Abrir NFS-e
+        </BaseButton>
+        <BaseButton v-else variant="secondary" class="w-full sm:w-auto self-start" disabled>
+          Não contratado
         </BaseButton>
       </div>
     </div>

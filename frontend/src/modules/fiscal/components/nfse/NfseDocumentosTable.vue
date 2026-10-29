@@ -6,7 +6,7 @@
  * Mostra o CÓDIGO DE VERIFICAÇÃO ao lado do número: é o que o tomador usa para
  * conferir a nota no portal, e o que o lojista passa por telefone.
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { AlertCircle, Ban, ExternalLink, FileText, RefreshCw } from 'lucide-vue-next';
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
@@ -17,9 +17,25 @@ import { useNfseConsultarMutation, useNfseDocumentosQuery } from '../../composab
 import { STATUS_COLORS, STATUS_LABELS } from '../../constants/fiscal.constants';
 import { abrirArquivo } from '../../utils/abrirArquivo';
 import NfseCancelarModal from './NfseCancelarModal.vue';
-import type { NfseDocumento } from '../../types/fiscal.types';
+import type { DocumentoFiscalStatus, NfseDocumento } from '../../types/fiscal.types';
 
-const { documentos, isLoading, isError } = useNfseDocumentosQuery();
+const props = defineProps<{
+  /** O card clicado na aba (M4): os mesmos grupos dos contadores do resumo. */
+  statusFiltro?: DocumentoFiscalStatus | null;
+}>();
+
+/** Cada card soma mais de um status (como `obter_resumo` no backend). */
+const GRUPOS_DO_CARD: Partial<Record<DocumentoFiscalStatus, string[]>> = {
+  PENDENTE: ['PENDENTE', 'PROCESSANDO'],
+  CANCELADA: ['CANCELADA', 'DENEGADA'],
+};
+
+const { documentos: todos, isLoading, isError } = useNfseDocumentosQuery();
+const documentos = computed(() => {
+  if (!props.statusFiltro) return todos.value;
+  const aceitos = GRUPOS_DO_CARD[props.statusFiltro] ?? [props.statusFiltro];
+  return todos.value.filter((d) => aceitos.includes(d.status));
+});
 const consultarMutation = useNfseConsultarMutation();
 const paraCancelar = ref<NfseDocumento | null>(null);
 

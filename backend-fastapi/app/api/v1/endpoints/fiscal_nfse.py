@@ -279,6 +279,28 @@ def salvar_configuracao_nfse(
     return _handle_db_transaction(db, _salvar)
 
 
+@router.get("/resumo", summary="Contadores das NFS-e por status (cards da aba NFS-e)")
+def obter_resumo_nfse(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """O mesmo resumo da NF-e, só das NFS-e: a rota da NF-e exige o módulo NFE,
+    e o prestador MEI tem só a NFS-e."""
+    from app.services.fiscal.documentos import consultas
+
+    return consultas.obter_resumo(db, tipo="NFSE")
+
+
+@router.get("/saude", summary="Saúde Fiscal da NFS-e (o que falta para a nota sair)")
+def obter_saude_nfse(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.nfse.saude import saude_nfse
+
+    return saude_nfse(db, user_token["empresa_id"])
+
+
 @router.get("/rota", summary="Por onde sai a NFS-e e o que a nota pede (para a tela)")
 def obter_rota_nfse(
     user_token: dict = Depends(get_current_active_user),

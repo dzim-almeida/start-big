@@ -696,6 +696,24 @@ export interface NfseRota {
   regime: 'mei' | 'simples' | 'normal';
 }
 
+/** Um item da Saúde Fiscal da NFS-e (`GET /fiscal/nfse/saude`). */
+export interface NfseSaudeItem {
+  chave: 'empresa' | 'rota' | 'certificado' | 'servicos' | string;
+  titulo: string;
+  ok: boolean;
+  detalhe: string;
+  /** Só no item "servicos": os que faltam códigos (até 50). */
+  servicos?: { id: number; nome: string; falta: string }[];
+  total_faltando?: number;
+}
+
+/** Saúde Fiscal da aba NFS-e (M4): a mesma barra da aba NF-e. */
+export interface NfseSaude {
+  percentual: number;
+  pendencias: number;
+  itens: NfseSaudeItem[];
+}
+
 /** Configuração da NFS-e (G3): as decisões do contador como opção. */
 export interface NfseConfiguracao {
   regime_tributacao_iss: number | null;

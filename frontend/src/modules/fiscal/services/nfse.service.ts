@@ -6,6 +6,8 @@ import type {
   NfseConfiguracao,
   NfseDocumento,
   NfsePreview,
+  NfseSaude,
+  DocumentoFiscalResumo,
 } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
 
@@ -19,6 +21,18 @@ const NFSE_ENDPOINT = '/fiscal/nfse';
  * NFE, e o prestador MEI contrata só a NFS-e.
  */
 export const nfseService = {
+  /** Contadores por status das NFS-e (os cards da aba). */
+  async obterResumo(): Promise<DocumentoFiscalResumo> {
+    const { data } = await api.get<DocumentoFiscalResumo>(`${NFSE_ENDPOINT}/resumo`, { timeout: TIMEOUT_CONSULTA });
+    return data;
+  },
+
+  /** O que falta para a NFS-e sair (a barra "Saúde Fiscal" da aba). */
+  async obterSaude(): Promise<NfseSaude> {
+    const { data } = await api.get<NfseSaude>(`${NFSE_ENDPOINT}/saude`, { timeout: TIMEOUT_CONSULTA });
+    return data;
+  },
+
   async listarDocumentos(): Promise<NfseDocumento[]> {
     const { data } = await api.get<NfseDocumento[]>(`${NFSE_ENDPOINT}/documentos`, {
       timeout: TIMEOUT_CONSULTA,

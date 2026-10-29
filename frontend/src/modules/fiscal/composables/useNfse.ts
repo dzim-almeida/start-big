@@ -1,5 +1,5 @@
 import { computed } from 'vue';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { AxiosError } from 'axios';
 
 import { useToast } from '@/shared/composables/useToast';
@@ -7,7 +7,7 @@ import { getErrorMessage } from '@/shared/utils/error.utils';
 import type { ApiError } from '@/shared/types/axios.types';
 
 import { nfseService } from '../services/nfse.service';
-import { fiscalKeys } from '../constants/fiscal.constants';
+import { fiscalKeys, FISCAL_REFETCH_INTERVAL, FISCAL_STALE_TIME } from '../constants/fiscal.constants';
 import type { EmissaoResponse, NfseAvulsaRequest } from '../types/fiscal.types';
 import { CODIGO_NOTA_REPETIDA, codigoDoErro } from '../utils/notaRepetida';
 
@@ -27,6 +27,27 @@ export function useNfseDocumentosQuery() {
   });
   const documentos = computed(() => query.data.value ?? []);
   return { ...query, documentos };
+}
+
+/** Os cards da aba NFS-e (M4): pendentes, autorizadas, rejeitadas, canceladas. */
+export function useNfseResumoQuery() {
+  return useQuery({
+    queryKey: fiscalKeys.nfseResumo(),
+    queryFn: () => nfseService.obterResumo(),
+    staleTime: FISCAL_STALE_TIME,
+    refetchInterval: FISCAL_REFETCH_INTERVAL,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** A barra "Saúde Fiscal" da aba NFS-e (M4). Recarrega ao voltar para a tela. */
+export function useNfseSaudeQuery() {
+  return useQuery({
+    queryKey: fiscalKeys.nfseSaude(),
+    queryFn: () => nfseService.obterSaude(),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 /** Toast pelo desfecho: autorizada não é igual a rejeitada nem a "sem retorno". */

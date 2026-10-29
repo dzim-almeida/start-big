@@ -58,6 +58,10 @@ export const fiscalKeys = {
   nbsSugeridos: (codigoNacional: string) => ['fiscal', 'nfse', 'nbs-sugeridos', codigoNacional] as const,
   /** NFS-e emitidas — mudam a cada emissão, consulta e cancelamento. */
   nfseDocumentos: () => ['fiscal', 'nfse', 'documentos'] as const,
+  /** Cards da aba NFS-e. Debaixo de `nfseDocumentos`: toda emissão já o invalida. */
+  nfseResumo: () => ['fiscal', 'nfse', 'documentos', 'resumo'] as const,
+  /** Saúde Fiscal da NFS-e — muda com o cadastro dos serviços e da empresa. */
+  nfseSaude: () => ['fiscal', 'nfse', 'saude'] as const,
   /** Rota da NFS-e e o que a cidade exige — muda quando o suporte decide a cidade. */
   nfseRota: () => ['fiscal', 'nfse', 'rota'] as const,
   /** Configuração da NFS-e (G3) — muda só quando o lojista salva. */
