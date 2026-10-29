@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue';
+import { ref, computed, defineAsyncComponent, onMounted } from 'vue';
 import { Plus } from 'lucide-vue-next';
 
 import { TAB_OPTIONS } from '../ordens/constants/ordemServico.constants';
@@ -35,9 +35,10 @@ import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
 import { mostrarBotaoAdicionar, mostrarBotaoNovoOrcamento } from '../shared/segmento/botoesCriacaoOS';
 import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
 import { useRoute, useRouter } from 'vue-router';
+import { getUniqueOS } from '../ordens/services/orderServiceGet.service';
 
 const { openCreateModal } = useServicoModal();
-const { openNovaOS } = useOSCreateFlow();
+const { openNovaOS, openExistingOS } = useOSCreateFlow();
 const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
@@ -45,6 +46,18 @@ const { podeCriarOSManual } = useTiposDeTrabalho();
 const router = useRouter();
 const route = useRoute();
 const { podeVer: podeVerOrcamentos, podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
+
+// Link de outra tela (aba NFS-e, detalhe da nota): `?os=OS-2026-000158` abre a
+// OS. Não achou: fica a lista, como sem o parâmetro.
+onMounted(async () => {
+  const numero = typeof route.query.os === 'string' ? route.query.os : null;
+  if (!numero) return;
+  try {
+    openExistingOS(await getUniqueOS(numero));
+  } catch {
+    // OS inexistente ou sem permissão: a lista normal.
+  }
+});
 
 // Abas extras por capacidade, na ordem: Revisões (oficina, pós-venda), Produção
 // (marcenaria, Spec 12B D15: o quadro que a fábrica abre de manhã), Instalações

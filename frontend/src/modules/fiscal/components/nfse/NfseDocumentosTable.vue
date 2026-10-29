@@ -7,6 +7,7 @@
  * conferir a nota no portal, e o que o lojista passa por telefone.
  */
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { AlertCircle, Ban, ExternalLink, FileText, RefreshCw } from 'lucide-vue-next';
 
 import BaseTableContainer from '@/shared/components/commons/BaseTableContainer/BaseTableContainer.vue';
@@ -41,6 +42,10 @@ const consultarMutation = useNfseConsultarMutation();
 const paraCancelar = ref<NfseDocumento | null>(null);
 /** A NFS-e aberta na gaveta de detalhes (clique na linha, como na NF-e). */
 const detalheId = ref<number | null>(null);
+
+/** O número da OS leva à própria OS (vínculo nos dois sentidos, M5). */
+const router = useRouter();
+const abrirOs = (numero: string) => router.push({ name: 'services', query: { os: numero } });
 
 function cancelarPelaGaveta(id: number) {
   paraCancelar.value = todos.value.find((d) => d.id === id) ?? null;
@@ -95,7 +100,14 @@ function corDoStatus(status: string) {
             <div class="flex flex-col">
               <span class="text-sm font-semibold text-zinc-900 truncate max-w-xs">{{ doc.tomador || 'Tomador não identificado' }}</span>
               <span class="text-[10px] text-zinc-400 mt-0.5">
-                {{ doc.numero_os ?? 'Avulsa' }}
+                <button
+                  v-if="doc.numero_os"
+                  type="button"
+                  class="text-brand-primary hover:underline"
+                  title="Abrir a OS"
+                  @click.stop="abrirOs(doc.numero_os)"
+                >{{ doc.numero_os }}</button>
+                <template v-else>Avulsa</template>
                 <template v-if="doc.codigo_verificacao"> · verificação {{ doc.codigo_verificacao }}</template>
               </span>
               <div

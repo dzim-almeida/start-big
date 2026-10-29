@@ -27,7 +27,11 @@ import { CODIGO_NOTA_REPETIDA, codigoDoErro, useNfseEmitirMutation } from '../..
 import { formatarCodigoNacional, formatarNbs } from '../../utils/nfse.utils';
 import type { NfseOsParaEmitir, NfsePreview } from '../../types/fiscal.types';
 
-const props = defineProps<{ isOpen: boolean }>();
+const props = defineProps<{
+  isOpen: boolean;
+  /** Aberto a partir da OS ("Notas desta OS", M5): já confere esta OS. */
+  numeroOsInicial?: string | null;
+}>();
 const emit = defineEmits<{ close: [] }>();
 
 /** A OS escolhida (vazio = ainda escolhendo na lista). */
@@ -60,7 +64,8 @@ async function carregarOpcoes(termo = '') {
 }
 
 watch(() => props.isOpen, (aberto) => {
-  if (aberto) carregarOpcoes();
+  if (aberto && props.numeroOsInicial) escolher(props.numeroOsInicial);
+  else if (aberto) carregarOpcoes();
   if (!aberto) {
     numeroOs.value = '';
     busca.value = '';
@@ -183,7 +188,7 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
       <!-- As OS prontas para a nota: um clique escolhe (M3) -->
       <div v-if="!numeroOs" class="rounded-xl border border-zinc-200 overflow-hidden" data-os-para-emitir>
         <p class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 bg-zinc-50 border-b border-zinc-100">
-          OS finalizadas sem NFS-e
+          Escolha a OS
         </p>
         <p v-if="carregandoOpcoes" class="px-4 py-3 text-sm text-zinc-400 flex items-center gap-2">
           <Loader2 :size="14" class="animate-spin" /> procurando…

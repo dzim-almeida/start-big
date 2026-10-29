@@ -11,6 +11,7 @@
  * da tabela: a gaveta só pede.
  */
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import {
   AlertTriangle, Ban, CheckCircle, Clock, ExternalLink, FileText, History, Lightbulb, Loader2, RefreshCw, X,
@@ -28,6 +29,12 @@ const props = defineProps<{ documentoId: number | null }>();
 const emit = defineEmits<{ close: []; consultar: [id: number]; cancelar: [id: number] }>();
 
 const aberto = computed(() => props.documentoId != null);
+
+const router = useRouter();
+function abrirOs(numero: string) {
+  emit('close');
+  router.push({ name: 'services', query: { os: numero } });
+}
 
 const { data: doc, isLoading, isError } = useQuery({
   // Debaixo de `nfseDocumentos`: consultar e cancelar já invalidam a gaveta.
@@ -86,7 +93,9 @@ const documentoTomador = computed(() => {
                     </div>
                     <p v-if="doc" class="text-xs text-zinc-500 mt-0.5">
                       Nº {{ doc.numero ?? '-' }}
-                      <template v-if="doc.numero_os"> · {{ doc.numero_os }}</template>
+                      <template v-if="doc.numero_os">
+                        · <button type="button" class="text-brand-primary hover:underline" @click="abrirOs(doc.numero_os)">{{ doc.numero_os }}</button>
+                      </template>
                       <template v-else> · Avulsa</template>
                       · {{ doc.ambiente === 1 ? 'Produção' : 'Homologação (teste)' }}
                     </p>

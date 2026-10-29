@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import OSClientCard from './OSClientCard.vue';
 import OSSummaryCard from './OSSummaryCard.vue';
+import OSNotasCard from './OSNotasCard.vue';
 import { useOSFormView } from '../../context/useOSFormView.context';
+import { recursoDisponivel } from '@/shared/config/planos';
 
 const view = useOSFormView();
+// "Notas desta OS" (M5): só na OS finalizada e para quem tem algum módulo fiscal.
+const fiscalDisponivel = recursoDisponivel('nfe') || recursoDisponivel('nfse');
 </script>
 
 <template>
@@ -41,4 +45,9 @@ const view = useOSFormView();
       @open-historico="view.openHistoricoModal"
     />
   </fieldset>
+
+  <!-- Fora do fieldset: a OS finalizada trava a estrutura, mas a nota se emite depois. -->
+  <div v-if="fiscalDisponivel && view.isFinalizada.value && view.osNumber.value" class="lg:mt-4">
+    <OSNotasCard :os-numero="view.osNumber.value" />
+  </div>
 </template>

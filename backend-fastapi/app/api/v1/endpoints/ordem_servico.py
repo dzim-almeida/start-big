@@ -29,7 +29,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal, requer_modulo_fiscal_servico
 from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.schemas.fiscal.emissao import EmissaoResponse
 from app.services.fiscal.completude import verificacao as verificacao_fiscal_service
@@ -609,6 +609,28 @@ def verificar_fiscal_os(
     return verificacao_fiscal_service.verificar_completude_os(
         db, os_number, empresa_id, tipo_documento
     )
+
+
+@router.get(
+    "/{os_number}/notas-fiscais",
+    summary="Notas desta OS (peças → NF-e, serviço → NFS-e)",
+    description=(
+        "Quanto vai em cada nota, a situação de cada uma e se a loja emite "
+        "aquele tipo. Só leitura; nota só sai quando o cliente pede."
+    ),
+)
+def notas_fiscais_da_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
+    os_number: str = Path(..., description="Número da OS"),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.os_notas import notas_da_os
+
+    notas = notas_da_os(db, os_number)
+    if notas is None:
+        raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada.")
+    return notas
 
 
 @router.post(

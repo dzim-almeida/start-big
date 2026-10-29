@@ -47,3 +47,28 @@ export async function emitirFiscalOS(
     { params: { tipo_documento: tipoDocumento } },
   );
 }
+
+/** Um documento fiscal da OS, resumido para o cartão "Notas desta OS". */
+export interface NotaDaOs {
+  id: number;
+  status: string;
+  numero: number | string | null;
+  motivo: string | null;
+  url_pdf: string | null;
+  valor: number | null;
+  papel: string | null;
+}
+
+/** "Notas desta OS" (M5 de docs/nfse-melhorias-plano.md). Valores em centavos. */
+export interface NotasDaOs {
+  numero_os: string;
+  finalizada: boolean;
+  total_os: number;
+  pecas: { tem: boolean; valor: number; modulo: boolean; documento: NotaDaOs | null };
+  servico: { tem: boolean; valor: number; modulo: boolean; documentos: NotaDaOs[] };
+}
+
+export async function getNotasDaOs(osNumero: string): Promise<NotasDaOs> {
+  const { data } = await api.get<NotasDaOs>(`${BASE_ORDER_SERVICE_URL}/${osNumero}/notas-fiscais`);
+  return data;
+}

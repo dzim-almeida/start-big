@@ -26,7 +26,9 @@ vi.mock('@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento', ()
   usePermissoesOrcamento: () => ({ podeVer: podeVerOrcamentos, podeGerir: podeGerirOrcamentos }),
 }));
 vi.mock('../../servicos/composables/useServicoModal', () => ({ useServicoModal: () => ({ openCreateModal: vi.fn() }) }));
-vi.mock('../../ordens/composables/useOSCreateFlow', () => ({ useOSCreateFlow: () => ({ openNovaOS: vi.fn() }) }));
+vi.mock('../../ordens/composables/useOSCreateFlow', () => ({ useOSCreateFlow: () => ({ openNovaOS: vi.fn(), openExistingOS: vi.fn() }) }));
+// `?os=` abre a OS pela URL (M5): sem o parâmetro, nada é buscado.
+vi.mock('../../ordens/services/orderServiceGet.service', () => ({ getUniqueOS: vi.fn() }));
 const rota = { query: {} as Record<string, string> };
 const replace = vi.fn();
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn(), replace }), useRoute: () => rota }));
