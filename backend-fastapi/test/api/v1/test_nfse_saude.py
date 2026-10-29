@@ -87,3 +87,25 @@ def test_saude_e_resumo_exigem_o_modulo(client, loja, licenca):
     assert client.get(f"{NFSE}/saude", headers=loja).status_code == 403
     assert client.get(f"{NFSE}/resumo", headers=loja).status_code == 403
     rota_mod.limpar_cache()
+
+
+# =========================
+# M2: padrão fiscal da loja para serviços novos
+# =========================
+
+def test_padrao_fiscal_da_loja_salva_em_digitos_e_volta(client, loja):
+    r = client.put(f"{NFSE}/configuracao", json={
+        "nfse_padrao_codigo_nacional": "14.01.01", "nfse_padrao_nbs": "1.2001.20.00", "nfse_padrao_aliquota_iss": 250,
+    }, headers=loja)
+    assert r.status_code == 200, r.text
+    corpo = client.get(f"{NFSE}/configuracao", headers=loja).json()
+    assert (corpo["nfse_padrao_codigo_nacional"], corpo["nfse_padrao_nbs"], corpo["nfse_padrao_aliquota_iss"]) == (
+        "140101", "120012000", 250,
+    )
+    # O resto da configuração não muda por salvar só o padrão.
+    assert corpo["nfse_reter_iss_pj"] is False
+
+
+def test_padrao_fiscal_recusa_codigo_incompleto(client, loja):
+    r = client.put(f"{NFSE}/configuracao", json={"nfse_padrao_codigo_nacional": "1401"}, headers=loja)
+    assert r.status_code == 422

@@ -17,8 +17,15 @@ export async function getServicos(query: ServicosQuerySearch): Promise<Paginated
   return PaginatedServicesSchema.parse(data);
 }
 
-export async function createServico(servico: ServiceCreateZod): Promise<ServiceReadZod> {
-  const { data } = await api.post<ServiceReadZod>(`${BASE_URL}/`, servico);
+export async function createServico(
+  servico: ServiceCreateZod & { fiscal?: ServicoFiscalUpdate | null },
+): Promise<ServiceReadZod> {
+  const { fiscal, ...dadosPrincipais } = servico;
+  const { data } = await api.post<ServiceReadZod>(`${BASE_URL}/`, dadosPrincipais);
+  // Dados fiscais já no cadastro (M2 de docs/nfse-melhorias-plano.md).
+  if (fiscal) {
+    await upsertServicoFiscal(data.id, fiscal);
+  }
   return data;
 }
 

@@ -8,6 +8,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 
 const recursos: Record<string, boolean> = {};
 vi.mock('@/shared/config/planos', () => ({
@@ -15,16 +16,30 @@ vi.mock('@/shared/config/planos', () => ({
 }));
 
 const update = vi.fn();
+const create = vi.fn();
 vi.mock('@/modules/order-service/servicos/composables/useServicosMutations', () => ({
-  useCreateServicoMutation: () => ({ mutate: vi.fn(), isPending: ref(false) }),
+  useCreateServicoMutation: () => ({ mutate: create, isPending: ref(false) }),
   useUpdateServicoMutation: () => ({ mutate: update, isPending: ref(false) }),
 }));
 
+const fiscalPorServico: Record<number, any> = {
+  7: { id: 1, servico_id: 7, codigo_servico_lc116: '0107',
+       codigo_tributacao_nacional: '010701', codigo_nbs: '115013000', data_atualizacao: '2026-10-28' },
+  9: { id: 2, servico_id: 9, codigo_servico_lc116: '1401', aliquota_iss: 250,
+       codigo_tributacao_nacional: '140101', codigo_nbs: '120012000', data_atualizacao: '2026-10-28' },
+};
 vi.mock('@/modules/order-service/servicos/services/servicos.service', () => ({
-  getServicoFiscal: vi.fn().mockResolvedValue({
-    id: 1, servico_id: 7, codigo_servico_lc116: '0107',
-    codigo_tributacao_nacional: '010701', codigo_nbs: '115013000', data_atualizacao: '2026-10-28',
+  getServicoFiscal: vi.fn((id: number) => Promise.resolve(fiscalPorServico[id] ?? null)),
+  getServicos: vi.fn().mockResolvedValue({
+    items: [{ id: 7, descricao: 'Suporte em informática' }, { id: 9, descricao: 'Manutenção de impressora' }],
+    total_items: 2,
   }),
+}));
+
+// Padrão fiscal da loja (M2): Configuração da NFS-e.
+const configuracao = vi.fn();
+vi.mock('@/modules/fiscal/services/nfse.service', () => ({
+  nfseService: { obterConfiguracao: () => configuracao() },
 }));
 
 vi.mock('@/shared/stores/auth.store', () => ({
@@ -50,9 +65,15 @@ vi.mock('@/modules/fiscal/composables/useNfseRota', () => ({
 const { default: ServicoFormModal } = await import('../ServicoFormModal.vue');
 const { useServicoModal } = await import('../../composables/useServicoModal');
 
+const montar = () =>
+  mount(ServicoFormModal, {
+    attachTo: document.body,
+    global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+  });
+
 function abrirEdicao() {
   useServicoModal().openEditModal({ id: 7, descricao: 'Suporte em informática', valor: 15000 } as never);
-  return mount(ServicoFormModal, { attachTo: document.body });
+  return montar();
 }
 
 async function salvar() {
@@ -66,6 +87,8 @@ afterEach(() => {
   rotaAtual.value = { rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'mei' };
   Object.keys(recursos).forEach((k) => delete recursos[k]);
   update.mockClear();
+  create.mockClear();
+  configuracao.mockReset();
   document.body.innerHTML = '';
 });
 
@@ -158,12 +181,83 @@ describe('Dados fiscais do serviço mostram só o que a nota pede (M1)', () => {
   it('"Detalhes" tem um Editar visível que leva à edição', async () => {
     recursos.nfse = true;
     useServicoModal().openViewModal({ id: 7, descricao: 'Suporte em informática', valor: 15000 } as never);
-    const wrapper = mount(ServicoFormModal, { attachTo: document.body });
+    const wrapper = montar();
     await vi.waitFor(() => expect(document.body.textContent).toContain('Detalhes do Serviço'));
 
     const editar = [...document.body.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Editar')!;
     editar.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain('Salvar Alterações'));
+    wrapper.unmount();
+  });
+});
+
+describe('Cadastrar uma vez, reaproveitar (M2)', () => {
+  async function abrirCriacao() {
+    useServicoModal().closeModal();
+    await new Promise((r) => setTimeout(r, 320));        // o closeModal limpa o modo depois de 300 ms
+    useServicoModal().openCreateModal();
+    return montar();
+  }
+
+  function preencherDescricao(texto: string) {
+    const input = [...document.body.querySelectorAll('input')].find((i) => i.placeholder?.includes('Troca de display')) as HTMLInputElement
+      ?? (document.body.querySelector('input') as HTMLInputElement);
+    input.value = texto;
+    input.dispatchEvent(new Event('input'));
+  }
+
+  it('Novo Serviço já mostra os dados fiscais, vem com o padrão da loja e salva o fiscal junto', async () => {
+    recursos.nfse = true;
+    configuracao.mockResolvedValue({ nfse_padrao_codigo_nacional: '140101', nfse_padrao_nbs: '120012000', nfse_padrao_aliquota_iss: null });
+    const wrapper = await abrirCriacao();
+
+    await vi.waitFor(() => {
+      const valores = [...document.body.querySelectorAll('input')].map((i) => i.value);
+      expect(valores).toContain('14.01.01');
+    });
+    expect(document.body.textContent).not.toContain('Salve o serviço primeiro');
+
+    preencherDescricao('Manutenção de plotter');
+    const botao = [...document.body.querySelectorAll('button')].find((b) => b.textContent?.includes('Cadastrar Serviço'))!;
+    botao.click();
+    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    const pedido = create.mock.calls[0][0];
+    expect(pedido.fiscal).toMatchObject({ codigo_tributacao_nacional: '140101', codigo_nbs: '120012000', codigo_servico_lc116: '1401' });
+    wrapper.unmount();
+  });
+
+  it('sem padrão e sem nada preenchido, o cadastro não cria linha fiscal', async () => {
+    recursos.nfse = true;
+    configuracao.mockResolvedValue({});
+    const wrapper = await abrirCriacao();
+    await vi.waitFor(() => expect(configuracao).toHaveBeenCalled());
+
+    preencherDescricao('Visita técnica');
+    const botao = [...document.body.querySelectorAll('button')].find((b) => b.textContent?.includes('Cadastrar Serviço'))!;
+    botao.click();
+    await vi.waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0][0]).not.toHaveProperty('fiscal');
+    wrapper.unmount();
+  });
+
+  it('"Copiar de outro serviço" traz os códigos dele (e a alíquota 2,5% não vira 3%)', async () => {
+    recursos.nfse = true;
+    rotaAtual.value = { rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'normal' };
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Copiar dados fiscais de outro serviço'));
+
+    // A escolha no select (o BaseSelect emite o valor escolhido).
+    await vi.waitFor(() => expect(
+      wrapper.findAllComponents({ name: 'BaseSelect' }).find((c) => c.props('label') === 'Copiar dados fiscais de outro serviço'),
+    ).toBeTruthy());
+    const select = wrapper.findAllComponents({ name: 'BaseSelect' }).find((c) => c.props('label') === 'Copiar dados fiscais de outro serviço')!;
+    select.vm.$emit('update:modelValue', 9);
+
+    await vi.waitFor(() => {
+      const valores = [...document.body.querySelectorAll('input')].map((i) => i.value);
+      expect(valores).toContain('14.01.01');
+      expect(valores).toContain('2.5');
+    });
     wrapper.unmount();
   });
 });

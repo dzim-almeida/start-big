@@ -183,6 +183,18 @@ class EmpresaFiscalSettings(Base):
         String(6), nullable=True,
         doc="cClassTrib IBS/CBS padrão para o serviço que não tem o seu.",
     )
+    # Padrão fiscal da loja para serviços NOVOS (M2 de docs/nfse-melhorias-
+    # plano.md): o cadastro já nasce com eles. Não vale para a emissão --
+    # serviço sem código continua pendência; o padrão só poupa digitação.
+    nfse_padrao_codigo_nacional: Mapped[Optional[str]] = mapped_column(
+        String(6), nullable=True, doc="Código de tributação nacional sugerido para serviços novos.",
+    )
+    nfse_padrao_nbs: Mapped[Optional[str]] = mapped_column(
+        String(9), nullable=True, doc="NBS sugerido para serviços novos.",
+    )
+    nfse_padrao_aliquota_iss: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="Alíquota de ISS sugerida (centésimos de ponto: 500 = 5%).",
+    )
 
     # --- Certificado Digital ---
     tipo_certificado: Mapped[str] = mapped_column(

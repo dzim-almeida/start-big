@@ -4,8 +4,11 @@
  * @description As decisões da NFS-e que dependem do contador, como opção
  * (docs/nfse-fase2-plano.md, G3). Tudo nasce no comportamento de sempre:
  * sem retenção, uma nota por OS, IBS/CBS só o do serviço.
+ *
+ * E o padrão fiscal dos serviços NOVOS (M2 de docs/nfse-melhorias-plano.md):
+ * o cadastro do serviço já nasce com ele. Não muda nenhuma nota.
  */
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { Info, Save } from 'lucide-vue-next';
 import type { AxiosError } from 'axios';
@@ -21,6 +24,10 @@ import { REGIME_TRIBUTACAO_ISS_OPTIONS } from '@/modules/enterprise/constants/em
 import type { ApiError } from '@/shared/types/axios.types';
 
 import { nfseService } from '../../services/nfse.service';
+import { fiscalService } from '../../services/fiscal.service';
+import { useNbsSugeridos } from '../../composables/useNbsSugeridos';
+import { formatarCodigoNacional, formatarNbs } from '../../utils/nfse.utils';
+import CodigoFiscalBuscaInput from '../shared/CodigoFiscalBuscaInput.vue';
 import { fiscalKeys } from '../../constants/fiscal.constants';
 import type { NfseConfiguracao } from '../../types/fiscal.types';
 
@@ -42,17 +49,38 @@ const form = ref<NfseConfiguracao>({
   nfse_uma_nota_por_codigo: false,
   nfse_ibs_cbs_cst: null,
   nfse_ibs_cbs_cclass: null,
+  nfse_padrao_codigo_nacional: null,
+  nfse_padrao_nbs: null,
+  nfse_padrao_aliquota_iss: null,
 });
 
+// Os campos de código trabalham com string ('' = vazio); o form guarda null.
+const padraoCodigo = ref('');
+const padraoNbs = ref('');
+const padraoIss = ref('');
+
 watch(data, (cfg) => {
-  if (cfg) form.value = { ...cfg };
+  if (!cfg) return;
+  form.value = { ...cfg };
+  padraoCodigo.value = cfg.nfse_padrao_codigo_nacional ?? '';
+  padraoNbs.value = cfg.nfse_padrao_nbs ?? '';
+  padraoIss.value = cfg.nfse_padrao_aliquota_iss != null ? String(cfg.nfse_padrao_aliquota_iss / 100) : '';
 }, { immediate: true });
+
+const nbsSugeridos = useNbsSugeridos(padraoCodigo, computed(() => props.isOpen));
+const buscarServicoNacional = async (termo: string) => (await fiscalService.buscarServicoNacional(termo)).resultados;
+const buscarNbs = async (termo: string) => (await fiscalService.buscarNbs(termo)).resultados;
 
 const salvar = useMutation({
   mutationFn: () => nfseService.salvarConfiguracao({
     ...form.value,
     nfse_ibs_cbs_cst: form.value.nfse_ibs_cbs_cst || null,
     nfse_ibs_cbs_cclass: form.value.nfse_ibs_cbs_cclass || null,
+    nfse_padrao_codigo_nacional: padraoCodigo.value || null,
+    nfse_padrao_nbs: padraoNbs.value || null,
+    nfse_padrao_aliquota_iss: padraoIss.value
+      ? Math.round(Number(padraoIss.value.replace(',', '.')) * 100)
+      : null,
   }),
   onSuccess: (cfg) => {
     queryClient.setQueryData(fiscalKeys.nfseConfiguracao(), cfg);
@@ -104,6 +132,39 @@ const salvar = useMutation({
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <BaseInput v-model="form.nfse_ibs_cbs_cst" label="CST IBS/CBS" placeholder="Ex: 000" inputmode="numeric" />
           <BaseInput v-model="form.nfse_ibs_cbs_cclass" label="Classificação tributária" placeholder="Ex: 000001" inputmode="numeric" />
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-zinc-200">
+        <h4 class="text-sm font-semibold text-zinc-700 mb-1">Padrão para serviços novos</h4>
+        <p class="text-xs text-zinc-500 mb-3">
+          O serviço que você cadastrar já nasce com estes códigos — você só troca o que for diferente.
+          Use os da nota que você mais emite. Não muda nenhum serviço que já existe.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CodigoFiscalBuscaInput
+            v-model="padraoCodigo"
+            label="Código de Tributação Nacional"
+            placeholder="Digite o que o serviço é ou o código"
+            :digitos="6"
+            :formatar="formatarCodigoNacional"
+            :buscar="buscarServicoNacional"
+          />
+          <CodigoFiscalBuscaInput
+            v-model="padraoNbs"
+            label="NBS"
+            placeholder="Clique para ver as opções do código"
+            :digitos="9"
+            :formatar="formatarNbs"
+            :buscar="buscarNbs"
+            :sugeridos="nbsSugeridos"
+          />
+          <BaseInput
+            v-model="padraoIss"
+            label="Alíquota ISS (%)"
+            placeholder="Só regime normal (ex: 5)"
+            inputmode="decimal"
+          />
         </div>
       </div>
     </div>

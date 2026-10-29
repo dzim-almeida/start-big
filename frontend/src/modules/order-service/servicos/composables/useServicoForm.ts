@@ -17,6 +17,37 @@ import { useCreateServicoMutation, useUpdateServicoMutation } from './useServico
 import { useServicoModal } from './useServicoModal';
 import { recursoDisponivel } from '@/shared/config/planos';
 import { getServicoFiscal } from '../services/servicos.service';
+import { nfseService } from '@/modules/fiscal/services/nfse.service';
+import type { ServicoFiscalRead } from '../types/servicos.types';
+
+/** Centésimos de ponto → texto da tela (500 → "5", 250 → "2.5"). */
+const percentual = (v: number | null | undefined) => (v != null ? String(v / 100) : '');
+
+/** O fiscal gravado → os campos do formulário (edição e "copiar de outro"). */
+function camposDoFiscal(fiscal: ServicoFiscalRead): Partial<ServicoFormData> {
+  return {
+    fiscal_codigo_servico_lc116: fiscal.codigo_servico_lc116
+      ? fiscal.codigo_servico_lc116.replace(/^(\d{2})(\d{2})$/, '$1.$2')
+      : '',
+    fiscal_cnae: fiscal.cnae ? fiscal.cnae.replace(/^(\d{4})(\d)(\d{2})$/, '$1-$2/$3') : '',
+    fiscal_aliquota_iss_display: percentual(fiscal.aliquota_iss),
+    fiscal_codigo_tributacao_municipio: fiscal.codigo_tributacao_municipio ?? '',
+    fiscal_c_class_trib: fiscal.c_class_trib ?? '',
+    fiscal_cst_ibs_cbs: fiscal.cst_ibs_cbs ?? '',
+    fiscal_aliquota_ibs_display: percentual(fiscal.aliquota_ibs),
+    fiscal_aliquota_cbs_display: percentual(fiscal.aliquota_cbs),
+    fiscal_c_benef: fiscal.c_benef ?? '',
+    fiscal_codigo_tributacao_nacional: fiscal.codigo_tributacao_nacional ?? '',
+    fiscal_codigo_nbs: fiscal.codigo_nbs ?? '',
+  };
+}
+
+const CAMPOS_FISCAIS = [
+  'fiscal_codigo_servico_lc116', 'fiscal_cnae', 'fiscal_aliquota_iss_display',
+  'fiscal_codigo_tributacao_municipio', 'fiscal_c_class_trib', 'fiscal_cst_ibs_cbs',
+  'fiscal_aliquota_ibs_display', 'fiscal_aliquota_cbs_display', 'fiscal_c_benef',
+  'fiscal_codigo_tributacao_nacional', 'fiscal_codigo_nbs',
+] as const;
 
 const DEFAULT_FORM_VALUES: ServicoFormData = {
   descricao: '',
@@ -51,6 +82,8 @@ export interface ServicoFormContext {
   fiscal_codigo_nbs: Ref<string>;
   nfeDisponivel: boolean;
   nfseDisponivel: boolean;
+  /** Preenche os dados fiscais com os de outro serviço (M2). */
+  copiarFiscalDe: (servicoId: number) => Promise<boolean>;
   submitCount: Ref<number>;
   errors: Ref<Record<string, string | undefined>>;
   apiError: Ref<string | null>;
@@ -111,6 +144,22 @@ export function useServicoFormProvider() {
   async function populateForm() {
     if (!selectedServico.value) {
       resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+      // Serviço novo nasce com o padrão fiscal da loja (M2): Configuração da
+      // NFS-e. Sem padrão, ou sem resposta, fica em branco como sempre.
+      if (nfseDisponivel && isCreateMode.value) {
+        try {
+          const cfg = await nfseService.obterConfiguracao();
+          if (!selectedServico.value && isCreateMode.value) {
+            setValues({
+              fiscal_codigo_tributacao_nacional: cfg.nfse_padrao_codigo_nacional ?? '',
+              fiscal_codigo_nbs: cfg.nfse_padrao_nbs ?? '',
+              fiscal_aliquota_iss_display: percentual(cfg.nfse_padrao_aliquota_iss),
+            } as any, false);
+          }
+        } catch {
+          // Sem padrão: o cadastro segue em branco.
+        }
+      }
       return;
     }
 
@@ -123,25 +172,7 @@ export function useServicoFormProvider() {
     if (fiscalDisponivel) {
       try {
         const fiscal = await getServicoFiscal(selectedServico.value.id);
-        if (fiscal) {
-          setValues({
-            fiscal_codigo_servico_lc116: fiscal.codigo_servico_lc116
-              ? fiscal.codigo_servico_lc116.replace(/^(\d{2})(\d{2})$/, '$1.$2')
-              : '',
-            fiscal_cnae: fiscal.cnae
-              ? fiscal.cnae.replace(/^(\d{4})(\d)(\d{2})$/, '$1-$2/$3')
-              : '',
-            fiscal_aliquota_iss_display: fiscal.aliquota_iss != null ? String(Math.round(fiscal.aliquota_iss / 100)) : '',
-            fiscal_codigo_tributacao_municipio: fiscal.codigo_tributacao_municipio ?? '',
-            fiscal_c_class_trib: fiscal.c_class_trib ?? '',
-            fiscal_cst_ibs_cbs: fiscal.cst_ibs_cbs ?? '',
-            fiscal_aliquota_ibs_display: fiscal.aliquota_ibs != null ? String(Math.round(fiscal.aliquota_ibs / 100)) : '',
-            fiscal_aliquota_cbs_display: fiscal.aliquota_cbs != null ? String(Math.round(fiscal.aliquota_cbs / 100)) : '',
-            fiscal_c_benef: fiscal.c_benef ?? '',
-            fiscal_codigo_tributacao_nacional: fiscal.codigo_tributacao_nacional ?? '',
-            fiscal_codigo_nbs: fiscal.codigo_nbs ?? '',
-          } as any, false);
-        }
+        if (fiscal) setValues(camposDoFiscal(fiscal) as any, false);
       } catch {
         // Falha ao carregar fiscal não deve bloquear a edição
       }
@@ -149,6 +180,41 @@ export function useServicoFormProvider() {
   }
 
   watch(selectedServico, populateForm, { immediate: true });
+
+  async function copiarFiscalDe(servicoId: number): Promise<boolean> {
+    const fiscal = await getServicoFiscal(servicoId);
+    if (!fiscal) return false;
+    setValues(camposDoFiscal(fiscal) as any, false);
+    return true;
+  }
+
+  /** Os campos fiscais do formulário → o corpo do `PUT /servicos/{id}/fiscal`. */
+  function montarFiscal(formData: ServicoFormData): Record<string, unknown> {
+    const stripSeparadores = (v: string) => v.replace(/[.\-/]/g, '');
+    const centesimos = (v: string) => (v ? Math.round(Number(v.replace(',', '.')) * 100) : null);
+    const fiscal: Record<string, unknown> = {
+      codigo_servico_lc116: formData.fiscal_codigo_servico_lc116
+        ? stripSeparadores(formData.fiscal_codigo_servico_lc116)
+        : null,
+      cnae: formData.fiscal_cnae ? stripSeparadores(formData.fiscal_cnae) : null,
+      aliquota_iss: centesimos(formData.fiscal_aliquota_iss_display),
+      codigo_tributacao_municipio: formData.fiscal_codigo_tributacao_municipio || null,
+      // CFOP, CST, CSOSN e unidade não vão: fora do payload, o backend
+      // (exclude_unset) não os apaga.
+      c_class_trib: formData.fiscal_c_class_trib || null,
+      cst_ibs_cbs: formData.fiscal_cst_ibs_cbs || null,
+      aliquota_ibs: centesimos(formData.fiscal_aliquota_ibs_display),
+      aliquota_cbs: centesimos(formData.fiscal_aliquota_cbs_display),
+      c_benef: formData.fiscal_c_benef || null,
+    };
+    // Só quem vê os campos da NFS-e os envia: sem o módulo eles ficam de fora
+    // do payload, e o backend (exclude_unset) não os apaga.
+    if (nfseDisponivel) {
+      fiscal.codigo_tributacao_nacional = formData.fiscal_codigo_tributacao_nacional || null;
+      fiscal.codigo_nbs = formData.fiscal_codigo_nbs || null;
+    }
+    return fiscal;
+  }
 
   function transformToCreateRequest(formData: ServicoFormData): ServiceCreateZod {
     return {
@@ -168,8 +234,13 @@ export function useServicoFormProvider() {
     apiError.value = null;
 
     if (isCreateMode.value) {
-      const request = transformToCreateRequest(formData);
-      createMutation.mutate(request, {
+      const request: Record<string, unknown> = { ...transformToCreateRequest(formData) };
+      // Dados fiscais já no cadastro (M2), só com a seção à vista (módulo NFSE)
+      // e algo preenchido: serviço sem fiscal continua sem linha fiscal.
+      if (nfseDisponivel && CAMPOS_FISCAIS.some((c) => formData[c])) {
+        request.fiscal = montarFiscal(formData);
+      }
+      createMutation.mutate(request as any, {
         onSuccess: () => {
           closeModal();
           resetForm({ values: { ...DEFAULT_FORM_VALUES } });
@@ -186,38 +257,7 @@ export function useServicoFormProvider() {
 
       // Inclui dados fiscais no payload (o service chama o endpoint separado)
       if (fiscalDisponivel) {
-        const stripSeparadores = (v: string) => v.replace(/[.\-/]/g, '');
-        request.fiscal = {
-          codigo_servico_lc116: formData.fiscal_codigo_servico_lc116
-            ? stripSeparadores(formData.fiscal_codigo_servico_lc116)
-            : null,
-          cnae: formData.fiscal_cnae
-            ? stripSeparadores(formData.fiscal_cnae)
-            : null,
-          aliquota_iss: formData.fiscal_aliquota_iss_display
-            ? Math.round(Number(formData.fiscal_aliquota_iss_display) * 100)
-            : null,
-          codigo_tributacao_municipio: formData.fiscal_codigo_tributacao_municipio || null,
-          // CFOP, CST, CSOSN e unidade não vão: fora do payload, o backend
-          // (exclude_unset) não os apaga.
-          c_class_trib: formData.fiscal_c_class_trib || null,
-          cst_ibs_cbs: formData.fiscal_cst_ibs_cbs || null,
-          aliquota_ibs: formData.fiscal_aliquota_ibs_display
-            ? Math.round(Number(formData.fiscal_aliquota_ibs_display) * 100)
-            : null,
-          aliquota_cbs: formData.fiscal_aliquota_cbs_display
-            ? Math.round(Number(formData.fiscal_aliquota_cbs_display) * 100)
-            : null,
-          c_benef: formData.fiscal_c_benef || null,
-        };
-        // Só quem vê os campos da NFS-e os envia: sem o módulo eles ficam
-        // de fora do payload, e o backend (exclude_unset) não os apaga.
-        if (nfseDisponivel) {
-          Object.assign(request.fiscal as Record<string, unknown>, {
-            codigo_tributacao_nacional: formData.fiscal_codigo_tributacao_nacional || null,
-            codigo_nbs: formData.fiscal_codigo_nbs || null,
-          });
-        }
+        request.fiscal = montarFiscal(formData);
       }
 
       updateMutation.mutate(
@@ -255,6 +295,7 @@ export function useServicoFormProvider() {
     fiscal_codigo_nbs,
     nfeDisponivel,
     nfseDisponivel,
+    copiarFiscalDe,
     submitCount,
     errors,
     apiError,

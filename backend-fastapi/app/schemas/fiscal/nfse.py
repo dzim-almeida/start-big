@@ -22,8 +22,23 @@ class NfseConfiguracao(BaseModel):
     )
     nfse_ibs_cbs_cst: Optional[str] = Field(None, description="CST IBS/CBS padrão (3 dígitos).")
     nfse_ibs_cbs_cclass: Optional[str] = Field(None, description="cClassTrib IBS/CBS padrão (6 dígitos).")
+    # Padrão para serviços novos (M2): só preenche o cadastro, não a nota.
+    nfse_padrao_codigo_nacional: Optional[str] = Field(None, description="Código nacional (6 dígitos).")
+    nfse_padrao_nbs: Optional[str] = Field(None, description="NBS (9 dígitos).")
+    nfse_padrao_aliquota_iss: Optional[int] = Field(None, ge=0, le=10000, description="ISS em centésimos (500 = 5%).")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("nfse_padrao_codigo_nacional", "nfse_padrao_nbs", mode="before")
+    @classmethod
+    def _codigo(cls, v, info):
+        if v in (None, ""):
+            return None
+        d = re.sub(r"\D", "", str(v))
+        tamanho = 6 if info.field_name == "nfse_padrao_codigo_nacional" else 9
+        if len(d) != tamanho:
+            raise ValueError(f"Deve ter {tamanho} dígitos")
+        return d
 
     @field_validator("nfse_ibs_cbs_cst", mode="before")
     @classmethod

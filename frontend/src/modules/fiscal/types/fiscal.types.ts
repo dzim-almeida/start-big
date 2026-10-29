@@ -721,4 +721,9 @@ export interface NfseConfiguracao {
   nfse_uma_nota_por_codigo: boolean;
   nfse_ibs_cbs_cst: string | null;
   nfse_ibs_cbs_cclass: string | null;
+  /** Padrão para serviços novos (M2): só preenche o cadastro, não a nota. */
+  nfse_padrao_codigo_nacional?: string | null;
+  nfse_padrao_nbs?: string | null;
+  /** Centésimos de ponto (500 = 5%). */
+  nfse_padrao_aliquota_iss?: number | null;
 }

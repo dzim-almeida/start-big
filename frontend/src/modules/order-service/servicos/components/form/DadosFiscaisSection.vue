@@ -13,10 +13,15 @@
  * prefeitura, também o que a cidade exige; alíquota de ISS só no regime normal;
  * IBS/CBS e os códigos da prefeitura ficam em "Mais opções". CFOP, CST e
  * unidade saíram: nenhuma nota lê esses campos do serviço.
+ *
+ * M2: os dados fiscais já vão no cadastro (sem "salve primeiro"); o serviço
+ * novo nasce com o padrão da loja (Configuração da NFS-e), e dá para copiar
+ * os de outro serviço.
  */
 
 import { computed, ref } from 'vue';
-import { ChevronDown, FileText, Info } from 'lucide-vue-next';
+import { useQuery } from '@tanstack/vue-query';
+import { ChevronDown, Copy, FileText, Info } from 'lucide-vue-next';
 import CodigoFiscalBuscaInput from '@/modules/fiscal/components/shared/CodigoFiscalBuscaInput.vue';
 import { fiscalService } from '@/modules/fiscal/services/fiscal.service';
 import { useNbsSugeridos } from '@/modules/fiscal/composables/useNbsSugeridos';
@@ -26,6 +31,10 @@ import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useServicoForm } from '../../composables/useServicoForm';
+import { useServicoModal } from '../../composables/useServicoModal';
+import { getServicos } from '../../services/servicos.service';
+import { SERVICOS_QUERY_KEY } from '../../constants/servicos.constants';
+import { useToast } from '@/shared/composables/useToast';
 import { CST_IBS_CBS_OPTIONS } from '@/shared/constants/fiscal.constants';
 
 // =============================================
@@ -38,7 +47,7 @@ interface Props {
   isCreateMode?: boolean;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 // =============================================
 // Form context (injetado do pai)
@@ -57,8 +66,42 @@ const {
   fiscal_codigo_tributacao_nacional,
   fiscal_codigo_nbs,
   nfseDisponivel,
+  copiarFiscalDe,
   errors,
 } = useServicoForm();
+
+// =============================================
+// Copiar os dados fiscais de outro serviço (M2)
+// =============================================
+
+const { selectedServico } = useServicoModal();
+const toast = useToast();
+const { data: catalogo } = useQuery({
+  // Debaixo da chave do catálogo: serviço novo invalida esta lista também.
+  queryKey: [SERVICOS_QUERY_KEY, 'para-copiar-fiscal'],
+  queryFn: () => getServicos({ active: true, limit: 100 }),
+  staleTime: 60_000,
+  enabled: computed(() => !props.disabled),
+});
+const opcoesParaCopiar = computed(() =>
+  (catalogo.value?.items ?? [])
+    .filter((s) => s.id !== selectedServico.value?.id)
+    .map((s) => ({ value: s.id, label: s.descricao })),
+);
+const copiandoDe = ref<number | string | undefined>(undefined);
+async function copiar(id: number | string | undefined) {
+  copiandoDe.value = id;
+  if (id === undefined || id === '') return;
+  try {
+    const achou = await copiarFiscalDe(Number(id));
+    if (achou) toast.success('Dados fiscais copiados. Confira e salve.');
+    else toast.info('Esse serviço ainda não tem dados fiscais.');
+  } catch {
+    toast.error('Não foi possível copiar os dados fiscais.');
+  } finally {
+    copiandoDe.value = undefined;
+  }
+}
 
 // =============================================
 // O que a nota desta empresa pede
@@ -109,20 +152,8 @@ const buscarNbs = async (termo: string) => (await fiscalService.buscarNbs(termo)
     <h3 class="text-lg font-semibold text-zinc-800">Dados Fiscais</h3>
   </div>
 
-  <!-- Aviso: serviço ainda não cadastrado (modo criação) -->
-  <div
-    v-if="isCreateMode"
-    class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm"
-  >
-    <Info :size="16" class="mt-0.5 shrink-0" />
-    <span>
-      Os dados fiscais do serviço podem ser preenchidos após o cadastro inicial. Salve o
-      serviço primeiro e depois acesse a edição para preencher as informações fiscais.
-    </span>
-  </div>
-
-  <!-- Formulário fiscal (modo edição) -->
-  <div v-else class="space-y-5">
+  <!-- Formulário fiscal: já no cadastro (M2) e na edição -->
+  <div class="space-y-5">
     <!-- O que a nota pede, conforme a rota da empresa -->
     <div
       v-if="pendente"
@@ -151,6 +182,23 @@ const buscarNbs = async (termo: string) => (await fiscalService.buscarNbs(termo)
         Para emitir, o serviço precisa de só dois códigos: o <strong>Código de Tributação Nacional</strong>
         e o <strong>NBS</strong>. O resto é opcional.
       </span>
+    </div>
+
+    <!-- Reaproveitar: os mesmos códigos de outro serviço -->
+    <div v-if="!disabled && opcoesParaCopiar.length" class="flex flex-col sm:flex-row sm:items-end gap-2">
+      <div class="flex-1">
+        <BaseSelect
+          :model-value="copiandoDe"
+          :options="opcoesParaCopiar"
+          label="Copiar dados fiscais de outro serviço"
+          placeholder="Escolha um serviço parecido…"
+          @update:model-value="copiar"
+        />
+      </div>
+      <p class="text-xs text-zinc-500 flex items-center gap-1 sm:mb-2.5">
+        <Copy :size="12" class="shrink-0" />
+        {{ isCreateMode ? 'Já veio o padrão da loja; copie se este for mais parecido.' : 'Substitui os códigos abaixo.' }}
+      </p>
     </div>
 
     <!-- Os dois códigos que toda NFS-e pede -->

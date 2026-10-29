@@ -395,6 +395,8 @@ def test_configuracao_nasce_no_comportamento_da_fase_1(client, loja):
     assert r.json() == {
         "regime_tributacao_iss": None, "nfse_reter_iss_pj": False, "nfse_uma_nota_por_codigo": False,
         "nfse_ibs_cbs_cst": None, "nfse_ibs_cbs_cclass": None,
+        # M2: sem padrão fiscal, o cadastro do serviço fica como sempre foi.
+        "nfse_padrao_codigo_nacional": None, "nfse_padrao_nbs": None, "nfse_padrao_aliquota_iss": None,
     }
 
 
