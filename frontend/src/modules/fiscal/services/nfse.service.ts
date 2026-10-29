@@ -7,6 +7,7 @@ import type {
   NfseDocumento,
   NfsePreview,
   NfseSaude,
+  NfseOsParaEmitir,
   DocumentoFiscalResumo,
 } from '../types/fiscal.types';
 import { TIMEOUT_CONSULTA, TIMEOUT_EMISSAO, TIMEOUT_LOTE } from '../constants/fiscal.constants';
@@ -35,6 +36,15 @@ export const nfseService = {
 
   async listarDocumentos(): Promise<NfseDocumento[]> {
     const { data } = await api.get<NfseDocumento[]>(`${NFSE_ENDPOINT}/documentos`, {
+      timeout: TIMEOUT_CONSULTA,
+    });
+    return data;
+  },
+
+  /** OS finalizadas sem NFS-e; `buscar` aceita o número curto ("158") ou o cliente. */
+  async osParaEmitir(buscar = ''): Promise<NfseOsParaEmitir[]> {
+    const { data } = await api.get<NfseOsParaEmitir[]>(`${NFSE_ENDPOINT}/os-para-emitir`, {
+      params: { buscar },
       timeout: TIMEOUT_CONSULTA,
     });
     return data;

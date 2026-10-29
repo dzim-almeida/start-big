@@ -139,3 +139,18 @@ estiver na licença do Alan.
    também "158" e nome do cliente) já na primeira versão.
 4. Pesquisa: **emissor do governo (nfse.gov.br), Bling, Omie, Conta Azul,
    eNotas, NFE.io**.
+
+---
+
+## Entrega (29/10/2026) — branch `feat/nfse-melhorias`
+
+| Fase | Commit | O que ficou |
+|---|---|---|
+| M1 | 7b87a290 | Serviço sem CFOP/CST/CSOSN/unidade; LC 116 pelo código nacional; tela pela rota (`GET /fiscal/nfse/rota`); aviso certo; "Mais opções"; Editar no Detalhes |
+| M4 | 0a4bd8d7 | Cards de status e "Saúde Fiscal" na aba NFS-e (pedido do Alan); `GET /fiscal/nfse/resumo` e `/saude`; cartão do Centro Fiscal com a situação real |
+| M2 | f7f5ff09 | Fiscal já no Novo Serviço; padrão fiscal da loja (migration `n5f0m2padr01`, testada em banco antigo); "Copiar de outro serviço"; alíquota 2,5% não vira mais 3% |
+| M3 | (este) | Lista das OS finalizadas sem NFS-e no "Emitir NFS-e"; busca por número curto ("158") e cliente (`GET /fiscal/nfse/os-para-emitir`) |
+
+Fora do escopo, anotado: senha da prefeitura em texto puro no banco do ERP;
+`arquiteto.spec.ts` (fornecedores) oscilou uma vez na suíte completa e passou
+nas rodadas seguintes.

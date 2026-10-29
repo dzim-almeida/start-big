@@ -111,6 +111,18 @@ def verificar_nfse_da_os(
     return ResultadoVerificacaoFiscal(completo=not pendencias, pendencias=pendencias)
 
 
+@router.get("/os-para-emitir", summary="OS finalizadas prontas para a NFS-e (para escolher com um clique)")
+def listar_os_para_emitir(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    buscar: str = Query("", max_length=80, description="Número curto ('158') ou nome do cliente"),
+    limite: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.nfse.os_para_emitir import os_para_emitir
+
+    return os_para_emitir(db, user_token["empresa_id"], buscar, limite)
+
+
 @router.post("/os/{numero_os}/preview", summary="A DPS que sairia (não envia nada)")
 def preview_nfse_da_os(
     user_token: dict = Depends(check_permission(required_permission="servico")),

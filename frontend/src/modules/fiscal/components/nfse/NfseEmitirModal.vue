@@ -6,26 +6,36 @@
  *
  * Conferir ANTES é de propósito: a pendência aparece nomeada ("serviço sem
  * NBS") em vez de virar recusa do Sistema Nacional depois do envio.
+ *
+ * Escolher a OS (M3 de docs/nfse-melhorias-plano.md): a lista das OS
+ * finalizadas sem NFS-e aparece ao abrir, e o mesmo campo procura pelo número
+ * curto ("158") ou pelo cliente. Ninguém precisa lembrar "OS-2026-000158".
  */
-import { computed, ref, watch } from 'vue';
-import { AlertCircle, CheckCircle2, Loader2, Search, Send } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { AlertCircle, CheckCircle2, ChevronRight, Loader2, Search, Send } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import { formatCPF, formatCNPJ } from '@/shared/utils/document.utils';
+import { formatData } from '@/shared/utils/date.utils';
 import type { PendenciaFiscal } from '@/shared/types/fiscal.types';
 
 import { nfseService } from '../../services/nfse.service';
 import { CODIGO_NOTA_REPETIDA, codigoDoErro, useNfseEmitirMutation } from '../../composables/useNfse';
 import { formatarCodigoNacional, formatarNbs } from '../../utils/nfse.utils';
-import type { NfsePreview } from '../../types/fiscal.types';
+import type { NfseOsParaEmitir, NfsePreview } from '../../types/fiscal.types';
 
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
+/** A OS escolhida (vazio = ainda escolhendo na lista). */
 const numeroOs = ref('');
+/** O que está digitado no campo: número curto, número inteiro ou cliente. */
+const busca = ref('');
+const opcoes = ref<NfseOsParaEmitir[]>([]);
+const carregandoOpcoes = ref(false);
 const conferindo = ref(false);
 const erro = ref<string | null>(null);
 const pendencias = ref<PendenciaFiscal[]>([]);
@@ -35,9 +45,26 @@ const avisoRepetida = ref<string | null>(null);
 
 const emitirMutation = useNfseEmitirMutation();
 
+let timer: ReturnType<typeof setTimeout> | undefined;
+onBeforeUnmount(() => timer && clearTimeout(timer));
+
+async function carregarOpcoes(termo = '') {
+  carregandoOpcoes.value = true;
+  try {
+    opcoes.value = await nfseService.osParaEmitir(termo);
+  } catch {
+    opcoes.value = [];            // sem lista, o campo ainda aceita o número inteiro
+  } finally {
+    carregandoOpcoes.value = false;
+  }
+}
+
 watch(() => props.isOpen, (aberto) => {
+  if (aberto) carregarOpcoes();
   if (!aberto) {
     numeroOs.value = '';
+    busca.value = '';
+    opcoes.value = [];
     erro.value = null;
     pendencias.value = [];
     preview.value = null;
@@ -52,6 +79,31 @@ watch(numeroOs, () => {
   erro.value = null;
   avisoRepetida.value = null;
 });
+
+// Digitar procura (300 ms de espera) e desfaz a OS escolhida.
+watch(busca, (termo) => {
+  if (numeroOs.value && termo === numeroOs.value) return;
+  numeroOs.value = '';
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => carregarOpcoes(termo.trim()), 300);
+});
+
+function escolher(numero: string) {
+  numeroOs.value = numero;
+  busca.value = numero;
+  conferir();
+}
+
+/** Enter / Conferir: a OS da lista, se só sobrou uma; ou o número inteiro digitado. */
+function conferirDigitado() {
+  const termo = busca.value.trim();
+  if (!termo) return;
+  if (opcoes.value.length === 1) return escolher(opcoes.value[0].numero_os);
+  if (/^os-/i.test(termo)) return escolher(termo.toUpperCase());
+  erro.value = opcoes.value.length
+    ? 'Mais de uma OS combina com a busca: escolha na lista.'
+    : 'Nenhuma OS finalizada sem NFS-e combina com a busca.';
+}
 
 async function conferir() {
   const numero = numeroOs.value.trim();
@@ -117,16 +169,50 @@ const emCentavos = (reais?: number) => Math.round((reais ?? 0) * 100);
         na NF-e.
       </p>
 
-      <form class="flex items-end gap-2" @submit.prevent="conferir">
+      <form class="flex items-end gap-2" @submit.prevent="conferirDigitado">
         <div class="flex-1">
-          <BaseInput v-model="numeroOs" label="Número da OS" placeholder="Ex: OS-2026-000123" />
+          <BaseInput v-model="busca" label="OS" placeholder="Número (ex: 158) ou nome do cliente" />
         </div>
-        <BaseButton type="submit" variant="secondary" :disabled="!numeroOs.trim() || conferindo">
+        <BaseButton type="submit" variant="secondary" :disabled="!busca.trim() || conferindo">
           <Loader2 v-if="conferindo" :size="16" class="mr-1.5 animate-spin" />
           <Search v-else :size="16" class="mr-1.5" />
           Conferir
         </BaseButton>
       </form>
+
+      <!-- As OS prontas para a nota: um clique escolhe (M3) -->
+      <div v-if="!numeroOs" class="rounded-xl border border-zinc-200 overflow-hidden" data-os-para-emitir>
+        <p class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 bg-zinc-50 border-b border-zinc-100">
+          OS finalizadas sem NFS-e
+        </p>
+        <p v-if="carregandoOpcoes" class="px-4 py-3 text-sm text-zinc-400 flex items-center gap-2">
+          <Loader2 :size="14" class="animate-spin" /> procurando…
+        </p>
+        <p v-else-if="!opcoes.length" class="px-4 py-3 text-sm text-zinc-500">
+          {{ busca.trim() ? 'Nenhuma OS finalizada sem NFS-e combina com a busca.' : 'Nenhuma OS finalizada esperando a nota.' }}
+        </p>
+        <ul v-else class="max-h-64 overflow-y-auto divide-y divide-zinc-100">
+          <li v-for="os in opcoes" :key="os.numero_os">
+            <button
+              type="button"
+              class="w-full px-4 py-2.5 flex items-center justify-between gap-3 text-left hover:bg-zinc-50 transition-colors"
+              @click="escolher(os.numero_os)"
+            >
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold text-zinc-800 truncate">{{ os.cliente || 'Cliente não identificado' }}</span>
+                <span class="block text-xs text-zinc-500">
+                  {{ os.numero_os }}<template v-if="os.data"> · {{ formatData(os.data) }}</template>
+                  <template v-if="os.nfse_parcial"> · falta um código</template>
+                </span>
+              </span>
+              <span class="flex items-center gap-2 shrink-0 text-sm font-semibold text-zinc-700">
+                {{ formatCurrency(os.valor_servicos) }}
+                <ChevronRight :size="16" class="text-zinc-400" />
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
 
       <div v-if="erro" class="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
         <AlertCircle :size="16" class="mt-0.5 shrink-0" />

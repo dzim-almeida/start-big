@@ -696,6 +696,17 @@ export interface NfseRota {
   regime: 'mei' | 'simples' | 'normal';
 }
 
+/** Uma OS pronta para a NFS-e (`GET /fiscal/nfse/os-para-emitir`, M3). */
+export interface NfseOsParaEmitir {
+  numero_os: string;
+  cliente: string | null;
+  data: string | null;
+  /** Centavos, já sem a parte do desconto da OS. */
+  valor_servicos: number;
+  /** Já tem NFS-e de um código, falta outro ("uma nota por código"). */
+  nfse_parcial: boolean;
+}
+
 /** Um item da Saúde Fiscal da NFS-e (`GET /fiscal/nfse/saude`). */
 export interface NfseSaudeItem {
   chave: 'empresa' | 'rota' | 'certificado' | 'servicos' | string;

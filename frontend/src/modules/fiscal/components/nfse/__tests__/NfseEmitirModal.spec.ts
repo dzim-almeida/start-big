@@ -10,8 +10,13 @@ import { ref } from 'vue';
 
 const verificarOs = vi.fn();
 const previewOs = vi.fn();
+const osParaEmitir = vi.fn().mockResolvedValue([]);
 vi.mock('../../../services/nfse.service', () => ({
-  nfseService: { verificarOs: (n: string) => verificarOs(n), previewOs: (n: string) => previewOs(n) },
+  nfseService: {
+    verificarOs: (n: string) => verificarOs(n),
+    previewOs: (n: string) => previewOs(n),
+    osParaEmitir: (b: string) => osParaEmitir(b),
+  },
 }));
 
 const emitir = vi.fn().mockResolvedValue({ status: 'AUTORIZADA' });
@@ -41,6 +46,7 @@ function botao(texto: string) {
 
 afterEach(() => {
   vi.clearAllMocks();
+  osParaEmitir.mockResolvedValue([]);
   document.body.innerHTML = '';
 });
 
@@ -134,4 +140,56 @@ describe('Uma nota por código (G3)', () => {
     await vi.waitFor(() => expect(emitir).toHaveBeenCalledWith({ numeroOs: 'OS-2026-000123', confirmar: false, codigo: '140101' }));
     wrapper.unmount();
   });
+});
+
+describe('Escolher a OS sem decorar o número (M3)', () => {
+  const OS_158 = { numero_os: 'OS-2026-000158', cliente: 'WOW INFO LTDA', data: '2026-10-08T09:10:00', valor_servicos: 15000, nfse_parcial: false };
+  const OS_200 = { numero_os: 'OS-2026-000200', cliente: 'Maria Souza', data: '2026-10-20T10:00:00', valor_servicos: 8000, nfse_parcial: false };
+
+  it('ao abrir, lista as OS finalizadas sem NFS-e; um clique confere a OS', async () => {
+    osParaEmitir.mockResolvedValue([OS_158, OS_200]);
+    verificarOs.mockResolvedValue({ completo: false, pendencias: [] });
+    const wrapper = mount(NfseEmitirModal, { props: { isOpen: false }, attachTo: document.body });
+    await wrapper.setProps({ isOpen: true });
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('WOW INFO LTDA'));
+    expect(document.body.textContent).toContain('150,00');
+    botao('WOW INFO LTDA')!.click();
+
+    await vi.waitFor(() => expect(verificarOs).toHaveBeenCalledWith('OS-2026-000158'));
+    expect(document.body.querySelector('[data-os-para-emitir]')).toBeNull();   // escolhida, a lista sai
+    wrapper.unmount();
+  });
+
+  it('"158" + Conferir: a busca acha uma OS só e confere ela', async () => {
+    osParaEmitir.mockImplementation(async (b: string) => (b === '158' ? [OS_158] : [OS_158, OS_200]));
+    verificarOs.mockResolvedValue({ completo: false, pendencias: [] });
+    const wrapper = await conferirComBusca('158');
+
+    await vi.waitFor(() => expect(verificarOs).toHaveBeenCalledWith('OS-2026-000158'));
+    wrapper.unmount();
+  });
+
+  it('busca que combina com várias OS pede para escolher na lista', async () => {
+    osParaEmitir.mockResolvedValue([OS_158, OS_200]);
+    const wrapper = await conferirComBusca('souza ou wow');
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('escolha na lista'));
+    expect(verificarOs).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  async function conferirComBusca(termo: string) {
+    const wrapper = mount(NfseEmitirModal, { props: { isOpen: false }, attachTo: document.body });
+    await wrapper.setProps({ isOpen: true });
+    const input = document.body.querySelector('input') as HTMLInputElement;
+    input.value = termo;
+    input.dispatchEvent(new Event('input'));
+    // A busca espera 300 ms depois da última tecla.
+    await vi.waitFor(() => expect(osParaEmitir).toHaveBeenCalledWith(termo), { timeout: 2000 });
+    await vi.waitFor(() => expect(document.body.querySelector('[data-os-para-emitir] li, [data-os-para-emitir] p:last-child')).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 20));
+    botao('Conferir')!.click();
+    return wrapper;
+  }
 });
