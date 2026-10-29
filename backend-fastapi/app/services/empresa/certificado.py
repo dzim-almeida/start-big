@@ -119,6 +119,12 @@ def upload_certificado_focus(
     # a plataforma criar a empresa na emissora quando ela ainda não existe.
     # Plataforma antiga cai sozinha na rota antiga (ver `ativar_emissao`).
     email, telefone = contato_da_empresa(empresa_in_db)
+    # G6: o login da prefeitura vai junto só quando existe -- sem ele, a
+    # chamada é exatamente a de antes.
+    prefeitura = (
+        {"prefeitura_login": settings_fiscais.prefeitura_login, "prefeitura_senha": settings_fiscais.prefeitura_senha}
+        if settings_fiscais.prefeitura_login else {}
+    )
     resultado = get_fiscal_client(
         settings_fiscais.ambiente_emissao or 2,
         fiscal_crud.get_licenca_token(db),
@@ -130,6 +136,7 @@ def upload_certificado_focus(
         telefone,
         base64.b64encode(file_content).decode("ascii"),
         senha,
+        **prefeitura,
     )
 
     # Recusa EXPLICITA (CNPJ divergente, certificado invalido para a emissora)

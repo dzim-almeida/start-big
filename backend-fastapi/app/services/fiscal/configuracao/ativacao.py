@@ -12,6 +12,7 @@
 from typing import Optional
 
 from app.services.fiscal.helpers import obter_crt
+from app.services.fiscal.nfse.municipio import codigo_ibge
 
 
 def montar_emitente_para_ativacao(empresa, endereco, fiscal_settings) -> dict:
@@ -23,7 +24,14 @@ def montar_emitente_para_ativacao(empresa, endereco, fiscal_settings) -> dict:
     from app.services.fiscal.payload.builder import _montar_emitente, _so_digitos
 
     if endereco is not None:
-        return _montar_emitente(empresa, endereco, fiscal_settings)
+        emitente = _montar_emitente(empresa, endereco, fiscal_settings)
+        # G6: o código IBGE da cidade decide a rota da NFS-e na plataforma.
+        # Só na ativação -- o emitente das notas segue como a SEFAZ autoriza.
+        uf = endereco.estado.value if hasattr(endereco.estado, "value") else endereco.estado
+        codigo = codigo_ibge(endereco.cidade, uf)
+        if codigo and isinstance(emitente.get("endereco"), dict):
+            emitente = {**emitente, "endereco": {**emitente["endereco"], "codigo_municipio": codigo}}
+        return emitente
 
     return {
         "cnpj": _so_digitos(empresa.documento),

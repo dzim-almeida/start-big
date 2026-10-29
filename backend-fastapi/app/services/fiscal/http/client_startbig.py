@@ -544,6 +544,7 @@ class FiscalClientStartBig:
     def ativar_emissao(
         self, emitente: dict, email: Optional[str], telefone: Optional[str],
         arquivo_base64: str, senha: str,
+        prefeitura_login: Optional[str] = None, prefeitura_senha: Optional[str] = None,
     ) -> EnvioCertificadoResultado:
         """
         Ativa a emissão num passo só (`POST /erp/fiscal/ativacao`, 06/10/2026).
@@ -567,6 +568,12 @@ class FiscalClientStartBig:
             "arquivo_base64": arquivo_base64,
             "senha": senha,
         }
+        # G6: login da prefeitura, para a NFS-e municipal. A plataforma só o
+        # repassa à emissora quando a rota da cidade é municipal.
+        if prefeitura_login:
+            corpo["nfse_login_prefeitura"] = prefeitura_login
+            if prefeitura_senha:
+                corpo["nfse_senha_prefeitura"] = prefeitura_senha
 
         try:
             with httpx.Client(timeout=60.0) as client:
@@ -711,6 +718,25 @@ class FiscalClientStartBig:
                 return response.json() or {}
         except Exception as exc:
             logger.warning("[FISCAL] Não foi possível ler a franquia da plataforma: %s", exc)
+            return {}
+
+    def consultar_municipio_nfse(self) -> dict:
+        """
+        Por onde sai a NFS-e desta empresa e o que a cidade exige (G6,
+        `GET /erp/fiscal/nfse/municipio`): `{rota, municipio{obrigatorios...}}`.
+
+        Devolve {} quando não dá para saber (plataforma anterior à G6, sem o
+        módulo NFSE, rede fora). Quem chama cai nas regras da Nacional: a
+        conferência não pode travar a loja por falta de internet.
+        """
+        url = f"{self.base_url}/erp/fiscal/nfse/municipio"
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers=self.headers)
+                response.raise_for_status()
+                return response.json() or {}
+        except Exception as exc:
+            logger.warning("[FISCAL] Não foi possível ler a rota da NFS-e na plataforma: %s", exc)
             return {}
 
     def consultar_config(self) -> dict:

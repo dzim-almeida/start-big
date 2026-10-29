@@ -29,6 +29,7 @@ from app.services.fiscal.http import get_fiscal_client
 from app.services.fiscal.nfse.completude import verificar_nfse_os
 from app.services.fiscal.nfse.espelho import espelhar_nfse_na_os
 from app.services.fiscal.nfse.payload import desconto_dos_servicos, montar_dps_os
+from app.services.fiscal.nfse.rota import rota_da_empresa
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,11 @@ def _preparar(db: Session, numero_os: str, empresa_id: int):
     empresa = crud.get_empresa(db, empresa_id)
     endereco = crud.get_endereco_empresa(db, empresa_id)
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
+    rota = rota_da_empresa(db, empresa_id)
     pendencias, grupos = verificar_nfse_os(
         db, os_obj, empresa, endereco,
         uma_nota_por_codigo=bool(getattr(fiscal_settings, "nfse_uma_nota_por_codigo", False)),
+        rota=rota,
     )
     if pendencias:
         raise HTTPException(
@@ -69,7 +72,7 @@ def _preparar(db: Session, numero_os: str, empresa_id: int):
                 "pendencias": [p.model_dump() for p in pendencias],
             },
         )
-    return os_obj, empresa, endereco, fiscal_settings, grupos
+    return os_obj, empresa, endereco, fiscal_settings, grupos, rota
 
 
 def _escolher_grupo(grupos: list, codigo: Optional[str]):
@@ -123,11 +126,11 @@ def preview_nfse_os(db: Session, numero_os: str, empresa_id: int) -> dict:
     `ja_emitida` marca o código que já tem NFS-e viva (com uma nota por código,
     a tela só oferece os que faltam).
     """
-    os_obj, empresa, endereco, fiscal_settings, grupos = _preparar(db, numero_os, empresa_id)
+    os_obj, empresa, endereco, fiscal_settings, grupos, rota = _preparar(db, numero_os, empresa_id)
     notas = [
         {
             "codigo": g.codigo,
-            "dps": montar_dps_os(empresa, endereco, fiscal_settings, os_obj, g.fiscal, itens=g.itens),
+            "dps": montar_dps_os(empresa, endereco, fiscal_settings, os_obj, g.fiscal, itens=g.itens, rota=rota),
             "ja_emitida": crud.get_nfse_ativa_por_os(db, numero_os, g.codigo if len(grupos) > 1 else None) is not None,
         }
         for g in grupos
@@ -143,7 +146,7 @@ def emitir_nfse_os(
 ) -> DocumentoFiscal:
     from app.core.enum import OrdemServicoStatus
 
-    os_obj, empresa, endereco, fiscal_settings, grupos = _preparar(db, numero_os, empresa_id)
+    os_obj, empresa, endereco, fiscal_settings, grupos, rota = _preparar(db, numero_os, empresa_id)
     grupo = _escolher_grupo(grupos, codigo_nacional)
     # Uma nota por código só quando há MAIS de um: a OS de um código continua
     # com a trava e a ref de sempre (os-<n>-nfse).
@@ -170,7 +173,7 @@ def emitir_nfse_os(
             detail={"codigo": codigo, "mensagem": mensagem, "documento_id": doc_ativo.id},
         )
 
-    dps = montar_dps_os(empresa, endereco, fiscal_settings, os_obj, grupo.fiscal, itens=grupo.itens)
+    dps = montar_dps_os(empresa, endereco, fiscal_settings, os_obj, grupo.fiscal, itens=grupo.itens, rota=rota)
 
     papel = crud.papel_nfse(grupo.codigo)
     if por_codigo:

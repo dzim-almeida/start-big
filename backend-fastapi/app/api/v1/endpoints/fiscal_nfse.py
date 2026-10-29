@@ -96,6 +96,7 @@ def verificar_nfse_da_os(
 ):
     from app.db.crud import fiscal as crud
     from app.services.fiscal.nfse.completude import verificar_nfse_os
+    from app.services.fiscal.nfse.rota import rota_da_empresa
 
     os_obj = crud.get_os_completa(db, numero_os)
     if not os_obj:
@@ -105,6 +106,7 @@ def verificar_nfse_da_os(
     pendencias, _ = verificar_nfse_os(
         db, os_obj, crud.get_empresa(db, empresa_id), crud.get_endereco_empresa(db, empresa_id),
         uma_nota_por_codigo=bool(fs and fs.nfse_uma_nota_por_codigo),
+        rota=rota_da_empresa(db, empresa_id),
     )
     return ResultadoVerificacaoFiscal(completo=not pendencias, pendencias=pendencias)
 

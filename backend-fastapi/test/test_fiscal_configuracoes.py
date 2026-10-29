@@ -334,8 +334,9 @@ class _ClienteCertificado:
 
     # Desde 06/10/2026 o upload vai pela ativação (emitente + certificado).
     # O fingimento responde igual: o que estes testes provam é o que se grava.
-    def ativar_emissao(self, emitente, email, telefone, arquivo_base64, senha):
+    def ativar_emissao(self, emitente, email, telefone, arquivo_base64, senha, **prefeitura):
         self.emitente = emitente
+        self.prefeitura = prefeitura
         return self.enviar_certificado(arquivo_base64, senha)
 
     def consultar_config(self):

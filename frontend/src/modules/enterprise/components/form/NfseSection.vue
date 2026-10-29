@@ -118,6 +118,10 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
             @update:model-value="updateField('prefeitura_token_api', $event)"
           />
         </div>
+        <p class="mt-3 text-[11px] text-gray-400">
+          Login e senha seguem para a emissora junto com o certificado digital, e só nas cidades
+          em que a NFS-e sai pelo sistema da prefeitura. Alterou? Envie o certificado de novo.
+        </p>
       </div>
     </div>
 

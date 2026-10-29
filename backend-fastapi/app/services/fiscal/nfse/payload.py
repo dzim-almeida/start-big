@@ -30,6 +30,7 @@ from app.core.tempo import fuso_local
 from app.db.models.cliente import ClientePF, ClientePJ
 from app.services.fiscal.helpers import CRT_MEI, CRT_SIMPLES_EXCESSO, CRT_SIMPLES_NACIONAL, obter_crt
 from app.services.fiscal.nfse.municipio import codigo_ibge
+from app.services.fiscal.nfse.rota import extensao_municipal
 from app.services.fiscal.payload.comum import _centavos_para_reais, _so_digitos, expurgar_nulos
 
 
@@ -106,11 +107,15 @@ def _dps_comum(
     descricao: str, base: int, desconto: int, tomador: dict, tomador_pj: bool,
     informacoes: Optional[str], agora: Optional[datetime],
     municipio_prestacao: Optional[str] = None,
+    rota=None,
 ) -> dict:
     """A DPS com o que é igual para a NFS-e da OS e a avulsa (G4).
 
     `fiscal_servico` é qualquer objeto com os campos do `ServicoFiscal`
     (`codigo_tributacao_nacional`, `codigo_nbs`, `aliquota_iss`...).
+
+    `rota` (G6, `nfse/rota.py`): na municipal a DPS leva `_municipal{}` (CNAE e
+    item da LC 116), que a plataforma usa na tradução e nunca repassa à Nacional.
     """
     # Fuso da loja (core/tempo.py): sem `tzdata` no Windows, ZoneInfo("America/Sao_Paulo") quebra.
     agora = (agora or datetime.now(fuso_local())).astimezone(fuso_local())
@@ -160,13 +165,18 @@ def _dps_comum(
         dps["ibs_cbs_situacao_tributaria"] = cst
         dps["ibs_cbs_classificacao_tributaria"] = cclass
 
-    return expurgar_nulos(dps)
+    dps = expurgar_nulos(dps)
+    extensao = extensao_municipal(rota, fiscal_servico)
+    if extensao:
+        dps["_municipal"] = extensao
+    return dps
 
 
 def montar_dps_os(
     empresa, endereco_empresa, fiscal_settings, os_obj, fiscal_servico,
     agora: Optional[datetime] = None,
     itens: Optional[list] = None,
+    rota=None,
 ) -> dict:
     """A DPS da mão de obra da OS. `fiscal_servico` é o `ServicoFiscal` comum aos itens.
 
@@ -184,7 +194,7 @@ def montar_dps_os(
         empresa, endereco_empresa, fiscal_settings, fiscal_servico,
         descricao=descricao, base=base, desconto=desconto_dos_servicos(os_obj, base),
         tomador=_tomador(cliente), tomador_pj=isinstance(cliente, ClientePJ),
-        informacoes=f"OS {os_obj.numero_os}", agora=agora,
+        informacoes=f"OS {os_obj.numero_os}", agora=agora, rota=rota,
     )
 
 
@@ -200,7 +210,7 @@ def tomador_digitado(documento: Optional[str], nome: Optional[str], email: Optio
 def montar_dps_avulsa(
     empresa, endereco_empresa, fiscal_settings, fiscal_servico, *,
     descricao: str, valor: int, desconto: int = 0, tomador: Optional[dict] = None,
-    agora: Optional[datetime] = None,
+    agora: Optional[datetime] = None, rota=None,
 ) -> dict:
     """A DPS de um serviço que não passou por OS (G4). Valores em centavos."""
     tomador = tomador or {}
@@ -208,13 +218,14 @@ def montar_dps_avulsa(
         empresa, endereco_empresa, fiscal_settings, fiscal_servico,
         descricao=descricao, base=valor, desconto=desconto,
         tomador=tomador, tomador_pj="cnpj_tomador" in tomador,
-        informacoes=None, agora=agora,
+        informacoes=None, agora=agora, rota=rota,
     )
 
 
 def montar_dps_instalacao(
     empresa, endereco_empresa, fiscal_settings, fiscal_servico, os_obj, *,
     valor: int, desconto: int, municipio_obra: Optional[str], agora: Optional[datetime] = None,
+    rota=None,
 ) -> dict:
     """A DPS da instalação dos móveis da marcenaria (G5): uma por OS, com o local
     da prestação na cidade da OBRA. Valores em centavos."""
@@ -225,5 +236,5 @@ def montar_dps_instalacao(
         base=valor, desconto=desconto,
         tomador=_tomador(cliente), tomador_pj=isinstance(cliente, ClientePJ),
         informacoes=f"OS {os_obj.numero_os}", agora=agora,
-        municipio_prestacao=municipio_obra,
+        municipio_prestacao=municipio_obra, rota=rota,
     )

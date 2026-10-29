@@ -18,6 +18,7 @@ from app.db.crud import fiscal as crud
 from app.schemas.fiscal.verificacao import PendenciaFiscal
 from app.services.fiscal.nfse.municipio import codigo_ibge
 from app.services.fiscal.nfse.payload import desconto_dos_servicos, servicos_da_os
+from app.services.fiscal.nfse.rota import RotaNfse, exige_nbs, pendencia_da_rota, pendencias_do_servico
 
 
 def _p(categoria: str, campo: str, mensagem: str, ref_id: Optional[int] = None, ref_nome: Optional[str] = None):
@@ -36,14 +37,21 @@ class GrupoNfse:
 
 def verificar_nfse_os(
     db: Session, os_obj, empresa, endereco, uma_nota_por_codigo: bool = False,
+    rota: Optional[RotaNfse] = None,
 ) -> tuple[list[PendenciaFiscal], list[GrupoNfse]]:
     """Pendências da NFS-e da OS e os grupos que viram nota (um por código nacional).
 
     Sem `uma_nota_por_codigo` (o padrão, G3), códigos diferentes na mesma OS são
     pendência — a DPS leva um serviço só, e juntar códigos é declarar errado.
     Com a opção, cada código vira a sua nota. Com pendência, os grupos vêm vazios.
+
+    `rota` (G6): na municipal, cobra o que a cidade exige e não cobra o NBS;
+    pendente, avisa. Sem ela, as regras da Nacional (as de antes).
     """
     pendencias: list[PendenciaFiscal] = []
+    da_rota = pendencia_da_rota(rota)
+    if da_rota:
+        pendencias.append(da_rota)
 
     documento = "".join(c for c in (getattr(empresa, "documento", None) or "") if c.isdigit())
     if len(documento) != 14:
@@ -74,9 +82,10 @@ def verificar_nfse_os(
                                  "Sem código de tributação nacional (cadastro do serviço › NFS-e Nacional).",
                                  item.servico.id, nome))
             continue
-        if not fiscal.codigo_nbs:
+        if not fiscal.codigo_nbs and exige_nbs(rota):
             pendencias.append(_p("item", "codigo_nbs",
                                  "Sem NBS (cadastro do serviço › NFS-e Nacional).", item.servico.id, nome))
+        pendencias.extend(pendencias_do_servico(rota, fiscal, item.servico.id, nome))
         codigo = fiscal.codigo_tributacao_nacional
         if codigo not in grupos:
             grupos[codigo] = GrupoNfse(codigo, fiscal, [])

@@ -126,6 +126,7 @@ class FiscalClientProtocol(Protocol):
     def ativar_emissao(
         self, emitente: dict, email: Optional[str], telefone: Optional[str],
         arquivo_base64: str, senha: str,
+        prefeitura_login: Optional[str] = None, prefeitura_senha: Optional[str] = None,
     ) -> "EnvioCertificadoResultado":
         """
         Ativa a emissão num passo só: a plataforma cria (ou atualiza) a empresa
@@ -219,6 +220,10 @@ class FiscalClientProtocol(Protocol):
 
     def consultar_franquia(self) -> dict:
         """Franquia fiscal do mês (só informa). {} = não foi possível saber."""
+        ...
+
+    def consultar_municipio_nfse(self) -> dict:
+        """Rota da NFS-e e exigências da cidade (G6). {} = não foi possível saber."""
         ...
 
     def consultar_nfe(

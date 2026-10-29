@@ -34,6 +34,7 @@ from app.services.fiscal.http import get_fiscal_client
 from app.services.fiscal.nfse.espelho import espelhar_nfse_na_os
 from app.services.fiscal.nfse.municipio import codigo_ibge
 from app.services.fiscal.nfse.payload import montar_dps_instalacao
+from app.services.fiscal.nfse.rota import exige_nbs, pendencia_da_rota, pendencias_do_servico, rota_da_empresa
 
 logger = logging.getLogger(__name__)
 
@@ -135,16 +136,22 @@ def _preparar(db: Session, numero_os: str, empresa_id: int):
     endereco = crud.get_endereco_empresa(db, empresa_id)
     fiscal = crud.get_servico_fiscal(db, config.servico_instalacao_id) if config.servico_instalacao_id else None
     valor, desconto = _valores(os_obj)
+    rota = rota_da_empresa(db, empresa_id)
 
     falta = []
+    da_rota = pendencia_da_rota(rota)
+    if da_rota:
+        falta.append((da_rota.categoria, da_rota.campo, da_rota.mensagem))
     if len("".join(c for c in (empresa.documento or "") if c.isdigit())) != 14:
         falta.append(("emitente", "cnpj", "Informe o CNPJ da empresa em Dados da Empresa."))
     uf = endereco.estado.value if endereco and hasattr(endereco.estado, "value") else getattr(endereco, "estado", None)
     if endereco is None or not codigo_ibge(endereco.cidade, uf):
         falta.append(("emitente", "municipio", "Não foi possível identificar a cidade da empresa."))
-    if not fiscal or not fiscal.codigo_tributacao_nacional or not fiscal.codigo_nbs:
+    if not fiscal or not fiscal.codigo_tributacao_nacional or (not fiscal.codigo_nbs and exige_nbs(rota)):
         falta.append(("item", "servico_instalacao",
                       "O serviço da instalação precisa de código de tributação nacional e NBS (cadastro do serviço)."))
+    elif fiscal:
+        falta.extend((p.categoria, p.campo, p.mensagem) for p in pendencias_do_servico(rota, fiscal))
     if valor - desconto <= 0:
         falta.append(("item", "valor", "Esta OS não tem instalação a faturar."))
     if falta:
@@ -158,7 +165,7 @@ def _preparar(db: Session, numero_os: str, empresa_id: int):
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
     dps = montar_dps_instalacao(
         empresa, endereco, fiscal_settings, fiscal, os_obj,
-        valor=valor, desconto=desconto, municipio_obra=municipio,
+        valor=valor, desconto=desconto, municipio_obra=municipio, rota=rota,
     )
     return os_obj, fiscal_settings, dps, valor - desconto, origem
 

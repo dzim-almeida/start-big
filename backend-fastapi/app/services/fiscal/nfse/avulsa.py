@@ -29,6 +29,7 @@ from app.services.fiscal.emissoes.nucleo import _aplicar_resultado, _obter_fisca
 from app.services.fiscal.http import get_fiscal_client
 from app.services.fiscal.nfse.municipio import codigo_ibge
 from app.services.fiscal.nfse.payload import montar_dps_avulsa, tomador_digitado
+from app.services.fiscal.nfse.rota import exige_nbs, pendencia_da_rota, pendencias_do_servico, rota_da_empresa
 
 logger = logging.getLogger(__name__)
 
@@ -41,14 +42,19 @@ def _servico_fiscal(db: Session, dados) -> object:
         codigo_tributacao_nacional=dados.codigo_tributacao_nacional or getattr(base, "codigo_tributacao_nacional", None),
         codigo_nbs=dados.codigo_nbs or getattr(base, "codigo_nbs", None),
         codigo_tributacao_municipio=getattr(base, "codigo_tributacao_municipio", None),
+        cnae=getattr(base, "cnae", None),
+        codigo_servico_lc116=getattr(base, "codigo_servico_lc116", None),
         aliquota_iss=getattr(base, "aliquota_iss", None),
         cst_ibs_cbs=getattr(base, "cst_ibs_cbs", None),
         c_class_trib=getattr(base, "c_class_trib", None),
     )
 
 
-def _pendencias(empresa, endereco, fiscal, dados) -> list[PendenciaFiscal]:
+def _pendencias(empresa, endereco, fiscal, dados, rota=None) -> list[PendenciaFiscal]:
     falta = []
+    da_rota = pendencia_da_rota(rota)
+    if da_rota:
+        falta.append(da_rota)
     def p(categoria, campo, mensagem):
         falta.append(PendenciaFiscal(categoria=categoria, campo=campo, mensagem=mensagem))
 
@@ -59,8 +65,9 @@ def _pendencias(empresa, endereco, fiscal, dados) -> list[PendenciaFiscal]:
         p("emitente", "municipio", "Não foi possível identificar a cidade da empresa. Confira cidade e UF em Dados da Empresa.")
     if not fiscal.codigo_tributacao_nacional:
         p("item", "codigo_tributacao_nacional", "Informe o código de tributação nacional do serviço.")
-    if not fiscal.codigo_nbs:
+    if not fiscal.codigo_nbs and exige_nbs(rota):
         p("item", "codigo_nbs", "Informe o NBS do serviço.")
+    falta.extend(pendencias_do_servico(rota, fiscal))
     if dados.valor - (dados.desconto or 0) <= 0:
         p("item", "valor", "O valor do serviço (menos o desconto) precisa ser maior que zero.")
     documento = "".join(c for c in (dados.tomador_documento or "") if c.isdigit())
@@ -74,7 +81,8 @@ def _preparar(db: Session, empresa_id: int, dados):
     endereco = crud.get_endereco_empresa(db, empresa_id)
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
     fiscal = _servico_fiscal(db, dados)
-    pendencias = _pendencias(empresa, endereco, fiscal, dados)
+    rota = rota_da_empresa(db, empresa_id)
+    pendencias = _pendencias(empresa, endereco, fiscal, dados, rota)
     if pendencias:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -88,6 +96,7 @@ def _preparar(db: Session, empresa_id: int, dados):
         empresa, endereco, fiscal_settings, fiscal,
         descricao=dados.descricao, valor=dados.valor, desconto=dados.desconto or 0,
         tomador=tomador_digitado(dados.tomador_documento, dados.tomador_nome, dados.tomador_email),
+        rota=rota,
     )
     return fiscal_settings, dps
 

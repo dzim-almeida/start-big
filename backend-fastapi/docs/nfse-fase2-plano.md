@@ -325,6 +325,36 @@ todas (Iguatu é uma) emite pelo sistema da prefeitura. A Focus faz a ponte por
 - Cadastro do serviço: `codigo_tributacao_municipio` (já existe) passa a ser
   cobrado quando a cidade exigir; o `cnae` idem.
 
+### Entrega do G6 (29/10/2026)
+
+**Plataforma** (branch `feat/nfse-municipal`, d0db745, sem push e sem deploy;
+o deploy roda `db:push`, que cria a `municipios_nfse` e as duas colunas da ficha):
+- `MunicipioNfse` (cache da Focus de 1 dia + decisão do suporte) e
+  `EmpresaFiscalConfig.nfseRota`/`nfseCodigoMunicipio`.
+- Ativação: código IBGE do emitente (ou busca por nome + UF na Focus) → cidade
+  entra como `DESCONHECIDA` → rota por regime + decisão. Reativar não desfaz
+  rota já escolhida. Focus fora do ar não derruba a ativação (fica pendente).
+- Emissão/consulta/cancelamento pela `nfseRota`; `MUNICIPAL_PENDENTE` → 422
+  `NFSE_ROTA_PENDENTE` sem enviar nada; ficha sem rota = Nacional (como antes).
+- `focus-nfse-municipal.mapper.ts` (DPS → `/v2/nfse`, fotografia nos testes);
+  `_municipal{}` nunca segue para a Focus.
+- Admin: tela "Municípios NFS-e" (menu lateral) e cartão "NFS-e" no perfil do
+  cliente com troca manual da rota (reconfigura a empresa na Focus).
+- Testes: 208 (28 novos).
+
+**ERP** (`feat/nfse`): `nfse/rota.py` (lê `GET /erp/fiscal/nfse/municipio`,
+cache de 10 min, sem resposta = Nacional; sem token de licença nem pergunta).
+Completude da OS, avulsa e instalação: rota pendente vira pendência; municipal
+cobra código municipal/CNAE quando a cidade exige e não cobra NBS. A DPS leva
+`_municipal{codigo_cnae, item_lista_servico}` só na municipal. A ativação manda
+o código IBGE (só no emitente da ativação) e o login/senha da prefeitura.
+
+**A confirmar na homologação municipal** (ambíguo na doc da Focus):
+`item_lista_servico` "0107" × "01.07"; `aliquota` em fração (0,05) × percentual;
+se `prestador.codigo_municipio` é obrigatório (vai sempre). Ordem de deploy:
+plataforma ANTES do ERP (ERP novo com plataforma velha só cai na Nacional,
+porque a rota não responde — nada quebra).
+
 ---
 
 ## G7 — Saúde fiscal e suporte (plataforma)

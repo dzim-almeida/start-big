@@ -183,7 +183,10 @@ class FiscalClientMock:
         logger.info("[FISCAL MOCK] enviar_csc (id=%s)", csc_id)
         return {"aceito": True, "indisponivel": False, "mensagem": "CSC aceito (mock)."}
 
-    def ativar_emissao(self, emitente, email, telefone, arquivo_base64: str, senha: str) -> dict:
+    def ativar_emissao(
+        self, emitente, email, telefone, arquivo_base64: str, senha: str,
+        prefeitura_login=None, prefeitura_senha=None,
+    ) -> dict:
         """No mock a ativação sempre dá certo, como o certificado."""
         logger.info("[FISCAL MOCK] ativar_emissao (CNPJ %s)", (emitente or {}).get("cnpj"))
         return {
@@ -213,6 +216,10 @@ class FiscalClientMock:
             "restantesNaFranquia": 70, "excedentes": 0, "precoExcedente": 1,
             "valorExcedente": 0, "formaCobranca": "CARTAO", "limite": 300, "restantes": 300,
         }
+
+    def consultar_municipio_nfse(self) -> dict:
+        """No mock a NFS-e sai pela Nacional, sem exigência de cidade."""
+        return {"rota": "NACIONAL", "municipio": None}
 
     def consultar_config(self) -> dict:
         """No mock tudo está configurado -- senão o modo de teste barraria a si mesmo."""
