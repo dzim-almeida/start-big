@@ -550,7 +550,8 @@ def test_sem_recorte_a_tela_continua_sendo_do_mes(client, db_session):
     """A regressao que importa: quem NAO veio pelo alerta ve o mes de sempre."""
     header = _auth(client)
     _pagar(client, header, 25000, dias=-45, descricao="Antiga")
-    _pagar(client, header, 5000, dias=2, descricao="Deste mes")
+    # Hoje, e nao "daqui a 2 dias": em 30/10 isso ja era novembro e o teste caia.
+    _pagar(client, header, 5000, dias=0, descricao="Deste mes")
 
     itens = _listar(client, header)["itens"]
     assert [i["descricao"] for i in itens] == ["Deste mes"]
