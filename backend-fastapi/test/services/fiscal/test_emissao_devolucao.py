@@ -174,6 +174,7 @@ def _pedido(**campos) -> EmissaoDevolucaoRequest:
     ("5405", False, "1411"),
     ("6102", True, "2202"),
     ("6101", True, "2201"),
+    ("6401", True, "2410"),
     ("6403", True, "2411"),
     ("6404", True, "2411"),
     ("5999", False, "1202"),   # desconhecido: fallback interno

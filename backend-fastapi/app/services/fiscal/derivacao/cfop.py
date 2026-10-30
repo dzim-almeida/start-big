@@ -40,8 +40,16 @@ SUFIXO_SERVICO = 933            # Prestação de serviço tributado por ISSQN
 # Interestadual (só grupo 6):
 SUFIXO_NAO_CONTRIBUINTE_PRODUCAO = 107  # Venda de produção a não contribuinte
 SUFIXO_NAO_CONTRIBUINTE_REVENDA = 108   # Venda de merc. de terceiros a não contribuinte
-SUFIXO_SUBSTITUTO_PRODUCAO = 403        # Venda de produção com ST retida (substituto)
-SUFIXO_SUBSTITUTO_REVENDA = 404         # Venda de merc. de terceiros com ST retida
+# Substituto = quem RETÉM a ST nesta venda (mva_st na regra). Até 30/10/2026
+# estes eram 403/404, um acima da tabela oficial: 6403 é revenda como
+# substituto e 6404 é ST JÁ retida antes (substituído) -- confirmado pela NF-e
+# real da marcenaria (6401) e pela tabela do SPED.
+SUFIXO_SUBSTITUTO_PRODUCAO = 401        # Venda de produção com ST (substituto)
+SUFIXO_SUBSTITUTO_REVENDA = 403         # Venda de merc. de terceiros com ST (substituto)
+
+# Sufixos de saída de produção própria: o resolver lê o CFOP do cadastro para
+# saber se o item é fabricado (antes só olhava o 101).
+SUFIXOS_PRODUCAO_PROPRIA = frozenset({"101", "107", "116", "401"})
 
 # indIEDest da NF-e
 IND_IE_NAO_CONTRIBUINTE = 9
@@ -74,8 +82,11 @@ NATUREZA_POR_CFOP = {
     "6107": "Venda de producao do estabelecimento a nao contribuinte",
     "6108": "Venda de mercadoria adquirida de terceiros a nao contribuinte",
     "6202": "Devolucao de compra para comercializacao",
-    "6403": "Venda de producao do estabelecimento sujeita a ST (substituto)",
-    "6404": "Venda de merc. adq. de terceiros sujeita a ST (substituto)",
+    "5401": "Venda de producao do estabelecimento sujeita a ST (substituto)",
+    "6401": "Venda de producao do estabelecimento sujeita a ST (substituto)",
+    "5403": "Venda de merc. adq. de terceiros sujeita a ST (substituto)",
+    "6403": "Venda de merc. adq. de terceiros sujeita a ST (substituto)",
+    "6404": "Venda de merc. sujeita a ST com imposto ja retido",
     "6933": "Prestacao de servico",
     # Venda para entrega futura (marcenaria, F4).
     "5922": "Simples faturamento - venda para entrega futura",
@@ -100,8 +111,9 @@ PALAVRAS_QUE_DISPENSAM_TRIBUTOS = ("REMESSA", "EXPORTACAO", "DEVOLUCAO", "LANCAM
 # sem inventar ST onde não havia.
 SUFIXOS_DEVOLUCAO_DE_VENDA = {
     101: 201,   # venda de produção própria      -> devolução de venda de produção
+    401: 410,   # venda de produção com ST        -> devolução de venda de produção com ST
     102: 202,   # venda de mercadoria de terceiros -> devolução de venda de mercadoria
-    403: 411,   # venda com ST (substituto)        -> devolução de venda sujeita a ST
+    403: 411,   # venda de terceiros com ST (substituto) -> devolução de venda sujeita a ST
     404: 411,
     405: 411,   # venda de mercadoria substituída  -> idem
 }
@@ -214,7 +226,7 @@ def derivar_cfop(
         DerivacaoAmbiguaError: numa saída interestadual de item substituído
             SEM a resposta do perfil. Não existe equivalente interestadual
             limpo do 5.405 — confirmado com a contabilidade. Nessa operação o
-            remetente costuma assumir o papel de SUBSTITUTO (6.403/6.404) por
+            remetente costuma assumir o papel de SUBSTITUTO (6.401/6.403) por
             forca de protocolo, e ainda cabe pedido de ressarcimento do ICMS-ST
             pago na compra. Quem decide isso é o contador — pelo perfil.
     """
@@ -234,7 +246,7 @@ def derivar_cfop(
                 "Saida interestadual de mercadoria com ICMS-ST retido nao tem "
                 "CFOP derivavel: nao existe equivalente limpo do 5.405. "
                 "Dependendo do protocolo entre as UFs a operacao vira 6.102 ou "
-                "6.403/6.404, com o remetente como substituto. Informe o CFOP "
+                "6.401/6.403, com o remetente como substituto. Informe o CFOP "
                 "manualmente, com orientacao da contabilidade."
             )
         ind_ie = 1 if ctx.destinatario_pj_com_ie else IND_IE_NAO_CONTRIBUINTE

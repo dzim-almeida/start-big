@@ -41,13 +41,17 @@ def test_b2b_interestadual_sem_st_e_6102_ou_6101(ie):
     assert derivar_cfop_operacao("SP", "MG", INTERNET, ie, existe_st_na_regra=False, eh_producao_propria=True) == "6101"
 
 
-def test_b2b_interestadual_com_st_e_6404_ou_6403():
-    assert derivar_cfop_operacao("SP", "MG", INTERNET, CONTRIBUINTE, existe_st_na_regra=True) == "6404"
-    assert derivar_cfop_operacao("SP", "MG", INTERNET, CONTRIBUINTE, existe_st_na_regra=True, eh_producao_propria=True) == "6403"
+def test_b2b_interestadual_com_st_e_6403_ou_6401():
+    """Substituto (retém a ST): 6403 na revenda, 6401 na produção própria.
+    Até 30/10/2026 saía 6404/6403, um acima da tabela oficial; o caso real foi
+    a marcenaria (CE->PI, móvel fabricado, 6401)."""
+    assert derivar_cfop_operacao("SP", "MG", INTERNET, CONTRIBUINTE, existe_st_na_regra=True) == "6403"
+    assert derivar_cfop_operacao("SP", "MG", INTERNET, CONTRIBUINTE, existe_st_na_regra=True, eh_producao_propria=True) == "6401"
+    assert derivar_cfop_operacao("CE", "PI", INTERNET, CONTRIBUINTE, existe_st_na_regra=True, eh_producao_propria=True) == "6401"
 
 
 def test_todos_os_cfops_derivaveis_tem_natureza():
-    for cfop in ("5101", "5102", "5405", "6101", "6102", "6107", "6108", "6403", "6404"):
+    for cfop in ("5101", "5102", "5405", "6101", "6102", "6107", "6108", "6401", "6403", "6404"):
         assert cfop in NATUREZA_POR_CFOP, cfop
 
 
@@ -65,7 +69,7 @@ def test_cadastro_sem_saber_do_perfil_continua_recusando_o_substituido_interesta
 
 
 def test_cadastro_com_a_regra_do_perfil_resolve_o_substituido():
-    assert derivar_cfop(_ctx(destinatario_pj_com_ie=True), situacao_tributaria="60", existe_st_na_regra=True).valor == "6404"
+    assert derivar_cfop(_ctx(destinatario_pj_com_ie=True), situacao_tributaria="60", existe_st_na_regra=True).valor == "6403"
     assert derivar_cfop(_ctx(destinatario_pj_com_ie=True), situacao_tributaria="60", existe_st_na_regra=False).valor == "6102"
 
 

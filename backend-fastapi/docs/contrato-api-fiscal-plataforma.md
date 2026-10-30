@@ -139,7 +139,7 @@ com os nomes canônicos da Focus NFe — o Zod da plataforma precisa aceitá-los
 usar `.passthrough()`), senão a nota sai interna com CFOP 6xxx e é rejeitada:
 
 - Raiz: `local_destino` vira `2`. Os CFOPs dos itens começam com 6 (`6102`, `6107`,
-  `6108`, `6403`, `6404`), sempre em conjunto com o `local_destino` — os dois saem da
+  `6108`, `6401`, `6403`), sempre em conjunto com o `local_destino` — os dois saem da
   mesma decisão.
 - Item, venda a **não contribuinte** no regime normal (grupo `ICMSUFDest`, DIFAL/FCP):
   `icms_base_calculo_uf_destino`, `icms_aliquota_interna_uf_destino`,
