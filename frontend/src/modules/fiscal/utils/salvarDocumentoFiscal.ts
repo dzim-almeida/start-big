@@ -1,8 +1,24 @@
 import { useToast } from '@/shared/composables/useToast';
 import { ErroAoSalvar, salvarArquivo } from '@/shared/utils/arquivo';
 import { fiscalService } from '../services/fiscal.service';
+import { nfseService } from '../services/nfse.service';
 
 const ROTULO = { pdf: 'DANFE', xml: 'XML' } as const;
+
+/** De onde vem o arquivo: a NFS-e tem rotas próprias (módulo NFSE, não NFE). */
+type Origem = { rotuloPdf: string; baixarPdf: (id: number) => Promise<Blob>; baixarXml: (id: number) => Promise<Blob> };
+
+const ORIGEM_NFE: Origem = {
+  rotuloPdf: ROTULO.pdf,
+  baixarPdf: (id) => fiscalService.baixarPdfDocumento(id),
+  baixarXml: (id) => fiscalService.baixarXmlDocumento(id),
+};
+
+export const ORIGEM_NFSE: Origem = {
+  rotuloPdf: 'DANFSe',
+  baixarPdf: (id) => nfseService.baixarPdf(id),
+  baixarXml: (id) => nfseService.baixarXml(id),
+};
 
 /**
  * Salva o DANFE (PDF) ou o XML de uma nota pelo "Salvar como" do Windows.
@@ -14,14 +30,15 @@ const ROTULO = { pdf: 'DANFE', xml: 'XML' } as const;
 export async function salvarDocumentoFiscal(
   doc: { id: number; chave_acesso: string | null },
   extensao: 'pdf' | 'xml',
+  origem: Origem = ORIGEM_NFE,
 ): Promise<void> {
   const toast = useToast();
-  const rotulo = ROTULO[extensao];
+  const rotulo = extensao === 'pdf' ? origem.rotuloPdf : ROTULO.xml;
   let blob: Blob;
   try {
     blob = extensao === 'pdf'
-      ? await fiscalService.baixarPdfDocumento(doc.id)
-      : await fiscalService.baixarXmlDocumento(doc.id);
+      ? await origem.baixarPdf(doc.id)
+      : await origem.baixarXml(doc.id);
   } catch {
     toast.error(
       `Não foi possível obter o ${rotulo}`,

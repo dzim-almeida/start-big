@@ -37,3 +37,73 @@ def test_autorizada_nao_tem_dica(client, loja, servico, db_session, plataforma):
 
 def test_documento_que_nao_e_nfse_e_404(client, loja):
     assert client.get(f"{NFSE}/documentos/999999", headers=loja).status_code == 404
+
+
+class _Emissora:
+    def baixar_pdf(self, caminho):
+        return b"%PDF-1.4 danfse"
+
+    def baixar_xml(self, caminho):
+        return "<NFSe/>"
+
+
+def test_danfse_e_xml_saem_pela_rota_da_nfse_so_com_o_modulo_nfse(client, loja, servico, db_session, plataforma, monkeypatch):
+    """Pedido do Alan (30/10): baixar PDF e XML como na NF-e. O MEI só tem a
+    NFSE, e as rotas da NF-e exigem o módulo NFE -- daí as rotas próprias."""
+    from app.api.v1.endpoints import fiscal_documentos
+    from app.services.fiscal.documentos import arquivos
+
+    monkeypatch.setattr(fiscal_documentos, "_cliente_fiscal", lambda *a, **k: _Emissora())
+    monkeypatch.setattr(arquivos, "guardar_pdf", lambda *a, **k: None)   # nada no disco real
+    monkeypatch.setattr(arquivos, "guardar_xml", lambda *a, **k: None)
+    plataforma.resposta = {**plataforma.resposta, "url_xml": "https://homologacao.focusnfe.com.br/arquivos/nfse.xml"}
+
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    doc_id = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).json()["documento_id"]
+
+    pdf = client.get(f"{NFSE}/documentos/{doc_id}/pdf", headers=loja)
+    xml = client.get(f"{NFSE}/documentos/{doc_id}/xml", headers=loja)
+    assert (pdf.status_code, pdf.content) == (200, b"%PDF-1.4 danfse")
+    assert (xml.status_code, xml.text) == (200, "<NFSe/>")
+
+    # A rota da NF-e segue barrada para quem só tem a NFSE.
+    assert client.get(f"/api/v1/fiscal/documentos/{doc_id}/pdf", headers=loja).status_code == 403
+
+    d = client.get(f"{NFSE}/documentos/{doc_id}", headers=loja).json()
+    assert (d["pdf_local"], d["xml_local"]) == (False, False)
+
+
+def test_arquivo_de_nfse_inexistente_e_404(client, loja):
+    assert client.get(f"{NFSE}/documentos/999999/xml", headers=loja).status_code == 404
+
+
+def test_tentar_de_novo_reenvia_a_ultima_recusada_e_aponta_a_anterior(client, loja, servico, db_session, plataforma):
+    """Pedido do Alan (30/10): "Tentar de novo" no detalhe, como o "Reemitir" da NF-e."""
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico, valor=8000)])
+    plataforma.resposta = {"status": "REJEITADA", "mensagem_sefaz": MOTIVO}
+    recusada = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).json()["documento_id"]
+    assert client.get(f"{NFSE}/documentos/{recusada}", headers=loja).json()["pode_tentar_de_novo"] is True
+
+    plataforma.resposta = {"status": "autorizado", "numero": 24}
+    r = client.post(f"{NFSE}/documentos/{recusada}/tentar-de-novo", headers=loja)
+
+    assert r.status_code == 200, r.text
+    nova = r.json()
+    assert nova["documento_id"] != recusada and nova["status"] == "AUTORIZADA"
+    assert nova["ref_api"].endswith("-2")
+    d = client.get(f"{NFSE}/documentos/{nova['documento_id']}", headers=loja).json()
+    assert [t["id"] for t in d["tentativas_anteriores"]] == [recusada]
+    assert d["pode_tentar_de_novo"] is False
+
+    # A recusada antiga já foi substituída: não tenta de novo por cima.
+    assert client.get(f"{NFSE}/documentos/{recusada}", headers=loja).json()["pode_tentar_de_novo"] is False
+    r = client.post(f"{NFSE}/documentos/{recusada}/tentar-de-novo", headers=loja)
+    assert r.status_code == 409 and r.json()["detail"]["codigo"] == "NFSE_JA_TEM_TENTATIVA_NOVA"
+
+
+def test_tentar_de_novo_so_vale_para_recusada(client, loja, servico, db_session, plataforma):
+    numero = _criar_os(client, loja, db_session, [_item_servico(servico)])
+    autorizada = client.post(f"{NFSE}/os/{numero}/emitir", headers=loja).json()["documento_id"]
+    r = client.post(f"{NFSE}/documentos/{autorizada}/tentar-de-novo", headers=loja)
+    assert r.status_code == 422 and r.json()["detail"]["codigo"] == "NFSE_NAO_RECUSADA"
+    assert client.post(f"{NFSE}/documentos/999999/tentar-de-novo", headers=loja).status_code == 404

@@ -92,6 +92,11 @@ export const useNfseEmitirAvulsaMutation = () =>
 
 export const useNfseConsultarMutation = () => useNfseMutation((id: number) => nfseService.consultar(id));
 
+export const useNfseTentarDeNovoMutation = () =>
+  useNfseMutation(({ id, confirmar = false }: { id: number; confirmar?: boolean }) =>
+    nfseService.tentarDeNovo(id, confirmar),
+  );
+
 export const useNfseCancelarMutation = () =>
   useNfseMutation(({ id, justificativa }: { id: number; justificativa: string }) =>
     nfseService.cancelar(id, justificativa),

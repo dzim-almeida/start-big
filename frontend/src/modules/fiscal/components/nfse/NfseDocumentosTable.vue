@@ -183,5 +183,6 @@ function corDoStatus(status: string) {
     @close="detalheId = null"
     @consultar="consultarMutation.mutate($event)"
     @cancelar="cancelarPelaGaveta"
+    @trocar="detalheId = $event"
   />
 </template>

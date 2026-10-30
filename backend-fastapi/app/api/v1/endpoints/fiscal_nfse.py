@@ -186,6 +186,27 @@ def consultar_nfse(
     return EmissaoResponse.de_documento(doc, "NFS-e")
 
 
+@router.post("/documentos/{documento_id}/tentar-de-novo", response_model=EmissaoResponse,
+             summary="Enviar de novo a NFS-e que não saiu (relê a OS e o cadastro)")
+def tentar_nfse_de_novo(
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    documento_id: int = Path(..., ge=1),
+    confirmar_duplicidade: bool = Query(
+        False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
+    ),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.emissao import poll_nfe_status_async
+    from app.services.fiscal.nfse.nova_tentativa import tentar_nfse_de_novo as _tentar
+
+    empresa_id = user_token["empresa_id"]
+    doc = _handle_db_transaction(db, _tentar, documento_id, empresa_id, confirmar_duplicidade)
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
+    return EmissaoResponse.de_documento(doc, "NFS-e")
+
+
 @router.post("/documentos/{documento_id}/cancelar", response_model=EmissaoResponse, summary="Cancelar a NFS-e")
 def cancelar_nfse(
     user_token: dict = Depends(check_permission(required_permission="servico")),
@@ -198,6 +219,34 @@ def cancelar_nfse(
     _nfse_ou_404(db, documento_id)
     doc = _handle_db_transaction(db, cancelar_documento, documento_id, user_token["empresa_id"], payload.justificativa)
     return EmissaoResponse.de_documento(doc, "NFS-e")
+
+
+# Os arquivos da NFS-e (pedido do Alan, 30/10/2026: "igual é lá na NF-e"). As
+# rotas da NF-e fazem o mesmo, mas exigem o módulo NFE, e o MEI só tem a NFSE —
+# então aqui a trava é a do módulo NFSE e o miolo é o delas (disco primeiro,
+# emissora como plano B).
+@router.get("/documentos/{documento_id}/xml", summary="Baixar o XML da NFS-e")
+def baixar_xml_nfse(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    documento_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    from app.api.v1.endpoints.fiscal_documentos import baixar_xml_documento
+
+    _nfse_ou_404(db, documento_id)
+    return baixar_xml_documento(user_token, documento_id, db=db)
+
+
+@router.get("/documentos/{documento_id}/pdf", summary="Baixar o DANFSe (PDF)")
+def baixar_pdf_nfse(
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    documento_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    from app.api.v1.endpoints.fiscal_documentos import baixar_pdf_documento
+
+    _nfse_ou_404(db, documento_id)
+    return baixar_pdf_documento(user_token, documento_id, db=db)
 
 
 @router.get("/exportar-xml", summary="XMLs das NFS-e do período (ZIP para o contador)")

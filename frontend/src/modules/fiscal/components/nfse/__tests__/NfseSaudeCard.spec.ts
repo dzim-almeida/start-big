@@ -17,10 +17,19 @@ vi.mock('../../../composables/useNfse', () => ({
   useNfseDocumentosQuery: () => ({ documentos, isLoading: ref(false), isError: ref(false) }),
   useNfseConsultarMutation: () => ({ mutate: vi.fn(), isPending: ref(false) }),
   useNfseCancelarMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: ref(false) }),
+  useNfseTentarDeNovoMutation: () => ({ mutateAsync: tentarDeNovo, isPending: ref(false) }),
 }));
+const tentarDeNovo = vi.fn();
 
 const obterDocumento = vi.fn();
 vi.mock('../../../services/nfse.service', () => ({ nfseService: { obterDocumento: (id: number) => obterDocumento(id) } }));
+
+// A gaveta salva DANFSe/XML pelo "Salvar como"; o utilitário puxa o app inteiro.
+const salvarDocumentoFiscal = vi.fn();
+vi.mock('../../../utils/salvarDocumentoFiscal', () => ({
+  ORIGEM_NFSE: { rotuloPdf: 'DANFSe' },
+  salvarDocumentoFiscal: (...args: unknown[]) => salvarDocumentoFiscal(...args),
+}));
 
 const { default: NfseSaudeCard } = await import('../NfseSaudeCard.vue');
 const { default: NfseDocumentosTable } = await import('../NfseDocumentosTable.vue');
@@ -113,6 +122,59 @@ describe('Clicar na linha abre o detalhe da NFS-e (pedido do Alan, 29/10)', () =
     expect(document.body.querySelector('[data-dica]')?.textContent).toContain('suporte StartBig');
     expect(document.body.textContent).toContain('MANUTENÇÃO EM SISTEMA DE TINTAS HP 416');
     expect(document.body.textContent).toContain('Produção');
+    // Recusada não tem arquivo para baixar.
+    expect(document.body.querySelector('[data-arquivos]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('autorizada: DANFSe e XML para baixar, como na NF-e (pedido do Alan, 30/10)', async () => {
+    documentos.value = [{ id: 8, status: 'AUTORIZADA', numero: 23, tomador: 'MARIA', valor_total: 8000, numero_os: null }];
+    const detalhe = {
+      id: 8, status: 'AUTORIZADA', numero: 23, numero_os: null, ambiente: 1, chave_acesso: '2305506',
+      tomador: 'MARIA', tomador_documento: null, valor_total: 8000, motivo: null, dica: null,
+      url_pdf: '/arquivos/danfse.pdf', url_xml: '/arquivos/nfse.xml', xml_local: true, pdf_local: false,
+      itens: [], tentativas_anteriores: [], data_emissao: '2026-10-29T12:33:00', data_autorizacao: '2026-10-29T12:33:05',
+    };
+    obterDocumento.mockResolvedValue(detalhe);
+    const wrapper = mount(NfseDocumentosTable, {
+      attachTo: document.body,
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
+
+    await wrapper.find('[data-nfse-linha]').trigger('click');
+    await vi.waitFor(() => expect(document.body.querySelector('[data-arquivos]')).not.toBeNull());
+    expect(document.body.querySelector('[data-arquivos]')?.textContent).toContain('XML guardado neste computador');
+
+    (document.body.querySelector('[data-testid="btn-baixar-xml"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(salvarDocumentoFiscal).toHaveBeenCalled());
+    expect(salvarDocumentoFiscal.mock.calls[0][0]).toMatchObject({ id: 8 });
+    expect(salvarDocumentoFiscal.mock.calls[0][1]).toBe('xml');
+    wrapper.unmount();
+  });
+
+  it('recusada da OS: "Tentar de novo" envia e a gaveta passa para a tentativa nova (30/10)', async () => {
+    documentos.value = [{ id: 7, status: 'NAO_TRANSMITIDA', numero: null, tomador: 'JOSE', valor_total: 8000, numero_os: 'OS-2026-000158' }];
+    const base = {
+      numero: null, numero_os: 'OS-2026-000158', ambiente: 1, tomador: 'JOSE', tomador_documento: null,
+      valor_total: 8000, dica: null, itens: [], tentativas_anteriores: [], data_emissao: '2026-10-30T10:00:00', data_autorizacao: null,
+    };
+    obterDocumento.mockImplementation(async (id: number) =>
+      id === 7
+        ? { ...base, id: 7, status: 'NAO_TRANSMITIDA', motivo: 'Empresa não habilitada', pode_tentar_de_novo: true }
+        : { ...base, id: 9, status: 'AUTORIZADA', numero: 24, motivo: null, pode_tentar_de_novo: false },
+    );
+    tentarDeNovo.mockResolvedValue({ documento_id: 9, status: 'AUTORIZADA' });
+    const wrapper = mount(NfseDocumentosTable, {
+      attachTo: document.body,
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    });
+
+    await wrapper.find('[data-nfse-linha]').trigger('click');
+    await vi.waitFor(() => expect(document.body.querySelector('[data-testid="btn-tentar-de-novo"]')).not.toBeNull());
+    (document.body.querySelector('[data-testid="btn-tentar-de-novo"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => expect(obterDocumento).toHaveBeenCalledWith(9));
+    expect(tentarDeNovo).toHaveBeenCalledWith({ id: 7, confirmar: false });
     wrapper.unmount();
   });
 });

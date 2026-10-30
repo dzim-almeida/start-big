@@ -142,6 +142,19 @@ export const nfseService = {
     return data;
   },
 
+  /**
+   * A NFS-e que não saiu, de novo: relê a OS e o cadastro (o que foi corrigido
+   * vai junto) e devolve o documento NOVO. Só a última tentativa recusada.
+   */
+  async tentarDeNovo(documentoId: number, confirmarDuplicidade = false): Promise<EmissaoResponse> {
+    const { data } = await api.post<EmissaoResponse>(
+      `${NFSE_ENDPOINT}/documentos/${documentoId}/tentar-de-novo`,
+      null,
+      { params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined, timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
   /** O ZIP do contador só com NFS-e (mesmo formato do `fiscalService.exportarXmlPeriodo`). */
   async exportarXmlPeriodo(
     dataInicio: string,
@@ -160,6 +173,23 @@ export const nfseService = {
       baixados: Number(h['x-fiscal-baixados'] ?? 0),
       naoBaixados: Number(h['x-fiscal-nao-baixados'] ?? 0),
     };
+  },
+
+  /** DANFSe e XML: disco da loja primeiro, emissora como plano B (atrás do módulo NFSE). */
+  async baixarPdf(documentoId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(`${NFSE_ENDPOINT}/documentos/${documentoId}/pdf`, {
+      responseType: 'blob',
+      timeout: TIMEOUT_CONSULTA,
+    });
+    return data;
+  },
+
+  async baixarXml(documentoId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(`${NFSE_ENDPOINT}/documentos/${documentoId}/xml`, {
+      responseType: 'blob',
+      timeout: TIMEOUT_CONSULTA,
+    });
+    return data;
   },
 
   async cancelar(documentoId: number, justificativa: string): Promise<EmissaoResponse> {
