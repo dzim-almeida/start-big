@@ -180,13 +180,13 @@ def perfil_st(db) -> PerfilTributario:
     return p
 
 
-def test_contribuinte_com_st_recebe_mva_cfop_6404_e_cst_10(db, perfil_st):
+def test_contribuinte_com_st_recebe_mva_cfop_6403_e_cst_10(db, perfil_st):
     itens, _ = resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id), "SP", simples_nacional=False)
     i = itens[0]
     assert i.aliquota_icms == Decimal("12")
     assert (i.st_aliquota_interestadual, i.st_aliquota_interna_destino) == (Decimal("12"), Decimal("18"))
     assert (i.st_mva, i.st_reducao_base) == (Decimal("40"), Decimal("20"))
-    assert i.cfop == "6404" and i.cst_icms == "10"
+    assert i.cfop == "6403" and i.cst_icms == "10"
     assert i.difal_aliquota_interestadual is None
 
 
@@ -216,7 +216,7 @@ def test_contribuinte_sem_perfil_e_barrado(db, perfil_st):
 def test_simples_contribuinte_com_st_recebe_csosn_202_e_st(db, perfil_st):
     itens, _ = resolver_aliquotas_venda(db, _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id), "SP", simples_nacional=True)
     i = itens[0]
-    assert i.csosn == "202" and i.cfop == "6404" and i.st_mva == Decimal("40")
+    assert i.csosn == "202" and i.cfop == "6403" and i.st_mva == Decimal("40")
     assert i.aliquota_icms == Decimal("18")   # no Simples o ICMS próprio não é destacado; a alíquota fica como está
 
 
@@ -279,11 +279,11 @@ def test_item_isento_ou_substituido_interestadual_e_barrado(db, perfil, cst, cso
 
 
 def test_substituido_para_contribuinte_com_mva_vira_substituto(db, perfil_st):
-    """CST 60 com regra de ST para a UF: o remetente assume a ST (6404/10) — o caso que o contador configurou."""
+    """CST 60 com regra de ST para a UF: o remetente assume a ST (6403/10) — o caso que o contador configurou."""
     venda = _venda(_pj(ie="1234567890"), perfil_id=perfil_st.id)
     venda.itens[0].produto.fiscal.cst_icms = "60"
     itens, _ = resolver_aliquotas_venda(db, venda, "SP", simples_nacional=False)
-    assert itens[0].cst_icms == "10" and itens[0].cfop == "6404"
+    assert itens[0].cst_icms == "10" and itens[0].cfop == "6403"
 
 
 # --- Operação interna com produto cadastrado em CFOP 6xxx (Rejeição 772) -------

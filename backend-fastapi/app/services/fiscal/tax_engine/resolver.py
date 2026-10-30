@@ -23,7 +23,7 @@ from app.db.models.cliente import ClientePJ
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.services.fiscal.derivacao.cfop import (
     IND_IE_NAO_CONTRIBUINTE,
-    SUFIXO_PRODUCAO_PROPRIA,
+    SUFIXOS_PRODUCAO_PROPRIA,
     derivar_cfop_operacao,
 )
 from app.services.fiscal.derivacao.situacao import derivar_situacao_operacao
@@ -228,7 +228,7 @@ def _resolver_item_interestadual(
           contador (docs da TASK007). Só o CFOP muda.
       contribuinte (PJ com IE)       → perfil obrigatório nos dois regimes:
           é o `mva_st` da regra que diz se o remetente é substituto
-          (ICMS-ST, CFOP 6403/6404, CST 10/70 ou CSOSN 201/202) ou se é uma
+          (ICMS-ST, CFOP 6401/6403, CST 10/70 ou CSOSN 201/202) ou se é uma
           revenda interestadual comum (6101/6102, situação do produto).
     """
     regra = None
@@ -246,7 +246,7 @@ def _resolver_item_interestadual(
         indicador_presenca=None,
         indicador_ie_destinatario=IND_IE_NAO_CONTRIBUINTE if operacao.nao_contribuinte else IND_IE_CONTRIBUINTE,
         existe_st_na_regra=existe_st,
-        eh_producao_propria=cfop_produto.endswith(str(SUFIXO_PRODUCAO_PROPRIA)),
+        eh_producao_propria=cfop_produto[1:] in SUFIXOS_PRODUCAO_PROPRIA,
     )
     situacao = derivar_situacao_operacao(
         getattr(fiscal, "cst_icms", None), getattr(fiscal, "csosn", None),
@@ -267,7 +267,8 @@ def _resolver_item_interestadual(
 # CFOPs 6xxx que só existem fora do estado: o equivalente interno tem outro
 # sufixo (6107/6108 são a 6101/6102 para não contribuinte de outra UF).
 _SUFIXO_INTERNO_DO_INTERESTADUAL = {"107": "101", "108": "102"}
-# 6404 (ST já retida, remetente substituto) não tem par interno óbvio — não chutar.
+# 6404 (ST já retida antes) não tem par interno óbvio — não chutar. O 6401/6403
+# (substituto) viram 5401/5403.
 _SUFIXOS_SEM_PAR_INTERNO = frozenset({"404"})
 
 
@@ -305,7 +306,7 @@ def _assert_situacao_cabe_fora_do_estado(
     Isento/não tributado (40/41) e substituído (60/500) não têm tributação
     interestadual automática: antes desta rodada eram barrados, e continuam.
     Exceção: substituído vendido a contribuinte com MVA na regra — o
-    remetente vira substituto (6403/6404, CST 10/70 ou CSOSN 201/202).
+    remetente vira substituto (6401/6403, CST 10/70 ou CSOSN 201/202).
     """
     campo = "csosn" if simples_nacional else "cst_icms"
     situacao = getattr(fiscal, campo, None)
