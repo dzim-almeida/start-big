@@ -87,19 +87,35 @@ def _tomador(cliente) -> dict:
     tomador["email_tomador"] = (cliente.email or "")[:80] or None
     tomador["telefone_tomador"] = _so_digitos(cliente.celular or cliente.telefone)
 
-    enderecos = getattr(cliente, "endereco", None) or []
-    if enderecos:
-        end = enderecos[0]
-        uf = end.estado.value if hasattr(end.estado, "value") else end.estado
-        tomador.update({
-            "logradouro_tomador": end.logradouro,
-            "numero_tomador": end.numero,
-            "complemento_tomador": end.complemento,
-            "bairro_tomador": end.bairro,
-            "cep_tomador": _so_digitos(end.cep),
-            "codigo_municipio_tomador": codigo_ibge(end.cidade, uf),
-        })
+    tomador.update(_endereco_tomador(cliente))
     return tomador
+
+
+def _endereco_tomador(cliente) -> dict:
+    """O endereço do tomador vai inteiro ou não vai.
+
+    Na DPS ele é opcional, mas o `endNac` exige CEP e município: mandar a rua
+    sem CEP derruba a nota no schema ("endNac: Missing child element CEP" —
+    OS-2026-000158, 31/10). Cadastro sem CEP válido ou com cidade que não
+    achamos no IBGE: a nota sai sem o endereço do tomador.
+    """
+    enderecos = getattr(cliente, "endereco", None) or []
+    if not enderecos:
+        return {}
+    end = enderecos[0]
+    uf = end.estado.value if hasattr(end.estado, "value") else end.estado
+    cep = _so_digitos(end.cep)
+    municipio = codigo_ibge(end.cidade, uf)
+    if not cep or len(cep) != 8 or not municipio:
+        return {}
+    return {
+        "logradouro_tomador": end.logradouro,
+        "numero_tomador": end.numero,
+        "complemento_tomador": end.complemento,
+        "bairro_tomador": end.bairro,
+        "cep_tomador": cep,
+        "codigo_municipio_tomador": municipio,
+    }
 
 
 def _dps_comum(
