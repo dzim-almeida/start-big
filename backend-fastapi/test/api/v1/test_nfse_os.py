@@ -241,6 +241,25 @@ def test_os_da_marcenaria_ainda_nao_emite_nfse(client, loja, servico, db_session
 
 
 # =========================
+# Endereco do tomador: vai inteiro ou nao vai (endNac exige CEP)
+# =========================
+
+@pytest.mark.parametrize("cep, vai", [("", False), ("6350000", False), ("63500-000", True)])
+def test_endereco_do_tomador_sem_cep_nao_vai(cep, vai):
+    from types import SimpleNamespace
+
+    from app.services.fiscal.nfse.payload import _endereco_tomador
+
+    end = SimpleNamespace(logradouro="Rua A", numero="10", complemento=None, bairro="Centro",
+                          cidade="Iguatu", estado="CE", cep=cep)
+    dados = _endereco_tomador(SimpleNamespace(endereco=[end]))
+    if vai:
+        assert dados["cep_tomador"] == "63500000" and dados["codigo_municipio_tomador"] == "2305506"
+    else:
+        assert dados == {}       # sem logradouro solto: a Focus montaria endNac sem CEP
+
+
+# =========================
 # Cancelamento: o prazo e do municipio
 # =========================
 
@@ -261,6 +280,18 @@ def test_client_consulta_e_cancela_a_nfse_na_rota_dela():
     assert FiscalClientStartBig._segmento("NFSE") == "nfse"
     assert FiscalClientStartBig._segmento("NFE") == "nfe"       # o resto nao muda
     assert FiscalClientStartBig._segmento("NFCE") == "nfce"
+
+
+def test_danfse_do_s3_baixa_sem_o_token_da_plataforma():
+    from app.services.fiscal.http.client_startbig import FiscalClientStartBig
+
+    client = FiscalClientStartBig()
+    # O S3 le qualquer Authorization como credencial da AWS e recusa
+    assert client._headers_do_arquivo(
+        "https://focusnfe.s3.sa-east-1.amazonaws.com/arquivos/1/DANFSEs/NFS1.pdf") == {}
+    assert client._headers_do_arquivo("https://api.focusnfe.com.br/arquivos/1/nfse.xml") == {}
+    assert client._headers_do_arquivo("https://api.startbig.com.br.outro.com/x") == {}
+    assert "Authorization" in client._headers_do_arquivo(f"{client.base_url}/erp/fiscal/arquivo.pdf")
 
 
 def test_client_le_o_codigo_de_verificacao_e_o_erro_alfanumerico():

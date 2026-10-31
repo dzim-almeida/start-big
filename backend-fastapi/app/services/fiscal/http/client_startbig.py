@@ -418,6 +418,19 @@ class FiscalClientStartBig:
             logger.error("[FISCAL] Falha na requisição de emissão de NFC-e: %s", exc)
             raise EmissaoIncertaError(str(exc)) from exc
 
+    def _headers_do_arquivo(self, url: str) -> dict:
+        """O token da plataforma vai só para a plataforma.
+
+        O DANFSe da NFS-e Nacional vem como link do S3 da Focus
+        (`focusnfe.s3...amazonaws.com`), e o S3 lê qualquer `Authorization`
+        como credencial da AWS: recusa com AccessDenied mesmo o arquivo sendo
+        público -- o PDF da NFS-e não baixava (31/10). E o token não tem
+        por que sair para terceiros.
+        """
+        if url.startswith(f"{self.base_url}/"):
+            return self.headers
+        return {}
+
     def baixar_xml(self, caminho: str) -> Optional[str]:
         """Baixa o XML autorizado. Devolve None em qualquer falha."""
         if not caminho:
@@ -430,7 +443,7 @@ class FiscalClientStartBig:
 
         try:
             with httpx.Client(timeout=15.0) as client:
-                resposta = client.get(url, headers=self.headers)
+                resposta = client.get(url, headers=self._headers_do_arquivo(url))
                 resposta.raise_for_status()
                 return resposta.text
         except Exception as exc:
@@ -458,7 +471,7 @@ class FiscalClientStartBig:
 
         try:
             with httpx.Client(timeout=30.0) as client:
-                resposta = client.get(url, headers=self.headers)
+                resposta = client.get(url, headers=self._headers_do_arquivo(url))
                 resposta.raise_for_status()
                 return resposta.content
         except Exception as exc:
