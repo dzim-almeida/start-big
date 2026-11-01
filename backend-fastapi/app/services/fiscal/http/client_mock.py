@@ -221,6 +221,10 @@ class FiscalClientMock:
         """No mock a NFS-e sai pela Nacional, sem exigência de cidade."""
         return {"rota": "NACIONAL", "municipio": None}
 
+    def consultar_habilitacao_nfse(self) -> dict:
+        """No mock não há Focus para ler: "não sei" (a Saúde não mostra o item)."""
+        return {}
+
     def consultar_config(self) -> dict:
         """No mock tudo está configurado -- senão o modo de teste barraria a si mesmo."""
         return {

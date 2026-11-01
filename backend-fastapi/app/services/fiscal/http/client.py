@@ -226,6 +226,10 @@ class FiscalClientProtocol(Protocol):
         """Rota da NFS-e e exigências da cidade (G6). {} = não foi possível saber."""
         ...
 
+    def consultar_habilitacao_nfse(self) -> dict:
+        """Se a NFS-e está de pé na emissora (O3). {} = não foi possível saber."""
+        ...
+
     def consultar_nfe(
         self, ref: str, tipo_documento: str = "NFE"
     ) -> EmissaoResultado:

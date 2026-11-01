@@ -752,6 +752,27 @@ class FiscalClientStartBig:
             logger.warning("[FISCAL] Não foi possível ler a rota da NFS-e na plataforma: %s", exc)
             return {}
 
+    def consultar_habilitacao_nfse(self) -> dict:
+        """
+        Se a NFS-e desta empresa está de pé na Focus (O3 de
+        docs/nfe-cfop-e-notas-da-os-plano.md, `GET /erp/fiscal/nfse/habilitacao`):
+        `{estado, detalhe, rota}`, com o estado do painel do suporte (ok,
+        atencao, problema, desconhecido).
+
+        {} quando não dá para saber -- plataforma anterior à rota (404), sem o
+        módulo NFSE, rede fora. A Saúde Fiscal então não mostra o item: "não
+        sei" nunca pode pintar de vermelho uma loja que emite.
+        """
+        url = f"{self.base_url}/erp/fiscal/nfse/habilitacao"
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(url, headers=self.headers)
+                response.raise_for_status()
+                return response.json() or {}
+        except Exception as exc:
+            logger.warning("[FISCAL] Não foi possível ler a habilitação da NFS-e na plataforma: %s", exc)
+            return {}
+
     def consultar_config(self) -> dict:
         """
         Configuração fiscal desta licença, como a PLATAFORMA a enxerga.

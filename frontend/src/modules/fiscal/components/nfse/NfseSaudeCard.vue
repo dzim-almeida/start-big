@@ -80,6 +80,9 @@ function abrirServicos() {
           <div class="min-w-0">
             <p class="text-xs font-semibold text-zinc-700">{{ item.titulo }}</p>
             <p class="text-xs text-zinc-500">{{ item.detalhe }}</p>
+            <p v-if="item.detalhe_suporte" class="mt-1 text-[11px] text-zinc-400" data-detalhe-suporte>
+              Para o suporte: {{ item.detalhe_suporte }}
+            </p>
 
             <ul v-if="item.servicos?.length" class="mt-1.5 space-y-0.5">
               <li v-for="s in item.servicos" :key="s.id" class="text-[11px] text-zinc-600 truncate" :title="`${s.nome}: falta ${s.falta}`">

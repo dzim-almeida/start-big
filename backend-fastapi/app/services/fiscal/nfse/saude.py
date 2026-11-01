@@ -12,8 +12,14 @@ que estão ok — como a barra da NF-e:
 - rota: por onde a nota sai, e se a cidade já foi decidida pelo suporte;
 - certificado: enviado à emissora (o mesmo cadastro da NF-e);
 - serviços: os ativos com o que a NFS-e da empresa pede (código nacional,
-  NBS na Nacional e o que a cidade exige na municipal).
+  NBS na Nacional e o que a cidade exige na municipal);
+- emissora (O3 de docs/nfe-cfop-e-notas-da-os-plano.md): se a NFS-e está
+  ligada na Focus para o ambiente da loja. Só aparece quando a plataforma
+  responde -- "não sei" fica fora da conta, nunca vermelho. O caso real
+  (29/10): a nota saía NAO_TRANSMITIDA porque só a homologação estava ligada.
 """
+import logging
+
 
 from datetime import datetime, timezone
 
@@ -25,8 +31,13 @@ from app.db.models.servico_fiscal import ServicoFiscal
 from app.services.fiscal.nfse.municipio import codigo_ibge
 from app.services.fiscal.nfse.rota import MUNICIPAL_PENDENTE, exige_nbs, pendencias_do_servico, rota_da_empresa
 
+logger = logging.getLogger(__name__)
+
 # A lista de serviços vai para um popover: o suficiente para agir.
 LIMITE_SERVICOS = 50
+
+# Estados da plataforma que deixam a nota sair (atenção = sai, com ressalva).
+ESTADOS_QUE_EMITEM = ("ok", "atencao")
 
 
 def _item(chave: str, titulo: str, ok: bool, detalhe: str, **extra) -> dict:
@@ -107,6 +118,41 @@ def _item_servicos(db: Session, rota) -> dict:
                  servicos=[], total_faltando=0)
 
 
+def consultar_habilitacao(db: Session, empresa_id: int) -> dict:
+    """A resposta crua de `GET /erp/fiscal/nfse/habilitacao`; {} quando não há."""
+    from app.core.config import settings
+    from app.services.fiscal.http import get_fiscal_client
+
+    token = crud.get_licenca_token(db)
+    if not token and not settings.FISCAL_MOCK_ENABLED:
+        return {}
+    fs = crud.get_fiscal_settings(db, empresa_id)
+    ambiente = (fs.ambiente_emissao if fs else None) or 2
+    return get_fiscal_client(ambiente, token).consultar_habilitacao_nfse()
+
+
+def _item_emissora(db: Session, empresa_id: int, rota) -> dict | None:
+    """Ligada na emissora? None = não dá para saber (o item não aparece)."""
+    if rota.rota == MUNICIPAL_PENDENTE:
+        return None          # o item da rota já diz que a cidade está em configuração
+    try:
+        dados = consultar_habilitacao(db, empresa_id)
+    except Exception as exc:  # pragma: no cover - rede de segurança
+        logger.warning("[NFS-e] Habilitação indisponível: %s", exc)
+        dados = {}
+    estado = dados.get("estado") if isinstance(dados, dict) else None
+    titulo = "Ligada na emissora"
+    if estado in ESTADOS_QUE_EMITEM:
+        return _item("emissora", titulo, True, "A emissora está pronta para mandar a sua NFS-e.")
+    if estado == "problema":
+        return _item(
+            "emissora", titulo, False,
+            "A emissora ainda não está liberada para a NFS-e desta empresa. Fale com o suporte StartBig.",
+            detalhe_suporte=dados.get("detalhe"),
+        )
+    return None
+
+
 def saude_nfse(db: Session, empresa_id: int, agora: datetime | None = None) -> dict:
     agora = agora or datetime.now(timezone.utc)
     rota = rota_da_empresa(db, empresa_id)
@@ -116,6 +162,9 @@ def saude_nfse(db: Session, empresa_id: int, agora: datetime | None = None) -> d
         _item_certificado(db, empresa_id, agora),
         _item_servicos(db, rota),
     ]
+    emissora = _item_emissora(db, empresa_id, rota)
+    if emissora is not None:
+        itens.insert(3, emissora)
     prontos = sum(1 for i in itens if i["ok"])
     return {
         "percentual": round(prontos * 100 / len(itens)),

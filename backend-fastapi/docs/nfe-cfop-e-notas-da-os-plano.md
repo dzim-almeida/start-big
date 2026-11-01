@@ -144,7 +144,20 @@ Plano original:
 3. ⚠️ Conferir com `curl` se o link do PDF abre sem login antes de mandá-lo
    ao cliente.
 
-### O3 — Saúde Fiscal sabe se a NFS-e está ligada na Focus
+### O3 — Saúde Fiscal sabe se a NFS-e está ligada na Focus ✅ (01/11, falta deploy)
+Feito:
+- **Plataforma** (`feat/nfse-habilitacao-erp`, 88e6332, **sem push/deploy**):
+  `GET /erp/fiscal/nfse/habilitacao` devolve o item `nfse` do painel do
+  suporte (rota, cidade e habilitação lidas na Focus) como `{estado, detalhe,
+  rota}`. Testes: 217.
+- **ERP**: `consultar_habilitacao_nfse` no cliente; a Saúde da NFS-e ganha
+  "Ligada na emissora" (ok/atenção = pronta; problema = pendência com "fale
+  com o suporte" e o detalhe técnico em letra pequena). Sem resposta (plataforma
+  velha, rede fora, mock): o item não aparece — nunca vermelho.
+- **Ordem de deploy**: plataforma antes do ERP (ERP novo com plataforma velha só
+  não mostra o item).
+
+Plano original:
 O caso da OS-158 (29/10: "Empresa não habilitada para emissão de NFSe").
 1. **Plataforma primeiro**: rota que devolve se a empresa está habilitada na
    Focus para NFS-e e em qual ambiente.

@@ -772,6 +772,8 @@ export interface NfseSaudeItem {
   /** Só no item "servicos": os que faltam códigos (até 50). */
   servicos?: { id: number; nome: string; falta: string }[];
   total_faltando?: number;
+  /** Só no item "emissora" com problema: o que a plataforma viu, para ler ao suporte (O3). */
+  detalhe_suporte?: string | null;
 }
 
 /** Saúde Fiscal da aba NFS-e (M4): a mesma barra da aba NF-e. */

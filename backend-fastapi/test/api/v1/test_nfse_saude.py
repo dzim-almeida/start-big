@@ -109,3 +109,41 @@ def test_padrao_fiscal_da_loja_salva_em_digitos_e_volta(client, loja):
 def test_padrao_fiscal_recusa_codigo_incompleto(client, loja):
     r = client.put(f"{NFSE}/configuracao", json={"nfse_padrao_codigo_nacional": "1401"}, headers=loja)
     assert r.status_code == 422
+
+
+# --- Ligada na emissora (O3 de docs/nfe-cfop-e-notas-da-os-plano.md) ----------
+
+def _emissora(monkeypatch, resposta):
+    from app.services.fiscal.nfse import saude as saude_mod
+
+    monkeypatch.setattr(saude_mod, "consultar_habilitacao", lambda db, empresa_id: resposta)
+
+
+def test_plataforma_sem_resposta_nao_mostra_o_item(client, loja, servico, db_session, cidade, monkeypatch):
+    cidade({})
+    _certificado_ok(db_session)
+    _emissora(monkeypatch, {})                      # plataforma velha (404) ou rede fora
+    itens, corpo = _itens(client, loja)
+    assert "emissora" not in itens
+    assert corpo["percentual"] == 100
+
+
+def test_ligada_na_emissora_conta_como_pronta(client, loja, servico, db_session, cidade, monkeypatch):
+    cidade({})
+    _certificado_ok(db_session)
+    _emissora(monkeypatch, {"estado": "ok", "detalhe": "Rota Nacional, habilitada.", "rota": "NACIONAL"})
+    itens, corpo = _itens(client, loja)
+    assert itens["emissora"]["ok"] is True
+    assert corpo["percentual"] == 100
+
+
+def test_o_caso_de_29_10_desligada_na_emissora_e_pendencia(client, loja, servico, db_session, cidade, monkeypatch):
+    cidade({})
+    _certificado_ok(db_session)
+    _emissora(monkeypatch, {"estado": "problema", "detalhe": "NFS-e Nacional desligada na Focus para produção.",
+                            "rota": "NACIONAL"})
+    itens, corpo = _itens(client, loja)
+    assert itens["emissora"]["ok"] is False
+    assert "suporte StartBig" in itens["emissora"]["detalhe"]
+    assert itens["emissora"]["detalhe_suporte"].startswith("NFS-e Nacional desligada")
+    assert corpo["pendencias"] == 1
