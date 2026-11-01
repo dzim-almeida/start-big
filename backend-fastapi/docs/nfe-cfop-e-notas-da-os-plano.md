@@ -109,7 +109,14 @@ rodar `test_derivacao_interestadual.py` e `test_resolver_interestadual.py`).
 papel da nota). O resolver já aplica a troca depois do `cfop_sufixo_forcado`,
 então falta só o request da marcenaria e a tela da Entrega.
 
-### O1 — Cancelar pela OS
+### O1 — Cancelar pela OS ✅ (01/11)
+Feito: `os_notas.py` devolve `pode_cancelar` e `cancelar_ate` (NF-e: 24 h pela
+mesma régua do cancelamento; NFS-e sem prazo nosso). O cartão mostra
+"Cancelar" e "Dá para cancelar até…"; NF-e pelo `FiscalCancelarModal`, NFS-e
+pelo `NfseCancelarModal`. **Achado**: o "Cancelar" da gaveta da NFS-e aberta
+pela OS só fechava a gaveta — agora abre o cancelamento.
+
+Plano original:
 1. Botão "Cancelar nota" no cartão de peças e no de serviço do `OSNotasCard`,
    só com nota AUTORIZADA e dentro da janela.
 2. Reaproveita as rotas que já existem (justificativa de 15+ caracteres).

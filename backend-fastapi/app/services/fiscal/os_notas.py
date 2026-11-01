@@ -13,8 +13,15 @@ Só leitura. Decisões do Alan (29/10/2026) que este arquivo segue:
   que vão com ICMS) — cada lado tem o seu valor e a sua nota;
 - o desconto da OS se divide na proporção, com a mesma regra da NFS-e
   (`desconto_dos_servicos`); a parte das peças é o resto.
+
+Cancelar pela OS (O1 de docs/nfe-cfop-e-notas-da-os-plano.md): cada nota diz
+se ainda dá para cancelar (`pode_cancelar`) e até quando (`cancelar_ate`).
+A tela não calcula prazo: a régua é a mesma do cancelamento
+(`JANELA_CANCELAMENTO_POR_TIPO`). NFS-e não tem prazo aqui -- é de cada
+município, e quem recusa fora dele é o Sistema Nacional.
 """
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
@@ -25,6 +32,7 @@ from app.core.modulos import requer_modulo
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.services.fiscal.emissoes.adaptador_os import itens_de_produto
+from app.services.fiscal.eventos.consulta_cancelamento import JANELA_CANCELAMENTO_POR_TIPO
 from app.services.fiscal.nfse.payload import desconto_dos_servicos, servicos_da_os
 
 
@@ -36,9 +44,21 @@ def _tem_modulo(db: Session, identificador: str) -> bool:
         return False
 
 
+def _cancelar_ate(doc: DocumentoFiscal) -> Optional[datetime]:
+    """Fim do prazo legal de cancelamento (NF-e/NFC-e); None = sem prazo nosso."""
+    janela = JANELA_CANCELAMENTO_POR_TIPO.get(doc.tipo_documento)
+    if janela is None or doc.data_autorizacao is None:
+        return None
+    autorizacao = doc.data_autorizacao
+    if autorizacao.tzinfo is None:
+        autorizacao = autorizacao.replace(tzinfo=timezone.utc)
+    return autorizacao + janela
+
+
 def _resumo_doc(doc: Optional[DocumentoFiscal]) -> Optional[dict]:
     if doc is None:
         return None
+    ate = _cancelar_ate(doc) if doc.status == "AUTORIZADA" else None
     return {
         "id": doc.id,
         "status": doc.status,
@@ -47,6 +67,8 @@ def _resumo_doc(doc: Optional[DocumentoFiscal]) -> Optional[dict]:
         "url_pdf": doc.url_pdf,
         "valor": doc.valor_total,
         "papel": doc.papel,
+        "pode_cancelar": doc.status == "AUTORIZADA" and (ate is None or datetime.now(timezone.utc) < ate),
+        "cancelar_ate": ate.isoformat() if ate else None,
     }
 
 

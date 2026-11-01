@@ -57,6 +57,10 @@ export interface NotaDaOs {
   url_pdf: string | null;
   valor: number | null;
   papel: string | null;
+  /** Autorizada e dentro do prazo (O1). Backend antigo não manda. */
+  pode_cancelar?: boolean;
+  /** Fim do prazo de cancelamento da NF-e; nulo na NFS-e (o prazo é do município). */
+  cancelar_ate?: string | null;
 }
 
 /** "Notas desta OS" (M5 de docs/nfse-melhorias-plano.md). Valores em centavos. */

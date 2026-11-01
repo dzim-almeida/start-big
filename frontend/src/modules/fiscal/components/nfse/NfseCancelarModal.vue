@@ -14,7 +14,8 @@ import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import { useNfseCancelarMutation } from '../../composables/useNfse';
 import type { NfseDocumento } from '../../types/fiscal.types';
 
-const props = defineProps<{ documento: NfseDocumento | null }>();
+// Só o que a tela usa: a OS abre o modal com o resumo do cartão, sem a NFS-e inteira.
+const props = defineProps<{ documento: Pick<NfseDocumento, 'id' | 'numero' | 'numero_os'> | null }>();
 const emit = defineEmits<{ close: [] }>();
 
 /** 15 caracteres: exigência do cancelamento, não escolha nossa. */

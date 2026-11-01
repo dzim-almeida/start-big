@@ -29,7 +29,7 @@ const montar = () =>
       plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
         NfseEmitirModal: true, NfseDocumentoDrawer: true, FiscalDocumentoDetailsDrawer: true, PendenciasFiscaisModal: true,
-        ConferenciaNFeOSModal: true,
+        ConferenciaNFeOSModal: true, FiscalCancelarModal: true, NfseCancelarModal: true,
       },
     },
   });
@@ -93,6 +93,43 @@ describe('Notas desta OS', () => {
     await vi.waitFor(() => expect(wrapper.find('[data-nota-pecas]').exists()).toBe(true));
     expect(wrapper.text()).toContain('não emite NF-e por este sistema');
     expect(wrapper.text()).not.toContain('Emitir NF-e das peças');
+    wrapper.unmount();
+  });
+
+  it('nota autorizada no prazo: "Cancelar" no cartão e o prazo da NF-e', async () => {
+    notas.mockResolvedValue({
+      ...BASE,
+      pecas: { tem: true, valor: 4500, modulo: true, documento: {
+        id: 5, status: 'AUTORIZADA', numero: 11, motivo: null, url_pdf: null, valor: 4500, papel: null,
+        pode_cancelar: true, cancelar_ate: '2026-11-02T15:00:00+00:00',
+      } },
+      servico: { tem: true, valor: 13500, modulo: true, documentos: [
+        { id: 9, status: 'AUTORIZADA', numero: 23, motivo: null, url_pdf: null, valor: 13500, papel: null, pode_cancelar: true, cancelar_ate: null },
+      ] },
+    });
+    const wrapper = montar();
+
+    await vi.waitFor(() => expect(wrapper.find('[data-cancelar-nfe]').exists()).toBe(true));
+    expect(wrapper.text()).toContain('Dá para cancelar até');
+    await wrapper.find('[data-cancelar-nfse]').trigger('click');
+    const modal = wrapper.findComponent({ name: 'NfseCancelarModal' });
+    expect(modal.props('documento')).toEqual({ id: 9, numero: 23, numero_os: 'OS-2026-000158' });
+    wrapper.unmount();
+  });
+
+  it('fora do prazo: sem "Cancelar"', async () => {
+    notas.mockResolvedValue({
+      ...BASE,
+      pecas: { tem: true, valor: 4500, modulo: true, documento: {
+        id: 5, status: 'AUTORIZADA', numero: 11, motivo: null, url_pdf: null, valor: 4500, papel: null,
+        pode_cancelar: false, cancelar_ate: null,
+      } },
+      servico: { tem: false, valor: 0, modulo: true, documentos: [] },
+    });
+    const wrapper = montar();
+
+    await vi.waitFor(() => expect(wrapper.find('[data-nota-pecas]').exists()).toBe(true));
+    expect(wrapper.find('[data-cancelar-nfe]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

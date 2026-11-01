@@ -15,7 +15,7 @@
  */
 import { computed, ref } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
-import { FileText, Package, Wrench, Send, Eye } from 'lucide-vue-next';
+import { FileText, Package, Wrench, Send, Eye, Ban } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PendenciasFiscaisModal from '@/shared/components/commons/PendenciasFiscaisModal.vue';
@@ -26,6 +26,9 @@ import NfseEmitirModal from '@/modules/fiscal/components/nfse/NfseEmitirModal.vu
 import NfseDocumentoDrawer from '@/modules/fiscal/components/nfse/NfseDocumentoDrawer.vue';
 import FiscalDocumentoDetailsDrawer from '@/modules/fiscal/components/detalhes/FiscalDocumentoDetailsDrawer.vue';
 import ConferenciaNFeOSModal from '@/modules/fiscal/components/emitir/ConferenciaNFeOSModal.vue';
+import FiscalCancelarModal from '@/modules/fiscal/components/detalhes/FiscalCancelarModal.vue';
+import NfseCancelarModal from '@/modules/fiscal/components/nfse/NfseCancelarModal.vue';
+import { formatDataHora } from '@/shared/utils/date.utils';
 import { useNfseConsultarMutation } from '@/modules/fiscal/composables/useNfse';
 import { getNotasDaOs, type NotaDaOs } from '../../services/orderServiceFiscal.service';
 
@@ -61,6 +64,24 @@ function fecharNfse() {
 }
 const nfseAberta = ref<number | null>(null);
 const consultarNfse = useNfseConsultarMutation();
+
+// Cancelar pela OS (O1 de docs/nfe-cfop-e-notas-da-os-plano.md). Quem diz se
+// ainda dá é o backend (`pode_cancelar`); a tela só mostra o prazo.
+const cancelandoNfe = ref<number | null>(null);
+function fecharCancelarNfe() {
+  cancelandoNfe.value = null;
+  recarregar();
+}
+const cancelandoNfse = ref<{ id: number; numero: number | null; numero_os: string } | null>(null);
+function cancelarNfse(id: number) {
+  const doc = notas.value?.servico.documentos.find((d) => d.id === id);
+  nfseAberta.value = null;
+  cancelandoNfse.value = { id, numero: doc?.numero != null ? Number(doc.numero) : null, numero_os: props.osNumero };
+}
+function fecharCancelarNfse() {
+  cancelandoNfse.value = null;
+  recarregar();
+}
 
 /** Status de quem já emitiu; sem documento é "Não emitida", cinza. */
 function etiqueta(doc: NotaDaOs | null | undefined) {
@@ -109,15 +130,28 @@ const somaBate = computed(() => {
           <span :class="['px-2 py-0.5 text-[11px] font-semibold rounded-full', etiqueta(notas.pecas.documento).classe]">
             {{ etiqueta(notas.pecas.documento).texto }}<template v-if="notas.pecas.documento?.numero"> · nº {{ notas.pecas.documento.numero }}</template>
           </span>
-          <button
-            v-if="notas.pecas.documento"
-            type="button"
-            class="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
-            @click="nfeAberta = notas.pecas.documento!.id"
-          >
-            <Eye :size="12" /> Ver detalhes
-          </button>
+          <span v-if="notas.pecas.documento" class="flex items-center gap-3">
+            <button
+              v-if="notas.pecas.documento.pode_cancelar"
+              type="button"
+              class="text-xs font-semibold text-red-600 hover:underline flex items-center gap-1"
+              data-cancelar-nfe
+              @click="cancelandoNfe = notas.pecas.documento!.id"
+            >
+              <Ban :size="12" /> Cancelar
+            </button>
+            <button
+              type="button"
+              class="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
+              @click="nfeAberta = notas.pecas.documento!.id"
+            >
+              <Eye :size="12" /> Ver detalhes
+            </button>
+          </span>
         </div>
+        <p v-if="notas.pecas.documento?.pode_cancelar && notas.pecas.documento.cancelar_ate" class="text-[11px] text-zinc-500">
+          Dá para cancelar até {{ formatDataHora(notas.pecas.documento.cancelar_ate) }}. Depois, só com nota de devolução.
+        </p>
         <BaseButton v-if="podeEmitirNfe" variant="secondary" size="sm" class="w-full" :is-loading="isVerificando" @click="emitirNfe">
           <Send :size="14" class="mr-1.5" /> Emitir NF-e das peças
         </BaseButton>
@@ -143,9 +177,20 @@ const somaBate = computed(() => {
           <span :class="['px-2 py-0.5 text-[11px] font-semibold rounded-full', etiqueta(doc).classe]">
             {{ etiqueta(doc).texto }}<template v-if="doc.numero"> · nº {{ doc.numero }}</template>
           </span>
-          <button type="button" class="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1" @click="nfseAberta = doc.id">
-            <Eye :size="12" /> Ver detalhes
-          </button>
+          <span class="flex items-center gap-3">
+            <button
+              v-if="doc.pode_cancelar"
+              type="button"
+              class="text-xs font-semibold text-red-600 hover:underline flex items-center gap-1"
+              data-cancelar-nfse
+              @click="cancelarNfse(doc.id)"
+            >
+              <Ban :size="12" /> Cancelar
+            </button>
+            <button type="button" class="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1" @click="nfseAberta = doc.id">
+              <Eye :size="12" /> Ver detalhes
+            </button>
+          </span>
         </div>
         <BaseButton v-if="podeEmitirNfse" variant="secondary" size="sm" class="w-full" @click="emitindoNfse = true">
           <Send :size="14" class="mr-1.5" /> Emitir NFS-e do serviço
@@ -179,8 +224,15 @@ const somaBate = computed(() => {
       :documento-id="nfseAberta"
       @close="nfseAberta = null; recarregar()"
       @consultar="consultarNfse.mutate($event)"
-      @cancelar="nfseAberta = null"
+      @cancelar="cancelarNfse($event)"
     />
+    <FiscalCancelarModal
+      v-if="notas.pecas.modulo"
+      :is-open="cancelandoNfe !== null"
+      :documento-ids="cancelandoNfe !== null ? [cancelandoNfe] : []"
+      @close="fecharCancelarNfe"
+    />
+    <NfseCancelarModal :documento="cancelandoNfse" @close="fecharCancelarNfse" />
     <FiscalDocumentoDetailsDrawer
       v-if="notas.pecas.modulo"
       :documento-id="nfeAberta"
