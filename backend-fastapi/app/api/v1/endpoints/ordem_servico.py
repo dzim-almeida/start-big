@@ -633,6 +633,29 @@ def notas_fiscais_da_os(
     return notas
 
 
+@router.get(
+    "/{os_number}/notas-fiscais/{documento_id}/whatsapp",
+    summary="Texto da nota para mandar ao cliente pelo WhatsApp",
+    description=(
+        "Número, valor e, na NF-e, a chave de acesso; na NFS-e, o link público do "
+        "DANFSe e o código de verificação. `telefone` nulo = cliente sem celular."
+    ),
+)
+def mensagem_da_nota(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
+    os_number: str = Path(..., description="Número da OS"),
+    documento_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.os_notas import mensagem_whatsapp
+
+    mensagem = mensagem_whatsapp(db, os_number, documento_id)
+    if mensagem is None:
+        raise HTTPException(status_code=404, detail="Nota não encontrada nesta OS.")
+    return mensagem
+
+
 @router.post(
     "/{os_number}/emitir-fiscal",
     response_model=EmissaoResponse,

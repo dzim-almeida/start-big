@@ -124,7 +124,16 @@ Plano original:
    não decidir sozinha.
 4. Depois de cancelada, o cartão volta a "Não emitida" e a nota pode sair de novo.
 
-### O2 — Enviar a nota ao cliente
+### O2 — Enviar a nota ao cliente ✅ WhatsApp (01/11)
+Feito: `GET /ordens-servico/{n}/notas-fiscais/{id}/whatsapp` monta o texto
+(número, OS, valor; NF-e com a chave de acesso e o portal; NFS-e com o link do
+DANFSe quando ele é público e o código de verificação) e o celular com 55
+(`telefone_whatsapp` de Compras). O cartão ganha "WhatsApp"; sem celular,
+copia o texto. **Nunca** vai link de `api.startbig.com.br`: o PDF da NF-e
+exige o token da loja e o cliente cairia num login. E-mail ficou de fora: o
+contrato da plataforma não tem envio de e-mail.
+
+Plano original:
 1. **WhatsApp**: botão no cartão abre o `wa.me` com o telefone do cliente da
    OS e uma mensagem com número, valor e o link do PDF (no padrão do
    `PedidoDetalheModal`).

@@ -14,6 +14,8 @@ Só leitura. Decisões do Alan (29/10/2026) que este arquivo segue:
 - o desconto da OS se divide na proporção, com a mesma regra da NFS-e
   (`desconto_dos_servicos`); a parte das peças é o resto.
 
+E a mensagem para mandar a nota ao cliente pelo WhatsApp (O2).
+
 Cancelar pela OS (O1 de docs/nfe-cfop-e-notas-da-os-plano.md): cada nota diz
 se ainda dá para cancelar (`pode_cancelar`) e até quando (`cancelar_ate`).
 A tela não calcula prazo: a régua é a mesma do cancelamento
@@ -114,3 +116,73 @@ def notas_da_os(db: Session, numero_os: str) -> Optional[dict]:
             "documentos": [_resumo_doc(d) for d in nfse_por_papel.values()],
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Mandar a nota ao cliente (O2 de docs/nfe-cfop-e-notas-da-os-plano.md)
+# ---------------------------------------------------------------------------
+
+# O PDF da NF-e mora na plataforma e só abre com o token da loja: link dele
+# para o cliente daria tela de login. O DANFSe da NFS-e Nacional é um link
+# público do S3 da Focus (ver `client_startbig._headers_do_arquivo`).
+HOST_DA_PLATAFORMA = "api.startbig.com.br"
+PORTAL_NFE = "www.nfe.fazenda.gov.br"
+
+
+def _reais(centavos: Optional[int]) -> str:
+    inteiro, resto = divmod(int(centavos or 0), 100)
+    return f"R$ {inteiro:,}".replace(",", ".") + f",{resto:02d}"
+
+
+def _nome_do_cliente(cliente) -> str:
+    return (
+        getattr(cliente, "nome", None)
+        or getattr(cliente, "nome_fantasia", None)
+        or getattr(cliente, "razao_social", None)
+        or ""
+    ).strip()
+
+
+def _link_publico(url: Optional[str]) -> Optional[str]:
+    if not url or not url.startswith("https://") or HOST_DA_PLATAFORMA in url:
+        return None
+    return url
+
+
+def mensagem_whatsapp(db: Session, numero_os: str, documento_id: int) -> Optional[dict]:
+    """
+    Texto da nota para o WhatsApp do cliente, e o número dele (com 55).
+
+    Só nota AUTORIZADA desta OS. NF-e vai com a chave de acesso (o cliente
+    consulta no portal); NFS-e com o link do DANFSe quando ele é público e o
+    código de verificação. `telefone` nulo = cliente sem celular: a tela copia
+    o texto. None = OS ou nota não encontrada.
+    """
+    from app.services.compras.pedidos import telefone_whatsapp
+
+    os_obj = crud.get_os_completa(db, numero_os)
+    doc = db.get(DocumentoFiscal, documento_id)
+    if not os_obj or doc is None or doc.origem_numero_os != numero_os:
+        return None
+    if doc.status != "AUTORIZADA":
+        raise HTTPException(status_code=422, detail="Só nota autorizada pode ser mandada ao cliente.")
+
+    cliente = getattr(os_obj.objeto, "cliente", None) if os_obj.objeto else None
+    nome = _nome_do_cliente(cliente)
+    tipo = "NFS-e" if doc.tipo_documento == "NFSE" else "NF-e"
+    linhas = [
+        f"Olá{', ' + nome.split()[0] if nome else ''}! Segue a {tipo} nº {doc.numero_documento or '—'} "
+        f"da {numero_os}, no valor de {_reais(doc.valor_total)}.",
+    ]
+    if doc.tipo_documento == "NFSE":
+        link = _link_publico(doc.url_pdf)
+        if link:
+            linhas.append(f"PDF da nota: {link}")
+        if doc.codigo_verificacao:
+            linhas.append(f"Código de verificação: {doc.codigo_verificacao}")
+    elif doc.chave_acesso:
+        linhas.append(f"Chave de acesso: {doc.chave_acesso}")
+        linhas.append(f"Consulte em {PORTAL_NFE}")
+
+    return {"texto": "\n".join(linhas), "telefone": telefone_whatsapp(cliente)}
+

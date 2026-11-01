@@ -11,7 +11,13 @@ import { ref } from 'vue';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 
 const notas = vi.fn();
-vi.mock('../../../services/orderServiceFiscal.service', () => ({ getNotasDaOs: (n: string) => notas(n) }));
+const mensagem = vi.fn();
+vi.mock('../../../services/orderServiceFiscal.service', () => ({
+  getNotasDaOs: (n: string) => notas(n),
+  getMensagemDaNota: (n: string, id: number) => mensagem(n, id),
+}));
+const abrir = vi.fn();
+vi.mock('@/modules/fiscal/utils/abrirArquivo', () => ({ abrirArquivo: (url: string) => abrir(url) }));
 
 const conferirOS = vi.fn().mockResolvedValue(true);
 vi.mock('@/shared/composables/useEmitirFiscal', () => ({
@@ -130,6 +136,26 @@ describe('Notas desta OS', () => {
 
     await vi.waitFor(() => expect(wrapper.find('[data-nota-pecas]').exists()).toBe(true));
     expect(wrapper.find('[data-cancelar-nfe]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('nota autorizada: "WhatsApp" abre a conversa com o texto que o backend montou', async () => {
+    notas.mockResolvedValue({
+      ...BASE,
+      pecas: { tem: false, valor: 0, modulo: true, documento: null },
+      servico: { tem: true, valor: 8000, modulo: true, documentos: [
+        { id: 9, status: 'AUTORIZADA', numero: 23, motivo: null, url_pdf: null, valor: 8000, papel: null, pode_cancelar: true },
+      ] },
+    });
+    mensagem.mockResolvedValue({ texto: 'Olá, Maria! Segue a NFS-e nº 23', telefone: '5588999998888' });
+    const wrapper = montar();
+
+    await vi.waitFor(() => expect(wrapper.find('[data-whatsapp-nfse]').exists()).toBe(true));
+    await wrapper.find('[data-whatsapp-nfse]').trigger('click');
+
+    await vi.waitFor(() => expect(abrir).toHaveBeenCalled());
+    expect(mensagem).toHaveBeenCalledWith('OS-2026-000158', 9);
+    expect(abrir.mock.calls[0][0]).toBe(`https://wa.me/5588999998888?text=${encodeURIComponent('Olá, Maria! Segue a NFS-e nº 23')}`);
     wrapper.unmount();
   });
 });

@@ -15,7 +15,7 @@
  */
 import { computed, ref } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
-import { FileText, Package, Wrench, Send, Eye, Ban } from 'lucide-vue-next';
+import { FileText, Package, Wrench, Send, Eye, Ban, MessageCircle } from 'lucide-vue-next';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import PendenciasFiscaisModal from '@/shared/components/commons/PendenciasFiscaisModal.vue';
@@ -29,8 +29,10 @@ import ConferenciaNFeOSModal from '@/modules/fiscal/components/emitir/Conferenci
 import FiscalCancelarModal from '@/modules/fiscal/components/detalhes/FiscalCancelarModal.vue';
 import NfseCancelarModal from '@/modules/fiscal/components/nfse/NfseCancelarModal.vue';
 import { formatDataHora } from '@/shared/utils/date.utils';
+import { useToast } from '@/shared/composables/useToast';
+import { abrirArquivo } from '@/modules/fiscal/utils/abrirArquivo';
 import { useNfseConsultarMutation } from '@/modules/fiscal/composables/useNfse';
-import { getNotasDaOs, type NotaDaOs } from '../../services/orderServiceFiscal.service';
+import { getMensagemDaNota, getNotasDaOs, type NotaDaOs } from '../../services/orderServiceFiscal.service';
 
 const props = defineProps<{ osNumero: string }>();
 
@@ -83,6 +85,36 @@ function fecharCancelarNfse() {
   recarregar();
 }
 
+// Mandar ao cliente (O2): o texto vem pronto do backend (número, valor, chave
+// ou link público do DANFSe). Sem celular no cadastro, copia o texto.
+const toast = useToast();
+const enviando = ref<number | null>(null);
+async function mandarWhatsapp(documentoId: number) {
+  enviando.value = documentoId;
+  try {
+    const { texto, telefone } = await getMensagemDaNota(props.osNumero, documentoId);
+    if (telefone) {
+      await abrirArquivo(`https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`);
+      return;
+    }
+    let copiou = false;
+    try {
+      await navigator.clipboard.writeText(texto);
+      copiou = true;
+    } catch {
+      copiou = false;
+    }
+    toast.warning(
+      'Cliente sem celular cadastrado',
+      copiou ? 'O texto da nota foi copiado: cole na conversa com ele.' : 'Cadastre o celular no cliente.',
+    );
+  } catch {
+    toast.error('Não foi possível montar a mensagem da nota.');
+  } finally {
+    enviando.value = null;
+  }
+}
+
 /** Status de quem já emitiu; sem documento é "Não emitida", cinza. */
 function etiqueta(doc: NotaDaOs | null | undefined) {
   if (!doc) return { texto: 'Não emitida', classe: 'bg-zinc-100 text-zinc-500' };
@@ -132,6 +164,16 @@ const somaBate = computed(() => {
           </span>
           <span v-if="notas.pecas.documento" class="flex items-center gap-3">
             <button
+              v-if="notas.pecas.documento.status === 'AUTORIZADA'"
+              type="button"
+              class="text-xs font-semibold text-emerald-700 hover:underline flex items-center gap-1 disabled:opacity-50"
+              :disabled="enviando === notas.pecas.documento.id"
+              data-whatsapp-nfe
+              @click="mandarWhatsapp(notas.pecas.documento!.id)"
+            >
+              <MessageCircle :size="12" /> WhatsApp
+            </button>
+            <button
               v-if="notas.pecas.documento.pode_cancelar"
               type="button"
               class="text-xs font-semibold text-red-600 hover:underline flex items-center gap-1"
@@ -178,6 +220,16 @@ const somaBate = computed(() => {
             {{ etiqueta(doc).texto }}<template v-if="doc.numero"> · nº {{ doc.numero }}</template>
           </span>
           <span class="flex items-center gap-3">
+            <button
+              v-if="doc.status === 'AUTORIZADA'"
+              type="button"
+              class="text-xs font-semibold text-emerald-700 hover:underline flex items-center gap-1 disabled:opacity-50"
+              :disabled="enviando === doc.id"
+              data-whatsapp-nfse
+              @click="mandarWhatsapp(doc.id)"
+            >
+              <MessageCircle :size="12" /> WhatsApp
+            </button>
             <button
               v-if="doc.pode_cancelar"
               type="button"

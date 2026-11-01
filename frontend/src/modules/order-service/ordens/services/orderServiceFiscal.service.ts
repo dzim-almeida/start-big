@@ -76,3 +76,16 @@ export async function getNotasDaOs(osNumero: string): Promise<NotasDaOs> {
   const { data } = await api.get<NotasDaOs>(`${BASE_ORDER_SERVICE_URL}/${osNumero}/notas-fiscais`);
   return data;
 }
+
+/** Texto da nota para o WhatsApp do cliente (O2). `telefone` nulo = cliente sem celular. */
+export interface MensagemDaNota {
+  texto: string;
+  telefone: string | null;
+}
+
+export async function getMensagemDaNota(osNumero: string, documentoId: number): Promise<MensagemDaNota> {
+  const { data } = await api.get<MensagemDaNota>(
+    `${BASE_ORDER_SERVICE_URL}/${osNumero}/notas-fiscais/${documentoId}/whatsapp`,
+  );
+  return data;
+}
