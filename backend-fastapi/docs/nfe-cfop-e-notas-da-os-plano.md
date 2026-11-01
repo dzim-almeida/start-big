@@ -103,7 +103,7 @@ rodar `test_derivacao_interestadual.py` e `test_resolver_interestadual.py`).
   (`sales/.../NotaFiscalSection.vue`) continua emitindo direto, sem
   conferência — para trocar CFOP de venda, pelo Centro Fiscal.
 
-### C3 — Marcenaria (D3a)
+### C3 — Marcenaria (D3a) ✅ (01/11)
 `trocar_cfop` na NF-e dos móveis (`nfe_marcenaria.py`, aba Entrega): venda
 (5101/5102) troca na família interna; remessa 5116↔5117; 5922 travado (é o
 papel da nota). O resolver já aplica a troca depois do `cfop_sufixo_forcado`,

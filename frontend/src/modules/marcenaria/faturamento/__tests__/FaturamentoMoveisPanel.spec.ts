@@ -131,3 +131,34 @@ describe('FaturamentoMoveisPanel — instalação em NFS-e (G5)', () => {
     expect(wrapper.find('[data-testid="emitir-nfse-instalacao"]').exists()).toBe(false);
   });
 });
+
+describe('FaturamentoMoveisPanel — CFOP na conferência (D3a)', () => {
+  it('trocar o CFOP refaz a prévia e a emissão leva a troca', async () => {
+    const GRUPO = {
+      cfop_sugerido: '5101', cfop: '5101', descricao: '', itens: [1],
+      opcoes: [{ cfop: '5101', descricao: '' }, { cfop: '5102', descricao: '' }],
+    };
+    previa.mockResolvedValue({ itens: [], totais: { valor_total: 0 }, formas_pagamento: [], avisos: [], grupos_cfop: [GRUPO] });
+    emitir.mockResolvedValue({ documento_id: 1, status: 'AUTORIZADA', mensagem: '' });
+    const { default: CfopDaNotaCampo } = await import('@/modules/fiscal/components/emitir/CfopDaNotaCampo.vue');
+    const wrapper = await montar(LIGADO);
+
+    await wrapper.find('[data-testid="marcar-1"]').trigger('change');
+    await wrapper.find('[data-testid="previa-nota"]').trigger('click');
+    await flushPromises();
+
+    const campo = wrapper.findComponent(CfopDaNotaCampo);
+    expect(campo.exists()).toBe(true);
+    campo.vm.$emit('update:trocas', { '5101': '5102' });
+    campo.vm.$emit('alterou');
+    await flushPromises();
+    expect(previa).toHaveBeenLastCalledWith('OS-2026-000001', [1], { trocar_cfop: { '5101': '5102' }, cfop_como_padrao: false });
+
+    // O último: os modais dos testes de cima continuam no body (Teleport).
+    const botoes = document.body.querySelectorAll<HTMLButtonElement>('[data-testid="emitir-nota"]');
+    botoes[botoes.length - 1].click();
+    await flushPromises();
+    expect(emitir).toHaveBeenCalledWith('OS-2026-000001', [1], { trocar_cfop: { '5101': '5102' }, cfop_como_padrao: false });
+    wrapper.unmount();
+  });
+});

@@ -212,3 +212,36 @@ def test_caminho_da_os_comum_recusa_a_os_da_marcenaria(api, obra, fiscal_liberad
     with pytest.raises(HTTPException) as erro:
         preview_nfe_os(db_session, obra.numero_os, fiscal_liberado.id)
     assert erro.value.detail["codigo"] == "OS_DA_MARCENARIA"
+
+
+# --- CFOP trocado na conferência (D3a de docs/nfe-cfop-e-notas-da-os-plano.md) ---
+
+def test_previa_mostra_o_cfop_da_venda_e_as_opcoes(api, obra, ligado, plataforma):
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/preview"), json={"movel_ids": ids}, headers=api.header)
+
+    assert r.status_code == 200, r.text
+    (grupo,) = r.json()["grupos_cfop"]
+    assert grupo["cfop"] == "5101"
+    assert "5102" in {o["cfop"] for o in grupo["opcoes"]}
+
+
+def test_venda_dos_moveis_sai_com_o_cfop_trocado(api, obra, ligado, plataforma, db_session):
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    plataforma.respostas = [AUTORIZADA(16)]
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/emitir"), json={"movel_ids": ids, "trocar_cfop": {"5101": "5102"}},
+                        headers=api.header)
+
+    assert r.status_code == 200, r.text
+    (payload,) = plataforma.payloads
+    assert payload["items"][0]["cfop"] == "5102"
+    assert payload["natureza_operacao"] == "Venda de mercadoria adquirida de terceiros"
+    db_session.expire_all()
+    assert db_session.get(DocumentoFiscal, r.json()["documento_id"]).cfop_trocado is not None
+    # Sem a caixinha, o cadastro do produto acabado fica como estava.
+    fiscal = db_session.query(ProdutoFiscal).filter_by(produto_id=ligado.produto_acabado_padrao_id).one()
+    assert fiscal.cfop_padrao == "5101"

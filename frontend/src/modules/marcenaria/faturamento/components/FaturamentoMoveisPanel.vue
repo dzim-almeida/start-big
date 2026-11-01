@@ -25,6 +25,7 @@ import { formatCurrency } from '@/shared/utils/finance';
 import { mensagemDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
 import { nfseService } from '@/modules/fiscal/services/nfse.service';
 import { ehNotaRepetida, mensagemNotaRepetida } from '@/modules/fiscal/utils/notaRepetida';
+import CfopDaNotaCampo from '@/modules/fiscal/components/emitir/CfopDaNotaCampo.vue';
 
 import type { MovelFaturamento, PreviaNota } from '../schemas/faturamento.schema';
 import {
@@ -33,6 +34,7 @@ import {
   getFaturamento,
   previaDaNota,
   previaDoSimplesFaturamento,
+  type TrocaDeCfop,
 } from '../services/faturamento.service';
 
 const props = defineProps<{ numeroOs: string }>();
@@ -130,10 +132,27 @@ const pendencias = ref<string[]>([]);
 const carregando = ref(false);
 const emitindo = ref(false);
 
+/**
+ * CFOP da conferência (D3a de docs/nfe-cfop-e-notas-da-os-plano.md): o do
+ * papel vem marcado e o 5922 fica travado; venda (5101↔5102) e remessa
+ * (5116↔5117) dá para trocar só nesta nota.
+ */
+const trocasCfop = ref<Record<string, string>>({});
+const cfopComoPadrao = ref(false);
+let trocasDaPrevia: Record<string, string> = {};
+
+function troca(): TrocaDeCfop {
+  if (!Object.keys(trocasCfop.value).length) return {};
+  return { trocar_cfop: trocasCfop.value, cfop_como_padrao: cfopComoPadrao.value };
+}
+
 async function preVisualizar(de: 'entrega' | 'simples' = 'entrega') {
   carregando.value = true;
   pendencias.value = [];
   previaDe.value = de;
+  trocasCfop.value = {};
+  trocasDaPrevia = {};
+  cfopComoPadrao.value = false;
   try {
     previa.value = de === 'simples'
       ? await previaDoSimplesFaturamento(numeroOs.value)
@@ -146,12 +165,26 @@ async function preVisualizar(de: 'entrega' | 'simples' = 'entrega') {
   }
 }
 
+/** Trocou o CFOP: a prévia volta com a natureza que acompanha. */
+async function aoTrocarCfop() {
+  carregando.value = true;
+  try {
+    previa.value = await previaDaNota(numeroOs.value, marcados.value, troca());
+    trocasDaPrevia = { ...trocasCfop.value };
+  } catch (erro) {
+    trocasCfop.value = { ...trocasDaPrevia };
+    toast.error(mensagemDoErro(erro, 'Não foi possível trocar o CFOP.'));
+  } finally {
+    carregando.value = false;
+  }
+}
+
 async function emitir() {
   emitindo.value = true;
   try {
     const resultado = previaDe.value === 'simples'
       ? await emitirSimplesFaturamento(numeroOs.value)
-      : await emitirNota(numeroOs.value, marcados.value);
+      : await emitirNota(numeroOs.value, marcados.value, troca());
     if (resultado.status === 'AUTORIZADA') toast.success('NF-e autorizada.', resultado.mensagem);
     else if (resultado.status === 'PROCESSANDO') toast.success('NF-e enviada. A SEFAZ ainda está processando.');
     else toast.error(`NF-e ${resultado.status.toLowerCase()}.`, resultado.mensagem);
@@ -318,6 +351,13 @@ const reais = (valor: number) => formatCurrency(Math.round(valor * 100));
             <span>{{ rotuloPagamento(p.forma_pagamento) }}</span><span class="tabular-nums">{{ reais(p.valor_pagamento) }}</span>
           </p>
         </div>
+        <CfopDaNotaCampo
+          v-model:trocas="trocasCfop"
+          v-model:como-padrao="cfopComoPadrao"
+          :grupos="previa.grupos_cfop ?? []"
+          :disabled="carregando || emitindo"
+          @alterou="aoTrocarCfop"
+        />
         <ul v-if="previa.avisos.length" class="list-disc pl-4 text-xs text-amber-700">
           <li v-for="aviso in previa.avisos" :key="aviso">{{ aviso }}</li>
         </ul>

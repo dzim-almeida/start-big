@@ -10,6 +10,16 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def validar_trocas_cfop(v: Optional[dict[str, str]]) -> Optional[dict[str, str]]:
+    """`trocar_cfop` da conferência: CFOP sugerido → escolhido, 4 dígitos cada."""
+    if not v:
+        return None
+    for de, para in v.items():
+        if not (re.fullmatch(r"\d{4}", de) and re.fullmatch(r"\d{4}", para)):
+            raise ValueError(f"CFOP deve ter 4 dígitos (recebido: {de} → {para}).")
+    return v
+
+
 class EmissaoNFeRequest(BaseModel):
     """Request para emitir NF-e a partir de uma venda ou OS."""
 
@@ -24,12 +34,7 @@ class EmissaoNFeRequest(BaseModel):
     @field_validator("trocar_cfop")
     @classmethod
     def validar_trocar_cfop(cls, v):
-        if not v:
-            return None
-        for de, para in v.items():
-            if not (re.fullmatch(r"\d{4}", de) and re.fullmatch(r"\d{4}", para)):
-                raise ValueError(f"CFOP deve ter 4 dígitos (recebido: {de} → {para}).")
-        return v
+        return validar_trocas_cfop(v)
 
     @model_validator(mode="after")
     def validar_origem(self):

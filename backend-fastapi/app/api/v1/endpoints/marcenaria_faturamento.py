@@ -9,14 +9,16 @@
 # contratado e fiscal configurado).
 # ---------------------------------------------------------------------------
 
+from typing import Optional
+
 from fastapi import APIRouter, BackgroundTasks, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.marcenaria_orcamento import executar
 from app.core.depends import check_permission, requer_modulo_fiscal
 from app.db.session import get_db
-from app.schemas.fiscal.emissao import EmissaoResponse
+from app.schemas.fiscal.emissao import EmissaoResponse, validar_trocas_cfop
 from app.services.marcenaria.faturamento import estoque_acabado, painel
 from app.services.marcenaria.permissoes import PERMISSOES_GERIR_CUSTOS
 
@@ -29,6 +31,14 @@ OS = Depends(check_permission(["servico"]))
 class MoveisDaNota(BaseModel):
     """Os moveis que saem nesta nota (os de uma entrega)."""
     movel_ids: list[int] = Field(..., min_length=1, max_length=200)
+    # CFOP escolhido na conferencia (D3a de docs/nfe-cfop-e-notas-da-os-plano.md).
+    trocar_cfop: Optional[dict[str, str]] = None
+    cfop_como_padrao: bool = False
+
+    @field_validator("trocar_cfop")
+    @classmethod
+    def validar_trocar_cfop(cls, v):
+        return validar_trocas_cfop(v)
 
 
 # ===========================================================================
@@ -70,13 +80,15 @@ def preview(numero_os: str, dados: MoveisDaNota, usuario_token: dict = Depends(r
             db: Session = Depends(get_db)):
     from app.services.fiscal.emissoes.nfe_marcenaria import preview_nfe_marcenaria
 
-    return executar(db, preview_nfe_marcenaria, numero_os, usuario_token["empresa_id"], dados.movel_ids)
+    return executar(db, preview_nfe_marcenaria, numero_os, usuario_token["empresa_id"], dados.movel_ids,
+                    None, dados.trocar_cfop)
 
 
-def _emitir(db: Session, numero_os: str, empresa_id: int, movel_ids: list[int], usuario_token: dict):
+def _emitir(db: Session, numero_os: str, empresa_id: int, dados: MoveisDaNota, usuario_token: dict):
     from app.services.fiscal.emissoes.nfe_marcenaria import emitir_nfe_marcenaria
 
-    doc = emitir_nfe_marcenaria(db, numero_os, empresa_id, movel_ids, usuario_token)
+    doc = emitir_nfe_marcenaria(db, numero_os, empresa_id, dados.movel_ids, usuario_token,
+                                trocar_cfop=dados.trocar_cfop, cfop_como_padrao=dados.cfop_como_padrao)
     db.commit()
     return doc
 
@@ -88,7 +100,7 @@ def emitir(numero_os: str, dados: MoveisDaNota, background_tasks: BackgroundTask
     from app.services.fiscal.emissao import poll_nfe_status_async
 
     empresa_id = usuario_token["empresa_id"]
-    doc = executar(db, _emitir, numero_os, empresa_id, dados.movel_ids, usuario_token)
+    doc = executar(db, _emitir, numero_os, empresa_id, dados, usuario_token)
     if doc.status == "PROCESSANDO":
         background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
     return EmissaoResponse.de_documento(doc, "NF-e")

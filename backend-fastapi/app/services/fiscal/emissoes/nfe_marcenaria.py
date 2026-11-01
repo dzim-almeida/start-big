@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
+from app.services.fiscal.emissoes import troca_cfop_nota
 from app.services.fiscal.emissoes.adaptador_marcenaria import REMESSA, SIMPLES_FATURAMENTO, VENDA
 from app.services.fiscal.emissoes.nucleo import _aplicar_resultado, _avisos, _fiscais_efetivos, _obter_fiscal_settings
 from app.services.fiscal.emissoes.snapshot import gravar_snapshot
@@ -70,11 +71,17 @@ def papel_da_entrega(config) -> str:
     return REMESSA if config.faturamento_modo == "ENTREGA_FUTURA" else VENDA
 
 
-def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[list[int]], papel: Optional[str]):
+def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[list[int]], papel: Optional[str],
+              trocar_cfop: Optional[dict[str, str]] = None):
     """Tudo que pode recusar, ANTES de reservar número (como `nfe_os`).
 
     `papel` None = a nota de uma entrega no modo da loja; SIMPLES_FATURAMENTO =
     a 5922 da OS (os `movel_ids` são ignorados: entram todos os ainda sem ela).
+
+    `trocar_cfop`: o CFOP escolhido na conferência (D3a de
+    docs/nfe-cfop-e-notas-da-os-plano.md). O CFOP do papel continua o padrão;
+    a troca só existe dentro da família (venda 5101↔5102, remessa 5116↔5117) e
+    o 5922 fica travado — quem decide é `derivacao/troca_cfop.py`.
 
     Returns:
         (empresa, endereco, os_obj, papel, moveis_escolhidos, linhas, simples, adaptado, resultado_calculo)
@@ -212,6 +219,7 @@ def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[
     try:
         itens_entrada, dados_nota = resolver_aliquotas_venda(
             db, adaptado, uf_emitente, simples, regime_apuracao=regime_apuracao(empresa),
+            trocar_cfop=trocar_cfop,
         )
         resultado_calculo = calcular_impostos(itens_entrada, dados_nota)
     except HTTPException:
@@ -228,14 +236,15 @@ def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[
 
 
 def preview_nfe_marcenaria(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[list[int]],
-                           papel: Optional[str] = None) -> dict:
+                           papel: Optional[str] = None, trocar_cfop: Optional[dict[str, str]] = None) -> dict:
     """Pré-visualização da nota. Não emite e NÃO reserva número."""
     empresa, endereco, os_obj, papel, _moveis, _linhas, _sfs, adaptado, resultado = _preparar(
-        db, numero_os, empresa_id, movel_ids, papel)
+        db, numero_os, empresa_id, movel_ids, papel, trocar_cfop)
     payload = montar_payload_nfe(
         empresa, endereco, _obter_fiscal_settings(db, empresa_id), adaptado, adaptado.nota_fiscal,
         resultado_calculo=resultado, fiscais=_fiscais_efetivos(db, adaptado),
     )
+    troca_cfop_nota.aplicar_natureza(payload, resultado)
     return {
         "numero_os": numero_os,
         "papel": papel,
@@ -246,18 +255,20 @@ def preview_nfe_marcenaria(db: Session, numero_os: str, empresa_id: int, movel_i
         "destinatario": payload.get("destinatario", {}),
         "notas_referenciadas": payload.get("notas_referenciadas", []),
         "avisos": _avisos(empresa, getattr(adaptado, "cliente", None)),
+        "grupos_cfop": troca_cfop_nota.grupos_cfop(resultado),
     }
 
 
 def emitir_nfe_marcenaria(
     db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[list[int]],
     usuario: Optional[dict] = None, papel: Optional[str] = None,
+    trocar_cfop: Optional[dict[str, str]] = None, cfop_como_padrao: bool = False,
 ) -> DocumentoFiscal:
     """Emite a nota. Mesma ordem do `emitir_nfe_os`: recusar antes de reservar."""
     from app.services.marcenaria.faturamento import estoque_acabado
 
     empresa, endereco, os_obj, papel, moveis, linhas, sfs, adaptado, resultado = _preparar(
-        db, numero_os, empresa_id, movel_ids, papel)
+        db, numero_os, empresa_id, movel_ids, papel, trocar_cfop)
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
 
     numero = crud.reservar_proximo_numero_nfe(db, empresa_id)
@@ -265,6 +276,7 @@ def emitir_nfe_marcenaria(
         empresa, endereco, fiscal_settings, adaptado, adaptado.nota_fiscal,
         resultado_calculo=resultado, numero=numero, fiscais=_fiscais_efetivos(db, adaptado),
     )
+    troca_cfop_nota.aplicar_natureza(payload, resultado)
 
     tentativas = crud.contar_documentos_por_os(db, numero_os)
     ref = re.sub(r"[^A-Za-z0-9._-]", "-", f"os-{numero_os}-{REF_POR_PAPEL[papel]}{tentativas + 1}")[:50]
@@ -284,7 +296,10 @@ def emitir_nfe_marcenaria(
         data_emissao=datetime.now(timezone.utc),
     )
     gravar_snapshot(doc, payload, venda=adaptado)
+    troca_cfop_nota.registrar(doc, resultado, (usuario or {}).get("sub"))
     crud.salvar_documento(db, doc)
+    if cfop_como_padrao:
+        troca_cfop_nota.gravar_como_padrao(db, adaptado, resultado)
 
     # Antes de transmitir: os móveis ficam presos a esta nota.
     if papel == SIMPLES_FATURAMENTO:

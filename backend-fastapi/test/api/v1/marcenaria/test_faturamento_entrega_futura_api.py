@@ -123,3 +123,36 @@ def test_painel_diz_o_que_falta(api, obra, futura, plataforma, db_session):
     painel = api.client.get(_url(obra), headers=api.header).json()
     assert painel["falta_simples_faturamento"] is False
     assert next(m for m in painel["moveis"] if m["nome"] == "Balcão")["pode_faturar"] is True
+
+
+# --- CFOP na conferência (D3a): o papel continua fixado; troca só na família ---
+
+def test_simples_faturamento_fica_travado(api, obra, futura, plataforma):
+    r = api.client.post(_url(obra, "/simples-faturamento/preview"), headers=api.header)
+    assert r.status_code == 200, r.text
+    (grupo,) = r.json()["grupos_cfop"]
+    assert grupo["cfop"] == "5922" and grupo["opcoes"] == []
+
+
+def test_remessa_pode_trocar_5116_por_5117(api, obra, futura, plataforma, db_session):
+    plataforma.respostas = [AUTORIZADA(30), AUTORIZADA(31)]
+    assert _simples_faturamento(api, obra).json()["status"] == "AUTORIZADA"
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/emitir"), json={"movel_ids": ids, "trocar_cfop": {"5116": "5117"}},
+                        headers=api.header)
+
+    assert r.status_code == 200, r.text
+    assert [i["cfop"] for i in plataforma.payloads[-1]["items"]] == ["5117"]
+
+
+def test_remessa_nao_vira_venda(api, obra, futura, plataforma):
+    plataforma.respostas = [AUTORIZADA(32)]
+    assert _simples_faturamento(api, obra).json()["status"] == "AUTORIZADA"
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/emitir"), json={"movel_ids": ids, "trocar_cfop": {"5116": "5102"}},
+                        headers=api.header)
+    assert r.status_code == 422, r.text

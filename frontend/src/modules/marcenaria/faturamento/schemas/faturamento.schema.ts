@@ -71,6 +71,14 @@ export const previaNotaSchema = z.object({
   totais: z.object({ valor_total: z.number() }).passthrough(),
   formas_pagamento: z.array(z.object({ forma_pagamento: z.string(), valor_pagamento: z.number() }).passthrough()),
   avisos: z.array(z.string()).default([]),
+  /** CFOP da conferência (D3a de docs/nfe-cfop-e-notas-da-os-plano.md). Backend antigo não manda. */
+  grupos_cfop: z.array(z.object({
+    cfop_sugerido: z.string(),
+    cfop: z.string(),
+    descricao: z.string().default(''),
+    itens: z.array(z.number()),
+    opcoes: z.array(z.object({ cfop: z.string(), descricao: z.string().default('') })).default([]),
+  })).default([]),
 });
 export type PreviaNota = z.infer<typeof previaNotaSchema>;
 

@@ -16,20 +16,26 @@ import {
 
 const urlFaturamento = (numeroOs: string) => `${urlDaOS(numeroOs)}/faturamento`;
 
+/** O CFOP escolhido na conferência (D3a). Vazio = o CFOP do papel, como sempre. */
+export interface TrocaDeCfop {
+  trocar_cfop?: Record<string, string>;
+  cfop_como_padrao?: boolean;
+}
+
 export async function getFaturamento(numeroOs: string): Promise<FaturamentoDaOS> {
   const { data } = await api.get(urlFaturamento(numeroOs));
   return faturamentoDaOSSchema.parse(data);
 }
 
 /** Prévia da nota dos móveis escolhidos: não emite e não reserva número. */
-export async function previaDaNota(numeroOs: string, movelIds: number[]): Promise<PreviaNota> {
-  const { data } = await api.post(`${urlFaturamento(numeroOs)}/preview`, { movel_ids: movelIds });
+export async function previaDaNota(numeroOs: string, movelIds: number[], troca: TrocaDeCfop = {}): Promise<PreviaNota> {
+  const { data } = await api.post(`${urlFaturamento(numeroOs)}/preview`, { movel_ids: movelIds, ...troca });
   return previaNotaSchema.parse(data);
 }
 
 /** Emite a NF-e dos móveis escolhidos (uma entrega; na entrega futura, a remessa). */
-export async function emitirNota(numeroOs: string, movelIds: number[]): Promise<ResultadoEmissao> {
-  const { data } = await api.post(`${urlFaturamento(numeroOs)}/emitir`, { movel_ids: movelIds });
+export async function emitirNota(numeroOs: string, movelIds: number[], troca: TrocaDeCfop = {}): Promise<ResultadoEmissao> {
+  const { data } = await api.post(`${urlFaturamento(numeroOs)}/emitir`, { movel_ids: movelIds, ...troca });
   return emissaoSchema.parse(data);
 }
 
