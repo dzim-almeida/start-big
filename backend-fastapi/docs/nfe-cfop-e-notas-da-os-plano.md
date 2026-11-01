@@ -164,7 +164,27 @@ O caso da OS-158 (29/10: "Empresa não habilitada para emissão de NFSe").
 2. ERP: novo item em `nfse/saude.py`, com a dica "admin › Passar para Nacional".
 3. ERP novo com plataforma velha: o item fica "não dá para saber", nunca vermelho.
 
-### O4 — Substituição da NFS-e (retificar) — pesquisa feita (01/11)
+### O4 — Substituição da NFS-e (retificar) ✅ (01/11, falta homologar)
+Feito (`nfse/substituicao.py`, `POST /fiscal/nfse/documentos/{id}/substituir`):
+- "Substituir NFS-e (corrigir)" na gaveta da NFS-e autorizada da OS (rota
+  Nacional, com chave gravada): motivo (01–05, 99) e o porquê (15–255) → a
+  emissão da OS de novo, com os três campos na DPS e `tentativa_anterior_id`
+  na antiga. A gaveta passa para a nota nova.
+- A antiga vira CANCELADA ("Substituída pela NFS-e nº X") só quando a nova é
+  AUTORIZADA — no ato ou numa consulta depois (gancho no espelho da NFS-e).
+- Substituta recusada: a antiga continua valendo, o cartão da OS continua
+  nela, e substitui-se de novo pela antiga (o "Tentar de novo" da recusada
+  manda para lá: `NFSE_ERA_SUBSTITUICAO`).
+- Recusas: não autorizada, avulsa, instalação da marcenaria, rota municipal,
+  sem chave ("use Consultar").
+- De carona: o WhatsApp da NFS-e manda o link de consulta no portal (abre sem
+  login, não expira) antes do PDF da emissora.
+
+**Ainda a confirmar na 1ª homologação** (o código não depende disso, mas a
+leitura sim): a nota 26 tem `chave_acesso`; a Focus devolve a antiga como
+"cancelado" numa consulta; o prazo da substituição.
+
+Pesquisa (01/11):
 **O que a Focus tem** (campos da DPS Nacional,
 campos.focusnfe.com.br/nfse_nacional/EmissaoDPSXml.html):
 - `chave_nfse_substituida` (tag `chSubstda`, até 50): chave da NFS-e substituída;

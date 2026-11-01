@@ -20,6 +20,7 @@ from app.core.busca import normalizar
 from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.services.fiscal.nfse.nova_tentativa import pode_tentar_de_novo
+from app.services.fiscal.nfse.substituicao import pode_substituir
 
 # (trecho do motivo, sem acento nem caixa) → o que o lojista faz. A primeira que casar vale.
 DICAS: tuple[tuple[str, str], ...] = (
@@ -122,4 +123,6 @@ def detalhe_nfse(db: Session, documento_id: int) -> Optional[dict]:
         "tentativas_anteriores": anteriores,
         # O botão "Tentar de novo" da gaveta (nova_tentativa.py).
         "pode_tentar_de_novo": pode_tentar_de_novo(db, doc),
+        # "Substituir" (O4): autorizada, da OS, com chave e sem nota mais nova.
+        "pode_substituir": pode_substituir(db, doc),
     }

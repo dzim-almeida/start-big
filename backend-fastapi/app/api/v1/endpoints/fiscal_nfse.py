@@ -13,6 +13,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Path, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission, get_current_active_user, get_db
@@ -202,6 +203,36 @@ def tentar_nfse_de_novo(
 
     empresa_id = user_token["empresa_id"]
     doc = _handle_db_transaction(db, _tentar, documento_id, empresa_id, confirmar_duplicidade)
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
+    return EmissaoResponse.de_documento(doc, "NFS-e")
+
+
+class SubstituicaoNfseRequest(BaseModel):
+    """O4 de docs/nfe-cfop-e-notas-da-os-plano.md: o motivo (cMotivo) e o porquê (xMotivo)."""
+    motivo: str = Field(..., description="01 a 05 ou 99 (tabela da NFS-e Nacional)")
+    descricao: str = Field(..., min_length=15, max_length=255)
+
+
+@router.post("/documentos/{documento_id}/substituir", response_model=EmissaoResponse,
+             summary="Substituir a NFS-e autorizada (emite a nova e cancela a antiga)")
+def substituir_nfse(
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(check_permission(required_permission="servico")),
+    documento_id: int = Path(..., ge=1),
+    payload: SubstituicaoNfseRequest = Body(...),
+    confirmar_duplicidade: bool = Query(
+        False, description="O operador viu o aviso de nota repetida (409 NOTA_DUPLICADA_SUSPEITA) e confirmou.",
+    ),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.emissao import poll_nfe_status_async
+    from app.services.fiscal.nfse.substituicao import substituir_nfse as _substituir
+
+    empresa_id = user_token["empresa_id"]
+    doc = _handle_db_transaction(
+        db, _substituir, documento_id, empresa_id, payload.motivo, payload.descricao, confirmar_duplicidade,
+    )
     if doc.status == "PROCESSANDO":
         background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
     return EmissaoResponse.de_documento(doc, "NFS-e")

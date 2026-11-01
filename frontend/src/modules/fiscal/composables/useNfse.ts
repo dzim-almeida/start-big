@@ -97,6 +97,11 @@ export const useNfseTentarDeNovoMutation = () =>
     nfseService.tentarDeNovo(id, confirmar),
   );
 
+export const useNfseSubstituirMutation = () =>
+  useNfseMutation(({ id, motivo, descricao, confirmar = false }: {
+    id: number; motivo: string; descricao: string; confirmar?: boolean;
+  }) => nfseService.substituir(id, motivo, descricao, confirmar));
+
 export const useNfseCancelarMutation = () =>
   useNfseMutation(({ id, justificativa }: { id: number; justificativa: string }) =>
     nfseService.cancelar(id, justificativa),

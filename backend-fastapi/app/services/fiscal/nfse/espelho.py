@@ -29,6 +29,14 @@ def espelhar_nfse_na_os(db: Session, doc: DocumentoFiscal, resultado: Optional[d
     if doc.tipo_documento != "NFSE" or doc.origem_tipo != "OS" or doc.origem_id is None:
         return
     try:
+        # Substituta autorizada (na emissão ou numa consulta): a antiga sai de
+        # cena. Aqui porque é o único lugar por onde toda mudança de status passa.
+        from app.services.fiscal.nfse.substituicao import concluir_substituicao
+
+        concluir_substituicao(db, doc)
+    except Exception:
+        logger.exception("[NFS-e] Falha ao concluir a substituição do documento %s", doc.id)
+    try:
         nota = db.query(OrdemServicoNotaFiscal).filter(OrdemServicoNotaFiscal.os_id == doc.origem_id).first()
         if nota is None:
             nota = OrdemServicoNotaFiscal(os_id=doc.origem_id)

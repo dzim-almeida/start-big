@@ -30,6 +30,7 @@ import { formatarCodigoNacional } from '../../utils/nfse.utils';
 import { abrirArquivo } from '../../utils/abrirArquivo';
 import { ORIGEM_NFSE, salvarDocumentoFiscal } from '../../utils/salvarDocumentoFiscal';
 import { useNfseTentarDeNovoMutation } from '../../composables/useNfse';
+import NfseSubstituirModal from './NfseSubstituirModal.vue';
 import { ehNotaRepetida, mensagemNotaRepetida } from '../../utils/notaRepetida';
 
 const props = defineProps<{ documentoId: number | null }>();
@@ -89,6 +90,15 @@ async function tentarDeNovo(confirmar = false) {
   } catch (e) {
     confirmarRepetida.value = ehNotaRepetida(e) ? mensagemNotaRepetida(e) : null;
   }
+}
+
+// "Substituir" (O4): a nota errada se substitui por uma nova; a gaveta passa
+// para a nova, como no "Tentar de novo".
+const substituindo = ref(false);
+function aoSubstituir(novoId: number) {
+  substituindo.value = false;
+  activeTab.value = 'geral';
+  emit('trocar', novoId);
 }
 
 function coresDe(status: string) {
@@ -528,6 +538,15 @@ const textoDiagnostico = computed(() => {
                           <ExternalLink class="h-4 w-4" /> Ver no portal da NFS-e
                         </button>
                         <button
+                          v-if="doc.pode_substituir"
+                          type="button"
+                          data-testid="btn-substituir"
+                          class="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white p-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
+                          @click="substituindo = true"
+                        >
+                          <RotateCcw class="h-4 w-4" /> Substituir NFS-e (corrigir)
+                        </button>
+                        <button
                           type="button"
                           data-testid="btn-cancelar"
                           :class="[
@@ -634,6 +653,11 @@ const textoDiagnostico = computed(() => {
       </div>
     </Transition>
   </Teleport>
+  <NfseSubstituirModal
+    :documento="substituindo && doc ? { id: doc.id, numero: doc.numero } : null"
+    @close="substituindo = false"
+    @substituida="aoSubstituir"
+  />
 </template>
 
 <style scoped>

@@ -46,10 +46,13 @@ def tentativa_mais_nova(db: Session, doc: DocumentoFiscal) -> Optional[Documento
 
 
 def pode_tentar_de_novo(db: Session, doc: DocumentoFiscal) -> bool:
+    from app.services.fiscal.nfse.substituicao import eh_substituicao
+
     return (
         doc.status in STATUS_RECUSADA
         and bool(doc.origem_numero_os)
         and tentativa_mais_nova(db, doc) is None
+        and not eh_substituicao(db, doc)
     )
 
 
@@ -77,6 +80,20 @@ def tentar_nfse_de_novo(
             detail={
                 "codigo": "NFSE_AVULSA",
                 "mensagem": "A NFS-e avulsa não guarda o formulário: emita uma nova em “Emitir NFS-e avulsa”.",
+            },
+        )
+    # Substituta recusada: a nota original continua valendo, e é nela que se
+    # substitui de novo (com o motivo). Aqui viraria emissão comum e esbarraria
+    # na trava da nota autorizada.
+    from app.services.fiscal.nfse.substituicao import eh_substituicao
+
+    if eh_substituicao(db, doc):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "codigo": "NFSE_ERA_SUBSTITUICAO",
+                "mensagem": "Esta era a substituição de uma NFS-e que continua valendo: use “Substituir” na nota original.",
+                "documento_id": doc.tentativa_anterior_id,
             },
         )
     nova = tentativa_mais_nova(db, doc)

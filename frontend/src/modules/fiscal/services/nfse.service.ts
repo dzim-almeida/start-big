@@ -155,6 +155,18 @@ export const nfseService = {
     return data;
   },
 
+  /** Substitui a NFS-e autorizada (O4): a nova sai com os dados atuais da OS e a antiga cai quando ela autoriza. */
+  async substituir(
+    documentoId: number, motivo: string, descricao: string, confirmarDuplicidade = false,
+  ): Promise<EmissaoResponse> {
+    const { data } = await api.post<EmissaoResponse>(
+      `${NFSE_ENDPOINT}/documentos/${documentoId}/substituir`,
+      { motivo, descricao },
+      { params: confirmarDuplicidade ? { confirmar_duplicidade: true } : undefined, timeout: TIMEOUT_EMISSAO },
+    );
+    return data;
+  },
+
   /** O ZIP do contador só com NFS-e (mesmo formato do `fiscalService.exportarXmlPeriodo`). */
   async exportarXmlPeriodo(
     dataInicio: string,

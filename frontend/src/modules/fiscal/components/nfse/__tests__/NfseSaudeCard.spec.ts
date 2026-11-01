@@ -18,6 +18,7 @@ vi.mock('../../../composables/useNfse', () => ({
   useNfseConsultarMutation: () => ({ mutate: vi.fn(), isPending: ref(false) }),
   useNfseCancelarMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: ref(false) }),
   useNfseTentarDeNovoMutation: () => ({ mutateAsync: tentarDeNovo, isPending: ref(false) }),
+  useNfseSubstituirMutation: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
 }));
 const tentarDeNovo = vi.fn();
 

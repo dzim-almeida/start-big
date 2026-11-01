@@ -143,7 +143,14 @@ def emitir_nfse_os(
     tentativa_anterior_id: Optional[int] = None,
     confirmar_duplicidade: bool = False,
     codigo_nacional: Optional[str] = None,
+    substituindo: Optional[DocumentoFiscal] = None,
+    campos_extra: Optional[dict] = None,
 ) -> DocumentoFiscal:
+    """
+    `substituindo` / `campos_extra`: a substituição de uma NFS-e autorizada
+    (nfse/substituicao.py). A trava da nota viva deixa passar só a que está
+    sendo substituída, e a DPS leva os campos da substituição.
+    """
     from app.core.enum import OrdemServicoStatus
 
     os_obj, empresa, endereco, fiscal_settings, grupos, rota = _preparar(db, numero_os, empresa_id)
@@ -159,6 +166,8 @@ def emitir_nfse_os(
         )
 
     doc_ativo = crud.get_nfse_ativa_por_os(db, numero_os, grupo.codigo if por_codigo else None)
+    if doc_ativo and substituindo is not None and doc_ativo.id == substituindo.id:
+        doc_ativo = None
     if doc_ativo:
         codigo, mensagem = {
             "AUTORIZADA": ("NFSE_JA_AUTORIZADA", f"Esta OS já tem NFS-e autorizada (Nº {doc_ativo.numero_documento})."),
@@ -174,6 +183,8 @@ def emitir_nfse_os(
         )
 
     dps = montar_dps_os(empresa, endereco, fiscal_settings, os_obj, grupo.fiscal, itens=grupo.itens, rota=rota)
+    if campos_extra:
+        dps.update(campos_extra)
 
     papel = crud.papel_nfse(grupo.codigo)
     if por_codigo:

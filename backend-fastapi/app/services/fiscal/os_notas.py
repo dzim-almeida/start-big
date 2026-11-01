@@ -94,10 +94,17 @@ def notas_da_os(db: Session, numero_os: str) -> Optional[dict]:
     )
     # A última tentativa de cada nota é a que vale (as anteriores ficam na gaveta).
     nfe = next((d for d in docs if d.tipo_documento in ("NFE", "NFCE")), None)
+    from app.services.fiscal.nfse.nova_tentativa import STATUS_RECUSADA
+    from app.services.fiscal.nfse.substituicao import eh_substituicao
+
     nfse_por_papel: dict = {}
     for d in docs:
-        if d.tipo_documento == "NFSE" and d.papel not in nfse_por_papel:
-            nfse_por_papel[d.papel] = d
+        if d.tipo_documento != "NFSE" or d.papel in nfse_por_papel:
+            continue
+        # Substituta recusada: a nota que vale é a original, ainda autorizada.
+        if d.status in STATUS_RECUSADA and eh_substituicao(db, d):
+            continue
+        nfse_por_papel[d.papel] = d
 
     return {
         "numero_os": numero_os,
@@ -175,9 +182,13 @@ def mensagem_whatsapp(db: Session, numero_os: str, documento_id: int) -> Optiona
         f"da {numero_os}, no valor de {_reais(doc.valor_total)}.",
     ]
     if doc.tipo_documento == "NFSE":
-        link = _link_publico(doc.url_pdf)
-        if link:
-            linhas.append(f"PDF da nota: {link}")
+        # A consulta no portal vale mais que o PDF da emissora: abre sem login e
+        # não expira (mesma preferência do espelho da NFS-e).
+        consulta = _link_publico(doc.url_consulta)
+        if consulta:
+            linhas.append(f"Nota no portal: {consulta}")
+        elif _link_publico(doc.url_pdf):
+            linhas.append(f"PDF da nota: {doc.url_pdf}")
         if doc.codigo_verificacao:
             linhas.append(f"Código de verificação: {doc.codigo_verificacao}")
     elif doc.chave_acesso:

@@ -112,7 +112,9 @@ def test_whatsapp_da_nfse_leva_numero_link_publico_e_codigo(client, loja, servic
     m = r.json()
     assert m["telefone"] == "5588999998888"
     assert m["texto"].startswith("Olá, Maria! Segue a NFS-e nº 74798 da " + numero)
-    assert "https://homologacao.focusnfe.com.br/arquivos/danfse.pdf" in m["texto"]
+    # A consulta no portal vence o PDF da emissora: abre sem login e não expira.
+    assert "Nota no portal: https://www.nfse.gov.br/consultapublica?chave=1" in m["texto"]
+    assert "danfse.pdf" not in m["texto"]
     assert "Código de verificação: ABC123" in m["texto"]
 
 

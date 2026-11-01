@@ -277,6 +277,7 @@ const somaBate = computed(() => {
       @close="nfseAberta = null; recarregar()"
       @consultar="consultarNfse.mutate($event)"
       @cancelar="cancelarNfse($event)"
+      @trocar="nfseAberta = $event; recarregar()"
     />
     <FiscalCancelarModal
       v-if="notas.pecas.modulo"

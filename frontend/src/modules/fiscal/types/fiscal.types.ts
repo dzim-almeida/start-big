@@ -701,6 +701,8 @@ export interface NfseDetalhe {
   tentativas_anteriores: { id: number; status: DocumentoFiscalStatus; motivo: string | null; data: string | null; ref: string | null }[];
   /** Última tentativa recusada de uma OS: o detalhe oferece "Tentar de novo". */
   pode_tentar_de_novo?: boolean;
+  /** Autorizada, da OS, com a chave gravada: o detalhe oferece "Substituir" (O4). */
+  pode_substituir?: boolean;
 }
 
 /** A DPS que sairia — campos no formato da Focus (só os que a tela mostra). */
