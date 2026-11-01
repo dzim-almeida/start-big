@@ -27,6 +27,11 @@ from app.services.fiscal.derivacao.cfop import (
     derivar_cfop_operacao,
 )
 from app.services.fiscal.derivacao.situacao import derivar_situacao_operacao
+from app.services.fiscal.derivacao.troca_cfop import (
+    TrocaCfopInvalidaError,
+    situacao_apos_troca,
+    validar_troca,
+)
 from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
 from app.db.models.venda import Venda
 
@@ -365,6 +370,7 @@ def resolver_aliquotas_venda(
     excluir_icms_base_pis_cofins: bool = False,
     regime_apuracao: str = "CUMULATIVO",
     modelo_documento: int = 55,
+    trocar_cfop: Optional[dict[str, str]] = None,
 ) -> tuple[list[ItemEntrada], DadosNota]:
     """
     Converte uma Venda (ORM) em DTOs puros para o tax_engine.
@@ -382,6 +388,10 @@ def resolver_aliquotas_venda(
         modelo_documento: 55 (NF-e) ou 65 (NFC-e). A NFC-e é sempre interna
             (idDest 1): entrega a domicílio para outra UF é barrada aqui, antes
             de reservar número, em vez de virar cupom com CFOP 6xxx.
+        trocar_cfop: o CFOP escolhido na conferência, por CFOP sugerido
+            (`{"5102": "5101"}`). Aplicado DEPOIS de toda a derivação, então
+            o sugerido é exatamente o que a nota levaria sem a troca. None =
+            como sempre foi. Ver `derivacao/troca_cfop.py`.
 
     Returns:
         Tupla (itens_entrada, dados_nota) pronta para calcular_impostos().
@@ -392,6 +402,8 @@ def resolver_aliquotas_venda(
             contribuinte no Simples, que dispensa o perfil).
         AliquotaNaoEncontradaError: se UF do emitente não tem registro na tabela.
         DadosFiscaisAusentesError: se produto não tem ProdutoFiscal.
+        TrocaCfopInvalidaError: troca fora da família do CFOP sugerido, ou
+            de um CFOP que não está na nota.
     """
     # 0. Operação interestadual (None = interna ou balcão). Por item, decide
     #    CFOP, CST/CSOSN, DIFAL ou ST — ver _resolver_item_interestadual.
@@ -432,6 +444,7 @@ def resolver_aliquotas_venda(
 
     # 2. Montar itens
     itens_entrada: list[ItemEntrada] = []
+    cfops_da_nota: set[str] = set()
 
     for idx, item_venda in enumerate(venda.itens, start=1):
         produto = item_venda.produto
@@ -500,6 +513,18 @@ def resolver_aliquotas_venda(
         if getattr(item_venda, "icms_sem_destaque", False) and not simples_nacional:
             cst_icms_item = CST_ICMS_SEM_DESTAQUE
             aliq_icms = ZERO
+        csosn_item = inter.csosn if inter else (fiscal.csosn if fiscal else None)
+
+        cfop_sugerido = None
+        novo_cfop = (trocar_cfop or {}).get(cfop_item or "")
+        if novo_cfop and novo_cfop != cfop_item:
+            validar_troca(cfop_item, novo_cfop)
+            csosn_item, cst_icms_item = situacao_apos_troca(
+                cfop_item, novo_cfop, simples_nacional, csosn_item, cst_icms_item,
+            )
+            cfop_sugerido, cfop_item = cfop_item, novo_cfop
+        if cfop_item:
+            cfops_da_nota.add(cfop_sugerido or cfop_item)
 
         itens_entrada.append(ItemEntrada(
             numero_item=idx,
@@ -515,9 +540,10 @@ def resolver_aliquotas_venda(
             ),
             ncm=fiscal.ncm if fiscal else None,
             cfop=cfop_item,
+            cfop_sugerido=cfop_sugerido,
             origem_mercadoria=fiscal.origem_mercadoria if fiscal and fiscal.origem_mercadoria is not None else 0,
             cst_icms=cst_icms_item,
-            csosn=inter.csosn if inter else (fiscal.csosn if fiscal else None),
+            csosn=csosn_item,
             aliquota_icms=aliq_icms,
             reducao_base_icms=reducao,
             codigo_beneficio_fiscal=fiscal.codigo_beneficio_fiscal if fiscal else None,
@@ -536,6 +562,15 @@ def resolver_aliquotas_venda(
             st_mva=st.mva if st else None,
             st_reducao_base=st.reducao_base if st else None,
         ))
+
+    # Troca de um CFOP que a nota não tem: a conferência ficou velha (a venda
+    # mudou depois da prévia). Emitir ignorando seria a nota que ninguém viu.
+    sobrando = set(trocar_cfop or {}) - cfops_da_nota
+    if sobrando:
+        raise TrocaCfopInvalidaError(
+            f"O CFOP {', '.join(sorted(sobrando))} não está nesta nota. "
+            f"Abra a conferência de novo antes de emitir."
+        )
 
     # 3. Montar dados da nota
     dados_nota = DadosNota(

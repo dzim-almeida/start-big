@@ -26,6 +26,7 @@ from app.db.crud import fiscal as crud
 from app.db.models.documento_fiscal import DocumentoFiscal
 
 from app.services.fiscal.emissao import emitir_nfce_venda, emitir_nfe_os, emitir_nfe_venda
+from app.services.fiscal.emissoes.troca_cfop_nota import trocas_do_documento
 
 logger = logging.getLogger(__name__)
 
@@ -94,10 +95,14 @@ def reemitir_documento(db: Session, documento_id: int, empresa_id: int) -> Docum
         tentativas + 1, doc_anterior.id,
     )
 
+    # A nota recusada é a mesma que sai de novo: o CFOP trocado na conferência
+    # vai junto (C1 de docs/nfe-cfop-e-notas-da-os-plano.md).
+    trocar_cfop = trocas_do_documento(doc_anterior)
+
     if doc_anterior.origem_tipo == "OS":
         return emitir_nfe_os(
             db, doc_anterior.origem_numero_os, empresa_id,
-            tentativa_anterior_id=doc_anterior.id,
+            tentativa_anterior_id=doc_anterior.id, trocar_cfop=trocar_cfop,
         )
 
     if doc_anterior.origem_tipo == "VENDA":
@@ -108,8 +113,11 @@ def reemitir_documento(db: Session, documento_id: int, empresa_id: int) -> Docum
                 status_code=404,
                 detail=f"Venda nº {doc_anterior.origem_id} não encontrada.",
             )
-        emitir = emitir_nfce_venda if doc_anterior.tipo_documento == "NFCE" else emitir_nfe_venda
-        return emitir(db, venda_id, empresa_id, tentativa_anterior_id=doc_anterior.id)
+        if doc_anterior.tipo_documento == "NFCE":
+            return emitir_nfce_venda(db, venda_id, empresa_id, tentativa_anterior_id=doc_anterior.id)
+        return emitir_nfe_venda(
+            db, venda_id, empresa_id, tentativa_anterior_id=doc_anterior.id, trocar_cfop=trocar_cfop,
+        )
 
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

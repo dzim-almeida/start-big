@@ -25,6 +25,7 @@ import { STATUS_COLORS, STATUS_LABELS } from '@/modules/fiscal/constants/fiscal.
 import NfseEmitirModal from '@/modules/fiscal/components/nfse/NfseEmitirModal.vue';
 import NfseDocumentoDrawer from '@/modules/fiscal/components/nfse/NfseDocumentoDrawer.vue';
 import FiscalDocumentoDetailsDrawer from '@/modules/fiscal/components/detalhes/FiscalDocumentoDetailsDrawer.vue';
+import ConferenciaNFeOSModal from '@/modules/fiscal/components/emitir/ConferenciaNFeOSModal.vue';
 import { useNfseConsultarMutation } from '@/modules/fiscal/composables/useNfse';
 import { getNotasDaOs, type NotaDaOs } from '../../services/orderServiceFiscal.service';
 
@@ -39,10 +40,15 @@ const { data: notas } = useQuery({
 });
 const recarregar = () => queryClient.invalidateQueries({ queryKey: chave.value });
 
-// Peças → NF-e (o fluxo de sempre: confere, mostra pendências, emite)
-const { pendencias, pendenciasModalOpen, isVerificando, emitirOS } = useEmitirFiscal();
+// Peças → NF-e: pendências primeiro; sem pendência, a conferência (com o
+// CFOP desta nota, C2 de docs/nfe-cfop-e-notas-da-os-plano.md) e só então emite.
+const { pendencias, pendenciasModalOpen, isVerificando, conferirOS } = useEmitirFiscal();
+const conferindoNfe = ref(false);
 async function emitirNfe() {
-  await emitirOS(props.osNumero, 'nfe');
+  if (await conferirOS(props.osNumero)) conferindoNfe.value = true;
+}
+function fecharConferencia() {
+  conferindoNfe.value = false;
   recarregar();
 }
 const nfeAberta = ref<number | null>(null);
@@ -162,6 +168,13 @@ const somaBate = computed(() => {
       @close="pendenciasModalOpen = false"
     />
     <NfseEmitirModal :is-open="emitindoNfse" :numero-os-inicial="osNumero" @close="fecharNfse" />
+    <ConferenciaNFeOSModal
+      v-if="conferindoNfe"
+      :is-open="conferindoNfe"
+      :numero-os="osNumero"
+      @close="fecharConferencia"
+      @emitida="fecharConferencia"
+    />
     <NfseDocumentoDrawer
       :documento-id="nfseAberta"
       @close="nfseAberta = null; recarregar()"

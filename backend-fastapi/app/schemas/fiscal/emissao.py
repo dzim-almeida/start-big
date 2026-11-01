@@ -15,6 +15,21 @@ class EmissaoNFeRequest(BaseModel):
 
     venda_id: Optional[int] = None
     numero_os: Optional[str] = None
+    # CFOP escolhido na conferência, por CFOP sugerido: {"5102": "5101"}.
+    # Ausente = o de sempre (docs/nfe-cfop-e-notas-da-os-plano.md, C1).
+    trocar_cfop: Optional[dict[str, str]] = None
+    # D4: grava o CFOP escolhido como padrão dos produtos trocados.
+    cfop_como_padrao: bool = False
+
+    @field_validator("trocar_cfop")
+    @classmethod
+    def validar_trocar_cfop(cls, v):
+        if not v:
+            return None
+        for de, para in v.items():
+            if not (re.fullmatch(r"\d{4}", de) and re.fullmatch(r"\d{4}", para)):
+                raise ValueError(f"CFOP deve ter 4 dígitos (recebido: {de} → {para}).")
+        return v
 
     @model_validator(mode="after")
     def validar_origem(self):
@@ -280,6 +295,21 @@ class EmissaoPreviewItem(BaseModel):
     cst_csosn: str = ""
 
 
+class OpcaoCfop(BaseModel):
+    cfop: str
+    descricao: str = ""
+
+
+class GrupoCfop(BaseModel):
+    """Um campo de CFOP na conferência: os itens que o sistema mandaria com o mesmo CFOP."""
+    cfop_sugerido: str
+    cfop: str                      # o que vai na nota (igual ao sugerido sem troca)
+    descricao: str = ""
+    itens: list[int]
+    # Vazio = travado (entrega futura, ST como substituto...): a tela só mostra.
+    opcoes: list[OpcaoCfop] = []
+
+
 class EmissaoPreviewTotais(BaseModel):
     valor_produtos: float
     descontos: float
@@ -308,6 +338,7 @@ class EmissaoPreviewResponse(BaseModel):
     # O que está esquisito no cadastro e NÃO trava a nota (MEI × regime, PJ sem
     # IE). Ver `services/fiscal/avisos.py`.
     avisos: list[str] = []
+    grupos_cfop: list[GrupoCfop] = []
 
 
 # --- Batch ---

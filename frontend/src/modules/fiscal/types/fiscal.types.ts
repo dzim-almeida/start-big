@@ -253,6 +253,10 @@ export interface DocumentoFiscalHistorico {
 export interface EmissaoNFeRequest {
   venda_id?: number;
   numero_os?: string;
+  /** CFOP escolhido na conferência, por CFOP sugerido: { "5102": "5101" }. Ausente = o de sempre. */
+  trocar_cfop?: Record<string, string>;
+  /** Grava o CFOP escolhido como padrão dos produtos trocados. */
+  cfop_como_padrao?: boolean;
 }
 
 export interface CancelamentoRequest {
@@ -367,6 +371,22 @@ export interface EmissaoPreviewDestinatario {
   nome: string;
   documento: string;
 }
+export interface OpcaoCfop {
+  cfop: string;
+  descricao: string;
+}
+
+/** Um campo de CFOP na conferência: os itens que iriam com o mesmo CFOP sugerido. */
+export interface GrupoCfop {
+  cfop_sugerido: string;
+  /** O que vai na nota (igual ao sugerido sem troca). */
+  cfop: string;
+  descricao: string;
+  itens: number[];
+  /** Vazio = travado (entrega futura, ST como substituto): só mostra. */
+  opcoes: OpcaoCfop[];
+}
+
 export interface EmissaoPreviewResponse {
   destinatario: EmissaoPreviewDestinatario;
   totais: EmissaoPreviewTotais;
@@ -374,6 +394,8 @@ export interface EmissaoPreviewResponse {
   formas_pagamento: EmissaoPreviewPagamento[];
   /** Cadastro esquisito que não trava a nota (MEI × regime, PJ sem IE). Backend antigo não manda. */
   avisos?: string[];
+  /** Backend antigo não manda: sem campo de CFOP, a conferência é a de sempre. */
+  grupos_cfop?: GrupoCfop[];
 }
 
 // --- Error Detail (409 Conflict) ---

@@ -103,6 +103,7 @@ def calcular_impostos(
         itens_impostos.append(ImpostosItem(
             numero_item=item.numero_item,
             cfop=item.cfop,
+            cfop_sugerido=item.cfop_sugerido,
             # Rateio
             valor_frete=r["valor_frete"],
             valor_seguro=r["valor_seguro"],

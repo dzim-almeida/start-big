@@ -277,10 +277,38 @@ export function useEmitirFiscal() {
     }
   }
 
+  /**
+   * A metade "pode emitir?" do `emitirOS`, para quem confere a nota antes
+   * (C2 de docs/nfe-cfop-e-notas-da-os-plano.md): numeração e pendências da
+   * NF-e das peças. `true` = abrir a conferência.
+   */
+  async function conferirOS(osNumero: string): Promise<boolean> {
+    if (!garantirNumeracaoConfirmada()) return false;
+    isVerificando.value = true;
+    try {
+      const resultado = await verificarFiscalOS(osNumero, 'nfe');
+      if (!resultado.completo) {
+        pendencias.value = resultado.pendencias;
+        pendenciasModalOpen.value = true;
+        return false;
+      }
+      return true;
+    } catch (err) {
+      toast.error(
+        'Não conseguimos conferir os dados desta OS',
+        getErrorMessage(err as AxiosError<ApiError>),
+      );
+      return false;
+    } finally {
+      isVerificando.value = false;
+    }
+  }
+
   return {
     pendencias,
     pendenciasModalOpen,
     isVerificando,
+    conferirOS,
     emitirVenda,
     emitirNFCeVenda,
     emitirOS,

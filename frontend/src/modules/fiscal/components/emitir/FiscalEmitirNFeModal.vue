@@ -63,6 +63,7 @@ function ehRecusa(status: string): boolean {
 }
 
 import FiscalEditarVendaModal from '../detalhes/FiscalEditarVendaModal.vue';
+import CfopDaNotaCampo from './CfopDaNotaCampo.vue';
 import { UserPlus, UserX } from 'lucide-vue-next';
 
 // Lista de Vendas p/ emissão
@@ -79,6 +80,12 @@ const vendas = computed(() => todasVendas.value);
 const vendaSelecionada = ref<SaleSimpleRead | null>(null);
 const vendaSelecionadaId = ref<number | null>(null);
 const previewData = ref<EmissaoPreviewResponse | null>(null);
+
+// CFOP trocado na conferência (C2): só para esta nota, por CFOP sugerido.
+const trocasCfop = ref<Record<string, string>>({});
+const cfopComoPadrao = ref(false);
+// As trocas com que a prévia na tela foi calculada (para voltar se a nova for recusada).
+let trocasDaPrevia: Record<string, string> = {};
 
 // Modal de edição / vinculação de cliente na venda
 const modalEditarVendaOpen = ref(false);
@@ -277,10 +284,31 @@ function temItemIncompleto(): boolean {
   return previewData.value.itens.some(i => !i.ncm || !i.cfop);
 }
 
+function corpoDaNota() {
+  const trocas = Object.keys(trocasCfop.value).length ? trocasCfop.value : undefined;
+  return {
+    venda_id: vendaSelecionada.value!.id,
+    trocar_cfop: trocas,
+    cfop_como_padrao: trocas ? cfopComoPadrao.value : undefined,
+  };
+}
+
+/** Trocou o CFOP: a prévia volta com o CSOSN e a natureza que acompanham. */
+async function aoTrocarCfop() {
+  if (!vendaSelecionada.value) return;
+  try {
+    previewData.value = await previewMutation.mutateAsync(corpoDaNota());
+    trocasDaPrevia = { ...trocasCfop.value };
+  } catch {
+    // A recusa já virou toast; a tela volta ao CFOP que a prévia mostra.
+    trocasCfop.value = { ...trocasDaPrevia };
+  }
+}
+
 async function handleAtualizarPreview() {
   if (!vendaSelecionada.value) return;
   try {
-    const preview = await previewMutation.mutateAsync({ venda_id: vendaSelecionada.value.id });
+    const preview = await previewMutation.mutateAsync(corpoDaNota());
     previewData.value = preview;
     toast.success('Preview atualizado');
   } catch {
@@ -297,6 +325,9 @@ function navegarProduto(produtoId: number | null) {
 async function selecionarVenda(venda: SaleSimpleRead) {
   vendaSelecionada.value = venda;
   previewData.value = null;
+  trocasCfop.value = {};
+  trocasDaPrevia = {};
+  cfopComoPadrao.value = false;
   
   // Buscar preview
   try {
@@ -315,6 +346,9 @@ function handleVoltar() {
   vendaSelecionada.value = null;
   previewData.value = null;
   batchResultado.value = null;
+  trocasCfop.value = {};
+  trocasDaPrevia = {};
+  cfopComoPadrao.value = false;
 }
 
 function handleEmitir() {
@@ -322,7 +356,7 @@ function handleEmitir() {
   if (!garantirNumeracaoConfirmada()) return;
 
   emitirMutation.mutate(
-    { venda_id: vendaSelecionada.value.id },
+    corpoDaNota(),
     {
       onSuccess: () => {
         fecharModal();
@@ -345,6 +379,9 @@ function fecharModal() {
   vendaSelecionada.value = null;
   vendaSelecionadaId.value = null;
   previewData.value = null;
+  trocasCfop.value = {};
+  trocasDaPrevia = {};
+  cfopComoPadrao.value = false;
   modoLote.value = false;
   vendasSelecionadasLote.value.clear();
   batchResultado.value = null;
@@ -898,6 +935,14 @@ function formatDocumento(doc: string): string {
             </table>
           </div>
         </div>
+
+        <CfopDaNotaCampo
+          v-model:trocas="trocasCfop"
+          v-model:como-padrao="cfopComoPadrao"
+          :grupos="previewData.grupos_cfop ?? []"
+          :disabled="previewMutation.isPending.value || emitirMutation.isPending.value"
+          @alterou="aoTrocarCfop"
+        />
 
         <!-- Resumo Financeiro -->
         <div class="rounded-xl border border-zinc-200 bg-white overflow-hidden">

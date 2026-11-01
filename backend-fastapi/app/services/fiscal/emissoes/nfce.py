@@ -63,6 +63,8 @@ def preview_nfce_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
             "documento": "",
         }
 
+    # O CFOP do cupom não se troca na conferência (só a NF-e, D3).
+    preview["grupos_cfop"] = []
     return preview
 
 

@@ -21,6 +21,7 @@ from app.services.fiscal.payload.builder import montar_payload_nfe
 from app.services.fiscal.tax_engine import calcular_impostos
 from app.services.fiscal.tax_engine.resolver import resolver_aliquotas_venda
 from app.services.fiscal.emissoes.snapshot import gravar_snapshot
+from app.services.fiscal.emissoes import troca_cfop_nota
 from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos, recusar_se_nota_repetida
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,9 @@ ORIGEM_MARCENARIA = "ORCAMENTO_MARCENARIA"
 # `adaptador_os.py`. Ver lá o porquê de adaptar em vez de duplicar.
 # ===========================================================================
 
-def _preparar_dados_emissao_os(db: Session, numero_os: str, empresa_id: int):
+def _preparar_dados_emissao_os(
+    db: Session, numero_os: str, empresa_id: int, trocar_cfop: Optional[dict[str, str]] = None,
+):
     """Espelho de `_preparar_dados_emissao`, para OS.
 
     Returns:
@@ -102,6 +105,7 @@ def _preparar_dados_emissao_os(db: Session, numero_os: str, empresa_id: int):
         itens_entrada, dados_nota = resolver_aliquotas_venda(
             db, os_como_venda, uf_emitente, simples,
             regime_apuracao=regime_apuracao(empresa),
+            trocar_cfop=trocar_cfop,
         )
         resultado_calculo = calcular_impostos(itens_entrada, dados_nota)
     except HTTPException:
@@ -116,10 +120,12 @@ def _preparar_dados_emissao_os(db: Session, numero_os: str, empresa_id: int):
     return empresa, endereco, os_obj, os_como_venda, simples, resultado_calculo
 
 
-def preview_nfe_os(db: Session, numero_os: str, empresa_id: int) -> dict:
+def preview_nfe_os(
+    db: Session, numero_os: str, empresa_id: int, trocar_cfop: Optional[dict[str, str]] = None,
+) -> dict:
     """Pré-visualização da NF-e de uma OS. Não emite e NÃO reserva número."""
     empresa, endereco, os_obj, os_como_venda, _simples, resultado_calculo = (
-        _preparar_dados_emissao_os(db, numero_os, empresa_id)
+        _preparar_dados_emissao_os(db, numero_os, empresa_id, trocar_cfop=trocar_cfop)
     )
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
 
@@ -129,13 +135,56 @@ def preview_nfe_os(db: Session, numero_os: str, empresa_id: int) -> dict:
         fiscais=_fiscais_efetivos(db, os_como_venda),
     )
 
+    # No formato da prévia da venda (`EmissaoPreviewResponse`, valores em
+    # centavos). Até 01/11/2026 devolvia os itens do PAYLOAD (descricao,
+    # quantidade_comercial...), que a resposta recusava -- a rota dava 500 e
+    # ninguém a chamava. A conferência da OS (C2) é a primeira a usá-la.
+    impostos = {imp.numero_item: imp for imp in resultado_calculo.itens} if resultado_calculo else {}
+    itens_payload = payload.get("items", [])
+    itens = []
+    for num, item in enumerate(os_como_venda.itens, start=1):
+        enviado = itens_payload[num - 1] if num <= len(itens_payload) else {}
+        imp = impostos.get(num)
+        itens.append({
+            "numero_item": num,
+            "produto_id": item.produto_id,
+            "nome": enviado.get("descricao") or item.descricao_avulsa or "Item",
+            "quantidade": float(item.quantidade),
+            "valor_unitario": float(item.valor_unitario),
+            "valor_total": float((item.subtotal or 0) - (item.desconto or 0)),
+            "cfop": (imp.cfop if imp and imp.cfop else enviado.get("cfop")) or "",
+            "ncm": enviado.get("ncm") or "",
+            "cst_csosn": (imp.icms_situacao_tributaria if imp else enviado.get("icms_situacao_tributaria")) or "",
+        })
+    total_tributos = int(sum(
+        (i.icms_valor + i.pis_valor + i.cofins_valor) for i in resultado_calculo.itens
+    ) * 100) if resultado_calculo else 0
+    dest = payload.get("destinatario") or {}
+
     return {
         "numero_os": numero_os,
-        "itens": payload.get("items", []),
-        "totais": payload.get("totais", {}),
-        "formas_pagamento": payload.get("formas_pagamento", []),
-        "destinatario": payload.get("destinatario", {}),
+        "destinatario": {
+            "nome": dest.get("nome") or "NÃO INFORMADO",
+            "documento": dest.get("cpf") or dest.get("cnpj") or "",
+        },
+        "totais": {
+            "valor_produtos": float(sum(i.subtotal or 0 for i in os_como_venda.itens)),
+            "descontos": float(sum(i.desconto or 0 for i in os_como_venda.itens)),
+            "frete": 0.0,
+            "valor_nota": float(os_como_venda.total),
+            "total_tributos": total_tributos,
+        },
+        "itens": itens,
+        "formas_pagamento": [
+            {
+                "nome": getattr(p.forma_pagamento, "nome", None) or "Outros",
+                "codigo_sefaz": (p.forma_pagamento.codigo_sefaz if p.forma_pagamento else None) or "99",
+                "valor": int(p.valor),
+            }
+            for p in os_como_venda.pagamentos
+        ],
         "avisos": _avisos(empresa, getattr(os_como_venda, "cliente", None)),
+        "grupos_cfop": troca_cfop_nota.grupos_cfop(resultado_calculo),
     }
 
 
@@ -143,6 +192,9 @@ def emitir_nfe_os(
     db: Session, numero_os: str, empresa_id: int,
     tentativa_anterior_id: Optional[int] = None,
     confirmar_duplicidade: bool = False,
+    trocar_cfop: Optional[dict[str, str]] = None,
+    cfop_como_padrao: bool = False,
+    usuario: Optional[str] = None,
 ) -> DocumentoFiscal:
     """
     Emite NF-e para as peças de uma Ordem de Serviço.
@@ -155,7 +207,7 @@ def emitir_nfe_os(
     from app.core.enum import OrdemServicoStatus
 
     empresa, endereco, os_obj, os_como_venda, _simples, resultado_calculo = (
-        _preparar_dados_emissao_os(db, numero_os, empresa_id)
+        _preparar_dados_emissao_os(db, numero_os, empresa_id, trocar_cfop=trocar_cfop)
     )
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
 
@@ -213,6 +265,7 @@ def emitir_nfe_os(
         numero=numero,
         fiscais=_fiscais_efetivos(db, os_como_venda),
     )
+    troca_cfop_nota.aplicar_natureza(payload, resultado_calculo)
 
     tentativas = crud.contar_documentos_por_os(db, numero_os)
     ref_bruta = f"os-{numero_os}" if tentativas == 0 else f"os-{numero_os}-{tentativas + 1}"
@@ -239,7 +292,10 @@ def emitir_nfe_os(
         tentativa_anterior_id=tentativa_anterior_id,
     )
     gravar_snapshot(doc, payload, venda=os_como_venda)
+    troca_cfop_nota.registrar(doc, resultado_calculo, usuario)
     crud.salvar_documento(db, doc)
+    if cfop_como_padrao:
+        troca_cfop_nota.gravar_como_padrao(db, os_como_venda, resultado_calculo)
 
     client = get_fiscal_client(
         fiscal_settings.ambiente_emissao, crud.get_licenca_token(db),

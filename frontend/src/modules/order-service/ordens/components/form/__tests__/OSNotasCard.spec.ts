@@ -13,9 +13,9 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 const notas = vi.fn();
 vi.mock('../../../services/orderServiceFiscal.service', () => ({ getNotasDaOs: (n: string) => notas(n) }));
 
-const emitirOS = vi.fn().mockResolvedValue(undefined);
+const conferirOS = vi.fn().mockResolvedValue(true);
 vi.mock('@/shared/composables/useEmitirFiscal', () => ({
-  useEmitirFiscal: () => ({ pendencias: ref([]), pendenciasModalOpen: ref(false), isVerificando: ref(false), emitirOS }),
+  useEmitirFiscal: () => ({ pendencias: ref([]), pendenciasModalOpen: ref(false), isVerificando: ref(false), conferirOS }),
 }));
 vi.mock('@/modules/fiscal/composables/useNfse', () => ({ useNfseConsultarMutation: () => ({ mutate: vi.fn() }) }));
 
@@ -27,7 +27,10 @@ const montar = () =>
     attachTo: document.body,
     global: {
       plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]],
-      stubs: { NfseEmitirModal: true, NfseDocumentoDrawer: true, FiscalDocumentoDetailsDrawer: true, PendenciasFiscaisModal: true },
+      stubs: {
+        NfseEmitirModal: true, NfseDocumentoDrawer: true, FiscalDocumentoDetailsDrawer: true, PendenciasFiscaisModal: true,
+        ConferenciaNFeOSModal: true,
+      },
     },
   });
 
@@ -55,8 +58,10 @@ describe('Notas desta OS', () => {
     expect(wrapper.text()).toContain('Emita só a que o cliente pedir');
     expect(wrapper.text()).toContain('180,00');
 
+    // Sem pendência, o botão abre a conferência (com o CFOP desta nota) em vez de transmitir direto.
     await wrapper.findAll('button').find((b) => b.text().includes('Emitir NF-e das peças'))!.trigger('click');
-    expect(emitirOS).toHaveBeenCalledWith('OS-2026-000158', 'nfe');
+    expect(conferirOS).toHaveBeenCalledWith('OS-2026-000158');
+    await vi.waitFor(() => expect(wrapper.findComponent({ name: 'ConferenciaNFeOSModal' }).exists()).toBe(true));
     wrapper.unmount();
   });
 

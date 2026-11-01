@@ -241,3 +241,48 @@ def test_frete_e_acrescimo_ficam_fora_da_nota_da_os():
     assert adaptado.entrega == 0
     assert adaptado.acrescimo == 0
     assert adaptado.troco == 0
+
+
+# ---------------------------------------------------------------------------
+# A prévia da NF-e da OS (C2 de docs/nfe-cfop-e-notas-da-os-plano.md)
+# ---------------------------------------------------------------------------
+
+def test_previa_da_os_tem_o_formato_da_resposta(monkeypatch):
+    """Até 01/11/2026 a prévia devolvia os itens do payload e a rota dava 500."""
+    from decimal import Decimal
+
+    from app.schemas.fiscal.emissao import EmissaoPreviewResponse
+    from app.services.fiscal.emissoes import nfe_os
+    from app.services.fiscal.tax_engine.types import ImpostosItem, ResultadoCalculo
+
+    class _ProdutoNomeado(_Produto):
+        nome = "Filtro de oleo"
+
+    os_obj = _OS([_Item(PRODUTO, 3000, produto=_ProdutoNomeado(), nome="Filtro de oleo")], [_Pagamento(3000)])
+    os_como_venda = adaptar(os_obj)
+    zero = Decimal("0")
+    imp = ImpostosItem.model_construct(
+        numero_item=1, cfop="5101", cfop_sugerido="5102", icms_situacao_tributaria="102",
+        icms_valor=zero, pis_valor=zero, cofins_valor=zero,
+    )
+    resultado = ResultadoCalculo.model_construct(itens=[imp])
+
+    monkeypatch.setattr(nfe_os, "_preparar_dados_emissao_os",
+                        lambda *a, **k: (None, None, os_obj, os_como_venda, True, resultado))
+    monkeypatch.setattr(nfe_os, "_obter_fiscal_settings", lambda *a: None)
+    monkeypatch.setattr(nfe_os, "_fiscais_efetivos", lambda *a: {})
+    monkeypatch.setattr(nfe_os, "_avisos", lambda *a: [])
+    monkeypatch.setattr(nfe_os, "montar_payload_nfe", lambda *a, **k: {
+        "items": [{"descricao": "Filtro de oleo", "ncm": "84212300", "cfop": "5101"}],
+        "destinatario": {"nome": "Seu Jorge", "cpf": "11144477735"},
+    })
+
+    previa = EmissaoPreviewResponse(**nfe_os.preview_nfe_os(None, "OS-2026-000042", 1))
+
+    item = previa.itens[0]
+    assert (item.nome, item.cfop, item.ncm, item.cst_csosn) == ("Filtro de oleo", "5101", "84212300", "102")
+    assert item.valor_total == 3000
+    assert previa.totais.valor_nota == 3000
+    assert previa.destinatario.documento == "11144477735"
+    assert previa.formas_pagamento[0].valor == 3000
+    assert previa.grupos_cfop[0].cfop_sugerido == "5102"

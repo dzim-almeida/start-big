@@ -70,8 +70,8 @@ def preview_nfe(
 
     empresa_id = user_token["empresa_id"]
     if payload.venda_id:
-        return preview_nfe_venda(db, payload.venda_id, empresa_id)
-    return preview_nfe_os(db, payload.numero_os, empresa_id)
+        return preview_nfe_venda(db, payload.venda_id, empresa_id, trocar_cfop=payload.trocar_cfop)
+    return preview_nfe_os(db, payload.numero_os, empresa_id, trocar_cfop=payload.trocar_cfop)
 
 
 @router.post(
@@ -95,18 +95,24 @@ def emitir_nfe(
     )
 
     empresa_id = user_token["empresa_id"]
+    # CFOP escolhido na conferência (C1); sem ele, a nota de sempre.
+    troca = {
+        "trocar_cfop": payload.trocar_cfop,
+        "cfop_como_padrao": payload.cfop_como_padrao,
+        "usuario": user_token.get("sub"),
+    }
 
     # A NF-e de uma OS cobre os itens de PRODUTO. A mao de obra e servico e
     # pede NFS-e municipal, que este sistema ainda nao emite.
     if payload.venda_id:
         doc = _handle_db_transaction(
             db, emitir_nfe_venda, payload.venda_id, empresa_id,
-            confirmar_duplicidade=confirmar_duplicidade,
+            confirmar_duplicidade=confirmar_duplicidade, **troca,
         )
     else:
         doc = _handle_db_transaction(
             db, emitir_nfe_os, payload.numero_os, empresa_id,
-            confirmar_duplicidade=confirmar_duplicidade,
+            confirmar_duplicidade=confirmar_duplicidade, **troca,
         )
 
     if doc.status == "PROCESSANDO":

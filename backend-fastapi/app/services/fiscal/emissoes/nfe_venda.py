@@ -22,6 +22,7 @@ from app.services.fiscal.tax_engine import calcular_impostos
 from app.services.fiscal.tax_engine.resolver import resolver_aliquotas_venda
 from app.services.fiscal.emissoes.snapshot import gravar_snapshot
 from app.services.fiscal.emissoes.espelho_nota import espelhar_na_nota_da_venda
+from app.services.fiscal.emissoes import troca_cfop_nota
 from app.services.fiscal.emissoes.nucleo import _fiscais_efetivos, _aplicar_resultado, _obter_fiscal_settings, _avisos, recusar_se_nota_repetida
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _preparar_dados_emissao(
     db: Session, venda_id: int, empresa_id: int, tipo_documento: str = "nfe",
+    trocar_cfop: Optional[dict[str, str]] = None,
 ):
     """
     Setup compartilhado entre preview e emissão.
@@ -38,6 +40,9 @@ def _preparar_dados_emissao(
     sai sem ele, a NFC-e não o quer. Quem chama daqui de dentro precisa dizer
     qual está emitindo — o padrão "nfe" é o caminho mais restritivo, então
     esquecer de passar reprova em vez de deixar passar.
+
+    `trocar_cfop` é o CFOP escolhido na conferência (só NF-e; ver
+    `derivacao/troca_cfop.py`).
 
     Returns:
         Tupla (empresa, endereco, venda, simples, resultado_calculo).
@@ -70,6 +75,7 @@ def _preparar_dados_emissao(
             db, venda, uf_emitente, simples,
             regime_apuracao=regime_apuracao(empresa),
             modelo_documento=65 if tipo_documento == "nfce" else 55,
+            trocar_cfop=trocar_cfop,
         )
         resultado_calculo = calcular_impostos(itens_entrada, dados_nota)
     except Exception as e:
@@ -82,10 +88,12 @@ def _preparar_dados_emissao(
     return empresa, endereco, venda, simples, resultado_calculo
 
 
-def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
+def preview_nfe_venda(
+    db: Session, venda_id: int, empresa_id: int, trocar_cfop: Optional[dict[str, str]] = None,
+) -> dict:
     """Retorna os dados de pré-visualização da NF-e sem emiti-la."""
     empresa, endereco, venda, simples, resultado_calculo = _preparar_dados_emissao(
-        db, venda_id, empresa_id,
+        db, venda_id, empresa_id, trocar_cfop=trocar_cfop,
     )
 
     # Montar resposta de preview
@@ -120,9 +128,12 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
             "cfop": (impostos_por_item[num].cfop if num in impostos_por_item and impostos_por_item[num].cfop
                      else (fiscal_prod.cfop_padrao if fiscal_prod else "")),
             "ncm": fiscal_prod.ncm if fiscal_prod else "",
+            # A situação que o motor decidiu (acompanha o CFOP trocado); sem
+            # cálculo, a do cadastro, como sempre foi.
             "cst_csosn": (
-                fiscal_prod.csosn if simples else fiscal_prod.cst_icms
-            ) if fiscal_prod else "",
+                impostos_por_item[num].icms_situacao_tributaria if num in impostos_por_item
+                else ((fiscal_prod.csosn if simples else fiscal_prod.cst_icms) if fiscal_prod else "")
+            ) or "",
         })
 
     # Resolver nome/documento do destinatário (herança polimórfica)
@@ -163,6 +174,7 @@ def preview_nfe_venda(db: Session, venda_id: int, empresa_id: int) -> dict:
         "itens": itens_preview,
         "formas_pagamento": formas_preview,
         "avisos": _avisos(empresa, venda.cliente),
+        "grupos_cfop": troca_cfop_nota.grupos_cfop(resultado_calculo),
     }
 
 
@@ -170,6 +182,9 @@ def emitir_nfe_venda(
     db: Session, venda_id: int, empresa_id: int,
     tentativa_anterior_id: Optional[int] = None,
     confirmar_duplicidade: bool = False,
+    trocar_cfop: Optional[dict[str, str]] = None,
+    cfop_como_padrao: bool = False,
+    usuario: Optional[str] = None,
 ) -> DocumentoFiscal:
     """
     Emite NF-e para uma venda.
@@ -183,9 +198,13 @@ def emitir_nfe_venda(
     documento novo aponta para o rejeitado e o histórico mostra a cadeia. Fora
     isso a reemissão é IGUAL a uma emissão -- mesmo gate, número novo, mesma
     transmissão.
+
+    `trocar_cfop` / `cfop_como_padrao` / `usuario`: o CFOP escolhido na
+    conferência (C1 de docs/nfe-cfop-e-notas-da-os-plano.md). Sem eles, a nota
+    é a de sempre.
     """
     empresa, endereco, venda, simples, resultado_calculo = _preparar_dados_emissao(
-        db, venda_id, empresa_id,
+        db, venda_id, empresa_id, trocar_cfop=trocar_cfop,
     )
 
     fiscal_settings = _obter_fiscal_settings(db, empresa_id)
@@ -249,6 +268,7 @@ def emitir_nfe_venda(
         numero=numero,
         fiscais=_fiscais_efetivos(db, venda),
     )
+    troca_cfop_nota.aplicar_natureza(payload, resultado_calculo)
 
     # 5. Criar documento fiscal (ref e chave de idempotência únicas por tentativa)
     tentativas_existentes = crud.contar_documentos_por_venda(db, numero_venda)
@@ -271,7 +291,10 @@ def emitir_nfe_venda(
     # Congela o que vai ser transmitido, ANTES de transmitir: assim existe
     # registro mesmo se a resposta da SEFAZ se perder no caminho.
     gravar_snapshot(doc, payload, venda=venda)
+    troca_cfop_nota.registrar(doc, resultado_calculo, usuario)
     crud.salvar_documento(db, doc)
+    if cfop_como_padrao:
+        troca_cfop_nota.gravar_como_padrao(db, venda, resultado_calculo)
 
     # 6. Chamar client fiscal
     token = crud.get_licenca_token(db)

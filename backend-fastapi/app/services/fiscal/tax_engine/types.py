@@ -29,6 +29,9 @@ class ItemEntrada(BaseModel):
     # Dados fiscais do produto
     ncm: Optional[str] = None
     cfop: Optional[str] = None
+    # O CFOP que o sistema sugeriu, quando a conferência trocou (troca_cfop.py).
+    # None = não houve troca e `cfop` é o sugerido.
+    cfop_sugerido: Optional[str] = None
     origem_mercadoria: int = 0
     cst_icms: Optional[str] = None    # regime normal
     csosn: Optional[str] = None       # simples nacional
@@ -87,6 +90,7 @@ class ImpostosItem(BaseModel):
     # CFOP da OPERAÇÃO (derivado no resolver: 5xxx interna, 6xxx interestadual).
     # O payload_builder (TASK009) passa a ler daqui, não do cfop_padrao do produto.
     cfop: Optional[str] = None
+    cfop_sugerido: Optional[str] = None
 
     # Rateio
     valor_frete: Decimal

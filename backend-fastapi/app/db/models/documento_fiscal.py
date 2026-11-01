@@ -168,6 +168,9 @@ class DocumentoFiscal(Base):
     papel: Mapped[Optional[str]] = mapped_column(String(25), nullable=True)
     # NFS-e: com ele o tomador confere a nota no portal (n5f0s3rv1c02). NULL nas demais.
     codigo_verificacao: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    # CFOP trocado na conferência (c1cf0p7r0c01): JSON {"trocas": {"5102": "5101"},
+    # "por": usuário}. NULL = a nota saiu com o CFOP que o sistema sugeriu.
+    cfop_trocado: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     itens: Mapped[list["DocumentoFiscalItem"]] = relationship(
         "DocumentoFiscalItem",
