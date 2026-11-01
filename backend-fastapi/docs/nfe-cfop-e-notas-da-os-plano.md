@@ -164,7 +164,39 @@ O caso da OS-158 (29/10: "Empresa não habilitada para emissão de NFSe").
 2. ERP: novo item em `nfse/saude.py`, com a dica "admin › Passar para Nacional".
 3. ERP novo com plataforma velha: o item fica "não dá para saber", nunca vermelho.
 
-### O4 — Substituição da NFS-e (retificar)
+### O4 — Substituição da NFS-e (retificar) — pesquisa feita (01/11)
+**O que a Focus tem** (campos da DPS Nacional,
+campos.focusnfe.com.br/nfse_nacional/EmissaoDPSXml.html):
+- `chave_nfse_substituida` (tag `chSubstda`, até 50): chave da NFS-e substituída;
+- `codigo_justificativa_substituicao` (`cMotivo`): 01 desenquadramento do
+  Simples, 02 enquadramento no Simples, 03 inclusão retroativa de
+  imunidade/isenção, 04 exclusão retroativa, 05 rejeição pelo tomador (ou
+  intermediário responsável), 99 outros;
+- `motivo_substituicao` (`xMotivo`, 15–255 caracteres).
+- Não há rota própria: a substituição é uma **emissão nova** (`POST /v2/nfsen`)
+  com esses campos. A consulta não tem status "substituída".
+- **Municipal**: nada de substituição na doc da Focus (e algumas prefeituras
+  nem cancelam por webservice). Fica fora.
+
+**Do nosso lado:**
+- A plataforma não precisa mudar: o payload da NFS-e é `looseObject` e os
+  campos extras passam para a Focus; e ela já traduz `chave_nfse` →
+  `chave_acesso`, que o ERP grava no documento.
+
+**Falta confirmar antes de codar (homologação):**
+1. A nota 26 (OS-158) tem `chave_acesso` gravada? Sem a chave, não há como
+   substituir.
+2. A NFS-e antiga vira "cancelada" sozinha (evento de cancelamento por
+   substituição do Sistema Nacional) ou fica autorizada? Decide se o ERP marca
+   a antiga ao autorizar a nova.
+3. Prazo da substituição (a doc não diz).
+
+**Desenho proposto** (quando confirmar): botão "Substituir" na gaveta da
+NFS-e autorizada → escolher o motivo (lista acima) e escrever o porquê → abre
+a emissão da OS já preenchida, para corrigir; a nova nota leva os três campos
+e aponta a antiga (`tentativa_anterior_id`).
+
+Plano original:
 Começa por **pesquisa**: como a Nacional e a Focus fazem a substituição (DPS
 nova apontando a chave da anterior?), e o que a plataforma precisa expor.
 Só vira código depois dessa resposta — fase separada.
