@@ -7,7 +7,7 @@
 // ============================================================================
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid, FileUp } from 'lucide-vue-next';
+import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid, FileUp, FileSpreadsheet } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
@@ -20,6 +20,7 @@ import ProductModal from '@/modules/products/inventory/components/ProductModal.v
 import TransacoesEstoquePanel from '@/modules/products/inventory/components/TransacoesEstoquePanel.vue';
 import MovimentacaoModal from '@/modules/products/inventory/components/MovimentacaoModal.vue';
 import EntradaXmlModal from '@/modules/products/inventory/components/EntradaXmlModal.vue';
+import ImportarPlanilhaModal from '@/modules/products/inventory/components/ImportarPlanilhaModal.vue';
 import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
@@ -59,6 +60,7 @@ const selectedCategory = ref<string | null>(null);
 const isGroupedByCategory = ref(false);
 const isTransacoesPanelOpen = ref(false);
 const isEntradaXmlOpen = ref(false);
+const isImportarPlanilhaOpen = ref(false);
 // "Importar XML" só para loja com módulo fiscal (NF-e ou NFC-e): no modo não
 // fiscal a loja não lida com nota, e o botão seria ruído. Mesma fonte que o
 // formulário de produto usa para mostrar os dados fiscais (a licença).
@@ -387,6 +389,18 @@ function handleEmptyAction() {
             Importar XML
           </BaseButton>
           <BaseButton
+            v-if="activeTab === 'product'"
+            variant="ghost"
+            size="md"
+            type="button"
+            class="flex gap-1.5"
+            title="Cadastrar vários produtos de uma vez por uma planilha Excel"
+            @click="isImportarPlanilhaOpen = true"
+          >
+            <FileSpreadsheet :size="18" />
+            Importar planilha
+          </BaseButton>
+          <BaseButton
             v-if="cabecalho.addLabel"
             variant="primary"
             size="md"
@@ -572,6 +586,8 @@ function handleEmptyAction() {
       @close="isEntradaXmlOpen = false"
       @etiquetas="handleEtiquetasDaNota"
     />
+
+    <ImportarPlanilhaModal :is-open="isImportarPlanilhaOpen" @close="isImportarPlanilhaOpen = false" />
 
     <MovimentacaoModal
       :is-open="isMovimentacaoModalOpen"

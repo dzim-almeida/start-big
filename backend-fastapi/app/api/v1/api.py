@@ -42,6 +42,7 @@ from app.api.v1.endpoints import etiquetas
 from app.api.v1.endpoints import produto_embalagem
 from app.api.v1.endpoints import produto_regra_preco
 from app.api.v1.endpoints import nfe_entrada
+from app.api.v1.endpoints import produto_importacao
 from app.api.v1.endpoints import compras
 from app.api.v1.endpoints import fabrica
 from app.api.v1.endpoints import (
@@ -115,6 +116,7 @@ router.include_router(produto_embalagem.router, prefix="/produtos", tags=["Embal
 router.include_router(produto_regra_preco.router, prefix="/produtos", tags=["Regras de Preço do Produto"])
 # Entrada de mercadoria pela XML da NF-e do fornecedor.
 router.include_router(nfe_entrada.router, prefix="/estoque/nfe-entrada", tags=["Entrada por XML da NF-e"])
+router.include_router(produto_importacao.router, prefix="/estoque/importar-planilha", tags=["Importação de produtos por planilha"])
 
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
 
