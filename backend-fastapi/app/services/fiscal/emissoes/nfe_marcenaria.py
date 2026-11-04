@@ -66,6 +66,59 @@ def _erro(codigo: int, detalhe) -> None:
     raise HTTPException(status_code=codigo, detail=detalhe)
 
 
+# Situações em que a própria nota retém ST: a SEFAZ exige o CEST no item.
+_SITUACOES_COM_ST_RETIDA = frozenset({"10", "70", "201", "202"})
+CSOSN_COM_CREDITO = "101"
+
+
+def _pendencia_credito_simples(db: Session, produto) -> Optional[object]:
+    """CSOSN 101 sem alíquota própria: o motor usaria a interna da UF como pCredSN.
+
+    Transferir 20% de crédito em vez da faixa do Simples passa na SEFAZ e vira
+    problema depois. Vale na cascata: pode vir da tributação padrão da loja, que
+    é onde dá para atualizar a faixa de uma vez só.
+    """
+    from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
+
+    fiscal = fiscal_efetivo(db, produto)
+    if fiscal is None or fiscal.csosn != CSOSN_COM_CREDITO or fiscal.aliquota_icms:
+        return None
+    return criar_pendencia(
+        "item", "aliquota_icms",
+        f"Produto '{produto.nome}' tem CSOSN 101: informe a alíquota de crédito do Simples "
+        f"(pCredSN) que o contador passou, no produto ou na tributação padrão da loja.",
+        produto.id, produto.nome,
+    )
+
+
+def _pendencias_cest_da_st(db: Session, adaptado, resultado) -> list:
+    """Nota com ST retida e produto sem CEST seria rejeitada: avisa antes de reservar número."""
+    from app.services.fiscal.cadastro.tributacao import fiscal_efetivo
+
+    pendencias, vistos = [], set()
+    for item, imposto in zip(adaptado.itens, resultado.itens):
+        produto = item.produto
+        if imposto.icms_situacao_tributaria not in _SITUACOES_COM_ST_RETIDA or produto.id in vistos:
+            continue
+        vistos.add(produto.id)
+        fiscal = fiscal_efetivo(db, produto)
+        if not getattr(fiscal, "cest", None):
+            pendencias.append(criar_pendencia(
+                "item", "cest",
+                f"Produto '{produto.nome}': esta venda tem ST ({imposto.icms_situacao_tributaria}) e exige o CEST no cadastro.",
+                produto.id, produto.nome,
+            ))
+    return pendencias
+
+
+def _aviso_produto_padrao(moveis) -> list[str]:
+    """Móvel sem tipo fiscal cai no produto padrão e leva o NCM dele, sem ninguém escolher."""
+    nomes = [m.nome for m in moveis if not m.produto_acabado_id]
+    if not nomes:
+        return []
+    return [f"Sem tipo fiscal escolhido, usando o produto padrão: {', '.join(nomes)}. Confira se o NCM serve para esse móvel."]
+
+
 def papel_da_entrega(config) -> str:
     """A nota de uma entrega: venda (nota na entrega) ou remessa (entrega futura)."""
     return REMESSA if config.faturamento_modo == "ENTREGA_FUTURA" else VENDA
@@ -181,6 +234,8 @@ def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[
             continue
         if produto.id not in conferidos:
             validators.verificar_produto_fiscal(db, produto, pendencias, simples)
+            if simples and (credito := _pendencia_credito_simples(db, produto)):
+                pendencias.append(credito)
             conferidos.add(produto.id)
         quantidade = linhas[mid].quantidade if mid in linhas and papel != SIMPLES_FATURAMENTO else float(movel.quantidade)
         moveis.append(MovelParaNota(item_os=item_do_movel(movel), produto=produto, quantidade=quantidade,
@@ -228,6 +283,13 @@ def _preparar(db: Session, numero_os: str, empresa_id: int, movel_ids: Optional[
         logger.error("[FISCAL] Erro no cálculo tributário da nota da OS %s: %s", numero_os, e)
         _erro(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Erro no cálculo tributário: {str(e)}")
 
+    sem_cest = _pendencias_cest_da_st(db, adaptado, resultado_calculo)
+    if sem_cest:
+        _erro(status.HTTP_422_UNPROCESSABLE_ENTITY, {
+            "mensagem": "Dados fiscais incompletos para emissão.",
+            "pendencias": [p.model_dump() for p in sem_cest],
+        })
+
     escolhidos_moveis = [aprovados[mid] for mid in escolhidos]
     linhas_escolhidas = [linhas[mid] for mid in escolhidos if mid in linhas] if papel != SIMPLES_FATURAMENTO else []
     sfs = {mid: sf_do_movel(aprovados[mid]) for mid in escolhidos} if papel == REMESSA else {}
@@ -254,7 +316,7 @@ def preview_nfe_marcenaria(db: Session, numero_os: str, empresa_id: int, movel_i
         "formas_pagamento": payload.get("formas_pagamento", []),
         "destinatario": payload.get("destinatario", {}),
         "notas_referenciadas": payload.get("notas_referenciadas", []),
-        "avisos": _avisos(empresa, getattr(adaptado, "cliente", None)),
+        "avisos": [*_avisos(empresa, getattr(adaptado, "cliente", None)), *_aviso_produto_padrao(_moveis)],
         "grupos_cfop": troca_cfop_nota.grupos_cfop(resultado),
     }
 

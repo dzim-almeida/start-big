@@ -245,3 +245,60 @@ def test_venda_dos_moveis_sai_com_o_cfop_trocado(api, obra, ligado, plataforma, 
     # Sem a caixinha, o cadastro do produto acabado fica como estava.
     fiscal = db_session.query(ProdutoFiscal).filter_by(produto_id=ligado.produto_acabado_padrao_id).one()
     assert fiscal.cfop_padrao == "5101"
+
+
+# ── Fiscal do móvel: NCM por tipo, crédito do Simples e CEST da ST ───────────
+
+def test_previa_avisa_movel_no_produto_padrao(api, obra, ligado, plataforma):
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/preview"), json={"movel_ids": ids}, headers=api.header)
+
+    assert r.status_code == 200, r.text
+    assert any("produto padrão: Balcão" in aviso for aviso in r.json()["avisos"])
+
+
+def test_csosn_101_sem_aliquota_de_credito_nao_emite(api, obra, ligado, plataforma, db_session):
+    fiscal = db_session.query(ProdutoFiscal).filter_by(produto_id=ligado.produto_acabado_padrao_id).one()
+    fiscal.csosn, fiscal.aliquota_icms = "101", None
+    db_session.commit()
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/preview"), json={"movel_ids": ids}, headers=api.header)
+
+    assert r.status_code == 422, r.text
+    assert "aliquota_icms" in {p["campo"] for p in r.json()["detail"]["pendencias"]}
+
+
+def test_csosn_101_leva_a_aliquota_da_faixa_como_credito(api, obra, ligado, plataforma, db_session):
+    fiscal = db_session.query(ProdutoFiscal).filter_by(produto_id=ligado.produto_acabado_padrao_id).one()
+    fiscal.csosn, fiscal.aliquota_icms = "101", 256  # 2,56%
+    db_session.commit()
+    obra.concluir(*_todas(obra.ler(), "Balcão"))
+    ids = [obra.movel("Balcão")["movel_id"]]
+
+    r = api.client.post(_url(obra, "/preview"), json={"movel_ids": ids}, headers=api.header)
+
+    assert r.status_code == 200, r.text
+    (item,) = r.json()["itens"]
+    assert item["icms_aliquota_aplicavel_calculo_credito"] == 2.56
+
+
+def test_st_retida_sem_cest_vira_pendencia(ligado, db_session):
+    from types import SimpleNamespace
+
+    from app.services.fiscal.emissoes.nfe_marcenaria import _pendencias_cest_da_st
+
+    produto = db_session.get(Produto, ligado.produto_acabado_padrao_id)
+    adaptado = SimpleNamespace(itens=[SimpleNamespace(produto=produto)])
+    com_st = SimpleNamespace(itens=[SimpleNamespace(icms_situacao_tributaria="201")])
+    sem_st = SimpleNamespace(itens=[SimpleNamespace(icms_situacao_tributaria="101")])
+
+    assert _pendencias_cest_da_st(db_session, adaptado, sem_st) == []
+    assert [p.campo for p in _pendencias_cest_da_st(db_session, adaptado, com_st)] == ["cest"]
+
+    produto.fiscal.cest = "2806100"
+    db_session.commit()
+    assert _pendencias_cest_da_st(db_session, adaptado, com_st) == []

@@ -50,6 +50,8 @@ interface Linha {
   precoReais: number | undefined;
   /** "É 1 mesmo" — só existe para item em CX/FD sem o fator dito. */
   fatorConfirmado: boolean;
+  /** NCM da nota diferente do cadastro: troca só se a pessoa marcar. */
+  atualizarNcm: boolean;
 }
 
 const etapa = ref<'arquivo' | 'conferencia' | 'pronto'>('arquivo');
@@ -139,7 +141,14 @@ function linhaInicial(item: ItemPrevia): Linha {
     codigoBarras: item.ean_tributavel ?? (item.fator === 1 ? (item.ean ?? '') : ''),
     precoReais: undefined,
     fatorConfirmado: false,
+    atualizarNcm: false,
   };
+}
+
+/** A comparação do NCM é do produto que o servidor reconheceu; trocou o produto, ela não vale. */
+function ncmDoProdutoReconhecido(item: ItemPrevia): boolean {
+  const l = linhas[item.indice];
+  return l.acao === 'vincular' && l.produtoId === String(item.produto?.id);
 }
 
 // ── Passo 2: conferência ─────────────────────────────────────────────────────
@@ -267,6 +276,7 @@ async function darEntrada() {
             embalagem_id: l.embalagemId ? Number(l.embalagemId) : null,
             fator: Number(l.fator),
             fator_confirmado: l.fatorConfirmado,
+            atualizar_ncm: l.atualizarNcm && ncmDoProdutoReconhecido(item),
           };
         }
         return {
@@ -513,6 +523,29 @@ function formatarQtd(n: number): string {
               </template>
             </p>
           </div>
+
+          <!-- NCM da nota contra o cadastro: compara e deixa a pessoa decidir. -->
+          <p
+            v-if="item.ncm_situacao === 'invalido' && linhas[item.indice].acao !== 'ignorar'"
+            class="p-3 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900"
+          >
+            O NCM da nota (<strong>{{ item.fiscal_sugerido.ncm }}</strong>) é inválido e não será usado.
+            Preencha o NCM certo no cadastro do produto antes de emitir nota dele.
+          </p>
+          <p v-else-if="item.ncm_situacao === 'vazio' && ncmDoProdutoReconhecido(item)" class="text-[11px] text-zinc-500">
+            O produto está sem NCM: vai receber o da nota, <strong>{{ item.fiscal_sugerido.ncm }}</strong>.
+          </p>
+          <label
+            v-else-if="item.ncm_situacao === 'divergente' && ncmDoProdutoReconhecido(item)"
+            class="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900 cursor-pointer"
+          >
+            <input v-model="linhas[item.indice].atualizarNcm" type="checkbox" />
+            <span>
+              NCM da nota <strong>{{ item.fiscal_sugerido.ncm }}</strong> é diferente do cadastro
+              <strong>{{ item.ncm_cadastro }}</strong>. Marque para atualizar o cadastro; sem marcar, ele continua como está.
+              Na dúvida, confira com o contador.
+            </span>
+          </label>
 
           <!-- CX/FD sem o fator: pergunta direto, como os sistemas de mercado
                fazem com o "fator de conversão". O servidor recusa sem isto. -->

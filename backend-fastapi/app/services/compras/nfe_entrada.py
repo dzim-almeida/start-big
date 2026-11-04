@@ -115,6 +115,40 @@ def _reconhecer(
     return None, None, item.fator_sugerido(), None
 
 
+def _ncm_valido(ncm: Optional[str]) -> bool:
+    return bool(ncm) and len(ncm) == 8 and ncm.isdigit() and ncm != "00000000"
+
+
+def _situacao_ncm(produto: Optional[Produto], item: nfe_xml.ItemNota) -> tuple[Optional[str], Optional[str]]:
+    """(NCM do cadastro, como o da nota se compara a ele). Só lê; a prévia não grava."""
+    fiscal = produto.fiscal if produto is not None else None
+    cadastro = fiscal.ncm if fiscal is not None else None
+    if not item.ncm:
+        return cadastro, None
+    if not _ncm_valido(item.ncm):
+        return cadastro, "invalido"
+    if produto is None:
+        return None, None
+    if not cadastro:
+        return None, "vazio"
+    return cadastro, "igual" if cadastro == item.ncm else "divergente"
+
+
+def _aplicar_ncm_da_nota(db: Session, produto: Produto, item: nfe_xml.ItemNota, atualizar: bool) -> None:
+    """Produto sem NCM recebe o da nota; com outro NCM, só se a pessoa pediu."""
+    from app.db.crud.fiscal import produto as produto_fiscal_crud
+
+    if not _ncm_valido(item.ncm):
+        return
+    # Lê do banco, não de `produto.fiscal`: dois itens da nota podem ser o mesmo
+    # produto, e o relacionamento não enxerga a linha criada pelo primeiro.
+    registro = produto_fiscal_crud.get_by_produto_id(db, produto.id)
+    cadastro = registro.ncm if registro is not None else None
+    if cadastro == item.ncm or (cadastro and not atualizar):
+        return
+    produto_fiscal_crud.upsert(db, produto.id, ProdutoFiscalUpdate(ncm=item.ncm))
+
+
 def _fiscal_sugerido(crt: Optional[int], item: nfe_xml.ItemNota) -> FiscalSugerido:
     """D7: a nota do fornecedor é a melhor pista; quem confirma é o contador."""
     simples = crt in CRT_QUE_USAM_CSOSN or crt is None
@@ -189,6 +223,7 @@ def ler(db: Session, conteudo: bytes, usuario_token: dict[str, Any]) -> NotaPrev
     itens = []
     for item in nota.itens:
         produto, embalagem, fator, por = _reconhecer(db, fornecedor, item)
+        ncm_cadastro, ncm_situacao = _situacao_ncm(produto, item)
         itens.append(ItemPrevia(
             indice=item.indice,
             codigo=item.codigo,
@@ -213,6 +248,8 @@ def ler(db: Session, conteudo: bytes, usuario_token: dict[str, Any]) -> NotaPrev
             unidade_de_embalagem=item.unidade_de_embalagem,
             fator_a_confirmar=_fator_suspeito(item, fator, embalagem, por),
             fiscal_sugerido=_fiscal_sugerido(crt, item),
+            ncm_cadastro=ncm_cadastro,
+            ncm_situacao=ncm_situacao,
         ))
 
     pedidos_abertos, pedido_sugerido_id, pedido_avisos = _conferir_com_pedido(
@@ -553,6 +590,8 @@ def importar(db: Session, dados: ImportarNota, usuario_token: dict[str, Any]) ->
             ignorados += 1
             continue
         movimento.nota_entrada_id = registro.id
+        if decisao.acao != "criar":
+            _aplicar_ncm_da_nota(db, produto, item, decisao.atualizar_ncm)
         if embalagem is not None:
             movimento.embalagem_id = embalagem.id
             movimento.embalagem_sigla = embalagem.sigla

@@ -64,6 +64,12 @@ class ItemPrevia(BaseModel):
         ),
     )
     fiscal_sugerido: FiscalSugerido
+    # O NCM da nota contra o cadastro do produto reconhecido (como Sankhya e
+    # Alterdata: compara e deixa a pessoa decidir, nunca troca sozinho).
+    ncm_cadastro: Optional[str] = None
+    ncm_situacao: Optional[Literal["igual", "vazio", "divergente", "invalido"]] = Field(
+        None, description="None: a nota não traz NCM, ou produto novo com NCM válido"
+    )
     # Módulo Compras (fase 4): conferência contra o pedido SUGERIDO. Vazio sem
     # o módulo ou sem pedido aberto do fornecedor — e a tela segue como sempre.
     pedido_avisos: list[str] = Field(default_factory=list, description="Divergências deste item com o pedido")
@@ -125,6 +131,8 @@ class DecisaoItem(BaseModel):
     fator: int = Field(1, ge=1, le=100000)
     # "É 1 mesmo": o lojista conferiu que cada CX/FD da nota é uma unidade do estoque.
     fator_confirmado: bool = False
+    # NCM diferente do cadastro: só troca se a pessoa marcar. Vazio é preenchido.
+    atualizar_ncm: bool = False
     novo: Optional[ProdutoNovo] = None
 
     @model_validator(mode="after")

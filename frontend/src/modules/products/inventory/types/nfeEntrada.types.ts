@@ -40,6 +40,9 @@ export interface ItemPrevia {
   /** Embalagem sem o fator dito em lugar nenhum: precisa informar ou confirmar 1. */
   fator_a_confirmar: boolean;
   fiscal_sugerido: FiscalSugerido;
+  /** NCM do produto reconhecido e como o da nota se compara a ele. */
+  ncm_cadastro?: string | null;
+  ncm_situacao?: 'igual' | 'vazio' | 'divergente' | 'invalido' | null;
   /** Módulo Compras: divergências com o pedido sugerido. Ausente/vazio sem o módulo. */
   pedido_avisos?: string[];
 }
@@ -81,6 +84,8 @@ export interface DecisaoItem {
   fator: number;
   /** "É 1 mesmo": cada CX/FD da nota é uma unidade do estoque. */
   fator_confirmado?: boolean;
+  /** NCM diferente do cadastro: troca só com esta marca. */
+  atualizar_ncm?: boolean;
   novo?: {
     nome: string;
     codigo_produto: string;
