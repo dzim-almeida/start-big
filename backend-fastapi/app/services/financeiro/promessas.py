@@ -14,7 +14,7 @@ from app.core.tempo import hoje_local
 from app.db.crud import financeiro as financeiro_crud
 from app.db.models.conta_receber import ContaReceber
 from app.services import sessao_caixa as caixa_service
-from app.services.financeiro.comum import ENTIDADE_CONTA_RECEBER, _nome_do_cliente
+from app.services.financeiro.comum import ENTIDADE_CONTA_RECEBER, _nome_do_cliente, _somar_meses
 
 
 def _prazo_da_forma(pagamento) -> int:
@@ -97,6 +97,27 @@ def _criar_promessa(
     ):
         return None
 
+    return _gravar_conta(
+        db, empresa_id, descricao=descricao, cliente_id=cliente_id, valor=valor,
+        vencimento=vencimento, taxa=taxa, venda_pagamento_id=venda_pagamento_id,
+        ordem_servico_pagamento_id=ordem_servico_pagamento_id,
+        baixa_automatica=baixa_automatica,
+    )
+
+
+def _gravar_conta(
+    db: Session,
+    empresa_id: int,
+    *,
+    descricao: str,
+    cliente_id: Optional[int],
+    valor: int,
+    vencimento: date,
+    taxa: int,
+    venda_pagamento_id: Optional[int],
+    ordem_servico_pagamento_id: Optional[int],
+    baixa_automatica: bool,
+) -> ContaReceber:
     return financeiro_crud.criar_conta_receber(
         db,
         ContaReceber(
@@ -112,6 +133,73 @@ def _criar_promessa(
             baixa_automatica=baixa_automatica,
         ),
     )
+
+
+def _dividir_em_parcelas(total: int, parcelas: int) -> list[int]:
+    """Parcelas iguais; os centavos que sobram vao na ultima, e a soma fecha."""
+    base = total // parcelas
+    return [base] * (parcelas - 1) + [total - base * (parcelas - 1)]
+
+
+def _criar_promessas_do_pagamento(
+    db: Session,
+    empresa_id: int,
+    pagamento,
+    *,
+    descricao: str,
+    cliente_id: Optional[int],
+    parcelas: int,
+    venda_pagamento_id: Optional[int] = None,
+    ordem_servico_pagamento_id: Optional[int] = None,
+) -> None:
+    """Cria a cobranca do pagamento: uma por parcela, todo mes no mesmo dia.
+
+    So o que veio de acordo com o cliente divide. Forma com prazo declarado e
+    dinheiro de operadora: a maquininha deposita num vencimento so, e aquela
+    conta continua inteira.
+
+    IDEMPOTENTE pelo pagamento inteiro: se ja existe qualquer parcela dele, nada
+    e criado. `_somar_meses` ancora no dia da primeira, como no contas a pagar.
+    """
+    # LIQUIDO, com o juros da operadora em `taxa`. É o contrato que o model
+    # sempre pediu ("`valor` é o que a operadora repassa, já sem a taxa dela";
+    # `bruto = valor + taxa`) e que ninguém cumpria: até 05/09/2026 gravava-se o
+    # bruto aqui, e o Fluxo de Caixa prometia em "Vai entrar" um dinheiro que a
+    # operadora nunca ia depositar.
+    valor = caixa_service.valor_que_entra(pagamento)
+    taxa = _juros_da_operadora(pagamento)
+    # Prazo declarado na forma = dinheiro de operadora, que cai sozinho. Sem
+    # prazo, a data veio de um acordo com o cliente: é fiado, e fiado nunca entra
+    # sem alguém confirmar.
+    baixa_automatica = _prazo_da_forma(pagamento) > 0
+    origem = {
+        "venda_pagamento_id": venda_pagamento_id,
+        "ordem_servico_pagamento_id": ordem_servico_pagamento_id,
+    }
+
+    if baixa_automatica or parcelas <= 1:
+        _criar_promessa(
+            db, empresa_id, descricao=descricao, cliente_id=cliente_id, valor=valor, taxa=taxa,
+            vencimento=pagamento.vencimento, baixa_automatica=baixa_automatica, **origem,
+        )
+        return
+
+    if financeiro_crud.get_receber_do_pagamento(db, empresa_id, **origem):
+        return
+
+    valores = _dividir_em_parcelas(valor, parcelas)
+    taxas = _dividir_em_parcelas(taxa, parcelas)
+    for indice in range(parcelas):
+        _gravar_conta(
+            db, empresa_id,
+            descricao=f"{descricao} (parcela {indice + 1}/{parcelas})",
+            cliente_id=cliente_id,
+            valor=valores[indice],
+            taxa=taxas[indice],
+            vencimento=_somar_meses(pagamento.vencimento, indice),
+            baixa_automatica=False,
+            **origem,
+        )
 
 
 def registrar_promessas_de_venda(db: Session, venda) -> None:
@@ -139,24 +227,14 @@ def registrar_promessas_de_venda(db: Session, venda) -> None:
     for pagamento in venda.pagamentos:
         if not pagamento.vencimento or pagamento.vencimento <= hoje:
             continue
-        _criar_promessa(
+        _criar_promessas_do_pagamento(
             db,
             empresa_id,
+            pagamento,
             descricao=f"Venda {referencia}" + (f" — {nome}" if nome else ""),
             cliente_id=venda.cliente_id,
-            # LIQUIDO, com o juros da operadora em `taxa`. É o contrato que o
-            # model sempre pediu ("`valor` é o que a operadora repassa, já sem a
-            # taxa dela"; `bruto = valor + taxa`) e que ninguém cumpria: até
-            # 05/09/2026 gravava-se o bruto aqui, e o Fluxo de Caixa prometia em
-            # "Vai entrar" um dinheiro que a operadora nunca ia depositar.
-            valor=caixa_service.valor_que_entra(pagamento),
-            taxa=_juros_da_operadora(pagamento),
-            vencimento=pagamento.vencimento,
+            parcelas=(pagamento.qtd_parcelas or 1) if pagamento.parcelado else 1,
             venda_pagamento_id=pagamento.id,
-            # Prazo declarado na forma = dinheiro de operadora, que cai sozinho.
-            # Sem prazo, a data veio de um acordo com o cliente: é fiado, e
-            # fiado nunca entra sem alguém confirmar.
-            baixa_automatica=_prazo_da_forma(pagamento) > 0,
         )
 
 
@@ -180,17 +258,14 @@ def registrar_promessas_de_os(db: Session, ordem_servico, pagamentos) -> None:
     for pagamento in pagamentos:
         if not pagamento.vencimento or pagamento.vencimento <= hoje:
             continue
-        _criar_promessa(
+        _criar_promessas_do_pagamento(
             db,
             empresa_id,
+            pagamento,
             descricao=f"OS {ordem_servico.numero_os}" + (f" — {nome}" if nome else ""),
             cliente_id=cliente_id,
-            # Líquido + taxa, igual à gêmea da venda. Ver o comentário de lá.
-            valor=caixa_service.valor_que_entra(pagamento),
-            taxa=_juros_da_operadora(pagamento),
-            vencimento=pagamento.vencimento,
+            parcelas=pagamento.parcelas or 1,
             ordem_servico_pagamento_id=pagamento.id,
-            baixa_automatica=_prazo_da_forma(pagamento) > 0,
         )
 
 

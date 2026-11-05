@@ -218,6 +218,18 @@ function getMethodPermiteParcelamento(method: PaymentFormReadDataType): boolean 
   return method.permite_parcelamento ?? inferPermiteParcelamento(getMethodTipo(method));
 }
 
+const mostraParcelas = computed(() => {
+  const metodo = currentPaymentMethod.value;
+  if (!metodo) return false;
+  return getMethodPermiteParcelamento(metodo) || getMethodTipo(metodo) === 'BOLETO' || receberDepois.value;
+});
+
+/** Parcelas que viram contas a receber: uma por mês, a partir do vencimento. */
+const parcelasAReceber = computed(() =>
+  (ehBoleto.value || receberDepois.value) && mostraParcelas.value ? paymentDetails.value.parcelas : 1,
+);
+const primeiraParcelaFutura = computed(() => (paymentDetails.value.vencimento ?? '') > emDias(0));
+
 function getPaymentIcon(tipo: string) {
   switch (tipo) {
     case 'DINHEIRO':       return Banknote;
@@ -256,6 +268,7 @@ function handleAddPaymentClick(method: PaymentFormReadDataType) {
 
 function confirmAddPayment() {
   if (!currentPaymentMethod.value) return;
+  if (parcelasAReceber.value > 1 && !primeiraParcelaFutura.value) return;
   const baseValor = paymentBaseCentavos.value;
   const jurosAmount = jurosDoPagamentoAtual.value;
   const responsavel = jurosResponsavel.value;
@@ -277,7 +290,7 @@ function confirmAddPayment() {
     valor: responsavel === 'LOJA' ? baseValor : baseValor + jurosAmount,
     juros_valor: jurosAmount,
     juros_responsavel: responsavel,
-    parcelas: paymentDetails.value.parcelas,
+    parcelas: mostraParcelas.value ? paymentDetails.value.parcelas : 1,
     bandeira_cartao: (paymentDetails.value.bandeira || undefined) as OsCardsFlagEnumDataType | undefined,
     // Só vai data quando existe promessa: boleto sempre tem vencimento, e
     // qualquer forma vira promessa se o operador marcar "receber depois".
@@ -663,7 +676,7 @@ watch(() => props.isOpen, (open) => {
         @enter="confirmAddPayment"
       />
 
-      <div v-if="getMethodPermiteParcelamento(currentPaymentMethod) || getMethodTipo(currentPaymentMethod) === 'BOLETO'" class="space-y-3">
+      <div v-if="mostraParcelas" class="space-y-3">
         <BaseSelect
           v-model="paymentDetails.parcelas"
           label="Parcelamento"
@@ -677,6 +690,16 @@ watch(() => props.isOpen, (open) => {
           :label="ehBoleto ? 'Data de Vencimento' : 'Quando vai receber'"
         />
       </div>
+      <p
+        v-if="parcelasAReceber > 1"
+        class="text-xs"
+        :class="primeiraParcelaFutura ? 'text-zinc-500' : 'font-semibold text-red-600'"
+        data-testid="aviso-parcelas-a-receber"
+      >
+        {{ primeiraParcelaFutura
+          ? `Vira ${parcelasAReceber} contas a receber, uma por mês, a partir dessa data.`
+          : 'A primeira parcela precisa ter data futura.' }}
+      </p>
 
       <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')" class="space-y-3">
         <BaseSelect

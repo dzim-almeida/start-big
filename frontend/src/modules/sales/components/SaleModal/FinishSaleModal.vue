@@ -232,8 +232,18 @@ function getMethodPermiteParcelamento(method: PaymentFormReadDataType): boolean 
 // Exibe parcelamento quando a config permite e a forma aceita (cartão ou boleto).
 function displayParcelasFor(method: PaymentFormReadDataType): boolean {
   if (!permitirParcelamento.value) return false;
-  return getMethodPermiteParcelamento(method) || getMethodTipo(method) === 'BOLETO';
+  return getMethodPermiteParcelamento(method) || getMethodTipo(method) === 'BOLETO' || receberDepois.value;
 }
+
+const mostraParcelas = computed(
+  () => !!currentPaymentMethod.value && displayParcelasFor(currentPaymentMethod.value),
+);
+
+/** Parcelas que viram contas a receber: uma por mês, a partir do vencimento. */
+const parcelasAReceber = computed(() =>
+  (ehBoleto.value || receberDepois.value) && mostraParcelas.value ? paymentDetails.value.parcelas : 1,
+);
+const primeiraParcelaFutura = computed(() => (paymentDetails.value.vencimento ?? '') > emDias(0));
 
 function getPaymentIcon(tipo: string) {
   switch (tipo) {
@@ -394,6 +404,7 @@ function focarProximoPasso(aguardarSoltarTecla = false) {
 function confirmAddPayment(viaTeclado = false) {
   const method = currentPaymentMethod.value;
   if (!method || paymentValueReais.value <= 0) return;
+  if (parcelasAReceber.value > 1 && !primeiraParcelaFutura.value) return;
 
   const tipo = getMethodTipo(method);
   const baseValor = paymentBaseCentavos.value;
@@ -947,6 +958,16 @@ function handleFinish() {
           :label="ehBoleto ? 'Data de Vencimento' : 'Quando vai receber'"
         />
       </div>
+      <p
+        v-if="parcelasAReceber > 1"
+        class="text-xs"
+        :class="primeiraParcelaFutura ? 'text-zinc-500' : 'font-semibold text-red-600'"
+        data-testid="aviso-parcelas-a-receber"
+      >
+        {{ primeiraParcelaFutura
+          ? `Vira ${parcelasAReceber} contas a receber, uma por mês, a partir dessa data.`
+          : 'A primeira parcela precisa ter data futura.' }}
+      </p>
 
       <!-- Cartão: bandeira + taxa de juros -->
       <div v-if="getMethodTipo(currentPaymentMethod).includes('CARTAO')" class="space-y-3">
