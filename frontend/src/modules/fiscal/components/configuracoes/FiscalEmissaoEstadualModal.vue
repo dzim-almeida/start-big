@@ -25,6 +25,7 @@ const serieNfce = ref<number | string>(1);
 const ultimoNumeroNfce = ref<number | string>(0);
 const cscId = ref('');
 const cscToken = ref('');
+const stFabricanteCe = ref(false);
 
 const error = ref('');
 const success = ref(false);
@@ -65,6 +66,7 @@ watch(
       ultimoNumeroNfce.value = props.configuracao.ultimo_numero_nfce ?? 0;
       cscId.value = props.configuracao.csc_id ?? '';
       cscToken.value = props.configuracao.csc_token ?? '';
+      stFabricanteCe.value = props.configuracao.nfe_st_fabricante_ce ?? false;
       error.value = '';
       success.value = false;
       cscPlataforma.value = null;
@@ -115,6 +117,7 @@ async function handleSave() {
       ultimo_numero_nfce: Number(ultimoNumeroNfce.value) || 0,
       csc_id: cscId.value?.trim() || null,
       csc_token: cscToken.value?.trim() || null,
+      nfe_st_fabricante_ce: stFabricanteCe.value,
       // Salvar esta tela É a confirmação formal da sequência (trava da
       // Rejeição 204). Vai explícito porque a empresa nova mantém série 1 /
       // número 0 -- sem alterar nada, o backend não teria como saber.
@@ -243,6 +246,20 @@ async function handleSave() {
           </span>
         </p>
       </div>
+
+      <!-- Decreto CE 32.900/2018: ver derivacao/st_fabricante_ce.py no backend -->
+      <label
+        data-testid="opcao-st-fabricante-ce"
+        class="flex items-start gap-3 p-4 rounded-xl border border-zinc-200/80 bg-zinc-50/80 cursor-pointer"
+      >
+        <input v-model="stFabricanteCe" type="checkbox" class="mt-0.5" :disabled="isPending || success" />
+        <span class="text-xs text-zinc-600 leading-relaxed">
+          <strong class="block text-sm text-zinc-800">Fabricante no Ceará com ICMS-ST pago em DAE (Decreto 32.900/2018)</strong>
+          Ligue só com a orientação do seu contador. Produto com CFOP 5401 e CSOSN 500 sai 5401 dentro do CE
+          e 6401 para empresa com IE de outro estado, sem valor de ST na nota. Para fora do CE, só a venda
+          marcada como presencial sai como interna.
+        </span>
+      </label>
 
       <!-- Pergunta obrigatória na primeira confirmação (F3, 06/10/2026) -->
       <div

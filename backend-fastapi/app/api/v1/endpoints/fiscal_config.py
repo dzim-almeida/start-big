@@ -102,6 +102,7 @@ def _montar_configuracao(
         limite_consumidor_anonimo=(
             fs.limite_consumidor_anonimo if fs else 1000000
         ),
+        nfe_st_fabricante_ce=bool(fs and fs.nfe_st_fabricante_ce),
     )
 
 

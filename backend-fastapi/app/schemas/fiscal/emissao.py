@@ -255,6 +255,7 @@ class FiscalConfiguracao(BaseModel):
     # recebê-lo. None quando o PUT não mexeu no CSC.
     csc_plataforma: Optional[EnvioPlataforma] = None
     limite_consumidor_anonimo: Optional[int] = 1000000
+    nfe_st_fabricante_ce: bool = False
 
 
 class DiagnosticoPlataforma(BaseModel):

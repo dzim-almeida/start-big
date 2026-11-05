@@ -70,6 +70,9 @@ class FiscalSettingsUpdate(BaseModel):
         None, ge=0,
         description="Teto em centavos para NFC-e sem CPF/CNPJ do comprador",
     )
+    nfe_st_fabricante_ce: Optional[bool] = Field(
+        None, description="Fabricante do CE com ICMS-ST recolhido em DAE (Decreto 32.900/2018)",
+    )
     rps_serie: Optional[str] = Field(None, max_length=10)
     rps_ultimo_numero: Optional[int] = Field(None, ge=0)
     prefeitura_login: Optional[str] = Field(None, max_length=50)

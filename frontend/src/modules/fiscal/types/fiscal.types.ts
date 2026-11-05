@@ -309,6 +309,8 @@ export interface FiscalConfiguracao {
   csc_plataforma?: EnvioPlataforma | null;
   /** Teto em CENTAVOS para emitir NFC-e sem CPF/CNPJ do comprador. */
   limite_consumidor_anonimo?: number;
+  /** Fabricante do CE com ICMS-ST recolhido em DAE (Decreto 32.900/2018). */
+  nfe_st_fabricante_ce?: boolean;
 }
 
 /**
@@ -337,6 +339,7 @@ export interface FiscalConfiguracaoUpdate {
   csc_token?: string | null;
   csc_id?: string | null;
   limite_consumidor_anonimo?: number;
+  nfe_st_fabricante_ce?: boolean;
   tipo_certificado?: string;
 }
 

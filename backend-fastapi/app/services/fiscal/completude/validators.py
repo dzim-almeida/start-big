@@ -8,6 +8,7 @@ from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.venda import Venda
 from app.db.models.ordem_servico import OrdemServico
 
+from app.services.fiscal.derivacao.st_fabricante_ce import item_com_st_recolhida
 from app.services.fiscal.helpers import criar_pendencia as _p, dias_para_vencer_certificado, get_nome_cliente
 from app.db.crud import fiscal as crud
 
@@ -251,7 +252,7 @@ def verificar_endereco_destinatario(cliente: Cliente) -> list[PendenciaFiscal]:
 
 
 def conferir_fiscal_do_produto(
-    fiscal, nome: str, produto_id=None, *, simples_nacional: bool,
+    fiscal, nome: str, produto_id=None, *, simples_nacional: bool, st_fabricante_ce: bool = False,
 ) -> list[PendenciaFiscal]:
     """
     Confere um conjunto de dados fiscais e devolve o que impede a emissão.
@@ -298,7 +299,10 @@ def conferir_fiscal_do_produto(
 
     # CEST é obrigatório sob substituição tributária. Validar só o formato
     # deixava passar o produto sem CEST, que só era recusado pela SEFAZ.
-    if _exige_cest(fiscal, simples_nacional) and not fiscal.cest:
+    # Exceção: o fabricante do CE com ST em DAE. As notas dele foram autorizadas
+    # sem CEST; se a SEFAZ recusar, o motivo aparece na própria nota.
+    cest_dispensado = st_fabricante_ce and item_com_st_recolhida(fiscal, simples_nacional)
+    if _exige_cest(fiscal, simples_nacional) and not fiscal.cest and not cest_dispensado:
         codigo = fiscal.csosn if simples_nacional else fiscal.cst_icms
         pendencias.append(_p(
             "item", "cest",
@@ -370,7 +374,9 @@ def conferir_fiscal_do_produto(
     return pendencias
 
 
-def verificar_produto_fiscal(db: Session, produto, pendencias: list, simples_nacional: bool):
+def verificar_produto_fiscal(
+    db: Session, produto, pendencias: list, simples_nacional: bool, st_fabricante_ce: bool = False,
+):
     """
     O gate, sobre um produto cadastrado.
 
@@ -387,10 +393,13 @@ def verificar_produto_fiscal(db: Session, produto, pendencias: list, simples_nac
             nome=produto.nome,
             produto_id=produto.id,
             simples_nacional=simples_nacional,
+            st_fabricante_ce=st_fabricante_ce,
         )
     )
 
-def verificar_itens_venda(db: Session, venda: Venda, simples_nacional: bool) -> list[PendenciaFiscal]:
+def verificar_itens_venda(
+    db: Session, venda: Venda, simples_nacional: bool, st_fabricante_ce: bool = False,
+) -> list[PendenciaFiscal]:
     pendencias = []
     if not venda.itens:
         return [_p("item", "itens", "Venda não possui itens.")]
@@ -402,7 +411,7 @@ def verificar_itens_venda(db: Session, venda: Venda, simples_nacional: bool) -> 
         if not item.produto_id or not item.produto:
             pendencias.append(_p("item", "produto", "Item sem produto vinculado.", item.id, item.nome))
             continue
-        verificar_produto_fiscal(db, item.produto, pendencias, simples_nacional)
+        verificar_produto_fiscal(db, item.produto, pendencias, simples_nacional, st_fabricante_ce)
     return pendencias
 
 def verificar_itens_os_nfe(db: Session, os_obj: OrdemServico, simples_nacional: bool) -> list[PendenciaFiscal]:

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.db.models.documento_fiscal import DocumentoFiscal
 from app.db.crud import fiscal as crud
 from app.services.fiscal.completude.core import verificar_completude_venda
+from app.services.fiscal.derivacao.st_fabricante_ce import opcao_ligada
 from app.services.fiscal.helpers import obter_crt, regime_apuracao, usa_csosn
 from app.services.fiscal.http import get_fiscal_client
 from app.services.fiscal.payload.builder import montar_payload_nfe
@@ -76,6 +77,9 @@ def _preparar_dados_emissao(
             regime_apuracao=regime_apuracao(empresa),
             modelo_documento=65 if tipo_documento == "nfce" else 55,
             trocar_cfop=trocar_cfop,
+            st_fabricante_ce=(
+                tipo_documento != "nfce" and opcao_ligada(crud.get_fiscal_settings(db, empresa_id))
+            ),
         )
         resultado_calculo = calcular_impostos(itens_entrada, dados_nota)
     except Exception as e:

@@ -101,6 +101,16 @@ class EmpresaFiscalSettings(Base):
         doc="Operador/implantador confirmou formalmente a série e o último número emitido",
     )
 
+    # Fabricante do CE com ICMS-ST recolhido em DAE (Decreto 32.900/2018). Ver
+    # `services/fiscal/derivacao/st_fabricante_ce.py`. Nasce desligada.
+    nfe_st_fabricante_ce: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("0"),
+        nullable=False,
+        doc="Item 5401/6401 + CSOSN 500 sai sem valor de ST na nota; o imposto vai em DAE",
+    )
+
     # --- CSC (Código de Segurança do Contribuinte - NFCe) ---
     csc_token: Mapped[Optional[str]] = mapped_column(
         String(300),

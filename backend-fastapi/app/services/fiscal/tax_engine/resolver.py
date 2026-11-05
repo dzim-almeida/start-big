@@ -27,6 +27,7 @@ from app.services.fiscal.derivacao.cfop import (
     derivar_cfop_operacao,
 )
 from app.services.fiscal.derivacao.situacao import derivar_situacao_operacao
+from app.services.fiscal.derivacao.st_fabricante_ce import item_com_st_recolhida
 from app.services.fiscal.derivacao.troca_cfop import (
     TrocaCfopInvalidaError,
     situacao_apos_troca,
@@ -84,16 +85,17 @@ def _centavos_para_reais(centavos: int) -> Decimal:
 INDPRES_PRESENCIAL = 1
 
 
-def _operacao_presencial(venda: Venda) -> bool:
+def _operacao_presencial(venda: Venda, sem_resposta_e_envio: bool = False) -> bool:
     """
     Se a venda é de balcão.
 
     Sem dados fiscais preenchidos assume presencial — é o caso do PDV, que é
-    o uso dominante do sistema.
+    o uso dominante do sistema. A exceção é o fabricante do CE: a opção existe
+    para quem envia para outros estados, então só o "presencial" marcado vale.
     """
     nota_fiscal = getattr(venda, "nota_fiscal", None)
     if not nota_fiscal or nota_fiscal.indicador_presenca is None:
-        return True
+        return not sem_resposta_e_envio
     return nota_fiscal.indicador_presenca == INDPRES_PRESENCIAL
 
 
@@ -162,7 +164,9 @@ class _ItemInterestadual:
     st: Optional[_DadosST] = None        # contribuinte com MVA na regra
 
 
-def _operacao_interestadual(venda: Venda, uf_emitente: str) -> Optional[_Operacao]:
+def _operacao_interestadual(
+    venda: Venda, uf_emitente: str, st_fabricante_ce: bool = False,
+) -> Optional[_Operacao]:
     """
     A operação quando é interestadual DE VERDADE, senão None.
 
@@ -171,7 +175,7 @@ def _operacao_interestadual(venda: Venda, uf_emitente: str) -> Optional[_Operaca
     mesmo que o comprador more em outra UF. Travar por endereço impedia
     faturar para qualquer cliente de fora, sem irregularidade alguma.
     """
-    if _operacao_presencial(venda):
+    if _operacao_presencial(venda, sem_resposta_e_envio=st_fabricante_ce):
         return None
     uf_cliente = _obter_uf_cliente(venda)
     if not uf_cliente or uf_cliente.upper() == uf_emitente.upper():
@@ -179,9 +183,9 @@ def _operacao_interestadual(venda: Venda, uf_emitente: str) -> Optional[_Operaca
     return _Operacao(uf_destino=uf_cliente.upper(), nao_contribuinte=_cliente_nao_contribuinte(venda))
 
 
-def eh_operacao_interestadual(venda: Venda, uf_emitente: str) -> bool:
+def eh_operacao_interestadual(venda: Venda, uf_emitente: str, st_fabricante_ce: bool = False) -> bool:
     """A mesma régua do resolver, para o gate de emissão (validators/core)."""
-    return _operacao_interestadual(venda, uf_emitente) is not None
+    return _operacao_interestadual(venda, uf_emitente, st_fabricante_ce) is not None
 
 
 def _regra_do_perfil(db: Session, fiscal: Any, produto: Any, uf_destino: str, idx: int):
@@ -213,6 +217,40 @@ def _regra_do_perfil(db: Session, fiscal: Any, produto: Any, uf_destino: str, id
     return regra
 
 
+def _item_st_fabricante_ce(
+    fiscal: Any, produto: Any, operacao: _Operacao, uf_emitente: str, idx: int,
+) -> _ItemInterestadual:
+    """
+    6401 + CSOSN 500 sem valor de ST, sem passar pelo perfil: o imposto vai em
+    DAE (`derivacao/st_fabricante_ce.py`). Não contribuinte fica de fora.
+    """
+    if operacao.nao_contribuinte:
+        nome = getattr(produto, "nome", "?")
+        raise OperacaoInterestadualError(
+            f"Produto '{nome}' (item {idx}): a venda é para quem não tem Inscrição "
+            f"Estadual em {operacao.uf_destino}, e a regra de 6401 + CSOSN 500 só vale "
+            f"para empresa com IE. Se o cliente retirou aqui, marque a venda como "
+            f"presencial. Se a mercadoria foi enviada, defina com a contabilidade o "
+            f"CFOP e a situação tributária.",
+            campo="indicador_presenca",
+            item=idx,
+        )
+    cfop = derivar_cfop_operacao(
+        uf_emitente=uf_emitente,
+        uf_destinatario=operacao.uf_destino,
+        indicador_presenca=None,
+        indicador_ie_destinatario=IND_IE_CONTRIBUINTE,
+        existe_st_na_regra=True,
+        eh_producao_propria=True,
+    )
+    return _ItemInterestadual(
+        cfop=cfop,
+        cst_icms=getattr(fiscal, "cst_icms", None),
+        csosn=getattr(fiscal, "csosn", None),
+        aliquota_icms=None,
+    )
+
+
 def _resolver_item_interestadual(
     db: Session,
     fiscal: Any,
@@ -221,6 +259,7 @@ def _resolver_item_interestadual(
     uf_emitente: str,
     simples_nacional: bool,
     idx: int,
+    st_fabricante_ce: bool = False,
 ) -> _ItemInterestadual:
     """
     A encruzilhada interestadual, por item:
@@ -236,6 +275,9 @@ def _resolver_item_interestadual(
           (ICMS-ST, CFOP 6401/6403, CST 10/70 ou CSOSN 201/202) ou se é uma
           revenda interestadual comum (6101/6102, situação do produto).
     """
+    if st_fabricante_ce and item_com_st_recolhida(fiscal, simples_nacional):
+        return _item_st_fabricante_ce(fiscal, produto, operacao, uf_emitente, idx)
+
     regra = None
     if not (operacao.nao_contribuinte and simples_nacional):
         regra = _regra_do_perfil(db, fiscal, produto, operacao.uf_destino, idx)
@@ -372,6 +414,7 @@ def resolver_aliquotas_venda(
     regime_apuracao: str = "CUMULATIVO",
     modelo_documento: int = 55,
     trocar_cfop: Optional[dict[str, str]] = None,
+    st_fabricante_ce: bool = False,
 ) -> tuple[list[ItemEntrada], DadosNota]:
     """
     Converte uma Venda (ORM) em DTOs puros para o tax_engine.
@@ -393,6 +436,8 @@ def resolver_aliquotas_venda(
             (`{"5102": "5101"}`). Aplicado DEPOIS de toda a derivação, então
             o sugerido é exatamente o que a nota levaria sem a troca. None =
             como sempre foi. Ver `derivacao/troca_cfop.py`.
+        st_fabricante_ce: opção do fabricante do CE, só na NF-e de venda. Ver
+            `derivacao/st_fabricante_ce.py`. False = como sempre foi.
 
     Returns:
         Tupla (itens_entrada, dados_nota) pronta para calcular_impostos().
@@ -408,7 +453,7 @@ def resolver_aliquotas_venda(
     """
     # 0. Operação interestadual (None = interna ou balcão). Por item, decide
     #    CFOP, CST/CSOSN, DIFAL ou ST — ver _resolver_item_interestadual.
-    operacao = _operacao_interestadual(venda, uf_emitente)
+    operacao = _operacao_interestadual(venda, uf_emitente, st_fabricante_ce)
     if operacao and modelo_documento == MODELO_NFCE:
         raise OperacaoInterestadualError(
             f"NFC-e não admite operação interestadual (emitente {uf_emitente}, "
@@ -470,7 +515,9 @@ def resolver_aliquotas_venda(
         # Interestadual: no regime normal o ICMS próprio sai pela alíquota
         # interestadual do perfil (7%/12%), não pela interna do emitente.
         inter = (
-            _resolver_item_interestadual(db, fiscal, produto, operacao, uf_emitente, simples_nacional, idx)
+            _resolver_item_interestadual(
+                db, fiscal, produto, operacao, uf_emitente, simples_nacional, idx, st_fabricante_ce,
+            )
             if operacao else None
         )
         if inter and inter.aliquota_icms is not None:

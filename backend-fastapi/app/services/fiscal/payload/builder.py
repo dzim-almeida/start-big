@@ -19,11 +19,22 @@ from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings
 from app.db.models.endereco import Endereco
 from app.db.models.venda import Venda
 from app.db.models.venda_nota_fiscal import VendaNotaFiscal
+from app.services.fiscal.derivacao.st_fabricante_ce import (
+    CFOP_INTERNO_ST_RECOLHIDA,
+    CSOSN_ST_RECOLHIDA,
+    TEXTO_NOTA_OPERACAO_INTERNA,
+    opcao_ligada,
+)
 from app.services.fiscal.helpers import obter_crt, usa_csosn
 from app.services.fiscal.tax_engine.types import ResultadoCalculo
 from app.services.fiscal.payload.comum import _sanitizar_texto_sefaz, expurgar_nulos, _so_digitos
 from app.services.fiscal.payload.emitente import _montar_emitente
-from app.services.fiscal.payload.destinatario import _montar_destinatario, _montar_destinatario_nfce, _local_destino
+from app.services.fiscal.payload.destinatario import (
+    LOCAL_DESTINO_INTERESTADUAL,
+    _local_destino,
+    _montar_destinatario,
+    _montar_destinatario_nfce,
+)
 from app.services.fiscal.payload.itens import _montar_itens, _montar_itens_devolucao
 from app.services.fiscal.payload.totais import _montar_totais_pagamentos
 from app.services.fiscal.payload.comum import (  # noqa: F401 — reexportado: testes e serviços importam daqui
@@ -71,6 +82,7 @@ INDPRES_ENTREGA_DOMICILIO = 4
 
 
 INDPRES_NFCE_ACEITOS = (INDPRES_BALCAO, INDPRES_ENTREGA_DOMICILIO)
+INDPRES_OUTROS_NAO_PRESENCIAL = 9
 
 
 def montar_payload_nfce(
@@ -244,6 +256,14 @@ def montar_payload_nfe(
         numero = fiscal_settings.ultimo_numero_nfe + 1
     serie = fiscal_settings.serie_nfe
 
+    # Fabricante do CE: sem resposta, a venda para fora é tratada como envio
+    # pelo resolver. A presença da nota precisa dizer o mesmo.
+    st_fabricante_ce = opcao_ligada(fiscal_settings)
+    local_destino = _local_destino(resultado_calculo)
+    presenca_respondida = bool(nota_fiscal and nota_fiscal.indicador_presenca)
+    if st_fabricante_ce and local_destino == LOCAL_DESTINO_INTERESTADUAL and not presenca_respondida:
+        indicador_presenca = INDPRES_OUTROS_NAO_PRESENCIAL
+
     # --- Destinatário ---
     if venda.cliente:
         destinatario = _montar_destinatario(venda.cliente)
@@ -265,7 +285,7 @@ def montar_payload_nfe(
         "natureza_operacao": natureza,
         "tipo_documento": 1,  # 1 = saída
         # idDest sai da mesma decisão que o CFOP dos itens (ver _local_destino).
-        "local_destino": _local_destino(resultado_calculo),
+        "local_destino": local_destino,
         # modFrete 9 = sem transporte. Obrigatório mesmo sem frete; quando há
         # valor de entrega ele é por conta do emitente (0).
         "modalidade_frete": 0 if venda.entrega else 9,
@@ -292,6 +312,14 @@ def montar_payload_nfe(
     chaves = getattr(venda, "chaves_referenciadas", None)
     if chaves:
         payload["notas_referenciadas"] = [{"chave_nfe": chave} for chave in chaves]
+
+    # Decreto CE 32.900/2018, art. 6, par. 1: vale só para operação interna.
+    if st_fabricante_ce and any(
+        item.get("cfop") == CFOP_INTERNO_ST_RECOLHIDA
+        and item.get("icms_situacao_tributaria") == CSOSN_ST_RECOLHIDA
+        for item in payload["items"]
+    ):
+        payload["informacoes_adicionais_contribuinte"] = TEXTO_NOTA_OPERACAO_INTERNA
 
     return payload
 

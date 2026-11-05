@@ -6,6 +6,7 @@ from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
 from app.db.crud import fiscal as crud
 
 from app.services.fiscal.completude import validators as validators
+from app.services.fiscal.derivacao.st_fabricante_ce import opcao_ligada
 from app.services.fiscal.helpers import obter_crt, usa_csosn, criar_pendencia as _p
 from app.services.fiscal.tax_engine.resolver import eh_operacao_interestadual
 
@@ -28,6 +29,7 @@ def verificar_completude_venda(
 
     empresa = crud.get_empresa(db, empresa_id)
     simples = usa_csosn(obter_crt(empresa))
+    st_fabricante_ce = tipo_documento == "nfe" and opcao_ligada(crud.get_fiscal_settings(db, empresa_id))
 
     pendencias = []
     pendencias.extend(validators.verificar_emitente(db, empresa_id))
@@ -38,21 +40,21 @@ def verificar_completude_venda(
         pendencias.extend(validators.verificar_documento_cliente(venda.cliente))
         if tipo_documento == "nfe":
             pendencias.extend(validators.verificar_endereco_destinatario(venda.cliente))
-            if _interestadual(db, venda, empresa_id):
+            if _interestadual(db, venda, empresa_id, st_fabricante_ce):
                 pendencias.extend(validators.verificar_ie_destinatario_interestadual(venda.cliente))
 
-    pendencias.extend(validators.verificar_itens_venda(db, venda, simples))
+    pendencias.extend(validators.verificar_itens_venda(db, venda, simples, st_fabricante_ce=st_fabricante_ce))
     pendencias.extend(validators.verificar_pagamentos(venda.pagamentos))
 
     return ResultadoVerificacaoFiscal(completo=len(pendencias) == 0, pendencias=pendencias)
 
-def _interestadual(db: Session, venda, empresa_id: int) -> bool:
+def _interestadual(db: Session, venda, empresa_id: int, st_fabricante_ce: bool = False) -> bool:
     """Guardrails interestaduais (TASK009) só quando a mercadoria cruza a fronteira."""
     endereco = crud.get_endereco_empresa(db, empresa_id)
     if not endereco or not endereco.estado:
         return False
     uf = endereco.estado.value if hasattr(endereco.estado, "value") else str(endereco.estado)
-    return eh_operacao_interestadual(venda, uf)
+    return eh_operacao_interestadual(venda, uf, st_fabricante_ce)
 
 
 def verificar_completude_os(db: Session, numero_os: str, empresa_id: int, tipo_documento: str = "ambos") -> ResultadoVerificacaoFiscal:

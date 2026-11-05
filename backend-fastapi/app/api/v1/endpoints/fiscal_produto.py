@@ -262,6 +262,7 @@ def validar_produto_fiscal(
     from app.services.fiscal.helpers import obter_crt, usa_csosn
     from app.services.fiscal.cadastro.tributacao import mesclar
     from app.services.fiscal.completude.validators import conferir_fiscal_do_produto
+    from app.services.fiscal.derivacao.st_fabricante_ce import opcao_ligada
 
     empresa_id = user_token["empresa_id"]
     empresa = fiscal_crud.get_empresa(db, empresa_id)
@@ -279,6 +280,7 @@ def validar_produto_fiscal(
         efetivo,
         nome=nome_produto,
         simples_nacional=usa_csosn(obter_crt(empresa)),
+        st_fabricante_ce=opcao_ligada(fiscal_crud.get_fiscal_settings(db, empresa_id)),
     )
 
     return {
