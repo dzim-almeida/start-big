@@ -37,7 +37,7 @@ const { data: resumo, isLoading: isResumoLoading } = useNfseResumoQuery();
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview title="NFS-e" description="Notas Fiscais de Serviço" />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center sm:justify-end gap-2 sm:ml-auto">
         <FranquiaFiscalCard />
         <NfseSaudeCard />
         <BaseButton type="button" variant="ghost" class="text-sm" @click="showConfiguracaoModal = true">

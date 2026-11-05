@@ -94,7 +94,7 @@ const healthTextColor = computed(() => {
         description="Gerencie suas Notas Fiscais Eletrônicas"
       />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center sm:justify-end gap-2 sm:ml-auto">
         <FranquiaFiscalCard />
         <!-- Saúde Fiscal — card clicável -->
         <div class="relative">
