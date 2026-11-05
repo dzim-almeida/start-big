@@ -128,7 +128,7 @@ export function useItemSaleForm(
 
       if (selectedItem.value.tipo_produto === 'AVULSO') {
         payload.descricao_avulsa = formValues.descricao;
-        payload.valor_unitario = formValues.valor_unitario * 100;
+        payload.valor_unitario = Math.round(formValues.valor_unitario * 100);
         // Custo interno só existe no avulso; no cadastrado quem manda é o livro
         // de estoque, e o backend recusa se vier.
         payload.custo_unitario = Math.round(formValues.custo * 100);
@@ -170,7 +170,7 @@ export function useItemSaleForm(
     const payload: ProductSaleCreate = {
       tipo_produto: 'AVULSO' as const,
       descricao_avulsa: formValues.descricao,
-      valor_unitario: formValues.valor_unitario * 100,
+      valor_unitario: Math.round(formValues.valor_unitario * 100),
       quantidade: formValues.quantidade,
       desconto: Math.round(formValues.desconto * 100),
       ...(formValues.custo > 0 && { custo_unitario: Math.round(formValues.custo * 100) }),

@@ -131,7 +131,11 @@ def update_item_in_sale(db: Session, sale_id: int, item_id: int, item_update: Pr
         )
 
     # Linha de fardo: 3 FD de 12 pedem 36 un do estoque (G2).
-    if item_in_db.produto.estoque.quantidade < quantidade * (item_in_db.fator_embalagem or 1):
+    # Item avulso nao tem produto nem estoque: sem esta guarda, alterar um avulso dava erro 500.
+    if (
+        item_in_db.tipo_produto == TipoProdutoVenda.CADASTRADO
+        and item_in_db.produto.estoque.quantidade < quantidade * (item_in_db.fator_embalagem or 1)
+    ):
         empresa_id = sale_in_db.funcionario.empresa_id
         config = config_produtos_crud.get_configuracao_produtos(db, empresa_id=empresa_id)
         permitir = config.permitir_venda_estoque_zerado if config else False
