@@ -5,7 +5,8 @@
 #
 # Esta camada so le o token e os parametros e aplica as permissoes. A regra
 # fica em app/services/lava_rapido/. Tudo responde 404 fora do segmento com a
-# capacidade correspondente (`preco_por_porte`, `executores_os`).
+# capacidade correspondente (`preco_por_porte`, `executores_os`,
+# `operacao_patio`).
 # ---------------------------------------------------------------------------
 
 from typing import List, Optional
@@ -23,8 +24,10 @@ from app.schemas.lava_rapido.porte import (
     PrecosServicoUpdate,
     ServicoDoPorte,
 )
+from app.core.tempo import hoje_local
 from app.schemas.lava_rapido.lavador import LavadoresUpdate, LavadorRead
-from app.services.lava_rapido import lavadores, portes
+from app.schemas.lava_rapido.patio import CartaoPatio, PatioRead
+from app.services.lava_rapido import lavadores, patio, portes
 
 router = APIRouter()
 
@@ -101,3 +104,24 @@ def listar_lavadores(numero_os: str, usuario_token: dict = SERVICO, db: Session 
 def definir_lavadores(numero_os: str, dados: LavadoresUpdate, usuario_token: dict = SERVICO,
                       db: Session = Depends(get_db)):
     return _handle_db_transaction(db, lavadores.definir, numero_os, dados.funcionario_ids)
+
+
+# ===========================================================================
+# PATIO (Spec 04A)
+# ===========================================================================
+
+@router.get("/patio", response_model=PatioRead, summary="Veículos do pátio por coluna")
+def ler_patio(usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return patio.ler_patio(db, hoje_local())
+
+
+@router.post("/os/{numero_os}/avancar", response_model=CartaoPatio,
+             summary="Levar o veículo para a próxima coluna do pátio")
+def avancar(numero_os: str, usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return _handle_db_transaction(db, patio.mover, numero_os, 1)
+
+
+@router.post("/os/{numero_os}/voltar", response_model=CartaoPatio,
+             summary="Devolver o veículo para a coluna anterior (engano)")
+def voltar(numero_os: str, usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return _handle_db_transaction(db, patio.mover, numero_os, -1)
