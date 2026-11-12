@@ -45,6 +45,8 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // `aprovacao_itens` (SPEC-00 §7.1). `orcamento_tecnico` liga os parâmetros,
   // o "Sofre perda" e o menu Orçamentos (Spec 04B, D2).
   marcenaria: ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'],
+  // Lava-rápido (Spec 01A/02A): vistoria e fotos na entrada; preço por porte.
+  lava_rapido: ['vistoria', 'imagem_na_entrada', 'preco_por_porte'],
 };
 
 /**
@@ -109,5 +111,7 @@ export function useCapacidades() {
     temGarantiaPrazo: computed(() => tem('garantia_prazo')),
     /** Orçamento técnico (marcenaria): parâmetros, "Sofre perda", menu Orçamentos. */
     temOrcamentoTecnico: computed(() => tem('orcamento_tecnico')),
+    /** Preço por porte (lava-rápido, Spec 02B): portes da loja e grade no serviço. */
+    temPrecoPorPorte: computed(() => tem('preco_por_porte')),
   };
 }

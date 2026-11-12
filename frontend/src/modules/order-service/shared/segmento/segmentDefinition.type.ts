@@ -134,7 +134,13 @@ export type SegmentCapability =
    * › Marcenaria, a caixa "Sofre perda" no produto e, nas próximas specs, o
    * menu Orçamentos.
    */
-  | 'orcamento_tecnico';
+  | 'orcamento_tecnico'
+  /**
+   * O preço do serviço depende do PORTE do veículo (lava-rápido, Spec 02A/02B).
+   * Liga Configurações › Lava-Rápido (portes da loja) e a grade "porte → preço
+   * e duração" no cadastro de serviço.
+   */
+  | 'preco_por_porte';
 
 /**
  * Um processo de negócio dentro do mesmo segmento.

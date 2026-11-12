@@ -7,6 +7,7 @@ export type SecaoId =
   | 'produtos-estoque'
   | 'ordens-de-servico'
   | 'marcenaria'
+  | 'lava-rapido'
   | 'clientes-cadastro'
   | 'integracoes-apis'
   | 'terminais'

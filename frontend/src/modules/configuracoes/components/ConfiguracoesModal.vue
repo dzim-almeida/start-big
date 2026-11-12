@@ -18,6 +18,7 @@ import {
   Wallet,
   Network,
   Hammer,
+  Car,
   KeyRound,
 } from 'lucide-vue-next'
 
@@ -54,6 +55,7 @@ import Seguranca from './sections/seguranca/components/Seguranca.vue'
 import ProdutosEstoque from './sections/produtos-estoque/components/ProdutosEstoque.vue'
 import OrdensDeServico from './sections/ordens-de-servico/components/OrdensDeServico.vue'
 import Marcenaria from './sections/marcenaria/components/Marcenaria.vue'
+import LavaRapido from './sections/lava-rapido/components/LavaRapido.vue'
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades'
 import { useOrdemServico } from '@/shared/composables/useOrdemServico'
 import ClientesCadastro from './sections/clientes-cadastro/components/ClientesCadastro.vue'
@@ -78,7 +80,7 @@ const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConf
 const { mutate: salvarBackup, isPending: isPendingBackup } = useSalvarConfiguracaoBackupMutation()
 // Marcenaria (Spec 04B): seção própria, com query e mutation próprias.
 const { mutate: salvarMarcenaria, isPending: isPendingMarcenaria } = useSalvarConfiguracaoMarcenaria()
-const { temOrcamentoTecnico } = useCapacidades()
+const { temOrcamentoTecnico, temPrecoPorPorte } = useCapacidades()
 // O tema mora na empresa (junto do logo), então reaproveita a mutation dela —
 // que já invalida o cache e sincroniza o auth store.
 const { mutate: salvarTema, isPending: isPendingTema } = useUpdateEmpresaMutation()
@@ -210,7 +212,7 @@ const secaoFuncional = computed(() => {
  * mudar — o lojista lia "não salvou" (15/09/2026). Aqui o botão some e o
  * rodapé diz o que de fato acontece.
  */
-const secoesAutoSave: SecaoId[] = ['gestao-financeira']
+const secoesAutoSave: SecaoId[] = ['gestao-financeira', 'lava-rapido']
 const secaoAutoSave = computed(() => secoesAutoSave.includes(secaoAtiva.value))
 
 async function salvar(): Promise<void> {
@@ -319,6 +321,7 @@ const secoes: SecaoConfiguracao[] = [
   { id: 'produtos-estoque',  label: 'Produtos e Estoque',    icone: Package },
   { id: 'ordens-de-servico', label: 'Ordens de Serviço',     icone: ClipboardList },
   { id: 'marcenaria',        label: 'Marcenaria',            icone: Hammer },
+  { id: 'lava-rapido',       label: 'Lava-Rápido',           icone: Car },
   { id: 'clientes-cadastro', label: 'Clientes e Cadastro',   icone: Users },
   { id: 'integracoes-apis',  label: 'Integrações e APIs',    icone: Plug },
   { id: 'terminais',         label: 'Computadores da Loja',  icone: MonitorCog },
@@ -337,6 +340,7 @@ const componenteMap: Record<SecaoId, Component> = {
   'produtos-estoque':  ProdutosEstoque,
   'ordens-de-servico': OrdensDeServico,
   'marcenaria':        Marcenaria,
+  'lava-rapido':       LavaRapido,
   'clientes-cadastro': ClientesCadastro,
   'integracoes-apis':  IntegracoesAPIs,
   'terminais':         Terminais,
@@ -364,6 +368,8 @@ const secoesVisiveis = computed(() =>
     if (s.id === 'ordens-de-servico') return usaOrdemServico.value
     // Só no segmento com orçamento técnico (hoje, a marcenaria; Spec 04B, D5).
     if (s.id === 'marcenaria') return temOrcamentoTecnico.value
+    // Portes da loja: só no segmento com preço por porte (lava-rápido, Spec 02B).
+    if (s.id === 'lava-rapido') return temPrecoPorPorte.value
     // Nomear maquina e marcar retaguarda so faz sentido onde ha turno de caixa.
     // Loja que nao usa caixa nao ganha uma aba nova que nao explica nada.
     if (s.id === 'terminais') return controlarCaixa.value

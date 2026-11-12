@@ -16,6 +16,7 @@ import { toCents } from '../utils/servicos.utils';
 import { useCreateServicoMutation, useUpdateServicoMutation } from './useServicosMutations';
 import { useServicoModal } from './useServicoModal';
 import { recursoDisponivel } from '@/shared/config/planos';
+import { useToast } from '@/shared/composables/useToast';
 import { getServicoFiscal } from '../services/servicos.service';
 import { nfseService } from '@/modules/fiscal/services/nfse.service';
 import type { ServicoFiscalRead } from '../types/servicos.types';
@@ -84,6 +85,12 @@ export interface ServicoFormContext {
   nfseDisponivel: boolean;
   /** Preenche os dados fiscais com os de outro serviço (M2). */
   copiarFiscalDe: (servicoId: number) => Promise<boolean>;
+  /**
+   * Registra uma gravação que depende do id do serviço (ex.: a grade de preço
+   * por porte do lava-rápido, Spec 02B). Roda depois do POST/PUT do serviço e
+   * antes de fechar o modal. Devolve a função que desfaz o registro.
+   */
+  aoSalvar: (gancho: GanchoAoSalvar) => () => void;
   submitCount: Ref<number>;
   errors: Ref<Record<string, string | undefined>>;
   apiError: Ref<string | null>;
@@ -91,6 +98,9 @@ export interface ServicoFormContext {
   onSubmit: (e?: Event) => void;
   resetForm: () => void;
 }
+
+/** Gravação extra que precisa do id do serviço já salvo. */
+export type GanchoAoSalvar = (servicoId: number) => Promise<void>;
 
 export const SERVICO_FORM_KEY: InjectionKey<ServicoFormContext> = Symbol('servico-form');
 
@@ -107,6 +117,30 @@ export function useServicoFormProvider() {
   const updateMutation = useUpdateServicoMutation(setErrors);
 
   const apiError = ref<string | null>(null);
+  const toast = useToast();
+
+  // Ganchos de quem grava junto com o serviço (Spec 02B do lava-rápido). Sem
+  // nenhum registrado — todo segmento menos o lava — o salvar é o de sempre.
+  const ganchosAoSalvar = new Set<GanchoAoSalvar>();
+  function aoSalvar(gancho: GanchoAoSalvar) {
+    ganchosAoSalvar.add(gancho);
+    return () => ganchosAoSalvar.delete(gancho);
+  }
+  /**
+   * Roda os ganchos. Falha de um vira AVISO e o modal fecha mesmo assim: o
+   * serviço já está salvo, e deixar o cadastro aberto convidaria a clicar de
+   * novo e criar um serviço duplicado.
+   */
+  async function rodarGanchos(servicoId: number) {
+    for (const gancho of ganchosAoSalvar) {
+      try {
+        await gancho(servicoId);
+      } catch {
+        toast.error('O serviço foi salvo, mas a tabela de preços por porte não. Abra-o de novo e confira.');
+      }
+    }
+  }
+
   const nfeDisponivel = recursoDisponivel('nfe');
   const nfseDisponivel = recursoDisponivel('nfse');
   // O cadastro fiscal do serviço serve às duas notas: o prestador MEI tem só
@@ -241,7 +275,8 @@ export function useServicoFormProvider() {
         request.fiscal = montarFiscal(formData);
       }
       createMutation.mutate(request as any, {
-        onSuccess: () => {
+        onSuccess: async (servico) => {
+          await rodarGanchos(servico.id);
           closeModal();
           resetForm({ values: { ...DEFAULT_FORM_VALUES } });
         },
@@ -263,7 +298,8 @@ export function useServicoFormProvider() {
       updateMutation.mutate(
         { id: selectedServico.value.id, data: request as any },
         {
-          onSuccess: () => {
+          onSuccess: async (servico) => {
+            await rodarGanchos(servico.id);
             closeModal();
             resetForm({ values: { ...DEFAULT_FORM_VALUES } });
           },
@@ -296,6 +332,7 @@ export function useServicoFormProvider() {
     nfeDisponivel,
     nfseDisponivel,
     copiarFiscalDe,
+    aoSalvar,
     submitCount,
     errors,
     apiError,

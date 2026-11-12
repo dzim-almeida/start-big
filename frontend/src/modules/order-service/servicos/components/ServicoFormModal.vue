@@ -5,9 +5,13 @@ import { useServicoModal } from '../composables/useServicoModal';
 import { useServicoFormProvider } from '../composables/useServicoForm';
 import ServicoDadosSection from './form/ServicoDadosSection.vue';
 import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
+import PrecosPorPorteSection from '@/modules/lava-rapido/precos/components/PrecosPorPorteSection.vue';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 const { isOpen, isCreateMode, isViewMode, modalTitle, closeModal, switchToEdit } = useServicoModal();
 const { onSubmit, isPending, submitCount, apiError, nfseDisponivel } = useServicoFormProvider();
+// Lava-rápido (Spec 02B): grade de preço por porte. Os outros segmentos não a veem.
+const { temPrecoPorPorte } = useCapacidades();
 </script>
 
 <template>
@@ -27,6 +31,7 @@ const { onSubmit, isPending, submitCount, apiError, nfseDisponivel } = useServic
 
       <form id="servico-form" @submit.prevent="onSubmit" class="space-y-8">
         <ServicoDadosSection :submit-count="submitCount" :disabled="isViewMode" />
+        <PrecosPorPorteSection v-if="temPrecoPorPorte && isOpen" :disabled="isViewMode" />
         <!-- A seção fiscal existia desde o Centro Fiscal (97e64d39) mas nunca
              foi montada. Entra com a NFS-e (docs/nfse-plano.md, F1), só para
              quem tem o módulo: para as outras lojas o modal não muda. -->
