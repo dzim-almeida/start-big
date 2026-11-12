@@ -27,7 +27,7 @@ O caminho de uma lavagem, e a spec de cada passo:
 | 6 | Imprime o cupom (térmica) ou a via A4/PDF | Atendente | 01B, 03 |
 | 7 | Acompanha o pátio: Aberto → Em andamento → Pronto → Finalizado, com um clique | Lavador / atendente | 04A, 04B |
 | 8 | Ao marcar "Pronto", avisa o cliente pelo WhatsApp | Atendente | 04B |
-| 9 | Finaliza com pagamento (caixa de hoje); comissão para os lavadores, dividida ou inteira conforme o dono configurou | Atendente | 01A, 01B (comissão) |
+| 9 | Finaliza com pagamento (caixa de hoje); comissão para os lavadores, dividida ou inteira conforme o dono configurou | Atendente | 10A, 10B |
 | 10 | *(se a loja emitir)* NFS-e da lavagem, NFC-e do produto | Atendente | 09 |
 | 11 | *(se a loja ligar)* Plano mensal, pacote ou fidelidade baixam a lavagem | Atendente | 05A, 05B |
 | 12 | Lembrete de retorno para quem sumiu | Atendente | 07 |
@@ -44,8 +44,10 @@ Tamanho é **estimativa relativa** (P/M/G), não prazo.
 | Spec | Camada | O que entrega | ⚠️ Código compartilhado | Tamanho |
 |------|--------|---------------|------------------------|---------|
 | 00 | Documento | Decisões | — | — |
-| 01A | Backend | Definição do segmento (4 tipos), 3 status, placa-ou-gerado, capacidades novas, lavadores da OS e comissão | ⚠️ registry, relatório de comissão (por capacidade) | G |
-| 01B | Frontend | Segmento nas listas e no onboarding, porte e lavadores no formulário, 3 status, impressão térmica e A4 | ⚠️ constantes, formulário, filtros e impressão da OS | G |
+| 01A | Backend | Definição do segmento (4 tipos), 4 status, placa-ou-gerado | ⚠️ registry, criação e edição de OS (por chave declarada) | M |
+| 01B | Frontend | Segmento nas listas e no onboarding, porte no formulário, 4 status, impressão térmica e A4 | ⚠️ constantes, formulário, filtros e impressão da OS | G |
+| 10A | Backend | Lavadores da OS e comissão Dividir/Inteira | ⚠️ relatório de comissão (por capacidade) | M |
+| 10B | Frontend | Lavadores no formulário e na impressão; Dividir/Inteira no cargo e no funcionário | ⚠️ formulário de OS, cargos, funcionários | M |
 | 02A | Backend | Portes da loja, preço e duração por porte, previsão de entrega | ⚠️ schemas de serviço (acréscimo) | M |
 | 02B | Frontend | Configurações › Portes, grade no serviço, preço do porte na OS | ⚠️ cadastro de serviço, itens da OS | M |
 | 03 | Frontend | Entrada rápida e cupom de entrada | ⚠️ criação de OS | M |
@@ -68,7 +70,8 @@ Tamanho é **estimativa relativa** (P/M/G), não prazo.
 
 ```
 00 ── 01A ─┬─ 01B ── 03
-           └─ 02A ── 02B
+           ├─ 02A ── 02B
+           └─ 10A ── 10B (+ 01B)
 ```
 
 **Pronto quando:** dá para ajustar os portes e cadastrar a tabela de preços do cliente, abrir uma OS pela placa em ≤ 30 s com o preço do porte e os lavadores, abrir uma OS de "Outros" sem placa, marcar avarias com foto, imprimir na térmica e em A4, finalizar com pagamento e ver a comissão nos lavadores; e informática, oficina, serigrafia, PDV e marcenaria passam na prova de não regressão.
@@ -117,9 +120,11 @@ Depois do Marco 2: roteiro manual de cada spec B, em sequência, no computador d
 
 Uma linha por spec entregue, com a suíte medida depois dela.
 
+Referência medida antes da 01A, em `2dc12ccd` (worktree limpo): backend **3.013 passando, 1 pulado**.
+
 | Spec | Data | Commit | Testes | Suíte depois |
 |------|------|--------|--------|--------------|
-| — | — | — | — | — |
+| 01A | 12/11/2026 | (este commit) | +95: 9 de API, 8 do guard e 78 casos parametrizados do guard sobre os campos novos | 3.108 passando, 1 pulado |
 
 ---
 
@@ -131,13 +136,13 @@ Antes de cada uma, `alembic heads`: se outra branch tiver acrescentado migraçã
 
 | Ordem | Spec | O que faz |
 |-------|------|-----------|
-| 1 | 01A | Tabela `ordem_servico_executores` (OS, funcionário) — lavadores |
+| 1 | 10A | Tabela `ordem_servico_executores` (OS, funcionário) — lavadores; onde gravar Dividir/Inteira (O7c) |
 | 2 | 02A | Tabelas `portes_veiculo` e `servico_precos_porte` (serviço, porte, preço em centavos, duração em minutos) |
 | 3 | 08A | Tabela `agendamentos` |
 | 4 | 05A | Tabelas de planos, pacotes, saldo e movimentos de fidelidade |
 | 5 | 06A | Marcação de frota no cliente e tabela de fechamento (a definir na spec; preferir tabela nova a coluna em `clientes`) |
 
-01B, 03, 04A, 04B, 07 e 09 **não** criam migração: usam `dados_adicionais`, `data_previsao`, `proxima_revisao_data` e `funcionario_id`, que já existem.
+01A, 01B, 03, 04A, 04B, 07 e 09 **não** criam migração: usam `dados_adicionais`, `data_previsao`, `proxima_revisao_data` e `funcionario_id`, que já existem.
 
 Regras para todas (PR8): decidir pela presença do schema **antigo**; `ADD COLUMN` só se faltar; nunca renomear o arquivo do banco; testar em **banco antigo copiado**.
 
@@ -224,6 +229,7 @@ Linhas novas da matriz de cargos com `segmento: 'lava_rapido'` (mecanismo que j�
 |---------|----------|
 | `SPEC-00-DECISOES-LAVA-RAPIDO.md` | Princípios, pesquisa de mercado, decisões, perguntas ao cliente |
 | `SPEC-01A` / `SPEC-01B` | Fundação do segmento |
+| `SPEC-10A` / `SPEC-10B` | Lavadores e comissão |
 | `SPEC-02A` / `SPEC-02B` | Preço e duração por porte |
 | `SPEC-03` | Entrada rápida e cupom |
 | `SPEC-04A` / `SPEC-04B` | Quadro do pátio e WhatsApp |

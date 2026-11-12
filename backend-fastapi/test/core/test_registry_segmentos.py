@@ -448,14 +448,19 @@ def test_rotulo_de_status_declara_os_dois_tamanhos():
             assert len(rotulo["curto"]) <= 20, f"{onde}: curto com {len(rotulo['curto'])} caracteres"
 
 
-def test_so_a_marcenaria_renomeia_status_por_enquanto():
+def test_so_marcenaria_e_lava_rapido_renomeiam_status():
     """
     Caso 04 da Spec 01A. Oficina, informatica, serigrafia e PDV estao em
     producao com os textos de sempre ("Em Andamento", "Aguardando Retirada").
     Declarar `rotulos_status` em um deles mudaria a tela de um cliente que nao
     pediu nada. Se um dia for intencional, este teste e o lugar de dizer isso
     em voz alta.
+
+    Dito em voz alta (lava-rapido, Spec 01A D10, 12/11/2026): o lava-rapido
+    chama "Aguardando Retirada" de "Pronto" -- e so isso.
     """
+    assert set(DEFINICOES["lava_rapido"]["rotulos_status"]) == {"AGUARDANDO_RETIRADA"}
+    assert rotulo_status("lava_rapido", "AGUARDANDO_RETIRADA") == "Pronto"
     assert "rotulos_status" not in DEFINICOES["oficina_mecanica"]
     assert "rotulos_status" not in DEFINICOES["assistencia_tecnica"]
     assert "rotulos_status" not in DEFINICOES["serigrafia"]
@@ -617,3 +622,105 @@ def test_segmento_tem_capacidade():
     assert segmento_tem_capacidade("marcenaria", CAP_ORCAMENTO_TECNICO) is True
     for segmento in ("serigrafia", "oficina_mecanica", None, "outros"):
         assert segmento_tem_capacidade(segmento, CAP_ORCAMENTO_TECNICO) is False, segmento
+
+
+# ===========================================================================
+# Lava-rapido (docs/lava-rapido/SPEC-01A)
+# ===========================================================================
+# Duas chaves novas e OPCIONAIS no registry: `status_usados` e
+# `identificador.gerado_se_vazio`. Quem nao as declara (todos os segmentos que
+# ja estavam em producao) recebe exatamente o comportamento de antes -- e os
+# testes abaixo sao o lugar de dizer, em voz alta, quem as declara.
+
+def test_status_usados_so_tem_valores_do_enum_e_o_fluxo_base():
+    """Caso 1. Uma chave fora do enum nunca casaria com o status gravado; e
+    sem ABERTA, FINALIZADA e CANCELADA a OS nao nasce, nao fecha ou nao cancela."""
+    validas = {s.value for s in OrdemServicoStatus}              # os codigos que existem no banco
+    for segmento, definicao in DEFINICOES.items():
+        usados = definicao.get("status_usados")                  # chave opcional
+        if usados is None:
+            continue                                             # usa todos, como sempre
+        assert set(usados) <= validas, f"{segmento}: fora do enum -> {set(usados) - validas}"
+        assert {"ABERTA", "FINALIZADA", "CANCELADA"} <= set(usados), segmento
+
+
+def test_so_o_lava_rapido_declara_as_chaves_novas():
+    """Caso 2. Declarar `status_usados` num segmento em producao sumiria
+    status da tela de uma loja que nao pediu nada; `gerado_se_vazio` mudaria
+    como o objeto dela nasce. Se um dia for intencional, e aqui que se diz."""
+    com_status = {s for s, d in DEFINICOES.items() if d.get("status_usados") is not None}
+    com_gerado_se_vazio = {
+        s for s, d in DEFINICOES.items()
+        if (d.get("identificador") or {}).get("gerado_se_vazio")
+    }
+    assert com_status == {"lava_rapido"}
+    assert com_gerado_se_vazio == {"lava_rapido"}
+
+
+def test_gerado_e_gerado_se_vazio_nao_convivem():
+    """Caso 3. `gerado` tira o campo do formulario; `gerado_se_vazio` mantem.
+    Os dois juntos seriam uma contradicao, e o servico escolheria um em silencio."""
+    for segmento, definicao in DEFINICOES.items():
+        identificador = definicao.get("identificador") or {}
+        if not identificador.get("gerado_se_vazio"):
+            continue
+        assert not identificador.get("gerado"), segmento
+        assert identificador.get("prefixo"), f"{segmento}: gerado_se_vazio sem prefixo"
+
+
+def test_ids_dos_tipos_do_lava_rapido_sao_contrato_com_o_frontend():
+    """Caso 4. Os textos de impressao e (Spec 02A) os portes por tipo sao
+    indexados por estes ids. Renomear um deles nao quebra build nenhum -- a
+    sobrescrita so deixa de casar, em silencio."""
+    ids = [tipo["id"] for tipo in DEFINICOES["lava_rapido"]["tipos"]]
+    assert ids == ["carro", "moto", "pesado", "outros"]
+
+
+def test_todo_tipo_do_lava_rapido_pede_porte_com_opcoes():
+    """Caso 5. O porte decide o preco (SPEC-00 P1); tipo sem porte deixaria o
+    servico sem preco na Spec 02A."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        porte = next((c for c in tipo["campos"] if c["nome"] == "porte"), None)
+        assert porte, f"{tipo['id']}: sem campo porte"
+        assert porte["obrigatorio"] is True, tipo["id"]
+        assert porte["escopo"] == "objeto", tipo["id"]           # e do veiculo, nao da OS (P3)
+        assert porte.get("opcoes"), tipo["id"]
+
+
+def test_so_o_tipo_outros_dispensa_a_placa():
+    """D6: a tela pede placa para carro, moto e caminhao; barco e jet ski nao
+    tem, e o sistema gera o codigo."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        placa = next(c for c in tipo["campos"] if c["nome"] == "placa")
+        assert placa["obrigatorio"] is (tipo["id"] != "outros"), tipo["id"]
+        assert placa["origem"] == "coluna" and placa["coluna"] == "numero_serie"
+
+
+def test_capacidades_do_lava_rapido():
+    """Caso 6. Vistoria e fotos na entrada sim; nada de conserto (SPEC-00 O6)."""
+    capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
+    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA}
+    assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
+
+
+def test_status_permitido_e_identificador_gerado_se_vazio():
+    """Caso 7. As funcoes do registry, nos segmentos que declaram e nos que nao."""
+    from app.core.segmentos import (
+        gerar_identificador,
+        identificador_gerado_se_vazio,
+        status_permitido,
+    )
+
+    assert status_permitido("lava_rapido", "AGUARDANDO_RETIRADA") is True
+    assert status_permitido("lava_rapido", "AGUARDANDO_PECAS") is False
+    assert status_permitido("lava_rapido", "AGUARDANDO_APROVACAO") is False
+    # Quem nao declara usa todos -- inclusive segmento nulo (instalacao antiga).
+    for segmento in ("oficina_mecanica", "assistencia_tecnica", "serigrafia", None, "outros"):
+        assert status_permitido(segmento, "AGUARDANDO_PECAS") is True, segmento
+
+    assert identificador_gerado_se_vazio("lava_rapido") is True
+    assert identificador_gerado_se_vazio("oficina_mecanica") is False
+    assert identificador_gerado_se_vazio("serigrafia") is False      # serigrafia e `gerado`, outra coisa
+
+    assert gerar_identificador("lava_rapido", "OS-2026-000042") == "VEI-2026-000042"
+    assert gerar_identificador("oficina_mecanica", "OS-2026-000042") is None

@@ -13,6 +13,7 @@ from app.db.crud import ordem_servico as os_crud
 from app.db.crud import cliente as cliente_crud
 from app.db.crud import funcionario as funcionario_crud
 from app.services.sistema.segmentos import (
+    assert_status_usado_pelo_segmento,
     validar_objeto_por_segmento,
 )
 from app.services.fabrica import trilho as trilho_fabrica
@@ -86,6 +87,9 @@ def update_ordem_servico(db: Session, numero_os: str, data: OrdemServicoUpdate) 
     # Marcenaria-fábrica: o status vem da etapa (no-op nas outras OS).
     if new_status is not None and new_status != os_in_db.status:
         trilho_fabrica.assert_status_manual(os_in_db)
+        # Segmento que declara `status_usados` (lava-rápido) recusa os outros;
+        # quem não declara passa direto (Spec 01A do lava-rápido, D9).
+        assert_status_usado_pelo_segmento(db, new_status)
 
     if "forma_pagamento_entrada_id" in update_data:
         _assert_forma_pagamento_entrada(db, update_data["forma_pagamento_entrada_id"])

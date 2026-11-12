@@ -46,6 +46,26 @@ def get_definicao_campos(db: Session) -> Dict[str, Any]:
     }
 
 
+def assert_status_usado_pelo_segmento(db: Session, novo_status: Any) -> None:
+    """Recusa (422) um status que o segmento da instalacao nao usa.
+
+    Gated pela chave opcional `status_usados` (Spec 01A do lava-rapido, D9):
+    segmento que nao a declara -- todos os que ja estavam em producao -- passa
+    direto, e a troca de status continua exatamente como antes.
+
+    A tela do segmento nem oferece esses status; esta guarda existe para que
+    tela e backend digam a mesma coisa.
+    """
+    segmento = get_segmento_atual(db)
+    valor = getattr(novo_status, "value", novo_status)       # enum ou texto
+    if reg.status_permitido(segmento, valor):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail="Este status não é usado neste segmento.",
+    )
+
+
 def normalizar_placa(valor: str) -> str:
     """Normaliza uma placa para validacao/armazenamento: remove espacos/hifens
     e coloca em maiusculo. Ex: 'abc-1d23' -> 'ABC1D23'.

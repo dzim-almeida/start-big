@@ -58,6 +58,16 @@ def _preencher_identificador_gerado(
     Marta" num closet. A coluna é NOT NULL, e string vazia satisfaz.
     """
     segmento = get_segmento_atual(db)
+
+    # Lava-rapido (Spec 01A, D5): a placa digitada vale; em branco (barco, jet
+    # ski), o sistema gera VEI-... do numero da OS. Marca e modelo NAO sao
+    # preenchidos aqui (D7): o veiculo tem marca e modelo de verdade, e quem
+    # exige e _exigir_campos_do_objeto, como na oficina.
+    if reg.identificador_gerado_se_vazio(segmento):
+        if not (objeto_data.get("numero_serie") or "").strip():
+            objeto_data["numero_serie"] = reg.gerar_identificador(segmento, numero_os)
+        return
+
     if not reg.identificador_e_gerado(segmento):
         return
 

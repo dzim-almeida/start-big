@@ -19,7 +19,7 @@ from app.schemas.endereco import Endereco
 # migration b3c4d5e6f7a8 converte as empresas ja gravadas.
 SEGMENTOS_VALIDOS = Literal[
     'assistencia_tecnica', 'oficina_mecanica', 'serigrafia',
-    'pdv', 'marcenaria', 'eletricista', 'outros'
+    'pdv', 'marcenaria', 'eletricista', 'lava_rapido', 'outros'
 ]
 GENEROS_VALIDOS = Literal['MASCULINO', 'FEMININO', 'OUTRO']
 

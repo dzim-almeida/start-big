@@ -7,9 +7,10 @@
 #            precisa saber que ele existe.
 # ---------------------------------------------------------------------------
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .assistencia import ASSISTENCIA, SEGMENTO_ASSISTENCIA
+from .lava_rapido import LAVA_RAPIDO, SEGMENTO_LAVA_RAPIDO
 from .marcenaria import MARCENARIA, SEGMENTO_MARCENARIA
 from .oficina import OFICINA, PLACA_REGEX, SEGMENTO_OFICINA
 from .pdv import PDV, SEGMENTO_PDV
@@ -20,7 +21,7 @@ from .serigrafia import SEGMENTO_SERIGRAFIA, SERIGRAFIA
 # atualizar.
 DEFINICOES: Dict[str, Dict[str, Any]] = {
     d["segmento"]: d
-    for d in (OFICINA, ASSISTENCIA, SERIGRAFIA, PDV, MARCENARIA)
+    for d in (OFICINA, ASSISTENCIA, SERIGRAFIA, PDV, MARCENARIA, LAVA_RAPIDO)
 }
 
 
@@ -75,6 +76,17 @@ def identificador_e_gerado(segmento: Optional[str]) -> bool:
     return bool((get_identificador_segmento(segmento) or {}).get("gerado"))
 
 
+def identificador_gerado_se_vazio(segmento: Optional[str]) -> bool:
+    """True se o usuario PODE digitar o identificador e, em branco, o sistema gera.
+
+    Diferente de `identificador_e_gerado`, em que o sistema SEMPRE gera e o
+    formulario nem pergunta. Nasceu no lava-rapido (Spec 01A, D5): carro tem
+    placa, que existe no mundo e o atendente copia; barco e jet ski nao tem, e
+    pedir uma placa que nao existe faria o atendente inventar ("0000").
+    """
+    return bool((get_identificador_segmento(segmento) or {}).get("gerado_se_vazio"))
+
+
 def gerar_identificador(segmento: Optional[str], numero_os: str) -> Optional[str]:
     """Identificador derivado do numero da OS. Ex: ART-2026-000001.
 
@@ -87,7 +99,9 @@ def gerar_identificador(segmento: Optional[str], numero_os: str) -> Optional[str
     que e justamente para o que este codigo serve.
     """
     identificador = get_identificador_segmento(segmento) or {}
-    if not identificador.get("gerado"):
+    # Vale para quem sempre gera (serigrafia, marcenaria) e para quem gera so
+    # quando o usuario deixa em branco (lava-rapido, Spec 01A D5).
+    if not (identificador.get("gerado") or identificador.get("gerado_se_vazio")):
         return None
 
     prefixo = identificador.get("prefixo") or "ID"
@@ -144,6 +158,23 @@ def rotulo_status(
     return rotulo["curto"] if curto else rotulo["rotulo"]  # escolhe o tamanho pedido
 
 
+def status_usados_do_segmento(segmento: Optional[str]) -> Optional[List[str]]:
+    """Status da OS que o segmento usa, ou None = todos (o padrao de hoje).
+
+    Chave opcional `status_usados` (lava-rapido, Spec 01A D8). Quem nao declara
+    -- todos os segmentos que ja estavam em producao -- recebe None, e nada
+    muda para eles.
+    """
+    definicao = get_definicao_segmento(segmento)              # None para segmento generico
+    return (definicao or {}).get("status_usados")             # None quando nao declara
+
+
+def status_permitido(segmento: Optional[str], status: str) -> bool:
+    """O segmento usa este status? Sem `status_usados` declarado: sempre True."""
+    usados = status_usados_do_segmento(segmento)              # None = todos
+    return usados is None or status in usados
+
+
 def segmento_tem_capacidade(segmento: Optional[str], capacidade: str) -> bool:
     """True se o segmento declara a capacidade (Spec 04A, D2).
 
@@ -195,12 +226,17 @@ __all__ = [
     "SEGMENTO_SERIGRAFIA",
     "SEGMENTO_PDV",
     "PDV",
+    "LAVA_RAPIDO",
+    "SEGMENTO_LAVA_RAPIDO",
     "get_definicao_segmento",
     "segmento_tem_definicao",
     "segmento_usa_ordem_servico",
     "get_identificador_segmento",
     "identificador_e_gerado",
+    "identificador_gerado_se_vazio",
     "gerar_identificador",
+    "status_usados_do_segmento",
+    "status_permitido",
     "segmento_declara_coluna",
     "rotulo_status",
     "tipo_permite_criacao_manual",

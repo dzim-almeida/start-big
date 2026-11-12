@@ -9,6 +9,8 @@
 | Referência   | Conversa de 12/11/2026; pesquisa de mercado (§3.2); `docs/marcenaria/SPEC-00` (formato e princípios) |
 | Branch       | `feat/segmento-lava-rapido` @ `c2228e88` (saiu da `feat/cfop-na-nota`) |
 
+> **Revisão 3 (12/11/2026) — organização das specs, ao escrever a 01A.** A 01A fica **só com a fundação do segmento** (registry, status, identificador — sem tabela nova). Lavadores da OS e comissão (O7a, O7c) passam para as **Specs 10A/10B**, ainda no Marco 1: mexem no relatório de comissão de todas as lojas e merecem prova de não regressão própria. As capacidades novas entram cada uma na spec que a implementa (nunca antes: metadado órfão). Decisões técnicas da 01A: placa **sem regex** no lava-rápido (D4) e chave `identificador.gerado_se_vazio` (D5); O2b mantém "Aberta / Em Andamento / Finalizada" com o texto padrão e só renomeia Aguardando Retirada → **"Pronto"** (01A D10).
+>
 > **Revisão 2 (12/11/2026) — usuário.** **O2b:** o segmento usa **quatro** status — Aberto, Em andamento, **Pronto** (o `AGUARDANDO_RETIRADA` de sempre, renomeado) e Finalizado; o WhatsApp é sugerido ao marcar "Pronto". **O7c:** com 2 lavadores, **o dono decide** no cadastro dos funcionários se a comissão é **dividida** ou **inteira para cada um** (cascata funcionário → cargo, como o modo de comissão de hoje). Substituem O2a e O7b.
 >
 > **Revisão 1 (12/11/2026) — respostas do usuário e do primeiro cliente.**
@@ -198,7 +200,9 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 recomendada (co
 | Spec | Camada | O que entrega | ⚠️ Código compartilhado | Tamanho |
 |------|--------|---------------|------------------------|---------|
 | 00 | Documento | Este registro | — | — |
-| 01A | Backend | `definicoes/lava_rapido.py` (4 tipos, campos, vistoria, rótulos), `status_usados` (O2b), identificador placa-ou-gerado (P4a), capacidades novas (`preco_por_porte`, `quadro_patio`, `executores_os`, `agenda_servicos`, `planos_cliente`), `SEGMENTOS_VALIDOS`; tabela `ordem_servico_executores` e comissão dos lavadores com a escolha Dividir/Inteira (O7a, O7c) | ⚠️ registry, guard `test_registry_segmentos.py`, relatório de comissão (por capacidade) | G |
+| 01A | Backend | `definicoes/lava_rapido.py` (4 tipos, campos, vistoria, rótulos), `status_usados` (O2b), identificador placa-ou-gerado (P4a), `SEGMENTOS_VALIDOS` — sem tabela nova (Revisão 3) | ⚠️ registry, criação e edição de OS (por chave declarada) | M |
+| 10A | Backend | Lavadores da OS (`ordem_servico_executores`, capacidade `executores_os`) e comissão Dividir/Inteira (O7a, O7c) | ⚠️ relatório de comissão (por capacidade) | M |
+| 10B | Frontend | Lavadores no formulário e na impressão; escolha Dividir/Inteira no cargo e no funcionário | ⚠️ formulário de OS, cargos, funcionários | M |
 | 01B | Frontend | Segmento em `SEGMENTOS`, card do onboarding, status reduzidos nos botões/filtros, porte e lavadores no formulário, textos e conteúdo da impressão térmica e A4 (O10a) | ⚠️ constantes de segmento, formulário de OS, filtros, impressão | G |
 | 02A | Backend | Tabelas `portes_veiculo` (P2a, com a lista inicial) e `servico_precos_porte` (+ migração), CRUD, rota "preço do serviço para este veículo", previsão (O4) | ⚠️ schemas de serviço (só acréscimo) | M |
 | 02B | Frontend | Configurações › Portes; grade de portes no cadastro de serviço (por capacidade); ao incluir serviço na OS, preço do porte; previsão no formulário | ⚠️ cadastro de serviço, itens da OS | M |
