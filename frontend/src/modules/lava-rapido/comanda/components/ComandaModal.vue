@@ -1,21 +1,32 @@
 <script setup lang="ts">
 /**
  * @component ComandaModal
- * @description "Nova entrada" do lava-rápido: a comanda de UMA tela, sem abas
- * (Spec 03B, SPEC-00 U2).
- *
- * Ordem do balcão: placa → veículo e dono aparecem (segunda visita) → tipo →
- * porte → serviços com o preço do porte → lavador → avarias e fotos → Entrar.
- * Tipo, porte, serviço e lavador são BOTÕES, não lista suspensa: um toque.
+ * @description "Nova entrada" do lava-rápido (Spec 03B, SPEC-00 U2), no
+ * PADRÃO DA OS da casa:
+ *   - em cima, o cartão de controles de sempre (Situação, Responsável,
+ *     Prioridade, Previsão) — `OSControlsCard`;
+ *   - na lateral, o Resumo da OS (subtotal, adiantamento, deslocamento, valor
+ *     a pagar) e os Dados do Cliente — `OSSummaryCard` e `OSClientCard`;
+ *   - no corpo, numa tela só e sem abas: Veículo, Serviços (botões com o
+ *     preço do porte + a lista do que foi escolhido), Lavadores e Avarias.
  * O documento gravado é a OS de sempre; ela entra no pátio em "Aguardando".
  */
 import { computed, ref, watch } from 'vue';
-import { Camera, CheckCircle2, UserPlus, X } from 'lucide-vue-next';
+import { Camera, CarFront, CheckCircle2, Droplets, ShieldAlert, Trash2, UserPlus, Users, X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
+import BaseSectionCard from '@/shared/components/layout/SectionCard/BaseSectionCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import OSClientCard from '@/modules/order-service/ordens/components/form/OSClientCard.vue';
+import OSControlsCard from '@/modules/order-service/ordens/components/form/OSControlsCard.vue';
+import OSSummaryCard from '@/modules/order-service/ordens/components/form/OSSummaryCard.vue';
+import { useOSSelectOptions } from '@/modules/order-service/ordens/composables/modal/useOSSelectOptions';
+import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
+import type { OsPriorityEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
+import { useAuthStore } from '@/shared/stores/auth.store';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 
 import SeletorLavadores from '../../shared/components/SeletorLavadores.vue';
@@ -27,26 +38,49 @@ const emit = defineEmits<{ close: []; criada: [numeroOs: string] }>();
 
 const c = useComanda();
 const toast = useToast();
+const authStore = useAuthStore();
 
-// Abriu de novo: comanda limpa.
+// Opções do cartão de controles: as MESMAS da OS (status do segmento, equipe, prioridade).
+const { funcionariosOptions, statusOptions, prioridadeOptions } = useOSSelectOptions({
+  currentStatus: computed(() => 'ABERTA'),
+  ativo: computed(() => props.isOpen),
+});
+
+/** Quem pode escolher o responsável: a mesma regra do formulário de OS. */
+const podeEscolherResponsavel = computed(() => {
+  const p = authStore.userData?.cargo?.permissoes;
+  return p?.['all'] === true || p?.['funcionario'] === true;
+});
+
 watch(() => props.isOpen, (aberta) => { if (aberta) c.limpar(); });
 
-// --- Cliente novo (placa que o sistema não conhece) -------------------------------
+// --- Cliente novo --------------------------------------------------------------------
+const cadastrandoCliente = ref(false);
 const novoNome = ref('');
 const novoCelular = ref('');
-const cadastrandoCliente = ref(false);
-function confirmarClienteNovo() {
+const salvandoCliente = ref(false);
+async function confirmarClienteNovo() {
   if (!novoNome.value.trim()) return;
-  c.clienteNovo(novoNome.value.trim(), novoCelular.value);
-  cadastrandoCliente.value = false;
+  salvandoCliente.value = true;
+  try {
+    await c.cadastrarCliente(novoNome.value.trim(), novoCelular.value);
+    cadastrandoCliente.value = false;
+  } catch (erro) {
+    toast.error(getErrorMessage(erro as never, 'Não foi possível cadastrar o cliente.') as string);
+  } finally {
+    salvandoCliente.value = false;
+  }
 }
 function trocarCliente() {
   c.cliente.value = null;
   novoNome.value = '';
   novoCelular.value = '';
 }
+function clienteAtualizado(cliente: CustomerUnionReadSchemaDataType) {
+  c.cliente.value = cliente;
+}
 
-// --- Fotos --------------------------------------------------------------------------
+// --- Fotos ---------------------------------------------------------------------------
 const inputFoto = ref<HTMLInputElement | null>(null);
 function adicionarFotos(evento: Event) {
   const arquivos = Array.from((evento.target as HTMLInputElement).files ?? []);
@@ -54,7 +88,7 @@ function adicionarFotos(evento: Event) {
   if (inputFoto.value) inputFoto.value.value = '';
 }
 
-// --- Salvar -------------------------------------------------------------------------
+// --- Salvar --------------------------------------------------------------------------
 async function entrar() {
   if (c.faltando.value.length) {
     toast.error(`Preencha: ${c.faltando.value.join(', ')}.`);
@@ -72,15 +106,11 @@ async function entrar() {
 }
 
 const rotuloModelo = computed(() => (c.tipo.value === 'outros' ? 'Descrição' : 'Modelo'));
-const placeholderModelo = computed(() => {
-  if (c.tipo.value === 'moto') return 'Ex: CG 160 preta';
-  if (c.tipo.value === 'pesado') return 'Ex: Scania R450';
-  if (c.tipo.value === 'bicicleta') return 'Ex: Caloi aro 29';
-  if (c.tipo.value === 'outros') return 'Ex: Lancha 21 pés';
-  return 'Ex: Gol';
-});
+const placeholderModelo = computed(() => ({
+  moto: 'Ex: CG 160', pesado: 'Ex: Scania R450', bicicleta: 'Ex: Caloi aro 29', outros: 'Ex: Lancha 21 pés',
+} as Record<string, string>)[c.tipo.value] ?? 'Ex: Gol');
 
-/** Classe dos botões de escolha (tipo, porte, serviço, avaria). */
+/** Classe dos botões de escolha (tipo, porte, serviço). */
 function chip(ativo: boolean): string {
   return ativo
     ? 'border-brand-primary bg-brand-primary text-white'
@@ -90,191 +120,260 @@ function chip(ativo: boolean): string {
 
 <template>
   <BaseModal :is-open="isOpen" title="Nova entrada" subtitle="Lavagem: do balcão ao pátio" size="4xl" @close="emit('close')">
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
-      <!-- ===================== Coluna 1: veículo, cliente e serviços ===================== -->
-      <div class="flex flex-col gap-5 lg:col-span-3">
-        <!-- Placa -->
-        <section class="flex flex-col gap-2">
-          <div class="grid grid-cols-12 gap-3">
-            <div class="col-span-12 sm:col-span-5">
-              <BaseInput
-                v-model="c.placa.value"
-                :label="c.placaObrigatoria.value ? 'Placa' : 'Placa (se tiver)'"
-                placeholder="ABC1D23"
-                data-testid="comanda-placa"
-              />
-            </div>
-            <div class="col-span-12 flex items-end pb-2 text-sm sm:col-span-7">
-              <span v-if="c.buscandoPlaca.value" class="text-zinc-400">Procurando…</span>
-              <span v-else-if="c.veiculo.value" class="flex items-center gap-1 font-medium text-emerald-700">
-                <CheckCircle2 :size="16" /> Já veio aqui: {{ c.veiculo.value.modelo }} de {{ c.veiculo.value.cliente_nome }}
-              </span>
-              <span v-else-if="c.placa.value.length >= 7" class="text-zinc-500">Veículo novo</span>
-            </div>
-          </div>
-        </section>
+    <div class="space-y-4">
+      <!-- Controles de sempre: Situação, Responsável, Prioridade, Previsão -->
+      <OSControlsCard
+        status="ABERTA"
+        is-create-mode
+        :funcionario-id="c.responsavelId.value"
+        :prioridade="c.prioridade.value"
+        :data-previsao="c.dataPrevisao.value"
+        :status-options="statusOptions"
+        :prioridade-options="prioridadeOptions"
+        :funcionarios-options="funcionariosOptions"
+        :can-select-tecnico="podeEscolherResponsavel"
+        @update:funcionario-id="c.responsavelId.value = $event"
+        @update:prioridade="c.prioridade.value = $event as OsPriorityEnumDataType"
+        @update:data-previsao="c.mudarDataPrevisao"
+      />
 
-        <!-- Cliente -->
-        <section class="flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Cliente</p>
-          <div v-if="c.cliente.value" class="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5">
-            <div>
-              <p class="text-sm font-semibold text-zinc-800">{{ c.cliente.value.nome }}</p>
-              <p class="text-xs text-zinc-500">
-                {{ c.cliente.value.id ? 'Cliente cadastrado' : `Novo cliente${c.cliente.value.celular ? ' · ' + c.cliente.value.celular : ''}` }}
-              </p>
-            </div>
-            <button type="button" class="text-xs font-semibold text-brand-primary hover:underline" @click="trocarCliente">Trocar</button>
-          </div>
+      <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_400px]">
+        <!-- ============ Corpo: veículo, serviços, lavadores, avarias ============ -->
+        <div class="space-y-4">
+          <BaseSectionCard titulo="Veículo" descricao="Digite a placa: se o veículo já veio, ele e o dono aparecem">
+            <template #cabecalho>
+              <div class="flex items-center gap-2">
+                <CarFront :size="18" class="text-brand-primary" />
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Veículo</h2>
+                  <p class="text-xs text-zinc-500">Digite a placa: se o veículo já veio, ele e o dono aparecem</p>
+                </div>
+              </div>
+            </template>
 
-          <template v-else-if="!cadastrandoCliente">
-            <BaseInput v-model="c.buscaCliente.value" placeholder="Buscar cliente por nome, telefone ou CPF" />
-            <ul v-if="c.clientesAchados.value.length" class="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
-              <li v-for="achado in c.clientesAchados.value" :key="achado.id">
-                <button type="button" class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-50" @click="c.escolherCliente(achado)">
-                  {{ nomeDoCliente(achado) }}
+            <div class="space-y-4">
+              <div class="grid grid-cols-12 items-end gap-3">
+                <div class="col-span-12 sm:col-span-5">
+                  <BaseInput
+                    v-model="c.placa.value"
+                    :label="c.placaObrigatoria.value ? 'Placa' : 'Placa (se tiver)'"
+                    placeholder="ABC1D23"
+                    data-testid="comanda-placa"
+                  />
+                </div>
+                <div class="col-span-12 pb-2 text-sm sm:col-span-7">
+                  <span v-if="c.buscandoPlaca.value" class="text-zinc-400">Procurando…</span>
+                  <span v-else-if="c.veiculo.value" class="flex items-center gap-1 font-medium text-emerald-700">
+                    <CheckCircle2 :size="16" /> Já veio aqui: {{ c.veiculo.value.modelo }}
+                  </span>
+                  <span v-else-if="c.placa.value.length >= 7" class="text-zinc-500">Veículo novo</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="t in c.tiposDeVeiculo.value"
+                  :key="t.value"
+                  type="button"
+                  class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors"
+                  :class="chip(c.tipo.value === t.value)"
+                  @click="c.tipo.value = t.value"
+                >
+                  {{ t.label }}
                 </button>
-              </li>
-            </ul>
-            <button
-              type="button"
-              class="flex items-center gap-1.5 self-start text-sm font-semibold text-brand-primary hover:underline"
-              @click="cadastrandoCliente = true; novoNome = c.buscaCliente.value"
-            >
-              <UserPlus :size="15" /> Cliente novo
-            </button>
-          </template>
+              </div>
 
-          <div v-else class="grid grid-cols-12 items-end gap-3 rounded-xl border border-zinc-200 p-3">
-            <div class="col-span-12 sm:col-span-6"><BaseInput v-model="novoNome" label="Nome" placeholder="Nome do cliente" /></div>
-            <div class="col-span-8 sm:col-span-4">
-              <BaseInput v-model="novoCelular" label="Celular" placeholder="(88) 99999-9999" inputmode="tel" />
+              <div>
+                <p class="mb-1.5 text-xs font-medium text-zinc-600">Porte</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="p in c.portesDoTipo.value"
+                    :key="p.id"
+                    type="button"
+                    class="rounded-lg border px-3 py-1.5 text-sm transition-colors"
+                    :class="chip(c.porteId.value === p.id)"
+                    @click="c.porteId.value = p.id"
+                  >
+                    {{ p.nome }}
+                  </button>
+                  <span v-if="!c.portesDoTipo.value.length" class="text-sm text-zinc-400">
+                    Nenhum porte ativo. Configure em Configurações › Lava-Rápido.
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-12 gap-3">
+                <div class="col-span-12 sm:col-span-5">
+                  <BaseInput v-model="c.modelo.value" :label="rotuloModelo" :placeholder="placeholderModelo" required />
+                </div>
+                <div class="col-span-6 sm:col-span-4"><BaseInput v-model="c.marca.value" label="Marca" /></div>
+                <div class="col-span-6 sm:col-span-3"><BaseInput v-model="c.cor.value" label="Cor" placeholder="Prata" /></div>
+              </div>
             </div>
-            <div class="col-span-4 flex gap-1 pb-0.5 sm:col-span-2">
-              <BaseButton size="sm" :disabled="!novoNome.trim()" @click="confirmarClienteNovo">OK</BaseButton>
-              <button type="button" class="p-2 text-zinc-400 hover:text-zinc-700" @click="cadastrandoCliente = false"><X :size="16" /></button>
-            </div>
-          </div>
-        </section>
+          </BaseSectionCard>
 
-        <!-- Tipo e porte -->
-        <section class="flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Veículo</p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="t in c.tiposDeVeiculo.value"
-              :key="t.value"
-              type="button"
-              class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors"
-              :class="chip(c.tipo.value === t.value)"
-              @click="c.tipo.value = t.value"
-            >
-              {{ t.label }}
-            </button>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="p in c.portesDoTipo.value"
-              :key="p.id"
-              type="button"
-              class="rounded-lg border px-3 py-1.5 text-sm transition-colors"
-              :class="chip(c.porteId.value === p.id)"
-              @click="c.porteId.value = p.id"
-            >
-              {{ p.nome }}
-            </button>
-            <span v-if="!c.portesDoTipo.value.length" class="text-sm text-zinc-400">
-              Nenhum porte ativo. Configure em Configurações › Lava-Rápido.
-            </span>
-          </div>
-          <div class="grid grid-cols-12 gap-3">
-            <div class="col-span-12 sm:col-span-5">
-              <BaseInput v-model="c.modelo.value" :label="rotuloModelo" :placeholder="placeholderModelo" />
-            </div>
-            <div class="col-span-6 sm:col-span-4"><BaseInput v-model="c.marca.value" label="Marca (opcional)" /></div>
-            <div class="col-span-6 sm:col-span-3"><BaseInput v-model="c.cor.value" label="Cor" placeholder="Prata" /></div>
-          </div>
-        </section>
+          <!-- Serviços: botões do porte + a lista do que foi escolhido -->
+          <BaseSectionCard>
+            <template #cabecalho>
+              <div class="flex items-center gap-2">
+                <Droplets :size="18" class="text-brand-primary" />
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Serviços</h2>
+                  <p class="text-xs text-zinc-500">O preço é o do porte; pode ser ajustado na lista</p>
+                </div>
+              </div>
+            </template>
 
-        <!-- Serviços -->
-        <section class="flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Serviços</p>
-          <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte para ver os preços.</p>
-          <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
-          <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              v-for="s in c.servicosDoPorte.value ?? []"
-              :key="s.servico_id"
-              type="button"
-              class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-colors"
-              :class="chip(s.servico_id in c.selecionados.value)"
-              @click="c.alternarServico(s.servico_id, s.valor)"
-            >
-              <span class="text-sm font-medium">{{ s.descricao }}</span>
-              <span class="text-sm font-bold tabular-nums">{{ reais(s.valor) }}</span>
-            </button>
-          </div>
-        </section>
-      </div>
+            <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte do veículo para ver os serviços e os preços.</p>
+            <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
+            <template v-else>
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  v-for="s in c.servicosDoPorte.value ?? []"
+                  :key="s.servico_id"
+                  type="button"
+                  class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-colors"
+                  :class="chip(s.servico_id in c.selecionados.value)"
+                  @click="c.alternarServico(s.servico_id, s.valor)"
+                >
+                  <span class="text-sm font-medium">{{ s.descricao }}</span>
+                  <span class="text-sm font-bold tabular-nums">{{ reais(s.valor) }}</span>
+                </button>
+              </div>
 
-      <!-- ===================== Coluna 2: lavador, avarias e resumo ===================== -->
-      <div class="flex flex-col gap-5 lg:col-span-2">
-        <section class="flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Lavador</p>
-          <SeletorLavadores v-model="c.lavadores.value" />
-        </section>
+              <div v-if="c.itens.value.length" class="mt-4 rounded-xl border border-zinc-100">
+                <p class="border-b border-zinc-100 px-4 py-2 text-xs text-slate-500">Serviços adicionados</p>
+                <ul class="divide-y divide-zinc-100">
+                  <li v-for="item in c.itens.value" :key="item.servico_id" class="flex items-center gap-3 px-4 py-2">
+                    <span class="flex-1 text-sm font-medium text-zinc-800">{{ item.nome }}</span>
+                    <div class="w-36">
+                      <MoneyInput
+                        :model-value="item.valor / 100"
+                        @update:model-value="c.mudarPreco(item.servico_id, ($event ?? 0) * 100)"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      class="p-1.5 text-zinc-400 hover:text-red-600"
+                      title="Remover"
+                      @click="c.alternarServico(item.servico_id, item.valor)"
+                    >
+                      <Trash2 :size="15" />
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </template>
+          </BaseSectionCard>
 
-        <section class="flex flex-col gap-2">
-          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Avarias na chegada</p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="avaria in c.avariasDoTipo.value"
-              :key="avaria"
-              type="button"
-              class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
-              :class="c.avarias.value.includes(avaria)
-                ? 'border-amber-500 bg-amber-50 font-semibold text-amber-800'
-                : 'border-zinc-200 bg-white text-zinc-600 hover:border-amber-400'"
-              @click="c.alternarAvaria(avaria)"
-            >
-              {{ avaria }}
-            </button>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <input ref="inputFoto" type="file" accept="image/*" multiple capture="environment" class="hidden" @change="adicionarFotos" />
-            <BaseButton size="sm" variant="ghost" @click="inputFoto?.click()">
-              <Camera :size="14" class="mr-1" /> Foto
-            </BaseButton>
-            <span v-for="(foto, i) in c.fotos.value" :key="i" class="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-              {{ foto.name.slice(0, 14) }}
-              <button type="button" @click="c.fotos.value = c.fotos.value.filter((_, j) => j !== i)"><X :size="12" /></button>
-            </span>
-          </div>
-        </section>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <BaseSectionCard>
+              <template #cabecalho>
+                <div class="flex items-center gap-2">
+                  <Users :size="18" class="text-brand-primary" />
+                  <h2 class="text-base font-semibold text-zinc-900">Lavadores</h2>
+                </div>
+              </template>
+              <SeletorLavadores v-model="c.lavadores.value" />
+            </BaseSectionCard>
 
-        <section>
+            <BaseSectionCard>
+              <template #cabecalho>
+                <div class="flex items-center gap-2">
+                  <ShieldAlert :size="18" class="text-brand-primary" />
+                  <h2 class="text-base font-semibold text-zinc-900">Avarias na chegada</h2>
+                </div>
+              </template>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="avaria in c.avariasDoTipo.value"
+                  :key="avaria"
+                  type="button"
+                  class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
+                  :class="c.avarias.value.includes(avaria)
+                    ? 'border-amber-500 bg-amber-50 font-semibold text-amber-800'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-amber-400'"
+                  @click="c.alternarAvaria(avaria)"
+                >
+                  {{ avaria }}
+                </button>
+              </div>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <input ref="inputFoto" type="file" accept="image/*" multiple capture="environment" class="hidden" @change="adicionarFotos" />
+                <BaseButton size="sm" variant="ghost" @click="inputFoto?.click()">
+                  <Camera :size="14" class="mr-1" /> Foto
+                </BaseButton>
+                <span v-for="(foto, i) in c.fotos.value" :key="i" class="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
+                  {{ foto.name.slice(0, 14) }}
+                  <button type="button" @click="c.fotos.value = c.fotos.value.filter((_, j) => j !== i)"><X :size="12" /></button>
+                </span>
+              </div>
+            </BaseSectionCard>
+          </div>
+
           <BaseInput
             v-model="c.observacao.value"
             label="Observação / pertences"
-            placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo"
+            placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo do capô"
           />
-        </section>
+        </div>
 
-        <!-- Resumo -->
-        <section class="mt-auto rounded-2xl bg-zinc-50 p-4">
-          <ul class="flex flex-col gap-1 text-sm">
-            <li v-for="item in c.itens.value" :key="item.servico_id" class="flex justify-between gap-2">
-              <span class="text-zinc-700">{{ item.nome }}</span>
-              <span class="tabular-nums text-zinc-700">{{ reais(item.valor) }}</span>
-            </li>
-          </ul>
-          <div class="mt-3 flex items-end justify-between border-t border-zinc-200 pt-3">
-            <div class="text-xs text-zinc-500">
-              <span v-if="c.previsao.value">Pronto às <strong class="text-zinc-800">{{ horaLocal(c.previsao.value.toISOString()) }}</strong></span>
+        <!-- ============ Lateral: resumo de cobrança e cliente (padrão da OS) ============ -->
+        <div class="space-y-4">
+          <OSSummaryCard
+            :subtotal="c.subtotal.value"
+            :valor-entrega="c.taxaEntrega.value"
+            :valor-desconto="0"
+            :valor-total="c.total.value"
+            :valor-entrada="c.valorEntrada.value"
+            :forma-pagamento-entrada-id="c.formaPagamentoEntradaId.value"
+            :is-locked="false"
+            @update:valor-entrada="c.valorEntrada.value = $event"
+            @update:valor-entrega="c.taxaEntrega.value = $event"
+            @update:forma-pagamento-entrada-id="c.formaPagamentoEntradaId.value = $event"
+          />
+          <p v-if="c.previsao.value" class="-mt-2 px-1 text-xs text-zinc-500">
+            Pronto previsto às <strong class="text-zinc-800">{{ horaLocal(c.previsao.value.toISOString()) }}</strong>
+          </p>
+
+          <OSClientCard
+            v-if="c.cliente.value"
+            :cliente="c.cliente.value"
+            @change-cliente="trocarCliente"
+            @update-cliente="clienteAtualizado"
+          />
+
+          <!-- Sem cliente: buscar ou cadastrar ali mesmo -->
+          <BaseSectionCard v-else titulo="Dados do cliente">
+            <template v-if="!cadastrandoCliente">
+              <BaseInput v-model="c.buscaCliente.value" placeholder="Buscar por nome, telefone ou CPF" />
+              <ul v-if="c.clientesAchados.value.length" class="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+                <li v-for="achado in c.clientesAchados.value" :key="achado.id">
+                  <button type="button" class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-50" @click="c.escolherCliente(achado)">
+                    {{ nomeDoCliente(achado) }}
+                  </button>
+                </li>
+              </ul>
+              <button
+                type="button"
+                class="mt-3 flex items-center gap-1.5 text-sm font-semibold text-brand-primary hover:underline"
+                @click="cadastrandoCliente = true; novoNome = c.buscaCliente.value"
+              >
+                <UserPlus :size="15" /> Cadastrar cliente novo
+              </button>
+            </template>
+            <div v-else class="space-y-3">
+              <BaseInput v-model="novoNome" label="Nome" placeholder="Nome do cliente" required />
+              <BaseInput v-model="novoCelular" label="Celular" placeholder="(88) 99999-9999" inputmode="tel" />
+              <div class="flex justify-end gap-2">
+                <BaseButton size="sm" variant="secondary" @click="cadastrandoCliente = false">Cancelar</BaseButton>
+                <BaseButton size="sm" :is-loading="salvandoCliente" :disabled="!novoNome.trim()" @click="confirmarClienteNovo">
+                  Cadastrar
+                </BaseButton>
+              </div>
             </div>
-            <p class="text-2xl font-bold tabular-nums text-zinc-900">{{ reais(c.total.value) }}</p>
-          </div>
-        </section>
+          </BaseSectionCard>
+        </div>
       </div>
     </div>
 

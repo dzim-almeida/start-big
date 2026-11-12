@@ -28,6 +28,7 @@ export interface ItemComanda {
 export interface PayloadLavagem {
   cliente_id: number;
   funcionario_id: number | null;
+  prioridade?: string;
   tipo_veiculo: string;
   placa: string;
   modelo: string;
@@ -39,7 +40,12 @@ export interface PayloadLavagem {
   itens: ItemComanda[];
   avarias: string[];
   observacao: string;
-  previsao: Date | null;
+  /** Instante calculado, ou o dia "AAAA-MM-DD" escolhido à mão (como na OS). */
+  previsao: Date | string | null;
+  /** Resumo da OS (centavos): adiantamento, forma dele e deslocamento. */
+  valor_entrada?: number;
+  forma_pagamento_entrada_id?: number | null;
+  taxa_entrega?: number;
 }
 
 /** Cliente novo só com nome e celular (CPF é opcional no cadastro). */
@@ -63,9 +69,11 @@ export function montarOS(p: PayloadLavagem): Record<string, unknown> {
   return {
     cliente_id: p.cliente_id,
     funcionario_id: p.funcionario_id,
-    prioridade: 'NORMAL',
+    prioridade: p.prioridade ?? 'NORMAL',
     defeito_relatado: textoDoPedido(p.observacao, p.itens),
-    data_previsao: p.previsao ? p.previsao.toISOString() : null,
+    data_previsao: p.previsao instanceof Date ? p.previsao.toISOString() : (p.previsao || null),
+    ...(p.valor_entrada ? { valor_entrada: p.valor_entrada, forma_pagamento_entrada_id: p.forma_pagamento_entrada_id ?? null } : {}),
+    ...(p.taxa_entrega ? { taxa_entrega: p.taxa_entrega } : {}),
     dados_adicionais: {
       tipo_trabalho: p.tipo_veiculo,
       avarias: p.avarias,
