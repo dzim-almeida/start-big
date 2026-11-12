@@ -18,7 +18,7 @@
 from typing import Any, Dict, List
 
 from ..campos import campo, grupo_vistoria, tipo_de_trabalho
-from ..capacidades import CAP_IMAGEM_NA_ENTRADA, CAP_VISTORIA
+from ..capacidades import CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE, CAP_VISTORIA
 
 SEGMENTO_LAVA_RAPIDO = "lava_rapido"
 
@@ -28,14 +28,16 @@ GRUPO_VEICULO = "Dados do Veículo"
 GRUPO_ENTRADA = "Entrada"
 
 # Portes iniciais de cada tipo (SPEC-00 P2a). Sao a lista que a loja recebe
-# no primeiro uso; a Spec 02A passa a lista para uma tabela que o dono edita.
-# Ate la, o campo `porte` usa exatamente estes textos como opcoes.
+# no primeiro uso: a Spec 02A grava estes textos na tabela `portes_veiculo`
+# (que o dono edita) na primeira leitura. O campo `porte` do formulario de
+# detalhes continua usando estes textos como opcoes.
 PORTES_CARRO = ["Hatch", "Sedã", "SUV", "Picape", "Van / utilitário"]
 PORTES_MOTO = ["Até 300 cc", "Acima de 300 cc"]
 PORTES_PESADO = [
     "Caminhão 2 eixos", "Caminhão 3 eixos", "Caminhão 4 eixos",
     "Caminhão 5 eixos ou mais", "Ônibus / micro-ônibus",
 ]
+PORTES_BICICLETA = ["Infantil", "Adulto", "Elétrica"]
 PORTES_OUTROS = ["Pequeno", "Médio", "Grande"]
 
 # O caminhao e lavado com a carroceria, e ela muda o trabalho (um bau por
@@ -104,6 +106,13 @@ _PESADO = tipo_de_trabalho("pesado", "Caminhão / ônibus", [
     # mesmo cavalo mecanico na proxima visita.
     campo("placa_implemento", "Placa do implemento", "texto",
           escopo="objeto", grupo=GRUPO_VEICULO),
+    *_campos_da_entrada(),
+])
+
+# Bicicleta e tipo proprio (SPEC-00 U5, Revisao 4): sem placa, com porte e
+# avarias proprias. Em "Outros" ela pegaria porte de barco.
+_BICICLETA = tipo_de_trabalho("bicicleta", "Bicicleta", [
+    *_campos_do_veiculo(PORTES_BICICLETA, placa_obrigatoria=False),
     *_campos_da_entrada(),
 ])
 
@@ -191,7 +200,7 @@ LAVA_RAPIDO = {
     #   veiculo ir para o box, e saem na via de entrada.
     # Sem diagnostico, garantia (prazo ou item), aprovacao de itens e revisoes
     # por KM: lavagem nao e conserto (SPEC-00 O6).
-    "capacidades": [CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA],
+    "capacidades": [CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE],
 
     # Vazios porque este segmento declara por tipo de trabalho. O guard
     # (test/core/test_registry_segmentos.py) proibe usar os dois caminhos.
@@ -213,5 +222,5 @@ LAVA_RAPIDO = {
         ]),
     ],
 
-    "tipos": [_CARRO, _MOTO, _PESADO, _OUTROS],
+    "tipos": [_CARRO, _MOTO, _PESADO, _BICICLETA, _OUTROS],
 }

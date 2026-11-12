@@ -96,3 +96,6 @@ from app.db.models.marcenaria import (  # noqa: F401
 from app.db.models.fabrica_orcamento import (  # noqa: F401
     FabricaOrcamento, FabricaAmbiente, FabricaMovel, FabricaMaterial, FabricaFaseLog,
 )
+
+# --- Lava-rápido (docs/lava-rapido/, Spec 02A): portes da loja e preço por porte ---
+from app.db.models.lava_rapido import PorteVeiculo, ServicoPrecoPorte  # noqa: F401

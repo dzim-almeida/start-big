@@ -66,6 +66,12 @@ CAP_GARANTIA_PRAZO = "garantia_prazo"
 # que nao declara continua exatamente como antes.
 CAP_ORCAMENTO_TECNICO = "orcamento_tecnico"
 
+# O preco do servico depende do PORTE do veiculo (hatch, SUV, caminhao de 3
+# eixos) -- docs/lava-rapido/ SPEC-00 P1/P2a e Spec 02A. Liga a tabela de
+# portes da loja e a grade "porte -> preco e duracao" no cadastro de servico.
+# Generica de proposito: pet shop (porte do animal) usaria o mesmo mecanismo.
+CAP_PRECO_POR_PORTE = "preco_por_porte"
+
 CAPACIDADES_CONHECIDAS = [
     CAP_VISTORIA,
     CAP_REVISOES,
@@ -75,4 +81,5 @@ CAPACIDADES_CONHECIDAS = [
     CAP_IMAGEM_NA_ENTRADA,
     CAP_GARANTIA_PRAZO,
     CAP_ORCAMENTO_TECNICO,
+    CAP_PRECO_POR_PORTE,
 ]

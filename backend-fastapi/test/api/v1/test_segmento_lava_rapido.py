@@ -109,7 +109,7 @@ def test_definicao_do_segmento_chega_ao_frontend(client, db_session):
     r = client.get("/api/v1/ordens-servico/definicao-campos", headers=header)
     assert r.status_code == 200, r.text
     definicao = r.json()["definicao"]
-    assert [t["id"] for t in definicao["tipos"]] == ["carro", "moto", "pesado", "outros"]
+    assert [t["id"] for t in definicao["tipos"]] == ["carro", "moto", "pesado", "bicicleta", "outros"]
     assert definicao["identificador"]["gerado_se_vazio"] is True
     assert "AGUARDANDO_PECAS" not in definicao["status_usados"]
     # Spec 01B, D9: o rotulo do "usar anterior" vem inteiro, no masculino.

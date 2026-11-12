@@ -45,6 +45,7 @@ from app.api.v1.endpoints import nfe_entrada
 from app.api.v1.endpoints import produto_importacao
 from app.api.v1.endpoints import compras
 from app.api.v1.endpoints import fabrica
+from app.api.v1.endpoints import lava_rapido
 from app.api.v1.endpoints import (
     marcenaria_entrega,
     marcenaria_orcamento,
@@ -214,6 +215,8 @@ router.include_router(marcenaria_producao.router, prefix="/marcenaria", tags=["M
 router.include_router(marcenaria_entrega.router, prefix="/marcenaria", tags=["Marcenaria - Entrega"])
 # Faturamento dos moveis (docs/marcenaria-faturamento-plano.md): produto acabado e NF-e.
 router.include_router(marcenaria_faturamento.router, prefix="/marcenaria", tags=["Marcenaria - Faturamento"])
+# Lava-rapido (docs/lava-rapido/, Spec 02A): portes da loja e preco por porte.
+router.include_router(lava_rapido.router, prefix="/lava-rapido", tags=["Lava-rápido"])
 # Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
 # do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
 marcenaria_ganchos.registrar()

@@ -35,6 +35,7 @@ from .capacidades import (
     CAP_REVISOES,
     CAP_VISTORIA,
     CAP_ORCAMENTO_TECNICO,
+    CAP_PRECO_POR_PORTE,
     CAPACIDADES_CONHECIDAS,
 )
 from .definicoes import (
@@ -80,6 +81,7 @@ __all__ = [
     "CAP_GARANTIA_ITENS",
     "CAP_DIAGNOSTICO",
     "CAP_ORCAMENTO_TECNICO",
+    "CAP_PRECO_POR_PORTE",
     "CAPACIDADES_CONHECIDAS",
     # construcao
     "campo",

@@ -673,7 +673,7 @@ def test_ids_dos_tipos_do_lava_rapido_sao_contrato_com_o_frontend():
     indexados por estes ids. Renomear um deles nao quebra build nenhum -- a
     sobrescrita so deixa de casar, em silencio."""
     ids = [tipo["id"] for tipo in DEFINICOES["lava_rapido"]["tipos"]]
-    assert ids == ["carro", "moto", "pesado", "outros"]
+    assert ids == ["carro", "moto", "pesado", "bicicleta", "outros"]
 
 
 def test_todo_tipo_do_lava_rapido_pede_porte_com_opcoes():
@@ -687,19 +687,20 @@ def test_todo_tipo_do_lava_rapido_pede_porte_com_opcoes():
         assert porte.get("opcoes"), tipo["id"]
 
 
-def test_so_o_tipo_outros_dispensa_a_placa():
-    """D6: a tela pede placa para carro, moto e caminhao; barco e jet ski nao
-    tem, e o sistema gera o codigo."""
+def test_so_bicicleta_e_outros_dispensam_a_placa():
+    """D6: a tela pede placa para carro, moto e caminhao; bicicleta, barco e
+    jet ski nao tem, e o sistema gera o codigo (SPEC-00 U5)."""
     for tipo in DEFINICOES["lava_rapido"]["tipos"]:
         placa = next(c for c in tipo["campos"] if c["nome"] == "placa")
-        assert placa["obrigatorio"] is (tipo["id"] != "outros"), tipo["id"]
+        assert placa["obrigatorio"] is (tipo["id"] not in ("bicicleta", "outros")), tipo["id"]
         assert placa["origem"] == "coluna" and placa["coluna"] == "numero_serie"
 
 
 def test_capacidades_do_lava_rapido():
     """Caso 6. Vistoria e fotos na entrada sim; nada de conserto (SPEC-00 O6)."""
     capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
-    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA}
+    # preco_por_porte: Spec 02A (portes da loja, preco e duracao por porte).
+    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte"}
     assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
 
 
