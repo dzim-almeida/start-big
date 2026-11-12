@@ -7,6 +7,8 @@ import type { Component } from 'vue';
 
 // Modo de comissão: 'direto' paga a taxa sobre tudo; 'meta' só paga ao bater a meta.
 export type ComissaoModo = 'direto' | 'meta';
+/** OS com mais de um lavador (lava-rápido, Spec 10B): dividir a base ou pagar inteira a cada um. */
+export type ComissaoDivisao = 'dividir' | 'inteira';
 
 export interface CargoBase {
   nome: string;
@@ -16,6 +18,7 @@ export interface CargoBase {
   comissao_servico_percentual?: number | null;
   meta_mensal?: number | null;
   comissao_modo?: ComissaoModo | null;
+  comissao_divisao?: ComissaoDivisao | null;
 }
 
 export interface CargoCreate extends CargoBase {}
@@ -32,6 +35,7 @@ export interface CargoUpdate {
   comissao_servico_percentual?: number | null;
   meta_mensal?: number | null;
   comissao_modo?: ComissaoModo | null;
+  comissao_divisao?: ComissaoDivisao | null;
 }
 
 export interface PositionFormData {
@@ -42,6 +46,7 @@ export interface PositionFormData {
   comissao_servico_percentual: number | null;
   meta_mensal: number | null;
   comissao_modo: ComissaoModo | null;
+  comissao_divisao: ComissaoDivisao | null;
 }
 
 export interface PermissionMatrixItem {

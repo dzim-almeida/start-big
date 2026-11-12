@@ -2,7 +2,7 @@
 
 | Campo      | Valor                                                                             |
 |------------|-----------------------------------------------------------------------------------|
-| Status     | **Revisão 4 (12/11, tarde): interface própria** — comanda e pátio viram o centro (SPEC-00 §6.5); ordem dos marcos refeita (§3). Feitas: 01A, 01B. Próximo: 02A |
+| Status     | **Revisão 4 (12/11, tarde): interface própria** — comanda e pátio viram o centro (SPEC-00 §6.5); ordem dos marcos refeita (§3). Feitas: 01A, 01B e o Marco 2 inteiro (02A/B, 03A/B, 04A/B, 10A/B), aguardando o usuário olhar as telas |
 | Data       | 12/11/2026                                                                        |
 | Branch     | `feat/segmento-lava-rapido` @ `c2228e88` (saiu da `feat/cfop-na-nota`)            |
 | Documentos | `SPEC-00` (decisões) + 11 specs de implementação nesta pasta (escritas uma a uma, na ordem dos marcos) |
@@ -132,6 +132,12 @@ Referência medida antes da 01A, em `2dc12ccd` (worktree limpo): backend **3.013
 |------|------|--------|--------|--------------|
 | 01A | 12/11/2026 | 6b8e13a4 | +95: 9 de API, 8 do guard e 78 casos parametrizados do guard sobre os campos novos | 3.108 passando, 1 pulado |
 | 01B | 12/11/2026 | a21768c8 (+ 49535e44, textos da aba de imagens) | Frontend +14 (5 de status, 7 da exigência de placa/porte, 2 da impressão); backend +1 asserção (`rotulo_objeto_anterior`) | vitest 791 → 805; `vue-tsc` limpo; registry + API do lava 255 passando |
+| 02A | 12/11/2026 | 41c5c46d | 10 de API + 3 da migração | — |
+| 02B | 12/11/2026 | d7f9c81d | 4 unitários (grade) | — |
+| 03A | 12/11/2026 | 672e35dc | guard + API (marca opcional; oficina continua exigindo) | registry/lava 387 |
+| 10A | 12/11/2026 | 43579db7 | 11 de API + 3 da migração | comissão/relatório/funcionário/caixa/core 459 |
+| 04A | 12/11/2026 | 8a1f6c45 | 6 de API | — |
+| 03B · 04B · 10B | 12/11/2026 | (este commit) | 16 unitários + 3 das abas | vitest 827; `vue-tsc` limpo |
 
 ---
 

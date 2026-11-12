@@ -46,6 +46,8 @@ const ROTULOS_STATUS_FALLBACK_POR_SEGMENTO: Record<string, RotulosStatus> = {
   },
   // Repete app/core/segmentos/definicoes/lava_rapido.py (Spec 01B do lava, D5).
   lava_rapido: {
+    ABERTA: { rotulo: 'Aguardando', curto: 'Aguardando' },
+    EM_ANDAMENTO: { rotulo: 'Lavando', curto: 'Lavando' },
     AGUARDANDO_RETIRADA: { rotulo: 'Pronto', curto: 'Pronto' },
   },
 };

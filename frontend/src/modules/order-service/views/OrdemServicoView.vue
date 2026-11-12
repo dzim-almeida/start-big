@@ -27,6 +27,14 @@ const TerceirizadosTab = defineAsyncComponent(
 const OrcamentosTab = defineAsyncComponent(
   () => import('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue'),
 );
+// Lava-rápido (Spec 03B/04B, SPEC-00 U1): o pátio é a tela inicial e a
+// "Nova entrada" é a comanda de uma tela. Sob demanda, como as da marcenaria.
+const PatioTab = defineAsyncComponent(
+  () => import('@/modules/lava-rapido/patio/components/PatioTab.vue'),
+);
+const ComandaModal = defineAsyncComponent(
+  () => import('@/modules/lava-rapido/comanda/components/ComandaModal.vue'),
+);
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
@@ -39,7 +47,9 @@ import { getUniqueOS } from '../ordens/services/orderServiceGet.service';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS, openExistingOS } = useOSCreateFlow();
-const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
+const { temRevisoes, temOrcamentoTecnico, temOperacaoPatio } = useCapacidades();
+/** Lava-rápido: a comanda (Nova entrada) aberta. */
+const comandaAberta = ref(false);
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
 
@@ -66,6 +76,8 @@ onMounted(async () => {
 // Marcenaria (12/10/2026): "Orçamentos" vem primeiro — é por ele que a loja
 // fecha o serviço — e o "Cadastro de Serviços" some.
 const tabOptions = computed(() => [
+  // Lava-rápido: "Pátio" primeiro — é o dia de trabalho (SPEC-00 U1).
+  ...(temOperacaoPatio?.value ? [{ id: 'patio', label: 'Pátio' }] : []),
   ...(temOrcamentoTecnico.value && podeVerOrcamentos.value ? [{ id: 'orcamentos', label: 'Orçamentos' }] : []),
   ...(temOrcamentoTecnico.value ? TAB_OPTIONS.filter((aba) => aba.id !== 'servicos') : TAB_OPTIONS),
   ...(temRevisoes.value ? [{ id: 'revisoes', label: 'Revisões' }] : []),
@@ -94,6 +106,7 @@ const activeTab = computed<string>({
 });
 
 const pageTitle = computed(() => {
+  if (activeTab.value === 'patio') return 'Pátio';
   if (activeTab.value === 'revisoes') return 'Revisões Pendentes';
   if (activeTab.value === 'producao') return 'Produção';
   if (activeTab.value === 'instalacoes') return 'Instalações';
@@ -103,6 +116,7 @@ const pageTitle = computed(() => {
 });
 
 const pageDescription = computed(() => {
+  if (activeTab.value === 'patio') return 'Os veículos de hoje, da chegada à entrega.';
   if (activeTab.value === 'revisoes') return 'Veículos com revisão vencida por data e/ou KM.';
   if (activeTab.value === 'producao') return 'As OS em produção, com o progresso e a próxima etapa, na ordem da entrega.';
   if (activeTab.value === 'instalacoes') return 'Quem instala onde, por dia.';
@@ -122,8 +136,14 @@ const exibirNovoOrcamento = computed(() =>
 );
 const novoOrcamento = () => router.push({ name: 'marcenaria-orcamento-novo' });
 
+/** Lava-rápido: no pátio e na lista de OS, criar é abrir a comanda (U2/U6). */
+const criaPelaComanda = computed(() =>
+  !!temOperacaoPatio?.value && (activeTab.value === 'patio' || activeTab.value === 'ordens'));
+
 function handleAddClick() {
-  if (activeTab.value === 'ordens') {
+  if (criaPelaComanda.value) {
+    comandaAberta.value = true;
+  } else if (activeTab.value === 'ordens') {
     openNovaOS();
   } else {
     openCreateModal();
@@ -151,7 +171,7 @@ function handleAddClick() {
           @click="handleAddClick"
         >
           <Plus :size="20" />
-          {{ activeTab === 'ordens' ? 'Nova OS' : 'Novo Serviço' }}
+          {{ criaPelaComanda ? 'Nova entrada' : activeTab === 'ordens' ? 'Nova OS' : 'Novo Serviço' }}
         </BaseButton>
         <BaseButton
           v-else-if="exibirNovoOrcamento"
@@ -168,12 +188,15 @@ function handleAddClick() {
       </div>
     </div>
 
-    <OrcamentosTab v-if="activeTab === 'orcamentos'" embutida />
+    <PatioTab v-if="activeTab === 'patio'" />
+    <OrcamentosTab v-else-if="activeTab === 'orcamentos'" embutida />
     <OrdensServicoTab v-else-if="activeTab === 'ordens'" />
     <RevisoesPendentesTab v-else-if="activeTab === 'revisoes'" />
     <QuadroProducaoTab v-else-if="activeTab === 'producao'" />
     <InstalacoesTab v-else-if="activeTab === 'instalacoes'" />
     <TerceirizadosTab v-else-if="activeTab === 'terceirizados'" />
     <ServicosTab v-else />
+
+    <ComandaModal v-if="temOperacaoPatio" :is-open="comandaAberta" @close="comandaAberta = false" />
   </div>
 </template>

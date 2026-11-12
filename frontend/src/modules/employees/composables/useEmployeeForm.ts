@@ -137,6 +137,7 @@ const DEFAULT_FORM_VALUES: EmployeeFormData = {
   comissao_servico_percentual: null,
   meta_mensal: null,
   comissao_modo: null,
+  comissao_divisao: null,
 
   // Observacoes
   observacao: '',
@@ -184,6 +185,7 @@ export interface EmployeeFormContext {
   comissao_servico_percentual: Ref<number | null | undefined>;
   meta_mensal: Ref<number | null | undefined>;
   comissao_modo: Ref<'direto' | 'meta' | null | undefined>;
+  comissao_divisao: Ref<'dividir' | 'inteira' | null | undefined>;
 
   // Observacoes
   observacao: Ref<string>;
@@ -275,6 +277,7 @@ export function useEmployeeFormProvider() {
   const [comissao_servico_percentual] = defineField('comissao_servico_percentual');
   const [meta_mensal] = defineField('meta_mensal');
   const [comissao_modo] = defineField('comissao_modo');
+  const [comissao_divisao] = defineField('comissao_divisao');
 
   const [observacao] = defineField('observacao');
 
@@ -339,6 +342,7 @@ export function useEmployeeFormProvider() {
       comissao_servico_percentual: employee.comissao_servico_percentual ?? null,
       meta_mensal: employee.meta_mensal ?? null,
       comissao_modo: employee.comissao_modo ?? null,
+      comissao_divisao: employee.comissao_divisao ?? null,
       observacao: employee.observacao || '',
     });
   }
@@ -398,6 +402,7 @@ function enderecoTemConteudo(e: { cep?: string; logradouro?: string; numero?: st
       comissao_servico_percentual: formData.comissao_servico_percentual ?? undefined,
       meta_mensal: formData.meta_mensal ?? undefined,
       comissao_modo: formData.comissao_modo ?? undefined,
+      comissao_divisao: formData.comissao_divisao ?? undefined,
       // Sem acesso: o bloco NAO vai no payload. O backend trata a ausencia como
       // "funcionario so de ficha" — mandar o objeto vazio criaria um login
       // quebrado em vez de nenhum login.
@@ -487,6 +492,7 @@ function enderecoTemConteudo(e: { cep?: string; logradouro?: string; numero?: st
           comissao_servico_percentual: formData.comissao_servico_percentual,
           meta_mensal: formData.meta_mensal,
           comissao_modo: formData.comissao_modo,
+          comissao_divisao: formData.comissao_divisao,
 
           // Observações
           observacao: formData.observacao || undefined,
@@ -605,6 +611,7 @@ function enderecoTemConteudo(e: { cep?: string; logradouro?: string; numero?: st
     comissao_servico_percentual,
     meta_mensal,
     comissao_modo,
+    comissao_divisao,
     observacao,
     enderecos,
     handleAddEndereco,

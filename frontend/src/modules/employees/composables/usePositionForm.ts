@@ -38,6 +38,7 @@ function getDefaultFormValues(): PositionFormData {
     comissao_servico_percentual: null,
     meta_mensal: null,
     comissao_modo: null,
+    comissao_divisao: null,
   };
 }
 
@@ -55,6 +56,8 @@ export interface PositionFormContext {
   comissaoServico: Ref<number | null | undefined>;
   metaMensal: Ref<number | null | undefined>;
   comissaoModo: Ref<'direto' | 'meta' | null | undefined>;
+  /** Lava-rápido (Spec 10B): OS com 2 lavadores — dividir ou inteira. */
+  comissaoDivisao: Ref<'dividir' | 'inteira' | null | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   submitCount: Ref<number>;
@@ -99,6 +102,7 @@ export function usePositionFormProvider() {
   const [comissaoServico] = defineField('comissao_servico_percentual');
   const [metaMensal] = defineField('meta_mensal');
   const [comissaoModo] = defineField('comissao_modo');
+  const [comissaoDivisao] = defineField('comissao_divisao');
 
   const apiError = ref<string | null>(null);
 
@@ -110,6 +114,7 @@ export function usePositionFormProvider() {
       comissao_servico_percentual: position.comissao_servico_percentual ?? null,
       meta_mensal: position.meta_mensal ?? null,
       comissao_modo: position.comissao_modo ?? null,
+      comissao_divisao: position.comissao_divisao ?? null,
     });
   }
 
@@ -156,6 +161,7 @@ export function usePositionFormProvider() {
         comissao_servico_percentual: formData.comissao_servico_percentual,
         meta_mensal: formData.meta_mensal,
         comissao_modo: formData.comissao_modo,
+        comissao_divisao: formData.comissao_divisao,
       };
 
       if (isCreateMode.value) {
@@ -173,6 +179,7 @@ export function usePositionFormProvider() {
           comissao_servico_percentual: formData.comissao_servico_percentual,
           meta_mensal: formData.meta_mensal,
           comissao_modo: formData.comissao_modo,
+          comissao_divisao: formData.comissao_divisao,
         };
 
         updateMutation.mutate(
@@ -202,6 +209,7 @@ export function usePositionFormProvider() {
     comissaoServico,
     metaMensal,
     comissaoModo,
+    comissaoDivisao,
     errors,
     submitCount,
     values,

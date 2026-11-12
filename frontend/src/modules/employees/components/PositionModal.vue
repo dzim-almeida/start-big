@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SeletorDivisaoComissao from '@/modules/lava-rapido/shared/components/SeletorDivisaoComissao.vue';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { useSegmento } from '@/shared/composables/useSegmento';
 import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 /**
@@ -74,6 +76,7 @@ const {
   comissaoServico,
   metaMensal,
   comissaoModo,
+  comissaoDivisao,
   errors,
   submitCount,
   apiError,
@@ -104,6 +107,9 @@ const metaReais = computed<number>({
   get: () => (metaMensal.value != null ? metaMensal.value / 100 : 0),
   set: (v) => { metaMensal.value = v ? Math.round(Number(v) * 100) : null; },
 });
+
+// Lava-rápido (Spec 10B): Dividir/Inteira só onde a OS tem lavadores.
+const { temExecutoresOS } = useCapacidades();
 
 // Modo de comissão: null é tratado como 'direto' na UI (retrocompatível).
 const modoAtual = computed<'direto' | 'meta'>(() =>
@@ -342,6 +348,9 @@ watch(isOpen, (open) => {
                           <span class="mt-0.5 block text-[11px] leading-tight text-zinc-500">Trava até atingir a meta</span>
                         </button>
                       </div>
+                    </div>
+                    <div v-if="temExecutoresOS" class="mt-4">
+                      <SeletorDivisaoComissao v-model="comissaoDivisao" :disabled="isViewMode" />
                     </div>
                     <div class="mt-4">
                       <label class="mb-1 block text-xs font-medium text-zinc-600">

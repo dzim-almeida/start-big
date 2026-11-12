@@ -46,7 +46,7 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // o "Sofre perda" e o menu Orçamentos (Spec 04B, D2).
   marcenaria: ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'],
   // Lava-rápido (Spec 01A/02A): vistoria e fotos na entrada; preço por porte.
-  lava_rapido: ['vistoria', 'imagem_na_entrada', 'preco_por_porte'],
+  lava_rapido: ['vistoria', 'imagem_na_entrada', 'preco_por_porte', 'operacao_patio', 'executores_os'],
 };
 
 /**
@@ -113,5 +113,9 @@ export function useCapacidades() {
     temOrcamentoTecnico: computed(() => tem('orcamento_tecnico')),
     /** Preço por porte (lava-rápido, Spec 02B): portes da loja e grade no serviço. */
     temPrecoPorPorte: computed(() => tem('preco_por_porte')),
+    /** Pátio + comanda (lava-rápido, Spec 03B/04B). */
+    temOperacaoPatio: computed(() => tem('operacao_patio')),
+    /** Lavadores da OS e Dividir/Inteira na comissão (Spec 10B). */
+    temExecutoresOS: computed(() => tem('executores_os')),
   };
 }

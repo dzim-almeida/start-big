@@ -14,6 +14,8 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 
 import { useEmployeeForm } from '../../composables/useEmployeeForm';
+import SeletorDivisaoComissao from '@/modules/lava-rapido/shared/components/SeletorDivisaoComissao.vue';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 interface Props {
   submitCount: number;
@@ -27,7 +29,11 @@ const {
   comissao_servico_percentual,
   meta_mensal,
   comissao_modo,
+  comissao_divisao,
 } = useEmployeeForm();
+
+// Lava-rápido (Spec 10B): Dividir/Inteira só onde a OS tem lavadores.
+const { temExecutoresOS } = useCapacidades();
 
 const { usaOrdemServico } = useOrdemServico();
 
@@ -129,6 +135,10 @@ const MODOS: { id: 'herda' | 'direto' | 'meta'; titulo: string; ajuda: string }[
         <p v-if="modoAtual === 'meta' && !meta_mensal" class="mt-1.5 text-[11px] leading-tight text-amber-600">
           Sem meta definida aqui, o gatilho usa a meta herdada do cargo (se houver).
         </p>
+      </div>
+
+      <div v-if="temExecutoresOS" class="col-span-12">
+        <SeletorDivisaoComissao v-model="comissao_divisao" permitir-herdar :disabled="disabled" />
       </div>
     </div>
   </section>

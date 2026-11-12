@@ -17,7 +17,10 @@ import { defineComponent, h, ref } from 'vue';
 // --- Segmento simulado: as capacidades que cada teste liga ----------------------------
 const temRevisoes = ref(false);
 const temOrcamentoTecnico = ref(false);
-vi.mock('../../shared/segmento/useCapacidades', () => ({ useCapacidades: () => ({ temRevisoes, temOrcamentoTecnico }) }));
+const temOperacaoPatio = ref(false);
+vi.mock('../../shared/segmento/useCapacidades', () => ({
+  useCapacidades: () => ({ temRevisoes, temOrcamentoTecnico, temOperacaoPatio }),
+}));
 const podeCriarOSManual = ref(true);
 vi.mock('../../shared/segmento/useTiposDeTrabalho', () => ({ useTiposDeTrabalho: () => ({ podeCriarOSManual }) }));
 const podeVerOrcamentos = ref(true);
@@ -48,6 +51,8 @@ vi.mock('@/modules/marcenaria/terceirizados/components/TerceirizadosTab.vue', ()
 vi.mock('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue', () => marcador('aba-quadro-producao'));
 vi.mock('@/modules/marcenaria/entrega/components/InstalacoesTab.vue', () => marcador('aba-instalacoes'));
 vi.mock('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue', () => marcador('aba-orcamentos'));
+vi.mock('@/modules/lava-rapido/patio/components/PatioTab.vue', () => marcador('aba-patio'));
+vi.mock('@/modules/lava-rapido/comanda/components/ComandaModal.vue', () => marcador('comanda'));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -63,6 +68,7 @@ const abas = (w: ReturnType<typeof mount>) => w.findAll('button').map((b) => b.t
 beforeEach(() => {
   temRevisoes.value = false;
   temOrcamentoTecnico.value = false;
+  temOperacaoPatio.value = false;
   podeCriarOSManual.value = true;
   podeVerOrcamentos.value = true;
   podeGerirOrcamentos.value = false;
@@ -130,6 +136,31 @@ describe('01 — abas da tela de Serviços por segmento', () => {
     const w = montar();
     expect(w.find('[data-testid="aba-ordens"]').exists()).toBe(true);
     expect(w.find('[data-testid="aba-orcamentos"]').exists()).toBe(false);
+  });
+});
+
+describe('lava-rápido — pátio e Nova entrada (Spec 04B, SPEC-00 U1/U6)', () => {
+  it('Pátio primeiro, abrindo nele, com "Nova entrada"', async () => {
+    temOperacaoPatio.value = true;
+    const w = montar();
+    await flushPromises();                                   // a aba do pátio é assíncrona
+    expect(abas(w)).toEqual(['Pátio', 'Ordens de Serviço', 'Cadastro de Serviços']);
+    expect(w.find('[data-testid="aba-patio"]').exists()).toBe(true);
+    expect(w.find('h2').text()).toBe('Pátio');
+    expect(w.text()).toContain('Nova entrada');
+  });
+
+  it('na lista de OS, criar também é pela comanda', async () => {
+    temOperacaoPatio.value = true;
+    const w = montar();
+    await w.findAll('button').find((b) => b.text() === 'Ordens de Serviço')!.trigger('click');
+    await flushPromises();
+    expect(w.text()).toContain('Nova entrada');
+    expect(w.text()).not.toContain('Nova OS');
+  });
+
+  it('outros segmentos: sem Pátio', () => {
+    expect(abas(montar())).not.toContain('Pátio');
   });
 });
 

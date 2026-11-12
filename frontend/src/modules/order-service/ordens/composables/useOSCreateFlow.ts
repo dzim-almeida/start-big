@@ -30,6 +30,9 @@ const objetoPreSelecionado = ref<ObjetoHistorico | null>(null);
 // aba de sempre ("objeto"). O quadro da fábrica abre a OS direto na Produção;
 // o modal lê e limpa este valor ao abrir.
 const abaInicial = ref<string | null>(null);
+// Lava-rápido (Spec 04B): o botão "Receber" do pátio abre a OS já no
+// recebimento. O modal lê e limpa este valor ao abrir; false = como sempre.
+const autoReceber = ref(false);
 
 // =============================================
 // Helper privado — continua o fluxo após a decisão de crédito
@@ -81,12 +84,17 @@ export function useOSCreateFlow() {
    * Abre uma OS que já existe. `opcoes.abaInicial` é OPCIONAL (Spec 12B):
    * sem ela, o modal abre na aba de sempre, como antes.
    */
-  function openExistingOS(os: OrderServiceReadDataType, comReopen = false, opcoes: { abaInicial?: string } = {}) {
+  function openExistingOS(
+    os: OrderServiceReadDataType,
+    comReopen = false,
+    opcoes: { abaInicial?: string; receber?: boolean } = {},
+  ) {
     selectedOS.value = os;
     selectedCliente.value = null;
     selectedObjeto.value = null;
     autoOpenReopen.value = comReopen;
     abaInicial.value = opcoes.abaInicial ?? null;
+    autoReceber.value = opcoes.receber === true;
     isFormModalOpen.value = true;
   }
 
@@ -182,6 +190,7 @@ export function useOSCreateFlow() {
     autoOpenReopen.value = false;
     objetoPreSelecionado.value = null;
     abaInicial.value = null;
+    autoReceber.value = false;
   }
 
   return {
@@ -196,6 +205,7 @@ export function useOSCreateFlow() {
     autoUsarCredito,
     autoOpenReopen,
     abaInicial,
+    autoReceber,
     openNovaOS,
     openExistingOS,
     handleClienteSelected,

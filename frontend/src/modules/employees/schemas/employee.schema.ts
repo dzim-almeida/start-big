@@ -125,6 +125,7 @@ export const employeeSchema = z
     comissao_servico_percentual: z.number().min(0).max(10000).nullable().optional(),
     meta_mensal: z.number().min(0).nullable().optional(),
     comissao_modo: z.enum(['direto', 'meta']).nullable().optional(),
+    comissao_divisao: z.enum(['dividir', 'inteira']).nullable().optional(),
 
     // Observacoes
     observacao: z.string().max(500).optional().or(z.literal('')),
@@ -185,6 +186,7 @@ export const employeeUpdateSchema = z
     comissao_servico_percentual: z.number().min(0).max(10000).nullable().optional(),
     meta_mensal: z.number().min(0).nullable().optional(),
     comissao_modo: z.enum(['direto', 'meta']).nullable().optional(),
+    comissao_divisao: z.enum(['dividir', 'inteira']).nullable().optional(),
 
     // Observacoes
     observacao: z.string().max(500).optional().or(z.literal('')),

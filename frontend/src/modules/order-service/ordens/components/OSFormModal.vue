@@ -31,6 +31,7 @@ import { useOSFormViewProvider } from '../context/useOSFormView.context';
 import { getCustomerByIdForOS } from '../services/relationship/osRelationshipGet.service';
 import { useOSAplicarStatus } from '../composables/modal/useOSAplicarStatus';
 import { useCamposObrigatoriosDoTipo } from '../../shared/segmento/camposObrigatorios';
+import { useOSCreateFlow } from '../composables/useOSCreateFlow';
 interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   changeCliente: [];
 }>();
 let closeItemModalProxy: (() => void) | null = null;
+const { autoReceber } = useOSCreateFlow();
 function closeItemModal() {
   closeItemModalProxy?.();
 }
@@ -350,6 +352,14 @@ useOSModalLifecycle({
     // Reabertura vinda da tabela: abre o modal de opções (fluxo correto do form).
     if (props.autoOpenReopen && (isFinalizada.value || isCancelada.value)) {
       nextTick(() => handleReopenClick());
+    }
+    // "Receber" do pátio do lava-rápido (Spec 04B): abre direto o recebimento.
+    // Lê e limpa: reabrir a mesma OS depois volta ao comportamento de sempre.
+    if (autoReceber.value) {
+      autoReceber.value = false;
+      if (!isCreateMode.value && !isFinalizada.value && !isCancelada.value) {
+        nextTick(() => handleFinalizarOS());
+      }
     }
   },
 });

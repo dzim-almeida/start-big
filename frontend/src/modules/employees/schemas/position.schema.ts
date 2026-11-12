@@ -17,6 +17,7 @@ export const positionSchema = z.object({
   meta_mensal: z.number().min(0).nullable().default(null),
   // Modo de comissão: 'direto' paga sobre tudo; 'meta' só ao bater a meta.
   comissao_modo: z.enum(['direto', 'meta']).nullable().default(null),
+  comissao_divisao: z.enum(['dividir', 'inteira']).nullable().default(null),
 });
 
 export const positionValidationSchema = toTypedSchema(positionSchema);

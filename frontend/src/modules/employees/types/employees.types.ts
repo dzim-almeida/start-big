@@ -99,6 +99,7 @@ export interface FuncionarioBase {
   comissao_servico_percentual?: number | null;
   meta_mensal?: number | null;
   comissao_modo?: 'direto' | 'meta' | null;
+  comissao_divisao?: 'dividir' | 'inteira' | null;
 }
 
 export interface FuncionarioCreate extends FuncionarioBase {
@@ -197,6 +198,7 @@ export interface EmployeeFormData {
   comissao_servico_percentual: number | null;
   meta_mensal: number | null;
   comissao_modo: 'direto' | 'meta' | null;
+  comissao_divisao: 'dividir' | 'inteira' | null;
 
   // Observacoes
   observacao: string;

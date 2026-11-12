@@ -140,7 +140,14 @@ export type SegmentCapability =
    * Liga Configurações › Lava-Rápido (portes da loja) e a grade "porte → preço
    * e duração" no cadastro de serviço.
    */
-  | 'preco_por_porte';
+  | 'preco_por_porte'
+  /**
+   * O dia de trabalho é uma FILA de veículos (lava-rápido, Spec 03A/04A): liga
+   * o pátio como tela inicial de Serviços e a comanda de uma tela.
+   */
+  | 'operacao_patio'
+  /** A OS registra quem a executa além do responsável (lavadores, Spec 10A/10B). */
+  | 'executores_os';
 
 /**
  * Um processo de negócio dentro do mesmo segmento.
@@ -161,6 +168,11 @@ export interface SegmentWorkType {
    * (sidecar desatualizado). Spec 03A/03B da marcenaria.
    */
   criacao_manual?: boolean;
+  /**
+   * Checklist SIMPLES de avarias do tipo (lava-rápido, Spec 03A/03B): a
+   * comanda marca só o que tem avaria. Ausente = o tipo não tem checklist.
+   */
+  avarias?: string[];
 }
 
 /** Texto de um status da OS declarado pelo segmento (Spec 01A da marcenaria). */
