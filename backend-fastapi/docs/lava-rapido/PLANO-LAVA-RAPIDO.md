@@ -2,7 +2,7 @@
 
 | Campo      | Valor                                                                             |
 |------------|-----------------------------------------------------------------------------------|
-| Status     | Plano fechado — SPEC-00 na Revisão 2 (12/11); as 🟡 restantes são de desenho técnico e se resolvem dentro de cada spec. Próximo passo: Spec 01A |
+| Status     | **Revisão 4 (12/11, tarde): interface própria** — comanda e pátio viram o centro (SPEC-00 §6.5); ordem dos marcos refeita (§3). Feitas: 01A, 01B. Próximo: 02A |
 | Data       | 12/11/2026                                                                        |
 | Branch     | `feat/segmento-lava-rapido` @ `c2228e88` (saiu da `feat/cfop-na-nota`)            |
 | Documentos | `SPEC-00` (decisões) + 11 specs de implementação nesta pasta (escritas uma a uma, na ordem dos marcos) |
@@ -66,25 +66,31 @@ Tamanho é **estimativa relativa** (P/M/G), não prazo.
 
 ## 3. Ordem de implementação
 
-### Marco 1 — Lava-rápido instalável (o que o primeiro cliente recebe)
+> **Revisão 4 (12/11, tarde):** a ordem abaixo substitui a anterior. Comanda e pátio (a cara do sistema, SPEC-00 U1–U3) vêm logo depois do preço por porte. 01A e 01B continuam valendo.
+
+### Marco 1 — Fundação ✅
 
 ```
-00 ── 01A ─┬─ 01B ── 03
-           ├─ 02A ── 02B
-           └─ 10A ── 10B (+ 01B)
+00 ── 01A ── 01B        (feitas em 12/11: registry, status, placa-ou-gerado, impressão)
 ```
 
-**Pronto quando:** dá para ajustar os portes e cadastrar a tabela de preços do cliente, abrir uma OS pela placa em ≤ 30 s com o preço do porte e os lavadores, abrir uma OS de "Outros" sem placa, marcar avarias com foto, imprimir na térmica e em A4, finalizar com pagamento e ver a comissão nos lavadores; e informática, oficina, serigrafia, PDV e marcenaria passam na prova de não regressão.
-
-### Marco 2 — Pátio
+### Marco 2 — Comanda e pátio (o que o primeiro cliente recebe)
 
 ```
-01A ── 04A ── 04B
+02A ── 02B ─┐
+03A ────────┼── 03B (comanda) ── 04A ── 04B (pátio = tela principal)
+10A ── 10B ─┘   (lavadores e comissão: entram na comanda e no cartão do pátio)
 ```
 
-**Pronto quando:** o quadro mostra o pátio real do dia, o status anda com um clique e o WhatsApp abre com a mensagem certa.
+- **02A/02B** — portes da loja, preço e duração por porte (a comanda precisa disso para mostrar os botões com preço).
+- **03A** — backend da comanda: avarias e porte **por tipo** no registry (U4), tipo Bicicleta (U5), capacidade `operacao_patio` (U1), rótulos do pátio (U3).
+- **03B** — `modules/lava-rapido/`: a comanda de uma tela (U2) e o cupom de entrada.
+- **04A/04B** — o pátio (U3): rota com as OS do dia, troca de status com um clique, WhatsApp e Receber.
+- **10A/10B** — lavadores da OS e comissão Dividir/Inteira (O7a, O7c).
 
-> Marcos 1 e 2 juntos são o **mínimo para o piloto** (o que todo sistema do ramo tem — SPEC-00 §3.2). O primeiro cliente pode receber o instalador aqui.
+**Pronto quando:** o atendente abre uma lavagem pela placa em ≤ 30 s com o preço do porte e o lavador, marca as avarias do tipo certo com foto, acompanha no pátio até o Pronto, avisa pelo WhatsApp, recebe pelo caixa de sempre e vê a comissão; e informática, oficina, serigrafia, PDV e marcenaria passam na prova de não regressão.
+
+> Marco 2 é o **mínimo para o piloto** (SPEC-00 §3.3). O primeiro cliente pode receber o instalador aqui.
 
 ### Marco 3 — Agenda e fiscal
 
@@ -125,7 +131,7 @@ Referência medida antes da 01A, em `2dc12ccd` (worktree limpo): backend **3.013
 | Spec | Data | Commit | Testes | Suíte depois |
 |------|------|--------|--------|--------------|
 | 01A | 12/11/2026 | 6b8e13a4 | +95: 9 de API, 8 do guard e 78 casos parametrizados do guard sobre os campos novos | 3.108 passando, 1 pulado |
-| 01B | 12/11/2026 | (este commit) | Frontend +14 (5 de status, 7 da exigência de placa/porte, 2 da impressão); backend +1 asserção (`rotulo_objeto_anterior`) | vitest 791 → 805; `vue-tsc` limpo; registry + API do lava 255 passando |
+| 01B | 12/11/2026 | a21768c8 (+ 49535e44, textos da aba de imagens) | Frontend +14 (5 de status, 7 da exigência de placa/porte, 2 da impressão); backend +1 asserção (`rotulo_objeto_anterior`) | vitest 791 → 805; `vue-tsc` limpo; registry + API do lava 255 passando |
 
 ---
 
@@ -143,7 +149,7 @@ Antes de cada uma, `alembic heads`: se outra branch tiver acrescentado migraçã
 | 4 | 05A | Tabelas de planos, pacotes, saldo e movimentos de fidelidade |
 | 5 | 06A | Marcação de frota no cliente e tabela de fechamento (a definir na spec; preferir tabela nova a coluna em `clientes`) |
 
-01A, 01B, 03, 04A, 04B, 07 e 09 **não** criam migração: usam `dados_adicionais`, `data_previsao`, `proxima_revisao_data` e `funcionario_id`, que já existem.
+01A, 01B, 03A, 03B, 04A, 04B, 07 e 09 **não** criam migração: usam `dados_adicionais`, `data_previsao`, `proxima_revisao_data` e `funcionario_id`, que já existem.
 
 Regras para todas (PR8): decidir pela presença do schema **antigo**; `ADD COLUMN` só se faltar; nunca renomear o arquivo do banco; testar em **banco antigo copiado**.
 

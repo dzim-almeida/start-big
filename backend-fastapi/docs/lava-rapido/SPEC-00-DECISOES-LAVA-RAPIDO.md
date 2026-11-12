@@ -2,12 +2,14 @@
 
 | Campo        | Valor                                                                 |
 |--------------|-----------------------------------------------------------------------|
-| Status       | Rascunho — aguardando aprovação                                       |
+| Status       | Aprovado (Revisão 2); Revisão 4 (interface própria) aprovada em 12/11 — 🟡 de U3, U4 e U5 com o usuário |
 | Camada       | Documento                                                             |
 | Dependências | Nenhuma                                                               |
 | Bloqueia     | Todas as specs do lava-rápido (01 a 07)                               |
 | Referência   | Conversa de 12/11/2026; pesquisa de mercado (§3.2); `docs/marcenaria/SPEC-00` (formato e princípios) |
 | Branch       | `feat/segmento-lava-rapido` @ `c2228e88` (saiu da `feat/cfop-na-nota`) |
+
+> **Revisão 4 (12/11/2026, tarde) — interface própria.** Ao abrir o app com a 01B, o usuário viu a OS de abas (feita para conserto) e não aprovou: "não tô achando legal reutilizar as coisas de oficina de carro". A pesquisa da §3.3 confirmou: **nenhum** sistema do ramo usa formulário de OS — o centro de todos é a **comanda rápida** e a **tela do dia (pátio)**. Decisões U1–U6 (§6.5). O que muda: o lava-rápido ganha módulo próprio `modules/lava-rapido/` com **Pátio** (tela principal), **Nova entrada** (comanda de uma tela) e **Agenda**; a OS de abas vira só "ver detalhes". O que **não** muda: cada lavagem continua sendo uma OS no banco (PR2) — caixa, financeiro, relatórios, comissão e nota funcionam sem refazer nada —, e 01A/01B continuam valendo (registry, status, placa-ou-gerado, impressão). A ordem dos marcos muda (PLANO §3): comanda e pátio vêm antes da agenda.
 
 > **Revisão 3 (12/11/2026) — organização das specs, ao escrever a 01A.** A 01A fica **só com a fundação do segmento** (registry, status, identificador — sem tabela nova). Lavadores da OS e comissão (O7a, O7c) passam para as **Specs 10A/10B**, ainda no Marco 1: mexem no relatório de comissão de todas as lojas e merecem prova de não regressão própria. As capacidades novas entram cada uma na spec que a implementa (nunca antes: metadado órfão). Decisões técnicas da 01A: placa **sem regex** no lava-rápido (D4) e chave `identificador.gerado_se_vazio` (D5); O2b mantém "Aberta / Em Andamento / Finalizada" com o texto padrão e só renomeia Aguardando Retirada → **"Pronto"** (01A D10).
 >
@@ -78,6 +80,22 @@ Sistemas olhados: Jump Car, Lava já!, SisJato, Brilha Car, WashAI, ClickLava, W
 | Lembrete de retorno | Brilha Car, ClickLava | Sim (O9) |
 
 Conclusão que guia as decisões: o que **todo** sistema do ramo tem é placa + preço por porte + fila + avaria com foto + WhatsApp. Isso é a fase 1. Fidelidade e mensalista são diferencial de venda e ficam **desligados por padrão** (o dono liga se usar — decisão do usuário, 12/11).
+
+### 3.3. Como é a tela nos sistemas do ramo (pesquisa de 12/11/2026, tarde — Revisão 4)
+
+Lidas as páginas de Garage/oficina.app, Jump Car e Lavacar Fácil (Lava já! fora do ar), mais Lavify, WSoft, Pretinho, WashAI, Elyxa, Purific Car e Urable. Ainda são páginas de venda.
+
+| Ponto | Como fazem | O que tiramos |
+|-------|-----------|---------------|
+| Entrada | **Comanda** aberta "em poucos toques", no celular ou no balcão, com o carro ainda chegando (Garage); placa por foto/OCR (Lava já!, Jump Car) | Comanda de **uma tela** (U2); OCR continua fora (§7) |
+| Dia de trabalho | Tela "Hoje" (Lavacar Fácil), "pátio em tempo real" (Lava já!); o cliente vê "carro em acabamento" | **Pátio é a tela principal** (U1) |
+| Avarias | Checklist com fotos antes de lavar; Jump Car marca num **mapa das áreas**; Lavacar Fácil faz checklist de **entrada e saída** com assinatura | Checklist simples **por tipo de veículo**, com foto (U4) |
+| Comissão | Liga quem lavou a cada serviço e calcula no fechamento (Garage, Jump Car); ninguém mostra divisão entre dois lavadores | O7c (Dividir/Inteira) é diferencial |
+| WhatsApp | De nenhum (Garage: PDF à mão) a aviso automático de início e fim com as avarias (Jump Car) | `wa.me` no "Pronto" (O8) |
+| Agenda | Link do cliente, bloqueio de horário, fila de espera, agenda por box e hora | Aba do módulo (U1); link público fora (§7) |
+| Caixa e nota | Caixa do dia, PIX/cartão/maquininha, NFS-e | Já temos — vantagem nossa |
+
+Conclusão: o formulário longo é exatamente o que esses sistemas vendem como "não precisa mais". Nossa vantagem real: comissão dividida, nota fiscal pronta e funcionar **local, sem internet**.
 
 ---
 
@@ -177,6 +195,17 @@ Legenda da coluna **Status**: ✅ decidida pelo usuário · 🟡 recomendada (co
 | C4 | **Frota / convênio**: cliente PJ com várias placas marcado "fatura no mês"; a OS finaliza sem pagamento e entra num fechamento que gera **uma** conta a receber com o extrato das placas | Comum em lava-jato de caminhão; o cliente da transportadora não paga no balcão. O primeiro cliente **não tem**; fica para lava-rápidos maiores, por último | ✅ (por último) |
 | C5 | **Fiscal**: NFS-e pelo módulo que já existe; o item da LC 116 e a alíquota de ISS são definidos com o contador do cliente antes da primeira nota | Não decidir enquadramento fiscal por conta própria | Revista por C5a |
 | C5a | **Revisão 1 — Spec 09:** o segmento sai **preparado** para emitir, sem motor fiscal novo: (1) **NFS-e** da lavagem a partir da OS pelo módulo NFS-e de hoje, com o **código de serviço sugerido** no cadastro do serviço (provavelmente o item **14.01** da LC 116 — "limpeza, lustração… de veículos" —, **confirmar com o contador** de cada cliente) e a placa/veículo na discriminação; (2) **NFC-e/NF-e** dos produtos de balcão pelo PDV de hoje; (3) OS com serviço **e** produto: conferir se a nota sai pelos dois caminhos sem duplicar. A Spec 09 é uma **conferência** do que existe para este segmento, e só vira código se faltar algo | O primeiro cliente não emite, mas o próximo pode; é melhor descobrir a lacuna agora do que no balcão de outro cliente | 🟡 |
+
+### 6.5. Interface própria (Revisão 4)
+
+| # | Decisão | Motivo | Status |
+|---|---------|--------|--------|
+| U1 | Módulo próprio **`modules/lava-rapido/`**, ligado pela capacidade nova `operacao_patio` (declarada só pelo lava-rápido). No segmento, o menu **Serviços** abre as abas **Pátio · Agenda · Histórico** (Histórico = a lista de OS de sempre). **Pátio é a tela inicial.** Segue o padrão de `modules/marcenaria/` | O dia do lava-rápido é a fila de carros, não a lista de documentos (§3.3) | ✅ |
+| U2 | **Nova entrada = comanda de uma tela, sem abas**, nesta ordem: placa (traz veículo e dono; placa nova pede nome e telefone ali mesmo) → tipo de veículo → porte → serviços em **botões** com o preço do porte → lavador (2º opcional) → avarias com foto → observação → **Entrar** / **Entrar e imprimir**. Tipo, porte e serviço são botões, não lista suspensa. Substitui O1 | PR10: meta ≤ 30 s e ≤ 6 cliques para cliente que já veio | ✅ |
+| U3 | **Pátio**: colunas por status — ABERTA "**Aguardando**", EM_ANDAMENTO "**Lavando**", AGUARDANDO_RETIRADA "**Pronto**" — e "Entregues hoje" recolhido. Cartão: placa, veículo, porte, serviços, lavador, hora de entrada e previsão; um clique avança; no Pronto, **WhatsApp** e **Receber** (abre o pagamento de sempre). Atualiza sozinho. Substitui O3. Os rótulos Aguardando/Lavando passam a valer também em `rotulos_status` (lista, filtro, impressão) | Palavras do pátio; o usuário disse "pode usar quantos status precisar" | 🟡 rótulos com o usuário |
+| U4 | **Avarias por tipo de veículo**: cada tipo declara a sua lista no registry (chave `vistoria` dentro do tipo; tipo que não declara usa a do segmento). Na comanda é um **checklist de marcar o que tem avaria**, com foto — não a vistoria item a item com estado. Moto: carenagem, tanque, banco, escapamento, guidão/manetes, retrovisores, faróis/piscas, rodas. Bicicleta: quadro/pintura, rodas/aros, câmbio/corrente, selim, guidão, freios. Substitui O5 | "Não dá para padronizar: lava carro, moto, caminhão, bicicleta" (usuário). Checklist de marcar é o que o ramo usa (§3.3) | 🟡 confirmar checklist simples |
+| U5 | **Bicicleta** vira tipo próprio (sem placa; porte Infantil / Adulto / Elétrica), além de Carro, Moto, Caminhão/ônibus e Outros | Citada pelo usuário; em "Outros" pegaria vistoria e porte de carro | 🟡 |
+| U6 | A **OS de abas** fica só como "**Ver detalhes**" da lavagem (no cartão do pátio e no Histórico) — fotos extras, reabrir, nota. Nenhuma tela do lava-rápido obriga a passar por ela | O documento continua o mesmo (PR2); só a porta de entrada muda | ✅ |
 
 ---
 
