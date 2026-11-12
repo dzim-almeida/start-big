@@ -4,17 +4,14 @@ import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/or
 import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
 import type { OsPriorityEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { buscarObjetosPorIdentificador } from '@/modules/order-service/ordens/services/orderServiceGet.service';
-import {
-  getCustomerByIdForOS,
-  getCustomersBySearch,
-} from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
+import { getCustomerByIdForOS } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
 import { useAuthStore } from '@/shared/stores/auth.store';
 
 import { usePortesQuery, useServicosDoPorteQuery } from '../../shared/composables/usePortes';
 import { normalizarPlaca, previsaoDeEntrega } from '../../shared/utils/lavaRapido';
 import type { Agendamento } from '../../shared/schemas/agenda.schema';
-import { abrirLavagem, criarClienteRapido, type ItemComanda } from '../services/comanda.service';
+import { abrirLavagem, type ItemComanda } from '../services/comanda.service';
 
 /** Nome de exibição de um cliente PF ou PJ. */
 export function nomeDoCliente(cliente: CustomerUnionReadSchemaDataType): string {
@@ -175,35 +172,18 @@ export function useComanda() {
     }
   }
 
-  // --- Cliente ---------------------------------------------------------------------------
-  const buscaCliente = ref('');
-  const clientesAchados = ref<CustomerUnionReadSchemaDataType[]>([]);
-  let temporizadorCliente: ReturnType<typeof setTimeout> | undefined;
-  watch(buscaCliente, (texto) => {
-    clearTimeout(temporizadorCliente);
-    if (texto.trim().length < 2) {
-      clientesAchados.value = [];
-      return;
-    }
-    temporizadorCliente = setTimeout(async () => {
-      try {
-        clientesAchados.value = (await getCustomersBySearch(texto)).slice(0, 6);
-      } catch {
-        clientesAchados.value = [];
-      }
-    }, 300);
-  });
-
-  function escolherCliente(c: CustomerUnionReadSchemaDataType) {
+  // --- Cliente e veículo vindos da busca (padrão da OS) ------------------------------
+  /**
+   * O cliente vem da busca de cliente/placa de sempre, ANTES da comanda
+   * (`useEntradaLavagem`). Achado pela placa, o veículo vem junto.
+   */
+  async function aplicarEntrada(c: CustomerUnionReadSchemaDataType | null, o: ObjetoBuscaItemDataType | null) {
     cliente.value = c;
-    buscaCliente.value = '';
-    clientesAchados.value = [];
-  }
-
-  /** Cliente novo: nome + celular, cadastrado na hora (aparece no cartão de cliente). */
-  async function cadastrarCliente(nome: string, celular: string) {
-    const id = await criarClienteRapido({ nome, celular });
-    cliente.value = await getCustomerByIdForOS(id);
+    if (o) {
+      placa.value = o.numero_serie ?? '';
+      veiculo.value = o;
+      await aplicarVeiculo(o);
+    }
   }
 
   // --- Ações ------------------------------------------------------------------------------
@@ -238,8 +218,6 @@ export function useComanda() {
     avarias.value = [];
     fotos.value = [];
     observacao.value = '';
-    buscaCliente.value = '';
-    clientesAchados.value = [];
     prioridade.value = 'NORMAL';
     dataPrevisao.value = dataLocalISO(new Date());
     previsaoEditada.value = false;
@@ -257,8 +235,7 @@ export function useComanda() {
    * Devolve nome e contato quando o cliente ainda não tem cadastro, para a
    * tela já abrir o "cliente novo" preenchido.
    */
-  async function preencherDeAgendamento(a: Agendamento): Promise<{ nome: string; contato: string } | null> {
-    limpar();
+  function preencherDeAgendamento(a: Agendamento) {
     if (a.tipo_veiculo) tipo.value = a.tipo_veiculo;
     porteId.value = a.porte_id;
     modelo.value = a.veiculo ?? '';
@@ -266,15 +243,6 @@ export function useComanda() {
     selecionados.value = Object.fromEntries(
       a.servicos.filter((s) => s.servico_id).map((s) => [s.servico_id as number, s.valor]));
     placa.value = a.placa ?? '';                     // dispara a busca do veículo
-    if (a.cliente_id) {
-      try {
-        cliente.value = await getCustomerByIdForOS(a.cliente_id);
-        return null;
-      } catch {
-        // cai no cadastro pelo nome
-      }
-    }
-    return { nome: a.cliente_nome, contato: a.cliente_contato ?? '' };
   }
 
   /**
@@ -324,7 +292,7 @@ export function useComanda() {
     responsavelId, prioridade, dataPrevisao, mudarDataPrevisao,
     valorEntrada, formaPagamentoEntradaId, taxaEntrega,
     placa, veiculo, buscandoPlaca, placaObrigatoria,
-    cliente, buscaCliente, clientesAchados, escolherCliente, cadastrarCliente,
+    cliente, aplicarEntrada,
     tipo, porteId, modelo, marca, cor,
     selecionados, alternarServico, mudarPreco, itens, subtotal, total, previsao,
     lavadores, avarias, alternarAvaria, fotos, observacao,

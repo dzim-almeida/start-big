@@ -12,18 +12,21 @@
  * O documento gravado é a OS de sempre; ela entra no pátio em "Aguardando".
  */
 import { computed, ref, watch } from 'vue';
-import { Camera, CarFront, CheckCircle2, Droplets, ShieldAlert, Trash2, UserPlus, Users, X } from 'lucide-vue-next';
+import { Camera, CarFront, CheckCircle2, Droplets, ShieldAlert, Trash2, UserSearch, Users, X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSectionCard from '@/shared/components/layout/SectionCard/BaseSectionCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSClientCard from '@/modules/order-service/ordens/components/form/OSClientCard.vue';
 import OSControlsCard from '@/modules/order-service/ordens/components/form/OSControlsCard.vue';
 import OSSummaryCard from '@/modules/order-service/ordens/components/form/OSSummaryCard.vue';
 import { useOSSelectOptions } from '@/modules/order-service/ordens/composables/modal/useOSSelectOptions';
 import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
+import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
+import { getCustomerByIdForOS } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
 import type { OsPriorityEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { useToast } from '@/shared/composables/useToast';
 import { useAuthStore } from '@/shared/stores/auth.store';
@@ -32,10 +35,14 @@ import { getErrorMessage } from '@/shared/utils/error.utils';
 import SeletorLavadores from '../../shared/components/SeletorLavadores.vue';
 import type { Agendamento } from '../../shared/schemas/agenda.schema';
 import { horaLocal, reais } from '../../shared/utils/lavaRapido';
-import { nomeDoCliente, useComanda } from '../composables/useComanda';
+import { useComanda } from '../composables/useComanda';
 
 const props = defineProps<{
   isOpen: boolean;
+  /** Escolhido na busca de cliente/placa ANTES da comanda (padrão da OS). */
+  cliente?: CustomerUnionReadSchemaDataType | null;
+  /** Veículo achado pela placa na busca (o dono vem em `cliente`). */
+  objeto?: ObjetoBuscaItemDataType | null;
   /** Cliente agendado que chegou (Spec 08B): a comanda abre com o combinado. */
   agendamento?: Agendamento | null;
 }>();
@@ -58,43 +65,27 @@ const podeEscolherResponsavel = computed(() => {
 });
 
 
-// --- Cliente novo --------------------------------------------------------------------
-const cadastrandoCliente = ref(false);
-const novoNome = ref('');
-const novoCelular = ref('');
-const salvandoCliente = ref(false);
-async function confirmarClienteNovo() {
-  if (!novoNome.value.trim()) return;
-  salvandoCliente.value = true;
-  try {
-    await c.cadastrarCliente(novoNome.value.trim(), novoCelular.value);
-    cadastrandoCliente.value = false;
-  } catch (erro) {
-    toast.error(getErrorMessage(erro as never, 'Não foi possível cadastrar o cliente.') as string);
-  } finally {
-    salvandoCliente.value = false;
-  }
-}
-// Abriu: comanda limpa, ou com o agendamento de quem chegou.
+// --- Abertura: o cliente (e o veículo) já vêm da busca ---------------------------
 watch(() => props.isOpen, async (aberta) => {
   if (!aberta) return;
-  cadastrandoCliente.value = false;
-  if (!props.agendamento) {
-    c.limpar();
-    return;
-  }
-  const semCadastro = await c.preencherDeAgendamento(props.agendamento);
-  if (semCadastro) {
-    novoNome.value = semCadastro.nome;
-    novoCelular.value = semCadastro.contato;
-    cadastrandoCliente.value = true;
-  }
+  c.limpar();
+  if (props.agendamento) c.preencherDeAgendamento(props.agendamento);
+  await c.aplicarEntrada(props.cliente ?? null, props.objeto ?? null);
 });
 
-function trocarCliente() {
-  c.cliente.value = null;
-  novoNome.value = '';
-  novoCelular.value = '';
+// "Trocar" no cartão do cliente: a MESMA busca de cliente/placa da OS.
+const trocandoCliente = ref(false);
+function clienteTrocado(cliente: CustomerUnionReadSchemaDataType) {
+  c.cliente.value = cliente;
+  trocandoCliente.value = false;
+}
+async function veiculoTrocado(objeto: ObjetoBuscaItemDataType) {
+  trocandoCliente.value = false;
+  try {
+    await c.aplicarEntrada(await getCustomerByIdForOS(objeto.cliente_id), objeto);
+  } catch {
+    toast.error('Não foi possível carregar o dono do veículo.');
+  }
 }
 function clienteAtualizado(cliente: CustomerUnionReadSchemaDataType) {
   c.cliente.value = cliente;
@@ -246,6 +237,10 @@ function chip(ativo: boolean): string {
 
             <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte do veículo para ver os serviços e os preços.</p>
             <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
+            <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
+              (com o preço de cada porte) e elas aparecem aqui.
+            </p>
             <template v-else>
               <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
@@ -359,39 +354,13 @@ function chip(ativo: boolean): string {
           <OSClientCard
             v-if="c.cliente.value"
             :cliente="c.cliente.value"
-            @change-cliente="trocarCliente"
+            @change-cliente="trocandoCliente = true"
             @update-cliente="clienteAtualizado"
           />
-
-          <!-- Sem cliente: buscar ou cadastrar ali mesmo -->
           <BaseSectionCard v-else titulo="Dados do cliente">
-            <template v-if="!cadastrandoCliente">
-              <BaseInput v-model="c.buscaCliente.value" placeholder="Buscar por nome, telefone ou CPF" />
-              <ul v-if="c.clientesAchados.value.length" class="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-                <li v-for="achado in c.clientesAchados.value" :key="achado.id">
-                  <button type="button" class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-50" @click="c.escolherCliente(achado)">
-                    {{ nomeDoCliente(achado) }}
-                  </button>
-                </li>
-              </ul>
-              <button
-                type="button"
-                class="mt-3 flex items-center gap-1.5 text-sm font-semibold text-brand-primary hover:underline"
-                @click="cadastrandoCliente = true; novoNome = c.buscaCliente.value"
-              >
-                <UserPlus :size="15" /> Cadastrar cliente novo
-              </button>
-            </template>
-            <div v-else class="space-y-3">
-              <BaseInput v-model="novoNome" label="Nome" placeholder="Nome do cliente" required />
-              <BaseInput v-model="novoCelular" label="Celular" placeholder="(88) 99999-9999" inputmode="tel" />
-              <div class="flex justify-end gap-2">
-                <BaseButton size="sm" variant="secondary" @click="cadastrandoCliente = false">Cancelar</BaseButton>
-                <BaseButton size="sm" :is-loading="salvandoCliente" :disabled="!novoNome.trim()" @click="confirmarClienteNovo">
-                  Cadastrar
-                </BaseButton>
-              </div>
-            </div>
+            <BaseButton variant="ghost" class="w-full" @click="trocandoCliente = true">
+              <UserSearch :size="16" class="mr-1" /> Selecionar cliente
+            </BaseButton>
           </BaseSectionCard>
         </div>
       </div>
@@ -409,4 +378,12 @@ function chip(ativo: boolean): string {
       </div>
     </template>
   </BaseModal>
+
+  <!-- Trocar/selecionar cliente: a busca de sempre (nome, telefone, CPF ou placa) -->
+  <OSClienteSearchModal
+    :is-open="trocandoCliente"
+    @close="trocandoCliente = false"
+    @select-cliente="clienteTrocado"
+    @select-objeto="veiculoTrocado"
+  />
 </template>

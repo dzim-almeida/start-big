@@ -35,11 +35,13 @@ const PatioTab = defineAsyncComponent(
 const AgendaTab = defineAsyncComponent(
   () => import('@/modules/lava-rapido/agenda/components/AgendaTab.vue'),
 );
-const ComandaModal = defineAsyncComponent(
-  () => import('@/modules/lava-rapido/comanda/components/ComandaModal.vue'),
+// Busca de cliente/placa + comanda, montadas uma vez (padrão da "Nova OS").
+const EntradaLavagem = defineAsyncComponent(
+  () => import('@/modules/lava-rapido/comanda/components/EntradaLavagem.vue'),
 );
 
 import { useServicoModal } from '../servicos/composables/useServicoModal';
+import { useEntradaLavagem } from '@/modules/lava-rapido/comanda/composables/useEntradaLavagem';
 import { useOSCreateFlow } from '../ordens/composables/useOSCreateFlow';
 import { useCapacidades } from '../shared/segmento/useCapacidades';
 import { useTiposDeTrabalho } from '../shared/segmento/useTiposDeTrabalho';
@@ -51,8 +53,7 @@ import { getUniqueOS } from '../ordens/services/orderServiceGet.service';
 const { openCreateModal } = useServicoModal();
 const { openNovaOS, openExistingOS } = useOSCreateFlow();
 const { temRevisoes, temOrcamentoTecnico, temOperacaoPatio, tem } = useCapacidades();
-/** Lava-rápido: a comanda (Nova entrada) aberta. */
-const comandaAberta = ref(false);
+const { abrirNovaEntrada } = useEntradaLavagem();
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
 const { podeCriarOSManual } = useTiposDeTrabalho();
 
@@ -151,7 +152,7 @@ const criaPelaComanda = computed(() =>
 
 function handleAddClick() {
   if (criaPelaComanda.value) {
-    comandaAberta.value = true;
+    abrirNovaEntrada();                                  // primeiro o cliente, como na Nova OS
   } else if (activeTab.value === 'ordens') {
     openNovaOS();
   } else {
@@ -207,6 +208,6 @@ function handleAddClick() {
     <TerceirizadosTab v-else-if="activeTab === 'terceirizados'" />
     <ServicosTab v-else />
 
-    <ComandaModal v-if="temOperacaoPatio" :is-open="comandaAberta" @close="comandaAberta = false" />
+    <EntradaLavagem v-if="temOperacaoPatio" />
   </div>
 </template>

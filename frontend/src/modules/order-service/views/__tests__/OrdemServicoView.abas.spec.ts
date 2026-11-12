@@ -56,8 +56,10 @@ vi.mock('@/modules/marcenaria/producao/components/QuadroProducaoTab.vue', () => 
 vi.mock('@/modules/marcenaria/entrega/components/InstalacoesTab.vue', () => marcador('aba-instalacoes'));
 vi.mock('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue', () => marcador('aba-orcamentos'));
 vi.mock('@/modules/lava-rapido/patio/components/PatioTab.vue', () => marcador('aba-patio'));
-vi.mock('@/modules/lava-rapido/comanda/components/ComandaModal.vue', () => marcador('comanda'));
 vi.mock('@/modules/lava-rapido/agenda/components/AgendaTab.vue', () => marcador('aba-agenda'));
+vi.mock('@/modules/lava-rapido/comanda/components/EntradaLavagem.vue', () => marcador('entrada'));
+const abrirNovaEntrada = vi.fn();
+vi.mock('@/modules/lava-rapido/comanda/composables/useEntradaLavagem', () => ({ useEntradaLavagem: () => ({ abrirNovaEntrada }) }));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -175,6 +177,15 @@ describe('lava-rápido — pátio e Nova entrada (Spec 04B, SPEC-00 U1/U6)', () 
     expect(w.find('[data-testid="aba-agenda"]').exists()).toBe(true);
     expect(w.find('h2').text()).toBe('Agenda');
     expect(w.text()).not.toContain('Nova entrada');
+  });
+
+  it('"Nova entrada" começa pela busca de cliente (padrão da Nova OS)', async () => {
+    temOperacaoPatio.value = true;
+    abrirNovaEntrada.mockClear();
+    const w = montar();
+    await flushPromises();
+    await w.findAll('button').find((b) => b.text().includes('Nova entrada'))!.trigger('click');
+    expect(abrirNovaEntrada).toHaveBeenCalledOnce();
   });
 
   it('outros segmentos: sem Pátio', () => {

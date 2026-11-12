@@ -17,7 +17,13 @@ import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, MessageCircle, 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseStatusPill, { type TomStatus } from '@/shared/components/ui/BaseStatusPill/BaseStatusPill.vue';
 
-import ComandaModal from '../../comanda/components/ComandaModal.vue';
+import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
+import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
+import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
+import { getCustomerByIdForOS } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
+import { useToast } from '@/shared/composables/useToast';
+
+import { useEntradaLavagem } from '../../comanda/composables/useEntradaLavagem';
 import type { Agendamento, AgendamentoEntrada, SituacaoAgenda } from '../../shared/schemas/agenda.schema';
 import { horaLocal, linkWhatsApp, reais } from '../../shared/utils/lavaRapido';
 import { diaISO, diasDaSemana, instanteDoBackend, useAgendaMutations, useAgendaSemana } from '../composables/useAgenda';
@@ -60,9 +66,35 @@ function mensagemConfirmacao(a: Agendamento): string {
 }
 
 // --- Novo / editar ------------------------------------------------------------------
+// Novo: primeiro o cliente, pela busca de sempre (como a Nova OS); depois o agendamento.
 const modalAberto = ref(false);
 const editando = ref<Agendamento | null>(null);
-function novo() { editando.value = null; modalAberto.value = true; }
+const buscandoCliente = ref(false);
+const clienteDoNovo = ref<CustomerUnionReadSchemaDataType | null>(null);
+const objetoDoNovo = ref<ObjetoBuscaItemDataType | null>(null);
+const toast = useToast();
+function novo() {
+  editando.value = null;
+  clienteDoNovo.value = null;
+  objetoDoNovo.value = null;
+  buscandoCliente.value = true;
+}
+function clienteEscolhido(c: CustomerUnionReadSchemaDataType) {
+  clienteDoNovo.value = c;
+  buscandoCliente.value = false;
+  modalAberto.value = true;
+}
+async function veiculoEscolhido(o: ObjetoBuscaItemDataType) {
+  try {
+    clienteDoNovo.value = await getCustomerByIdForOS(o.cliente_id);
+  } catch {
+    toast.error('Não foi possível carregar o dono do veículo.');
+    return;
+  }
+  objetoDoNovo.value = o;
+  buscandoCliente.value = false;
+  modalAberto.value = true;
+}
 function editar(a: Agendamento) { editando.value = a; modalAberto.value = true; }
 function salvar(dados: AgendamentoEntrada) {
   const fechar = { onSuccess: () => { modalAberto.value = false; } };
@@ -74,17 +106,11 @@ function situacao(a: Agendamento, nova: SituacaoAgenda) {
   atualizar.mutate({ id: a.id, dados: { situacao: nova } });
 }
 
-// --- Chegou: comanda preenchida -------------------------------------------------------
-const chegando = ref<Agendamento | null>(null);
-const comandaAberta = ref(false);
+// --- Chegou: a comanda de sempre, preenchida com o combinado ------------------------------
+const { chegouAgendado } = useEntradaLavagem();
 function chegou(a: Agendamento) {
-  chegando.value = a;
-  comandaAberta.value = true;
-}
-function lavagemAberta(numeroOs: string) {
-  if (!chegando.value) return;
-  atualizar.mutate({ id: chegando.value.id, dados: { situacao: 'CHEGOU', numero_os: numeroOs } });
-  chegando.value = null;
+  void chegouAgendado(a, (numeroOs) =>
+    atualizar.mutate({ id: a.id, dados: { situacao: 'CHEGOU', numero_os: numeroOs } }));
 }
 </script>
 
@@ -206,20 +232,22 @@ function lavagemAberta(numeroOs: string) {
       </ul>
     </section>
 
+    <OSClienteSearchModal
+      :is-open="buscandoCliente"
+      @close="buscandoCliente = false"
+      @select-cliente="clienteEscolhido"
+      @select-objeto="veiculoEscolhido"
+    />
+
     <AgendamentoModal
       :is-open="modalAberto"
       :agendamento="editando"
+      :cliente="clienteDoNovo"
+      :objeto="objetoDoNovo"
       :dia-sugerido="diaAberto"
       :salvando="criar.isPending.value || atualizar.isPending.value"
       @close="modalAberto = false"
       @salvar="salvar"
-    />
-
-    <ComandaModal
-      :is-open="comandaAberta"
-      :agendamento="chegando"
-      @close="comandaAberta = false"
-      @criada="lavagemAberta"
     />
   </div>
 </template>

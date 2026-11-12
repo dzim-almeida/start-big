@@ -13,7 +13,9 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
-import { getCustomersBySearch } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
+import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
+import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
+import { getCustomerByIdForOS } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
 
 import { usePortesQuery, useServicosDoPorteQuery } from '../../shared/composables/usePortes';
@@ -26,6 +28,10 @@ const props = defineProps<{
   isOpen: boolean;
   /** Editando este; `null` = novo. */
   agendamento: Agendamento | null;
+  /** Novo: o cliente escolhido na busca de sempre, ANTES do modal (padrão da OS). */
+  cliente?: CustomerUnionReadSchemaDataType | null;
+  /** Novo: o veículo achado pela placa na busca. */
+  objeto?: ObjetoBuscaItemDataType | null;
   /** Dia sugerido para um novo (o dia aberto na agenda). */
   diaSugerido: Date;
   salvando?: boolean;
@@ -33,7 +39,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; salvar: [dados: AgendamentoEntrada] }>();
 
 const { opcoes: tiposDeVeiculo } = useTiposDeTrabalho();
-const { ativosDoTipo } = usePortesQuery();
+const { data: portes, ativosDoTipo } = usePortesQuery();
 
 // --- Formulário ------------------------------------------------------------------
 const dia = ref('');
@@ -87,10 +93,46 @@ watch(() => props.isOpen, (aberto) => {
     duracao.value = '';
     duracaoEditada.value = false;
     observacao.value = '';
+    if (props.cliente) aplicarCliente(props.cliente);
+    if (props.objeto) aplicarVeiculo(props.objeto);
   }
-  buscaCliente.value = '';
-  clientesAchados.value = [];
 });
+
+/** Cliente do cadastro: nome e o contato para o WhatsApp de confirmação. */
+function aplicarCliente(c: CustomerUnionReadSchemaDataType) {
+  const x = c as unknown as { celular?: string | null; telefone?: string | null };
+  clienteId.value = c.id;
+  clienteNome.value = nomeDoCliente(c);
+  clienteContato.value = x.celular ?? x.telefone ?? '';
+}
+
+/** Veículo achado pela placa: placa, modelo e o porte que ele já tem. */
+function aplicarVeiculo(o: ObjetoBuscaItemDataType) {
+  placa.value = o.numero_serie ?? '';
+  veiculo.value = [o.modelo, o.cor].filter(Boolean).join(' ');
+  const nomePorte = String((o.dados_adicionais ?? {}).porte ?? '').toLowerCase();
+  const achado = (portes.value ?? []).find((p) => p.ativo && p.nome.toLowerCase() === nomePorte);
+  if (achado) {
+    tipo.value = achado.tipo_veiculo;
+    porteId.value = achado.id;
+  }
+}
+
+// "Trocar" cliente: a mesma busca de cliente/placa da OS.
+const trocandoCliente = ref(false);
+function clienteTrocado(c: CustomerUnionReadSchemaDataType) {
+  aplicarCliente(c);
+  trocandoCliente.value = false;
+}
+async function veiculoTrocado(o: ObjetoBuscaItemDataType) {
+  trocandoCliente.value = false;
+  try {
+    aplicarCliente(await getCustomerByIdForOS(o.cliente_id));
+    aplicarVeiculo(o);
+  } catch {
+    // sem o dono, segue com o cliente que já estava
+  }
+}
 
 // Trocou o tipo: porte de outro tipo não vale.
 watch(tipo, (novo, antigo) => {
@@ -112,27 +154,6 @@ function alternarServico(servicoId: number, nome: string, valor: number) {
 }
 
 const total = computed(() => Object.values(selecionados.value).reduce((s, x) => s + x.valor, 0));
-
-// --- Cliente: busca no cadastro ou só nome e telefone ------------------------------
-const buscaCliente = ref('');
-const clientesAchados = ref<CustomerUnionReadSchemaDataType[]>([]);
-let temporizador: ReturnType<typeof setTimeout> | undefined;
-watch(buscaCliente, (texto) => {
-  clearTimeout(temporizador);
-  if (texto.trim().length < 2) { clientesAchados.value = []; return; }
-  temporizador = setTimeout(async () => {
-    try { clientesAchados.value = (await getCustomersBySearch(texto)).slice(0, 5); }
-    catch { clientesAchados.value = []; }
-  }, 300);
-});
-function escolherCliente(c: CustomerUnionReadSchemaDataType) {
-  const x = c as unknown as { nome?: string; razao_social?: string; celular?: string | null; telefone?: string | null };
-  clienteId.value = c.id;
-  clienteNome.value = x.nome ?? x.razao_social ?? '';
-  clienteContato.value = x.celular ?? x.telefone ?? '';
-  buscaCliente.value = '';
-  clientesAchados.value = [];
-}
 
 const podeSalvar = computed(() => !!dia.value && !!hora.value && !!clienteNome.value.trim());
 
@@ -193,26 +214,16 @@ function chip(ativo: boolean): string {
         </div>
       </div>
 
-      <!-- Cliente -->
-      <section class="space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Cliente</p>
-        <BaseInput v-model="buscaCliente" placeholder="Buscar no cadastro (nome, telefone ou CPF)" />
-        <ul v-if="clientesAchados.length" class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-          <li v-for="c in clientesAchados" :key="c.id">
-            <button type="button" class="w-full px-4 py-2 text-left text-sm hover:bg-zinc-50" @click="escolherCliente(c)">
-              {{ nomeDoCliente(c) }}
-            </button>
-          </li>
-        </ul>
-        <div class="grid grid-cols-12 gap-3">
-          <div class="col-span-12 sm:col-span-7">
-            <BaseInput v-model="clienteNome" label="Nome" required @update:model-value="clienteId = null" />
-          </div>
-          <div class="col-span-12 sm:col-span-5">
-            <BaseInput v-model="clienteContato" label="Telefone / WhatsApp" inputmode="tel" />
-          </div>
+      <!-- Cliente: escolhido na busca de sempre, antes do modal -->
+      <section class="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Cliente</p>
+          <p class="text-sm font-semibold text-zinc-800">{{ clienteNome || 'Nenhum cliente selecionado' }}</p>
+          <p v-if="clienteContato" class="text-xs text-zinc-500">{{ clienteContato }}</p>
         </div>
-        <p v-if="clienteId" class="text-xs text-emerald-700">Cliente do cadastro.</p>
+        <button type="button" class="text-xs font-semibold text-brand-primary hover:underline" @click="trocandoCliente = true">
+          {{ clienteNome ? 'Trocar' : 'Selecionar' }}
+        </button>
       </section>
 
       <!-- Veículo -->
@@ -252,6 +263,9 @@ function chip(ativo: boolean): string {
       <section class="space-y-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Serviços</p>
         <p v-if="!porteId" class="text-sm text-zinc-400">Escolha o porte para ver os serviços e os preços.</p>
+        <p v-else-if="!(servicosDoPorte ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>.
+        </p>
         <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             v-for="s in servicosDoPorte ?? []"
@@ -280,4 +294,11 @@ function chip(ativo: boolean): string {
       </div>
     </template>
   </BaseModal>
+
+  <OSClienteSearchModal
+    :is-open="trocandoCliente"
+    @close="trocandoCliente = false"
+    @select-cliente="clienteTrocado"
+    @select-objeto="veiculoTrocado"
+  />
 </template>
