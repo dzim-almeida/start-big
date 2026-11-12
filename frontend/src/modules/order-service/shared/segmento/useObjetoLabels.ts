@@ -11,6 +11,7 @@ import { useOSFieldDefinition } from './useOSFieldDefinition.queries';
  */
 const ICONES_SEGMENTO: Record<string, Component> = {
   oficina_mecanica: Car,
+  lava_rapido: Car,
   assistencia_tecnica: Smartphone,
   serigrafia: Shirt,
   mercado: ShoppingCart,

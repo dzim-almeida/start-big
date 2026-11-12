@@ -521,12 +521,70 @@ const MARCENARIA: TextosImpressaoOS = {
   },
 };
 
+// Lava-rápido / estética automotiva (Spec 01B do lava, D8). Duas cláusulas
+// sustentam a loja no balcão, e são o padrão do ramo:
+//
+// 1. Avaria que já estava no veículo: a vistoria da entrada registra, e o
+//    cliente declara ter conferido. Sem isso, o risco no para-choque que já
+//    existia vira "foi a lavagem".
+// 2. Objetos deixados no veículo e peças soltas ou não originais (antena,
+//    adesivo, friso, palheta): a loja não responde por elas.
+//
+// Os textos são PROPOSTA: a palavra final é do dono da loja (SPEC-00, §10).
+const LAVA_RAPIDO: TextosImpressaoOS = {
+  objeto: 'veículo',
+  objetoPlural: 'Veículos',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados do Veículo',
+  // O contrato já diz "Placa", que cabe na via.
+  identificador: null,
+  defeito: 'Pedido do Cliente',
+  garantiaExclusoes:
+    'chuva, poeira ou uso do veículo após a entrega, contato com produtos químicos ou resíduos '
+    + 'após o serviço, e manchas, riscos ou desgastes que já existiam na pintura ou no interior.',
+  condicoesEntrada:
+    'O cliente declara ter conferido a vistoria de entrada e as avarias nela registradas. A empresa '
+    + 'não se responsabiliza por objetos pessoais deixados no interior do veículo, nem por peças '
+    + 'soltas, danificadas ou não originais (antenas, adesivos, frisos, palhetas e acessórios). '
+    + 'Autorizo a execução dos serviços descritos e a movimentação do veículo por funcionários da '
+    + 'empresa dentro do estabelecimento.',
+  assinaturaLoja: 'Responsável',
+  // Masculino: "Veículos", como na oficina.
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Veículos com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Veículos não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Veiculo',
+    identificador: null,
+    defeito: 'PEDIDO DO CLIENTE',
+    assinaturaLoja: 'Responsavel',
+    garantiaExclusoes:
+      'chuva, poeira ou uso apos a entrega, e avarias que ja existiam no veiculo.',
+    semReparo: 'Veiculo devolvido sem o servico. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Veiculo devolvido ao cliente sem o servico ou com '
+      + 'servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'Cliente conferiu a vistoria de entrada. A empresa nao se responsabiliza por objetos deixados '
+      + 'no veiculo nem por pecas soltas ou nao originais (antena, adesivo, friso, palheta).',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Veiculos nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+};
+
 /** Pacote de textos de cada segmento. Exportado para os testes conferirem que não muda. */
 export const PACOTES: Record<string, TextosImpressaoOS> = {
   oficina_mecanica: OFICINA_MECANICA,
   assistencia_tecnica: ASSISTENCIA_TECNICA,
   serigrafia: SERIGRAFIA,
   marcenaria: MARCENARIA,
+  lava_rapido: LAVA_RAPIDO,
 };
 
 const PADRAO = ASSISTENCIA_TECNICA;

@@ -25,6 +25,11 @@ const CARDS: Record<Segmento, Omit<SegmentOption, 'id'>> = {
     icon: 'wrench',
     description: 'Manutenção e reparo de veículos',
   },
+  lava_rapido: {
+    label: 'Lava-Rápido / Estética Automotiva',
+    icon: 'car',
+    description: 'Lavagem e estética de carros, motos, caminhões e outros veículos',
+  },
   serigrafia: {
     label: 'Serigrafia',
     icon: 'shirt',
@@ -77,6 +82,11 @@ export const SEGMENT_TIPS: Record<Segmento, string> = {
     'Para assistências técnicas, recomendamos configurar ordens de serviço após o cadastro.',
   oficina_mecanica:
     'Para oficinas mecânicas, você poderá cadastrar veículos e peças no módulo de OS.',
+  // Spec 01B do lava-rápido: o preço por porte entra com a Spec 02B; até lá
+  // a dica aponta para o que já existe.
+  lava_rapido:
+    'Para lava-rápidos, cadastre suas lavagens em Serviços. Na OS você escolhe o tipo de veículo, '
+    + 'a placa e o porte, e acompanha cada carro até ficar Pronto.',
   serigrafia:
     'Para serigrafias, cadastre a pintura por número de cores em Serviços e os tipos de sacola em Produtos — a OS já multiplica pelo que o cliente pedir.',
   pdv:

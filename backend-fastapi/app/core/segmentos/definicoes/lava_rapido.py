@@ -120,6 +120,9 @@ LAVA_RAPIDO = {
     "segmento": SEGMENTO_LAVA_RAPIDO,
     "rotulo_objeto_singular": "Veículo",
     "rotulo_objeto_plural": "Veículos",
+    # Inteiro, e nao montado: o padrao do frontend e "<objeto> ja cadastrada",
+    # escrito para "Arte", e diria "Veiculo ja cadastrada" (Spec 01B, D9).
+    "rotulo_objeto_anterior": "Veículo já cadastrado",
 
     # `defeito_relatado` aqui e o PEDIDO do cliente, como na serigrafia: nao
     # ha defeito, ha um servico encomendado. Sai impresso na via.

@@ -132,3 +132,52 @@ describe('com o contrato carregado', () => {
     expect(estadoOS('FINALIZADA', 'CONDENADO').label).toBe('Perda na produção');
   });
 });
+
+// ─── Lava-rápido (Spec 01B do lava, D3–D5) ──────────────────────────────────
+/** O que o lava-rápido declara no backend (Spec 01A do lava). */
+const DEFINICAO_LAVA = {
+  rotulos_status: { AGUARDANDO_RETIRADA: { rotulo: 'Pronto', curto: 'Pronto' } },
+  status_usados: ['ABERTA', 'EM_ANDAMENTO', 'AGUARDANDO_RETIRADA', 'FINALIZADA', 'CANCELADA'],
+};
+
+describe('status usados pelo segmento (lava-rápido)', () => {
+  it('L1 — select sem peças e aprovação; "Pronto" no lugar de Aguardando Retirada', () => {
+    carregando.value = false;
+    contrato.value = contratoCom(DEFINICAO_LAVA);
+    const opcoes = useRotulosStatusOS().statusOptions.value;
+    expect(opcoes.map((o) => o.value)).toEqual(
+      ['ABERTA', 'EM_ANDAMENTO', 'AGUARDANDO_RETIRADA', 'FINALIZADA', 'CANCELADA'],
+    );
+    expect(opcoes.find((o) => o.value === 'AGUARDANDO_RETIRADA')?.label).toBe('Pronto');
+  });
+
+  it('L2 — filtro sem os dois status; desfechos continuam', () => {
+    carregando.value = false;
+    contrato.value = contratoCom(DEFINICAO_LAVA);
+    const chaves = Object.keys(useRotulosStatusOS().statusFilterConfig.value);
+    expect(chaves).not.toContain('AGUARDANDO_PECAS');
+    expect(chaves).not.toContain('AGUARDANDO_APROVACAO');
+    expect(chaves).toContain('SEM_REPARO');
+    expect(chaves).toContain('CONDENADO');
+  });
+
+  it('L3 — enquanto carrega, o fallback já esconde e já diz "Pronto"', () => {
+    segmentoAtual.value = 'lava_rapido';
+    const { statusOptions, rotuloStatus } = useRotulosStatusOS();
+    expect(statusOptions.value.map((o) => o.value)).not.toContain('AGUARDANDO_PECAS');
+    expect(rotuloStatus('AGUARDANDO_RETIRADA')).toBe('Pronto');
+  });
+
+  it('L4 — contrato sem status_usados: listas idênticas às de sempre (PR1)', () => {
+    carregando.value = false;
+    contrato.value = contratoCom({});
+    const { statusOptions, statusFilterConfig } = useRotulosStatusOS();
+    expect(statusOptions.value).toEqual(OS_STATUS_OPTIONS);
+    expect(statusFilterConfig.value).toEqual(OS_STATUS_FILTER_CONFIG);
+  });
+
+  it('L4 — outro segmento carregando: sem restrição', () => {
+    segmentoAtual.value = 'oficina_mecanica';
+    expect(useRotulosStatusOS().statusOptions.value).toEqual(OS_STATUS_OPTIONS);
+  });
+});

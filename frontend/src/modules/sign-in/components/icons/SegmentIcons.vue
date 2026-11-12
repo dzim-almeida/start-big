@@ -4,7 +4,7 @@
  * @description Renderiza ícones lucide correspondentes a cada segmento de negócio.
  */
 import { computed } from 'vue';
-import { Monitor, Wrench, Store, Hammer, Zap, LayoutGrid, Shirt } from 'lucide-vue-next';
+import { Monitor, Wrench, Store, Hammer, Zap, LayoutGrid, Shirt, Car } from 'lucide-vue-next';
 
 const props = defineProps<{
   icon: string;
@@ -18,6 +18,7 @@ const iconMap: Record<string, any> = {
   hammer: Hammer,
   bolt: Zap,
   shirt: Shirt,
+  car: Car,
   grid: LayoutGrid,
 };
 

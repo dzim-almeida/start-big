@@ -7,9 +7,10 @@ import {
   montarOpcoesStatus,
   type OsEstadoKey,
 } from '../../ordens/constants/ordemServico.constants';
-import type {
-  OsEquipSituacaoEnumDataType,
-  OsStatusEnumDataType,
+import {
+  OsStatusEnum,
+  type OsEquipSituacaoEnumDataType,
+  type OsStatusEnumDataType,
 } from '../../ordens/schemas/enums/osEnums.schema';
 import { getEstadoOS } from '../utils/formatters';
 import type { RotuloStatus } from './segmentDefinition.type';
@@ -43,7 +44,23 @@ const ROTULOS_STATUS_FALLBACK_POR_SEGMENTO: Record<string, RotulosStatus> = {
     AGUARDANDO_PECAS: { rotulo: 'Aguardando Material', curto: 'Aguard. material' },
     AGUARDANDO_RETIRADA: { rotulo: 'Aguardando Entrega', curto: 'Aguard. entrega' },
   },
+  // Repete app/core/segmentos/definicoes/lava_rapido.py (Spec 01B do lava, D5).
+  lava_rapido: {
+    AGUARDANDO_RETIRADA: { rotulo: 'Pronto', curto: 'Pronto' },
+  },
 };
+
+/**
+ * Status usados, SÓ enquanto o contrato carrega (Spec 01B do lava-rápido, D5).
+ * Mesma razão do fallback de rótulos: o filtro não pode abrir com "Aguardando
+ * Peças" e perdê-lo um instante depois. Segmento fora deste mapa usa todos.
+ */
+const STATUS_USADOS_FALLBACK_POR_SEGMENTO: Record<string, OsStatusEnumDataType[]> = {
+  lava_rapido: ['ABERTA', 'EM_ANDAMENTO', 'AGUARDANDO_RETIRADA', 'FINALIZADA', 'CANCELADA'],
+};
+
+/** Chaves do filtro que são STATUS (as outras são desfechos: SEM_REPARO, CONDENADO). */
+const STATUS_DO_ENUM: readonly string[] = OsStatusEnum.options;
 
 export function useRotulosStatusOS() {
   const { data, isPending } = useOSFieldDefinition();  // contrato do segmento (já em cache)
@@ -56,6 +73,22 @@ export function useRotulosStatusOS() {
     // Contrato carregado: ele manda. Sem a chave = nenhum rótulo próprio.
     return data.value?.definicao?.rotulos_status ?? {};
   });
+
+  /**
+   * Status que o segmento usa; `null` = todos (Spec 01B do lava-rápido, D3/D4).
+   * Ausente no contrato é o caso de todo segmento que já existia, e aí nada muda.
+   */
+  const statusUsados = computed<OsStatusEnumDataType[] | null>(() => {
+    if (isPending.value) return STATUS_USADOS_FALLBACK_POR_SEGMENTO[segmento.value ?? ''] ?? null;
+    return data.value?.definicao?.status_usados ?? null;
+  });
+
+  /** A chave aparece? Desfecho sempre; status só se o segmento o usa. */
+  function aparece(chave: string): boolean {
+    if (!statusUsados.value) return true;                 // segmento não restringe
+    if (!STATUS_DO_ENUM.includes(chave)) return true;     // desfecho: nunca filtrado
+    return statusUsados.value.includes(chave as OsStatusEnumDataType);
+  }
 
   /** Desfecho: o contrato já traz `rotulos_situacao` (serigrafia e marcenaria). */
   const rotulosSituacao = computed<Record<string, string>>(
@@ -96,9 +129,11 @@ export function useRotulosStatusOS() {
     ?? OS_ESTADO_CONFIG[chave].label;                            // padrão
 
   /** Opções do select de status do modal (valor = código do enum). */
-  const statusOptions = computed(() => montarOpcoesStatus(texto));
+  const statusOptions = computed(() =>
+    montarOpcoesStatus(texto).filter((opcao) => aparece(opcao.value)));
   /** Opções do menu de filtro da lista (chave = código do enum). */
-  const statusFilterConfig = computed(() => montarFiltroStatus(texto));
+  const statusFilterConfig = computed(() =>
+    Object.fromEntries(Object.entries(montarFiltroStatus(texto)).filter(([chave]) => aparece(chave))));
 
   return { rotuloStatus, rotuloStatusProprio, estadoOS, statusOptions, statusFilterConfig };
 }

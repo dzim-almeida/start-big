@@ -72,6 +72,15 @@ export interface SegmentIdentifier {
    * obrigatório que o usuário não tem como preencher vira lixo ("1", "teste").
    */
   gerado?: boolean;
+  /**
+   * `true` quando o campo CONTINUA no formulário, mas em branco o sistema gera
+   * o identificador (lava-rápido: placa digitada vale; barco ou jet ski sem
+   * placa ganha "VEI-2026-000042"). Spec 01A/01B do lava-rápido, D5/D6.
+   *
+   * Consequência: o backend aceita o campo vazio em qualquer tipo, então quem
+   * exige a placa onde ela é obrigatória é a TELA (`camposObrigatorios.ts`).
+   */
+  gerado_se_vazio?: boolean;
   /** Prefixo do identificador gerado (ex: "ART" → "ART-0042"). */
   prefixo?: string;
 }
@@ -206,6 +215,12 @@ export interface SegmentDefinition {
    * mesmo enum de todos os segmentos (Spec 01A/01B da marcenaria).
    */
   rotulos_status?: Partial<Record<OsStatusEnumDataType, RotuloStatus>>;
+  /**
+   * Status que o segmento USA (Spec 01A/01B do lava-rápido, D3/D4). Os outros
+   * somem do select e do filtro, e o backend os recusa na edição da OS.
+   * Ausente = todos, que é o caso de todo segmento que já existia.
+   */
+  status_usados?: OsStatusEnumDataType[];
   identificador: SegmentIdentifier;
   /** O que o segmento faz. Vazio = só o fluxo genérico de OS. */
   capacidades: SegmentCapability[];

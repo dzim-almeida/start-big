@@ -62,3 +62,20 @@ describe('Planejados (Spec 03B, D8)', () => {
     expect(aplicarTipoTrabalho(PACOTES.marcenaria, null)).toBe(PACOTES.marcenaria);
   });
 });
+
+describe('Lava-rápido (Spec 01B do lava, D8)', () => {
+  const lava = PACOTES.lava_rapido;
+
+  it('T1 — fala de veículo e vistoria; não fala de backup, chip nem estampa', () => {
+    const tudo = textoCorrido(lava).toLowerCase();
+    expect(lava.objeto).toBe('veículo');
+    expect(lava.condicoesEntrada).toContain('vistoria de entrada');
+    expect(lava.cupom.condicoesEntrada).toContain('vistoria de entrada');
+    for (const palavra of ['backup', 'chip', 'estampa']) expect(tudo).not.toContain(palavra);
+  });
+
+  it('T1 — placa vem do contrato (identificador nulo na A4 e na bobina)', () => {
+    expect(lava.identificador).toBeNull();
+    expect(lava.cupom.identificador).toBeNull();
+  });
+});

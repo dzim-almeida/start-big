@@ -124,7 +124,8 @@ Referência medida antes da 01A, em `2dc12ccd` (worktree limpo): backend **3.013
 
 | Spec | Data | Commit | Testes | Suíte depois |
 |------|------|--------|--------|--------------|
-| 01A | 12/11/2026 | (este commit) | +95: 9 de API, 8 do guard e 78 casos parametrizados do guard sobre os campos novos | 3.108 passando, 1 pulado |
+| 01A | 12/11/2026 | 6b8e13a4 | +95: 9 de API, 8 do guard e 78 casos parametrizados do guard sobre os campos novos | 3.108 passando, 1 pulado |
+| 01B | 12/11/2026 | (este commit) | Frontend +14 (5 de status, 7 da exigência de placa/porte, 2 da impressão); backend +1 asserção (`rotulo_objeto_anterior`) | vitest 791 → 805; `vue-tsc` limpo; registry + API do lava 255 passando |
 
 ---
 

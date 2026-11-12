@@ -19,6 +19,9 @@
 export const SEGMENTOS = [
   'assistencia_tecnica',
   'oficina_mecanica',
+  // Lava-rápido / estética automotiva (docs/lava-rapido/). Carro, moto,
+  // caminhão e qualquer outro transporte; status e campos vêm do contrato.
+  'lava_rapido',
   'serigrafia',
   // Era 'mercado'. Virou 'pdv' porque o produto é o mesmo para adega,
   // mercearia, papelaria e distribuidora — o nome do valor tem que dizer o que

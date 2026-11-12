@@ -112,6 +112,8 @@ def test_definicao_do_segmento_chega_ao_frontend(client, db_session):
     assert [t["id"] for t in definicao["tipos"]] == ["carro", "moto", "pesado", "outros"]
     assert definicao["identificador"]["gerado_se_vazio"] is True
     assert "AGUARDANDO_PECAS" not in definicao["status_usados"]
+    # Spec 01B, D9: o rotulo do "usar anterior" vem inteiro, no masculino.
+    assert definicao["rotulo_objeto_anterior"] == "Veículo já cadastrado"
 
 
 def test_os_de_carro_grava_a_placa_e_o_porte(client, db_session):

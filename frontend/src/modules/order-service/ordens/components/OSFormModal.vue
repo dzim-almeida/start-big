@@ -30,6 +30,7 @@ import { useOSClientHistory } from '../composables/modal/useOSClientHistory';
 import { useOSFormViewProvider } from '../context/useOSFormView.context';
 import { getCustomerByIdForOS } from '../services/relationship/osRelationshipGet.service';
 import { useOSAplicarStatus } from '../composables/modal/useOSAplicarStatus';
+import { useCamposObrigatoriosDoTipo } from '../../shared/segmento/camposObrigatorios';
 interface Props {
   isOpen: boolean;
   ordemServico?: OrderServiceReadDataType | null;
@@ -241,7 +242,21 @@ const {
 function handlePhotoChange() {
   refreshCurrentOSData();
 }
+// Placa e porte do lava-rápido (Spec 01B do lava, D6/D7). Nos outros
+// segmentos `faltando` devolve sempre vazio e nada muda.
+const { faltando: camposFaltando } = useCamposObrigatoriosDoTipo();
+
+/** Avisa e devolve `true` quando falta campo obrigatório do tipo escolhido. */
+function faltaCampoObrigatorio(): boolean {
+  const faltando = camposFaltando(objetoFormData.value, objetoDados.value ?? {}, osDados.value ?? {});
+  if (faltando.length === 0) return false;
+  toast.error(`Preencha: ${faltando.join(', ')}.`);
+  return true;
+}
+
 function handleLocalSubmit() {
+  // O modo só-texto da reabertura não mexe no objeto: não há o que exigir.
+  if (reopenMode.value !== 'TEXT_ONLY' && faltaCampoObrigatorio()) return;
   if (isCreateMode.value) {
     // `currentCliente` e nao `props.selectedCliente`: quando o atendente troca de
     // dono pelo aviso de identificador duplicado, a OS tem que nascer no nome de
