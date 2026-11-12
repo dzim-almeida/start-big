@@ -60,12 +60,15 @@ def _preencher_identificador_gerado(
     segmento = get_segmento_atual(db)
 
     # Lava-rapido (Spec 01A, D5): a placa digitada vale; em branco (barco, jet
-    # ski), o sistema gera VEI-... do numero da OS. Marca e modelo NAO sao
-    # preenchidos aqui (D7): o veiculo tem marca e modelo de verdade, e quem
-    # exige e _exigir_campos_do_objeto, como na oficina.
+    # ski), o sistema gera VEI-... do numero da OS. O modelo NAO e preenchido
+    # aqui (D7): quem exige e _exigir_campos_do_objeto, como na oficina.
+    # A marca o segmento declara opcional (Spec 03A, D4): vazia vira "" -- a
+    # coluna e NOT NULL e a via so imprime a linha quando ha valor.
     if reg.identificador_gerado_se_vazio(segmento):
         if not (objeto_data.get("numero_serie") or "").strip():
             objeto_data["numero_serie"] = reg.gerar_identificador(segmento, numero_os)
+        if reg.coluna_opcional_no_segmento(segmento, "marca") and objeto_data.get("marca") is None:
+            objeto_data["marca"] = ""
         return
 
     if not reg.identificador_e_gerado(segmento):
@@ -104,10 +107,12 @@ def _exigir_campos_do_objeto(db: Session, objeto_data: dict) -> None:
     # exigindo (não geram identificador, então nem passam pelo preenchimento);
     # segmento com identificador gerado e sem campo na coluna (marcenaria)
     # a recebe vazia de propósito — ver _preencher_o_que_o_usuario_nao_sabe.
+    # Lava-rapido (Spec 03A, D4): o segmento DECLARA que a marca pode ficar
+    # vazia -- na comanda rapida "Gol prata" no modelo basta.
     dispensa_marca = (
         reg.identificador_e_gerado(segmento)
         and not reg.segmento_declara_coluna(segmento, "marca")
-    )
+    ) or reg.coluna_opcional_no_segmento(segmento, "marca")
 
     faltando = [
         rotulo

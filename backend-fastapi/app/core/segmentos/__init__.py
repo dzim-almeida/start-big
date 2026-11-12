@@ -36,6 +36,7 @@ from .capacidades import (
     CAP_VISTORIA,
     CAP_ORCAMENTO_TECNICO,
     CAP_PRECO_POR_PORTE,
+    CAP_OPERACAO_PATIO,
     CAPACIDADES_CONHECIDAS,
 )
 from .definicoes import (
@@ -60,6 +61,7 @@ from .definicoes import (
     rotulo_status,
     segmento_declara_coluna,
     segmento_tem_capacidade,
+    coluna_opcional_no_segmento,
     segmento_tem_definicao,
     segmento_usa_ordem_servico,
     status_permitido,
@@ -82,6 +84,7 @@ __all__ = [
     "CAP_DIAGNOSTICO",
     "CAP_ORCAMENTO_TECNICO",
     "CAP_PRECO_POR_PORTE",
+    "CAP_OPERACAO_PATIO",
     "CAPACIDADES_CONHECIDAS",
     # construcao
     "campo",
@@ -114,6 +117,7 @@ __all__ = [
     "tipo_permite_criacao_manual",
     "label_do_tipo",
     "segmento_tem_capacidade",
+    "coluna_opcional_no_segmento",
     # identificador
     "IDENTIFICADORES_GENERICOS",
     "IDENTIFICADOR_MIN_CARACTERES",

@@ -456,10 +456,15 @@ def test_so_marcenaria_e_lava_rapido_renomeiam_status():
     pediu nada. Se um dia for intencional, este teste e o lugar de dizer isso
     em voz alta.
 
-    Dito em voz alta (lava-rapido, Spec 01A D10, 12/11/2026): o lava-rapido
-    chama "Aguardando Retirada" de "Pronto" -- e so isso.
+    Dito em voz alta (lava-rapido, Spec 01A D10 e Spec 03A / SPEC-00 U3,
+    12/11/2026): o lava-rapido fala a lingua do patio -- Aguardando, Lavando,
+    Pronto. Finalizada fica com o texto de sempre.
     """
-    assert set(DEFINICOES["lava_rapido"]["rotulos_status"]) == {"AGUARDANDO_RETIRADA"}
+    assert set(DEFINICOES["lava_rapido"]["rotulos_status"]) == {
+        "ABERTA", "EM_ANDAMENTO", "AGUARDANDO_RETIRADA",
+    }
+    assert rotulo_status("lava_rapido", "ABERTA") == "Aguardando"
+    assert rotulo_status("lava_rapido", "EM_ANDAMENTO") == "Lavando"
     assert rotulo_status("lava_rapido", "AGUARDANDO_RETIRADA") == "Pronto"
     assert "rotulos_status" not in DEFINICOES["oficina_mecanica"]
     assert "rotulos_status" not in DEFINICOES["assistencia_tecnica"]
@@ -699,8 +704,8 @@ def test_so_bicicleta_e_outros_dispensam_a_placa():
 def test_capacidades_do_lava_rapido():
     """Caso 6. Vistoria e fotos na entrada sim; nada de conserto (SPEC-00 O6)."""
     capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
-    # preco_por_porte: Spec 02A (portes da loja, preco e duracao por porte).
-    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte"}
+    # preco_por_porte: Spec 02A. operacao_patio: Spec 03A (comanda e patio).
+    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio"}
     assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
 
 
@@ -725,3 +730,38 @@ def test_status_permitido_e_identificador_gerado_se_vazio():
 
     assert gerar_identificador("lava_rapido", "OS-2026-000042") == "VEI-2026-000042"
     assert gerar_identificador("oficina_mecanica", "OS-2026-000042") is None
+
+
+# ---------------------------------------------------------------------------
+# Lava-rapido: comanda (docs/lava-rapido/SPEC-03A)
+# ---------------------------------------------------------------------------
+
+def test_todo_tipo_do_lava_rapido_tem_checklist_de_avarias():
+    """U4: cada tipo tem a SUA lista (moto nao tem para-brisa)."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        avarias = tipo.get("avarias")
+        assert avarias, f"{tipo['id']}: sem checklist de avarias"
+        assert len(avarias) == len(set(avarias)), f"{tipo['id']}: avaria repetida"
+        assert all(isinstance(a, str) and a.strip() for a in avarias), tipo["id"]
+
+
+def test_so_o_lava_rapido_declara_avarias_e_colunas_opcionais():
+    """D4/D5 da 03A. `colunas_opcionais` dispensa a marca na abertura da OS:
+    declarar num segmento em producao mudaria o que a loja aceita. A oficina
+    desenha a marca sem asterisco e mesmo assim o backend sempre a exigiu --
+    por isso a chave e explicita, e nao deduzida dos campos."""
+    com_colunas = {s for s, d in DEFINICOES.items() if d.get("colunas_opcionais")}
+    com_avarias = {
+        s for s, d in DEFINICOES.items() if any("avarias" in t for t in d.get("tipos", []))
+    }
+    assert com_colunas == {"lava_rapido"}
+    assert DEFINICOES["lava_rapido"]["colunas_opcionais"] == ["marca"]
+    assert com_avarias == {"lava_rapido"}
+
+
+def test_marca_do_lava_rapido_nao_tem_asterisco():
+    """A tela e o backend dizem a mesma coisa: marca opcional, modelo exigido."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        por_nome = {c["nome"]: c for c in tipo["campos"]}
+        assert por_nome["marca"]["obrigatorio"] is False, tipo["id"]
+        assert por_nome["modelo"]["obrigatorio"] is True, tipo["id"]

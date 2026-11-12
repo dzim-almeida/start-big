@@ -158,15 +158,30 @@ def test_outros_sem_placa_recebe_codigo_gerado(client, db_session):
     assert _objeto(corpo)["numero_serie"] == f"VEI-{corpo['numero_os'].removeprefix('OS-')}"
 
 
-def test_marca_e_modelo_continuam_obrigatorios(client, db_session):
-    """D7: gerar a placa nao dispensa marca e modelo, como na oficina."""
+def test_modelo_continua_obrigatorio_e_marca_nao(client, db_session):
+    """01A D7, revista pela 03A D4: na comanda rapida o modelo basta ("Gol
+    prata"); a marca pode ficar vazia. O modelo continua exigido."""
     header = _autenticar_e_criar_empresa(client, "lava_rapido")
     cliente_id = _criar_cliente(client, header)
 
     r = _post_os(client, header, cliente_id, {"dados_adicionais": {"porte": "Médio"}}, tipo="outros")
 
     assert r.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, r.text
-    assert "Marca" in r.json()["detail"] and "Modelo" in r.json()["detail"]
+    assert "Modelo" in r.json()["detail"] and "Marca" not in r.json()["detail"]
+
+    r = _post_os(client, header, cliente_id,
+                 {"modelo": "Gol prata", "numero_serie": "QWE1R23", "dados_adicionais": {"porte": "Hatch"}})
+    assert r.status_code == 201, r.text
+    assert _objeto(r.json())["marca"] in ("", None)
+
+
+def test_oficina_continua_exigindo_a_marca(client, db_session):
+    """PR1: a chave `colunas_opcionais` e so do lava-rapido."""
+    header = _autenticar_e_criar_empresa(client, "oficina_mecanica")
+    cliente_id = _criar_cliente(client, header)
+    r = _post_os(client, header, cliente_id, {"modelo": "Gol", "numero_serie": "ABC1D23"})
+    assert r.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, r.text
+    assert "Marca" in r.json()["detail"]
 
 
 def test_placa_estrangeira_vale_como_chave(client, db_session):

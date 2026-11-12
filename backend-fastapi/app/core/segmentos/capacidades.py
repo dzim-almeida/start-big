@@ -72,6 +72,12 @@ CAP_ORCAMENTO_TECNICO = "orcamento_tecnico"
 # Generica de proposito: pet shop (porte do animal) usaria o mesmo mecanismo.
 CAP_PRECO_POR_PORTE = "preco_por_porte"
 
+# O dia de trabalho e uma FILA de veiculos (lava-rapido, SPEC-00 U1/U3 e
+# Spec 03A/04A): liga a comanda de uma tela, o patio (Aguardando -> Lavando
+# -> Pronto) e a troca de status com um clique. O documento continua sendo a
+# OS de sempre; so a porta de entrada e a tela do dia mudam.
+CAP_OPERACAO_PATIO = "operacao_patio"
+
 CAPACIDADES_CONHECIDAS = [
     CAP_VISTORIA,
     CAP_REVISOES,
@@ -82,4 +88,5 @@ CAPACIDADES_CONHECIDAS = [
     CAP_GARANTIA_PRAZO,
     CAP_ORCAMENTO_TECNICO,
     CAP_PRECO_POR_PORTE,
+    CAP_OPERACAO_PATIO,
 ]

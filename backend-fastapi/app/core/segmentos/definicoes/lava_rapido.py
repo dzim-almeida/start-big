@@ -18,7 +18,12 @@
 from typing import Any, Dict, List
 
 from ..campos import campo, grupo_vistoria, tipo_de_trabalho
-from ..capacidades import CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE, CAP_VISTORIA
+from ..capacidades import (
+    CAP_IMAGEM_NA_ENTRADA,
+    CAP_OPERACAO_PATIO,
+    CAP_PRECO_POR_PORTE,
+    CAP_VISTORIA,
+)
 
 SEGMENTO_LAVA_RAPIDO = "lava_rapido"
 
@@ -64,7 +69,9 @@ def _campos_do_veiculo(portes: List[str], placa_obrigatoria: bool = True,
         campo("placa", "Placa", "texto", obrigatorio=placa_obrigatoria,
               escopo="objeto", grupo=GRUPO_VEICULO, origem="coluna",
               coluna="numero_serie"),
-        campo("marca", "Marca", "texto", obrigatorio=True, escopo="objeto",
+        # Marca opcional (Spec 03A, D4; chave `colunas_opcionais`): na comanda
+        # rapida o modelo basta ("Gol prata", "Lancha 21 pes").
+        campo("marca", "Marca", "texto", escopo="objeto",
               grupo=GRUPO_VEICULO, origem="coluna"),
         campo("modelo", rotulo_modelo, "texto", obrigatorio=True, escopo="objeto",
               grupo=GRUPO_VEICULO, origem="coluna"),
@@ -88,15 +95,40 @@ def _campos_da_entrada() -> List[Dict[str, Any]]:
     ]
 
 
+# Checklist SIMPLES de avarias por tipo (SPEC-00 U4, Spec 03A): a comanda
+# marca so o que TEM avaria, com foto. "Nao da para padronizar: lava carro,
+# moto, caminhao, bicicleta" (usuario, 12/11/2026).
+AVARIAS_CARRO = [
+    "Riscos na pintura", "Amassados", "Para-brisa / vidros trincados",
+    "Faróis / lanternas", "Rodas / calotas", "Retrovisores",
+    "Para-choques", "Adesivos / envelopamento", "Bancos / estofado",
+    "Painel", "Tapetes / assoalho",
+]
+AVARIAS_MOTO = [
+    "Riscos na carenagem", "Tanque", "Banco", "Escapamento",
+    "Guidão / manetes", "Retrovisores", "Faróis / piscas", "Rodas",
+]
+AVARIAS_PESADO = [
+    "Riscos na pintura", "Amassados", "Para-brisa / vidros trincados",
+    "Faróis / lanternas", "Rodas", "Retrovisores", "Para-choques",
+    "Carroceria / baú", "Lona / sider", "Cabine (interior)",
+]
+AVARIAS_BICICLETA = [
+    "Quadro / pintura", "Rodas / aros", "Câmbio / corrente", "Selim",
+    "Guidão", "Freios",
+]
+AVARIAS_OUTROS = ["Riscos", "Amassados", "Peças soltas / quebradas", "Estofado / interior"]
+
+
 _CARRO = tipo_de_trabalho("carro", "Carro", [
     *_campos_do_veiculo(PORTES_CARRO),
     *_campos_da_entrada(),
-])
+], avarias=AVARIAS_CARRO)
 
 _MOTO = tipo_de_trabalho("moto", "Moto", [
     *_campos_do_veiculo(PORTES_MOTO),
     *_campos_da_entrada(),
-])
+], avarias=AVARIAS_MOTO)
 
 _PESADO = tipo_de_trabalho("pesado", "Caminhão / ônibus", [
     *_campos_do_veiculo(PORTES_PESADO),
@@ -107,14 +139,14 @@ _PESADO = tipo_de_trabalho("pesado", "Caminhão / ônibus", [
     campo("placa_implemento", "Placa do implemento", "texto",
           escopo="objeto", grupo=GRUPO_VEICULO),
     *_campos_da_entrada(),
-])
+], avarias=AVARIAS_PESADO)
 
 # Bicicleta e tipo proprio (SPEC-00 U5, Revisao 4): sem placa, com porte e
 # avarias proprias. Em "Outros" ela pegaria porte de barco.
 _BICICLETA = tipo_de_trabalho("bicicleta", "Bicicleta", [
     *_campos_do_veiculo(PORTES_BICICLETA, placa_obrigatoria=False),
     *_campos_da_entrada(),
-])
+], avarias=AVARIAS_BICICLETA)
 
 # "Modelo" vira "Descricao" porque e o que identifica um barco ou um jet ski
 # para quem esta no balcao ("Lancha 21 pes", "Jet ski VX").
@@ -122,7 +154,7 @@ _OUTROS = tipo_de_trabalho("outros", "Outros (sem placa)", [
     *_campos_do_veiculo(PORTES_OUTROS, placa_obrigatoria=False,
                         rotulo_modelo="Descrição"),
     *_campos_da_entrada(),
-])
+], avarias=AVARIAS_OUTROS)
 
 
 LAVA_RAPIDO = {
@@ -164,8 +196,15 @@ LAVA_RAPIDO = {
     # esperando o dono esta PRONTO (SPEC-00 O2b). Aberta, Em Andamento e
     # Finalizada ficam com o texto que o sistema inteiro ja usa (Spec 01A, D10).
     "rotulos_status": {
+        # Palavras do patio (SPEC-00 U3, Revisao 4): o carro esta Aguardando,
+        # Lavando ou Pronto. Finalizada fica com o texto de sempre.
+        "ABERTA": {"rotulo": "Aguardando", "curto": "Aguardando"},
+        "EM_ANDAMENTO": {"rotulo": "Lavando", "curto": "Lavando"},
         "AGUARDANDO_RETIRADA": {"rotulo": "Pronto", "curto": "Pronto"},
     },
+
+    # A marca do veiculo pode ficar vazia na abertura (Spec 03A, D4).
+    "colunas_opcionais": ["marca"],
 
     # Os status que este segmento usa (Spec 01A, D8). Nao ha peca para
     # esperar nem orcamento para aprovar; os outros dois somem da tela e o
@@ -200,7 +239,7 @@ LAVA_RAPIDO = {
     #   veiculo ir para o box, e saem na via de entrada.
     # Sem diagnostico, garantia (prazo ou item), aprovacao de itens e revisoes
     # por KM: lavagem nao e conserto (SPEC-00 O6).
-    "capacidades": [CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE],
+    "capacidades": [CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE, CAP_OPERACAO_PATIO],
 
     # Vazios porque este segmento declara por tipo de trabalho. O guard
     # (test/core/test_registry_segmentos.py) proibe usar os dois caminhos.

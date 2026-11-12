@@ -91,6 +91,7 @@ def tipo_de_trabalho(
     label: str,
     campos: List[Dict[str, Any]],
     criacao_manual: bool = True,  # False = a OS deste tipo so nasce de outro documento (Spec 03A, D4)
+    avarias: Optional[List[str]] = None,  # checklist de avarias do tipo (lava-rapido, Spec 03A)
 ) -> Dict[str, Any]:
     """Um processo de negocio dentro do mesmo segmento.
 
@@ -107,8 +108,16 @@ def tipo_de_trabalho(
     o atendente abre a OS pela tela. False quer dizer que a OS deste tipo so
     nasce de outro documento (em Moveis planejados, da aprovacao de um
     orcamento); o servico da OS recusa a criacao pelo caminho comum.
+
+    `avarias` (Spec 03A do lava-rapido, SPEC-00 U4): o checklist SIMPLES de
+    avarias do tipo -- a comanda marca so o que tem avaria, com foto. Cada
+    tipo tem a sua lista (moto nao tem para-brisa, bicicleta nao tem banco).
+    Ausente = o tipo nao tem checklist; nada muda para quem nao declara.
     """
-    return {"id": id, "label": label, "campos": campos, "criacao_manual": criacao_manual}
+    tipo: Dict[str, Any] = {"id": id, "label": label, "campos": campos, "criacao_manual": criacao_manual}
+    if avarias is not None:
+        tipo["avarias"] = list(avarias)
+    return tipo
 
 
 def grupo_vistoria(titulo: str, itens: List[str]) -> Dict[str, Any]:

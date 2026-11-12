@@ -111,6 +111,18 @@ def gerar_identificador(segmento: Optional[str], numero_os: str) -> Optional[str
     return f"{prefixo}-{numero}"
 
 
+def coluna_opcional_no_segmento(segmento: Optional[str], coluna: str) -> bool:
+    """True se o segmento declara, EXPLICITAMENTE, que a coluna do objeto pode
+    ficar vazia na abertura da OS (chave `colunas_opcionais`).
+
+    Explicita de proposito: a oficina desenha a marca sem asterisco e mesmo
+    assim o backend sempre a exigiu -- uma regra deduzida dos campos mudaria
+    uma loja em producao. So o lava-rapido declara (Spec 03A, D4): na comanda
+    "Gol prata" basta; a marca fica para quando o atendente quiser.
+    """
+    return coluna in ((get_definicao_segmento(segmento) or {}).get("colunas_opcionais") or [])
+
+
 def segmento_declara_coluna(segmento: Optional[str], coluna: str) -> bool:
     """True se algum campo declarado do segmento grava na coluna real `coluna`
     de objetos_servico (origem='coluna'), em qualquer forma de declarar
@@ -242,4 +254,5 @@ __all__ = [
     "tipo_permite_criacao_manual",
     "label_do_tipo",
     "segmento_tem_capacidade",
+    "coluna_opcional_no_segmento",
 ]
