@@ -347,13 +347,36 @@ function chip(ativo: boolean): string {
               <div class="flex items-center gap-3">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><Droplets :size="16" /></span>
                 <div>
-                  <h2 class="text-base font-semibold text-zinc-900">Lavagens do porte</h2>
+                  <h2 class="text-base font-semibold text-zinc-900">
+                    Lavagens do porte<template v-if="c.porteId.value">: {{ c.portesDoTipo.value.find((p) => p.id === c.porteId.value)?.nome }}</template>
+                  </h2>
                   <p class="text-xs text-zinc-500">Marque o que vai ser feito. O preço é o do porte e pode ser ajustado.</p>
                 </div>
               </div>
             </template>
 
-            <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte do veículo para ver os serviços.</p>
+            <div v-if="!c.porteId.value" class="space-y-3">
+              <p class="text-sm text-zinc-600">
+                O preço depende do porte. Escolha o porte do veículo
+                <template v-if="c.tiposDeVeiculo.value.length > 1">({{ c.tiposDeVeiculo.value.find((t) => t.value === c.tipo.value)?.label }})</template>:
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="p in c.portesDoTipo.value"
+                  :key="p.id"
+                  type="button"
+                  class="rounded-lg border px-3 py-2 text-sm transition-colors"
+                  :class="chip(false)"
+                  @click="c.porteId.value = p.id"
+                >
+                  {{ p.nome }}
+                </button>
+              </div>
+              <p class="text-xs text-zinc-400">
+                Outro tipo de veículo?
+                <button type="button" class="font-semibold text-brand-primary hover:underline" @click="abaAtiva = 'veiculo'">Trocar na aba Veículo</button>
+              </p>
+            </div>
             <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
             <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
