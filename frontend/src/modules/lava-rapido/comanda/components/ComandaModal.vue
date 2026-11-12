@@ -30,10 +30,15 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 
 import SeletorLavadores from '../../shared/components/SeletorLavadores.vue';
+import type { Agendamento } from '../../shared/schemas/agenda.schema';
 import { horaLocal, reais } from '../../shared/utils/lavaRapido';
 import { nomeDoCliente, useComanda } from '../composables/useComanda';
 
-const props = defineProps<{ isOpen: boolean }>();
+const props = defineProps<{
+  isOpen: boolean;
+  /** Cliente agendado que chegou (Spec 08B): a comanda abre com o combinado. */
+  agendamento?: Agendamento | null;
+}>();
 const emit = defineEmits<{ close: []; criada: [numeroOs: string] }>();
 
 const c = useComanda();
@@ -52,7 +57,6 @@ const podeEscolherResponsavel = computed(() => {
   return p?.['all'] === true || p?.['funcionario'] === true;
 });
 
-watch(() => props.isOpen, (aberta) => { if (aberta) c.limpar(); });
 
 // --- Cliente novo --------------------------------------------------------------------
 const cadastrandoCliente = ref(false);
@@ -71,6 +75,22 @@ async function confirmarClienteNovo() {
     salvandoCliente.value = false;
   }
 }
+// Abriu: comanda limpa, ou com o agendamento de quem chegou.
+watch(() => props.isOpen, async (aberta) => {
+  if (!aberta) return;
+  cadastrandoCliente.value = false;
+  if (!props.agendamento) {
+    c.limpar();
+    return;
+  }
+  const semCadastro = await c.preencherDeAgendamento(props.agendamento);
+  if (semCadastro) {
+    novoNome.value = semCadastro.nome;
+    novoCelular.value = semCadastro.contato;
+    cadastrandoCliente.value = true;
+  }
+});
+
 function trocarCliente() {
   c.cliente.value = null;
   novoNome.value = '';

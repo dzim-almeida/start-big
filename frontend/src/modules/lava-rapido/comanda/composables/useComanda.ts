@@ -13,6 +13,7 @@ import { useAuthStore } from '@/shared/stores/auth.store';
 
 import { usePortesQuery, useServicosDoPorteQuery } from '../../shared/composables/usePortes';
 import { normalizarPlaca, previsaoDeEntrega } from '../../shared/utils/lavaRapido';
+import type { Agendamento } from '../../shared/schemas/agenda.schema';
 import { abrirLavagem, criarClienteRapido, type ItemComanda } from '../services/comanda.service';
 
 /** Nome de exibição de um cliente PF ou PJ. */
@@ -252,6 +253,31 @@ export function useComanda() {
   }
 
   /**
+   * O cliente agendado chegou (Spec 08B): a comanda abre com o combinado.
+   * Devolve nome e contato quando o cliente ainda não tem cadastro, para a
+   * tela já abrir o "cliente novo" preenchido.
+   */
+  async function preencherDeAgendamento(a: Agendamento): Promise<{ nome: string; contato: string } | null> {
+    limpar();
+    if (a.tipo_veiculo) tipo.value = a.tipo_veiculo;
+    porteId.value = a.porte_id;
+    modelo.value = a.veiculo ?? '';
+    observacao.value = a.observacao ?? '';
+    selecionados.value = Object.fromEntries(
+      a.servicos.filter((s) => s.servico_id).map((s) => [s.servico_id as number, s.valor]));
+    placa.value = a.placa ?? '';                     // dispara a busca do veículo
+    if (a.cliente_id) {
+      try {
+        cliente.value = await getCustomerByIdForOS(a.cliente_id);
+        return null;
+      } catch {
+        // cai no cadastro pelo nome
+      }
+    }
+    return { nome: a.cliente_nome, contato: a.cliente_contato ?? '' };
+  }
+
+  /**
    * Previsão que vai para a OS: a hora calculada quando o dia bate com o do
    * campo; se alguém escolheu outro dia à mão, o dia escolhido.
    */
@@ -302,6 +328,6 @@ export function useComanda() {
     tipo, porteId, modelo, marca, cor,
     selecionados, alternarServico, mudarPreco, itens, subtotal, total, previsao,
     lavadores, avarias, alternarAvaria, fotos, observacao,
-    faltando, salvando, salvar, limpar,
+    faltando, salvando, salvar, limpar, preencherDeAgendamento,
   };
 }

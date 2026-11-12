@@ -32,6 +32,9 @@ const OrcamentosTab = defineAsyncComponent(
 const PatioTab = defineAsyncComponent(
   () => import('@/modules/lava-rapido/patio/components/PatioTab.vue'),
 );
+const AgendaTab = defineAsyncComponent(
+  () => import('@/modules/lava-rapido/agenda/components/AgendaTab.vue'),
+);
 const ComandaModal = defineAsyncComponent(
   () => import('@/modules/lava-rapido/comanda/components/ComandaModal.vue'),
 );
@@ -47,7 +50,7 @@ import { getUniqueOS } from '../ordens/services/orderServiceGet.service';
 
 const { openCreateModal } = useServicoModal();
 const { openNovaOS, openExistingOS } = useOSCreateFlow();
-const { temRevisoes, temOrcamentoTecnico, temOperacaoPatio } = useCapacidades();
+const { temRevisoes, temOrcamentoTecnico, temOperacaoPatio, tem } = useCapacidades();
 /** Lava-rápido: a comanda (Nova entrada) aberta. */
 const comandaAberta = ref(false);
 // O segmento deixa abrir OS à mão? Na marcenaria, não: a OS nasce do orçamento (Spec 03B).
@@ -78,6 +81,8 @@ onMounted(async () => {
 const tabOptions = computed(() => [
   // Lava-rápido: "Pátio" primeiro — é o dia de trabalho (SPEC-00 U1).
   ...(temOperacaoPatio?.value ? [{ id: 'patio', label: 'Pátio' }] : []),
+  // Lava-rápido (Spec 08B): a agenda, logo depois do pátio.
+  ...(tem?.('agenda_servicos') ? [{ id: 'agenda', label: 'Agenda' }] : []),
   ...(temOrcamentoTecnico.value && podeVerOrcamentos.value ? [{ id: 'orcamentos', label: 'Orçamentos' }] : []),
   ...(temOrcamentoTecnico.value ? TAB_OPTIONS.filter((aba) => aba.id !== 'servicos') : TAB_OPTIONS),
   ...(temRevisoes.value ? [{ id: 'revisoes', label: 'Revisões' }] : []),
@@ -107,6 +112,7 @@ const activeTab = computed<string>({
 
 const pageTitle = computed(() => {
   if (activeTab.value === 'patio') return 'Pátio';
+  if (activeTab.value === 'agenda') return 'Agenda';
   if (activeTab.value === 'revisoes') return 'Revisões Pendentes';
   if (activeTab.value === 'producao') return 'Produção';
   if (activeTab.value === 'instalacoes') return 'Instalações';
@@ -117,6 +123,7 @@ const pageTitle = computed(() => {
 
 const pageDescription = computed(() => {
   if (activeTab.value === 'patio') return 'Os veículos de hoje, da chegada à entrega.';
+  if (activeTab.value === 'agenda') return 'Quem vem e quando. Quando o cliente chega, a lavagem entra no pátio.';
   if (activeTab.value === 'revisoes') return 'Veículos com revisão vencida por data e/ou KM.';
   if (activeTab.value === 'producao') return 'As OS em produção, com o progresso e a próxima etapa, na ordem da entrega.';
   if (activeTab.value === 'instalacoes') return 'Quem instala onde, por dia.';
@@ -128,7 +135,9 @@ const pageDescription = computed(() => {
 });
 
 /** Botão do topo: "Nova OS" só onde dá para criar à mão; "Novo Serviço" sempre (Spec 03B, D3/D5). */
-const exibirBotaoAdicionar = computed(() => mostrarBotaoAdicionar(activeTab.value, podeCriarOSManual.value));
+// Agenda: o botão "Novo agendamento" fica dentro da própria aba.
+const exibirBotaoAdicionar = computed(() =>
+  activeTab.value !== 'agenda' && mostrarBotaoAdicionar(activeTab.value, podeCriarOSManual.value));
 
 /** Marcenaria: no lugar de "Nova OS", "Novo orçamento" (a OS nasce dele; Spec 06B, D4). */
 const exibirNovoOrcamento = computed(() =>
@@ -189,6 +198,7 @@ function handleAddClick() {
     </div>
 
     <PatioTab v-if="activeTab === 'patio'" />
+    <AgendaTab v-else-if="activeTab === 'agenda'" />
     <OrcamentosTab v-else-if="activeTab === 'orcamentos'" embutida />
     <OrdensServicoTab v-else-if="activeTab === 'ordens'" />
     <RevisoesPendentesTab v-else-if="activeTab === 'revisoes'" />

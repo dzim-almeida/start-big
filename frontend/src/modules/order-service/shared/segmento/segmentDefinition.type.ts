@@ -147,7 +147,9 @@ export type SegmentCapability =
    */
   | 'operacao_patio'
   /** A OS registra quem a executa além do responsável (lavadores, Spec 10A/10B). */
-  | 'executores_os';
+  | 'executores_os'
+  /** Agenda de serviços: o agendamento vem antes da OS (lava-rápido, Spec 08B). */
+  | 'agenda_servicos';
 
 /**
  * Um processo de negócio dentro do mesmo segmento.

@@ -2,7 +2,7 @@
 
 | Campo      | Valor                                                                             |
 |------------|-----------------------------------------------------------------------------------|
-| Status     | **Revisão 4 (12/11, tarde): interface própria** — comanda e pátio viram o centro (SPEC-00 §6.5); ordem dos marcos refeita (§3). Feitas: 01A, 01B e o Marco 2 inteiro (02A/B, 03A/B, 04A/B, 10A/B), aguardando o usuário olhar as telas |
+| Status     | **Revisão 4 (12/11, tarde): interface própria** — comanda e pátio viram o centro (SPEC-00 §6.5); ordem dos marcos refeita (§3). Feitas: 01A, 01B, o Marco 2 inteiro (02A/B, 03A/B, 04A/B, 10A/B) e a Agenda (08A/B, adiantada a pedido do usuário); aguardando o usuário olhar as telas |
 | Data       | 12/11/2026                                                                        |
 | Branch     | `feat/segmento-lava-rapido` @ `c2228e88` (saiu da `feat/cfop-na-nota`)            |
 | Documentos | `SPEC-00` (decisões) + 11 specs de implementação nesta pasta (escritas uma a uma, na ordem dos marcos) |
@@ -137,7 +137,9 @@ Referência medida antes da 01A, em `2dc12ccd` (worktree limpo): backend **3.013
 | 03A | 12/11/2026 | 672e35dc | guard + API (marca opcional; oficina continua exigindo) | registry/lava 387 |
 | 10A | 12/11/2026 | 43579db7 | 11 de API + 3 da migração | comissão/relatório/funcionário/caixa/core 459 |
 | 04A | 12/11/2026 | 8a1f6c45 | 6 de API | — |
-| 03B · 04B · 10B | 12/11/2026 | (este commit) | 16 unitários + 3 das abas | vitest 827; `vue-tsc` limpo |
+| 03B · 04B · 10B | 12/11/2026 | 9338174d (+ 45dcfaa7, comanda no padrão da OS) | 16 unitários + 3 das abas | vitest 827; `vue-tsc` limpo |
+| 08A | 12/11/2026 | e1158ea1 | 7 de API + 3 da migração | backend inteiro antes da 08A: 3.163 passando, 1 pulado |
+| 08B | 12/11/2026 | (este commit) | 3 unitários + 1 das abas | vitest 831 |
 
 ---
 

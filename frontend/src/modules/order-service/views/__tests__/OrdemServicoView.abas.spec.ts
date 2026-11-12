@@ -18,8 +18,12 @@ import { defineComponent, h, ref } from 'vue';
 const temRevisoes = ref(false);
 const temOrcamentoTecnico = ref(false);
 const temOperacaoPatio = ref(false);
+const temAgenda = ref(false);
 vi.mock('../../shared/segmento/useCapacidades', () => ({
-  useCapacidades: () => ({ temRevisoes, temOrcamentoTecnico, temOperacaoPatio }),
+  useCapacidades: () => ({
+    temRevisoes, temOrcamentoTecnico, temOperacaoPatio,
+    tem: (capacidade: string) => capacidade === 'agenda_servicos' && temAgenda.value,
+  }),
 }));
 const podeCriarOSManual = ref(true);
 vi.mock('../../shared/segmento/useTiposDeTrabalho', () => ({ useTiposDeTrabalho: () => ({ podeCriarOSManual }) }));
@@ -53,6 +57,7 @@ vi.mock('@/modules/marcenaria/entrega/components/InstalacoesTab.vue', () => marc
 vi.mock('@/modules/marcenaria/orcamentos/views/OrcamentosListaView.vue', () => marcador('aba-orcamentos'));
 vi.mock('@/modules/lava-rapido/patio/components/PatioTab.vue', () => marcador('aba-patio'));
 vi.mock('@/modules/lava-rapido/comanda/components/ComandaModal.vue', () => marcador('comanda'));
+vi.mock('@/modules/lava-rapido/agenda/components/AgendaTab.vue', () => marcador('aba-agenda'));
 
 const { default: OrdemServicoView } = await import('../OrdemServicoView.vue');
 
@@ -69,6 +74,7 @@ beforeEach(() => {
   temRevisoes.value = false;
   temOrcamentoTecnico.value = false;
   temOperacaoPatio.value = false;
+  temAgenda.value = false;
   podeCriarOSManual.value = true;
   podeVerOrcamentos.value = true;
   podeGerirOrcamentos.value = false;
@@ -157,6 +163,18 @@ describe('lava-rápido — pátio e Nova entrada (Spec 04B, SPEC-00 U1/U6)', () 
     await flushPromises();
     expect(w.text()).toContain('Nova entrada');
     expect(w.text()).not.toContain('Nova OS');
+  });
+
+  it('com a agenda: "Agenda" logo depois do Pátio, sem o botão do topo', async () => {
+    temOperacaoPatio.value = true;
+    temAgenda.value = true;
+    const w = montar();
+    expect(abas(w)).toEqual(['Pátio', 'Agenda', 'Ordens de Serviço', 'Cadastro de Serviços']);
+    await w.findAll('button').find((b) => b.text() === 'Agenda')!.trigger('click');
+    await flushPromises();
+    expect(w.find('[data-testid="aba-agenda"]').exists()).toBe(true);
+    expect(w.find('h2').text()).toBe('Agenda');
+    expect(w.text()).not.toContain('Nova entrada');
   });
 
   it('outros segmentos: sem Pátio', () => {
