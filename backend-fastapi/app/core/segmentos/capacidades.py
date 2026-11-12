@@ -85,6 +85,11 @@ CAP_OPERACAO_PATIO = "operacao_patio"
 # este segmento consegue grava-los.
 CAP_EXECUTORES_OS = "executores_os"
 
+# Agenda de servicos: o agendamento vem ANTES da OS e vira OS quando o
+# cliente chega (lava-rapido, SPEC-00 O11 e Spec 08A). A agenda da marcenaria
+# e outra coisa: ela agenda uma OS que ja existe.
+CAP_AGENDA_SERVICOS = "agenda_servicos"
+
 CAPACIDADES_CONHECIDAS = [
     CAP_VISTORIA,
     CAP_REVISOES,
@@ -97,4 +102,5 @@ CAPACIDADES_CONHECIDAS = [
     CAP_PRECO_POR_PORTE,
     CAP_OPERACAO_PATIO,
     CAP_EXECUTORES_OS,
+    CAP_AGENDA_SERVICOS,
 ]

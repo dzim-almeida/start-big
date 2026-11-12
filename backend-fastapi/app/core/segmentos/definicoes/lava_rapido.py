@@ -19,6 +19,7 @@ from typing import Any, Dict, List
 
 from ..campos import campo, grupo_vistoria, tipo_de_trabalho
 from ..capacidades import (
+    CAP_AGENDA_SERVICOS,
     CAP_EXECUTORES_OS,
     CAP_IMAGEM_NA_ENTRADA,
     CAP_OPERACAO_PATIO,
@@ -242,7 +243,7 @@ LAVA_RAPIDO = {
     # por KM: lavagem nao e conserto (SPEC-00 O6).
     "capacidades": [
         CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE,
-        CAP_OPERACAO_PATIO, CAP_EXECUTORES_OS,
+        CAP_OPERACAO_PATIO, CAP_EXECUTORES_OS, CAP_AGENDA_SERVICOS,
     ],
 
     # Vazios porque este segmento declara por tipo de trabalho. O guard

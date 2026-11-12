@@ -708,6 +708,7 @@ def test_capacidades_do_lava_rapido():
     # executores_os: Spec 10A (lavadores e comissao Dividir/Inteira).
     assert capacidades == {
         "vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio", "executores_os",
+        "agenda_servicos",                               # Spec 08A
     }
     assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
 

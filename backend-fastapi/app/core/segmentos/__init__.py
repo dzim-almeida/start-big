@@ -38,6 +38,7 @@ from .capacidades import (
     CAP_PRECO_POR_PORTE,
     CAP_OPERACAO_PATIO,
     CAP_EXECUTORES_OS,
+    CAP_AGENDA_SERVICOS,
     CAPACIDADES_CONHECIDAS,
 )
 from .definicoes import (
@@ -87,6 +88,7 @@ __all__ = [
     "CAP_PRECO_POR_PORTE",
     "CAP_OPERACAO_PATIO",
     "CAP_EXECUTORES_OS",
+    "CAP_AGENDA_SERVICOS",
     "CAPACIDADES_CONHECIDAS",
     # construcao
     "campo",

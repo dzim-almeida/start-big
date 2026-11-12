@@ -6,7 +6,7 @@
 # Esta camada so le o token e os parametros e aplica as permissoes. A regra
 # fica em app/services/lava_rapido/. Tudo responde 404 fora do segmento com a
 # capacidade correspondente (`preco_por_porte`, `executores_os`,
-# `operacao_patio`).
+# `operacao_patio`, `agenda_servicos`).
 # ---------------------------------------------------------------------------
 
 from typing import List, Optional
@@ -25,9 +25,12 @@ from app.schemas.lava_rapido.porte import (
     ServicoDoPorte,
 )
 from app.core.tempo import hoje_local
+from datetime import date
+
+from app.schemas.lava_rapido.agendamento import AgendamentoCreate, AgendamentoRead, AgendamentoUpdate
 from app.schemas.lava_rapido.lavador import LavadoresUpdate, LavadorRead
 from app.schemas.lava_rapido.patio import CartaoPatio, PatioRead
-from app.services.lava_rapido import lavadores, patio, portes
+from app.services.lava_rapido import agenda, lavadores, patio, portes
 
 router = APIRouter()
 
@@ -125,3 +128,33 @@ def avancar(numero_os: str, usuario_token: dict = SERVICO, db: Session = Depends
              summary="Devolver o veículo para a coluna anterior (engano)")
 def voltar(numero_os: str, usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
     return _handle_db_transaction(db, patio.mover, numero_os, -1)
+
+
+# ===========================================================================
+# AGENDA (Spec 08A)
+# ===========================================================================
+
+@router.get("/agendamentos", response_model=List[AgendamentoRead], summary="Agendamentos do período")
+def listar_agendamentos(inicio: date = Query(...), fim: date = Query(...),
+                        usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return agenda.listar(db, inicio, fim)
+
+
+@router.post("/agendamentos", response_model=AgendamentoRead, status_code=status.HTTP_201_CREATED,
+             summary="Novo agendamento")
+def criar_agendamento(dados: AgendamentoCreate, usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return _handle_db_transaction(db, agenda.criar, dados)
+
+
+@router.put("/agendamentos/{agendamento_id}", response_model=AgendamentoRead,
+            summary="Alterar, remarcar ou mudar a situação (chegou, não veio, cancelado)")
+def atualizar_agendamento(dados: AgendamentoUpdate, agendamento_id: int = Path(..., gt=0),
+                          usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return _handle_db_transaction(db, agenda.atualizar, agendamento_id, dados)
+
+
+@router.delete("/agendamentos/{agendamento_id}", status_code=status.HTTP_204_NO_CONTENT,
+               summary="Excluir agendamento cancelado")
+def excluir_agendamento(agendamento_id: int = Path(..., gt=0), usuario_token: dict = SERVICO,
+                        db: Session = Depends(get_db)):
+    _handle_db_transaction(db, agenda.excluir, agendamento_id)
