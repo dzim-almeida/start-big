@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import type { CustomerUnionReadSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/customer/customer.schema';
 import type { ObjetoBuscaItemDataType } from '@/modules/order-service/ordens/schemas/relationship/objetoBusca.schema';
 import type { OsPriorityEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
+import type { OsItemCreateSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/osItem.schema';
 import { buscarObjetosPorIdentificador } from '@/modules/order-service/ordens/services/orderServiceGet.service';
 import { getCustomerByIdForOS } from '@/modules/order-service/ordens/services/relationship/osRelationshipGet.service';
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
@@ -61,6 +62,8 @@ export function useComanda() {
   // --- Serviços, execução e entrada ----------------------------------------------------
   /** servico_id → valor em centavos (o atendente pode mudar o preço, C1a). */
   const selecionados = ref<Record<number, number>>({});
+  /** Produtos e serviços avulsos do modal de item da OS (aba Serviços e Produtos). */
+  const extras = ref<OsItemCreateSchemaDataType[]>([]);
   const lavadores = ref<number[]>([]);
   const avarias = ref<string[]>([]);
   const fotos = ref<File[]>([]);
@@ -99,7 +102,11 @@ export function useComanda() {
       .filter((s) => s.servico_id in selecionados.value)
       .map((s) => ({ servico_id: s.servico_id, nome: s.descricao, valor: selecionados.value[s.servico_id] })));
 
-  const subtotal = computed(() => itens.value.reduce((soma, i) => soma + i.valor, 0));
+  /** Valor de um item do modal (quantidade × unitário; o que não é cobrado vale 0). */
+  const valorDoExtra = (e: OsItemCreateSchemaDataType) =>
+    e.visivel_cliente === false ? 0 : Math.round((e.quantidade || 0) * (e.valor_unitario || 0));
+  const subtotal = computed(() =>
+    itens.value.reduce((soma, i) => soma + i.valor, 0) + extras.value.reduce((soma, e) => soma + valorDoExtra(e), 0));
   const total = computed(() => subtotal.value + (taxaEntrega.value || 0));
 
   /** Hora prevista pela soma das durações (SPEC-00 O4). */
@@ -121,7 +128,7 @@ export function useComanda() {
     if (!cliente.value) lista.push('Cliente');
     if (!porteId.value) lista.push('Porte');
     if (!modelo.value.trim()) lista.push(tipo.value === 'outros' ? 'Descrição' : 'Modelo');
-    if (!itens.value.length) lista.push('Serviço');
+    if (!itens.value.length && !extras.value.length) lista.push('Serviço');
     return lista;
   });
 
@@ -214,6 +221,7 @@ export function useComanda() {
     marca.value = '';
     cor.value = '';
     selecionados.value = {};
+    extras.value = [];
     lavadores.value = [];
     avarias.value = [];
     fotos.value = [];
@@ -272,6 +280,7 @@ export function useComanda() {
           dados_objeto: { ...(veiculo.value?.dados_adicionais ?? {}) },
           porte: porte.value?.nome ?? '',
           itens: itens.value,
+          extras: extras.value as unknown as Record<string, unknown>[],
           avarias: avarias.value,
           observacao: observacao.value,
           previsao: previsaoParaGravar(),
@@ -294,7 +303,7 @@ export function useComanda() {
     placa, veiculo, buscandoPlaca, placaObrigatoria,
     cliente, aplicarEntrada,
     tipo, porteId, modelo, marca, cor,
-    selecionados, alternarServico, mudarPreco, itens, subtotal, total, previsao,
+    selecionados, alternarServico, mudarPreco, itens, extras, valorDoExtra, subtotal, total, previsao,
     lavadores, avarias, alternarAvaria, fotos, observacao,
     faltando, salvando, salvar, limpar, preencherDeAgendamento,
   };

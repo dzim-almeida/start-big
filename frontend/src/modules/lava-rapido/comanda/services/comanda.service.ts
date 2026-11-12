@@ -38,6 +38,11 @@ export interface PayloadLavagem {
   dados_objeto: Record<string, unknown>;
   porte: string;
   itens: ItemComanda[];
+  /**
+   * Itens do modal de item da OS (produto do estoque ou serviço avulso), já no
+   * formato do `POST /ordens-servico` (Spec 03B, revisão de 12/11).
+   */
+  extras?: Record<string, unknown>[];
   avarias: string[];
   observacao: string;
   /** Instante calculado, ou o dia "AAAA-MM-DD" escolhido à mão (como na OS). */
@@ -86,14 +91,17 @@ export function montarOS(p: PayloadLavagem): Record<string, unknown> {
       cor: p.cor.trim(),
       dados_adicionais: { ...p.dados_objeto, porte: p.porte },
     },
-    itens: p.itens.map((item) => ({
-      tipo: 'SERVICO',
-      item_id: item.servico_id,
-      nome: item.nome,
-      unidade_medida: 'UN',
-      quantidade: 1,
-      valor_unitario: item.valor,
-    })),
+    itens: [
+      ...p.itens.map((item) => ({
+        tipo: 'SERVICO',
+        item_id: item.servico_id,
+        nome: item.nome,
+        unidade_medida: 'UN',
+        quantidade: 1,
+        valor_unitario: item.valor,
+      })),
+      ...(p.extras ?? []),
+    ],
   };
 }
 

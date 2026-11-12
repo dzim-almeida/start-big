@@ -28,6 +28,9 @@ export function useEntradaLavagem() {
 
   /** "Nova entrada": começa pela busca de cliente, como a "Nova OS". */
   function abrirNovaEntrada() {
+    // Fecha antes: se a tela foi trocada com a comanda aberta, o "aberta"
+    // ficava preso e a próxima entrada não aplicava o cliente (bug de 12/11).
+    comandaAberta.value = false;
     cliente.value = null;
     objeto.value = null;
     agendamento.value = null;
@@ -40,6 +43,8 @@ export function useEntradaLavagem() {
    * busca vem antes (para achar ou cadastrar) e a comanda abre em seguida.
    */
   async function chegouAgendado(a: Agendamento, depois: (numeroOs: string) => void) {
+    comandaAberta.value = false;
+    buscaAberta.value = false;
     agendamento.value = a;
     objeto.value = null;
     aoCriar = depois;
