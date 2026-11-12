@@ -12,12 +12,14 @@
  * O documento gravado é a OS de sempre; ela entra no pátio em "Aguardando".
  */
 import { computed, ref, watch } from 'vue';
-import { Camera, CarFront, CheckCircle2, Droplets, ShieldAlert, Trash2, UserSearch, Users, X } from 'lucide-vue-next';
+import { Camera, CheckCircle2, UserSearch, X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSectionCard from '@/shared/components/layout/SectionCard/BaseSectionCard.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSClientCard from '@/modules/order-service/ordens/components/form/OSClientCard.vue';
@@ -149,30 +151,32 @@ function chip(ativo: boolean): string {
       />
 
       <div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_400px]">
-        <!-- ============ Corpo: veículo, serviços, lavadores, avarias ============ -->
+        <!-- ============ Corpo: 1 Veículo · 2 Serviços · 3 Quem vai lavar · 4 Avarias ============ -->
         <div class="space-y-4">
-          <BaseSectionCard titulo="Veículo" descricao="Digite a placa: se o veículo já veio, ele e o dono aparecem">
+          <!-- 1. Veículo -->
+          <BaseSectionCard>
             <template #cabecalho>
-              <div class="flex items-center gap-2">
-                <CarFront :size="18" class="text-brand-primary" />
+              <div class="flex items-center gap-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">1</span>
                 <div>
                   <h2 class="text-base font-semibold text-zinc-900">Veículo</h2>
-                  <p class="text-xs text-zinc-500">Digite a placa: se o veículo já veio, ele e o dono aparecem</p>
+                  <p class="text-xs text-zinc-500">Placa, tipo e porte. O porte define o preço dos serviços.</p>
                 </div>
               </div>
             </template>
 
             <div class="space-y-4">
               <div class="grid grid-cols-12 items-end gap-3">
-                <div class="col-span-12 sm:col-span-5">
+                <div class="col-span-12 sm:col-span-4">
                   <BaseInput
                     v-model="c.placa.value"
                     :label="c.placaObrigatoria.value ? 'Placa' : 'Placa (se tiver)'"
                     placeholder="ABC1D23"
+                    :required="c.placaObrigatoria.value"
                     data-testid="comanda-placa"
                   />
                 </div>
-                <div class="col-span-12 pb-2 text-sm sm:col-span-7">
+                <div class="col-span-12 pb-2 text-sm sm:col-span-8">
                   <span v-if="c.buscandoPlaca.value" class="text-zinc-400">Procurando…</span>
                   <span v-else-if="c.veiculo.value" class="flex items-center gap-1 font-medium text-emerald-700">
                     <CheckCircle2 :size="16" /> Já veio aqui: {{ c.veiculo.value.modelo }}
@@ -181,35 +185,27 @@ function chip(ativo: boolean): string {
                 </div>
               </div>
 
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="t in c.tiposDeVeiculo.value"
-                  :key="t.value"
-                  type="button"
-                  class="rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors"
-                  :class="chip(c.tipo.value === t.value)"
-                  @click="c.tipo.value = t.value"
-                >
-                  {{ t.label }}
-                </button>
-              </div>
-
-              <div>
-                <p class="mb-1.5 text-xs font-medium text-zinc-600">Porte</p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="p in c.portesDoTipo.value"
-                    :key="p.id"
-                    type="button"
-                    class="rounded-lg border px-3 py-1.5 text-sm transition-colors"
-                    :class="chip(c.porteId.value === p.id)"
-                    @click="c.porteId.value = p.id"
-                  >
-                    {{ p.nome }}
-                  </button>
-                  <span v-if="!c.portesDoTipo.value.length" class="text-sm text-zinc-400">
-                    Nenhum porte ativo. Configure em Configurações › Lava-Rápido.
-                  </span>
+              <div class="grid grid-cols-12 gap-3">
+                <div class="col-span-12 sm:col-span-4">
+                  <BaseSelect v-model="c.tipo.value" label="Tipo" :options="c.tiposDeVeiculo.value" />
+                </div>
+                <div class="col-span-12 sm:col-span-8">
+                  <p class="mb-1 text-sm font-medium text-gray-700">Porte <span class="text-red-600">*</span></p>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="p in c.portesDoTipo.value"
+                      :key="p.id"
+                      type="button"
+                      class="rounded-lg border px-3 py-2 text-sm transition-colors"
+                      :class="chip(c.porteId.value === p.id)"
+                      @click="c.porteId.value = p.id"
+                    >
+                      {{ p.nome }}
+                    </button>
+                    <span v-if="!c.portesDoTipo.value.length" class="text-sm text-zinc-400">
+                      Nenhum porte ativo. Configure em Configurações › Lava-Rápido.
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -223,114 +219,107 @@ function chip(ativo: boolean): string {
             </div>
           </BaseSectionCard>
 
-          <!-- Serviços: botões do porte + a lista do que foi escolhido -->
+          <!-- 2. Serviços: uma lista só, marcar = incluir; o preço da linha marcada é editável -->
           <BaseSectionCard>
             <template #cabecalho>
-              <div class="flex items-center gap-2">
-                <Droplets :size="18" class="text-brand-primary" />
+              <div class="flex items-center gap-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">2</span>
                 <div>
                   <h2 class="text-base font-semibold text-zinc-900">Serviços</h2>
-                  <p class="text-xs text-zinc-500">O preço é o do porte; pode ser ajustado na lista</p>
+                  <p class="text-xs text-zinc-500">Marque o que vai ser feito. O preço é o do porte e pode ser ajustado.</p>
                 </div>
               </div>
             </template>
 
-            <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte do veículo para ver os serviços e os preços.</p>
+            <p v-if="!c.porteId.value" class="text-sm text-zinc-400">Escolha o porte do veículo para ver os serviços.</p>
             <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
             <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
               (com o preço de cada porte) e elas aparecem aqui.
             </p>
-            <template v-else>
-              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  v-for="s in c.servicosDoPorte.value ?? []"
-                  :key="s.servico_id"
-                  type="button"
-                  class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-colors"
-                  :class="chip(s.servico_id in c.selecionados.value)"
-                  @click="c.alternarServico(s.servico_id, s.valor)"
-                >
-                  <span class="text-sm font-medium">{{ s.descricao }}</span>
-                  <span class="text-sm font-bold tabular-nums">{{ reais(s.valor) }}</span>
-                </button>
-              </div>
-
-              <div v-if="c.itens.value.length" class="mt-4 rounded-xl border border-zinc-100">
-                <p class="border-b border-zinc-100 px-4 py-2 text-xs text-slate-500">Serviços adicionados</p>
-                <ul class="divide-y divide-zinc-100">
-                  <li v-for="item in c.itens.value" :key="item.servico_id" class="flex items-center gap-3 px-4 py-2">
-                    <span class="flex-1 text-sm font-medium text-zinc-800">{{ item.nome }}</span>
-                    <div class="w-36">
-                      <MoneyInput
-                        :model-value="item.valor / 100"
-                        @update:model-value="c.mudarPreco(item.servico_id, ($event ?? 0) * 100)"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      class="p-1.5 text-zinc-400 hover:text-red-600"
-                      title="Remover"
-                      @click="c.alternarServico(item.servico_id, item.valor)"
-                    >
-                      <Trash2 :size="15" />
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </template>
+            <ul v-else class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+              <li
+                v-for="s in c.servicosDoPorte.value ?? []"
+                :key="s.servico_id"
+                class="flex items-center gap-3 px-4 py-2.5 transition-colors"
+                :class="s.servico_id in c.selecionados.value ? 'bg-brand-primary-light/60' : 'hover:bg-zinc-50'"
+              >
+                <label class="flex flex-1 cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    class="h-4 w-4 cursor-pointer rounded border-zinc-300 accent-brand-primary"
+                    :checked="s.servico_id in c.selecionados.value"
+                    @change="c.alternarServico(s.servico_id, s.valor)"
+                  />
+                  <span class="text-sm font-medium text-zinc-800">{{ s.descricao }}</span>
+                  <span v-if="s.duracao_minutos" class="text-xs text-zinc-400">{{ s.duracao_minutos }} min</span>
+                </label>
+                <div v-if="s.servico_id in c.selecionados.value" class="w-36">
+                  <MoneyInput
+                    :model-value="c.selecionados.value[s.servico_id] / 100"
+                    @update:model-value="c.mudarPreco(s.servico_id, ($event ?? 0) * 100)"
+                  />
+                </div>
+                <span v-else class="w-36 pr-3 text-right text-sm tabular-nums text-zinc-600">{{ reais(s.valor) }}</span>
+              </li>
+            </ul>
           </BaseSectionCard>
 
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <BaseSectionCard>
-              <template #cabecalho>
-                <div class="flex items-center gap-2">
-                  <Users :size="18" class="text-brand-primary" />
-                  <h2 class="text-base font-semibold text-zinc-900">Lavadores</h2>
+          <!-- 3. Quem vai lavar -->
+          <BaseSectionCard>
+            <template #cabecalho>
+              <div class="flex items-center gap-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">3</span>
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Quem vai lavar</h2>
+                  <p class="text-xs text-zinc-500">A comissão segue a regra do cargo (dividir ou inteira).</p>
                 </div>
-              </template>
-              <SeletorLavadores v-model="c.lavadores.value" />
-            </BaseSectionCard>
+              </div>
+            </template>
+            <SeletorLavadores v-model="c.lavadores.value" />
+          </BaseSectionCard>
 
-            <BaseSectionCard>
-              <template #cabecalho>
-                <div class="flex items-center gap-2">
-                  <ShieldAlert :size="18" class="text-brand-primary" />
-                  <h2 class="text-base font-semibold text-zinc-900">Avarias na chegada</h2>
+          <!-- 4. Avarias e observação (opcional) -->
+          <BaseSectionCard>
+            <template #cabecalho>
+              <div class="flex items-center gap-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-600">4</span>
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Avarias na chegada <span class="text-xs font-normal text-zinc-400">(opcional)</span></h2>
+                  <p class="text-xs text-zinc-500">Marque só o que o veículo já tem. Protege a loja de reclamação.</p>
                 </div>
-              </template>
-              <div class="flex flex-wrap gap-1.5">
-                <button
-                  v-for="avaria in c.avariasDoTipo.value"
-                  :key="avaria"
-                  type="button"
-                  class="rounded-lg border px-2.5 py-1 text-xs transition-colors"
-                  :class="c.avarias.value.includes(avaria)
-                    ? 'border-amber-500 bg-amber-50 font-semibold text-amber-800'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:border-amber-400'"
-                  @click="c.alternarAvaria(avaria)"
-                >
-                  {{ avaria }}
-                </button>
               </div>
-              <div class="mt-3 flex flex-wrap items-center gap-2">
-                <input ref="inputFoto" type="file" accept="image/*" multiple capture="environment" class="hidden" @change="adicionarFotos" />
-                <BaseButton size="sm" variant="ghost" @click="inputFoto?.click()">
-                  <Camera :size="14" class="mr-1" /> Foto
-                </BaseButton>
-                <span v-for="(foto, i) in c.fotos.value" :key="i" class="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-                  {{ foto.name.slice(0, 14) }}
-                  <button type="button" @click="c.fotos.value = c.fotos.value.filter((_, j) => j !== i)"><X :size="12" /></button>
-                </span>
-              </div>
-            </BaseSectionCard>
-          </div>
+            </template>
 
-          <BaseInput
-            v-model="c.observacao.value"
-            label="Observação / pertences"
-            placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo do capô"
-          />
+            <div class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              <BaseCheckbox
+                v-for="avaria in c.avariasDoTipo.value"
+                :key="avaria"
+                :model-value="c.avarias.value.includes(avaria)"
+                :label="avaria"
+                @update:model-value="c.alternarAvaria(avaria)"
+              />
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+              <input ref="inputFoto" type="file" accept="image/*" multiple capture="environment" class="hidden" @change="adicionarFotos" />
+              <BaseButton size="sm" variant="ghost" @click="inputFoto?.click()">
+                <Camera :size="14" class="mr-1" /> Adicionar foto
+              </BaseButton>
+              <span v-for="(foto, i) in c.fotos.value" :key="i" class="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
+                {{ foto.name.slice(0, 14) }}
+                <button type="button" @click="c.fotos.value = c.fotos.value.filter((_, j) => j !== i)"><X :size="12" /></button>
+              </span>
+            </div>
+
+            <div class="mt-4">
+              <BaseInput
+                v-model="c.observacao.value"
+                label="Observação / pertences"
+                placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo do capô"
+              />
+            </div>
+          </BaseSectionCard>
         </div>
 
         <!-- ============ Lateral: resumo de cobrança e cliente (padrão da OS) ============ -->
@@ -369,7 +358,10 @@ function chip(ativo: boolean): string {
     <template #footer>
       <div class="flex w-full flex-wrap items-center justify-between gap-3">
         <p class="text-xs text-zinc-500">
-          <template v-if="c.faltando.value.length">Falta: {{ c.faltando.value.join(', ') }}</template>
+          <span v-if="c.faltando.value.length" class="text-amber-700">
+            Para entrar no pátio, falta: <strong>{{ c.faltando.value.join(', ') }}</strong>
+          </span>
+          <span v-else class="text-emerald-700">Tudo pronto. Total {{ reais(c.total.value) }}</span>
         </p>
         <div class="flex gap-3">
           <BaseButton variant="secondary" @click="emit('close')">Cancelar</BaseButton>

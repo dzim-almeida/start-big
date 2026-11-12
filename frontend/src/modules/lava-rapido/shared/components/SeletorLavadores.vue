@@ -1,17 +1,17 @@
 <script setup lang="ts">
 /**
  * @component SeletorLavadores
- * @description Escolha de 1 ou 2 lavadores em botões (comanda e pátio, Spec 10B).
+ * @description Quem vai lavar: "Lavador" e "2º lavador (opcional)", em
+ * seletores do padrão da casa (comanda e pátio, Spec 10B).
  *
- * Botões e não lista suspensa (SPEC-00 U2): no balcão, um toque. O primeiro
- * escolhido é o responsável da OS quando a comanda a abre.
+ * "1 ou 2 por carro" (cliente, 12/11/2026). O modelo é a lista de ids na
+ * ordem: [lavador, 2º lavador]. O 2º só aparece depois do 1º.
  */
 import { computed } from 'vue';
 
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import type { SelectOption } from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import { useOsEmployeesGet } from '@/modules/order-service/ordens/composables/request/relationship/useOSRelationshipGet.queries';
-
-/** "1 ou 2 por carro" (cliente); o backend aceita até 5. */
-const MAXIMO = 2;
 
 const ids = defineModel<number[]>({ default: () => [] });
 const { data, isLoading } = useOsEmployeesGet();
@@ -21,39 +21,50 @@ const funcionarios = computed(() => {
   return [...lista].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 });
 
-function alternar(id: number) {
-  if (ids.value.includes(id)) {
-    ids.value = ids.value.filter((x) => x !== id);
-  } else if (ids.value.length < MAXIMO) {
-    ids.value = [...ids.value, id];
-  } else {
-    ids.value = [...ids.value.slice(1), id];            // troca o mais antigo
-  }
-}
+const NENHUM: SelectOption = { value: '', label: '— Ninguém —' };
+
+const opcoes1 = computed<SelectOption[]>(() => [
+  NENHUM,
+  ...funcionarios.value.map((f) => ({ value: String(f.id), label: f.nome })),
+]);
+/** O 2º não repete o 1º. */
+const opcoes2 = computed<SelectOption[]>(() => [
+  NENHUM,
+  ...funcionarios.value.filter((f) => f.id !== ids.value[0]).map((f) => ({ value: String(f.id), label: f.nome })),
+]);
+
+const primeiro = computed<string>({
+  get: () => (ids.value[0] ? String(ids.value[0]) : ''),
+  set: (v) => {
+    const id = Number(v) || null;
+    // Sem o 1º, o 2º sobe; o 2º igual ao novo 1º sai.
+    const segundo = ids.value[1] && ids.value[1] !== id ? ids.value[1] : null;
+    ids.value = id ? [id, ...(segundo ? [segundo] : [])] : (segundo ? [segundo] : []);
+  },
+});
+const segundo = computed<string>({
+  get: () => (ids.value[1] ? String(ids.value[1]) : ''),
+  set: (v) => {
+    const id = Number(v) || null;
+    ids.value = ids.value[0] ? [ids.value[0], ...(id ? [id] : [])] : [];
+  },
+});
 </script>
 
 <template>
   <div>
-    <p v-if="isLoading" class="text-sm text-zinc-500">Carregando equipe…</p>
-    <p v-else-if="!funcionarios.length" class="text-sm text-zinc-500">
+    <p v-if="!isLoading && !funcionarios.length" class="text-sm text-zinc-500">
       Nenhum funcionário cadastrado. Cadastre em Gestão de Equipe.
     </p>
-    <div v-else class="flex flex-wrap gap-2">
-      <button
-        v-for="f in funcionarios"
-        :key="f.id"
-        type="button"
-        class="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-        :class="ids.includes(f.id)
-          ? 'border-brand-primary bg-brand-primary text-white'
-          : 'border-zinc-200 bg-white text-zinc-700 hover:border-brand-primary hover:text-brand-primary'"
-        :aria-pressed="ids.includes(f.id)"
-        @click="alternar(f.id)"
-      >
-        {{ f.nome }}
-        <span v-if="ids.indexOf(f.id) === 0 && ids.length > 1" class="ml-1 text-[10px] opacity-80">1º</span>
-      </button>
+    <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <BaseSelect v-model="primeiro" label="Lavador" :options="opcoes1" placeholder="Escolha" />
+      <BaseSelect
+        v-model="segundo"
+        label="2º lavador (opcional)"
+        :options="opcoes2"
+        placeholder="Escolha"
+        :disabled="!ids[0]"
+      />
     </div>
-    <p class="mt-2 text-xs text-zinc-400">Até {{ MAXIMO }} lavadores. Toque de novo para tirar.</p>
   </div>
 </template>
