@@ -705,7 +705,10 @@ def test_capacidades_do_lava_rapido():
     """Caso 6. Vistoria e fotos na entrada sim; nada de conserto (SPEC-00 O6)."""
     capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
     # preco_por_porte: Spec 02A. operacao_patio: Spec 03A (comanda e patio).
-    assert capacidades == {"vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio"}
+    # executores_os: Spec 10A (lavadores e comissao Dividir/Inteira).
+    assert capacidades == {
+        "vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio", "executores_os",
+    }
     assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
 
 

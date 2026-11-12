@@ -6,7 +6,7 @@
 from datetime import datetime
 from typing import Sequence
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import select, func, and_, case, literal, or_, union_all
 from app.db.models.venda import Venda
 from app.db.models.venda_produto import ProdutoVenda
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque
@@ -16,6 +16,7 @@ from app.db.models.funcionario import Funcionario
 from app.db.models.objeto_servico import ObjetoServico
 from app.db.models.cliente import Cliente, ClientePF, ClientePJ
 from app.db.models.cargo import Cargo
+from app.db.models.ordem_servico_executor import OrdemServicoExecutor
 from app.core.enum import (
     VendaStatus,
     OrdemServicoStatus,
@@ -89,6 +90,29 @@ def get_ranking_faturamento(
     return db.execute(stmt).all()
 
 
+def _executores_por_os():
+    """(os_id, n): quantos executores cada OS tem. OS sem linha aqui nao tem
+    executor -- o caso de sempre (Spec 10A)."""
+    return (
+        select(
+            OrdemServicoExecutor.ordem_servico_id.label("os_id"),
+            func.count(OrdemServicoExecutor.id).label("n"),
+        )
+        .group_by(OrdemServicoExecutor.ordem_servico_id)
+        .subquery()
+    )
+
+
+def _divisor_da_parte(funcionario, cargo, n):
+    """Por quanto a mao de obra e dividida para ESTE executor (Spec 10A, O7c).
+
+    'inteira' -> 1 (recebe sobre o valor todo); 'dividir' (ou vazio na cascata
+    funcionario -> cargo) -> n, o numero de executores da OS.
+    """
+    modo = func.coalesce(funcionario.comissao_divisao, cargo.comissao_divisao, literal("dividir"))
+    return case((modo == "inteira", 1), else_=n)
+
+
 def get_comissao_base(
     db: Session, data_inicio: datetime, data_fim: datetime, empresa_id: int, limit: int = 200
 ) -> Sequence:
@@ -129,31 +153,60 @@ def get_comissao_base(
     # Item de PRODUTO fica de fora inteiro: peca e repasse, nao trabalho.
     # REPROVADO fica de fora porque o servico nao foi feito -- mesma regra que
     # o total da OS e o CMV ja usam.
+    #
+    # QUEM RECEBE (Spec 10A do lava-rapido, SPEC-00 O7c): a OS SEM executores
+    # vai para o responsavel, exatamente como sempre -- e o caso de toda OS de
+    # todo segmento que nao grava executores. A OS COM executores (lavadores)
+    # vai para eles: cada um sobre a sua parte (valor / n, 'dividir', padrao)
+    # ou sobre o valor todo ('inteira'), pela cascata funcionario -> cargo.
+    mao_de_obra_item = (
+        OrdemServicoItem.valor_total
+        - OrdemServicoItem.quantidade
+        * func.coalesce(OrdemServicoItem.custo_unitario, 0)
+    )
+    filtros_os = and_(
+        OSModel.status == OrdemServicoStatus.FINALIZADA,
+        OSModel.data_finalizacao.isnot(None),
+        OSModel.data_finalizacao >= data_inicio,
+        OSModel.data_finalizacao <= data_fim,
+        OrdemServicoItem.tipo == OrdemServicoItemTipo.SERVICO,
+        OrdemServicoItem.status_aprovacao
+        != OrdemServicoItemAprovacao.REPROVADO,
+    )
+    executores = _executores_por_os()
+
+    # OS sem executor: a expressao de sempre, para o responsavel.
+    os_do_responsavel = (
+        select(OSModel.funcionario_id.label("fid"), mao_de_obra_item.label("valor"))
+        .select_from(OrdemServicoItem)
+        .join(OSModel, OSModel.id == OrdemServicoItem.ordem_servico_id)
+        .outerjoin(executores, executores.c.os_id == OSModel.id)
+        .where(and_(filtros_os, executores.c.n.is_(None)))
+    )
+    # OS com executores: uma linha por executor, com a parte dele (centavo inteiro).
+    ExecFunc = aliased(Funcionario)
+    ExecCargo = aliased(Cargo)
+    divisor = _divisor_da_parte(ExecFunc, ExecCargo, executores.c.n)
+    os_dos_executores = (
+        select(
+            OrdemServicoExecutor.funcionario_id.label("fid"),
+            func.round(mao_de_obra_item * 1.0 / divisor).label("valor"),
+        )
+        .select_from(OrdemServicoItem)
+        .join(OSModel, OSModel.id == OrdemServicoItem.ordem_servico_id)
+        .join(executores, executores.c.os_id == OSModel.id)
+        .join(OrdemServicoExecutor, OrdemServicoExecutor.ordem_servico_id == OSModel.id)
+        .join(ExecFunc, ExecFunc.id == OrdemServicoExecutor.funcionario_id)
+        .outerjoin(ExecCargo, ExecCargo.id == ExecFunc.cargo_id)
+        .where(filtros_os)
+    )
+    linhas_os = union_all(os_do_responsavel, os_dos_executores).subquery()
     os_sub = (
         select(
-            OSModel.funcionario_id.label("fid"),
-            func.coalesce(
-                func.sum(
-                    OrdemServicoItem.valor_total
-                    - OrdemServicoItem.quantidade
-                    * func.coalesce(OrdemServicoItem.custo_unitario, 0)
-                ),
-                0,
-            ).label("os_valor"),
+            linhas_os.c.fid.label("fid"),
+            func.coalesce(func.sum(linhas_os.c.valor), 0).label("os_valor"),
         )
-        .join(OSModel, OSModel.id == OrdemServicoItem.ordem_servico_id)
-        .where(
-            and_(
-                OSModel.status == OrdemServicoStatus.FINALIZADA,
-                OSModel.data_finalizacao.isnot(None),
-                OSModel.data_finalizacao >= data_inicio,
-                OSModel.data_finalizacao <= data_fim,
-                OrdemServicoItem.tipo == OrdemServicoItemTipo.SERVICO,
-                OrdemServicoItem.status_aprovacao
-                != OrdemServicoItemAprovacao.REPROVADO,
-            )
-        )
-        .group_by(OSModel.funcionario_id)
+        .group_by(linhas_os.c.fid)
         .subquery()
     )
 
@@ -316,6 +369,15 @@ def get_servicos_do_funcionario(
     """
     client_pf = aliased(ClientePF)
     client_pj = aliased(ClientePJ)
+    # A empresa ja foi conferida pelo service (o funcionario e da empresa);
+    # o filtro e pelo funcionario, como responsavel ou como executor.
+    executores = _executores_por_os()
+    ExecFunc = aliased(Funcionario)
+    ExecCargo = aliased(Cargo)
+    divisor = case(
+        (OrdemServicoExecutor.id.is_(None), 1),
+        else_=_divisor_da_parte(ExecFunc, ExecCargo, executores.c.n),
+    )
 
     stmt = (
         select(
@@ -335,21 +397,38 @@ def get_servicos_do_funcionario(
             # recebia sobre outro, e um funcionario que nao consegue conferir o
             # proprio pagamento desconfia dele.
             func.coalesce(OrdemServicoItem.custo_unitario, 0).label("custo_unitario"),
+            # Spec 10A: por quanto a linha se divide PARA ESTE funcionario.
+            # 1 = linha inteira (responsavel sem executores, ou 'inteira').
+            func.coalesce(divisor, 1).label("divisor"),
         )
         .join(OrdemServicoItem, OrdemServicoItem.ordem_servico_id == OSModel.id)
         .outerjoin(ObjetoServico, ObjetoServico.id == OSModel.objeto_id)
         .outerjoin(Cliente, Cliente.id == ObjetoServico.cliente_id)
         .outerjoin(client_pf, Cliente.id == client_pf.id)
         .outerjoin(client_pj, Cliente.id == client_pj.id)
-        .join(Funcionario, Funcionario.id == OSModel.funcionario_id)
+        .outerjoin(executores, executores.c.os_id == OSModel.id)
+        .outerjoin(
+            OrdemServicoExecutor,
+            and_(
+                OrdemServicoExecutor.ordem_servico_id == OSModel.id,
+                OrdemServicoExecutor.funcionario_id == funcionario_id,
+            ),
+        )
+        .outerjoin(ExecFunc, ExecFunc.id == OrdemServicoExecutor.funcionario_id)
+        .outerjoin(ExecCargo, ExecCargo.id == ExecFunc.cargo_id)
         .where(
             and_(
                 OSModel.status == OrdemServicoStatus.FINALIZADA,
                 OSModel.data_finalizacao.isnot(None),
                 OSModel.data_finalizacao >= data_inicio,
                 OSModel.data_finalizacao <= data_fim,
-                OSModel.funcionario_id == funcionario_id,
-                Funcionario.empresa_id == empresa_id,
+                # A mesma regra do ranking (Spec 10A): responsavel de OS SEM
+                # executores, ou executor desta OS. Responsavel de OS COM
+                # executores nao recebe por ela -- os lavadores recebem.
+                or_(
+                    and_(executores.c.n.is_(None), OSModel.funcionario_id == funcionario_id),
+                    OrdemServicoExecutor.id.isnot(None),
+                ),
                 OrdemServicoItem.tipo == OrdemServicoItemTipo.SERVICO,
                 OrdemServicoItem.status_aprovacao != OrdemServicoItemAprovacao.REPROVADO,
             )

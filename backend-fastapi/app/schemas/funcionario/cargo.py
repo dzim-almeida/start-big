@@ -9,6 +9,10 @@ from typing import Optional, Dict, Any, Literal
 # Modo de comissão: 'direto' paga a taxa sobre tudo; 'meta' só paga ao bater a meta.
 ComissaoModo = Literal["direto", "meta"]
 
+# OS com mais de um executor (lava-rapido, Spec 10A): dividir a base entre eles
+# ou cada um receber sobre a base inteira. Vazio = 'dividir'.
+ComissaoDivisao = Literal["dividir", "inteira"]
+
 # =========================
 # Schema Base
 # =========================
@@ -37,6 +41,9 @@ class CargoBase(BaseModel):
     meta_mensal: Optional[int] = Field(None, ge=0, description="Meta mensal de faturamento (centavos)")
     comissao_modo: Optional[ComissaoModo] = Field(
         None, description="Modo de comissão: 'direto' (paga sobre tudo) ou 'meta' (só ao bater a meta). Vazio = 'direto'."
+    )
+    comissao_divisao: Optional[ComissaoDivisao] = Field(
+        None, description="OS com vários executores: 'dividir' (padrão) ou 'inteira'."
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -84,6 +91,7 @@ class CargoUpdate(BaseModel):
     comissao_servico_percentual: Optional[int] = Field(None, ge=0, le=10000)
     meta_mensal: Optional[int] = Field(None, ge=0)
     comissao_modo: Optional[ComissaoModo] = Field(None)
+    comissao_divisao: Optional[ComissaoDivisao] = Field(None)
 
     model_config = ConfigDict(
         from_attributes=True,

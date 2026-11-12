@@ -78,6 +78,13 @@ CAP_PRECO_POR_PORTE = "preco_por_porte"
 # OS de sempre; so a porta de entrada e a tela do dia mudam.
 CAP_OPERACAO_PATIO = "operacao_patio"
 
+# A OS registra quem a EXECUTA alem do responsavel (lava-rapido: 1 ou 2
+# lavadores; SPEC-00 O7a/O7c e Spec 10A). Liga as rotas de executores e, na
+# tela, o campo de lavadores e a escolha Dividir/Inteira no cargo/funcionario.
+# A comissao com executores e calculada para qualquer OS que os tenha -- e so
+# este segmento consegue grava-los.
+CAP_EXECUTORES_OS = "executores_os"
+
 CAPACIDADES_CONHECIDAS = [
     CAP_VISTORIA,
     CAP_REVISOES,
@@ -89,4 +96,5 @@ CAPACIDADES_CONHECIDAS = [
     CAP_ORCAMENTO_TECNICO,
     CAP_PRECO_POR_PORTE,
     CAP_OPERACAO_PATIO,
+    CAP_EXECUTORES_OS,
 ]

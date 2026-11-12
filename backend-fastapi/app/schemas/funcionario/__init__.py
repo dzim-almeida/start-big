@@ -9,6 +9,7 @@
 # ---------------------------------------------------------------------------
 
 from app.schemas.funcionario.cargo import (
+    ComissaoDivisao,
     ComissaoModo,
     CargoBase,
     CargoCreate,
@@ -33,6 +34,7 @@ from app.schemas.funcionario.cadastro import (
 )
 
 __all__ = [
+    "ComissaoDivisao",
     "ComissaoModo",
     "CargoBase",
     "CargoCreate",

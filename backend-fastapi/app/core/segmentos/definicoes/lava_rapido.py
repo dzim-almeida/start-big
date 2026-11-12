@@ -19,6 +19,7 @@ from typing import Any, Dict, List
 
 from ..campos import campo, grupo_vistoria, tipo_de_trabalho
 from ..capacidades import (
+    CAP_EXECUTORES_OS,
     CAP_IMAGEM_NA_ENTRADA,
     CAP_OPERACAO_PATIO,
     CAP_PRECO_POR_PORTE,
@@ -239,7 +240,10 @@ LAVA_RAPIDO = {
     #   veiculo ir para o box, e saem na via de entrada.
     # Sem diagnostico, garantia (prazo ou item), aprovacao de itens e revisoes
     # por KM: lavagem nao e conserto (SPEC-00 O6).
-    "capacidades": [CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE, CAP_OPERACAO_PATIO],
+    "capacidades": [
+        CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE,
+        CAP_OPERACAO_PATIO, CAP_EXECUTORES_OS,
+    ],
 
     # Vazios porque este segmento declara por tipo de trabalho. O guard
     # (test/core/test_registry_segmentos.py) proibe usar os dois caminhos.

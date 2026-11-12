@@ -49,6 +49,12 @@ class Cargo(Base):
     comissao_modo: Mapped[Optional[str]] = mapped_column(
         String(10), nullable=True, doc="Modo de comissão: 'direto' | 'meta' (gatilho por meta)"
     )
+    # OS com mais de um executor (lava-rapido, SPEC-00 O7c / Spec 10A):
+    # 'dividir' = cada um recebe o seu % sobre a sua parte (valor / n);
+    # 'inteira' = cada um recebe o seu % sobre o valor todo. NULL = 'dividir'.
+    comissao_divisao: Mapped[Optional[str]] = mapped_column(
+        String(10), nullable=True, doc="OS com varios executores: 'dividir' | 'inteira'"
+    )
 
     # =========================
     # RELACIONAMENTOS

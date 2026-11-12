@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
 from app.schemas.funcionario.usuario import UsuarioCreate, UsuarioRead
-from app.schemas.funcionario.cargo import ComissaoModo
+from app.schemas.funcionario.cargo import ComissaoDivisao, ComissaoModo
 from app.core.enum import Gender, BankAccountType
 
 # ===========================================================================
@@ -56,6 +56,7 @@ class FuncionarioBase(BaseModel):
     comissao_servico_percentual: Optional[int] = Field(None, ge=0, le=10000, description="Override: comissão sobre serviços/OS (basis points). Vazio herda do cargo.")
     meta_mensal: Optional[int] = Field(None, ge=0, description="Override: meta mensal (centavos). Vazio herda do cargo.")
     comissao_modo: Optional[ComissaoModo] = Field(None, description="Override: 'direto' | 'meta'. Vazio herda do cargo.")
+    comissao_divisao: Optional[ComissaoDivisao] = Field(None, description="Override: 'dividir' | 'inteira' (OS com vários executores). Vazio herda do cargo.")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -176,6 +177,7 @@ class FuncionarioUpdate(BaseModel):
     comissao_servico_percentual: Optional[int] = Field(None, ge=0, le=10000)
     meta_mensal: Optional[int] = Field(None, ge=0)
     comissao_modo: Optional[ComissaoModo] = Field(None)
+    comissao_divisao: Optional[ComissaoDivisao] = Field(None)
 
     # Status
     ativo: Optional[bool] = Field(None)

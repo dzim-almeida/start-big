@@ -5,7 +5,7 @@
 #
 # Esta camada so le o token e os parametros e aplica as permissoes. A regra
 # fica em app/services/lava_rapido/. Tudo responde 404 fora do segmento com a
-# capacidade correspondente (hoje, `preco_por_porte`).
+# capacidade correspondente (`preco_por_porte`, `executores_os`).
 # ---------------------------------------------------------------------------
 
 from typing import List, Optional
@@ -23,11 +23,13 @@ from app.schemas.lava_rapido.porte import (
     PrecosServicoUpdate,
     ServicoDoPorte,
 )
-from app.services.lava_rapido import portes
+from app.schemas.lava_rapido.lavador import LavadoresUpdate, LavadorRead
+from app.services.lava_rapido import lavadores, portes
 
 router = APIRouter()
 
-# Portes e precos sao parte do cadastro de servico: mesma permissao dele.
+# Portes e precos sao parte do cadastro de servico; lavadores, da OS. As duas
+# telas usam a permissao "servico".
 SERVICO = Depends(check_permission(required_permission="servico"))
 
 
@@ -82,3 +84,20 @@ def listar_precos(servico_id: int = Path(..., gt=0), usuario_token: dict = SERVI
 def salvar_precos(dados: PrecosServicoUpdate, servico_id: int = Path(..., gt=0),
                   usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
     return _handle_db_transaction(db, portes.salvar_precos_do_servico, servico_id, dados)
+
+
+# ===========================================================================
+# LAVADORES DA OS (Spec 10A)
+# ===========================================================================
+
+@router.get("/os/{numero_os}/lavadores", response_model=List[LavadorRead],
+            summary="Lavadores da OS")
+def listar_lavadores(numero_os: str, usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return lavadores.listar(db, numero_os)
+
+
+@router.put("/os/{numero_os}/lavadores", response_model=List[LavadorRead],
+            summary="Trocar os lavadores da OS (lista inteira)")
+def definir_lavadores(numero_os: str, dados: LavadoresUpdate, usuario_token: dict = SERVICO,
+                      db: Session = Depends(get_db)):
+    return _handle_db_transaction(db, lavadores.definir, numero_os, dados.funcionario_ids)

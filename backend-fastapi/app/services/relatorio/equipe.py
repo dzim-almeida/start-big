@@ -153,7 +153,11 @@ def get_extrato_funcionario(
 
     for linha in linhas:
         os_distintas.add(linha.os_id)
-        total += linha.valor_total or 0
+        # Spec 10A: OS com lavadores, em 'dividir', vale a PARTE deste
+        # funcionario -- o mesmo numero do ranking. Divisor 1 = linha inteira.
+        divisor = int(getattr(linha, "divisor", 1) or 1)
+        valor_linha = round((linha.valor_total or 0) / divisor)
+        total += valor_linha
 
         # "Fiat Uno · ABC-1234" -- o mesmo par que a OS mostra na tela. Cada
         # pedaco pode faltar (objeto sem serie, OS sem objeto), entao monta com o
@@ -167,21 +171,22 @@ def get_extrato_funcionario(
 
         # O custo e por UNIDADE; a mao de obra multiplica pela quantidade,
         # senao dois servicos iguais na mesma linha descontariam so uma peca.
-        custo_linha = round((linha.quantidade or 0) * (linha.custo_unitario or 0))
+        custo_linha = round((linha.quantidade or 0) * (linha.custo_unitario or 0) / divisor)
+        servico = linha.servico if divisor == 1 else f"{linha.servico} (dividido por {divisor})"
         itens.append(
             ExtratoServicoItem(
                 numero_os=linha.numero_os,
                 data_finalizacao=linha.data_finalizacao.date(),
                 objeto=descricao,
                 cliente=linha.cliente_nome,
-                servico=linha.servico,
+                servico=servico,
                 quantidade=linha.quantidade,
-                valor_total=linha.valor_total or 0,
+                valor_total=valor_linha,
                 custo=custo_linha,
-                mao_de_obra=max(0, (linha.valor_total or 0) - custo_linha),
+                mao_de_obra=max(0, valor_linha - custo_linha),
             )
         )
-        total_mao_de_obra += max(0, (linha.valor_total or 0) - custo_linha)
+        total_mao_de_obra += max(0, valor_linha - custo_linha)
 
     # --- Vendas: uma por linha, com a margem que é a base da comissão -------
     vendas: list[ExtratoVendaItem] = []
