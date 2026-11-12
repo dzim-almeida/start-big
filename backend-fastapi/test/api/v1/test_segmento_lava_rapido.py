@@ -114,6 +114,8 @@ def test_definicao_do_segmento_chega_ao_frontend(client, db_session):
     assert "AGUARDANDO_PECAS" not in definicao["status_usados"]
     # Spec 01B, D9: o rotulo do "usar anterior" vem inteiro, no masculino.
     assert definicao["rotulo_objeto_anterior"] == "Veículo já cadastrado"
+    # D12: a aba de imagens fala de veiculo, nao da arte da serigrafia.
+    assert definicao["textos_imagens"]["galeria"] == "Fotos do Veículo"
 
 
 def test_os_de_carro_grava_a_placa_e_o_porte(client, db_session):

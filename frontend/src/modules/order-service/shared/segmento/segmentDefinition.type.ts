@@ -165,6 +165,20 @@ export interface RotuloStatus {
   curto: string;
 }
 
+/**
+ * Textos da aba de imagens declarados pelo segmento (Spec 01B do lava, D12).
+ * Cada chave ausente cai no texto de sempre — o que oficina, informática,
+ * serigrafia e marcenaria já mostram.
+ */
+export interface TextosImagens {
+  /** Faixa azul no topo da aba. */
+  ajuda?: string;
+  /** Título da galeria ("Fotos do Veículo"). */
+  galeria?: string;
+  /** Mensagem da galeria vazia. */
+  vazio?: string;
+}
+
 /** Definição completa dos campos de um segmento com regras dedicadas. */
 export interface SegmentDefinition {
   segmento: string;
@@ -221,6 +235,7 @@ export interface SegmentDefinition {
    * Ausente = todos, que é o caso de todo segmento que já existia.
    */
   status_usados?: OsStatusEnumDataType[];
+  textos_imagens?: TextosImagens;
   identificador: SegmentIdentifier;
   /** O que o segmento faz. Vazio = só o fluxo genérico de OS. */
   capacidades: SegmentCapability[];

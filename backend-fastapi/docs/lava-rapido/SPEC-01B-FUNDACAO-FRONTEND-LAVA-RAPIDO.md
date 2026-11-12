@@ -68,6 +68,7 @@ Nos outros segmentos, **nenhuma tela muda** (PR1).
 | D9 | `rotulo_objeto_anterior` declarado no backend ("Veículo já cadastrado") | O padrão monta "Veículo já cadastrad**a**" (escrito para "Arte") |
 | D10 | Porte, carroceria e placa do implemento **não** ganham componente: são `opcao`/`texto` desenhados pelo `CampoDinamico` | Segmento novo custa declaração, não Vue |
 | D11 | Nenhum `if (segmento === 'lava_rapido')` em componente. O nome do segmento só aparece nos mapas de fallback e de ícone, como já acontece com os outros | Regra do registry |
+| D12 | (Revisão 1, 12/11, achado do Alan no app) Textos da aba de imagens declarados pelo segmento em `textos_imagens` (`ajuda`, `galeria`, `vazio`); ausente = cascata de sempre | A cascata só conhecia diagnóstico, marcenaria e, no "senão", serigrafia: o lava mostrava "Anexe a arte aprovada" |
 
 ## 5. Contrato consumido
 

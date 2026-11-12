@@ -9,6 +9,7 @@ import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
 import { getBackendBaseUrl } from '@/api/backendUrl';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 
 export interface PendingPhoto {
   file: File;
@@ -50,13 +51,18 @@ const toast = useToast();
  */
 // Marcenaria (orçamento técnico): não é laudo nem arte — são as fotos da obra.
 const { temDiagnostico, temOrcamentoTecnico } = useCapacidades();
+// Texto declarado pelo segmento vence a cascata abaixo (lava-rápido, D12).
+const { definicao } = useObjetoLabels();
+const textosImagens = computed(() => definicao.value?.textos_imagens);
 
 const tituloGaleria = computed(() => {
+  if (textosImagens.value?.galeria) return textosImagens.value.galeria;
   if (temDiagnostico.value) return 'Fotos do Diagnóstico';
   return temOrcamentoTecnico.value ? 'Fotos da obra' : 'Fotos da Arte';
 });
 
 const vazioGaleria = computed(() => {
+  if (textosImagens.value?.vazio) return textosImagens.value.vazio;
   if (temDiagnostico.value) return 'Fotos do objeto e diagnóstico aparecerão aqui.';
   return temOrcamentoTecnico.value
     ? 'Medição, projeto e montagem: as fotos aparecem aqui.'

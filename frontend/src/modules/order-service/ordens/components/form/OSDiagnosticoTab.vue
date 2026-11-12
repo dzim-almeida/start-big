@@ -2,6 +2,7 @@
 import { ClipboardList, Image } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
 import OSFotoGallery from './OSFotoGallery.vue';
 import type { OsImageReadDataType } from '../../schemas/relationship/osPhoto.schema';
 import type { PendingPhoto } from './OSFotoGallery.vue';
@@ -26,6 +27,8 @@ defineProps<Props>();
  * aprova pelo celular. Tirar a aba inteira tiraria o lugar de anexar o mockup.
  */
 const { temDiagnostico, temImagemNaEntrada, temOrcamentoTecnico } = useCapacidades();
+// Texto da faixa declarado pelo segmento (lava-rápido, D12); ausente = cascata.
+const { definicao } = useObjetoLabels();
 
 const emit = defineEmits<{
   'update:diagnostico': [value: string];
@@ -43,11 +46,12 @@ const emit = defineEmits<{
         {{ temDiagnostico ? 'Área Técnica' : 'Imagens' }}
       </h5>
       <p class="text-xs text-brand-primary mt-1">
-        {{ temDiagnostico
+        {{ definicao?.textos_imagens?.ajuda
+          ?? (temDiagnostico
           ? 'Espaço reservado para o laudo técnico.'
           : temOrcamentoTecnico
             ? 'Anexe as fotos da medição, do projeto e da obra.'
-            : 'Anexe a arte aprovada e as fotos do pedido.' }}
+            : 'Anexe a arte aprovada e as fotos do pedido.') }}
       </p>
     </div>
 

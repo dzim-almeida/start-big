@@ -130,6 +130,16 @@ LAVA_RAPIDO = {
     "rotulo_responsavel": "Responsável",
     "placeholder_defeito": "Ex: lavagem completa, cuidado com o adesivo do capô",
 
+    # Textos da aba de imagens (Spec 01B, D12). Sem eles a tela caia no texto
+    # da serigrafia ("Anexe a arte aprovada"). Aqui a foto e PROVA do estado
+    # do veiculo na chegada, junto com a vistoria.
+    "textos_imagens": {
+        "ajuda": "Fotografe o veículo na chegada: avarias, riscos e amassados ficam "
+                 "registrados antes da lavagem.",
+        "galeria": "Fotos do Veículo",
+        "vazio": "Fotografe as avarias e o estado do veículo na chegada.",
+    },
+
     # O desfecho e o MESMO enum de sempre (REPARADO/SEM_REPARO/CONDENADO); so
     # os rotulos mudam. SEM_REPARO e CONDENADO dispensam o pagamento integral
     # -- aqui e o cliente que desiste, ou a loja que recusa o veiculo (barro
