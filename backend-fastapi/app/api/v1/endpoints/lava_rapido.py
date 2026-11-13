@@ -67,6 +67,12 @@ def atualizar_porte(dados: PorteUpdate, porte_id: int = Path(..., gt=0),
     return _handle_db_transaction(db, portes.atualizar_porte, porte_id, dados)
 
 
+@router.get("/servicos", response_model=List[ServicoDoPorte],
+            summary="Serviços ativos com o preço do cadastro (comanda sem porte)")
+def servicos_sem_porte(usuario_token: dict = SERVICO, db: Session = Depends(get_db)):
+    return portes.servicos_do_porte(db, None)
+
+
 @router.get("/portes/{porte_id}/servicos", response_model=List[ServicoDoPorte],
             summary="Serviços ativos com o preço deste porte (comanda)")
 def servicos_do_porte(porte_id: int = Path(..., gt=0), usuario_token: dict = SERVICO,

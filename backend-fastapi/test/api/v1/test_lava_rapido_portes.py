@@ -154,6 +154,22 @@ def test_comanda_recebe_preco_do_porte_ou_padrao(client, db_session):
     assert (por_id[cera]["valor"], por_id[cera]["preco_do_porte"]) == (3000, False)   # padrao
 
 
+def test_comanda_sem_porte_recebe_o_preco_do_cadastro(client, db_session):
+    """13/11/2026: o porte deixou de ser obrigatorio. Sem ele, todo servico
+    ativo vem com o preco do cadastro -- a grade por porte nao entra."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    lavagem = _criar_servico(client, header, "Lavagem completa", 5000)
+    suv = _porte(client, header, "carro", "SUV")
+    client.put(f"{URL}/servicos/{lavagem}/precos", json={"precos": [
+        {"porte_id": suv["id"], "valor": 7000},
+    ]}, headers=header)
+
+    r = client.get(f"{URL}/servicos", headers=header)
+    assert r.status_code == 200, r.text
+    por_id = {s["servico_id"]: s for s in r.json()}
+    assert (por_id[lavagem]["valor"], por_id[lavagem]["preco_do_porte"]) == (5000, False)
+
+
 def test_servico_desativado_some_da_comanda(client, db_session):
     header = _autenticar_e_criar_empresa(client, "lava_rapido")
     servico_id = _criar_servico(client, header)
@@ -175,6 +191,7 @@ def test_fora_do_lava_rapido_as_rotas_nao_existem(client, db_session):
     assert client.post(f"{URL}/portes", json={"tipo_veiculo": "carro", "nome": "X"},
                        headers=header).status_code == 404
     assert client.get(f"{URL}/servicos/{servico_id}/precos", headers=header).status_code == 404
+    assert client.get(f"{URL}/servicos", headers=header).status_code == 404
 
 
 def test_duracao_do_cadastro_do_servico_chega_na_comanda(client, db_session):

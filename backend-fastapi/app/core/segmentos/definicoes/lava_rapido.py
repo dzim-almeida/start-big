@@ -52,7 +52,7 @@ PORTES_OUTROS = ["Pequeno", "Médio", "Grande"]
 CARROCERIAS = ["Baú", "Sider", "Graneleiro", "Tanque", "Cegonha", "Basculante", "Outra"]
 
 
-def _campos_do_veiculo(portes: List[str], placa_obrigatoria: bool = True,
+def _campos_do_veiculo(portes: List[str],
                        rotulo_modelo: str = "Modelo") -> List[Dict[str, Any]]:
     """Campos que todo veiculo tem, seja qual for o tipo.
 
@@ -61,24 +61,26 @@ def _campos_do_veiculo(portes: List[str], placa_obrigatoria: bool = True,
     e e do VEICULO (escopo objeto), nao da OS: o carro nao muda de porte entre
     uma lavagem e outra, entao na segunda visita ele ja vem preenchido (P3).
 
-    `placa_obrigatoria=False` so no tipo "Outros": barco e jet ski nao tem
-    placa, e o sistema gera o codigo (identificador.gerado_se_vazio). Nos
-    outros tipos a placa e pedida pelo formulario; o backend aceita vazia nos
-    quatro (Spec 01A, D6).
+    NADA DO VEICULO E OBRIGATORIO (pedido do primeiro cliente, 13/11/2026:
+    "o cliente nao quer identificar placa, modelo, essas coisas"). A comanda
+    entra so com cliente e servico. Placa vazia vira o codigo gerado
+    (identificador.gerado_se_vazio); modelo vazio vira o rotulo do tipo
+    ("Carro"), preenchido no backend (`colunas_opcionais`); sem porte, a
+    comanda lista os servicos com o preco do cadastro.
     """
     return [
-        campo("placa", "Placa", "texto", obrigatorio=placa_obrigatoria,
+        campo("placa", "Placa", "texto",
               escopo="objeto", grupo=GRUPO_VEICULO, origem="coluna",
               coluna="numero_serie"),
         # Marca opcional (Spec 03A, D4; chave `colunas_opcionais`): na comanda
         # rapida o modelo basta ("Gol prata", "Lancha 21 pes").
         campo("marca", "Marca", "texto", escopo="objeto",
               grupo=GRUPO_VEICULO, origem="coluna"),
-        campo("modelo", rotulo_modelo, "texto", obrigatorio=True, escopo="objeto",
+        campo("modelo", rotulo_modelo, "texto", escopo="objeto",
               grupo=GRUPO_VEICULO, origem="coluna"),
         campo("cor", "Cor", "texto", escopo="objeto", grupo=GRUPO_VEICULO,
               origem="coluna"),
-        campo("porte", "Porte", "opcao", obrigatorio=True, opcoes=list(portes),
+        campo("porte", "Porte", "opcao", opcoes=list(portes),
               escopo="objeto", grupo=GRUPO_VEICULO),
     ]
 
@@ -145,15 +147,14 @@ _PESADO = tipo_de_trabalho("pesado", "Caminhão / ônibus", [
 # Bicicleta e tipo proprio (SPEC-00 U5, Revisao 4): sem placa, com porte e
 # avarias proprias. Em "Outros" ela pegaria porte de barco.
 _BICICLETA = tipo_de_trabalho("bicicleta", "Bicicleta", [
-    *_campos_do_veiculo(PORTES_BICICLETA, placa_obrigatoria=False),
+    *_campos_do_veiculo(PORTES_BICICLETA),
     *_campos_da_entrada(),
 ], avarias=AVARIAS_BICICLETA)
 
 # "Modelo" vira "Descricao" porque e o que identifica um barco ou um jet ski
 # para quem esta no balcao ("Lancha 21 pes", "Jet ski VX").
 _OUTROS = tipo_de_trabalho("outros", "Outros (sem placa)", [
-    *_campos_do_veiculo(PORTES_OUTROS, placa_obrigatoria=False,
-                        rotulo_modelo="Descrição"),
+    *_campos_do_veiculo(PORTES_OUTROS, rotulo_modelo="Descrição"),
     *_campos_da_entrada(),
 ], avarias=AVARIAS_OUTROS)
 
@@ -204,8 +205,9 @@ LAVA_RAPIDO = {
         "AGUARDANDO_RETIRADA": {"rotulo": "Pronto", "curto": "Pronto"},
     },
 
-    # A marca do veiculo pode ficar vazia na abertura (Spec 03A, D4).
-    "colunas_opcionais": ["marca"],
+    # Marca (Spec 03A, D4) e modelo (13/11/2026: o cliente nao quer
+    # identificar o veiculo) podem ficar vazios na abertura.
+    "colunas_opcionais": ["marca", "modelo"],
 
     # Os status que este segmento usa (Spec 01A, D8). Nao ha peca para
     # esperar nem orcamento para aprovar; os outros dois somem da tela e o

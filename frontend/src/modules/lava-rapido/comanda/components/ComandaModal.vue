@@ -261,7 +261,7 @@ function chip(ativo: boolean): string {
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><CarFront :size="16" /></span>
                 <div>
                   <h2 class="text-base font-semibold text-zinc-900">Veículo</h2>
-                  <p class="text-xs text-zinc-500">Placa, tipo e porte do veículo.</p>
+                  <p class="text-xs text-zinc-500">Opcional: preencha só o que o cliente quiser informar.</p>
                 </div>
               </div>
             </template>
@@ -291,7 +291,7 @@ function chip(ativo: boolean): string {
                   <BaseSelect v-model="c.tipo.value" label="Tipo" :options="c.tiposDeVeiculo.value" />
                 </div>
                 <div class="col-span-12 sm:col-span-8">
-                  <p class="mb-1 text-sm font-medium text-gray-700">Porte <span class="text-red-600">*</span></p>
+                  <p class="mb-1 text-sm font-medium text-gray-700">Porte</p>
                   <div class="flex flex-wrap gap-2">
                     <button
                       v-for="p in c.portesDoTipo.value"
@@ -299,7 +299,8 @@ function chip(ativo: boolean): string {
                       type="button"
                       class="rounded-lg border px-3 py-2 text-sm transition-colors"
                       :class="chip(c.porteId.value === p.id)"
-                      @click="c.porteId.value = p.id"
+                      :title="c.porteId.value === p.id ? 'Clique de novo para tirar o porte' : undefined"
+                      @click="c.porteId.value = c.porteId.value === p.id ? null : p.id"
                     >
                       {{ p.nome }}
                     </button>
@@ -312,7 +313,7 @@ function chip(ativo: boolean): string {
 
               <div class="grid grid-cols-12 gap-3">
                 <div class="col-span-12 sm:col-span-5">
-                  <BaseInput v-model="c.modelo.value" :label="rotuloModelo" :placeholder="placeholderModelo" required />
+                  <BaseInput v-model="c.modelo.value" :label="rotuloModelo" :placeholder="placeholderModelo" />
                 </div>
                 <div class="col-span-6 sm:col-span-4"><BaseInput v-model="c.marca.value" label="Marca" /></div>
                 <div class="col-span-6 sm:col-span-3"><BaseInput v-model="c.cor.value" label="Cor" placeholder="Prata" /></div>
@@ -327,17 +328,14 @@ function chip(ativo: boolean): string {
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><Droplets :size="16" /></span>
                 <div>
                   <h2 class="text-base font-semibold text-zinc-900">
-                    Lavagens do porte<template v-if="c.porteId.value">: {{ c.portesDoTipo.value.find((p) => p.id === c.porteId.value)?.nome }}</template>
+                    Lavagens<template v-if="c.porteId.value"> do porte: {{ c.portesDoTipo.value.find((p) => p.id === c.porteId.value)?.nome }}</template>
                   </h2>
                   <p class="text-xs text-zinc-500">Busque e adicione o que vai ser feito. O preço é o do cadastro e pode ser ajustado.</p>
                 </div>
               </div>
             </template>
 
-            <p v-if="!c.porteId.value" class="text-sm text-zinc-500">
-              Escolha o porte do veículo acima para ver os serviços e os preços.
-            </p>
-            <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
+            <p v-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
             <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
               e elas aparecem aqui.

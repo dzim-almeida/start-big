@@ -158,16 +158,22 @@ def test_outros_sem_placa_recebe_codigo_gerado(client, db_session):
     assert _objeto(corpo)["numero_serie"] == f"VEI-{corpo['numero_os'].removeprefix('OS-')}"
 
 
-def test_modelo_continua_obrigatorio_e_marca_nao(client, db_session):
-    """01A D7, revista pela 03A D4: na comanda rapida o modelo basta ("Gol
-    prata"); a marca pode ficar vazia. O modelo continua exigido."""
+def test_lavagem_entra_sem_identificar_o_veiculo(client, db_session):
+    """01A D7, revista pela 03A D4 e em 13/11/2026: o cliente nao quer
+    identificar o veiculo. Sem placa, modelo, marca nem porte a OS abre: a
+    placa vira o codigo gerado e o modelo, o rotulo do tipo."""
     header = _autenticar_e_criar_empresa(client, "lava_rapido")
     cliente_id = _criar_cliente(client, header)
 
-    r = _post_os(client, header, cliente_id, {"dados_adicionais": {"porte": "Médio"}}, tipo="outros")
+    r = _post_os(client, header, cliente_id, {}, tipo="moto")
 
-    assert r.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT, r.text
-    assert "Modelo" in r.json()["detail"] and "Marca" not in r.json()["detail"]
+    assert r.status_code == 201, r.text
+    objeto = _objeto(r.json())
+    assert objeto["modelo"] == "Moto"
+    assert objeto["marca"] in ("", None)
+    assert objeto["numero_serie"].startswith("VEI-")
+
+    # Modelo digitado vale como sempre.
 
     r = _post_os(client, header, cliente_id,
                  {"modelo": "Gol prata", "numero_serie": "QWE1R23", "dados_adicionais": {"porte": "Hatch"}})

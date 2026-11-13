@@ -681,23 +681,24 @@ def test_ids_dos_tipos_do_lava_rapido_sao_contrato_com_o_frontend():
     assert ids == ["carro", "moto", "pesado", "bicicleta", "outros"]
 
 
-def test_todo_tipo_do_lava_rapido_pede_porte_com_opcoes():
-    """Caso 5. O porte decide o preco (SPEC-00 P1); tipo sem porte deixaria o
-    servico sem preco na Spec 02A."""
+def test_todo_tipo_do_lava_rapido_tem_porte_com_opcoes_e_opcional():
+    """Caso 5. Todo tipo oferece porte -- mas opcional desde 13/11/2026: o
+    cliente nao quer identificar o veiculo, e sem porte a comanda usa o preco
+    do cadastro."""
     for tipo in DEFINICOES["lava_rapido"]["tipos"]:
         porte = next((c for c in tipo["campos"] if c["nome"] == "porte"), None)
         assert porte, f"{tipo['id']}: sem campo porte"
-        assert porte["obrigatorio"] is True, tipo["id"]
+        assert porte["obrigatorio"] is False, tipo["id"]
         assert porte["escopo"] == "objeto", tipo["id"]           # e do veiculo, nao da OS (P3)
         assert porte.get("opcoes"), tipo["id"]
 
 
-def test_so_bicicleta_e_outros_dispensam_a_placa():
-    """D6: a tela pede placa para carro, moto e caminhao; bicicleta, barco e
-    jet ski nao tem, e o sistema gera o codigo (SPEC-00 U5)."""
+def test_nenhum_tipo_exige_a_placa():
+    """D6, revista em 13/11/2026: o cliente nao quer identificar o veiculo.
+    Placa vazia vira o codigo gerado (SPEC-00 U5), em qualquer tipo."""
     for tipo in DEFINICOES["lava_rapido"]["tipos"]:
         placa = next(c for c in tipo["campos"] if c["nome"] == "placa")
-        assert placa["obrigatorio"] is (tipo["id"] not in ("bicicleta", "outros")), tipo["id"]
+        assert placa["obrigatorio"] is False, tipo["id"]
         assert placa["origem"] == "coluna" and placa["coluna"] == "numero_serie"
 
 
@@ -760,13 +761,14 @@ def test_so_o_lava_rapido_declara_avarias_e_colunas_opcionais():
         s for s, d in DEFINICOES.items() if any("avarias" in t for t in d.get("tipos", []))
     }
     assert com_colunas == {"lava_rapido"}
-    assert DEFINICOES["lava_rapido"]["colunas_opcionais"] == ["marca"]
+    assert DEFINICOES["lava_rapido"]["colunas_opcionais"] == ["marca", "modelo"]
     assert com_avarias == {"lava_rapido"}
 
 
-def test_marca_do_lava_rapido_nao_tem_asterisco():
-    """A tela e o backend dizem a mesma coisa: marca opcional, modelo exigido."""
+def test_nada_do_veiculo_tem_asterisco_no_lava_rapido():
+    """A tela e o backend dizem a mesma coisa: marca e modelo opcionais
+    (13/11/2026: o cliente nao quer identificar o veiculo)."""
     for tipo in DEFINICOES["lava_rapido"]["tipos"]:
         por_nome = {c["nome"]: c for c in tipo["campos"]}
         assert por_nome["marca"]["obrigatorio"] is False, tipo["id"]
-        assert por_nome["modelo"]["obrigatorio"] is True, tipo["id"]
+        assert por_nome["modelo"]["obrigatorio"] is False, tipo["id"]

@@ -173,16 +173,21 @@ def salvar_precos_do_servico(db: Session, servico_id: int,
     return list(crud.listar_precos_do_servico(db, servico_id))
 
 
-def servicos_do_porte(db: Session, porte_id: int) -> List[ServicoDoPorte]:
+def servicos_do_porte(db: Session, porte_id: Optional[int]) -> List[ServicoDoPorte]:
     """Todo servico ativo, com o preco que vale para o porte.
 
     E o que a comanda mostra nos botoes (SPEC-00 U2). Sem linha para o porte,
     o servico aparece com o preco padrao (`preco_do_porte=False`) -- some do
     balcao so o que o dono desativou.
+
+    `porte_id=None` (13/11/2026): o porte deixou de ser obrigatorio na
+    comanda -- sem ele, todo servico vem com o preco do cadastro.
     """
     _exigir_preco_por_porte(db)
-    _porte_ou_404(db, porte_id)
-    precos = crud.precos_do_porte(db, porte_id)
+    precos = {}
+    if porte_id is not None:
+        _porte_ou_404(db, porte_id)
+        precos = crud.precos_do_porte(db, porte_id)
     resultado: List[ServicoDoPorte] = []
     for servico in crud.listar_servicos_ativos(db):
         linha = precos.get(servico.id)

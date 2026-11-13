@@ -77,8 +77,10 @@ export function useComanda() {
   const porte = computed(() => (portes.value ?? []).find((p) => p.id === porteId.value) ?? null);
   const { data: servicosDoPorte, isLoading: carregandoServicos } = useServicosDoPorteQuery(porteId);
   const avariasDoTipo = computed(() => tipoPorId(tipo.value)?.avarias ?? []);
+  // Desde 13/11/2026 o contrato não exige nada do veículo (o cliente não quer
+  // identificar); se um dia voltar a exigir, a tela obedece.
   const placaObrigatoria = computed(() =>
-    tipoPorId(tipo.value)?.campos.find((c) => c.nome === 'placa')?.obrigatorio ?? true);
+    tipoPorId(tipo.value)?.campos.find((c) => c.nome === 'placa')?.obrigatorio ?? false);
 
   watch(tipo, (novo, antigo) => {
     if (!antigo || novo === antigo) return;
@@ -122,12 +124,15 @@ export function useComanda() {
     previsaoEditada.value = true;
   }
 
+  /**
+   * Só cliente e serviço são exigidos: placa, modelo e porte são opcionais
+   * (13/11/2026, o cliente não quer identificar o veículo). Placa vazia vira
+   * o código gerado (VEI-…) e modelo vazio, o nome do tipo — no backend.
+   */
   const faltando = computed<string[]>(() => {
     const lista: string[] = [];
     if (placaObrigatoria.value && !normalizarPlaca(placa.value)) lista.push('Placa');
     if (!cliente.value) lista.push('Cliente');
-    if (!porteId.value) lista.push('Porte');
-    if (!modelo.value.trim()) lista.push(tipo.value === 'outros' ? 'Descrição' : 'Modelo');
     if (!itens.value.length && !extras.value.length) lista.push('Serviço');
     return lista;
   });

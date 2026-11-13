@@ -33,8 +33,12 @@ export async function atualizarPorte(id: number, dados: PorteUpdate): Promise<Po
   return porteSchema.parse(data);
 }
 
-/** Todo serviço ativo, com o preço do porte ou o padrão. */
-export async function getServicosDoPorte(porteId: number): Promise<ServicoDoPorte[]> {
-  const { data } = await api.get(`${URL}/portes/${porteId}/servicos`);
+/**
+ * Todo serviço ativo, com o preço do porte ou o padrão. Sem porte (ele é
+ * opcional desde 13/11/2026), o preço do cadastro.
+ */
+export async function getServicosDoPorte(porteId: number | null): Promise<ServicoDoPorte[]> {
+  const rota = porteId ? `${URL}/portes/${porteId}/servicos` : `${URL}/servicos`;
+  const { data } = await api.get(rota);
   return z.array(servicoDoPorteSchema).parse(data);
 }

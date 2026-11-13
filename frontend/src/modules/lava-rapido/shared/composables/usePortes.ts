@@ -50,8 +50,9 @@ export function useServicosDoPorteQuery(porteId: MaybeRefOrGetter<number | null 
   const { temPrecoPorPorte } = useCapacidades();
   return useQuery({
     queryKey: computed(() => [SERVICOS_DO_PORTE_KEY, toValue(porteId)]),
-    queryFn: () => getServicosDoPorte(toValue(porteId) as number),
-    enabled: computed(() => temPrecoPorPorte.value && !!toValue(porteId)),
+    // Sem porte também lista (o porte é opcional): vem o preço do cadastro.
+    queryFn: () => getServicosDoPorte(toValue(porteId) ?? null),
+    enabled: computed(() => temPrecoPorPorte.value),
   });
 }
 

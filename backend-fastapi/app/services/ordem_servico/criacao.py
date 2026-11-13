@@ -39,6 +39,7 @@ def _preencher_identificador_gerado(
     objeto_data: dict,
     numero_os: str,
     cliente,
+    tipo_trabalho: str | None = None,
 ) -> None:
     """Preenche, para segmentos que declaram identificador GERADO, o que o
     usuário não tem como saber.
@@ -60,15 +61,20 @@ def _preencher_identificador_gerado(
     segmento = get_segmento_atual(db)
 
     # Lava-rapido (Spec 01A, D5): a placa digitada vale; em branco (barco, jet
-    # ski), o sistema gera VEI-... do numero da OS. O modelo NAO e preenchido
-    # aqui (D7): quem exige e _exigir_campos_do_objeto, como na oficina.
+    # ski), o sistema gera VEI-... do numero da OS.
     # A marca o segmento declara opcional (Spec 03A, D4): vazia vira "" -- a
     # coluna e NOT NULL e a via so imprime a linha quando ha valor.
+    # O modelo tambem (13/11/2026: o cliente nao quer identificar o veiculo):
+    # vazio vira o rotulo do tipo ("Carro", "Moto"). Nao "" porque a tela de
+    # OS le o objeto exigindo modelo, e uma OS sem ele nao abriria.
     if reg.identificador_gerado_se_vazio(segmento):
         if not (objeto_data.get("numero_serie") or "").strip():
             objeto_data["numero_serie"] = reg.gerar_identificador(segmento, numero_os)
         if reg.coluna_opcional_no_segmento(segmento, "marca") and objeto_data.get("marca") is None:
             objeto_data["marca"] = ""
+        if (reg.coluna_opcional_no_segmento(segmento, "modelo")
+                and not (objeto_data.get("modelo") or "").strip()):
+            objeto_data["modelo"] = reg.label_do_tipo(segmento, tipo_trabalho) or "Veículo"
         return
 
     if not reg.identificador_e_gerado(segmento):
@@ -214,7 +220,10 @@ def create_ordem_servico(
     #
     # Aqui o codigo nasce do numero da OS, que ja e sequencial e unico: nao ha
     # contador novo para manter nem corrida entre terminais para tratar.
-    _preencher_identificador_gerado(db, objeto_data, next_number, cliente_in_db)
+    _preencher_identificador_gerado(
+        db, objeto_data, next_number, cliente_in_db,
+        tipo_trabalho=(os_to_create.dados_adicionais or {}).get("tipo_trabalho"),
+    )
     _exigir_campos_do_objeto(db, objeto_data)
 
     # Validacao especifica de segmento (ex: placa para oficina). Gated: e no-op

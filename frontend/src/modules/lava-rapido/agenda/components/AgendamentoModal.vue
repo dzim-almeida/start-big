@@ -269,7 +269,7 @@ function chip(ativo: boolean): string {
             type="button"
             class="rounded-lg border px-3 py-1 text-sm"
             :class="chip(porteId === p.id)"
-            @click="porteId = p.id"
+            @click="porteId = porteId === p.id ? null : p.id"
           >
             {{ p.nome }}
           </button>
@@ -283,8 +283,7 @@ function chip(ativo: boolean): string {
       <!-- Serviços -->
       <section class="space-y-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Serviços</p>
-        <p v-if="!porteId" class="text-sm text-zinc-400">Escolha o porte para ver os serviços e os preços.</p>
-        <p v-else-if="!(servicosDoPorte ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p v-if="!(servicosDoPorte ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>.
         </p>
         <template v-else>
