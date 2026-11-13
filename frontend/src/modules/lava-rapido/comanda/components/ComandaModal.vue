@@ -7,8 +7,8 @@
  *     Prioridade, Previsão) — `OSControlsCard`;
  *   - na lateral, o Resumo da OS (subtotal, adiantamento, deslocamento, valor
  *     a pagar) e os Dados do Cliente — `OSSummaryCard` e `OSClientCard`;
- *   - no corpo, em abas: Veículo (com lavadores e avarias), Serviços e
- *     Produtos, e Fotos (opcional — a galeria da OS).
+ *   - no corpo, em abas: Veículo (porte, lavagens, lavadores e avarias),
+ *     Produtos e Avulsos, e Fotos (opcional — a galeria da OS).
  * O documento gravado é a OS de sempre; ela entra no pátio em "Aguardando".
  */
 import { computed, onUnmounted, ref, watch } from 'vue';
@@ -109,12 +109,13 @@ function clienteAtualizado(cliente: CustomerUnionReadSchemaDataType) {
 // --- Abas (padrão da OS): o cadastro e os itens ----------------------------------------
 const ABAS = [
   { id: 'veiculo', rotulo: 'Veículo', icone: CarFront },
-  { id: 'servicos', rotulo: 'Serviços e Produtos', icone: Package },
+  { id: 'servicos', rotulo: 'Produtos e Avulsos', icone: Package },
   { id: 'fotos', rotulo: 'Fotos', icone: Camera },
 ] as const;
 const abaAtiva = ref<(typeof ABAS)[number]['id']>('veiculo');
 watch(() => props.isOpen, (aberta) => { if (aberta) abaAtiva.value = 'veiculo'; });
-const totalDeItens = computed(() => c.itens.value.length + c.extras.value.length);
+// As lavagens ficam na aba Veículo; aqui contam só produtos e avulsos.
+const totalDeItens = computed(() => c.extras.value.length);
 
 // --- Serviços: busca em vez de uma linha por serviço (a loja pode ter 100) -------------
 const buscaServico = ref('');
@@ -319,53 +320,6 @@ function chip(ativo: boolean): string {
             </div>
           </BaseSectionCard>
 
-          <!-- 3. Quem vai lavar -->
-          <BaseSectionCard class="overflow-visible!">
-            <template #cabecalho>
-              <div class="flex items-center gap-3">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><Users :size="16" /></span>
-                <div>
-                  <h2 class="text-base font-semibold text-zinc-900">Quem vai lavar</h2>
-                  <p class="text-xs text-zinc-500">A comissão segue a regra do cargo (dividir ou inteira).</p>
-                </div>
-              </div>
-            </template>
-            <SeletorLavadores v-model="c.lavadores.value" />
-          </BaseSectionCard>
-
-          <!-- 4. Avarias e observação (opcional) -->
-          <BaseSectionCard>
-            <template #cabecalho>
-              <div class="flex items-center gap-3">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500"><ShieldAlert :size="16" /></span>
-                <div>
-                  <h2 class="text-base font-semibold text-zinc-900">Avarias na chegada <span class="text-xs font-normal text-zinc-400">(opcional)</span></h2>
-                  <p class="text-xs text-zinc-500">Marque só o que o veículo já tem. Protege a loja de reclamação.</p>
-                </div>
-              </div>
-            </template>
-
-            <div class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
-              <BaseCheckbox
-                v-for="avaria in c.avariasDoTipo.value"
-                :key="avaria"
-                :model-value="c.avarias.value.includes(avaria)"
-                :label="avaria"
-                @update:model-value="c.alternarAvaria(avaria)"
-              />
-            </div>
-
-            <div class="mt-4">
-              <BaseInput
-                v-model="c.observacao.value"
-                label="Observação / pertences"
-                placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo do capô"
-              />
-            </div>
-          </BaseSectionCard>
-          </div>
-
-          <div v-show="abaAtiva === 'servicos'" class="space-y-4">
           <!-- 2. Serviços: busca para adicionar; só os escolhidos na tela, com o preço editável -->
           <BaseSectionCard class="overflow-visible!">
             <template #cabecalho>
@@ -380,28 +334,9 @@ function chip(ativo: boolean): string {
               </div>
             </template>
 
-            <div v-if="!c.porteId.value" class="space-y-3">
-              <p class="text-sm text-zinc-600">
-                Escolha o porte do veículo
-                <template v-if="c.tiposDeVeiculo.value.length > 1">({{ c.tiposDeVeiculo.value.find((t) => t.value === c.tipo.value)?.label }})</template>:
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="p in c.portesDoTipo.value"
-                  :key="p.id"
-                  type="button"
-                  class="rounded-lg border px-3 py-2 text-sm transition-colors"
-                  :class="chip(false)"
-                  @click="c.porteId.value = p.id"
-                >
-                  {{ p.nome }}
-                </button>
-              </div>
-              <p class="text-xs text-zinc-400">
-                Outro tipo de veículo?
-                <button type="button" class="font-semibold text-brand-primary hover:underline" @click="abaAtiva = 'veiculo'">Trocar na aba Veículo</button>
-              </p>
-            </div>
+            <p v-if="!c.porteId.value" class="text-sm text-zinc-500">
+              Escolha o porte do veículo acima para ver os serviços e os preços.
+            </p>
             <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
             <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
@@ -458,6 +393,54 @@ function chip(ativo: boolean): string {
               <p v-else class="text-sm text-zinc-400">Nenhum serviço adicionado.</p>
             </div>
           </BaseSectionCard>
+
+          <!-- 3. Quem vai lavar -->
+          <BaseSectionCard class="overflow-visible!">
+            <template #cabecalho>
+              <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><Users :size="16" /></span>
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Quem vai lavar</h2>
+                  <p class="text-xs text-zinc-500">A comissão segue a regra do cargo (dividir ou inteira).</p>
+                </div>
+              </div>
+            </template>
+            <SeletorLavadores v-model="c.lavadores.value" />
+          </BaseSectionCard>
+
+          <!-- 4. Avarias e observação (opcional) -->
+          <BaseSectionCard>
+            <template #cabecalho>
+              <div class="flex items-center gap-3">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500"><ShieldAlert :size="16" /></span>
+                <div>
+                  <h2 class="text-base font-semibold text-zinc-900">Avarias na chegada <span class="text-xs font-normal text-zinc-400">(opcional)</span></h2>
+                  <p class="text-xs text-zinc-500">Marque só o que o veículo já tem. Protege a loja de reclamação.</p>
+                </div>
+              </div>
+            </template>
+
+            <div class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              <BaseCheckbox
+                v-for="avaria in c.avariasDoTipo.value"
+                :key="avaria"
+                :model-value="c.avarias.value.includes(avaria)"
+                :label="avaria"
+                @update:model-value="c.alternarAvaria(avaria)"
+              />
+            </div>
+
+            <div class="mt-4">
+              <BaseInput
+                v-model="c.observacao.value"
+                label="Observação / pertences"
+                placeholder="Ex: óculos no porta-luvas, cuidado com o adesivo do capô"
+              />
+            </div>
+          </BaseSectionCard>
+          </div>
+
+          <div v-show="abaAtiva === 'servicos'" class="space-y-4">
 
           <!-- Produtos e serviços avulsos: o modal de item da OS de sempre -->
           <BaseSectionCard>
