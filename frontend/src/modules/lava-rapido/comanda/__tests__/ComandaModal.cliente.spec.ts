@@ -43,6 +43,7 @@ vi.mock('@/modules/order-service/ordens/components/form/OSClientCard.vue', () =>
 vi.mock('@/modules/order-service/ordens/components/form/OSControlsCard.vue', () => marcador('controles'));
 vi.mock('@/modules/order-service/ordens/components/form/OSSummaryCard.vue', () => marcador('resumo'));
 vi.mock('@/modules/order-service/ordens/components/form/OSItemFormModal.vue', () => marcador('item'));
+vi.mock('@/modules/order-service/ordens/components/form/OSFotoGallery.vue', () => marcador('fotos'));
 vi.mock('@/modules/order-service/ordens/components/OSClienteSearchModal.vue', () => marcador('busca'));
 vi.mock('../../shared/components/SeletorLavadores.vue', () => marcador('lavadores'));
 

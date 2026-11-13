@@ -228,12 +228,13 @@ function getPhotoSrc(photo: { url: string; isPending: boolean }) {
           Pendente
         </span>
 
-        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <!-- Clicar na miniatura abre a foto em tela cheia -->
+        <div class="absolute inset-0 cursor-pointer bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100" @click="openSlideshow(index)">
           <div class="absolute top-2 right-2 flex gap-2">
-            <button type="button" @click="openSlideshow(index)" class="bg-white/90 p-1.5 rounded-lg text-slate-600 hover:text-brand-primary hover:bg-white shadow-sm transition-all" title="Visualizar">
+            <button type="button" @click.stop="openSlideshow(index)" class="bg-white/90 p-1.5 rounded-lg text-slate-600 hover:text-brand-primary hover:bg-white shadow-sm transition-all" title="Visualizar">
               <ImageIcon :size="16" />
             </button>
-            <button type="button" v-if="!readOnly" @click="handleRemovePhoto(foto, index)" class="bg-white/90 p-1.5 rounded-lg text-slate-600 hover:text-red-600 hover:bg-white shadow-sm transition-all" title="Excluir">
+            <button type="button" v-if="!readOnly" @click.stop="handleRemovePhoto(foto, index)" class="bg-white/90 p-1.5 rounded-lg text-slate-600 hover:text-red-600 hover:bg-white shadow-sm transition-all" title="Excluir">
               <Trash2 :size="16" />
             </button>
           </div>

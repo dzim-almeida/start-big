@@ -8,12 +8,10 @@ import api from '@/api/axios';
 
 import {
   porteSchema,
-  precoPorteSchema,
   servicoDoPorteSchema,
   type Porte,
   type PorteCreate,
   type PorteUpdate,
-  type PrecoPorte,
   type ServicoDoPorte,
 } from '../schemas/porte.schema';
 
@@ -39,15 +37,4 @@ export async function atualizarPorte(id: number, dados: PorteUpdate): Promise<Po
 export async function getServicosDoPorte(porteId: number): Promise<ServicoDoPorte[]> {
   const { data } = await api.get(`${URL}/portes/${porteId}/servicos`);
   return z.array(servicoDoPorteSchema).parse(data);
-}
-
-export async function getPrecosDoServico(servicoId: number): Promise<PrecoPorte[]> {
-  const { data } = await api.get(`${URL}/servicos/${servicoId}/precos`);
-  return z.array(precoPorteSchema).parse(data);
-}
-
-/** Grava a grade INTEIRA: porte fora da lista volta ao preço padrão. */
-export async function salvarPrecosDoServico(servicoId: number, precos: PrecoPorte[]): Promise<PrecoPorte[]> {
-  const { data } = await api.put(`${URL}/servicos/${servicoId}/precos`, { precos });
-  return z.array(precoPorteSchema).parse(data);
 }

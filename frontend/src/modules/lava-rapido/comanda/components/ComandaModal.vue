@@ -7,13 +7,13 @@
  *     Prioridade, Previsão) — `OSControlsCard`;
  *   - na lateral, o Resumo da OS (subtotal, adiantamento, deslocamento, valor
  *     a pagar) e os Dados do Cliente — `OSSummaryCard` e `OSClientCard`;
- *   - no corpo, numa tela só e sem abas: Veículo, Serviços (botões com o
- *     preço do porte + a lista do que foi escolhido), Lavadores e Avarias.
+ *   - no corpo, em abas: Veículo (com lavadores e avarias), Serviços e
+ *     Produtos, e Fotos (opcional — a galeria da OS).
  * O documento gravado é a OS de sempre; ela entra no pátio em "Aguardando".
  */
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import {
-  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, ShieldAlert, Trash2, UserSearch, Users, X,
+  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, ShieldAlert, Trash2, UserSearch, Users,
 } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -26,6 +26,7 @@ import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSClientCard from '@/modules/order-service/ordens/components/form/OSClientCard.vue';
 import OSItemFormModal from '@/modules/order-service/ordens/components/form/OSItemFormModal.vue';
+import OSFotoGallery, { type PendingPhoto } from '@/modules/order-service/ordens/components/form/OSFotoGallery.vue';
 import type { OsItemCreateSchemaDataType } from '@/modules/order-service/ordens/schemas/relationship/osItem.schema';
 import OSControlsCard from '@/modules/order-service/ordens/components/form/OSControlsCard.vue';
 import OSSummaryCard from '@/modules/order-service/ordens/components/form/OSSummaryCard.vue';
@@ -109,8 +110,9 @@ function clienteAtualizado(cliente: CustomerUnionReadSchemaDataType) {
 const ABAS = [
   { id: 'veiculo', rotulo: 'Veículo', icone: CarFront },
   { id: 'servicos', rotulo: 'Serviços e Produtos', icone: Package },
+  { id: 'fotos', rotulo: 'Fotos', icone: Camera },
 ] as const;
-const abaAtiva = ref<'veiculo' | 'servicos'>('veiculo');
+const abaAtiva = ref<(typeof ABAS)[number]['id']>('veiculo');
 watch(() => props.isOpen, (aberta) => { if (aberta) abaAtiva.value = 'veiculo'; });
 const totalDeItens = computed(() => c.itens.value.length + c.extras.value.length);
 
@@ -134,12 +136,26 @@ function removerItem(indice: number) {
   c.extras.value = c.extras.value.filter((_, i) => i !== indice);
 }
 
-// --- Fotos ---------------------------------------------------------------------------
-const inputFoto = ref<HTMLInputElement | null>(null);
-function adicionarFotos(evento: Event) {
-  const arquivos = Array.from((evento.target as HTMLInputElement).files ?? []);
-  c.fotos.value = [...c.fotos.value, ...arquivos.filter((f) => f.type.startsWith('image/'))];
-  if (inputFoto.value) inputFoto.value.value = '';
+// --- Fotos (aba opcional): a galeria da OS, com miniatura e tela cheia ---------------
+// Cada arquivo ganha uma URL de pré-visualização, liberada quando a foto sai.
+const previas = new Map<File, string>();
+const fotosPendentes = computed<PendingPhoto[]>(() =>
+  c.fotos.value.map((file) => {
+    let url = previas.get(file);
+    if (!url) { url = URL.createObjectURL(file); previas.set(file, url); }
+    return { file, previewUrl: url, nome_arquivo: file.name };
+  }));
+watch(c.fotos, (fotos) => {
+  for (const [file, url] of previas) {
+    if (!fotos.includes(file)) { URL.revokeObjectURL(url); previas.delete(file); }
+  }
+});
+onUnmounted(() => { for (const url of previas.values()) URL.revokeObjectURL(url); previas.clear(); });
+function adicionarFoto(file: File) {
+  c.fotos.value = [...c.fotos.value, file];
+}
+function removerFoto(indice: number) {
+  c.fotos.value = c.fotos.value.filter((_, i) => i !== indice);
 }
 
 // --- Salvar --------------------------------------------------------------------------
@@ -213,6 +229,10 @@ function chip(ativo: boolean): string {
                 v-if="aba.id === 'servicos' && totalDeItens"
                 class="rounded-full bg-brand-primary px-1.5 text-[11px] text-white"
               >{{ totalDeItens }}</span>
+              <span
+                v-if="aba.id === 'fotos' && c.fotos.value.length"
+                class="rounded-full bg-brand-primary px-1.5 text-[11px] text-white"
+              >{{ c.fotos.value.length }}</span>
             </button>
           </div>
 
@@ -224,7 +244,7 @@ function chip(ativo: boolean): string {
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><CarFront :size="16" /></span>
                 <div>
                   <h2 class="text-base font-semibold text-zinc-900">Veículo</h2>
-                  <p class="text-xs text-zinc-500">Placa, tipo e porte. O porte define o preço dos serviços.</p>
+                  <p class="text-xs text-zinc-500">Placa, tipo e porte do veículo.</p>
                 </div>
               </div>
             </template>
@@ -319,17 +339,6 @@ function chip(ativo: boolean): string {
               />
             </div>
 
-            <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
-              <input ref="inputFoto" type="file" accept="image/*" multiple capture="environment" class="hidden" @change="adicionarFotos" />
-              <BaseButton size="sm" variant="ghost" @click="inputFoto?.click()">
-                <Camera :size="14" class="mr-1" /> Adicionar foto
-              </BaseButton>
-              <span v-for="(foto, i) in c.fotos.value" :key="i" class="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-                {{ foto.name.slice(0, 14) }}
-                <button type="button" @click="c.fotos.value = c.fotos.value.filter((_, j) => j !== i)"><X :size="12" /></button>
-              </span>
-            </div>
-
             <div class="mt-4">
               <BaseInput
                 v-model="c.observacao.value"
@@ -350,14 +359,14 @@ function chip(ativo: boolean): string {
                   <h2 class="text-base font-semibold text-zinc-900">
                     Lavagens do porte<template v-if="c.porteId.value">: {{ c.portesDoTipo.value.find((p) => p.id === c.porteId.value)?.nome }}</template>
                   </h2>
-                  <p class="text-xs text-zinc-500">Marque o que vai ser feito. O preço é o do porte e pode ser ajustado.</p>
+                  <p class="text-xs text-zinc-500">Marque o que vai ser feito. O preço é o do cadastro e pode ser ajustado.</p>
                 </div>
               </div>
             </template>
 
             <div v-if="!c.porteId.value" class="space-y-3">
               <p class="text-sm text-zinc-600">
-                O preço depende do porte. Escolha o porte do veículo
+                Escolha o porte do veículo
                 <template v-if="c.tiposDeVeiculo.value.length > 1">({{ c.tiposDeVeiculo.value.find((t) => t.value === c.tipo.value)?.label }})</template>:
               </p>
               <div class="flex flex-wrap gap-2">
@@ -380,7 +389,7 @@ function chip(ativo: boolean): string {
             <p v-else-if="c.carregandoServicos.value" class="text-sm text-zinc-400">Carregando…</p>
             <p v-else-if="!(c.servicosDoPorte.value ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
-              (com o preço de cada porte) e elas aparecem aqui.
+              e elas aparecem aqui.
             </p>
             <ul v-else class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
               <li
@@ -447,6 +456,18 @@ function chip(ativo: boolean): string {
             </ul>
           </BaseSectionCard>
 
+          </div>
+
+          <!-- Fotos (opcional): a galeria da OS, com miniatura e foto em tela cheia -->
+          <div v-show="abaAtiva === 'fotos'">
+            <BaseSectionCard>
+              <OSFotoGallery
+                :fotos="[]"
+                :pending-photos="fotosPendentes"
+                @add-photo="adicionarFoto"
+                @remove-pending="removerFoto"
+              />
+            </BaseSectionCard>
           </div>
         </div>
 
