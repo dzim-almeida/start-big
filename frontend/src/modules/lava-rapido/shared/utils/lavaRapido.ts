@@ -55,6 +55,16 @@ export function horaLocal(isoUtc: string | null | undefined): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Data do backend gravada só com o DIA ("AAAA-MM-DD" ou meia-noite sem fuso):
+ * é o "previsão: dia tal" da OS, não um horário. Ler como UTC dá 21:00 do
+ * dia anterior.
+ */
+export function soDia(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  return /^\d{4}-\d{2}-\d{2}([T ]00:00(:00(\.0+)?)?)?$/.test(iso);
+}
+
 /** Centavos → "R$ 40,00". */
 export function reais(centavos: number): string {
   return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

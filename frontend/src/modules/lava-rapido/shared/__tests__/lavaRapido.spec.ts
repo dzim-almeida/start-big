@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  soDia,
   linkWhatsApp,
   mensagemPronto,
   normalizarPlaca,
@@ -62,5 +63,17 @@ describe('tempoNoPatio', () => {
   it('horas e minutos', () => {
     expect(tempoNoPatio('2026-11-12T13:00:00', agora)).toBe('há 1 h 10 min');
     expect(tempoNoPatio('2026-11-12T12:10:00', agora)).toBe('há 2 h');
+  });
+});
+
+describe('soDia', () => {
+  it('meia-noite sem fuso ou só a data é "só o dia" (não vira 21:00)', () => {
+    expect(soDia('2026-11-13T00:00:00')).toBe(true);
+    expect(soDia('2026-11-13')).toBe(true);
+  });
+  it('horário de verdade ou com fuso não é', () => {
+    expect(soDia('2026-11-13T14:30:00')).toBe(false);
+    expect(soDia('2026-11-13T00:00:00Z')).toBe(false);
+    expect(soDia(null)).toBe(false);
   });
 });

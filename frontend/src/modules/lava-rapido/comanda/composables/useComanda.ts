@@ -259,6 +259,8 @@ export function useComanda() {
    */
   function previsaoParaGravar(): Date | string | null {
     if (previsao.value && dataLocalISO(previsao.value) === dataPrevisao.value) return previsao.value;
+    // Sem hora calculada e ninguém mexeu no dia: "hoje" não diz nada no pátio.
+    if (!previsaoEditada.value) return null;
     return dataPrevisao.value || null;
   }
 

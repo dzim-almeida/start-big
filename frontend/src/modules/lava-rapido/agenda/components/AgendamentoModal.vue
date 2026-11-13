@@ -8,6 +8,7 @@
  * duração sai da soma dos serviços do porte e pode ser mudada.
  */
 import { computed, ref, watch } from 'vue';
+import { Search, X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -90,6 +91,7 @@ watch(() => props.isOpen, (aberto) => {
     tipo.value = tiposDeVeiculo.value[0]?.value ?? '';
     porteId.value = null;
     selecionados.value = {};
+    buscaServico.value = '';
     duracao.value = '';
     duracaoEditada.value = false;
     observacao.value = '';
@@ -146,10 +148,29 @@ const duracaoCalculada = computed(() =>
     .reduce((soma, s) => soma + (s.duracao_minutos ?? 0), 0));
 watch(duracaoCalculada, (min) => { if (!duracaoEditada.value) duracao.value = min ? String(min) : ''; });
 
-function alternarServico(servicoId: number, nome: string, valor: number) {
+// --- Serviços: busca em vez de um botão por serviço (a loja pode ter 100) ---------
+const buscaServico = ref('');
+const listaAberta = ref(false);
+const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** O que ainda não foi escolhido e bate com o que foi digitado. */
+const servicosDisponiveis = computed(() => {
+  const termo = semAcento(buscaServico.value.trim());
+  return (servicosDoPorte.value ?? []).filter((s) =>
+    !(s.servico_id in selecionados.value) && (!termo || semAcento(s.descricao).includes(termo)));
+});
+
+const escolhidos = computed(() =>
+  Object.entries(selecionados.value).map(([id, s]) => ({ id: Number(id), ...s })));
+
+function incluirServico(servicoId: number, nome: string, valor: number) {
+  selecionados.value = { ...selecionados.value, [servicoId]: { nome, valor } };
+  buscaServico.value = '';
+}
+
+function removerServico(servicoId: number) {
   const atual = { ...selecionados.value };
-  if (servicoId in atual) delete atual[servicoId];
-  else atual[servicoId] = { nome, valor };
+  delete atual[servicoId];
   selecionados.value = atual;
 }
 
@@ -266,19 +287,51 @@ function chip(ativo: boolean): string {
         <p v-else-if="!(servicosDoPorte ?? []).length" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>.
         </p>
-        <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            v-for="s in servicosDoPorte ?? []"
-            :key="s.servico_id"
-            type="button"
-            class="flex items-center justify-between rounded-xl border px-3 py-2 text-left"
-            :class="chip(s.servico_id in selecionados)"
-            @click="alternarServico(s.servico_id, s.descricao, s.valor)"
-          >
-            <span class="text-sm">{{ s.descricao }}</span>
-            <span class="text-sm font-bold tabular-nums">{{ reais(s.valor) }}</span>
-          </button>
-        </div>
+        <template v-else>
+          <!-- Busca: com 100 serviços, uma lista curta do que foi digitado -->
+          <div class="relative">
+            <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              v-model="buscaServico"
+              type="text"
+              placeholder="Buscar serviço para adicionar…"
+              class="w-full rounded-lg border border-zinc-300 py-2 pl-9 pr-3 text-sm focus:border-brand-primary focus:outline-none"
+              data-testid="agenda-busca-servico"
+              @focus="listaAberta = true"
+              @blur="listaAberta = false"
+              @keydown.esc="listaAberta = false"
+            />
+            <ul
+              v-if="listaAberta"
+              class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+            >
+              <li
+                v-for="s in servicosDisponiveis"
+                :key="s.servico_id"
+                class="flex cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-brand-primary-light/60"
+                @mousedown.prevent="incluirServico(s.servico_id, s.descricao, s.valor)"
+              >
+                <span class="text-zinc-800">{{ s.descricao }}</span>
+                <span class="tabular-nums text-zinc-600">{{ reais(s.valor) }}</span>
+              </li>
+              <li v-if="!servicosDisponiveis.length" class="px-3 py-2 text-sm text-zinc-400">
+                {{ buscaServico ? 'Nenhum serviço com esse nome.' : 'Todos os serviços já foram adicionados.' }}
+              </li>
+            </ul>
+          </div>
+
+          <!-- O que foi escolhido -->
+          <ul v-if="escolhidos.length" class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+            <li v-for="s in escolhidos" :key="s.id" class="flex items-center gap-3 px-3 py-2">
+              <span class="flex-1 text-sm font-medium text-zinc-800">{{ s.nome }}</span>
+              <span class="text-sm tabular-nums text-zinc-700">{{ reais(s.valor) }}</span>
+              <button type="button" class="p-1 text-zinc-400 hover:text-red-600" title="Remover" @click="removerServico(s.id)">
+                <X :size="14" />
+              </button>
+            </li>
+          </ul>
+          <p v-else class="text-sm text-zinc-400">Nenhum serviço adicionado.</p>
+        </template>
         <p v-if="total" class="text-right text-sm font-semibold text-zinc-800">Total combinado: {{ reais(total) }}</p>
       </section>
 

@@ -4,8 +4,9 @@
  * @description Agenda do lava-rápido (Spec 08B, SPEC-00 O11): a aba logo
  * depois do Pátio em Serviços.
  *
- * Em cima, a semana com quantos agendamentos há por dia; embaixo, os
- * horários do dia escolhido. Cada agendamento:
+ * À esquerda, o calendário do mês com quantos agendamentos há por dia
+ * (clicar no dia abre a lista); à direita, os horários do dia escolhido.
+ * Cada agendamento:
  *   Chegou   → abre a comanda já preenchida; a OS criada entra no pátio e o
  *              agendamento fica "Chegou" com o número dela;
  *   WhatsApp → mensagem de confirmação pronta;
@@ -26,29 +27,45 @@ import { useToast } from '@/shared/composables/useToast';
 import { useEntradaLavagem } from '../../comanda/composables/useEntradaLavagem';
 import type { Agendamento, AgendamentoEntrada, SituacaoAgenda } from '../../shared/schemas/agenda.schema';
 import { horaLocal, linkWhatsApp, reais } from '../../shared/utils/lavaRapido';
-import { diaISO, diasDaSemana, instanteDoBackend, useAgendaMutations, useAgendaSemana } from '../composables/useAgenda';
+import { diaISO, diasDoMes, instanteDoBackend, useAgendaMes, useAgendaMutations } from '../composables/useAgenda';
 import AgendamentoModal from './AgendamentoModal.vue';
 
 const diaAberto = ref(new Date());
-const { data: agendamentos, isLoading, isError } = useAgendaSemana(diaAberto);
+/** O mês mostrado no calendário (pode ser outro que o do dia aberto). */
+const mesVisivel = ref(new Date());
+const { data: agendamentos, isLoading, isError } = useAgendaMes(mesVisivel);
 const { criar, atualizar, excluir } = useAgendaMutations();
 
-const semana = computed(() => diasDaSemana(diaAberto.value));
+const grade = computed(() => diasDoMes(mesVisivel.value));
 const hojeISO = diaISO(new Date());
-const NOMES_DIA = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+const NOMES_DIA = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+const tituloMes = computed(() =>
+  mesVisivel.value.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
 
-function doDia(dia: Date): Agendamento[] {
-  const alvo = diaISO(dia);
-  return (agendamentos.value ?? []).filter((a) => diaISO(instanteDoBackend(a.inicio)) === alvo);
+/** Agendamentos por dia ("AAAA-MM-DD"), já em ordem de horário. */
+const porDia = computed(() => {
+  const mapa = new Map<string, Agendamento[]>();
+  for (const a of agendamentos.value ?? []) {
+    const chave = diaISO(instanteDoBackend(a.inicio));
+    mapa.set(chave, [...(mapa.get(chave) ?? []), a]);
+  }
+  return mapa;
+});
+/** Ativos (ainda "Agendado") no dia: é o número que aparece no calendário. */
+const contagem = (dia: Date) => (porDia.value.get(diaISO(dia)) ?? []).filter((a) => a.situacao === 'AGENDADO').length;
+const doDiaAberto = computed(() => porDia.value.get(diaISO(diaAberto.value)) ?? []);
+const doMes = (dia: Date) => dia.getMonth() === mesVisivel.value.getMonth();
+
+function mudarMes(passo: number) {
+  mesVisivel.value = new Date(mesVisivel.value.getFullYear(), mesVisivel.value.getMonth() + passo, 1);
 }
-/** Ativos (agendados) por dia, para a faixa da semana. */
-const contagem = (dia: Date) => doDia(dia).filter((a) => a.situacao === 'AGENDADO').length;
-const doDiaAberto = computed(() => doDia(diaAberto.value));
-
-function mudarSemana(passo: number) {
-  const d = new Date(diaAberto.value);
-  d.setDate(d.getDate() + passo * 7);
-  diaAberto.value = d;
+function escolherDia(dia: Date) {
+  diaAberto.value = dia;
+  if (!doMes(dia)) mesVisivel.value = new Date(dia.getFullYear(), dia.getMonth(), 1);
+}
+function irParaHoje() {
+  diaAberto.value = new Date();
+  mesVisivel.value = new Date();
 }
 
 const ROTULO: Record<SituacaoAgenda, { texto: string; tom: TomStatus }> = {
@@ -115,47 +132,62 @@ function chegou(a: Agendamento) {
 </script>
 
 <template>
-  <div class="space-y-6" data-testid="agenda">
-    <!-- Semana -->
-    <div class="flex flex-wrap items-center gap-3">
-      <button type="button" class="rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:text-brand-primary" title="Semana anterior" @click="mudarSemana(-1)">
-        <ChevronLeft :size="16" />
-      </button>
-      <div class="grid flex-1 grid-cols-7 gap-2">
-        <button
-          v-for="(dia, i) in semana"
-          :key="diaISO(dia)"
-          type="button"
-          class="flex flex-col items-center rounded-2xl border px-2 py-2 transition-colors"
-          :class="diaISO(dia) === diaISO(diaAberto)
-            ? 'border-brand-primary bg-brand-primary text-white'
-            : diaISO(dia) === hojeISO
-              ? 'border-brand-primary bg-white text-brand-primary'
-              : 'border-zinc-200 bg-white text-zinc-700 hover:border-brand-primary'"
-          @click="diaAberto = dia"
-        >
-          <span class="text-[11px] uppercase">{{ NOMES_DIA[i] }}</span>
-          <span class="text-lg font-bold leading-tight">{{ dia.getDate() }}</span>
-          <span class="text-[11px]" :class="contagem(dia) ? '' : 'opacity-50'">{{ contagem(dia) || '—' }}</span>
-        </button>
-      </div>
-      <button type="button" class="rounded-lg border border-zinc-200 p-2 text-zinc-500 hover:text-brand-primary" title="Próxima semana" @click="mudarSemana(1)">
-        <ChevronRight :size="16" />
-      </button>
-      <BaseButton variant="secondary" size="sm" @click="diaAberto = new Date()">Hoje</BaseButton>
-      <BaseButton size="md" class="flex gap-1" data-testid="novo-agendamento" @click="novo">
-        <Plus :size="18" /> Novo agendamento
-      </BaseButton>
-    </div>
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_1fr]" data-testid="agenda">
+    <!-- Calendário do mês -->
+    <aside class="space-y-3">
+      <section class="rounded-3xl border border-zinc-200 bg-white p-4">
+        <header class="mb-3 flex items-center gap-1">
+          <button type="button" class="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-brand-primary" title="Mês anterior" @click="mudarMes(-1)">
+            <ChevronLeft :size="16" />
+          </button>
+          <h3 class="flex-1 text-center text-sm font-semibold capitalize text-zinc-800">{{ tituloMes }}</h3>
+          <button type="button" class="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-brand-primary" title="Próximo mês" @click="mudarMes(1)">
+            <ChevronRight :size="16" />
+          </button>
+        </header>
+
+        <div class="grid grid-cols-7 gap-1 text-center">
+          <span v-for="(n, i) in NOMES_DIA" :key="i" class="pb-1 text-[11px] font-semibold text-zinc-400">{{ n }}</span>
+          <button
+            v-for="dia in grade"
+            :key="diaISO(dia)"
+            type="button"
+            class="relative flex aspect-square flex-col items-center justify-center rounded-lg text-sm transition-colors"
+            :class="[
+              diaISO(dia) === diaISO(diaAberto)
+                ? 'bg-brand-primary font-bold text-white'
+                : diaISO(dia) === hojeISO
+                  ? 'font-bold text-brand-primary ring-1 ring-brand-primary'
+                  : doMes(dia) ? 'text-zinc-700 hover:bg-zinc-100' : 'text-zinc-300 hover:bg-zinc-50',
+            ]"
+            :title="contagem(dia) ? `${contagem(dia)} agendamento(s)` : undefined"
+            :data-testid="`agenda-dia-${diaISO(dia)}`"
+            @click="escolherDia(dia)"
+          >
+            <span class="leading-none">{{ dia.getDate() }}</span>
+            <span
+              v-if="contagem(dia)"
+              class="mt-0.5 min-w-4 rounded-full px-1 text-[10px] font-bold leading-4"
+              :class="diaISO(dia) === diaISO(diaAberto) ? 'bg-white text-brand-primary' : 'bg-brand-primary text-white'"
+            >{{ contagem(dia) }}</span>
+          </button>
+        </div>
+      </section>
+
+      <BaseButton variant="secondary" size="sm" class="w-full" @click="irParaHoje">Hoje</BaseButton>
+    </aside>
 
     <!-- Dia -->
     <section class="rounded-3xl border border-zinc-200 bg-white">
-      <header class="flex items-center gap-2 border-b border-zinc-100 px-5 py-4">
+      <header class="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-4">
         <CalendarClock :size="18" class="text-brand-primary" />
         <h3 class="text-sm font-semibold capitalize text-zinc-800">
           {{ diaAberto.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }) }}
         </h3>
-        <span class="ml-auto text-xs text-zinc-500">{{ doDiaAberto.length }} agendamento(s)</span>
+        <span class="text-xs text-zinc-500">· {{ doDiaAberto.length }} agendamento(s)</span>
+        <BaseButton size="md" class="ml-auto flex gap-1" data-testid="novo-agendamento" @click="novo">
+          <Plus :size="18" /> Novo agendamento
+        </BaseButton>
       </header>
 
       <p v-if="isLoading" class="p-6 text-sm text-zinc-400">Carregando…</p>

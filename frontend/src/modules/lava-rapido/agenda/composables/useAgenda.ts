@@ -31,17 +31,34 @@ export function diasDaSemana(dia: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + i));
 }
 
+/** A grade do mês de `dia`: 6 semanas (42 dias) de segunda a domingo. */
+export function diasDoMes(dia: Date): Date[] {
+  const primeiro = new Date(dia.getFullYear(), dia.getMonth(), 1);
+  const inicio = diasDaSemana(primeiro)[0];
+  return Array.from({ length: 42 }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i));
+}
+
 /** Instante UTC do backend (sem "Z") → Date. */
 export function instanteDoBackend(isoUtc: string): Date {
   return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(isoUtc) ? isoUtc : `${isoUtc}Z`);
 }
 
-/** Agendamentos da semana do dia escolhido (uma query para a faixa e o dia). */
+/** Agendamentos da semana do dia escolhido. */
 export function useAgendaSemana(dia: MaybeRefOrGetter<Date>) {
-  const { tem } = useCapacidades();
   const semana = computed(() => diasDaSemana(toValue(dia)));
-  const inicio = computed(() => diaISO(semana.value[0]));
-  const fim = computed(() => diaISO(semana.value[6]));
+  return useAgendaPeriodo(() => semana.value[0], () => semana.value[6]);
+}
+
+/** Agendamentos da grade do mês de `dia` (o calendário da aba). */
+export function useAgendaMes(dia: MaybeRefOrGetter<Date>) {
+  const grade = computed(() => diasDoMes(toValue(dia)));
+  return useAgendaPeriodo(() => grade.value[0], () => grade.value[41]);
+}
+
+function useAgendaPeriodo(de: () => Date, ate: () => Date) {
+  const { tem } = useCapacidades();
+  const inicio = computed(() => diaISO(de()));
+  const fim = computed(() => diaISO(ate()));
   return useQuery({
     queryKey: computed(() => [AGENDA_KEY, inicio.value, fim.value]),
     queryFn: () => getAgendamentos(inicio.value, fim.value),

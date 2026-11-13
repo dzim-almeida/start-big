@@ -15,7 +15,7 @@ import { AlertTriangle, ArrowLeft, Clock, MessageCircle, Users } from 'lucide-vu
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import type { CartaoPatio } from '../../shared/schemas/patio.schema';
-import { horaLocal, linkWhatsApp, mensagemPronto, reais, tempoNoPatio } from '../../shared/utils/lavaRapido';
+import { horaLocal, linkWhatsApp, mensagemPronto, reais, soDia, tempoNoPatio } from '../../shared/utils/lavaRapido';
 
 const props = defineProps<{
   cartao: CartaoPatio;
@@ -40,9 +40,32 @@ const veiculo = computed(() =>
 /** Placa gerada (VEI-...) não é placa de verdade: mostra mais discreta. */
 const placaGerada = computed(() => (props.cartao.placa ?? '').startsWith('VEI-'));
 
+/**
+ * Previsão gravada só com o DIA (00:00, sem hora calculada): não é horário.
+ * Lida como UTC ela virava "Pronto às 21:00" do dia anterior, em vermelho.
+ */
+const previsaoSoDia = computed(() => soDia(props.cartao.previsao));
+
+/** Texto da previsão: a hora; ou, sem hora, o dia (e nada quando é hoje). */
+const textoPrevisao = computed(() => {
+  const p = props.cartao.previsao;
+  if (!p) return '';
+  if (!previsaoSoDia.value) return `Pronto às ${horaLocal(p)}`;
+  const [ano, mes, dia] = p.slice(0, 10).split('-').map(Number);
+  const data = new Date(ano, mes - 1, dia);
+  if (data.toDateString() === props.agora.toDateString()) return '';
+  return `Previsto p/ ${data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+});
+
 const atrasado = computed(() => {
-  if (!props.cartao.previsao || props.coluna === 'entregue' || props.coluna === 'pronto') return false;
-  const iso = /[zZ]$/.test(props.cartao.previsao) ? props.cartao.previsao : `${props.cartao.previsao}Z`;
+  const p = props.cartao.previsao;
+  if (!p || props.coluna === 'entregue' || props.coluna === 'pronto') return false;
+  if (previsaoSoDia.value) {
+    // Só o dia: atrasa quando o dia inteiro já passou.
+    const [ano, mes, dia] = p.slice(0, 10).split('-').map(Number);
+    return new Date(ano, mes - 1, dia + 1).getTime() <= props.agora.getTime();
+  }
+  const iso = /[zZ]$/.test(p) ? p : `${p}Z`;
   return new Date(iso).getTime() < props.agora.getTime();
 });
 
@@ -79,12 +102,12 @@ const nomesLavadores = computed(() => props.cartao.lavadores.map((l) => l.nome.s
         </p>
         <p v-else class="text-zinc-500">às {{ horaLocal(cartao.finalizada_em) }}</p>
         <p
-          v-if="cartao.previsao && coluna !== 'entregue'"
+          v-if="textoPrevisao && coluna !== 'entregue'"
           class="mt-0.5 font-semibold"
           :class="atrasado ? 'text-red-600' : 'text-zinc-600'"
         >
           <AlertTriangle v-if="atrasado" :size="11" class="inline" />
-          Pronto às {{ horaLocal(cartao.previsao) }}
+          {{ textoPrevisao }}
         </p>
       </div>
     </header>
