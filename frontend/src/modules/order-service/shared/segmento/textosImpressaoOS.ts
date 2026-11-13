@@ -45,6 +45,13 @@ export interface TextosCupomOS {
    * abandono usava outro.
    */
   prazoRetirada: (dias: number) => string;
+  /** Quadro das avarias da entrada (`dados_adicionais.avarias`). Ausente = não imprime. */
+  avarias?: { titulo: string; vazio: string };
+  /**
+   * Título da via de saída CONCLUÍDA em segmento que não dá termo de garantia.
+   * Ausente = "RECIBO E GARANTIA", como sempre.
+   */
+  reciboSemGarantia?: string;
 }
 
 export interface TextosImpressaoOS {
@@ -113,6 +120,24 @@ export interface TextosImpressaoOS {
    * contrário.
    */
   tituloPrazoRetirada?: string;
+  /**
+   * Título do quadro de fotos na via de entrada. Ausente = "Arte(s) para
+   * Produção", da serigrafia, que foi quem trouxe a foto para o papel.
+   */
+  tituloFotosEntrada?: { uma: string; varias: string };
+  /**
+   * Quadro das avarias marcadas na entrada (`dados_adicionais.avarias`).
+   * Ausente = não imprime. Existe porque o termo de entrada do lava-rápido diz
+   * que o cliente conferiu as avarias: elas precisam estar no papel que ele assina.
+   */
+  avarias?: { titulo: string; vazio: string };
+  /**
+   * Segmento que NÃO dá termo de garantia: a via de saída concluída sai com
+   * este título e sem bloco de garantia nem "Declaração de Entrega" (que diz
+   * "sem realização de reparo" e só vale para Não realizado/Recusado).
+   * Ausente = comportamento de sempre.
+   */
+  reciboSemGarantia?: string;
   cupom: TextosCupomOS;
   /**
    * Ajuste dos termos por tipo de trabalho, dentro do mesmo segmento.
@@ -549,6 +574,10 @@ const LAVA_RAPIDO: TextosImpressaoOS = {
     + 'Autorizo a execução dos serviços descritos e a movimentação do veículo por funcionários da '
     + 'empresa dentro do estabelecimento.',
   assinaturaLoja: 'Responsável',
+  tituloFotosEntrada: { uma: 'Foto do Veículo na Entrada', varias: 'Fotos do Veículo na Entrada' },
+  avarias: { titulo: 'Avarias na Chegada', vazio: 'Nenhuma avaria registrada na entrada.' },
+  // Lavagem não tem garantia: a via de saída é o recibo do serviço.
+  reciboSemGarantia: 'RECIBO DE SERVIÇO',
   // Masculino: "Veículos", como na oficina.
   prazoRetiradaEntradaA4: (prazo) =>
     `Veículos com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
@@ -575,6 +604,8 @@ const LAVA_RAPIDO: TextosImpressaoOS = {
     prazoRetirada: (dias) =>
       `PRAZO DE RETIRADA: Veiculos nao retirados em ${dias} dias apos aviso de conclusao serao `
       + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+    avarias: { titulo: 'AVARIAS NA CHEGADA', vazio: 'Nenhuma avaria registrada.' },
+    reciboSemGarantia: 'RECIBO DE SERVICO',
   },
 };
 

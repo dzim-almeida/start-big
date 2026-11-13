@@ -59,16 +59,16 @@ describe('montarOS', () => {
     expect(corpo.data_previsao).toBeNull();
   });
 
-  it('observação vira pertences e o texto do pedido', () => {
-    const corpo = montarOS({ ...BASE, observacao: 'óculos no porta-luvas' }) as unknown as Corpo;
-    expect(corpo.dados_adicionais.pertences).toBe('óculos no porta-luvas');
-    expect(corpo.defeito_relatado).toBe('óculos no porta-luvas');
-  });
 });
 
 describe('textoDoPedido (defeito_relatado é obrigatório na OS)', () => {
-  it('sem observação: os serviços; sem nada: "Lavagem"', () => {
-    expect(textoDoPedido('', BASE.itens)).toBe('Lavagem completa, Cera');
-    expect(textoDoPedido('  ', [])).toBe('Lavagem');
+  it('os serviços; sem nada: "Lavagem"', () => {
+    expect(textoDoPedido(BASE.itens)).toBe('Lavagem completa, Cera');
+    expect(textoDoPedido([])).toBe('Lavagem');
+  });
+  it('a observação (pertences) não vira o pedido', () => {
+    const corpo = montarOS({ ...BASE, observacao: 'óculos no porta-luvas' }) as unknown as Corpo;
+    expect(corpo.defeito_relatado).toBe('Lavagem completa, Cera');
+    expect(corpo.dados_adicionais.pertences).toBe('óculos no porta-luvas');
   });
 });

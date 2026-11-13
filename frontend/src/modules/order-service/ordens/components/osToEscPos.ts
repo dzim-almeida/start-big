@@ -105,7 +105,7 @@ export function osToEscPos(
           ? 'ENTREGA SEM REPARO'
           : situacao === 'CONDENADO'
             ? `${t.objeto.toUpperCase()} CONDENADO`
-            : 'RECIBO E GARANTIA'
+            : t.reciboSemGarantia ?? 'RECIBO E GARANTIA'
 
   const dataStr = tipo === 'SAIDA' ? ((os.data_finalizacao as string) || os.data_criacao) : os.data_criacao
 
@@ -174,6 +174,16 @@ export function osToEscPos(
   // Observações
   if (os.observacoes) {
     b.separador().negrito(true).linha('OBSERVACOES').negrito(false).linha(os.observacoes)
+  }
+
+  // Avarias da entrada (lava-rápido): o cliente assina que as conferiu.
+  if (tipo === 'ENTRADA' && t.avarias) {
+    const lista = (os.dados_adicionais as Record<string, unknown> | null | undefined)?.avarias
+    const avarias = Array.isArray(lista)
+      ? lista.filter((a): a is string => typeof a === 'string' && a.trim() !== '')
+      : []
+    b.separador().negrito(true).linha(t.avarias.titulo).negrito(false)
+      .linha(avarias.length ? avarias.join(', ') : t.avarias.vazio)
   }
 
   if (tipo === 'SAIDA') {

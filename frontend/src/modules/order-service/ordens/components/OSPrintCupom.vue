@@ -72,9 +72,15 @@ const title = computed(() => {
     case 'SAIDA':
       if (situacao.value === 'SEM_REPARO') return 'ENTREGA SEM REPARO';
       if (situacao.value === 'CONDENADO') return `${t.value.objeto.toUpperCase()} CONDENADO`;
-      return 'RECIBO E GARANTIA';
+      return t.value.reciboSemGarantia ?? 'RECIBO E GARANTIA';
     default: return 'Cupom';
   }
+});
+
+/** Avarias marcadas na entrada (só sai onde o segmento declara o quadro). */
+const avariasEntrada = computed<string[]>(() => {
+  const lista = (props.orderService?.dados_adicionais as Record<string, unknown> | undefined)?.avarias;
+  return Array.isArray(lista) ? lista.filter((a): a is string => typeof a === 'string' && a.trim() !== '') : [];
 });
 
 const date = computed(() => {
@@ -215,7 +221,8 @@ const pix = computed(() =>
     <div class="separator">{{ SEPARATOR }}</div>
 
     <div class="section">
-      <div class="font-bold mb-0.5">DEFEITO RELATADO</div>
+      <!-- Mesmo cabeçalho do ESC/POS (era "DEFEITO RELATADO" fixo aqui). -->
+      <div class="font-bold mb-0.5">{{ t.defeito }}</div>
       <div>{{ orderService.defeito_relatado }}</div>
     </div>
 
@@ -224,6 +231,15 @@ const pix = computed(() =>
       <div class="section">
         <div class="font-bold mb-0.5">OBSERVACOES</div>
         <div class="whitespace-pre-line">{{ orderService.observacoes }}</div>
+      </div>
+    </template>
+
+    <!-- Avarias da entrada (lava-rápido): o cliente assina que as conferiu. -->
+    <template v-if="type === 'ENTRADA' && t.avarias">
+      <div class="separator">{{ SEPARATOR }}</div>
+      <div class="section">
+        <div class="font-bold mb-0.5">{{ t.avarias.titulo }}</div>
+        <div>{{ avariasEntrada.length ? avariasEntrada.join(', ') : t.avarias.vazio }}</div>
       </div>
     </template>
 

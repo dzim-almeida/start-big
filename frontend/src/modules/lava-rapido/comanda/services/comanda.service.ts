@@ -63,9 +63,13 @@ export async function criarClienteRapido(cliente: ClienteNovo): Promise<number> 
   return z.object({ id: z.number() }).parse(data).id;
 }
 
-/** O que vai no `defeito_relatado` (obrigatório na OS): a observação ou os serviços. */
-export function textoDoPedido(observacao: string, itens: ItemComanda[]): string {
-  const texto = observacao.trim() || itens.map((i) => i.nome).join(', ') || 'Lavagem';
+/**
+ * O que vai no `defeito_relatado` (obrigatório na OS), que a via imprime como
+ * "Pedido do Cliente": os SERVIÇOS escolhidos. A observação é pertence
+ * ("óculos no porta-luvas") e sai à parte; antes ela virava o pedido.
+ */
+export function textoDoPedido(itens: ItemComanda[]): string {
+  const texto = itens.map((i) => i.nome).join(', ') || 'Lavagem';
   return texto.slice(0, 500);
 }
 
@@ -75,7 +79,7 @@ export function montarOS(p: PayloadLavagem): Record<string, unknown> {
     cliente_id: p.cliente_id,
     funcionario_id: p.funcionario_id,
     prioridade: p.prioridade ?? 'NORMAL',
-    defeito_relatado: textoDoPedido(p.observacao, p.itens),
+    defeito_relatado: textoDoPedido(p.itens),
     data_previsao: p.previsao instanceof Date ? p.previsao.toISOString() : (p.previsao || null),
     ...(p.valor_entrada ? { valor_entrada: p.valor_entrada, forma_pagamento_entrada_id: p.forma_pagamento_entrada_id ?? null } : {}),
     ...(p.taxa_entrega ? { taxa_entrega: p.taxa_entrega } : {}),

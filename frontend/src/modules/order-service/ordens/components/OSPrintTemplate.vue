@@ -187,7 +187,16 @@ const title = computed(() => {
   if (props.type === 'CANCELAMENTO') return 'DECLARAÇÃO DE CANCELAMENTO DE SERVIÇO';
   if (situacao.value === 'SEM_REPARO') return 'DECLARAÇÃO DE ENTREGA SEM REPARO';
   if (situacao.value === 'CONDENADO') return `DECLARAÇÃO DE ${objetoNoTitulo.value} CONDENADO`;
-  return 'RECIBO E TERMO DE GARANTIA';
+  return textos.value.reciboSemGarantia ?? 'RECIBO E TERMO DE GARANTIA';
+});
+
+/**
+ * Avarias marcadas na entrada (lava-rápido). Só o segmento que declara o
+ * quadro no pacote as imprime; os outros não mudam.
+ */
+const avariasEntrada = computed<string[]>(() => {
+  const lista = (props.ordemServico?.dados_adicionais as Record<string, unknown> | undefined)?.avarias;
+  return Array.isArray(lista) ? lista.filter((a): a is string => typeof a === 'string' && a.trim() !== '') : [];
 });
 
 // Impressão é preto e branco por contrato (ver nota no topo do template): as três
@@ -364,6 +373,12 @@ const pix = computed(() =>
         <p class="text-[10px] font-bold text-neutral-600 uppercase mb-1">Observações / Acessórios</p>
         <p class="text-xs text-neutral-800 whitespace-pre-line">{{ ordemServico.observacoes }}</p>
       </div>
+      <!-- Avarias da entrada: o termo diz que o cliente as conferiu, então saem no papel que ele assina. -->
+      <div v-if="type === 'ENTRADA' && textos.avarias" class="border border-neutral-300 rounded-lg p-3">
+        <p class="text-[10px] font-bold text-neutral-600 uppercase mb-1">{{ textos.avarias.titulo }}</p>
+        <p v-if="avariasEntrada.length" class="text-xs text-neutral-900 font-medium">{{ avariasEntrada.join(' · ') }}</p>
+        <p v-else class="text-xs text-neutral-700">{{ textos.avarias.vazio }}</p>
+      </div>
     </div>
 
     <!--
@@ -380,7 +395,10 @@ const pix = computed(() =>
       <div class="bg-neutral-100 px-3 py-1 border-b border-neutral-200 flex items-center gap-2">
         <ImageIcon :size="14" class="text-neutral-800" />
         <h3 class="text-xs font-bold uppercase text-neutral-800">
-          {{ fotosImpressas.length === 1 ? 'Arte para Produção' : 'Artes para Produção' }}
+          <template v-if="textos.tituloFotosEntrada">
+            {{ fotosImpressas.length === 1 ? textos.tituloFotosEntrada.uma : textos.tituloFotosEntrada.varias }}
+          </template>
+          <template v-else>{{ fotosImpressas.length === 1 ? 'Arte para Produção' : 'Artes para Produção' }}</template>
         </h3>
       </div>
       <div class="p-2" :class="fotosImpressas.length === 1 ? '' : 'grid grid-cols-2 gap-2'">
@@ -571,8 +589,10 @@ const pix = computed(() =>
         IMPORTANTE: {{ textos.prazoRetiradaGarantiaA4(prazoAbandonoSimples) }}
       </div>
 
-      <!-- Declaração de entrega sem reparo (SEM_REPARO / CONDENADO) -->
-      <div v-else class="border border-neutral-300 bg-neutral-50 rounded-lg p-3 text-[10px] text-neutral-800 text-justify leading-relaxed mb-6">
+      <!-- Declaração de entrega sem reparo (SEM_REPARO / CONDENADO). Em segmento
+           sem termo de garantia (lava-rápido), o serviço concluído não leva
+           bloco nenhum: a declaração diria "sem realização de reparo". -->
+      <div v-else-if="isSemReparo || !textos.reciboSemGarantia" class="border border-neutral-300 bg-neutral-50 rounded-lg p-3 text-[10px] text-neutral-800 text-justify leading-relaxed mb-6">
         <div class="flex items-center gap-2 mb-1 font-bold text-neutral-900 uppercase">
           <Receipt :size="12" />
           Declaração de Entrega
