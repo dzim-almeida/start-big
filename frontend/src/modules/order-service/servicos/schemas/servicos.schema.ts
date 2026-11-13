@@ -6,16 +6,20 @@ export const ServiceReadSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória'),
   valor: z.number().int().nonnegative(),
   ativo: z.boolean(),
+  // Lava-rápido: minutos que o serviço costuma levar (previsão do pátio).
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceCreateSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória').max(255),
   valor: z.number().int().nonnegative(),
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceUpdateSchema = z.object({
   descricao: z.string().min(1).max(255).optional(),
   valor: z.number().int().nonnegative().optional(),
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceFormSchema = z.object({
@@ -26,6 +30,12 @@ export const ServiceFormSchema = z.object({
   valor: z
     .number({ required_error: 'Valor é obrigatório' })
     .nonnegative('Valor não pode ser negativo'),
+  // Lava-rápido: minutos (texto do campo; vazio = sem duração).
+  duracao_minutos: z.string()
+    .refine((v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1440), {
+      message: 'Informe os minutos (1 a 1440)',
+    })
+    .optional().or(z.literal('')),
 
   // Dados fiscais (opcionais, mas validam formato quando preenchidos)
   fiscal_codigo_servico_lc116: z.string()

@@ -175,3 +175,34 @@ def test_fora_do_lava_rapido_as_rotas_nao_existem(client, db_session):
     assert client.post(f"{URL}/portes", json={"tipo_veiculo": "carro", "nome": "X"},
                        headers=header).status_code == 404
     assert client.get(f"{URL}/servicos/{servico_id}/precos", headers=header).status_code == 404
+
+
+def test_duracao_do_cadastro_do_servico_chega_na_comanda(client, db_session):
+    """13/11/2026: sem a grade por porte, a duracao vem do cadastro do servico
+    (o patio calcula "Pronto as ..." com ela). Sem duracao: None, como antes."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    r = client.post("/api/v1/servicos/", json={"descricao": "Lavagem simples", "valor": 5000,
+                                              "duracao_minutos": 40}, headers=header)
+    assert r.status_code == status.HTTP_201_CREATED, r.text
+    assert r.json()["duracao_minutos"] == 40
+    sem = _criar_servico(client, header, descricao="Aspiracao", valor=2000)
+
+    porte = _porte(client, header, "carro", "Hatch")
+    lista = {s["descricao"]: s for s in
+             client.get(f"{URL}/portes/{porte['id']}/servicos", headers=header).json()}
+    assert lista["Lavagem simples"]["duracao_minutos"] == 40
+    assert lista["Aspiracao"]["duracao_minutos"] is None
+
+    # Editar e limpar a duracao.
+    sid = r.json()["id"]
+    assert client.put(f"/api/v1/servicos/{sid}", json={"duracao_minutos": 55},
+                      headers=header).json()["duracao_minutos"] == 55
+    assert client.put(f"/api/v1/servicos/{sem}", json={"duracao_minutos": None},
+                      headers=header).json()["duracao_minutos"] is None
+
+
+def test_duracao_invalida_e_recusada(client, db_session):
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    r = client.post("/api/v1/servicos/", json={"descricao": "X", "valor": 1, "duracao_minutos": 0},
+                    headers=header)
+    assert r.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

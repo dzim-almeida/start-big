@@ -14,6 +14,8 @@ export interface ServicosStats {
 }
 
 export interface ServicoFormData {
+  /** Lava-rápido: minutos, como texto do campo ('' = sem duração). */
+  duracao_minutos?: string;
   descricao: string;
   valor: number;
 

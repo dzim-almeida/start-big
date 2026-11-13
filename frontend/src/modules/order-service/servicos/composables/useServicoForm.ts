@@ -16,6 +16,7 @@ import { toCents } from '../utils/servicos.utils';
 import { useCreateServicoMutation, useUpdateServicoMutation } from './useServicosMutations';
 import { useServicoModal } from './useServicoModal';
 import { recursoDisponivel } from '@/shared/config/planos';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 import { getServicoFiscal } from '../services/servicos.service';
 import { nfseService } from '@/modules/fiscal/services/nfse.service';
 import type { ServicoFiscalRead } from '../types/servicos.types';
@@ -52,6 +53,7 @@ const CAMPOS_FISCAIS = [
 const DEFAULT_FORM_VALUES: ServicoFormData = {
   descricao: '',
   valor: 0,
+  duracao_minutos: '',
   fiscal_codigo_servico_lc116: '',
   fiscal_cnae: '',
   fiscal_aliquota_iss_display: '',
@@ -68,6 +70,10 @@ const DEFAULT_FORM_VALUES: ServicoFormData = {
 export interface ServicoFormContext {
   descricao: Ref<string>;
   valor: Ref<number>;
+  /** Lava-rápido: minutos que o serviço costuma levar ('' = sem duração). */
+  duracao_minutos: Ref<string | undefined>;
+  /** O segmento usa a duração (pátio/agenda do lava-rápido)? */
+  temDuracao: ComputedRef<boolean>;
   // Dados fiscais
   fiscal_codigo_servico_lc116: Ref<string>;
   fiscal_cnae: Ref<string>;
@@ -114,6 +120,12 @@ export function useServicoFormProvider() {
   const fiscalDisponivel = nfeDisponivel || nfseDisponivel;
 
   const [descricao] = defineField('descricao');
+  const [duracao_minutos] = defineField('duracao_minutos');
+  // Só o lava-rápido usa a duração (previsão do pátio, agenda). Nos outros
+  // segmentos o campo não aparece e nem vai no corpo: o cadastro é o de sempre.
+  const { temOperacaoPatio } = useCapacidades();
+  const temDuracao = computed(() => !!temOperacaoPatio?.value);
+  const minutos = (v?: string) => (v && /^\d+$/.test(v) ? Number(v) : null);
   const [valor] = defineField('valor');
 
   // Campos fiscais
@@ -166,6 +178,7 @@ export function useServicoFormProvider() {
     setValues({
       descricao: selectedServico.value.descricao,
       valor: selectedServico.value.valor / 100,
+      duracao_minutos: selectedServico.value.duracao_minutos ? String(selectedServico.value.duracao_minutos) : '',
     });
 
     // Carrega dados fiscais (se módulo ativo)
@@ -220,6 +233,7 @@ export function useServicoFormProvider() {
     return {
       descricao: formData.descricao.trim(),
       valor: toCents(formData.valor) || 0,
+      ...(temDuracao.value ? { duracao_minutos: minutos(formData.duracao_minutos) } : {}),
     };
   }
 
@@ -227,6 +241,7 @@ export function useServicoFormProvider() {
     return {
       descricao: formData.descricao.trim(),
       valor: toCents(formData.valor),
+      ...(temDuracao.value ? { duracao_minutos: minutos(formData.duracao_minutos) } : {}),
     };
   }
 
@@ -282,6 +297,8 @@ export function useServicoFormProvider() {
   const context: ServicoFormContext = {
     descricao,
     valor,
+    duracao_minutos,
+    temDuracao,
     fiscal_codigo_servico_lc116,
     fiscal_cnae,
     fiscal_aliquota_iss_display,

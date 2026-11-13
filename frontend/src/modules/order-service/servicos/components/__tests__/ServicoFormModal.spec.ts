@@ -62,6 +62,12 @@ vi.mock('@/modules/fiscal/composables/useNfseRota', () => ({
   }),
 }));
 
+// Lava-rápido (13/11/2026): o campo "Duração (min)" só existe com o pátio.
+const temPatio = ref(false);
+vi.mock('@/modules/order-service/shared/segmento/useCapacidades', () => ({
+  useCapacidades: () => ({ temOperacaoPatio: computed(() => temPatio.value) }),
+}));
+
 const { default: ServicoFormModal } = await import('../ServicoFormModal.vue');
 const { useServicoModal } = await import('../../composables/useServicoModal');
 
@@ -84,6 +90,7 @@ async function salvar() {
 }
 
 afterEach(() => {
+  temPatio.value = false;
   rotaAtual.value = { rota: 'NACIONAL', cidade: null, obrigatorios: {}, regime: 'mei' };
   Object.keys(recursos).forEach((k) => delete recursos[k]);
   update.mockClear();
@@ -258,6 +265,30 @@ describe('Cadastrar uma vez, reaproveitar (M2)', () => {
       expect(valores).toContain('14.01.01');
       expect(valores).toContain('2.5');
     });
+    wrapper.unmount();
+  });
+});
+
+describe('Duração do serviço (lava-rápido)', () => {
+  it('outros segmentos: sem o campo, e o salvar não manda duração', async () => {
+    const wrapper = abrirEdicao();
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Salvar Alterações'));
+    expect(document.body.querySelector('[data-testid="servico-duracao"]')).toBeNull();
+    const dados = await salvar();
+    expect(dados).not.toHaveProperty('duracao_minutos');
+    wrapper.unmount();
+  });
+
+  it('lava-rápido: mostra o campo com a duração gravada e salva em minutos', async () => {
+    temPatio.value = true;
+    useServicoModal().openEditModal({ id: 7, descricao: 'Lavagem simples', valor: 5000, duracao_minutos: 40 } as never);
+    const wrapper = montar();
+    await vi.waitFor(() => {
+      const campo = document.body.querySelector('[data-testid="servico-duracao"] input, input[data-testid="servico-duracao"]') as HTMLInputElement | null;
+      expect(campo?.value).toBe('40');
+    });
+    const dados = await salvar();
+    expect(dados.duracao_minutos).toBe(40);
     wrapper.unmount();
   });
 });

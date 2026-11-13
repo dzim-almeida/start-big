@@ -26,6 +26,12 @@ class ServicoCreate(BaseModel):
         description="Valor do serviço ofertado (em centavos)."
     )
 
+    # Opcional (lava-rapido): da a previsao no patio e a duracao do agendamento.
+    duracao_minutos: Optional[int] = Field(
+        None, ge=1, le=24 * 60,
+        description="Duração típica do serviço, em minutos."
+    )
+
     # Configurações do modelo Pydantic
     model_config = ConfigDict(
         from_attributes=True, # Permite mapear de atributos de objetos (ex: SQLAlchemy)
@@ -56,6 +62,11 @@ class ServicoUpdate(BaseModel):
     valor: Optional[int] = Field(
         None, # Valor padrão 'None', tornando o campo opcional
         description="Valor do serviço ofertado (em centavos)."
+    )
+
+    duracao_minutos: Optional[int] = Field(
+        None, ge=1, le=24 * 60,
+        description="Duração típica do serviço, em minutos."
     )
 
     # Configurações do modelo Pydantic

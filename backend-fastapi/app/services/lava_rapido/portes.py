@@ -190,7 +190,8 @@ def servicos_do_porte(db: Session, porte_id: int) -> List[ServicoDoPorte]:
             servico_id=servico.id,
             descricao=servico.descricao,
             valor=linha.valor if linha else servico.valor,
-            duracao_minutos=linha.duracao_minutos if linha else None,
+            # A duracao do cadastro do servico vale quando o porte nao tem a sua.
+            duracao_minutos=(linha.duracao_minutos if linha else None) or servico.duracao_minutos,
             preco_do_porte=linha is not None,
         ))
     return resultado
