@@ -17,14 +17,13 @@
 
 from typing import Any, Dict, List
 
-from ..campos import campo, grupo_vistoria, tipo_de_trabalho
+from ..campos import campo, tipo_de_trabalho
 from ..capacidades import (
     CAP_AGENDA_SERVICOS,
     CAP_EXECUTORES_OS,
     CAP_IMAGEM_NA_ENTRADA,
     CAP_OPERACAO_PATIO,
     CAP_PRECO_POR_PORTE,
-    CAP_VISTORIA,
 )
 
 SEGMENTO_LAVA_RAPIDO = "lava_rapido"
@@ -235,14 +234,15 @@ LAVA_RAPIDO = {
         "prefixo": "VEI",
     },
 
-    # vistoria: as avarias do veiculo antes de lavar -- a defesa da loja
-    #   contra "esse risco nao estava aqui" (SPEC-00 O5).
+    # Sem vistoria (checklist da oficina): no lava, as avarias da chegada sao
+    #   o checklist simples por tipo, marcado na comanda e impresso na via de
+    #   entrada (13/11/2026, pedido do Alan: a aba Vistoria e coisa de oficina).
     # imagem_na_entrada: as fotos entram ja na abertura da OS, antes de o
     #   veiculo ir para o box, e saem na via de entrada.
     # Sem diagnostico, garantia (prazo ou item), aprovacao de itens e revisoes
     # por KM: lavagem nao e conserto (SPEC-00 O6).
     "capacidades": [
-        CAP_VISTORIA, CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE,
+        CAP_IMAGEM_NA_ENTRADA, CAP_PRECO_POR_PORTE,
         CAP_OPERACAO_PATIO, CAP_EXECUTORES_OS, CAP_AGENDA_SERVICOS,
     ],
 
@@ -252,19 +252,8 @@ LAVA_RAPIDO = {
     "checkin": [],
     "acessorios": [],
 
-    # A vistoria NAO e por tipo: a avaria e do veiculo, seja carro, moto ou
-    # caminhao. Os itens sao genericos de proposito (Spec 01A, secao 4.2).
-    "vistoria": [
-        grupo_vistoria("Inspeção externa", [
-            "pintura_riscos", "amassados", "vidros_para_brisa",
-            "farois_lanternas", "rodas_aros", "retrovisores",
-            "para_choques_carenagem", "adesivos_envelopamento",
-        ]),
-        grupo_vistoria("Inspeção interna", [
-            "bancos_estofados", "painel", "tapetes_assoalho",
-            "manchas_odores", "objetos_de_valor",
-        ]),
-    ],
+    # Sem vistoria: ver a nota das capacidades acima.
+    "vistoria": [],
 
     "tipos": [_CARRO, _MOTO, _PESADO, _BICICLETA, _OUTROS],
 }

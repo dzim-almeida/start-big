@@ -549,7 +549,7 @@ const MARCENARIA: TextosImpressaoOS = {
 // Lava-rápido / estética automotiva (Spec 01B do lava, D8). Duas cláusulas
 // sustentam a loja no balcão, e são o padrão do ramo:
 //
-// 1. Avaria que já estava no veículo: a vistoria da entrada registra, e o
+// 1. Avaria que já estava no veículo: a comanda registra (e a via imprime), e o
 //    cliente declara ter conferido. Sem isso, o risco no para-choque que já
 //    existia vira "foi a lavagem".
 // 2. Objetos deixados no veículo e peças soltas ou não originais (antena,
@@ -568,7 +568,7 @@ const LAVA_RAPIDO: TextosImpressaoOS = {
     'chuva, poeira ou uso do veículo após a entrega, contato com produtos químicos ou resíduos '
     + 'após o serviço, e manchas, riscos ou desgastes que já existiam na pintura ou no interior.',
   condicoesEntrada:
-    'O cliente declara ter conferido a vistoria de entrada e as avarias nela registradas. A empresa '
+    'O cliente declara ter conferido as avarias registradas na entrada. A empresa '
     + 'não se responsabiliza por objetos pessoais deixados no interior do veículo, nem por peças '
     + 'soltas, danificadas ou não originais (antenas, adesivos, frisos, palhetas e acessórios). '
     + 'Autorizo a execução dos serviços descritos e a movimentação do veículo por funcionários da '
@@ -599,7 +599,7 @@ const LAVA_RAPIDO: TextosImpressaoOS = {
       'A OS acima foi cancelada nesta data. Veiculo devolvido ao cliente sem o servico ou com '
       + 'servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
     condicoesEntrada:
-      'Cliente conferiu a vistoria de entrada. A empresa nao se responsabiliza por objetos deixados '
+      'Cliente conferiu as avarias registradas na entrada. A empresa nao se responsabiliza por objetos deixados '
       + 'no veiculo nem por pecas soltas ou nao originais (antena, adesivo, friso, palheta).',
     prazoRetirada: (dias) =>
       `PRAZO DE RETIRADA: Veiculos nao retirados em ${dias} dias apos aviso de conclusao serao `

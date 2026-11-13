@@ -702,15 +702,16 @@ def test_so_bicicleta_e_outros_dispensam_a_placa():
 
 
 def test_capacidades_do_lava_rapido():
-    """Caso 6. Vistoria e fotos na entrada sim; nada de conserto (SPEC-00 O6)."""
+    """Caso 6. Fotos na entrada sim; nada de conserto (SPEC-00 O6). Sem a
+    vistoria da oficina (13/11/2026): as avarias sao o checklist da comanda."""
     capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
     # preco_por_porte: Spec 02A. operacao_patio: Spec 03A (comanda e patio).
     # executores_os: Spec 10A (lavadores e comissao Dividir/Inteira).
     assert capacidades == {
-        "vistoria", CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio", "executores_os",
+        CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio", "executores_os",
         "agenda_servicos",                               # Spec 08A
     }
-    assert DEFINICOES["lava_rapido"]["vistoria"], "vistoria declarada sem grupos"
+    assert DEFINICOES["lava_rapido"]["vistoria"] == []
 
 
 def test_status_permitido_e_identificador_gerado_se_vazio():

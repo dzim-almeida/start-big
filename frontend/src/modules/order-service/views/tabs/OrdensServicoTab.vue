@@ -10,6 +10,7 @@ import OSFinalizarModal, { type DadosFinalizacaoOS } from '../../ordens/componen
 import OSPagamentoModal from '../../ordens/components/OSPagamentoModal.vue';
 import type { PrintFormat } from '../../ordens/composables/modal/useOSPrintFlow';
 import { useImpressao } from '@/shared/composables/useImpressao';
+import { useImpressaoStore } from '@/shared/stores/impressao.store';
 import {
   imprimirComPagina,
   aguardarImagensDaImpressao,
@@ -82,6 +83,7 @@ const isPrintSelectOpen = ref(false);
 const pendingPrintAfterSelect = ref<(() => void) | null>(null);
 
 const impressao = useImpressao();
+const impressaoStore = useImpressaoStore();
 // Papel escolhido pela empresa (folha inteira / meia folha), por documento.
 const { opcoesPaginaDe } = usePerfilComprovante();
 const { montarCupom } = useCupomOS();
@@ -266,12 +268,15 @@ function opcoesDaVia() {
 }
 
 /**
- * Regra única (sem perguntar formato): térmica configurada → cupom ESC/POS
- * direto; sem térmica (ou falha) → recibo A4 abrindo o diálogo do sistema.
+ * Regra única (sem perguntar formato), a MESMA do formulário da OS
+ * (`useOSPrintFlow.imprimir`): formato Cupom + térmica configurada → cupom
+ * ESC/POS direto; formato A4, sem térmica ou falha → recibo A4 com o diálogo
+ * do sistema. Antes a lista ignorava o `formato_os`: com qualquer térmica
+ * configurada, quem escolheu A4 recebia o cupom ao clicar no ícone da tabela.
  */
 async function imprimirComRegra() {
   const tipo = printType.value;
-  if (tipo && (await imprimirEscPosDireto(tipo))) {
+  if (tipo && impressaoStore.config.formato_os === 'cupom' && (await imprimirEscPosDireto(tipo))) {
     pendingPrintAfterSelect.value?.();
     pendingPrintAfterSelect.value = null;
     osToPrint.value = null;

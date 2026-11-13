@@ -46,7 +46,7 @@ const FALLBACK_POR_SEGMENTO: Record<string, SegmentCapability[]> = {
   // o "Sofre perda" e o menu Orçamentos (Spec 04B, D2).
   marcenaria: ['imagem_na_entrada', 'garantia_prazo', 'orcamento_tecnico'],
   // Lava-rápido (Spec 01A/02A): vistoria e fotos na entrada; preço por porte.
-  lava_rapido: ['vistoria', 'imagem_na_entrada', 'preco_por_porte', 'operacao_patio', 'executores_os', 'agenda_servicos'],
+  lava_rapido: ['imagem_na_entrada', 'preco_por_porte', 'operacao_patio', 'executores_os', 'agenda_servicos'],
 };
 
 /**

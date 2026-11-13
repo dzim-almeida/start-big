@@ -13,7 +13,7 @@
  */
 import { computed, onUnmounted, ref, watch } from 'vue';
 import {
-  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, ShieldAlert, Trash2, UserSearch, Users,
+  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, Search, ShieldAlert, Trash2, UserSearch, Users,
 } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -115,6 +115,22 @@ const ABAS = [
 const abaAtiva = ref<(typeof ABAS)[number]['id']>('veiculo');
 watch(() => props.isOpen, (aberta) => { if (aberta) abaAtiva.value = 'veiculo'; });
 const totalDeItens = computed(() => c.itens.value.length + c.extras.value.length);
+
+// --- Serviços: busca em vez de uma linha por serviço (a loja pode ter 100) -------------
+const buscaServico = ref('');
+const listaAberta = ref(false);
+const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/** O que ainda não foi escolhido e bate com o que foi digitado. */
+const servicosDisponiveis = computed(() => {
+  const termo = semAcento(buscaServico.value.trim());
+  return (c.servicosDoPorte.value ?? []).filter((s) =>
+    !(s.servico_id in c.selecionados.value) && (!termo || semAcento(s.descricao).includes(termo)));
+});
+function incluirServico(servicoId: number, valor: number) {
+  if (!(servicoId in c.selecionados.value)) c.alternarServico(servicoId, valor);
+  buscaServico.value = '';
+}
+watch(() => props.isOpen, (aberta) => { if (aberta) buscaServico.value = ''; });
 
 // --- Produto ou serviço avulso: o modal de item da OS -----------------------------------
 const itemAberto = ref(false);
@@ -350,8 +366,8 @@ function chip(ativo: boolean): string {
           </div>
 
           <div v-show="abaAtiva === 'servicos'" class="space-y-4">
-          <!-- 2. Serviços: uma lista só, marcar = incluir; o preço da linha marcada é editável -->
-          <BaseSectionCard>
+          <!-- 2. Serviços: busca para adicionar; só os escolhidos na tela, com o preço editável -->
+          <BaseSectionCard class="overflow-visible!">
             <template #cabecalho>
               <div class="flex items-center gap-3">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary-light text-brand-primary"><Droplets :size="16" /></span>
@@ -359,7 +375,7 @@ function chip(ativo: boolean): string {
                   <h2 class="text-base font-semibold text-zinc-900">
                     Lavagens do porte<template v-if="c.porteId.value">: {{ c.portesDoTipo.value.find((p) => p.id === c.porteId.value)?.nome }}</template>
                   </h2>
-                  <p class="text-xs text-zinc-500">Marque o que vai ser feito. O preço é o do cadastro e pode ser ajustado.</p>
+                  <p class="text-xs text-zinc-500">Busque e adicione o que vai ser feito. O preço é o do cadastro e pode ser ajustado.</p>
                 </div>
               </div>
             </template>
@@ -391,32 +407,56 @@ function chip(ativo: boolean): string {
               Nenhum serviço cadastrado. Cadastre suas lavagens na aba <strong>Cadastro de Serviços</strong>
               e elas aparecem aqui.
             </p>
-            <ul v-else class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-              <li
-                v-for="s in c.servicosDoPorte.value ?? []"
-                :key="s.servico_id"
-                class="flex items-center gap-3 px-4 py-2.5 transition-colors"
-                :class="s.servico_id in c.selecionados.value ? 'bg-brand-primary-light/60' : 'hover:bg-zinc-50'"
-              >
-                <label class="flex flex-1 cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    class="h-4 w-4 cursor-pointer rounded border-zinc-300 accent-brand-primary"
-                    :checked="s.servico_id in c.selecionados.value"
-                    @change="c.alternarServico(s.servico_id, s.valor)"
-                  />
-                  <span class="text-sm font-medium text-zinc-800">{{ s.descricao }}</span>
-                  <span v-if="s.duracao_minutos" class="text-xs text-zinc-400">{{ s.duracao_minutos }} min</span>
-                </label>
-                <div v-if="s.servico_id in c.selecionados.value" class="w-36">
-                  <MoneyInput
-                    :model-value="c.selecionados.value[s.servico_id] / 100"
-                    @update:model-value="c.mudarPreco(s.servico_id, ($event ?? 0) * 100)"
-                  />
-                </div>
-                <span v-else class="w-36 pr-3 text-right text-sm tabular-nums text-zinc-600">{{ reais(s.valor) }}</span>
-              </li>
-            </ul>
+            <div v-else class="space-y-3">
+              <!-- Busca: com 100 serviços, só uma lista curta do que foi digitado -->
+              <div class="relative">
+                <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  v-model="buscaServico"
+                  type="text"
+                  placeholder="Buscar serviço para adicionar…"
+                  class="w-full rounded-lg border border-zinc-300 py-2 pl-9 pr-3 text-sm focus:border-brand-primary focus:outline-none"
+                  data-testid="comanda-busca-servico"
+                  @focus="listaAberta = true"
+                  @blur="listaAberta = false"
+                  @keydown.esc="listaAberta = false"
+                />
+                <ul
+                  v-if="listaAberta"
+                  class="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+                >
+                  <li
+                    v-for="s in servicosDisponiveis"
+                    :key="s.servico_id"
+                    class="flex cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-brand-primary-light/60"
+                    @mousedown.prevent="incluirServico(s.servico_id, s.valor)"
+                  >
+                    <span class="text-zinc-800">{{ s.descricao }}</span>
+                    <span class="tabular-nums text-zinc-600">{{ reais(s.valor) }}</span>
+                  </li>
+                  <li v-if="!servicosDisponiveis.length" class="px-3 py-2 text-sm text-zinc-400">
+                    {{ buscaServico ? 'Nenhum serviço com esse nome.' : 'Todos os serviços já foram adicionados.' }}
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Só o que foi escolhido, com o preço ajustável -->
+              <ul v-if="c.itens.value.length" class="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+                <li v-for="item in c.itens.value" :key="item.servico_id" class="flex items-center gap-3 px-4 py-2">
+                  <span class="flex-1 text-sm font-medium text-zinc-800">{{ item.nome }}</span>
+                  <div class="w-36">
+                    <MoneyInput
+                      :model-value="item.valor / 100"
+                      @update:model-value="c.mudarPreco(item.servico_id, ($event ?? 0) * 100)"
+                    />
+                  </div>
+                  <button type="button" class="p-1.5 text-zinc-400 hover:text-red-600" title="Remover" @click="c.alternarServico(item.servico_id, item.valor)">
+                    <Trash2 :size="14" />
+                  </button>
+                </li>
+              </ul>
+              <p v-else class="text-sm text-zinc-400">Nenhum serviço adicionado.</p>
+            </div>
           </BaseSectionCard>
 
           <!-- Produtos e serviços avulsos: o modal de item da OS de sempre -->

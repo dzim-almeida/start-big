@@ -66,11 +66,13 @@ describe('Planejados (Spec 03B, D8)', () => {
 describe('Lava-rápido (Spec 01B do lava, D8)', () => {
   const lava = PACOTES.lava_rapido;
 
-  it('T1 — fala de veículo e vistoria; não fala de backup, chip nem estampa', () => {
+  it('T1 — fala de veículo e das avarias da entrada; não fala de backup, chip nem estampa', () => {
     const tudo = textoCorrido(lava).toLowerCase();
     expect(lava.objeto).toBe('veículo');
-    expect(lava.condicoesEntrada).toContain('vistoria de entrada');
-    expect(lava.cupom.condicoesEntrada).toContain('vistoria de entrada');
+    expect(lava.condicoesEntrada).toContain('avarias registradas na entrada');
+    expect(lava.cupom.condicoesEntrada).toContain('avarias registradas na entrada');
+    // A aba Vistoria saiu do lava (13/11/2026): o papel não pode citá-la.
+    expect(tudo).not.toContain('vistoria');
     for (const palavra of ['backup', 'chip', 'estampa']) expect(tudo).not.toContain(palavra);
   });
 
