@@ -150,6 +150,11 @@ export const ConfiguracaoOSSchema = z.object({
   modo_fabrica: z.boolean().catch(false),
   fabrica_travar_etapas: z.boolean().catch(false),
 
+  // 14/11/2026. `.catch` pelo mesmo motivo: backend antigo sem o campo cai no
+  // comportamento de sempre (sem limite de vagas; Adicionar Item abre em Serviço).
+  vagas_agenda: z.number().int().min(0).catch(0),
+  item_os_abre_em: z.enum(['SERVICO', 'PRODUTO']).catch('SERVICO'),
+
   data_atualizacao: z.string(),
 })
 

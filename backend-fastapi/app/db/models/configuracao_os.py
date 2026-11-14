@@ -62,6 +62,18 @@ class ConfiguracaoOS(Base):
     # a trava vira aviso e quem avança confirma com um motivo (vai para o log).
     fabrica_travar_etapas: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
 
+    # Lava-rapido (SPEC-00 O11, 14/11/2026): quantos veiculos a loja atende no
+    # mesmo horario (boxes/vagas). 0 = sem limite. A agenda so AVISA quando o
+    # horario passa disso; nunca trava. Sem efeito fora da capacidade
+    # `agenda_servicos`.
+    vagas_agenda: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
+    # Em qual aba o "Adicionar Item" da OS abre: 'SERVICO' (padrao, o de
+    # sempre) ou 'PRODUTO' (loja que vende mais produto). So muda a ordem;
+    # as duas abas continuam la. Vale para todos os segmentos.
+    item_os_abre_em: Mapped[str] = mapped_column(
+        String(10), default="SERVICO", server_default="SERVICO", nullable=False)
+
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),

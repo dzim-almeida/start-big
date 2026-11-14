@@ -26,7 +26,12 @@ watch(
 
 <template>
   <BaseModal :is-open="!!cartao" title="Lavadores" :subtitle="cartao?.placa ?? ''" size="sm" @close="emit('close')">
-    <SeletorLavadores v-model="ids" />
+    <!-- O corpo do BaseModal rola (overflow-y-auto) e aqui só tem uma linha de
+         seletores: a lista aberta (até 240 px) ficava cortada dentro dele. A
+         altura mínima reserva o espaço da lista inteira. -->
+    <div class="min-h-80">
+      <SeletorLavadores v-model="ids" />
+    </div>
     <template #footer>
       <div class="flex w-full justify-end gap-3">
         <BaseButton variant="secondary" @click="emit('close')">Cancelar</BaseButton>

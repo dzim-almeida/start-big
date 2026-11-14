@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # torta na loja.
 TamanhoFolha = Literal["A4", "A5"]
 DensidadeComprovante = Literal["normal", "compacto"]
+TipoItemOS = Literal["SERVICO", "PRODUTO"]
 
 
 class ConfiguracaoOSBase(BaseModel):
@@ -24,6 +25,11 @@ class ConfiguracaoOSBase(BaseModel):
     # Marcenaria-fábrica (D0): só tem efeito no segmento Marcenaria.
     modo_fabrica: bool = Field(False, description="OS nova de Planejados nasce no trilho da fábrica (orçamento por móvel)")
     fabrica_travar_etapas: bool = Field(False, description="Pendência na etapa bloqueia (True) ou só avisa com motivo (False)")
+
+    # Lava-rápido (SPEC-00 O11): vagas por horário na agenda. 0 = sem limite; só avisa.
+    vagas_agenda: int = Field(0, ge=0, le=99, description="Veículos atendidos no mesmo horário (0 = sem limite)")
+    # Em qual aba o "Adicionar Item" da OS abre (só a ordem; as duas continuam).
+    item_os_abre_em: TipoItemOS = Field("SERVICO", description="Aba em que o Adicionar Item da OS abre")
 
 
 class ConfiguracaoOSRead(ConfiguracaoOSBase):
@@ -46,5 +52,7 @@ class ConfiguracaoOSUpdate(BaseModel):
 
     modo_fabrica: Optional[bool] = None
     fabrica_travar_etapas: Optional[bool] = None
+    vagas_agenda: Optional[int] = Field(None, ge=0, le=99)
+    item_os_abre_em: Optional[TipoItemOS] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -68,13 +68,25 @@ def _preencher_identificador_gerado(
     # vazio vira o rotulo do tipo ("Carro", "Moto"). Nao "" porque a tela de
     # OS le o objeto exigindo modelo, e uma OS sem ele nao abriria.
     if reg.identificador_gerado_se_vazio(segmento):
-        if not (objeto_data.get("numero_serie") or "").strip():
-            objeto_data["numero_serie"] = reg.gerar_identificador(segmento, numero_os)
         if reg.coluna_opcional_no_segmento(segmento, "marca") and objeto_data.get("marca") is None:
             objeto_data["marca"] = ""
         if (reg.coluna_opcional_no_segmento(segmento, "modelo")
                 and not (objeto_data.get("modelo") or "").strip()):
             objeto_data["modelo"] = reg.label_do_tipo(segmento, tipo_trabalho) or "Veículo"
+        if not (objeto_data.get("numero_serie") or "").strip():
+            # 14/11/2026: sem placa, reaproveita o ultimo VEI- do cliente com o
+            # mesmo modelo ("Carro", "Moto" ou o que foi digitado) e que nao
+            # esteja no patio agora. O reuso por identificador logo abaixo, em
+            # criar_ordem_servico, encontra o objeto pelo codigo. Sem anterior
+            # livre, gera um codigo novo do numero da OS, como sempre.
+            anterior = None
+            prefixo = (reg.get_identificador_segmento(segmento) or {}).get("prefixo")
+            modelo = (objeto_data.get("modelo") or "").strip()
+            if prefixo and modelo and cliente is not None and getattr(cliente, "id", None):
+                anterior = os_crud.get_ultimo_objeto_gerado_livre(db, cliente.id, prefixo, modelo)
+            objeto_data["numero_serie"] = (
+                anterior.numero_serie if anterior else reg.gerar_identificador(segmento, numero_os)
+            )
         return
 
     if not reg.identificador_e_gerado(segmento):

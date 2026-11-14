@@ -18,6 +18,7 @@ const {
   comprovanteEntregaDensidade,
   modoFabrica,
   fabricaTravarEtapas,
+  itemOsAbreEm,
 } = storeToRefs(configStore)
 
 useConfiguracoesOSQuery()
@@ -36,6 +37,7 @@ function valoresDoStore(): ConfiguracaoOSUpdate {
     // backend volta igual no PUT. Mudar o contrato mexeria em todos os segmentos.
     modo_fabrica: modoFabrica.value,
     fabrica_travar_etapas: fabricaTravarEtapas.value,
+    item_os_abre_em: itemOsAbreEm.value,
   }
 }
 
@@ -146,6 +148,21 @@ defineExpose({ form, isDirty, resetar })
         <div class="mt-1 w-36">
           <BaseMoneyInput v-model="taxaReais" />
         </div>
+      </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">"Adicionar item" abre em</label>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Qual aba aparece primeiro ao adicionar um item na OS. As duas continuam disponíveis —
+          muda só a ordem. Escolha Produto se a loja vende mais produto do que serviço.
+        </p>
+        <select
+          v-model="form.item_os_abre_em"
+          class="mt-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+        >
+          <option value="SERVICO">Serviço primeiro</option>
+          <option value="PRODUTO">Produto primeiro</option>
+        </select>
       </div>
     </div>
 

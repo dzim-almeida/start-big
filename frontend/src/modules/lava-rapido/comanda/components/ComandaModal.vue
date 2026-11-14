@@ -13,7 +13,7 @@
  */
 import { computed, onUnmounted, ref, watch } from 'vue';
 import {
-  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, Search, ShieldAlert, Trash2, UserSearch, Users,
+  Camera, CarFront, CheckCircle2, Droplets, Package, Pencil, Plus, Printer, Search, ShieldAlert, Trash2, UserSearch, Users,
 } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
@@ -53,7 +53,8 @@ const props = defineProps<{
   /** Cliente agendado que chegou (Spec 08B): a comanda abre com o combinado. */
   agendamento?: Agendamento | null;
 }>();
-const emit = defineEmits<{ close: []; criada: [numeroOs: string] }>();
+/** `imprimir`: true no "Entrar e imprimir" — quem hospeda a comanda imprime a via de entrada. */
+const emit = defineEmits<{ close: []; criada: [numeroOs: string, imprimir: boolean] }>();
 
 const c = useComanda();
 const toast = useToast();
@@ -176,7 +177,7 @@ function removerFoto(indice: number) {
 }
 
 // --- Salvar --------------------------------------------------------------------------
-async function entrar() {
+async function entrar(imprimir = false) {
   if (c.faltando.value.length) {
     toast.error(`Preencha: ${c.faltando.value.join(', ')}.`);
     return;
@@ -185,7 +186,7 @@ async function entrar() {
     const { numero_os, avisos } = await c.salvar();
     if (avisos.length) toast.error(`Lavagem aberta (${numero_os}), mas não foi possível gravar ${avisos.join(', ')}.`);
     else toast.success(`Lavagem aberta: ${numero_os}.`);
-    emit('criada', numero_os);
+    emit('criada', numero_os, imprimir);
     emit('close');
   } catch (erro) {
     toast.error(getErrorMessage(erro as never, 'Não foi possível abrir a lavagem.') as string);
@@ -535,7 +536,15 @@ function chip(ativo: boolean): string {
         </p>
         <div class="flex gap-3">
           <BaseButton variant="secondary" @click="emit('close')">Cancelar</BaseButton>
-          <BaseButton :is-loading="c.salvando.value" data-testid="comanda-entrar" @click="entrar">Entrar no pátio</BaseButton>
+          <BaseButton
+            variant="secondary"
+            :disabled="c.salvando.value"
+            data-testid="comanda-entrar-imprimir"
+            @click="entrar(true)"
+          >
+            <Printer :size="16" class="mr-1" /> Entrar e imprimir
+          </BaseButton>
+          <BaseButton :is-loading="c.salvando.value" data-testid="comanda-entrar" @click="entrar()">Entrar no pátio</BaseButton>
         </div>
       </div>
     </template>

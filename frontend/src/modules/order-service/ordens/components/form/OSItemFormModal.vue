@@ -21,6 +21,7 @@ import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
 import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType, OsItemAprovacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
 import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 interface Props {
   isOpen: boolean;
@@ -44,8 +45,16 @@ const emit = defineEmits<{
   save: [item: OsItemCreateSchemaDataType];
 }>();
 
+// --- Aba inicial: escolha da loja (Configurações › Ordens de Serviço) ---
+// 14/11/2026: loja que vende mais produto quer a aba de Produto primeiro. Só
+// muda em qual aba o item NOVO abre e a ordem dos botões; as duas continuam.
+// Padrão 'SERVICO' = o comportamento de sempre.
+const configStore = useConfiguracoesStore();
+const tipoInicial = computed<OsItemTypeEnumDataType>(() =>
+  configStore.itemOsAbreEm === 'PRODUTO' ? 'PRODUTO' : 'SERVICO');
+
 // --- Estado do formulário ---
-const tipo = ref<OsItemTypeEnumDataType>('SERVICO');
+const tipo = ref<OsItemTypeEnumDataType>(tipoInicial.value);
 const nome = ref('');
 const unidade_medida = ref<OsItemMeasureEnumDataType>('UN');
 const quantidade = ref(1);
@@ -185,7 +194,7 @@ watch(() => props.isOpen, (open) => {
 
 // --- Ações ---
 function reset(): void {
-  tipo.value = 'SERVICO';
+  tipo.value = tipoInicial.value;
   nome.value = '';
   unidade_medida.value = 'UN';
   quantidade.value = 1;
@@ -307,8 +316,8 @@ function handleClose(): void {
     @close="handleClose"
   >
     <form @submit.prevent="handleSave" class="space-y-5">
-      <!-- Toggle Tipo -->
-      <div class="flex p-1 bg-slate-100 rounded-lg">
+      <!-- Toggle Tipo: a aba que a loja escolheu vem primeiro -->
+      <div :class="['flex p-1 bg-slate-100 rounded-lg', tipoInicial === 'PRODUTO' && 'flex-row-reverse']" data-testid="os-item-toggle-tipo">
         <button
           type="button"
           @click="tipo = 'SERVICO'"

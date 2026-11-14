@@ -7,7 +7,7 @@ import { useToast } from '@/shared/composables/useToast';
 import type { ApiError } from '@/shared/types/axios.types';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 
-import type { AgendamentoEntrada, SituacaoAgenda } from '../../shared/schemas/agenda.schema';
+import type { Agendamento, AgendamentoEntrada, SituacaoAgenda } from '../../shared/schemas/agenda.schema';
 import {
   atualizarAgendamento,
   criarAgendamento,
@@ -41,6 +41,30 @@ export function diasDoMes(dia: Date): Date[] {
 /** Instante UTC do backend (sem "Z") → Date. */
 export function instanteDoBackend(isoUtc: string): Date {
   return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(isoUtc) ? isoUtc : `${isoUtc}Z`);
+}
+
+/** Duração assumida para quem foi agendado sem duração (ocupa o box por isso). */
+export const DURACAO_PADRAO_MIN = 30;
+
+/**
+ * Quantos agendamentos ativos (Agendado/Chegou) ocupam o box em algum momento
+ * entre `inicio` e `inicio + duracaoMin` — a conta do aviso de vagas
+ * (SPEC-00 O11). `ignorarId`: o próprio agendamento, ao editar.
+ */
+export function ocupacaoNoHorario(
+  lista: Agendamento[],
+  inicio: Date,
+  duracaoMin: number | null,
+  ignorarId: number | null = null,
+): number {
+  const ini = inicio.getTime();
+  const fim = ini + (duracaoMin || DURACAO_PADRAO_MIN) * 60_000;
+  return lista.filter((a) => {
+    if (a.id === ignorarId || (a.situacao !== 'AGENDADO' && a.situacao !== 'CHEGOU')) return false;
+    const aIni = instanteDoBackend(a.inicio).getTime();
+    const aFim = aIni + (a.duracao_minutos || DURACAO_PADRAO_MIN) * 60_000;
+    return aIni < fim && ini < aFim;
+  }).length;
 }
 
 /** Agendamentos da semana do dia escolhido. */

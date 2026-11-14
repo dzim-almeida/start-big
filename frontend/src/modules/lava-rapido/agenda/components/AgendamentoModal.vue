@@ -8,7 +8,7 @@
  * duração sai da soma dos serviços do porte e pode ser mudada.
  */
 import { computed, ref, watch } from 'vue';
-import { Search, X } from 'lucide-vue-next';
+import { AlertTriangle, Search, X } from 'lucide-vue-next';
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -23,7 +23,8 @@ import { usePortesQuery, useServicosDoPorteQuery } from '../../shared/composable
 import type { Agendamento, AgendamentoEntrada } from '../../shared/schemas/agenda.schema';
 import { normalizarPlaca, reais } from '../../shared/utils/lavaRapido';
 import { nomeDoCliente } from '../../comanda/composables/useComanda';
-import { diaISO, instanteDoBackend } from '../composables/useAgenda';
+import { diaISO, instanteDoBackend, ocupacaoNoHorario, useAgendaSemana } from '../composables/useAgenda';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -176,13 +177,31 @@ function removerServico(servicoId: number) {
 
 const total = computed(() => Object.values(selecionados.value).reduce((s, x) => s + x.valor, 0));
 
+// --- Vagas (SPEC-00 O11): avisa, sem travar, quando o horário já está cheio --------
+const configStore = useConfiguracoesStore();
+/** O instante escolhido, na hora LOCAL da loja. */
+function inicioEscolhido(): Date | null {
+  if (!dia.value || !hora.value) return null;
+  const [ano, mes, d] = dia.value.split('-').map(Number);
+  const [h, m] = hora.value.split(':').map(Number);
+  return new Date(ano, mes - 1, d, h, m);
+}
+const diaDaAgenda = computed(() => inicioEscolhido() ?? props.diaSugerido);
+const { data: agendaDaSemana } = useAgendaSemana(diaDaAgenda);
+/** Quantos já ocupam o horário escolhido; `null` = sem limite configurado. */
+const ocupados = computed<number | null>(() => {
+  const vagas = configStore.vagasAgenda;
+  const inicio = inicioEscolhido();
+  if (!vagas || !inicio || !props.isOpen) return null;
+  return ocupacaoNoHorario(agendaDaSemana.value ?? [], inicio, Number(duracao.value) || null, props.agendamento?.id ?? null);
+});
+const horarioCheio = computed(() => ocupados.value !== null && ocupados.value >= configStore.vagasAgenda);
+
 const podeSalvar = computed(() => !!dia.value && !!hora.value && !!clienteNome.value.trim());
 
 function salvar() {
   if (!podeSalvar.value) return;
-  const [ano, mes, d] = dia.value.split('-').map(Number);
-  const [h, m] = hora.value.split(':').map(Number);
-  const inicio = new Date(ano, mes - 1, d, h, m);               // hora LOCAL da loja
+  const inicio = inicioEscolhido()!;                             // hora LOCAL da loja
   emit('salvar', {
     inicio: inicio.toISOString(),
     duracao_minutos: Number(duracao.value) || null,
@@ -234,6 +253,16 @@ function chip(ativo: boolean): string {
           />
         </div>
       </div>
+
+      <p
+        v-if="horarioCheio"
+        class="-mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        data-testid="agenda-aviso-vagas"
+      >
+        <AlertTriangle :size="16" class="shrink-0" />
+        Esse horário já tem {{ ocupados }} {{ ocupados === 1 ? 'veículo agendado' : 'veículos agendados' }}
+        para {{ configStore.vagasAgenda }} {{ configStore.vagasAgenda === 1 ? 'vaga' : 'vagas' }}. Dá para agendar mesmo assim.
+      </p>
 
       <!-- Cliente: escolhido na busca de sempre, antes do modal -->
       <section class="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">

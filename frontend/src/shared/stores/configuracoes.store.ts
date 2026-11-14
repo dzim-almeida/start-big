@@ -92,6 +92,10 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const comprovanteEntregaDensidade = computed(() => configOS.value?.comprovante_entrega_densidade ?? 'normal')
   const modoFabrica = computed(() => configOS.value?.modo_fabrica ?? false)
   const fabricaTravarEtapas = computed(() => configOS.value?.fabrica_travar_etapas ?? false)
+  // Lava-rápido (SPEC-00 O11): veículos no mesmo horário da agenda. 0 = sem limite.
+  const vagasAgenda = computed(() => configOS.value?.vagas_agenda ?? 0)
+  // Aba em que o "Adicionar Item" da OS abre (só a ordem; as duas continuam).
+  const itemOsAbreEm = computed<'SERVICO' | 'PRODUTO'>(() => configOS.value?.item_os_abre_em ?? 'SERVICO')
 
   // ── Vendas: regras ──
   const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
@@ -186,6 +190,8 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     comprovanteEntregaDensidade,
     modoFabrica,
     fabricaTravarEtapas,
+    vagasAgenda,
+    itemOsAbreEm,
 
     permitirDesconto,
     descontoMaximoPercent,

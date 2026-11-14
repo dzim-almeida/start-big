@@ -589,10 +589,12 @@ const pix = computed(() =>
         IMPORTANTE: {{ textos.prazoRetiradaGarantiaA4(prazoAbandonoSimples) }}
       </div>
 
-      <!-- Declaração de entrega sem reparo (SEM_REPARO / CONDENADO). Em segmento
-           sem termo de garantia (lava-rápido), o serviço concluído não leva
-           bloco nenhum: a declaração diria "sem realização de reparo". -->
-      <div v-else-if="isSemReparo || !textos.reciboSemGarantia" class="border border-neutral-300 bg-neutral-50 rounded-lg p-3 text-[10px] text-neutral-800 text-justify leading-relaxed mb-6">
+      <!-- Declaração de entrega sem reparo: SÓ em SEM_REPARO / CONDENADO, igual
+           ao cupom e ao ESC/POS. Segmento sem prazo de garantia (serigrafia,
+           lava-rápido) com serviço concluído não leva bloco nenhum — antes a
+           condição era `isSemReparo || !textos.reciboSemGarantia`, e a A4 da
+           serigrafia dizia "sem realização de reparo" num serviço entregue. -->
+      <div v-else-if="isSemReparo" class="border border-neutral-300 bg-neutral-50 rounded-lg p-3 text-[10px] text-neutral-800 text-justify leading-relaxed mb-6">
         <div class="flex items-center gap-2 mb-1 font-bold text-neutral-900 uppercase">
           <Receipt :size="12" />
           Declaração de Entrega

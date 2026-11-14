@@ -246,3 +246,73 @@ def test_oficina_continua_aceitando_todos_os_status(client, db_session):
     aguardando = client.put(f"/api/v1/ordens-servico/{numero_os}",
                             json={"status": "AGUARDANDO_PECAS"}, headers=header)
     assert aguardando.status_code == 200, aguardando.text
+
+
+# =========================
+# Veiculo sem placa reaproveitado (14/11/2026)
+# =========================
+
+def _encerrar(db_session, numero_os: str) -> None:
+    """Tira a OS do patio sem passar pelo pagamento (o que importa aqui e o status)."""
+    from app.core.enum import OrdemServicoStatus
+    from app.db.models.ordem_servico import OrdemServico
+
+    os_ = db_session.query(OrdemServico).filter_by(numero_os=numero_os).one()
+    os_.status = OrdemServicoStatus.FINALIZADA
+    db_session.commit()
+
+
+def test_sem_placa_reaproveita_o_ultimo_veiculo_do_cliente(client, db_session):
+    """Cada lavagem sem placa criava um VEI- novo. Agora a segunda visita do
+    mesmo cliente com o mesmo tipo volta ao mesmo cadastro."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    cliente_id = _criar_cliente(client, header)
+
+    primeira = _post_os(client, header, cliente_id, {})
+    assert primeira.status_code == 201, primeira.text
+    _encerrar(db_session, primeira.json()["numero_os"])
+
+    segunda = _post_os(client, header, cliente_id, {})
+    assert segunda.status_code == 201, segunda.text
+    assert _objeto(segunda.json())["id"] == _objeto(primeira.json())["id"]
+
+
+def test_sem_placa_nao_junta_tipos_diferentes(client, db_session):
+    """Carro sem placa e moto sem placa do mesmo cliente sao dois veiculos."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    cliente_id = _criar_cliente(client, header)
+
+    carro = _post_os(client, header, cliente_id, {})
+    _encerrar(db_session, carro.json()["numero_os"])
+    moto = _post_os(client, header, cliente_id, {}, tipo="moto")
+
+    assert moto.status_code == 201, moto.text
+    assert _objeto(moto.json())["id"] != _objeto(carro.json())["id"]
+
+
+def test_sem_placa_nao_reaproveita_veiculo_que_esta_no_patio(client, db_session):
+    """Dois carros sem placa do mesmo cliente no patio ao mesmo tempo sao dois
+    carros: o que esta numa OS aberta nao e reaproveitado."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    cliente_id = _criar_cliente(client, header)
+
+    primeira = _post_os(client, header, cliente_id, {})
+    segunda = _post_os(client, header, cliente_id, {})
+
+    assert segunda.status_code == 201, segunda.text
+    assert _objeto(segunda.json())["id"] != _objeto(primeira.json())["id"]
+
+
+def test_sem_placa_nao_pega_veiculo_com_placa_de_verdade(client, db_session):
+    """O reuso so vale entre codigos GERADOS: um carro com placa nao vira o
+    destino de uma lavagem sem identificacao."""
+    header = _autenticar_e_criar_empresa(client, "lava_rapido")
+    cliente_id = _criar_cliente(client, header)
+
+    com_placa = _post_os(client, header, cliente_id, {"numero_serie": "QWE1R23", "modelo": "Carro"})
+    _encerrar(db_session, com_placa.json()["numero_os"])
+    sem_placa = _post_os(client, header, cliente_id, {})
+
+    assert sem_placa.status_code == 201, sem_placa.text
+    assert _objeto(sem_placa.json())["id"] != _objeto(com_placa.json())["id"]
+    assert _objeto(sem_placa.json())["numero_serie"].startswith("VEI-")

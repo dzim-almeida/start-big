@@ -136,3 +136,43 @@ def get_ultima_os_do_objeto(db: Session, objeto_id: int) -> OSModel | None:
         .limit(1)
     )
     return db.scalars(stmt).first()
+
+
+def get_ultimo_objeto_gerado_livre(
+    db: Session, cliente_id: int, prefixo: str, modelo: str
+) -> OSEquipamentoModel | None:
+    """
+    Último objeto ativo do cliente cujo identificador foi GERADO pelo sistema
+    (`<prefixo>-...`, ex. VEI-2026-000042) e tem o mesmo `modelo` -- o "Carro"
+    sem placa da visita anterior.
+
+    Lava-rápido (14/11/2026): o cliente não identifica o veículo, e cada lavagem
+    sem placa criava um VEI- novo, inchando o cadastro. Reaproveitar o último
+    devolve o histórico ("veio 5 vezes") sem pedir nada ao atendente.
+
+    Fica de fora o objeto que está numa OS ainda NÃO encerrada: dois carros sem
+    placa do mesmo cliente no pátio ao mesmo tempo são dois carros, não um.
+    """
+    from app.core.enum import OrdemServicoStatus
+
+    encerradas = (OrdemServicoStatus.FINALIZADA, OrdemServicoStatus.CANCELADA)
+    em_aberto = (
+        select(OSModel.id)
+        .where(
+            OSModel.objeto_id == OSEquipamentoModel.id,
+            OSModel.status.notin_(encerradas),
+        )
+        .exists()
+    )
+    stmt = (
+        select(OSEquipamentoModel)
+        .where(
+            OSEquipamentoModel.cliente_id == cliente_id,
+            OSEquipamentoModel.ativo == True,  # noqa: E712
+            func.upper(OSEquipamentoModel.numero_serie).like(f"{prefixo.upper()}-%"),
+            func.lower(func.trim(OSEquipamentoModel.modelo)) == modelo.strip().lower(),
+            ~em_aberto,
+        )
+        .order_by(OSEquipamentoModel.id.desc())
+    )
+    return db.scalars(stmt).first()

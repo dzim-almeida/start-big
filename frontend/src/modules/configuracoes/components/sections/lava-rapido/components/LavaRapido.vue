@@ -20,6 +20,10 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue'
 import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho'
 import { usePortesMutations, usePortesQuery } from '@/modules/lava-rapido/shared/composables/usePortes'
 import type { Porte } from '@/modules/lava-rapido/shared/schemas/porte.schema'
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades'
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
+import { useConfiguracoesOSQuery } from '@/modules/configuracoes/composables/queries/useConfiguracoesOSQuery'
+import { useSalvarConfiguracoesOSMutation } from '@/modules/configuracoes/composables/mutates/useSalvarConfiguracoesOSMutation'
 
 const { opcoes: tiposDeVeiculo } = useTiposDeTrabalho()
 const { data: portes, isLoading } = usePortesQuery()
@@ -82,6 +86,23 @@ function mover(porte: Porte, direcao: -1 | 1) {
   // ter buracos ou empates (porte novo entra com max+1).
   atualizar.mutate({ id: porte.id, dados: { ordem: i + direcao } })
   atualizar.mutate({ id: vizinho.id, dados: { ordem: i } })
+}
+
+// --- Vagas por horário (SPEC-00 O11, 14/11/2026) -------------------------------
+// Quantos veículos a loja atende ao mesmo tempo. A agenda AVISA quando um
+// horário passa disso, sem travar. 0/vazio = sem limite. Salva sozinha, como
+// os portes; o PUT leva só este campo (o backend ignora o que não veio).
+const { tem } = useCapacidades()
+const configStore = useConfiguracoesStore()
+useConfiguracoesOSQuery()
+const salvarConfigOS = useSalvarConfiguracoesOSMutation()
+const vagas = ref<number | null>(configStore.vagasAgenda || null)
+watch(() => configStore.vagasAgenda, (v) => { vagas.value = v || null })
+function salvarVagas() {
+  const valor = Math.max(0, Math.min(99, Math.round(Number(vagas.value) || 0)))
+  vagas.value = valor || null
+  if (valor === configStore.vagasAgenda) return
+  salvarConfigOS.mutate({ vagas_agenda: valor })
 }
 
 const novoNome = ref('')
@@ -195,5 +216,26 @@ function adicionar() {
         </div>
       </li>
     </ul>
+
+    <!-- Vagas da agenda: só com a Agenda ligada -->
+    <div v-if="tem('agenda_servicos')" class="flex flex-col gap-2 border-t border-gray-100 pt-6">
+      <h3 class="text-base font-semibold text-gray-800">Vagas por horário (Agenda)</h3>
+      <p class="max-w-2xl text-sm text-gray-500">
+        Quantos veículos a loja consegue atender ao mesmo tempo (boxes, lavadores). Ao agendar
+        num horário que já está cheio, a agenda avisa — mas deixa agendar. Deixe em branco
+        para não ter limite.
+      </p>
+      <div class="w-40">
+        <BaseInput
+          v-model.number="vagas"
+          type="number"
+          label="Vagas"
+          placeholder="Sem limite"
+          data-testid="config-vagas-agenda"
+          @blur="salvarVagas"
+          @keyup.enter="salvarVagas"
+        />
+      </div>
+    </div>
   </div>
 </template>

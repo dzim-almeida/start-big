@@ -23,6 +23,7 @@ vi.mock('@/modules/order-service/shared/segmento/useCapacidades', () => ({
   useCapacidades: () => ({ temAprovacaoItens: computed(() => false), temGarantiaItens: computed(() => false) }),
 }));
 vi.mock('@/shared/composables/useToast', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }));
+vi.mock('@/shared/stores/configuracoes.store', () => ({ useConfiguracoesStore: () => ({ itemOsAbreEm: 'SERVICO' }) }));
 // Modal simples: mostra corpo e rodapé quando aberto (sem Teleport).
 vi.mock('@/shared/components/commons/BaseModal/BaseModal.vue', () => ({
   __esModule: true,
