@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Eye, Pencil, Power, Box, AlertTriangle, Plus, Minus } from 'lucide-vue-next';
+import { Eye, Pencil, Power, Box, AlertTriangle, Plus, Minus, Tag } from 'lucide-vue-next';
 import { computed } from 'vue';
+
+import { formatarQuantidade } from '@/shared/utils/quantidade';
 
 interface Props {
   id: number;
@@ -9,17 +11,24 @@ interface Props {
   category: string;
   price: number;
   storage: number;
+  /** `produto.unidade_medida`. Ausente = "UN", como sempre foi. */
+  unidade?: string | null;
   image_url: string;
   status: boolean;
+  /** Botão "Imprimir etiqueta" — só para quem tem a permissão de etiquetas. */
+  mostrarEtiqueta?: boolean;
+  /** Saldo em embalagem fechada ("= 10 FD"), discreto embaixo do estoque. Nulo = não mostra. */
+  saldoEmbalagem?: string | null;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { mostrarEtiqueta: true });
 const emit = defineEmits<{
   (e: 'view', id: number): void;
   (e: 'edit', id: number): void;
   (e: 'toggle', id: number): void;
   (e: 'entrada', id: number): void;
   (e: 'saida', id: number): void;
+  (e: 'etiqueta', id: number): void;
 }>();
 
 const stockStatus = computed(() => {
@@ -52,9 +61,9 @@ const formattedPrice = computed(() => {
   }).format(props.price).replace(/\s/g, ' ');
 });
 
-const stockDisplay = computed(() => {
-  return props.storage === 0 ? '0 un' : `${props.storage} un`;
-});
+// A unidade vem do cadastro do produto: uma sacola comprada por peso mostrava
+// "2,5 un" — que se lê como duas sacolas e meia, sendo 2,5 kg.
+const stockDisplay = computed(() => formatarQuantidade(props.storage, props.unidade));
 
 const stockTextColor = computed(() => {
   if (props.storage === 0) return 'text-red-600';
@@ -123,13 +132,16 @@ const isInactive = computed(() => !props.status);
         <div class="text-right">
           <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">ESTOQUE</p>
           <p class="text-lg font-bold" :class="stockTextColor">{{ stockDisplay }}</p>
+          <p v-if="saldoEmbalagem" class="text-[11px] text-zinc-400 -mt-0.5" title="Em embalagens fechadas">
+            {{ saldoEmbalagem }}
+          </p>
         </div>
       </div>
 
       <!-- Entrada / Saída rápida -->
       <div class="flex gap-2 pt-2">
         <button
-          class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 border bg-brand-primary text-white border-blue-500 hover:bg-blue-950 hover:border-blue-950 hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
+          class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 border bg-brand-primary text-white border-blue-500 hover:bg-brand-primary-hover hover:border-brand-primary-hover hover:shadow-lg hover:shadow-blue-200 cursor-pointer"
           title="Registrar entrada"
           :disabled="isInactive"
           @click="emit('entrada', id)"
@@ -163,6 +175,15 @@ const isInactive = computed(() => !props.status);
           @click="emit('edit', id)"
         >
           <Pencil :size="16" />
+        </button>
+        <button
+          v-if="mostrarEtiqueta"
+          class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Imprimir etiqueta"
+          :disabled="isInactive"
+          @click="emit('etiqueta', id)"
+        >
+          <Tag :size="16" />
         </button>
         <button
           class="flex-1 flex items-center justify-center py-2 rounded-lg font-medium transition-all duration-200 border bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:border-gray-300 hover:shadow-md cursor-pointer"

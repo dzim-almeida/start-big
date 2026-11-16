@@ -37,7 +37,32 @@ export const enderecoSchema = z.object({
   bairro: z.string().min(2, 'Bairro deve ter no minimo 2 caracteres').max(100).optional().or(z.literal('')),
   cidade: z.string().min(2, 'Cidade deve ter no minimo 2 caracteres').max(100).optional().or(z.literal('')),
   estado: z.string().length(2, 'Estado deve ter 2 caracteres').optional().or(z.literal('')),
-});
+})
+  /**
+   * Endereço é tudo ou nada.
+   *
+   * Cada campo aceitava '' isoladamente, então um endereço pela metade passava
+   * aqui e ia para o servidor — que exige os seis (`schemas/endereco.py`) e
+   * devolvia 422. Como o erro do 422 não chegava à tela, o usuário clicava em
+   * Salvar e não acontecia nada, sem nenhuma pista do motivo.
+   *
+   * Deixar em branco continua válido: quem não quer endereço não preenche nada.
+   */
+  .superRefine((endereco, ctx) => {
+    const OBRIGATORIOS = ['cep', 'logradouro', 'numero', 'bairro', 'cidade', 'estado'] as const;
+    const preenchidos = OBRIGATORIOS.filter((campo) => !!endereco[campo]?.trim());
+    if (preenchidos.length === 0 || preenchidos.length === OBRIGATORIOS.length) return;
+
+    for (const campo of OBRIGATORIOS) {
+      if (!endereco[campo]?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [campo],
+          message: 'Obrigatório quando o endereço é preenchido',
+        });
+      }
+    }
+  });
 
 // =============================================
 // MAIN EMPLOYEE SCHEMA
@@ -72,7 +97,15 @@ export const employeeSchema = z
     pai: z.string().max(255).optional().or(z.literal('')),
     carteira_trabalho: z.string().max(50).optional().or(z.literal('')),
 
-    // Usuario (obrigatório só no create — validação manual no onSubmit)
+    // Funcionário SEM acesso ao sistema: só a ficha, sem login.
+    //
+    // Fica no formulário (e não num ref solto) para o reset limpar junto — uma
+    // chavinha que sobrevive ao fechar do modal reaparece marcada no próximo
+    // cadastro, e aí alguém cria sem querer um funcionário que não consegue
+    // entrar no sistema.
+    sem_acesso: z.boolean().optional().default(false),
+
+    // Usuario (obrigatório só no create COM acesso — validação manual no onSubmit)
     usuario_nome: z.string().max(255).optional().or(z.literal('')),
     usuario_email: z.string().email('Email do usuario inválido').max(255).optional().or(z.literal('')),
     usuario_senha: z.string().max(72).optional().or(z.literal('')),
@@ -86,6 +119,13 @@ export const employeeSchema = z
     banco: z.string().max(50).optional().or(z.literal('')),
     agencia: z.string().max(10).optional().or(z.literal('')),
     conta: z.string().max(20).optional().or(z.literal('')),
+
+    // Comissão (override do cargo). null = herda. Basis points / centavos.
+    comissao_venda_percentual: z.number().min(0).max(10000).nullable().optional(),
+    comissao_servico_percentual: z.number().min(0).max(10000).nullable().optional(),
+    meta_mensal: z.number().min(0).nullable().optional(),
+    comissao_modo: z.enum(['direto', 'meta']).nullable().optional(),
+    comissao_divisao: z.enum(['dividir', 'inteira']).nullable().optional(),
 
     // Observacoes
     observacao: z.string().max(500).optional().or(z.literal('')),
@@ -140,6 +180,13 @@ export const employeeUpdateSchema = z
     banco: z.string().max(50).optional().or(z.literal('')),
     agencia: z.string().max(10).optional().or(z.literal('')),
     conta: z.string().max(20).optional().or(z.literal('')),
+
+    // Comissão (override do cargo). null = herda. Basis points / centavos.
+    comissao_venda_percentual: z.number().min(0).max(10000).nullable().optional(),
+    comissao_servico_percentual: z.number().min(0).max(10000).nullable().optional(),
+    meta_mensal: z.number().min(0).nullable().optional(),
+    comissao_modo: z.enum(['direto', 'meta']).nullable().optional(),
+    comissao_divisao: z.enum(['dividir', 'inteira']).nullable().optional(),
 
     // Observacoes
     observacao: z.string().max(500).optional().or(z.literal('')),

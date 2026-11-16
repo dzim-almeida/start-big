@@ -10,12 +10,49 @@ import { obterHwid } from '@/shared/services/system/hwid.service';
 export interface LicencaStatusResponse {
   status: 'online_valid' | 'offline_valid';
   dias_restantes?: number;
+  /** Só presente quando a licença é um trial. Ausente = licença paga. */
   trial?: boolean;
+  /**
+   * O plano venceu, mas o gateway ainda está re-tentando o cartão.
+   *
+   * NÃO confundir com "vencida": aqui o sistema continua liberado, e o aviso
+   * é para o dono saber que a cobrança falhou — cartão trocado, limite, banco
+   * recusando. Só acontece em assinatura no cartão; no PIX, não pagar foi uma
+   * escolha e a licença trava na hora.
+   */
+  em_carencia?: boolean;
+  /** Dias que ainda faltam da carência. */
+  dias_restantes_carencia?: number | null;
+  /**
+   * Módulos contratados, lidos do JWT assinado da licença.
+   *
+   * AUSENTE (`undefined`/`null`) = o token não carrega a claim, ou o backend é
+   * anterior a ela. Lista VAZIA = a plataforma ainda não cadastrou módulo
+   * nenhum. Os dois significam "não sei" e liberam; só uma lista PREENCHIDA
+   * sem o identificador é que bloqueia.
+   *
+   * Não interprete nada disto aqui — quem cuida da regra é a `modulos.store`.
+   */
+  modulos?: string[] | null;
 }
 
 export interface LicencaErroResponse {
   codigo: string;
   mensagem: string;
+}
+
+/**
+ * Códigos de "a licença deste banco foi ativada em outro computador".
+ *
+ * Na prática é troca de servidor (o banco foi copiado), e a saída é uma só:
+ * a tela de transferência. `CLONAGEM_DETECTADA` é o nome antigo — continua
+ * aqui porque um caixa atualizado pode falar com um servidor ainda na versão
+ * anterior.
+ */
+const CODIGOS_LICENCA_DE_OUTRA_MAQUINA = ['LICENCA_DE_OUTRA_MAQUINA', 'CLONAGEM_DETECTADA'];
+
+export function ehLicencaDeOutraMaquina(codigo: string | undefined | null): boolean {
+  return !!codigo && CODIGOS_LICENCA_DE_OUTRA_MAQUINA.includes(codigo);
 }
 
 /**

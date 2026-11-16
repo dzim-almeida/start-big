@@ -1,0 +1,673 @@
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+
+import { useSegmento } from '@/shared/composables/useSegmento';
+import { useObjetoLabels } from './useObjetoLabels';
+
+/**
+ * Termos e rótulos das vias impressas da OS, por segmento.
+ *
+ * Não é só troca de palavra: uma oficina não fala em backup nem em chips
+ * deixados no aparelho, e uma assistência técnica não fala em objetos pessoais
+ * deixados no interior do veículo. Cada segmento carrega o seu pacote inteiro,
+ * em vez de tentar costurar uma frase única que sirva para os dois.
+ *
+ * O pacote PADRÃO é o da assistência técnica, e isso é deliberado: informática
+ * está em produção. Todo segmento sem pacote próprio continua imprimindo
+ * exatamente o que imprimia antes — não existe fallback "genérico" capaz de
+ * mudar o papel de quem já roda. Segmento novo que precise de termo próprio
+ * ganha seu pacote aqui.
+ */
+
+/**
+ * Via em bobina (cupom HTML + ESC/POS): texto corrido, condensado e SEM acento,
+ * seguindo o que essas duas vias já faziam — o gerador ESC/POS remove acento na
+ * codificação, e o cupom HTML é escrito assim para dizer a mesma coisa.
+ */
+export interface TextosCupomOS {
+  /** Substantivo do objeto nas frases, sem acento ("Veiculo", "Objeto"). */
+  objeto: string;
+  /** Rótulo do identificador na largura da bobina; `null` = usar o do contrato. */
+  identificador: string | null;
+  /** Cabeçalho do texto livre relatado pelo cliente, em caixa alta na bobina. */
+  defeito: string;
+  /** Quem assina pela loja, na bobina (sem acento). */
+  assinaturaLoja: string;
+  /** Continua a frase "Nao cobre ...". */
+  garantiaExclusoes: string;
+  semReparo: string;
+  cancelamento: string;
+  condicoesEntrada: string;
+  /**
+   * Função do prazo, e não texto pronto: o número vem de
+   * `configuracoes_os.prazo_abandono_dias`, que a loja edita em Configurações →
+   * Ordens de Serviço. Estava chumbado em 90 nas três vias, então mudar a
+   * configuração não mudava o papel — o cliente lia um prazo e o relatório de
+   * abandono usava outro.
+   */
+  prazoRetirada: (dias: number) => string;
+  /** Quadro das avarias da entrada (`dados_adicionais.avarias`). Ausente = não imprime. */
+  avarias?: { titulo: string; vazio: string };
+  /**
+   * Título da via de saída CONCLUÍDA em segmento que não dá termo de garantia.
+   * Ausente = "RECIBO E GARANTIA", como sempre.
+   */
+  reciboSemGarantia?: string;
+}
+
+export interface TextosImpressaoOS {
+  /** Substantivo do objeto dentro das frases da A4 ("veículo", "objeto"). */
+  objeto: string;
+  /** Plural, em início de frase ("Veículos", "Objetos"). */
+  objetoPlural: string;
+  /** Como a empresa se nomeia nos termos ("A empresa", "A assistência técnica"). */
+  empresa: string;
+  /**
+   * Cabeçalho do quadro do objeto na A4.
+   *
+   * Vem inteiro do pacote, e não montado como `'Dados do ' + labelSingular`,
+   * porque português tem gênero: essa montagem imprimia "DADOS DO ARTE".
+   */
+  tituloObjeto: string;
+  /** Rótulo do identificador na coluna da A4; `null` = usar o do contrato. */
+  identificador: string | null;
+  /**
+   * Cabeçalho do texto livre relatado pelo cliente.
+   *
+   * "Defeito" pressupõe conserto. Numa serigrafia ninguém traz camisa
+   * quebrada: o cliente encomenda, e o cabeçalho da via precisa dizer isso.
+   */
+  defeito: string;
+  /** Continua a frase "A garantia NÃO COBRE: ...". */
+  garantiaExclusoes: string;
+  condicoesEntrada: string;
+  /**
+   * Quem assina pela loja, na linha de assinatura.
+   *
+   * "Técnico" pressupõe conserto: numa serigrafia quem assina é o responsável
+   * pelo pedido, não um técnico. Os dois segmentos em produção mantêm a
+   * palavra que sempre imprimiram.
+   */
+  assinaturaLoja: string;
+  /**
+   * Cláusula de prazo de retirada da A4, INTEIRA — mesma razão do
+   * `tituloObjeto`: português tem gênero.
+   *
+   * A frase era fixa no template, no masculino, com só o substantivo
+   * interpolado. Em serigrafia isso imprimia "Peças ... não forem retirados ...
+   * serão considerados abandonados ... poderão ser destinados" — quatro erros
+   * de concordância na cláusula jurídica da via do cliente.
+   *
+   * @param prazo Prazo já formatado por extenso (ex: "90 (noventa) dias").
+   */
+  prazoRetiradaEntradaA4: (prazo: string) => string;
+  /**
+   * A MESMA cláusula, na via de SAÍDA (dentro do Termo de Garantia).
+   *
+   * São duas de propósito: a redação difere ("vendidos para custeio das
+   * despesas" contra "destinados para cobrir as despesas do serviço") e o
+   * formato do prazo também ("90 dias" contra "90 (noventa) dias"). Cada uma
+   * reproduz exatamente o que sua via já imprimia — juntá-las numa só mudaria
+   * o papel de dois segmentos em produção.
+   *
+   * @param prazo Prazo já formatado (ex: "90 dias").
+   */
+  prazoRetiradaGarantiaA4: (prazo: string) => string;
+  /**
+   * Título do bloco de retirada na via de entrada A4. Ausente = "Prazo de
+   * Retirada", que é o que o template sempre imprimiu. Existe porque em
+   * Planejados (marcenaria) ninguém retira o móvel — ele é entregue e montado
+   * na obra — e o texto já dizia isso embaixo de um título que dizia o
+   * contrário.
+   */
+  tituloPrazoRetirada?: string;
+  /**
+   * Título do quadro de fotos na via de entrada. Ausente = "Arte(s) para
+   * Produção", da serigrafia, que foi quem trouxe a foto para o papel.
+   */
+  tituloFotosEntrada?: { uma: string; varias: string };
+  /**
+   * Quadro das avarias marcadas na entrada (`dados_adicionais.avarias`).
+   * Ausente = não imprime. Existe porque o termo de entrada do lava-rápido diz
+   * que o cliente conferiu as avarias: elas precisam estar no papel que ele assina.
+   */
+  avarias?: { titulo: string; vazio: string };
+  /**
+   * Segmento que NÃO dá termo de garantia: a via de saída concluída sai com
+   * este título e sem bloco de garantia nem "Declaração de Entrega" (que diz
+   * "sem realização de reparo" e só vale para Não realizado/Recusado).
+   * Ausente = comportamento de sempre.
+   */
+  reciboSemGarantia?: string;
+  cupom: TextosCupomOS;
+  /**
+   * Ajuste dos termos por tipo de trabalho, dentro do mesmo segmento.
+   *
+   * Serigrafia é o único segmento em que uma OS pode ser de coisas diferentes
+   * (camisa, sacola plástica, sacola de papel) — e os termos mudam junto: a
+   * cláusula de "peças entregues pelo cliente" não existe numa sacola, que a
+   * loja produz do zero, e as exclusões de garantia falam de lavagem, que não
+   * se aplica a plástico nem a papel.
+   *
+   * Só sobrescreve o que declarar; o resto do pacote continua valendo. Segmento
+   * de formulário único não declara isto e não é afetado.
+   */
+  porTipoTrabalho?: Record<string, TextosPorTipoTrabalho>;
+}
+
+/**
+ * Prazo por extenso para a via em papel: "90 (noventa) dias".
+ *
+ * A via sempre escreveu o número por extenso, do jeito que se escreve prazo em
+ * contrato — perder isso ao tornar o prazo configurável seria trocar clareza
+ * jurídica por facilidade de código. Valor fora da tabela cai no número puro
+ * ("45 dias"), que continua correto, só menos formal.
+ */
+const POR_EXTENSO: Record<number, string> = {
+  15: 'quinze',
+  30: 'trinta',
+  45: 'quarenta e cinco',
+  60: 'sessenta',
+  90: 'noventa',
+  120: 'cento e vinte',
+  180: 'cento e oitenta',
+  365: 'trezentos e sessenta e cinco',
+};
+
+export function prazoPorExtenso(dias: number): string {
+  const extenso = POR_EXTENSO[dias];
+  return extenso ? `${dias} (${extenso}) dias` : `${dias} dias`;
+}
+
+/** Sobrescritas permitidas por tipo de trabalho. Tudo opcional. */
+export interface TextosPorTipoTrabalho {
+  objeto?: string;
+  objetoPlural?: string;
+  garantiaExclusoes?: string;
+  condicoesEntrada?: string;
+  prazoRetiradaEntradaA4?: (prazo: string) => string;
+  prazoRetiradaGarantiaA4?: (prazo: string) => string;
+  tituloPrazoRetirada?: string;
+  cupom?: Partial<
+    Pick<
+      TextosCupomOS,
+      | 'objeto'
+      | 'garantiaExclusoes'
+      | 'condicoesEntrada'
+      | 'semReparo'
+      | 'cancelamento'
+      | 'prazoRetirada'
+    >
+  >;
+}
+
+/**
+ * Assistência técnica — texto reproduzido palavra por palavra do que as vias
+ * imprimiam antes deste arquivo existir. Mexer aqui muda o papel de um cliente
+ * em produção.
+ */
+const ASSISTENCIA_TECNICA: TextosImpressaoOS = {
+  objeto: 'objeto',
+  objetoPlural: 'Objetos',
+  empresa: 'A assistência técnica',
+  tituloObjeto: 'Dados do Equipamento',
+  // O contrato chama de "Nº de série / IMEI", que não cabe na coluna da via.
+  identificador: 'Nº Série',
+  defeito: 'Defeito Relatado / Solicitação',
+  garantiaExclusoes:
+    'mau uso, contato com líquidos, quedas, oxidação, violação de selos de garantia ou intervenção de terceiros.',
+  condicoesEntrada:
+    'O cliente declara estar ciente que a empresa não se responsabiliza por perda de dados '
+    + '(backup é responsabilidade do cliente) nem por chips/cartões de memória deixados no aparelho. '
+    + 'Autorizo a análise técnica do objeto acima. Em caso de não aprovação do orçamento, estou ciente '
+    + 'que poderá ser cobrada taxa de análise técnica.',
+  assinaturaLoja: 'Técnico Responsável',
+  // Masculino: "Objetos". Reproduz palavra por palavra o que o template fixo
+  // imprimia — este segmento está em produção.
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Objetos com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Objetos não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Objeto',
+    identificador: 'N/S',
+    defeito: 'DEFEITO RELATADO',
+    assinaturaLoja: 'Tecnico Responsavel',
+    garantiaExclusoes: 'mau uso, liquidos, quedas ou intervencao de terceiros.',
+    semReparo: 'Objeto devolvido sem reparo. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Objeto devolvido ao cliente sem reparos ou com reparos '
+      + 'parciais, isentando a assistencia de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'O cliente declara estar ciente que a empresa nao se responsabiliza por perda de dados nem por '
+      + 'chips/cartoes deixados no aparelho. Autorizo a analise tecnica do objeto.',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Objetos nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+};
+
+/**
+ * Oficina mecânica. O identificador fica `null` de propósito: o contrato já
+ * devolve "Placa", que cabe na via — não há o que encurtar.
+ */
+const OFICINA_MECANICA: TextosImpressaoOS = {
+  objeto: 'veículo',
+  objetoPlural: 'Veículos',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados do Veículo',
+  identificador: null,
+  defeito: 'Defeito Relatado / Solicitação',
+  garantiaExclusoes:
+    'mau uso, falta de manutenção preventiva, desgaste natural de peças, uso indevido do veículo, '
+    + 'adulteração de componentes ou intervenção de terceiros.',
+  condicoesEntrada:
+    'O cliente declara estar ciente que a empresa não se responsabiliza por objetos pessoais deixados '
+    + 'no interior do veículo. Autorizo a execução dos serviços descritos e a movimentação do veículo '
+    + 'por funcionários da empresa para testes e diagnóstico. Em caso de não aprovação do orçamento, '
+    + 'estou ciente que poderá ser cobrada taxa de diagnóstico.',
+  assinaturaLoja: 'Técnico Responsável',
+  // Masculino: "Veículos". Verbatim do template fixo — segmento em produção.
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Veículos com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Veículos não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Veiculo',
+    identificador: null,
+    defeito: 'DEFEITO RELATADO',
+    assinaturaLoja: 'Tecnico Responsavel',
+    garantiaExclusoes: 'mau uso, falta de manutencao, desgaste natural ou intervencao de terceiros.',
+    semReparo: 'Veiculo devolvido sem reparo. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Veiculo devolvido ao cliente sem reparos ou com reparos '
+      + 'parciais, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'O cliente declara estar ciente que a empresa nao se responsabiliza por objetos pessoais deixados '
+      + 'no interior do veiculo. Autorizo a execucao dos servicos e a movimentacao do veiculo para testes.',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Veiculos nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+};
+
+/**
+ * Serigrafia. Duas escolhas de vocabulário que valem explicação:
+ *
+ * 1. O substantivo é **peça**, não "arte". O objeto de serviço é a arte (é ela
+ *    que se repete entre pedidos), mas quem entra e sai da loja é a peça — e a
+ *    via fala do que o cliente entrega e leva de volta. "Arte devolvida sem
+ *    estampa" não diz nada; "Peças devolvidas sem estampa" diz tudo.
+ *
+ * 2. As condições de entrada carregam a cláusula de peça do cliente, que é o
+ *    padrão do ramo: peça nova e sem uso, e a loja não repõe o que estragar no
+ *    processo. Numa loja que estampa peça de terceiro, esse parágrafo é a
+ *    diferença entre um prejuízo combinado e uma discussão no balcão.
+ */
+const SERIGRAFIA: TextosImpressaoOS = {
+  objeto: 'peça',
+  objetoPlural: 'Peças',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados da Arte',
+  // O contrato chama de "Código da arte", que não cabe na coluna da via.
+  identificador: 'Arte',
+  defeito: 'Descrição do Pedido',
+  garantiaExclusoes:
+    'lavagem com água quente, uso de alvejante ou secadora, passar ferro diretamente sobre a estampa, '
+    + 'desgaste natural por lavagens sucessivas ou uso indevido da peça.',
+  condicoesEntrada:
+    'As peças entregues pelo cliente devem ser novas, sem uso e do mesmo modelo. A empresa não se '
+    + 'responsabiliza por defeitos de fabricação das peças fornecidas pelo cliente nem repõe peças '
+    + 'danificadas durante o processo de estampa. O cliente declara ter conferido e aprovado a arte, '
+    + 'as cores e a posição da estampa antes da produção.',
+  assinaturaLoja: 'Responsável',
+  // FEMININO. É aqui que a frase fixa do template errava: "Peças ... não forem
+  // retirados ... considerados abandonados ... destinados".
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Peças com serviço concluído que não forem retiradas no prazo de ${prazo} após notificação `
+    + 'serão consideradas abandonadas e poderão ser destinadas para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Peças não retiradas no prazo de ${prazo} após notificação de conclusão serão consideradas `
+    + 'abandonadas e poderão ser vendidas para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Peca',
+    identificador: 'Arte',
+    defeito: 'DESCRICAO DO PEDIDO',
+    assinaturaLoja: 'Responsavel',
+    garantiaExclusoes:
+      'agua quente, alvejante, secadora, ferro sobre a estampa ou uso indevido da peca.',
+    semReparo: 'Pecas devolvidas sem estampa. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Pecas devolvidas ao cliente sem estampa ou com producao '
+      + 'parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'Pecas do cliente devem ser novas e sem uso. A empresa nao repoe pecas danificadas no processo '
+      + 'de estampa. Cliente declara ter aprovado arte, cores e posicao antes da producao.',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Pecas nao retiradas em ${dias} dias apos aviso de conclusao serao `
+      + 'consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+
+  // ─── Sacola: a loja PRODUZ, o cliente não entrega peça ─────────────────────
+  // O pacote acima é de camisa (peça do cliente, lavagem, ferro). Numa sacola
+  // nada disso existe: não há peça entregue para estampar, e ninguém lava uma
+  // sacola. Sem esta separação a via saía prometendo e isentando coisas que não
+  // têm relação com o trabalho contratado.
+  porTipoTrabalho: {
+    sacola_plastica: {
+      objeto: 'sacola',
+      objetoPlural: 'Sacolas',
+      prazoRetiradaEntradaA4: (prazo) =>
+        `Sacolas com serviço concluído que não forem retiradas no prazo de ${prazo} após `
+        + 'notificação serão consideradas abandonadas e poderão ser destinadas para cobrir as '
+        + 'despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.',
+      prazoRetiradaGarantiaA4: (prazo) =>
+        `Sacolas não retiradas no prazo de ${prazo} após notificação de conclusão serão `
+        + 'consideradas abandonadas e poderão ser vendidas para custeio das despesas, conforme '
+        + 'Art. 1.275 do Código Civil Brasileiro.',
+      garantiaExclusoes:
+        'uso de carga acima da capacidade da sacola, contato com objetos cortantes, exposição '
+        + 'prolongada ao sol ou ao calor, e desgaste natural pelo uso.',
+      condicoesEntrada:
+        'O cliente declara ter conferido e aprovado a arte, as cores, a posição da impressão, as '
+        + 'referências e as quantidades antes da produção. Por se tratar de produção sob encomenda, '
+        + 'pequenas variações de tonalidade e de medida são inerentes ao processo de impressão.',
+      cupom: {
+        objeto: 'Sacola',
+        garantiaExclusoes:
+          'carga acima da capacidade, objetos cortantes, calor ou desgaste natural pelo uso.',
+        condicoesEntrada:
+          'Cliente declara ter aprovado arte, cores, posicao, referencias e quantidades antes da '
+          + 'producao. Pequenas variacoes de tonalidade e medida sao inerentes ao processo.',
+        semReparo: 'Producao nao realizada. Sem garantia aplicavel a esta OS.',
+        cancelamento:
+          'A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a '
+          + 'empresa de garantias sobre servicos nao concluidos.',
+        // Sem esta linha a bobina herdaria a da camisa e diria "Pecas nao
+        // retiradas" numa OS de sacola.
+        prazoRetirada: (dias) =>
+          `PRAZO DE RETIRADA: Sacolas nao retiradas em ${dias} dias apos aviso de conclusao serao `
+          + 'consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+      },
+    },
+    sacola_papel: {
+      objeto: 'sacola',
+      objetoPlural: 'Sacolas',
+      prazoRetiradaEntradaA4: (prazo) =>
+        `Sacolas com serviço concluído que não forem retiradas no prazo de ${prazo} após `
+        + 'notificação serão consideradas abandonadas e poderão ser destinadas para cobrir as '
+        + 'despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.',
+      prazoRetiradaGarantiaA4: (prazo) =>
+        `Sacolas não retiradas no prazo de ${prazo} após notificação de conclusão serão `
+        + 'consideradas abandonadas e poderão ser vendidas para custeio das despesas, conforme '
+        + 'Art. 1.275 do Código Civil Brasileiro.',
+      garantiaExclusoes:
+        'contato com água ou umidade, uso de carga acima da capacidade da sacola, contato com '
+        + 'objetos cortantes e desgaste natural pelo uso.',
+      condicoesEntrada:
+        'O cliente declara ter conferido e aprovado a arte, as cores, a posição da impressão, as '
+        + 'referências e as quantidades antes da produção. Por se tratar de produção sob encomenda, '
+        + 'pequenas variações de tonalidade e de medida são inerentes ao processo de impressão.',
+      cupom: {
+        objeto: 'Sacola',
+        garantiaExclusoes:
+          'agua ou umidade, carga acima da capacidade, objetos cortantes ou desgaste natural.',
+        condicoesEntrada:
+          'Cliente declara ter aprovado arte, cores, posicao, referencias e quantidades antes da '
+          + 'producao. Pequenas variacoes de tonalidade e medida sao inerentes ao processo.',
+        semReparo: 'Producao nao realizada. Sem garantia aplicavel a esta OS.',
+        cancelamento:
+          'A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a '
+          + 'empresa de garantias sobre servicos nao concluidos.',
+        // Sem esta linha a bobina herdaria a da camisa e diria "Pecas nao
+        // retiradas" numa OS de sacola.
+        prazoRetirada: (dias) =>
+          `PRAZO DE RETIRADA: Sacolas nao retiradas em ${dias} dias apos aviso de conclusao serao `
+          + 'consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+      },
+    },
+  },
+};
+
+// ─── Marcenaria ───────────────────────────────────────────────────────────────
+// Dois tipos de trabalho com a mesma via e uma diferença que muda o papel:
+// em REFORMA o móvel é do cliente e volta para ele, então "prazo de retirada"
+// vale como em qualquer conserto; em PLANEJADOS a loja fabrica e MONTA na obra,
+// e ninguém "retira" uma cozinha — a cláusula vira agendamento de entrega e
+// montagem. O pacote-base é o de reforma (o caso de conserto, mais parecido com
+// o resto do arquivo) e `planejados` sobrescreve o que muda.
+//
+// Os textos abaixo são a proposta da Fase 2 (docs/segmento-marcenaria-plano.md);
+// `condicoesEntrada` é o que o cliente assina, então as palavras finais são dos
+// donos das duas lojas.
+const MARCENARIA: TextosImpressaoOS = {
+  objeto: 'móvel',
+  objetoPlural: 'Móveis',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados do Projeto',
+  // O contrato chama de "Código do projeto", que não cabe na coluna da via.
+  identificador: 'Projeto',
+  defeito: 'Descrição do Pedido',
+  garantiaExclusoes:
+    'umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga ou '
+    + 'mau uso, alteração, desmontagem ou montagem por terceiros, e desgaste natural do acabamento.',
+  condicoesEntrada:
+    'O cliente declara ter conferido o estado do móvel entregue, registrado nas fotos e na '
+    + 'descrição desta OS. Peças, ferragens ou materiais fornecidos pelo cliente são de sua '
+    + 'responsabilidade. Alterações no serviço após a aprovação do orçamento geram novo orçamento, '
+    + 'e o prazo é contado a partir da aprovação e do pagamento do adiantamento.',
+  assinaturaLoja: 'Responsável',
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Móveis com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Móveis não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Movel',
+    identificador: 'Projeto',
+    defeito: 'DESCRICAO DO PEDIDO',
+    assinaturaLoja: 'Responsavel',
+    garantiaExclusoes:
+      'umidade, cupim, sobrecarga, mau uso, alteracao por terceiros ou desgaste natural.',
+    semReparo: 'Movel devolvido sem o servico. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Movel devolvido ao cliente sem o servico ou com '
+      + 'servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'Cliente declara ter conferido o estado do movel (fotos/descricao). Alteracoes apos a '
+      + 'aprovacao geram novo orcamento; o prazo conta da aprovacao e do adiantamento.',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Moveis nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+  },
+
+  porTipoTrabalho: {
+    planejados: {
+      objeto: 'móvel',
+      objetoPlural: 'Móveis',
+      garantiaExclusoes:
+        'umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga '
+        + 'ou mau uso, alteração, desmontagem ou remontagem por terceiros, movimentação do móvel '
+        + 'após a instalação, e desgaste natural do acabamento.',
+      // Spec 03B (D8): projeto, materiais e ferragens agora vivem no ORÇAMENTO
+      // aprovado (a OS nasce dele), não em campos desta OS; e a montagem na
+      // obra virou a linha de INSTALAÇÃO. Revisão final dos textos com o dono
+      // nas Specs 07 e 13B.
+      condicoesEntrada:
+        'As medidas foram conferidas no local pelo responsável e o cliente declara ter aprovado o '
+        + 'projeto, os materiais, as cores e as ferragens do orçamento aprovado. Alterações após a '
+        + 'aprovação geram novo orçamento, e o prazo é contado a partir da aprovação e do pagamento '
+        + 'do adiantamento. A instalação exige o ambiente pronto, limpo e livre no dia agendado; '
+        + 'paredes, pisos e pontos de água, luz e gás são de responsabilidade do cliente.',
+      // Não há "retirada": o móvel é entregue e instalado na obra. A cláusula
+      // passa a tratar do agendamento — sem ela a via prometeria vender uma
+      // cozinha "não retirada". O título acompanha, senão o papel dizia
+      // "PRAZO DE RETIRADA" em cima de um texto sobre instalação.
+      tituloPrazoRetirada: 'Entrega e Instalação',
+      prazoRetiradaEntradaA4: (prazo) =>
+        `Móveis concluídos aguardam o agendamento da entrega e instalação pelo cliente. Após ${prazo} `
+        + 'da notificação de conclusão sem agendamento, os móveis permanecem armazenados por conta e '
+        + 'risco do cliente, podendo ser cobrada taxa de armazenagem.',
+      prazoRetiradaGarantiaA4: (prazo) =>
+        `A garantia é contada a partir da data da instalação. Móveis não agendados para entrega no `
+        + `prazo de ${prazo} após a notificação de conclusão permanecem armazenados por conta e risco `
+        + 'do cliente.',
+      cupom: {
+        objeto: 'Movel',
+        garantiaExclusoes:
+          'umidade, cupim, sobrecarga, mau uso, remontagem por terceiros ou desgaste natural.',
+        condicoesEntrada:
+          'Medidas conferidas no local. Cliente declara ter aprovado o orcamento (projeto, '
+          + 'materiais, cores e ferragens). Alteracoes apos a aprovacao geram novo orcamento. '
+          + 'Instalacao exige ambiente pronto e livre.',
+        semReparo: 'Producao nao realizada. Sem garantia aplicavel a esta OS.',
+        cancelamento:
+          'A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a '
+          + 'empresa de garantias sobre servicos nao concluidos.',
+        // Sem esta linha a bobina herdaria a de reforma e diria "Moveis nao
+        // retirados" numa cozinha que vai ser instalada na casa do cliente.
+        prazoRetirada: (dias) =>
+          `ENTREGA E INSTALACAO: Moveis concluidos aguardam agendamento pelo cliente. Apos ${dias} `
+          + 'dias da notificacao sem agendamento, ficam armazenados por conta e risco do cliente.',
+      },
+    },
+  },
+};
+
+// Lava-rápido / estética automotiva (Spec 01B do lava, D8). Duas cláusulas
+// sustentam a loja no balcão, e são o padrão do ramo:
+//
+// 1. Avaria que já estava no veículo: a comanda registra (e a via imprime), e o
+//    cliente declara ter conferido. Sem isso, o risco no para-choque que já
+//    existia vira "foi a lavagem".
+// 2. Objetos deixados no veículo e peças soltas ou não originais (antena,
+//    adesivo, friso, palheta): a loja não responde por elas.
+//
+// Os textos são PROPOSTA: a palavra final é do dono da loja (SPEC-00, §10).
+const LAVA_RAPIDO: TextosImpressaoOS = {
+  objeto: 'veículo',
+  objetoPlural: 'Veículos',
+  empresa: 'A empresa',
+  tituloObjeto: 'Dados do Veículo',
+  // O contrato já diz "Placa", que cabe na via.
+  identificador: null,
+  defeito: 'Pedido do Cliente',
+  garantiaExclusoes:
+    'chuva, poeira ou uso do veículo após a entrega, contato com produtos químicos ou resíduos '
+    + 'após o serviço, e manchas, riscos ou desgastes que já existiam na pintura ou no interior.',
+  condicoesEntrada:
+    'O cliente declara ter conferido as avarias registradas na entrada. A empresa '
+    + 'não se responsabiliza por objetos pessoais deixados no interior do veículo, nem por peças '
+    + 'soltas, danificadas ou não originais (antenas, adesivos, frisos, palhetas e acessórios). '
+    + 'Autorizo a execução dos serviços descritos e a movimentação do veículo por funcionários da '
+    + 'empresa dentro do estabelecimento.',
+  assinaturaLoja: 'Responsável',
+  tituloFotosEntrada: { uma: 'Foto do Veículo na Entrada', varias: 'Fotos do Veículo na Entrada' },
+  avarias: { titulo: 'Avarias na Chegada', vazio: 'Nenhuma avaria registrada na entrada.' },
+  // Lavagem não tem garantia: a via de saída é o recibo do serviço.
+  reciboSemGarantia: 'RECIBO DE SERVIÇO',
+  // Masculino: "Veículos", como na oficina.
+  prazoRetiradaEntradaA4: (prazo) =>
+    `Veículos com serviço concluído que não forem retirados no prazo de ${prazo} após notificação `
+    + 'serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, '
+    + 'conforme Art. 1.275 do Código Civil Brasileiro.',
+  prazoRetiradaGarantiaA4: (prazo) =>
+    `Veículos não retirados no prazo de ${prazo} após notificação de conclusão serão considerados `
+    + 'abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código '
+    + 'Civil Brasileiro.',
+  cupom: {
+    objeto: 'Veiculo',
+    identificador: null,
+    defeito: 'PEDIDO DO CLIENTE',
+    assinaturaLoja: 'Responsavel',
+    garantiaExclusoes:
+      'chuva, poeira ou uso apos a entrega, e avarias que ja existiam no veiculo.',
+    semReparo: 'Veiculo devolvido sem o servico. Sem garantia aplicavel a esta OS.',
+    cancelamento:
+      'A OS acima foi cancelada nesta data. Veiculo devolvido ao cliente sem o servico ou com '
+      + 'servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.',
+    condicoesEntrada:
+      'Cliente conferiu as avarias registradas na entrada. A empresa nao se responsabiliza por objetos deixados '
+      + 'no veiculo nem por pecas soltas ou nao originais (antena, adesivo, friso, palheta).',
+    prazoRetirada: (dias) =>
+      `PRAZO DE RETIRADA: Veiculos nao retirados em ${dias} dias apos aviso de conclusao serao `
+      + 'considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.',
+    avarias: { titulo: 'AVARIAS NA CHEGADA', vazio: 'Nenhuma avaria registrada.' },
+    reciboSemGarantia: 'RECIBO DE SERVICO',
+  },
+};
+
+/** Pacote de textos de cada segmento. Exportado para os testes conferirem que não muda. */
+export const PACOTES: Record<string, TextosImpressaoOS> = {
+  oficina_mecanica: OFICINA_MECANICA,
+  assistencia_tecnica: ASSISTENCIA_TECNICA,
+  serigrafia: SERIGRAFIA,
+  marcenaria: MARCENARIA,
+  lava_rapido: LAVA_RAPIDO,
+};
+
+const PADRAO = ASSISTENCIA_TECNICA;
+
+/**
+ * Aplica a sobrescrita do tipo de trabalho sobre o pacote do segmento.
+ *
+ * Mescla rasa, com `cupom` tratado à parte: um spread simples trocaria o objeto
+ * `cupom` inteiro pelo parcial, e a via em bobina perderia identificador,
+ * defeito, assinatura e prazo de retirada de uma vez.
+ */
+export function aplicarTipoTrabalho(
+  pacote: TextosImpressaoOS,
+  tipo: string | null | undefined,
+): TextosImpressaoOS {
+  const override = tipo ? pacote.porTipoTrabalho?.[tipo] : undefined;
+  if (!override) return pacote;
+
+  const { cupom: cupomOverride, ...raiz } = override;
+  return {
+    ...pacote,
+    ...raiz,
+    cupom: { ...pacote.cupom, ...(cupomOverride ?? {}) },
+  };
+}
+
+/**
+ * @param tipoTrabalho Tipo de trabalho da OS (`dados_adicionais.tipo_trabalho`).
+ *   Omitido = pacote do segmento sem ajuste, que é o comportamento de todo
+ *   segmento de formulário único.
+ */
+export function useTextosImpressaoOS(
+  tipoTrabalho?: MaybeRefOrGetter<string | null | undefined>,
+) {
+  const { segmento } = useSegmento();
+  const { labelIdentificador } = useObjetoLabels();
+
+  const textos = computed<TextosImpressaoOS>(() =>
+    aplicarTipoTrabalho(
+      PACOTES[segmento.value ?? ''] ?? PADRAO,
+      toValue(tipoTrabalho),
+    ),
+  );
+
+  /** Rótulo do identificador na A4: o encurtado do pacote, senão o do contrato. */
+  const identificadorA4 = computed(
+    () => textos.value.identificador ?? labelIdentificador.value,
+  );
+
+  const identificadorCupom = computed(
+    () => textos.value.cupom.identificador ?? labelIdentificador.value,
+  );
+
+  return { textos, identificadorA4, identificadorCupom };
+}

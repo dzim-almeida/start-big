@@ -3,6 +3,7 @@ import { ShoppingBag } from 'lucide-vue-next';
 import { formatCurrency } from '@/shared/utils/finance';
 import { useSaleModal } from '@/modules/sales/composables/flows/useSaleModal';
 import type { UltimaVendaItemData } from '../../schemas/dashboard.schema';
+import { formatHora } from '@/shared/utils/date.utils';
 
 interface Props {
   vendas: UltimaVendaItemData[];
@@ -43,14 +44,13 @@ function getInitial(name: string | null): string {
   return name.charAt(0).toUpperCase();
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-}
+// `criado_em` é timestamp de evento (UTC no backend) — converte para hora local.
+const formatTime = formatHora;
 </script>
 
 <template>
   <div
-    class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden"
+    class="bg-white rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col"
   >
     <!-- Header -->
     <div class="p-4 md:p-6 border-b border-zinc-100 flex items-center gap-2">
@@ -69,9 +69,9 @@ function formatTime(dateStr: string): string {
     </div>
 
     <!-- Table -->
-    <div v-else-if="vendas.length > 0" class="overflow-x-auto">
+    <div v-else-if="vendas.length > 0" class="overflow-auto flex-1 max-h-100">
       <table class="w-full text-left">
-        <thead>
+        <thead class="sticky top-0 z-10 bg-white">
           <tr
             class="bg-zinc-50/50 text-[10px] uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-100"
           >

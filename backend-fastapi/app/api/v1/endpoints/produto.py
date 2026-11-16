@@ -4,13 +4,15 @@
 # DESCRIÇÃO: Define rotas para manipulação de Produtos e Imagens.
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form, Response
+from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form, Response, HTTPException
 from sqlalchemy.orm import Session
 from typing import Sequence, Optional
 
-from app.schemas.produto import ProdutoCreate, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
-from app.schemas.produto_fotos import ProdutoFotoRead
-from app.core.depends import check_permission, _handle_db_transaction
+from app.schemas.produto import ProdutoCreateComFiscal, ProdutoRead, ProdutoSimpleRead, ProdutoUpdate
+from app.schemas.produto import ProdutoFotoRead
+from app.core.depends import check_permission, requer_modulo_fiscal, _handle_db_transaction
+from app.schemas.fiscal.produto import ProdutoFiscalRead, ProdutoFiscalUpdate
+from app.services.fiscal.cadastro import produto as produto_fiscal_service
 from app.db.session import get_db
 from app.services import produto as produto_service
 
@@ -30,19 +32,27 @@ router = APIRouter()
 def create_new_produto(
     user_token: dict = Depends(check_permission(required_permission="produto")),
     *,
-    produto_to_add: ProdutoCreate,
+    produto_to_add: ProdutoCreateComFiscal,
     db: Session = Depends(get_db)
 ):
     """
     Endpoint para cadastro de produtos.
 
     Args:
-        produto_to_add (ProdutoCreate): Payload com dados do produto e estoque.
+        produto_to_add (ProdutoCreateComFiscal): Payload com dados do produto,
+            estoque e, opcionalmente, os dados fiscais.
         db (Session): Sessão de banco de dados.
 
     Returns:
         ProdutoRead: O produto criado com IDs gerados.
     """
+    # A trava fiscal é condicional: quem não manda `fiscal` cadastra produto
+    # como sempre cadastrou. Quem manda passa pela MESMA porta do
+    # `PUT /{id}/fiscal` — chamada à mão porque um `Depends` valeria para todo
+    # cadastro, inclusive o das lojas que não contrataram NF-e.
+    if produto_to_add.fiscal is not None:
+        requer_modulo_fiscal(usuario_token=user_token, db=db)
+
     return _handle_db_transaction(
         db,
         produto_service.create_produto,
@@ -59,14 +69,20 @@ def create_new_produto(
     response_model=Sequence[ProdutoRead],
     status_code=status.HTTP_200_OK,
     summary="Listar ou Buscar Produtos",
-    description="Retorna produtos ativos. Permite filtro por nome ou código."
+    description="Retorna produtos ativos. Permite filtro por nome, código, código de barras, marca ou categoria."
 )
-def get_produto_by_search( 
+def get_produto_by_search(
     user_token: dict = Depends(check_permission(required_permission="produto")),
     *,
     buscar: Optional[str] = Query(
         None,
-        description="Termo de busca (Nome ou Código SKU). Se vazio, retorna todos."
+        description="Termo de busca (nome, código, código de barras, marca ou categoria). Se vazio, retorna todos."
+    ),
+    limite: Optional[int] = Query(
+        None,
+        ge=1,
+        le=200,
+        description="Teto de resultados. Sem valor, devolve tudo — a tela de Produtos depende disso para listar o catálogo."
     ),
     db: Session = Depends(get_db)
 ):
@@ -74,14 +90,16 @@ def get_produto_by_search(
     Endpoint de busca polivalente.
 
     Args:
-        buscar (Optional[str]): String parcial para nome ou código.
+        buscar (Optional[str]): Termo de busca; palavras em qualquer ordem.
+        limite (Optional[int]): Teto de resultados para quem usa auto-complete.
         db (Session): Sessão de banco de dados.
     """
     # CORREÇÃO: Passando a referência da função (sem parênteses)
     return _handle_db_transaction(
        db,
        produto_service.get_produto_by_search,
-       buscar 
+       buscar,
+       limite
    )
 
 @router.get(
@@ -96,14 +114,22 @@ def get_produto_simple_by_search(
     *,
     search: Optional[str] = Query(
         None,
-        description="Termo de busca para nome ou código. Retorna todos se vazio."
+        description="Termo de busca (nome, código, código de barras, marca ou categoria). Vazio não retorna nada."
+    ),
+    limite: int = Query(
+        30,
+        ge=1,
+        le=200,
+        description="Teto de resultados do auto-complete."
     ),
     db: Session = Depends(get_db)
 ):
     return _handle_db_transaction(
         db,
         produto_service.get_produto_simple_by_search,
-        search
+        search,
+        limite,
+        user_token.get("empresa_id"),
 )
 
 # ===========================================================================
@@ -250,3 +276,82 @@ def delete_produto_image(
         image_id
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/{produto_id}",
+    response_model=ProdutoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Obter Produto por ID",
+    description="Retorna os dados cadastrais e de estoque de um produto específico."
+)
+def get_produto_by_id(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    produto_id: int = Path(..., description="ID do produto", ge=1),
+    db: Session = Depends(get_db)
+):
+    return _handle_db_transaction(
+        db,
+        produto_service.get_produto_by_id,
+        produto_id
+    )
+
+
+# ===========================================================================
+# ROTAS FISCAIS (GET/PUT) — Requer módulo fiscal ativo
+# ===========================================================================
+
+@router.get(
+    "/{produto_id}/fiscal",
+    response_model=ProdutoFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Obter Dados Fiscais do Produto",
+    description=(
+        "Retorna os dados fiscais (NCM, CFOP, CST etc.) de um produto. "
+        "Requer módulo fiscal ativo para a empresa. "
+        "Retorna 404 se os dados fiscais ainda não foram preenchidos."
+    ),
+)
+def get_dados_fiscais_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    produto_id: int = Path(..., description="ID do produto", ge=1),
+    *,
+    db: Session = Depends(get_db),
+):
+    dados = produto_fiscal_service.get_dados_fiscais(
+        db, produto_id, user_token["empresa_id"]
+    )
+    if dados is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dados fiscais ainda não preenchidos para este produto.",
+        )
+    return dados
+
+
+@router.put(
+    "/{produto_id}/fiscal",
+    response_model=ProdutoFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Salvar Dados Fiscais do Produto",
+    description=(
+        "Cria ou atualiza os dados fiscais de um produto (NCM, CFOP, CST etc.). "
+        "Requer módulo fiscal ativo para a empresa."
+    ),
+)
+def upsert_dados_fiscais_produto(
+    user_token: dict = Depends(check_permission(required_permission="produto")),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    produto_id: int = Path(..., description="ID do produto", ge=1),
+    *,
+    dados: ProdutoFiscalUpdate,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db,
+        produto_fiscal_service.upsert_dados_fiscais,
+        produto_id,
+        user_token["empresa_id"],
+        dados,
+    )

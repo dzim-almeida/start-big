@@ -6,16 +6,20 @@ export const ServiceReadSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória'),
   valor: z.number().int().nonnegative(),
   ativo: z.boolean(),
+  // Lava-rápido: minutos que o serviço costuma levar (previsão do pátio).
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceCreateSchema = z.object({
   descricao: z.string().min(1, 'Descrição é obrigatória').max(255),
   valor: z.number().int().nonnegative(),
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceUpdateSchema = z.object({
   descricao: z.string().min(1).max(255).optional(),
   valor: z.number().int().nonnegative().optional(),
+  duracao_minutos: z.number().int().positive().nullable().optional(),
 });
 
 export const ServiceFormSchema = z.object({
@@ -26,6 +30,39 @@ export const ServiceFormSchema = z.object({
   valor: z
     .number({ required_error: 'Valor é obrigatório' })
     .nonnegative('Valor não pode ser negativo'),
+  // Lava-rápido: minutos (texto do campo; vazio = sem duração).
+  duracao_minutos: z.string()
+    .refine((v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1440), {
+      message: 'Informe os minutos (1 a 1440)',
+    })
+    .optional().or(z.literal('')),
+
+  // Dados fiscais (opcionais, mas validam formato quando preenchidos)
+  fiscal_codigo_servico_lc116: z.string()
+    .refine((v) => !v || /^\d{2}\.\d{2}$/.test(v), { message: 'Formato deve ser XX.XX (ex: 14.01)' })
+    .optional().or(z.literal('')),
+  fiscal_cnae: z.string()
+    .refine((v) => !v || /^\d{4}-\d\/\d{2}$/.test(v), { message: 'Formato deve ser XXXX-X/XX (ex: 9512-6/00)' })
+    .optional().or(z.literal('')),
+  fiscal_aliquota_iss_display: z.string().optional().or(z.literal('')),
+  fiscal_codigo_tributacao_municipio: z.string().optional().or(z.literal('')),
+
+  // Reforma Tributária (IBS/CBS)
+  fiscal_c_class_trib: z.string().max(20).optional().or(z.literal('')),
+  fiscal_cst_ibs_cbs: z.string()
+    .refine((v) => !v || /^\d{2,3}$/.test(v), { message: 'CST IBS/CBS deve ter 2 ou 3 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_aliquota_ibs_display: z.string().optional().or(z.literal('')),
+  fiscal_aliquota_cbs_display: z.string().optional().or(z.literal('')),
+  fiscal_c_benef: z.string().max(10).optional().or(z.literal('')),
+
+  // NFS-e Nacional (só dígitos)
+  fiscal_codigo_tributacao_nacional: z.string()
+    .refine((v) => !v || /^\d{6}$/.test(v), { message: 'Escolha o código na lista ou digite os 6 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_codigo_nbs: z.string()
+    .refine((v) => !v || /^\d{9}$/.test(v), { message: 'Escolha o NBS na lista ou digite os 9 dígitos' })
+    .optional().or(z.literal('')),
 });
 
 const FiltersServiceSchema = z.object({

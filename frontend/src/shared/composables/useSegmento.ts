@@ -1,0 +1,33 @@
+import { computed } from 'vue';
+
+import { useAuthStore } from '@/shared/stores/auth.store';
+
+/** Segmentos de negócio válidos — fonte única em `shared/constants/segmentos.ts`. */
+export type { Segmento } from '@/shared/constants/segmentos';
+
+/**
+ * Expõe o segmento de negócio da empresa logada e helpers de conveniência.
+ * Lê de useAuthStore().userData.empresa.segmento (vindo de /usuarios/me).
+ *
+ * É a base da renderização por segmento: componentes usam `isOficinaMecanica`
+ * para alternar rótulos/campos sem espalhar comparações de string pelo código.
+ */
+export function useSegmento() {
+  const authStore = useAuthStore();
+
+  const segmento = computed<string | null>(
+    () => authStore.userData?.empresa?.segmento ?? null,
+  );
+
+  const isOficinaMecanica = computed(() => segmento.value === 'oficina_mecanica');
+  const isAssistenciaTecnica = computed(() => segmento.value === 'assistencia_tecnica');
+  /** A marcenaria-fábrica (insumo, orçamento por móvel) só existe aqui. */
+  const isMarcenaria = computed(() => segmento.value === 'marcenaria');
+
+  return {
+    segmento,
+    isOficinaMecanica,
+    isAssistenciaTecnica,
+    isMarcenaria,
+  };
+}

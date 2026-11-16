@@ -2,7 +2,7 @@ import type { ComputedRef, Ref } from 'vue';
 import type { FieldEntry } from 'vee-validate';
 
 import type { OsItemCreateSchemaDataType, OsItemUpdateSchemaDataType } from '../schemas/relationship/osItem.schema';
-import type { OsEquipUpdateSchemaDataType } from '../schemas/relationship/osEquip.schema';
+import type { OsObjetoUpdateSchemaDataType } from '../schemas/relationship/osObjeto.schema';
 import type { OsPaymentCreateSchemaDataType } from '../schemas/relationship/osPayment.schema';
 import type { OrderServiceReadDataType } from '../schemas/orderServiceQuery.schema';
 
@@ -15,6 +15,8 @@ export interface OSCreateFormContext {
   observacoes: Ref<string | null | undefined>;
   desconto: Ref<number | null | undefined>;
   valor_entrada: Ref<number | null | undefined>;
+  forma_pagamento_entrada_id: Ref<number | null | undefined>;
+  taxa_entrega: Ref<number | null | undefined>;
   garantia: Ref<string | null | undefined>;
   data_previsao: Ref<string | null | undefined>;
   senha_aparelho: Ref<string | null | undefined>;
@@ -25,13 +27,20 @@ export interface OSCreateFormContext {
   cliente_id: Ref<number | null | undefined>;
   funcionario_id: Ref<number | null | undefined>;
 
-  // Campos do equipamento (nested via dot-notation)
-  equipamento_tipo_equipamento: Ref<string | null | undefined>;
-  equipamento_marca: Ref<string | null | undefined>;
-  equipamento_modelo: Ref<string | null | undefined>;
-  equipamento_numero_serie: Ref<string | null | undefined>;
-  equipamento_imei: Ref<string | null | undefined>;
-  equipamento_cor: Ref<string | null | undefined>;
+  // Campos do objeto (nested via dot-notation)
+  objeto_tipo_equipamento: Ref<string | null | undefined>;
+  objeto_marca: Ref<string | null | undefined>;
+  objeto_modelo: Ref<string | null | undefined>;
+  objeto_numero_serie: Ref<string | null | undefined>;
+  objeto_imei: Ref<string | null | undefined>;
+  objeto_cor: Ref<string | null | undefined>;
+  // Objeto: lembrete de revisão + campos dinâmicos do segmento (ex: chassi, ano)
+  objeto_proxima_revisao_data: Ref<string | null | undefined>;
+  objeto_proxima_revisao_km: Ref<number | null | undefined>;
+  objeto_dados_adicionais: Ref<Record<string, unknown> | undefined>;
+
+  // OS: check-in dinâmico do segmento (km_entrada, combustível, vistoria)
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   // FieldArray de itens iniciais
   itens: Ref<FieldEntry<OsItemCreateSchemaDataType>[]>;
@@ -62,6 +71,7 @@ export interface OSUpdateGeralFormContext {
   observacoes: Ref<string | null | undefined>;
   desconto: Ref<number | null | undefined>;
   valor_entrada: Ref<number | null | undefined>;
+  forma_pagamento_entrada_id: Ref<number | null | undefined>;
   taxa_entrega: Ref<number | null | undefined>;
   garantia: Ref<string | null | undefined>;
   data_previsao: Ref<string | null | undefined>;
@@ -69,18 +79,22 @@ export interface OSUpdateGeralFormContext {
   acessorios: Ref<string | null | undefined>;
   condicoes_aparelho: Ref<string | null | undefined>;
   funcionario_id: Ref<number | null | undefined>;
+  // OS: check-in dinâmico do segmento (km_entrada, combustível, vistoria)
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
 
   onSubmit: (e?: Event) => void;
   onSubmitTextOnly: () => void;
+  /** Grava e ESPERA o servidor, sem fechar o modal. Usado antes de finalizar. */
+  salvarPendentes: () => Promise<void>;
   resetForm: () => void;
   populateForm: (os: OrderServiceReadDataType) => void;
 }
 
 
-export interface OSUpdateEquipFormContext {
+export interface OSUpdateObjetoFormContext {
   tipo_equipamento: Ref<string | null | undefined>;
   marca: Ref<string | null | undefined>;
   modelo: Ref<string | null | undefined>;
@@ -88,13 +102,17 @@ export interface OSUpdateEquipFormContext {
   imei: Ref<string | null | undefined>;
   cor: Ref<string | null | undefined>;
   cliente_id: Ref<number | null | undefined>;
+  // Lembrete de revisão + campos dinâmicos do segmento (ex: chassi, ano)
+  proxima_revisao_data: Ref<string | null | undefined>;
+  proxima_revisao_km: Ref<number | null | undefined>;
+  dados_adicionais: Ref<Record<string, unknown> | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   isPending: ComputedRef<boolean>;
 
   onSubmit: (e?: Event) => void;
   resetForm: () => void;
-  populateForm: (equip: OsEquipUpdateSchemaDataType) => void;
+  populateForm: (objeto: OsObjetoUpdateSchemaDataType) => void;
 }
 
 
@@ -165,7 +183,7 @@ export interface OSFormContext {
 
   criar: OSCreateFormContext;
   atualizarGeral: OSUpdateGeralFormContext;
-  atualizarEquipamento: OSUpdateEquipFormContext;
+  atualizarObjeto: OSUpdateObjetoFormContext;
   item: OSItemFormContext;
   finalizar: OSFinalizarFormContext;
   cancelar: OSCancelarFormContext;

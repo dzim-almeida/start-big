@@ -27,9 +27,13 @@ export const OrderServiceBaseSchema = z.object({
     .optional().nullable(),
   observacoes: z.string().max(500, 'A observação deve ter máximo 500 caracteres').optional().nullable(),
 
+  // Check-in do segmento (nível OS): km_entrada, combustível, vistoria, etc.
+  dados_adicionais: z.record(z.any()).optional().nullable(),
+
   // Financeiro
   desconto: z.number().int().optional().nullable(),
   valor_entrada: z.number().int().optional().nullable(),
+  forma_pagamento_entrada_id: z.number().int().positive().optional().nullable(),
   taxa_entrega: z.number().int().optional().nullable(),
   acrescimo: z.number().int().optional().nullable(),
 

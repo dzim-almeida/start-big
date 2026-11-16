@@ -1,8 +1,15 @@
 import { computed, ref, type ComputedRef } from 'vue';
 
+import { useToast } from '@/shared/composables/useToast';
+import {
+  mesmaLinha,
+  somarQuantidade,
+  vinculoCatalogo,
+} from '@/modules/order-service/shared/utils/itensOs';
+
 import type { OSFormContext } from '../../types/context.type';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
-import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
+import type { OsItemCreateSchemaDataType, OsItemReadSchemaDataType } from '../../schemas/relationship/osItem.schema';
 
 interface AddItemMutation {
   mutate: (
@@ -30,6 +37,12 @@ interface UseOSItemsManagerParams {
   setCurrentOSData: (os: OrderServiceReadDataType) => void;
 }
 
+/**
+ * O vínculo com o catálogo tem dois nomes conforme a origem do item: `item_id`
+ * enquanto a OS está sendo criada (payload de escrita) e `produto_id`/`servico_id`
+ * depois de salva (resposta de leitura). É o mesmo dado — o backend converte um
+ * no outro. Sem esta ponte, editar um item de OS salva perderia o vínculo na tela.
+ */
 export function useOSItemsManager({
   isCreateMode,
   osNumber,
@@ -41,6 +54,8 @@ export function useOSItemsManager({
   refreshCurrentOSData,
   setCurrentOSData,
 }: UseOSItemsManagerParams) {
+  const toast = useToast();
+
   const isItemModalOpen = ref(false);
   const editingItemIndex = ref<number | null>(null);
   const editingItem = ref<OsItemCreateSchemaDataType | null>(null);
@@ -69,6 +84,19 @@ export function useOSItemsManager({
       unidade_medida: item.unidade_medida,
       quantidade: item.quantidade,
       valor_unitario: item.valor_unitario,
+      // Aprovação/garantia PRECISAM vir junto: o modal cai no default
+      // ('APROVADO' e sem garantia) quando não recebe o valor real, e ao salvar
+      // esse default sobrescreveria um item reprovado ou com garantia definida.
+      status_aprovacao: item.status_aprovacao,
+      garantia_dias: item.garantia_dias,
+      garantia_km: item.garantia_km,
+      // Custo interno: sem ele o campo reabre zerado e, numa OS ainda em
+      // criação, salvar grava custo 0 — o lucro do relatório sai inflado.
+      custo_unitario: item.custo_unitario,
+      // Vínculo com o catálogo: sem ele, editar a peça antes de salvar a OS a
+      // transforma num item de texto solto — não baixa do estoque e não puxa o
+      // custo congelado do livro (o backend deriva produto_id/servico_id daqui).
+      item_id: vinculoCatalogo(item),
     };
     isItemModalOpen.value = true;
   }
@@ -80,10 +108,31 @@ export function useOSItemsManager({
     editingItemId.value = null;
   }
 
+  /**
+   * O índice da linha idêntica já lançada, quando ADICIONANDO um item novo.
+   *
+   * Só vale ao adicionar: editando, o item se compara consigo mesmo e cairia
+   * numa mesclagem com ele próprio.
+   */
+  function indiceDaLinhaIgual(item: OsItemCreateSchemaDataType): number {
+    if (editingItemIndex.value !== null || editingItemId.value !== null) return -1;
+    return displayItems.value.findIndex((existente) => mesmaLinha(existente, item));
+  }
+
   function handleSaveItem(item: OsItemCreateSchemaDataType) {
+    const iguais = indiceDaLinhaIgual(item);
+
     if (isCreateMode.value) {
       if (editingItemIndex.value !== null) {
         form.criar.handleUpdateItem(editingItemIndex.value, item);
+      } else if (iguais >= 0) {
+        // SOMA na linha que já existe em vez de empilhar outra igual embaixo.
+        const atual = displayItems.value[iguais] as OsItemCreateSchemaDataType;
+        form.criar.handleUpdateItem(iguais, {
+          ...atual,
+          quantidade: somarQuantidade(atual.quantidade, item.quantidade),
+        });
+        toast.success('Quantidade somada ao item que já estava na lista');
       } else {
         form.criar.handleAddItem(item);
       }
@@ -94,10 +143,31 @@ export function useOSItemsManager({
     const currentOsNumber = osNumber.value;
     if (!currentOsNumber) return;
 
+    // OS JÁ SALVA: a mesclagem vira um PATCH da quantidade, não um POST de item
+    // novo. Reusa o mesmo caminho da edição normal -- inclusive o `onSuccess`
+    // que recarrega a OS, que é quem devolve o total certo para a tela.
+    if (iguais >= 0) {
+      const atual = displayItems.value[iguais] as OsItemReadSchemaDataType & { id: number };
+      if (atual?.id) {
+        form.item.setEditingItem(atual.id, {
+          ...atual,
+          quantidade: somarQuantidade(atual.quantidade, item.quantidade),
+        });
+        form.item.onSubmit();
+        toast.success('Quantidade somada ao item que já estava na lista');
+        return;
+      }
+    }
+
     if (editingItemId.value !== null) {
       form.item.setEditingItem(editingItemId.value, item);
+      // `onSubmit` é assíncrono e só DISPARA a mutation. Recarregar aqui trazia
+      // a OS antiga de volta e a resposta do PATCH nunca chegava à tela: o item
+      // gravava reprovado no banco e a tela seguia mostrando "Aprovado" com o
+      // subtotal cheio, até alguém fechar e reabrir a OS.
+      // Quem recarrega agora é o `onSuccess` da mutation (onItemSuccess), como
+      // já acontecia ao remover um item.
       form.item.onSubmit();
-      refreshCurrentOSData();
       return;
     }
 

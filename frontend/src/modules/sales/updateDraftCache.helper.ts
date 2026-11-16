@@ -24,10 +24,17 @@ export function patchDraftCache(
                 productsList[index] = response.produto_adicionado;
             }
 
+            // Regra de preço (§6.1): outras linhas do mesmo produto que mudaram.
+            for (const alterado of response.itens_alterados ?? []) {
+                const index = productsList.findIndex((product) => product.id === alterado.id);
+                if (index >= 0) productsList[index] = alterado;
+            }
+
             return {
                 ...oldDraft,
                 produtos: productsList,
                 descontos: response.financeiro_atualizado.descontos,
+                descontos_regra: response.financeiro_atualizado.descontos_regra ?? 0,
                 entrega: response.financeiro_atualizado.entrega,
                 subtotal: response.financeiro_atualizado.subtotal,
                 total: response.financeiro_atualizado.total,

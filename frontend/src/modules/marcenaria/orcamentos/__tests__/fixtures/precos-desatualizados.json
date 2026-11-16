@@ -1,0 +1,27 @@
+{
+  "itens": [
+    {
+      "insumo_id": 1,
+      "movel": "Torre Quente",
+      "descricao": "MDF Branco TX 18mm",
+      "custo_atual_orcamento": 28000,
+      "custo_produto_hoje": 29500,
+      "origem_hoje": "ULTIMA_COMPRA",
+      "sofre_perda_orcamento": true,
+      "sofre_perda_hoje": true
+    },
+    {
+      "insumo_id": 6,
+      "movel": "Balcão",
+      "descricao": "MDF Branco TX 18mm",
+      "custo_atual_orcamento": 28000,
+      "custo_produto_hoje": 29500,
+      "origem_hoje": "ULTIMA_COMPRA",
+      "sofre_perda_orcamento": true,
+      "sofre_perda_hoje": true
+    }
+  ],
+  "total_atual_centavos": 923889,
+  "total_com_precos_novos_centavos": 934015,
+  "diferenca_centavos": 10126
+}

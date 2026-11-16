@@ -3,14 +3,19 @@ import type { Component } from 'vue'
 export type SecaoId =
   | 'seguranca'
   | 'regras-de-vendas'
+  | 'gestao-financeira'
   | 'produtos-estoque'
   | 'ordens-de-servico'
+  | 'marcenaria'
+  | 'lava-rapido'
   | 'clientes-cadastro'
-  | 'financeiro-taxas'
   | 'integracoes-apis'
+  | 'terminais'
   | 'impressao'
   | 'formatos-exibicao'
   | 'backup-dados'
+  | 'rede'
+  | 'licenca'
   | 'suporte'
 
 export interface SecaoConfiguracao {
@@ -23,4 +28,10 @@ export interface SecaoExposta {
   form?: Record<string, unknown>
   isDirty?: boolean
   resetar?: () => void
+  /** Marcenaria (Spec 04B): o usuário pode alterar? Sem isso, sem "Salvar". */
+  podeGerir?: boolean
+  /** Marcenaria: erros do formulário, com as mesmas mensagens do backend. */
+  erros?: Record<string, string>
+  /** Marcenaria: converte o formulário (% e R$) no corpo do PUT. */
+  paraApi?: (form: never) => unknown
 }

@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { MODULOS } from '@/shared/constants/modulos.constants';
+
 const homeRoutes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -75,6 +77,69 @@ const homeRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: '/fiscal',
+        component: () => import('@/modules/fiscal/views/FiscalLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            name: 'fiscal',
+            component: () => import('@/modules/fiscal/views/FiscalConfiguracoesView.vue'),
+            meta: {
+              title: 'Centro Fiscal',
+              subtitle: 'Certificado e Ambientes de Emissão',
+              tabId: 'fiscal',
+              requiresAuth: true,
+              exigeModulo: MODULOS.NFE,
+            },
+          },
+          {
+            // A tela de configuracao virou a raiz de /fiscal. O redirect existe
+            // para nao quebrar link nem historico de quem ja usava /fiscal/configuracoes.
+            path: 'configuracoes',
+            name: 'fiscal-configuracoes',
+            redirect: { name: 'fiscal' },
+          },
+          {
+            path: 'nfe',
+            name: 'fiscal-nfe',
+            component: () => import('@/modules/fiscal/views/FiscalNFeView.vue'),
+            meta: {
+              title: 'NF-e',
+              subtitle: 'Notas Fiscais Eletrônicas',
+              tabId: 'fiscal-nfe',
+              requiresAuth: true,
+              exigeModulo: MODULOS.NFE,
+            },
+          },
+          {
+            path: 'nfce',
+            name: 'fiscal-nfce',
+            component: () => import('@/modules/fiscal/views/FiscalNFCeView.vue'),
+            meta: {
+              title: 'NFC-e',
+              subtitle: 'Notas Fiscais de Consumidor',
+              tabId: 'fiscal-nfce',
+              requiresAuth: true,
+              exigeModulo: MODULOS.NFCE,
+            },
+          },
+          {
+            path: 'nfse',
+            name: 'fiscal-nfse',
+            component: () => import('@/modules/fiscal/views/FiscalNFSeView.vue'),
+            meta: {
+              title: 'NFS-e',
+              subtitle: 'Notas Fiscais de Serviço',
+              tabId: 'fiscal-nfse',
+              requiresAuth: true,
+              // Módulo próprio: o prestador MEI contrata só a NFS-e.
+              exigeModulo: MODULOS.NFSE,
+            },
+          },
+        ],
+      },
+      {
         path: '/servicos',
         name: 'services',
         component: () => import('@/modules/order-service/views/OrdemServicoView.vue'),
@@ -83,8 +148,42 @@ const homeRoutes: RouteRecordRaw[] = [
           subtitle: 'Gerencie os serviços da sua organização de forma centralizada.',
           tabId: 'services',
           requiresAuth: true,
+          // Esconder o item do menu NÃO basta: sem esta marca, digitar
+          // /servicos na barra de endereço (ou uma aba salva do navegador)
+          // abriria a tela de OS numa loja que não tem o módulo. O guard em
+          // router/index.ts lê esta flag.
+          exigeOrdemServico: true,
         },
       },
+      // --- Orçamentos de marcenaria (Spec 06B D1) ---------------------------------
+      // A guarda da capacidade fica na tela (useExigeCapacidade): o guard do
+      // router não enxerga o contrato do segmento (TanStack Query).
+      //
+      // A lista é a aba "Orçamentos" de Serviços (12/10/2026). O nome da rota
+      // continua, redirecionando para lá: o editor e os atalhos que navegam
+      // para 'marcenaria-orcamentos' seguem funcionando, com os filtros da URL.
+      {
+        path: '/orcamentos',
+        name: 'marcenaria-orcamentos',
+        redirect: (para) => ({ name: 'services', query: { ...para.query, aba: 'orcamentos' } }),
+      },
+      {
+        path: '/orcamentos/novo',                               // editor ainda sem gravar (D5)
+        name: 'marcenaria-orcamento-novo',
+        component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
+        meta: { title: 'Orçamentos', subtitle: 'Novo orçamento', tabId: 'services', requiresAuth: true, telaCheia: true },
+      },
+      {
+        path: '/orcamentos/:id(\\d+)',                          // só número: "novo" não cai aqui
+        name: 'marcenaria-orcamento',
+        component: () => import('@/modules/marcenaria/orcamentos/views/OrcamentoEditorView.vue'),
+        props: (rota) => ({ id: Number(rota.params.id) }),      // a tela recebe o id já como número
+        meta: { title: 'Orçamentos', subtitle: 'Orçamento de móveis planejados', tabId: 'services', requiresAuth: true, telaCheia: true },
+      },
+      // A rota '/fabrica/separacao/:numeroOs' saiu com a aposentadoria da
+      // fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D14): ela só abria OS do
+      // trilho, que nenhuma OS nova recebe. A separação da marcenaria é a aba
+      // da Spec 10B.
       {
         path: '/vendas',
         name: 'sales',
@@ -95,6 +194,196 @@ const homeRoutes: RouteRecordRaw[] = [
           tabId: 'sales',
           requiresAuth: true,
         }
+      },
+      {
+        path: '/relatorios',
+        name: 'reports',
+        component: () => import('@/modules/reports/views/ReportsDashboard.vue'),
+        meta: {
+          title: 'Relatórios',
+          subtitle: 'Faturamento e desempenho no período.',
+          tabId: 'reports',
+          requiresAuth: true,
+        },
+      },
+      {
+        // Rota-pai com casca própria: as telas de dentro dividem o mesmo
+        // container e, mais adiante, o mesmo seletor de período. O `exigeModulo`
+        // vai em cada FILHO e não aqui, porque Fluxo de Caixa e Conciliação são
+        // de um plano diferente do resto — pôr a trava no pai daria o módulo
+        // inteiro a quem contratou só a parte básica.
+        path: '/financeiro',
+        component: () => import('@/modules/financeiro/views/FinanceiroLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            redirect: { name: 'finance-overview' },
+          },
+          {
+            path: 'visao-geral',
+            name: 'finance-overview',
+            component: () => import('@/modules/financeiro/views/VisaoGeralView.vue'),
+            meta: {
+              title: 'Gestão Financeira',
+              subtitle: 'O resultado do mês e o movimento do caixa.',
+              tabId: 'finance-overview',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO,
+            },
+          },
+          {
+            path: 'analise',
+            name: 'finance-analysis',
+            component: () => import('@/modules/financeiro/analise/views/AnaliseView.vue'),
+            meta: {
+              title: 'Análise',
+              subtitle: 'Para onde o seu negócio está indo, mês a mês.',
+              tabId: 'finance-analysis',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO_PRO,
+            },
+          },
+          {
+            path: 'contas-a-pagar',
+            name: 'finance-payable',
+            component: () =>
+              import('@/modules/financeiro/contas-pagar/views/ContasPagarView.vue'),
+            meta: {
+              title: 'Contas a Pagar',
+              subtitle: 'O que a loja deve, para quem e quando vence.',
+              tabId: 'finance-payable',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO,
+            },
+          },
+          {
+            path: 'contas-a-receber',
+            name: 'finance-receivable',
+            component: () =>
+              import('@/modules/financeiro/contas-receber/views/ContasReceberView.vue'),
+            meta: {
+              title: 'Contas a Receber',
+              subtitle: 'O que ainda não entrou: fiado, boleto e cartão a repassar.',
+              tabId: 'finance-receivable',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO,
+            },
+          },
+          {
+            path: 'fluxo-de-caixa',
+            name: 'finance-cashflow',
+            component: () =>
+              import('@/modules/financeiro/fluxo-caixa/views/FluxoCaixaView.vue'),
+            meta: {
+              title: 'Fluxo de Caixa',
+              subtitle: 'A projeção dos próximos 30 e 60 dias.',
+              tabId: 'finance-cashflow',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO_PRO,
+            },
+          },
+          {
+            path: 'conciliacao',
+            name: 'finance-reconciliation',
+            component: () =>
+              import('@/modules/financeiro/conciliacao/views/ConciliacaoView.vue'),
+            meta: {
+              title: 'Conciliação',
+              subtitle: 'Extrato da operadora conferido contra o que a loja registrou.',
+              tabId: 'finance-reconciliation',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO_PRO,
+            },
+          },
+          {
+            path: 'extrato',
+            name: 'finance-statement',
+            component: () =>
+              import('@/modules/financeiro/extrato/views/ExtratoView.vue'),
+            meta: {
+              title: 'Extrato',
+              subtitle: 'Todo o dinheiro que entrou e saiu, linha a linha.',
+              tabId: 'finance-statement',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO,
+            },
+          },
+          {
+            path: 'plano-de-contas',
+            name: 'finance-chart-accounts',
+            component: () =>
+              import('@/modules/financeiro/plano-contas/views/PlanoContasView.vue'),
+            meta: {
+              title: 'Plano de Contas',
+              subtitle: 'As categorias de despesa e de receita da loja.',
+              tabId: 'finance-chart-accounts',
+              requiresAuth: true,
+              exigeModulo: MODULOS.FINANCEIRO,
+            },
+          },
+        ],
+      },
+      {
+        // Módulo de Compras (backend-fastapi/docs/compras-plano.md). Mesma casca
+        // do financeiro; o `exigeModulo` vai em cada filho, como lá.
+        path: '/compras',
+        component: () => import('@/modules/compras/views/ComprasLayout.vue'),
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            redirect: { name: 'purchases-needs' },
+          },
+          {
+            path: 'necessidades',
+            name: 'purchases-needs',
+            component: () => import('@/modules/compras/necessidades/views/NecessidadesView.vue'),
+            meta: {
+              title: 'Necessidades de Compra',
+              subtitle: 'O que está abaixo do estoque mínimo, já descontando o que está a caminho.',
+              tabId: 'purchases-needs',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'pedidos',
+            name: 'purchases-orders',
+            component: () => import('@/modules/compras/pedidos/views/PedidosView.vue'),
+            meta: {
+              title: 'Pedidos de Compra',
+              subtitle: 'O que foi pedido, a quem, e quando chega.',
+              tabId: 'purchases-orders',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'recebimento',
+            name: 'purchases-receiving',
+            component: () => import('@/modules/compras/recebimento/views/RecebimentoView.vue'),
+            meta: {
+              title: 'Recebimento',
+              subtitle: 'Confira o que chegou e dê entrada no estoque.',
+              tabId: 'purchases-receiving',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+          {
+            path: 'relatorios',
+            name: 'purchases-reports',
+            component: () => import('@/modules/compras/relatorios/views/RelatoriosComprasView.vue'),
+            meta: {
+              title: 'Relatórios de Compras',
+              subtitle: 'Prazo e pontualidade dos fornecedores, e variação de preço.',
+              tabId: 'purchases-reports',
+              requiresAuth: true,
+              exigeModulo: MODULOS.COMPRAS,
+            },
+          },
+        ],
       },
     ],
   },

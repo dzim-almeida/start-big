@@ -3,6 +3,16 @@ import { ref, computed, type Ref } from "vue";
 import { PaymentSaleCreate } from "../../schemas/paymentSale.schema";
 
 const finishModalIsOpen = ref(false);
+
+/**
+ * O sub-modal de detalhes do pagamento ("Dinheiro", "Cartao", ...).
+ *
+ * Mora aqui, e nao dentro do FinishSaleModal, porque a hierarquia do Escape
+ * precisa enxerga-lo: era um `ref` local, o atalho global nao sabia da sua
+ * existencia e o Esc pulava direto para o nivel de cima -- fechando a
+ * Finalizar Venda inteira, com `resetPayments()` junto. Achado em 20/08/2026.
+ */
+const showPaymentDetails = ref(false);
 const payments = ref<PaymentSaleCreate[]>([]);
 
 export function useFinishSaleModal(saleTotal?: Ref<number>) {
@@ -10,18 +20,34 @@ export function useFinishSaleModal(saleTotal?: Ref<number>) {
         payments.value.reduce((sum, p) => sum + p.valor, 0)
     );
 
-    const troco = computed(() => {
-        const total = saleTotal?.value ?? 0;
-        return Math.max(0, totalPago.value - total);
-    });
+    // Acréscimo = só o juros REPASSADO ao cliente. O absorvido pela loja não é
+    // cobrado, então não pode inflar o total da venda — ele é custo, não receita.
+    const acrescimo = computed(() =>
+        payments.value
+            .filter((p) => p.juros_responsavel !== 'LOJA')
+            .reduce((sum, p) => sum + (p.juros_valor ?? 0), 0)
+    );
 
-    const restante = computed(() => {
-        const total = saleTotal?.value ?? 0;
-        return Math.max(0, total - totalPago.value);
-    });
+    // Quanto a loja deixa de receber por ter absorvido juros.
+    const jurosLoja = computed(() =>
+        payments.value
+            .filter((p) => p.juros_responsavel === 'LOJA')
+            .reduce((sum, p) => sum + (p.juros_valor ?? 0), 0)
+    );
+
+    // Total a pagar já considerando o acréscimo de juros do checkout.
+    const totalComAcrescimo = computed(() => (saleTotal?.value ?? 0) + acrescimo.value);
+
+    const troco = computed(() =>
+        Math.max(0, totalPago.value - totalComAcrescimo.value)
+    );
+
+    const restante = computed(() =>
+        Math.max(0, totalComAcrescimo.value - totalPago.value)
+    );
 
     const canFinish = computed(() =>
-        payments.value.length > 0 && totalPago.value >= (saleTotal?.value ?? 0)
+        payments.value.length > 0 && totalPago.value >= totalComAcrescimo.value
     );
 
     function addPayment(payment: PaymentSaleCreate) {
@@ -42,11 +68,13 @@ export function useFinishSaleModal(saleTotal?: Ref<number>) {
 
     function closeFinishModal() {
         resetPayments();
+        showPaymentDetails.value = false;
         finishModalIsOpen.value = false;
     }
 
     return {
         finishModalIsOpen,
+        showPaymentDetails,
         openFinishModal,
         closeFinishModal,
         payments,
@@ -54,6 +82,8 @@ export function useFinishSaleModal(saleTotal?: Ref<number>) {
         removePayment,
         resetPayments,
         totalPago,
+        acrescimo,
+        jurosLoja,
         troco,
         restante,
         canFinish,

@@ -28,6 +28,8 @@ export const productSchema = z.object({
     }),
   localizacao_estoque: z.string().max(255).optional().or(z.literal('')),
   observacao: z.string().max(500).optional().or(z.literal('')),
+  // Marcenaria (Spec 04B): só aparece no segmento com orçamento técnico.
+  sofre_perda: z.boolean().default(false),
 
   valor_entrada: z.number().optional().or(z.literal(0)),
   valor_varejo: z
@@ -35,15 +37,65 @@ export const productSchema = z.object({
     .min(0.01, 'Valor de varejo deve ser maior que zero'),
   valor_atacado: z.number().optional().or(z.literal(0)),
 
-  quantidade: z
-  .number({ required_error: 'Quantidade e obrigatoria' })
-  .min(1, 'Quantidade deve ser maior que zero'),
+  quantidade: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z
+      .number({
+        required_error: 'Quantidade inicial é obrigatória',
+        invalid_type_error: 'Quantidade inicial é obrigatória',
+      })
+      .min(0, 'Quantidade não pode ser negativa'),
+  ),
   quantidade_minima: z
   .number()
   .optional(),
   quantidade_ideal: z
   .number()
   .optional(),
+
+  // Dados fiscais (opcionais, mas validam formato quando preenchidos)
+  fiscal_ncm: z.string()
+    .refine((v) => !v || /^\d{8}$/.test(v), { message: 'NCM deve ter exatamente 8 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_cest: z.string()
+    .refine((v) => !v || /^\d{7}$/.test(v), { message: 'CEST deve ter exatamente 7 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_cfop_padrao: z.string()
+    .refine((v) => !v || /^\d{4}$/.test(v), { message: 'CFOP deve ter exatamente 4 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_origem_mercadoria: z.string().optional().or(z.literal('')),
+  fiscal_unidade_tributavel: z.string().max(6).optional().or(z.literal('')),
+  fiscal_gtin_tributavel: z.string()
+    .refine((v) => !v || /^\d{8}$|^\d{13}$|^\d{14}$/.test(v), { message: 'GTIN deve ter 8, 13 ou 14 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_cst_icms: z.string()
+    .refine((v) => !v || /^\d{2,3}$/.test(v), { message: 'CST deve ter 2 ou 3 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_csosn: z.string()
+    .refine((v) => !v || /^\d{3}$/.test(v), { message: 'CSOSN deve ter 3 dígitos' })
+    .optional().or(z.literal('')),
+
+  // Alíquotas e tributos (NF-e)
+  fiscal_aliquota_icms_display: z.string().optional().or(z.literal('')),
+  fiscal_reducao_base_icms_display: z.string().optional().or(z.literal('')),
+  fiscal_codigo_beneficio_fiscal: z.string().max(10).optional().or(z.literal('')),
+  fiscal_aliquota_pis_display: z.string().optional().or(z.literal('')),
+  fiscal_aliquota_cofins_display: z.string().optional().or(z.literal('')),
+  fiscal_cst_pis: z.string()
+    .refine((v) => !v || /^\d{2}$/.test(v), { message: 'CST PIS deve ter 2 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_cst_cofins: z.string()
+    .refine((v) => !v || /^\d{2}$/.test(v), { message: 'CST COFINS deve ter 2 dígitos' })
+    .optional().or(z.literal('')),
+
+  // Reforma Tributária (IBS/CBS)
+  fiscal_c_class_trib: z.string().max(20).optional().or(z.literal('')),
+  fiscal_cst_ibs_cbs: z.string()
+    .refine((v) => !v || /^\d{2,3}$/.test(v), { message: 'CST IBS/CBS deve ter 2 ou 3 dígitos' })
+    .optional().or(z.literal('')),
+  fiscal_aliquota_ibs_display: z.string().optional().or(z.literal('')),
+  fiscal_aliquota_cbs_display: z.string().optional().or(z.literal('')),
+  fiscal_c_benef: z.string().max(10).optional().or(z.literal('')),
 });
 
 export const productValidationSchema = toTypedSchema(productSchema);

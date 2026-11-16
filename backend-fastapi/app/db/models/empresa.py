@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from app.db.models.configuracao_os import ConfiguracaoOS
     from app.db.models.configuracao_vendas import ConfiguracaoVendas
     from app.db.models.configuracao_seguranca import ConfiguracaoSeguranca
+    from app.db.models.configuracao_backup import ConfiguracaoBackup
+    from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria
 
 class Empresa(Base):
     """
@@ -40,6 +42,15 @@ class Empresa(Base):
     # --- Dados Fiscais ---
     inscricao_estadual: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Estadual (IE)")
     inscricao_municipal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Inscrição Municipal (IM)")
+    regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.) — rótulo exibido na interface")
+    crt: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc=(
+            "Código de Regime Tributário da NF-e: 1=Simples Nacional, "
+            "2=Simples Nacional excesso de sublimite, 3=Regime Normal, 4=MEI. "
+            "É este campo que decide CSOSN vs CST — nunca o texto de regime_tributario."
+        )
+    )
     regime_tributario: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Regime fiscal (Simples Nacional, Lucro Presumido, etc.)")
     cnae_principal: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="CNAE (Classificação Nacional de Atividades Econômicas) principal")
     segmento: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Segmento de negócio da empresa (ex: assistencia_tecnica, oficina_mecanica)")
@@ -55,6 +66,35 @@ class Empresa(Base):
     celular: Mapped[Optional[str]] = mapped_column(String(11), nullable=True, doc="Celular de contato")
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Email de contato principal")
     url_logo: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Caminho/URL da imagem da logo para uso no PDV/Relatórios")
+    chave_pix: Mapped[Optional[str]] = mapped_column(
+        String(77),
+        nullable=True,
+        doc=(
+            "Chave PIX do recebedor. 77 e o teto do BR Code para e-mail, a mais longa "
+            "das cinco formas (CPF, CNPJ, telefone, e-mail, aleatoria). Guardada como "
+            "texto porque o QR embute a chave literalmente -- o formato nao muda a "
+            "montagem do payload."
+        ),
+    )
+    pix_ativo: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        doc=(
+            "Se o QR PIX aparece na finalizacao. Separado da chave de proposito: "
+            "permite desligar temporariamente sem apagar a chave cadastrada."
+        ),
+    )
+    cor_tema: Mapped[Optional[str]] = mapped_column(
+        String(7),
+        nullable=True,
+        doc=(
+            "Cor da marca escolhida pelo dono, em hex (#RRGGBB). Fica ao lado do logo "
+            "porque e da mesma natureza: identidade visual, nao regra de negocio. "
+            "NULL = paleta de fabrica. A paleta completa e derivada dela no frontend "
+            "(shared/theme/paleta.ts); aqui guarda-se so a semente."
+        ),
+    )
     
     # --- Status ---
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, doc="Status de ativo/inativo no sistema")
@@ -153,4 +193,14 @@ class Empresa(Base):
         uselist=False,
         cascade="all, delete-orphan",
         doc="Configurações de backup automático"
+    )
+
+    # Relacionamento 1:1 com os parâmetros do orçamento de marcenaria (Spec 04A).
+    # Só existe linha para empresa de segmento com orçamento técnico.
+    config_marcenaria: Mapped[Optional["ConfiguracaoMarcenaria"]] = relationship(
+        "ConfiguracaoMarcenaria",
+        back_populates="empresa",
+        uselist=False,
+        cascade="all, delete-orphan",
+        doc="Parâmetros padrão do orçamento de marcenaria"
     )

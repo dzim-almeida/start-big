@@ -14,9 +14,15 @@ export function useToast() {
    * Exibe toast de sucesso
    * @param message - Mensagem a ser exibida
    * @param description - Descrição opcional
+   * @param options.action - Botão no toast (ex.: "Abrir pedido PC-000123"). Opcional:
+   *   sem ele, o toast é o de sempre.
    */
-  const success = (message: string, description?: string) => {
-    toast.success(message, { description });
+  const success = (
+    message: string,
+    description?: string,
+    options?: { action?: { label: string; onClick: () => void } },
+  ) => {
+    toast.success(message, { description, action: options?.action });
   };
 
   /**
@@ -32,9 +38,14 @@ export function useToast() {
    * Exibe toast de aviso
    * @param message - Mensagem a ser exibida
    * @param description - Descrição opcional
+   * @param options.action - Botão no toast (ex.: atalho para a tela que resolve o aviso)
    */
-  const warning = (message: string, description?: string) => {
-    toast.warning(message, { description });
+  const warning = (
+    message: string,
+    description?: string,
+    options?: { action?: { label: string; onClick: () => void } },
+  ) => {
+    toast.warning(message, { description, action: options?.action });
   };
 
   /**

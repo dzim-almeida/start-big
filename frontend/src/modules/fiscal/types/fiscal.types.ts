@@ -1,0 +1,803 @@
+export type DocumentoFiscalStatus =
+  | 'PENDENTE'
+  | 'PROCESSANDO'
+  | 'AUTORIZADA'
+  | 'REJEITADA'
+  | 'CANCELADA'
+  | 'DENEGADA'
+  // Transmitida, sem resposta confirmada. NUNCA reemitir: pode estar
+  // autorizada na SEFAZ, e a segunda nota valeria tanto quanto a primeira.
+  | 'INDETERMINADA'
+  // Houve tentativa e a nota nao chegou na SEFAZ. Nao e rejeicao: nao ha
+  // protocolo, nao ha codigo, e o numero reservado nao foi queimado.
+  | 'NAO_TRANSMITIDA';
+export type DocumentoFiscalTipo = 'NFE' | 'NFCE' | 'NFSE';
+export type DocumentoFiscalOrigem = 'VENDA' | 'ORDEM_SERVICO';
+
+export interface DocumentoItemResumo {
+  id?: number | null;
+  produto_id?: number | null;
+  nome: string;
+  codigo_barras?: string | null;
+  quantidade: number;
+  valor_unitario: number;
+  subtotal: number;
+  desconto?: number;
+  ncm?: string | null;
+  cfop?: string | null;
+  /**
+   * Devolução: saldo por item em MILÉSIMOS (1000 = 1 UN). `quantidade` acima
+   * é inteira e perde a fração; a devolução parcial precisa destes dois.
+   * Só o snapshot preenche — itens reconstruídos do cadastro vêm sem.
+   */
+  quantidade_milesimos?: number | null;
+  quantidade_devolvida_acumulada?: number | null;
+}
+
+/** `diagnostico` do documento, como o backend devolve (services/fiscal/diagnostico_sefaz.py). */
+export interface DiagnosticoSefazApi {
+  categoria: string;
+  cstat: number | null;
+  rotulo: string;
+  titulo: string;
+  explicacao: string;
+  como_resolver: string;
+  acao: { tipo: string; label: string } | null;
+}
+
+export interface DocumentoFiscalRead {
+  id: number;
+  tipo_documento: DocumentoFiscalTipo;
+  origem_tipo: DocumentoFiscalOrigem;
+  origem_id: number | null;
+  origem_numero_os: string | null;
+  status: DocumentoFiscalStatus;
+  chave_acesso: string | null;
+  numero_documento: number | null;
+  serie: number | null;
+  protocolo_autorizacao: string | null;
+  data_autorizacao: string | null;
+  url_pdf: string | null;
+  url_xml: string | null;
+  /**
+   * O XML esta guardado NESTE computador?
+   *
+   * Quando true, baixar funciona sem internet e o arquivo nao depende de a
+   * emissora estar no ar — que e a diferenca entre ter o documento e ter um
+   * link para ele.
+   */
+  xml_local?: boolean;
+  /** O DANFE esta guardado nesta maquina? (nao entra no backup em nuvem) */
+  pdf_local?: boolean;
+  /**
+   * Cartas de correção AUTORIZADAS nesta NF-e (0 em NFC-e). A SEFAZ só
+   * considera vigente a última, por isso o texto dela vem junto: a próxima
+   * carta precisa consolidar as anteriores.
+   */
+  total_cartas_correcao?: number;
+  ultima_carta_correcao?: string | null;
+  /** 1 = normal; 4 = esta nota É uma devolução e aponta para a origem. */
+  finalidade_emissao?: number;
+  documento_referenciado_id?: number | null;
+  chave_documento_referenciado?: string | null;
+  /** Todos os itens já voltaram por devolução autorizada. */
+  totalmente_devolvida?: boolean;
+  mensagem_sefaz: string | null;
+  codigo_status_sefaz: number | null;
+  /** Status cru da emissora ('autorizado', 'denegado', 'erro_autorizacao'). */
+  status_focus?: string | null;
+  motivo_rejeicao: string | null;
+  /**
+   * Explicação da rejeição calculada pelo backend (desde 07/10/2026), só em
+   * REJEITADA/DENEGADA. Ausente quando o servidor da loja ainda é anterior a
+   * isso — aí a tela usa a análise local (`fiscalDiagnostic.ts`).
+   */
+  diagnostico?: DiagnosticoSefazApi | null;
+  valor_total: number | null;
+  /** Texto do QR Code do DANFE NFC-e, montado pelo provedor com o CSC. */
+  qrcode: string | null;
+  /** Endereço de consulta da SEFAZ impresso abaixo do QR Code. */
+  url_consulta: string | null;
+  /** Tributos aproximados em CENTAVOS (Lei 12.741/2012 — IBPT). */
+  valor_tributos: number | null;
+  ref_api: string | null;
+  ambiente_emissao: number | null;
+  tentativa_anterior_id: number | null;
+  data_emissao: string | null;
+  data_criacao: string;
+  data_atualizacao: string;
+  
+  // Metadados enriquecidos
+  venda_id?: number | null;
+  destinatario_id?: number | null;
+  destinatario_nome?: string | null;
+  destinatario_documento?: string | null;
+  destinatario_uf?: string | null;
+  destinatario_municipio?: string | null;
+  itens_resumo?: DocumentoItemResumo[] | null;
+}
+
+// --- Devolução (TASK003) — espelham EmissaoDevolucaoRequest do backend ---
+
+export interface ItemDevolucaoPayload {
+  documento_item_id: number;
+  /** Inteiro em milésimos (1000 = 1.0 UN). */
+  quantidade: number;
+}
+
+export interface DestinatarioAvulsoPayload {
+  /** Só dígitos (11 ou 14). */
+  cpf_ou_cnpj: string;
+  nome_razao_social: string;
+  /** 1=Contribuinte, 2=Isento, 9=Não contribuinte. */
+  indicador_inscricao_estadual: 1 | 2 | 9;
+  inscricao_estadual?: string | null;
+  logradouro: string;
+  numero: string;
+  complemento?: string | null;
+  bairro: string;
+  /** IBGE, 7 dígitos. */
+  codigo_municipio: string;
+  municipio: string;
+  uf: string;
+  /** 8 dígitos. */
+  cep: string;
+}
+
+export interface EmissaoDevolucaoPayload {
+  motivo: string;
+  devolver_estoque: boolean;
+  /** null/omitido = devolução total do saldo restante. */
+  itens?: ItemDevolucaoPayload[] | null;
+  destinatario_avulso?: DestinatarioAvulsoPayload | null;
+}
+
+export interface VendaCorrecaoFiscalPayload {
+  cliente_id?: number | null;
+  observacao?: string | null;
+  observacao_interna?: string | null;
+  natureza_operacao?: string | null;
+  consumidor_final?: boolean | null;
+  indicador_presenca?: number | null;
+  finalidade_emissao?: number | null;
+}
+
+export interface DocumentoFiscalListRead {
+  items: DocumentoFiscalRead[];
+  total: number;
+  pagina: number;
+  paginas: number;
+}
+
+export interface DocumentoFiscalResumo {
+  pendentes: number;
+  autorizadas: number;
+  rejeitadas: number;
+  canceladas: number;
+}
+
+export interface PendenciaGlobalItem {
+  id: number;
+  nome: string;
+  campo_faltante: string;
+}
+
+/**
+ * O que a plataforma de emissão enxerga desta licença.
+ *
+ * `consultou: false` é "não sei" — a plataforma não respondeu. A tela precisa
+ * mostrar isso como indisponibilidade, nunca como "não configurado".
+ */
+export interface DiagnosticoPlataforma {
+  consultou: boolean;
+  ambiente?: number | null;
+  ambiente_nome?: string | null;
+  configurado?: boolean | null;
+  token_configurado?: boolean | null;
+  csc_configurado?: boolean | null;
+  certificado_status?: string | null;
+  pendencias: string[];
+  cnpj_erp?: string | null;
+  cnpj_plataforma?: string | null;
+  /** null = a plataforma ainda não devolve o CNPJ dela; não é divergência. */
+  cnpj_confere?: boolean | null;
+}
+
+export interface PendenciasGlobais {
+  emitente_completo: boolean;
+  emitente_pendencias: string[];
+  /** Cadastro errado que NÃO impede emitir — aviso, não pendência. */
+  emitente_avisos?: string[];
+  /** Aviso (não pendência): certificado vence em até 30 dias, ou já venceu. */
+  certificado_aviso?: string | null;
+  /** Negativo = vencido; null = sem validade conhecida. */
+  certificado_dias_restantes?: number | null;
+  produtos_sem_ncm: PendenciaGlobalItem[];
+  servicos_sem_lc116: PendenciaGlobalItem[];
+  pagamentos_sem_sefaz: PendenciaGlobalItem[];
+}
+
+export interface DocumentoFiscalFilters {
+  status?: DocumentoFiscalStatus;
+  tipo?: DocumentoFiscalTipo;
+  origem?: DocumentoFiscalOrigem;
+  busca?: string;
+  data_inicio?: string;
+  data_fim?: string;
+}
+
+/** Uma CC-e registrada (ou tentada) numa NF-e — espelha `CartaCorrecaoRead`. */
+export interface CartaCorrecaoRead {
+  id: number;
+  documento_id: number;
+  /** Sequência atribuída pela SEFAZ (1..20); null enquanto não autorizada. */
+  sequencia: number | null;
+  correcao: string;
+  status: 'PROCESSANDO' | 'AUTORIZADA' | 'REJEITADA' | 'ERRO';
+  protocolo: string | null;
+  codigo_status_sefaz: number | null;
+  mensagem_sefaz: string | null;
+  url_xml: string | null;
+  url_pdf: string | null;
+  xml_local: boolean;
+  pdf_local: boolean;
+  data_evento: string | null;
+  data_criacao: string;
+}
+
+export interface DocumentoFiscalHistorico {
+  tentativas: DocumentoFiscalRead[];
+  total_tentativas: number;
+}
+
+export interface EmissaoNFeRequest {
+  venda_id?: number;
+  numero_os?: string;
+  /** CFOP escolhido na conferência, por CFOP sugerido: { "5102": "5101" }. Ausente = o de sempre. */
+  trocar_cfop?: Record<string, string>;
+  /** Grava o CFOP escolhido como padrão dos produtos trocados. */
+  cfop_como_padrao?: boolean;
+}
+
+export interface CancelamentoRequest {
+  justificativa: string;
+}
+
+export interface EmissaoResponse {
+  documento_id: number;
+  ref_api: string | null;
+  status: string;
+  mensagem: string;
+  ambiente: number;
+}
+
+export interface FiscalConfiguracao {
+  ambiente: number;
+  ambiente_label: string;
+  mock_ativo: boolean;
+  certificado_configurado: boolean;
+  certificado_valido: boolean;
+  certificado_status?: string | null;
+  certificado_cnpj?: string | null;
+  certificado_validade?: string | null;
+  /** Negativo = vencido; null = sem validade conhecida. */
+  certificado_dias_restantes?: number | null;
+  serie_nfe?: number;
+  ultimo_numero_nfe?: number;
+  serie_nfce?: number;
+  ultimo_numero_nfce?: number;
+  /**
+   * Trava da Rejeição 204: o backend recusa qualquer emissão enquanto for
+   * `false`. Vira `true` ao salvar a tela de Emissão Estadual (que envia o
+   * campo explicitamente) ou ao alterar série/último número.
+   */
+  numeracao_confirmada: boolean;
+  /**
+   * MASCARADO pelo backend (ex.: `••••••••AB12`) — só os últimos caracteres,
+   * o bastante para reconhecer qual token está cadastrado. Reenviar a máscara
+   * no salvamento não sobrescreve o CSC guardado.
+   */
+  csc_token?: string | null;
+  /**
+   * True quando há CSC DIGITADO AQUI. Não é o que a tela deve afirmar: quem
+   * monta o QR Code é a emissora, e o CSC só vale na ficha dela — isso é
+   * `csc_configurado` do DiagnosticoPlataforma.
+   */
+  csc_configurado?: boolean;
+  csc_id?: string | null;
+  /** Só no PUT que trouxe CSC novo: o que a plataforma respondeu ao recebê-lo. */
+  csc_plataforma?: EnvioPlataforma | null;
+  /** Teto em CENTAVOS para emitir NFC-e sem CPF/CNPJ do comprador. */
+  limite_consumidor_anonimo?: number;
+  /** Fabricante do CE com ICMS-ST recolhido em DAE (Decreto 32.900/2018). */
+  nfe_st_fabricante_ce?: boolean;
+}
+
+/**
+ * Resposta da plataforma a um cadastro (CSC, certificado). `indisponivel`
+ * = "ainda não recebe isto", o dado ficou só neste computador — diferente de
+ * recusa (`aceito=false` sem `indisponivel`), que vem com a frase de lá.
+ */
+export interface EnvioPlataforma {
+  aceito: boolean;
+  indisponivel: boolean;
+  mensagem?: string | null;
+}
+
+/**
+ * Corpo do `PUT /fiscal/configuracao` — espelha `FiscalSettingsUpdate` do
+ * backend. Difere do `FiscalConfiguracao` de leitura (`ambiente_emissao` aqui,
+ * `ambiente` lá), por isso não é um `Partial` dele.
+ */
+export interface FiscalConfiguracaoUpdate {
+  ambiente_emissao?: number;
+  serie_nfe?: number;
+  ultimo_numero_nfe?: number;
+  serie_nfce?: number;
+  ultimo_numero_nfce?: number;
+  numeracao_confirmada?: boolean;
+  csc_token?: string | null;
+  csc_id?: string | null;
+  limite_consumidor_anonimo?: number;
+  nfe_st_fabricante_ce?: boolean;
+  tipo_certificado?: string;
+}
+
+export interface EmissaoPreviewItem {
+  numero_item: number;
+  produto_id: number | null;
+  nome: string;
+  quantidade: number;
+  /** FD, CX… Ausente (backend antigo) ou nulo = unidade. */
+  sigla_embalagem?: string | null;
+  fator_embalagem?: number;
+  valor_unitario: number;
+  valor_total: number;
+  cfop: string;
+  ncm: string;
+  cst_csosn: string;
+}
+
+export interface EmissaoPreviewPagamento {
+  nome: string;
+  codigo_sefaz: string;
+  valor: number;
+}
+export interface EmissaoPreviewTotais {
+  valor_produtos: number;
+  descontos: number;
+  frete: number;
+  valor_nota: number;
+  total_tributos: number;
+}
+export interface EmissaoPreviewDestinatario {
+  nome: string;
+  documento: string;
+}
+export interface OpcaoCfop {
+  cfop: string;
+  descricao: string;
+}
+
+/** Um campo de CFOP na conferência: os itens que iriam com o mesmo CFOP sugerido. */
+export interface GrupoCfop {
+  cfop_sugerido: string;
+  /** O que vai na nota (igual ao sugerido sem troca). */
+  cfop: string;
+  descricao: string;
+  itens: number[];
+  /** Vazio = travado (entrega futura, ST como substituto): só mostra. */
+  opcoes: OpcaoCfop[];
+}
+
+export interface EmissaoPreviewResponse {
+  destinatario: EmissaoPreviewDestinatario;
+  totais: EmissaoPreviewTotais;
+  itens: EmissaoPreviewItem[];
+  formas_pagamento: EmissaoPreviewPagamento[];
+  /** Cadastro esquisito que não trava a nota (MEI × regime, PJ sem IE). Backend antigo não manda. */
+  avisos?: string[];
+  /** Backend antigo não manda: sem campo de CFOP, a conferência é a de sempre. */
+  grupos_cfop?: GrupoCfop[];
+}
+
+// --- Error Detail (409 Conflict) ---
+
+export interface FiscalConflictDetail {
+  codigo: string;
+  mensagem: string;
+  documento_id?: number;
+  chave_acesso?: string;
+}
+
+// --- Emissão Batch ---
+
+export interface EmissaoBatchItemResult {
+  venda_id: number;
+  documento_id: number | null;
+  status: string;
+  mensagem: string;
+}
+
+export interface EmissaoBatchResponse {
+  resultados: EmissaoBatchItemResult[];
+  total: number;
+  sucesso: number;
+  falha: number;
+}
+
+// --- Verificação Fiscal Batch ---
+
+export interface PendenciaFiscal {
+  categoria: string;
+  campo: string;
+  mensagem: string;
+  referencia_id: number | null;
+  referencia_nome: string | null;
+}
+
+export interface DocumentoAtivoResumo {
+  documento_id: number;
+  status: DocumentoFiscalStatus;
+  numero_documento: number | null;
+  serie: number | null;
+  chave_acesso: string | null;
+}
+
+export interface VerificacaoBatchItem {
+  venda_id: number;
+  numero_venda: number | null;
+  completo: boolean;
+  pendencias: PendenciaFiscal[];
+  documento_ativo: DocumentoAtivoResumo | null;
+}
+
+export interface ResultadoVerificacaoBatch {
+  resultados: VerificacaoBatchItem[];
+  total: number;
+  total_aptas: number;
+  total_com_pendencias: number;
+  total_com_documento: number;
+}
+
+
+/**
+ * Sugestão de campo fiscal vinda do backend.
+ *
+ * Nunca é só o valor: `fundamentacao` é o "por quê?" que a tela mostra ao lado
+ * do campo, e é o que permite ao contador discordar com base. Sugestão sem
+ * explicação, em campo tributário, é pior que campo vazio.
+ */
+export interface CampoSugerido {
+  campo: string;
+  valor: string | null;
+  fonte: 'derivado' | 'default_regime' | 'default_uf' | 'base_ncm' | 'base_cest';
+  confianca: 'certa' | 'provavel' | 'ambigua';
+  fundamentacao: string;
+  /** (valor, descrição) — preenchido quando a confiança é `ambigua`. */
+  alternativas: [string, string][];
+  /** Bloqueia auto-aplicação: errar aqui produz nota aceita e errada. */
+  exige_confirmacao: boolean;
+}
+
+export interface SugestoesFiscaisResponse {
+  sugestoes: CampoSugerido[];
+}
+
+/**
+ * Regra de um campo fiscal no cadastro de produto.
+ *
+ * Campo invisível NUNCA é obrigatório — o backend garante isso, porque erro
+ * em campo que a tela não renderiza mata o submit em silêncio.
+ */
+export interface RegraCampoFiscal {
+  visivel: boolean;
+  obrigatorio: boolean;
+}
+
+export interface CamposFiscaisProdutoResponse {
+  crt: number;
+  /** Rótulo do regime para a tela ("Simples Nacional", "Regime Normal"...). */
+  regime: string;
+  usa_csosn: boolean;
+  campos: Record<string, RegraCampoFiscal>;
+}
+
+/**
+ * A tributação padrão da loja — a resposta que vale para o catálogo inteiro.
+ *
+ * Primeiro nível da cascata ao contrário: produto → regra por NCM → isto.
+ * Campo vazio significa "não decido isto", nunca "apague".
+ */
+export interface TributacaoPadrao {
+  id?: number;
+  empresa_id?: number;
+  cfop_padrao?: string | null;
+  origem_mercadoria?: number | null;
+  cst_icms?: string | null;
+  csosn?: string | null;
+  aliquota_icms?: number | null;
+  reducao_base_icms?: number | null;
+  codigo_beneficio_fiscal?: string | null;
+  cst_pis?: string | null;
+  cst_cofins?: string | null;
+  aliquota_pis?: number | null;
+  aliquota_cofins?: number | null;
+  c_class_trib?: string | null;
+  cst_ibs_cbs?: string | null;
+  aliquota_ibs?: number | null;
+  aliquota_cbs?: number | null;
+  c_benef?: string | null;
+  confirmado_em?: string | null;
+  confirmado_por?: string | null;
+}
+
+/**
+ * O que a SEFAZ recusaria neste produto — conferido ANTES de salvar.
+ *
+ * `procedencia` diz de onde veio cada valor conferido (produto, regra do NCM
+ * ou padrao da loja): campo preenchido sem explicacao, num formulario fiscal,
+ * e pior que campo vazio.
+ */
+export interface ValidacaoFiscalProduto {
+  pode_emitir: boolean;
+  pendencias: { campo: string; mensagem: string }[];
+  procedencia: Record<string, string>;
+}
+
+/** Um codigo da tabela NCM. */
+export interface NcmItem {
+  codigo: string;
+  descricao: string;
+  /** A cadeia de ancestrais — e o que o lojista le para ter certeza. */
+  descricao_completa: string | null;
+}
+
+export interface BuscaNcmResposta {
+  resultados: NcmItem[];
+  total_na_base: number;
+}
+
+// ===========================================================================
+// NFS-E — tabelas oficiais (código de tributação nacional e NBS)
+// ===========================================================================
+
+/** Um código das tabelas da NFS-e Nacional (mesma forma do NCM). */
+export interface CodigoFiscalItem {
+  codigo: string;
+  descricao: string;
+  descricao_completa: string | null;
+}
+
+export interface BuscaServicoNacionalResposta {
+  resultados: CodigoFiscalItem[];
+}
+
+export interface BuscaNbsResposta {
+  /** Os NBS que a Receita correlaciona com o código nacional informado. */
+  sugeridos: CodigoFiscalItem[];
+  resultados: CodigoFiscalItem[];
+}
+
+// ===========================================================================
+// NUMERAÇÃO — buracos e inutilização
+// ===========================================================================
+
+/** Faixa reservada que nunca virou nota autorizada. Precisa ir à SEFAZ. */
+export interface GapNumeracao {
+  serie: number;
+  numero_inicial: number;
+  numero_final: number;
+  quantidade: number;
+}
+
+/**
+ * Situação de um pedido de inutilização. Espelha `InutilizacaoFiscal.status`.
+ *
+ * REJEITADA e NAO_TRANSMITIDA devolvem a faixa à lista de buracos; a diferença
+ * é quem disse não: a SEFAZ (com código) ou a plataforma, antes de transmitir.
+ * INDETERMINADA é a única que não devolve -- sem resposta, a faixa pode ter
+ * sido registrada.
+ */
+export type StatusInutilizacao =
+  | 'PENDENTE'
+  | 'PROCESSANDO'
+  | 'HOMOLOGADA'
+  | 'REJEITADA'
+  | 'INDETERMINADA'
+  | 'NAO_TRANSMITIDA';
+
+export interface InutilizacaoRead {
+  id: number;
+  serie: number;
+  ano: number;
+  numero_inicial: number;
+  numero_final: number;
+  justificativa: string;
+  status: StatusInutilizacao | string;
+  protocolo?: string | null;
+  mensagem_sefaz?: string | null;
+  url_xml?: string | null;
+  data_solicitacao?: string | null;
+  data_homologacao?: string | null;
+}
+
+export interface InutilizacaoRequest {
+  serie: number;
+  numero_inicial: number;
+  numero_final: number;
+  /** Mínimo de 15 caracteres — é o que a SEFAZ exige. */
+  justificativa: string;
+}
+
+// ===========================================================================
+// NFS-e DA OS (backend-fastapi/docs/nfse-plano.md, F3)
+// ===========================================================================
+
+/** Franquia fiscal do mês (GET /fiscal/franquia — eco da plataforma, 13.4.1). */
+export interface FranquiaFiscal {
+  /** false = a plataforma não respondeu: a tela esconde o cartão. */
+  consultou: boolean;
+  competencia: string;
+  /** false antes de a franquia valer (2026-11). */
+  vigente: boolean;
+  franquia: number;
+  emitidas: number;
+  restantesNaFranquia: number;
+  excedentes: number;
+  precoExcedente: number;
+  /** Em reais. */
+  valorExcedente: number;
+  formaCobranca: 'CARTAO' | 'PIX' | string;
+  limite: number;
+  restantes: number | null;
+}
+
+/** Uma NFS-e na lista da aba (GET /fiscal/nfse/documentos). */
+export interface NfseDocumento {
+  id: number;
+  numero_os: string | null;
+  status: DocumentoFiscalStatus;
+  numero: number | null;
+  /** Com ele o tomador confere a nota no portal da NFS-e. */
+  codigo_verificacao: string | null;
+  valor_total: number | null;
+  tomador: string | null;
+  mensagem: string | null;
+  url_pdf: string | null;
+  /** Link público da nota no portal (não expira, não pede login). */
+  url_consulta: string | null;
+  ambiente: number | null;
+  data_emissao: string | null;
+  data_autorizacao: string | null;
+}
+
+/** O detalhe de uma NFS-e para a gaveta (`GET /fiscal/nfse/documentos/{id}`). */
+export interface NfseDetalhe {
+  id: number;
+  status: DocumentoFiscalStatus;
+  status_focus: string | null;
+  origem: string | null;
+  numero_os: string | null;
+  numero: number | null;
+  codigo_verificacao: string | null;
+  chave_acesso: string | null;
+  ref: string | null;
+  ambiente: number | null;
+  valor_total: number | null;
+  tomador: string | null;
+  tomador_documento: string | null;
+  /** O motivo inteiro da emissora (a linha da tabela corta). */
+  motivo: string | null;
+  codigo_status: string | null;
+  /** O que fazer, em português de loja (só nas recusas conhecidas e sem retorno). */
+  dica: string | null;
+  url_pdf: string | null;
+  url_xml: string | null;
+  url_consulta: string | null;
+  /** O arquivo já está guardado neste computador (abre sem internet). */
+  xml_local?: boolean;
+  pdf_local?: boolean;
+  data_emissao: string | null;
+  data_autorizacao: string | null;
+  itens: { descricao: string; codigo: string | null; valor: number; desconto: number }[];
+  tentativas_anteriores: { id: number; status: DocumentoFiscalStatus; motivo: string | null; data: string | null; ref: string | null }[];
+  /** Última tentativa recusada de uma OS: o detalhe oferece "Tentar de novo". */
+  pode_tentar_de_novo?: boolean;
+  /** Autorizada, da OS, com a chave gravada: o detalhe oferece "Substituir" (O4). */
+  pode_substituir?: boolean;
+}
+
+/** A DPS que sairia — campos no formato da Focus (só os que a tela mostra). */
+export interface NfsePreview {
+  numero_os: string;
+  dps: {
+    descricao_servico: string;
+    valor_servico: number;
+    desconto_incondicionado?: number;
+    codigo_tributacao_nacional_iss: string;
+    codigo_nbs?: string;
+    razao_social_tomador?: string;
+    cpf_tomador?: string;
+    cnpj_tomador?: string;
+    codigo_opcao_simples_nacional: string;
+  };
+  /**
+   * Uma nota por código nacional (G3). Com um código só, uma entrada igual a
+   * `dps`. `ja_emitida`: aquele código já tem NFS-e viva.
+   */
+  notas?: { codigo: string; dps: NfsePreview['dps']; ja_emitida: boolean }[];
+}
+
+/** NFS-e avulsa, sem OS (G4). Valores em centavos. */
+export interface NfseAvulsaRequest {
+  servico_id?: number | null;
+  codigo_tributacao_nacional?: string | null;
+  codigo_nbs?: string | null;
+  descricao: string;
+  valor: number;
+  desconto?: number;
+  tomador_documento?: string | null;
+  tomador_nome?: string | null;
+  tomador_email?: string | null;
+}
+
+/**
+ * Por onde sai a NFS-e da empresa e o que a nota pede (`GET /fiscal/nfse/rota`).
+ * A tela do serviço mostra só os campos que importam para esta rota e regime.
+ */
+export interface NfseRota {
+  rota: 'NACIONAL' | 'MUNICIPAL' | 'MUNICIPAL_PENDENTE' | string;
+  cidade: string | null;
+  /** `*_obrigatorio_nfse` da cidade, sem o sufixo: { codigo_cnae: true, ... }. */
+  obrigatorios: Record<string, boolean | null>;
+  exige_login: boolean;
+  /** false = a plataforma não respondeu; valem as regras da Nacional. */
+  confirmada: boolean;
+  regime: 'mei' | 'simples' | 'normal';
+}
+
+/** Uma OS pronta para a NFS-e (`GET /fiscal/nfse/os-para-emitir`, M3). */
+export interface NfseOsParaEmitir {
+  numero_os: string;
+  cliente: string | null;
+  data: string | null;
+  /** Centavos, já sem a parte do desconto da OS. */
+  valor_servicos: number;
+  /** Já tem NFS-e de um código, falta outro ("uma nota por código"). */
+  nfse_parcial: boolean;
+}
+
+/** Um item da Saúde Fiscal da NFS-e (`GET /fiscal/nfse/saude`). */
+export interface NfseSaudeItem {
+  chave: 'empresa' | 'rota' | 'certificado' | 'servicos' | string;
+  titulo: string;
+  ok: boolean;
+  detalhe: string;
+  /** Só no item "servicos": os que faltam códigos (até 50). */
+  servicos?: { id: number; nome: string; falta: string }[];
+  total_faltando?: number;
+  /** Só no item "emissora" com problema: o que a plataforma viu, para ler ao suporte (O3). */
+  detalhe_suporte?: string | null;
+}
+
+/** Saúde Fiscal da aba NFS-e (M4): a mesma barra da aba NF-e. */
+export interface NfseSaude {
+  percentual: number;
+  pendencias: number;
+  itens: NfseSaudeItem[];
+}
+
+/** Configuração da NFS-e (G3): as decisões do contador como opção. */
+export interface NfseConfiguracao {
+  regime_tributacao_iss: number | null;
+  nfse_reter_iss_pj: boolean;
+  nfse_uma_nota_por_codigo: boolean;
+  nfse_ibs_cbs_cst: string | null;
+  nfse_ibs_cbs_cclass: string | null;
+  /** Padrão para serviços novos (M2): só preenche o cadastro, não a nota. */
+  nfse_padrao_codigo_nacional?: string | null;
+  nfse_padrao_nbs?: string | null;
+  /** Centésimos de ponto (500 = 5%). */
+  nfse_padrao_aliquota_iss?: number | null;
+}

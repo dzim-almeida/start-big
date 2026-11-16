@@ -17,7 +17,10 @@ import type { FilterOption } from '@/shared/types/filter.types';
 import BasePagination from '@/shared/components/commons/BasePagination/BasePagination.vue';
 import MovimentacaoModal from './MovimentacaoModal.vue';
 import { useMovimentacoesQuery } from '../composables/useMovimentacoesQuery';
+import { formatCurrency } from '@/shared/utils/finance';
 import type { ProdutoRead } from '../types/products.types';
+import { parseTimestampBackend } from '@/shared/utils/date.utils';
+import { formatarQuantidade, siglaUnidade } from '@/shared/utils/quantidade';
 
 interface Props {
   isOpen: boolean;
@@ -82,6 +85,7 @@ watch([searchTerm, tipoFilter], () => {
   currentPage.value = 1;
 });
 
+// Data da movimentação: timestamp de evento (UTC no backend).
 function formatDate(isoString: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -89,7 +93,7 @@ function formatDate(isoString: string) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(isoString));
+  }).format(parseTimestampBackend(isoString));
 }
 
 function quantidadeLabel(tipo: string, qtd: number) {
@@ -222,9 +226,23 @@ function quantidadeClass(tipo: string) {
                   <div class="text-right shrink-0">
                     <p class="text-base" :class="quantidadeClass(mov.tipo)">
                       {{ quantidadeLabel(mov.tipo, mov.quantidade) }}
-                      <span v-if="mov.tipo !== 'EDICAO_DADOS'"> un</span>
+                      <span v-if="mov.tipo !== 'EDICAO_DADOS'"> {{ siglaUnidade(mov.unidade_medida) }}</span>
                     </p>
-                    <p v-if="mov.tipo !== 'EDICAO_DADOS'" class="text-xs text-zinc-400">→ {{ mov.quantidade_posterior }} un</p>
+                    <p v-if="mov.quantidade_embalagem && mov.embalagem_sigla" class="text-[11px] text-zinc-400">
+                      ({{ mov.quantidade_embalagem }} {{ mov.embalagem_sigla }} de {{ mov.embalagem_fator }})
+                    </p>
+                    <p v-if="mov.tipo !== 'EDICAO_DADOS'" class="text-xs text-zinc-400">
+                      → {{ formatarQuantidade(mov.quantidade_posterior, mov.unidade_medida) }}
+                    </p>
+                    <!--
+                      Custo congelado nesta linha. É a trilha de auditoria do
+                      lucro: dá para conferir, movimento a movimento, com que
+                      custo cada peça entrou ou saiu — mesmo anos depois, e
+                      mesmo que o preço do fornecedor tenha mudado várias vezes.
+                    -->
+                    <p v-if="mov.custo_unitario != null" class="text-xs text-zinc-400 mt-0.5">
+                      {{ formatCurrency(mov.custo_unitario) }}/un
+                    </p>
                   </div>
                 </div>
 

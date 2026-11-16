@@ -85,7 +85,7 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
                 type="radio"
                 name="ambiente_emissao"
                 :disabled="disabled"
-                class="radio radio-primary radio-xs"
+                class="radio radio-primary radio-xs accent-brand-primary"
                 @change="updateField('ambiente_emissao', 2)"
               />
               <span class="text-sm text-gray-700">Homologação (Testes)</span>
@@ -103,7 +103,7 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
                   type="radio"
                   name="ambiente_emissao"
                   :disabled="!canEmitirProducao || disabled"
-                  class="radio radio-error radio-xs"
+                  class="radio radio-error radio-xs accent-red-600"
                   @change="updateField('ambiente_emissao', 1)"
                 />
                 <span class="text-sm text-gray-700 font-bold">Produção</span>
@@ -191,7 +191,7 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
           variant="secondary"
           size="sm"
           :disabled="!hasCertificado || disabled"
-          :loading="isTestingSefaz"
+          :is-loading="isTestingSefaz"
           @click="handleTestSefaz"
         >
           <Shield :size="16" class="mr-2 text-orange-500" />
@@ -287,7 +287,7 @@ function updateField<K extends keyof FiscalSettings>(field: K, value: FiscalSett
           variant="secondary"
           size="sm"
           :disabled="!fiscal_settings.prefeitura_login || !hasCertificado || disabled"
-          :loading="isTestingPrefeitura"
+          :is-loading="isTestingPrefeitura"
           @click="handleTestPrefeitura"
         >
           <Shield :size="16" class="mr-2 text-brand-primary" />

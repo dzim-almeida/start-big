@@ -4,10 +4,13 @@ import { ListPlus, BadgeDollarSign, Truck, TicketPercent, AlertTriangle } from '
 import { formatCurrency } from '@/shared/utils/finance';
 import MoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import type { SaleUpdate } from '../../schemas/sale.schema';
+import { focarBuscaDeProduto } from '../../focarBusca.util';
 
 const props = defineProps<{
   subtotal?: number;
   discount?: number;
+  /** R1/R3 (§6.1): desconto das regras de preço, fora do campo do operador. */
+  descontoRegra?: number;
   delivery?: number;
   total?: number;
   form?: SaleUpdate;
@@ -17,6 +20,21 @@ const props = defineProps<{
   valorMinimoVenda?: number;
   onSave?: () => void;
 }>();
+
+/**
+ * Enter em Desconto ou Entrega grava e devolve o foco à busca de produto.
+ *
+ * Estes dois campos são exceção no ritmo do balcão: chega-se neles por atalho
+ * (`Ctrl+D` e `Ctrl+E`), mexe-se uma vez e volta-se a vender. Deixar o cursor
+ * parado ali depois do Enter tem o mesmo perigo da quantidade — a próxima
+ * bipada digitaria o código de barras inteiro dentro do campo de desconto.
+ *
+ * O `blur` continua só gravando: sair com o mouse não é dizer "terminei".
+ */
+function salvarEVoltarParaBusca() {
+  props.onSave?.();
+  focarBuscaDeProduto();
+}
 
 const belowMinimum = computed(() => {
   const min = props.valorMinimoVenda ?? 0;
@@ -48,6 +66,10 @@ const hasDelivery = computed(() => {
         <div class="h-9.5 flex items-center">
           <span class="font-bold text-base text-zinc-700 whitespace-nowrap">{{ formatCurrency(subtotal ?? 0) }}</span>
         </div>
+        <!-- Sem esta linha, subtotal − desconto não fecharia com o total. -->
+        <p v-if="(descontoRegra ?? 0) > 0" class="-mt-1 text-[10px] font-semibold text-emerald-700 whitespace-nowrap">
+          −{{ formatCurrency(descontoRegra ?? 0) }} preço por qtd.
+        </p>
       </div>
     </div>
 
@@ -71,6 +93,7 @@ const hasDelivery = computed(() => {
         >
           Desconto
         </p>
+        <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.desconto"
@@ -79,8 +102,9 @@ const hasDelivery = computed(() => {
           class="w-full max-w-28 bg-white/80"
           data-sale-desconto
           @blur="onSave"
-          @enter="onSave"
+          @enter="salvarEVoltarParaBusca"
         />
+        <!-- eslint-enable vue/no-mutating-props -->
         <div v-else class="h-9.5 flex items-center">
           <span
             :class="[
@@ -114,6 +138,7 @@ const hasDelivery = computed(() => {
         >
           Entrega
         </p>
+        <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
         <MoneyInput
           v-if="form && !readonly"
           v-model.number="form.entrega"
@@ -122,8 +147,9 @@ const hasDelivery = computed(() => {
           class="w-full max-w-28 bg-white/80"
           data-sale-entrega
           @blur="onSave"
-          @enter="onSave"
+          @enter="salvarEVoltarParaBusca"
         />
+        <!-- eslint-enable vue/no-mutating-props -->
         <div v-else class="h-9.5 flex items-center">
           <span
             :class="[

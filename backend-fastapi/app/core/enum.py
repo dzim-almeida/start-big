@@ -90,10 +90,20 @@ class SituacaoEquipamento(str, enum.Enum):
 
 class OrdemServicoItemTipo(str, enum.Enum):
     PRODUTO = "PRODUTO"
-    SERVICO = "SERVICO"  
+    SERVICO = "SERVICO"
+
+class OrdemServicoItemAprovacao(str, enum.Enum):
+    """Status de aprovação de um item da OS (usado no fluxo de orçamento).
+
+    Default APROVADO preserva o comportamento existente (todos os itens contam
+    no total). REPROVADO exclui o item do total; PENDENTE aguarda decisão."""
+    PENDENTE = "PENDENTE"
+    APROVADO = "APROVADO"
+    REPROVADO = "REPROVADO"
 
 class TipoEquipamento(str, enum.Enum):
     COMPUTADOR = "COMPUTADOR"
+    NOTEBOOK = "NOTEBOOK"
     CELULAR = "CELULAR"
     TABLET = "TABLET"
     IMPRESSORA = "IMPRESSORA"
@@ -145,3 +155,189 @@ class MovimentacaoTipo(str, enum.Enum):
     SAIDA = "SAIDA"
     AJUSTE = "AJUSTE"
     EDICAO_DADOS = "EDICAO_DADOS"
+
+class MovimentacaoOrigem(str, enum.Enum):
+    """De onde veio uma movimentação de estoque.
+
+    `movimentacoes_estoque` é o livro-razão ÚNICO do estoque: toda alteração de
+    quantidade passa por lá, venha de onde vier. A origem é o que permite
+    responder "esta peça saiu por venda ou por OS?" sem depender de texto livre.
+
+    LEGADO: linhas anteriores à criação deste campo. A origem real delas não é
+    recuperável — não presuma que eram manuais.
+    """
+    LEGADO = "LEGADO"
+    MANUAL = "MANUAL"
+    CADASTRO = "CADASTRO"
+    VENDA = "VENDA"
+    ORDEM_SERVICO = "ORDEM_SERVICO"
+    # Mercadoria que voltou por NF-e de devolução autorizada (finalidade 4).
+    DEVOLUCAO = "DEVOLUCAO"
+    # Compra importada pela XML da NF-e do fornecedor (entrada por XML).
+    NFE_ENTRADA = "NFE_ENTRADA"
+    # Recebimento de um pedido de compra (módulo Compras, fase 3).
+    COMPRA = "COMPRA"
+    # Marcenaria: o móvel pronto entra como produto acabado e sai na NF-e
+    # (docs/marcenaria-faturamento-plano.md). FICA FORA DO CMV de propósito: o
+    # material já entrou no custo pela baixa da separação (origem ORDEM_SERVICO).
+    PRODUCAO = "PRODUCAO"
+
+
+class JurosResponsavel(str, enum.Enum):
+    """Define quem arca com os juros de um pagamento parcelado/cartão.
+
+    CLIENTE: juros repassado — o cliente paga a mais e o `valor` do pagamento
+             já inclui o acréscimo (comportamento histórico, é o padrão).
+    LOJA:    juros absorvido — o cliente paga o preço cheio sem acréscimo e a
+             loja recebe menos; `valor` NÃO inclui o juros.
+    """
+    CLIENTE = "CLIENTE"
+    LOJA = "LOJA"
+
+
+class MovimentacaoFinanceiraTipo(str, enum.Enum):
+    """Direção do dinheiro no livro financeiro.
+
+    Existe desde a primeira versão da tabela de propósito: "contas a pagar" é
+    justamente o lado SAIDA, e uma tabela que nascesse só pensando em recebimento
+    precisaria ser alterada depois — com dado real de loja dentro.
+    """
+    ENTRADA = "ENTRADA"
+    SAIDA = "SAIDA"
+
+
+class MovimentacaoFinanceiraOrigem(str, enum.Enum):
+    """De onde veio uma movimentação de dinheiro.
+
+    `movimentacoes_financeiras` é o livro-razão ÚNICO do dinheiro, no mesmo
+    espírito de `movimentacoes_estoque` (ver MovimentacaoOrigem). Todo dinheiro
+    que entra ou sai passa por lá, venha de onde vier, e a origem é o que permite
+    responder "isto foi venda, sangria ou pagamento de fornecedor?" sem depender
+    de texto livre.
+
+    ATENÇÃO — cobrança não é movimento. Uma venda a prazo gera a COBRANÇA hoje
+    (em `pagamentos_venda`) e NENHUM movimento; o movimento nasce no dia em que o
+    dinheiro entra de fato, com origem RECEBIMENTO. É essa separação que faz o
+    fechamento de caixa bater numa loja que vende fiado.
+    """
+    VENDA = "VENDA"
+    ORDEM_SERVICO = "ORDEM_SERVICO"
+    ABERTURA = "ABERTURA"          # troco inicial posto na gaveta
+    SANGRIA = "SANGRIA"            # retirada que não é venda
+    SUPRIMENTO = "SUPRIMENTO"      # entrada que não é venda
+    # Reservados para o módulo de gestão financeira. Declarados agora para que a
+    # tabela não precise ser alterada quando ele chegar.
+    RECEBIMENTO = "RECEBIMENTO"    # baixa de conta a receber (fiado, boleto)
+    DESPESA = "DESPESA"            # conta a pagar (aluguel, fornecedor)
+
+
+# ===========================================================================
+# GESTÃO FINANCEIRA
+# ===========================================================================
+
+class PlanoContaTipo(str, enum.Enum):
+    """Natureza de uma categoria do plano de contas.
+
+    É o que permite ao resultado do mês dizer ONDE o dinheiro foi, e não só
+    quanto saiu. Sem isso, "gastei R$ 12 mil" não separa aluguel de mercadoria,
+    e a conversa sobre onde cortar não acontece.
+
+    SÃO TRÊS GRUPOS, e não dois. Plano de contas gerencial separa receita, CUSTO
+    e despesa -- e a diferença entre os dois últimos não é academicismo, é a
+    conta do lucro:
+
+      DESPESA  o que a loja gasta para existir (aluguel, internet, salário).
+               Sai do caixa e sai do lucro, no mês em que foi paga.
+      CUSTO    compra de mercadoria ou peça para revender. Sai do caixa, mas
+               NÃO sai do lucro: o dinheiro virou estoque, não sumiu. Ele entra
+               no lucro quando a peça SAI numa venda ou OS, pelo CMV (custo
+               congelado no livro de estoque).
+      RECEITA  entrada classificada, do lado oposto.
+
+    O CUSTO nasceu de um defeito real: sem ele, a compra da peça era descontada
+    duas vezes -- uma como despesa paga, outra como CMV no dia da venda. É o
+    mesmo desenho do QuickBooks e do Xero, onde comprar estoque debita ATIVO e
+    só a venda debita CMV.
+    """
+    DESPESA = "DESPESA"
+    RECEITA = "RECEITA"
+    CUSTO = "CUSTO"
+
+
+class ContaBancariaTipo(str, enum.Enum):
+    """Onde o dinheiro fica parado.
+
+    Existe desde a primeira versão porque fluxo de caixa que não sabe se o
+    dinheiro está na gaveta ou no banco é meia resposta -- e acrescentar a
+    coluna depois, com lançamento de loja dentro, sai caro.
+    """
+    CAIXA = "CAIXA"    # espécie na loja
+    BANCO = "BANCO"    # conta corrente, poupança ou conta digital
+    # Cartão é um LUGAR, não uma forma de pagamento, e a diferença é o que faz a
+    # fatura fechar: com duas compras parceladas correndo juntas (10x de 100 e
+    # 4x de 50), a fatura de novembro é a soma do que vence naquele mês. Isso só
+    # se responde sozinho se o cartão for uma entidade e não um texto.
+    CARTAO_CREDITO = "CARTAO_CREDITO"
+
+
+class ContaPagarStatus(str, enum.Enum):
+    """Situação de uma conta a pagar.
+
+    PAGA não é o fim da linha: o estorno devolve a conta para PENDENTE, e é
+    assim que um pagamento lançado errado se corrige -- editando a conta, nunca
+    apagando a linha do livro que ela gerou.
+    """
+    PENDENTE = "PENDENTE"
+    PAGA = "PAGA"
+    CANCELADA = "CANCELADA"
+
+
+class ContaReceberStatus(str, enum.Enum):
+    """Situação de uma conta a receber.
+
+    Espelho de `ContaPagarStatus`, e RECEBIDA tem a mesma propriedade de PAGA:
+    não é o fim da linha. O estorno devolve a conta para PENDENTE, e é assim que
+    um recebimento lançado errado se corrige -- editando o documento, nunca
+    apagando a linha do livro que ele gerou.
+    """
+    PENDENTE = "PENDENTE"
+    RECEBIDA = "RECEBIDA"
+    CANCELADA = "CANCELADA"
+
+
+class JurosDestino(str, enum.Enum):
+    """Para ONDE vai o juros cobrado ao quitar uma conta a receber.
+
+    Eixo diferente do `juros_responsavel` dos pagamentos de venda e OS: lá a
+    pergunta é QUEM PAGA o juros (cliente ou loja), e a resposta nunca muda o
+    destino -- juros de cartão sempre fica com a operadora. Aqui a pergunta é
+    QUEM RECEBE, e as duas respostas são possíveis:
+
+      LOJA       multa por atraso. É receita financeira da loja, e entra no
+                 caixa junto com o principal.
+      OPERADORA  juros do parcelamento na maquininha. O cliente desembolsa, mas
+                 esse pedaço nunca chega na loja -- registrar como se chegasse
+                 faria o sistema mostrar dinheiro que não existe na conta.
+    """
+    LOJA = "LOJA"
+    OPERADORA = "OPERADORA"
+
+
+class TipoIntegracaoPagamento(str, enum.Enum):
+    """Como a maquininha de cartão conversa com o PDV — grupo `card` da NF-e/NFC-e.
+
+    A SEFAZ quer saber se a transação foi integrada ao sistema ou digitada à
+    mão na maquininha, e o XML separa os dois casos (tpIntegra 1 e 2). Enviar
+    o valor errado não derruba a nota, mas descreve mal a operação num
+    documento fiscal — e é o tipo de divergência que aparece em fiscalização.
+
+    TEF:            maquininha integrada ao PDV (tpIntegra 1). O sistema manda
+                    o valor e recebe a confirmação; não há digitação.
+    POS:            maquininha autônoma (tpIntegra 2). O operador digita o
+                    valor no aparelho; o PDV só registra que foi cartão.
+    NAO_SE_APLICA:  formas que não passam por maquininha — dinheiro, PIX,
+                    crediário. É o padrão, e o motivo de o campo ser opcional.
+    """
+    TEF = "TEF"
+    POS = "POS"
+    NAO_SE_APLICA = "NAO_SE_APLICA"

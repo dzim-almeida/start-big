@@ -7,14 +7,24 @@ import {
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   getPaymentDisplayName,
   formatPrintDate,
   formatPrintDoc,
+  tipoObjetoRelevante,
+  pixParaImpressao,
 } from '@/shared/utils/print.utils';
 
+import PixQrPrint from '@/shared/components/print/PixQrPrint.vue';
 import PrintCupomHeader from '@/shared/components/print/cupom/PrintCupomHeader.vue';
 import PrintCupomSignatures from '@/shared/components/print/cupom/PrintCupomSignatures.vue';
 import PrintCupomFooter from '@/shared/components/print/cupom/PrintCupomFooter.vue';
+import { useObjetoLabels } from '@/modules/order-service/shared/segmento/useObjetoLabels';
+import { calcularRecebidoOS } from '@/modules/order-service/shared/utils/recebidoOS';
+import { useTextosImpressaoOS } from '@/modules/order-service/shared/segmento/textosImpressaoOS';
+import { useAtributosImpressaoOS } from '@/modules/order-service/shared/segmento/useAtributosImpressaoOS';
+import { formatGarantiaItem } from '@/modules/order-service/shared/utils/formatters';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 interface PrintCupomProps {
   orderService: OrderServiceReadDataType | null;
@@ -24,6 +34,28 @@ interface PrintCupomProps {
 const props = defineProps<PrintCupomProps>();
 
 const { companyInfo } = useCompanyPrintInfo();
+const { labelSingular, rotuloSituacao } = useObjetoLabels();
+// Termos variam com o tipo de trabalho: sacola não tem peça entregue pelo
+// cliente nem cláusula de lavagem.
+const { textos, identificadorCupom } = useTextosImpressaoOS(
+  () => (props.orderService?.dados_adicionais as Record<string, unknown> | undefined)
+    ?.tipo_trabalho as string | undefined,
+);
+const { atributos } = useAtributosImpressaoOS();
+
+/** Termos desta via — condensados e sem acento, como o resto do cupom. */
+const t = computed(() => textos.value.cupom);
+
+/** Prazo de abandono configurado pela loja (Configurações → Ordens de Serviço). */
+const configuracoesStore = useConfiguracoesStore();
+
+/** Atributos do segmento (oficina: Ano, Chassi, KM). Vazio em informática. */
+const atributosObjeto = computed(() =>
+  atributos(
+    props.orderService?.objeto?.dados_adicionais,
+    props.orderService?.dados_adicionais,
+  ),
+);
 
 const SEPARATOR = '────────────────────────────';
 
@@ -39,10 +71,16 @@ const title = computed(() => {
     case 'CANCELAMENTO': return 'CANCELAMENTO DE OS';
     case 'SAIDA':
       if (situacao.value === 'SEM_REPARO') return 'ENTREGA SEM REPARO';
-      if (situacao.value === 'CONDENADO') return 'EQUIPAMENTO CONDENADO';
-      return 'RECIBO E GARANTIA';
+      if (situacao.value === 'CONDENADO') return `${t.value.objeto.toUpperCase()} CONDENADO`;
+      return t.value.reciboSemGarantia ?? 'RECIBO E GARANTIA';
     default: return 'Cupom';
   }
+});
+
+/** Avarias marcadas na entrada (só sai onde o segmento declara o quadro). */
+const avariasEntrada = computed<string[]>(() => {
+  const lista = (props.orderService?.dados_adicionais as Record<string, unknown> | undefined)?.avarias;
+  return Array.isArray(lista) ? lista.filter((a): a is string => typeof a === 'string' && a.trim() !== '') : [];
 });
 
 const date = computed(() => {
@@ -67,31 +105,64 @@ const clientePhone = computed(() => {
   return getClientePhone(props.orderService?.cliente);
 });
 
+const clienteEndereco = computed(() => {
+  return getClienteEndereco(props.orderService?.cliente);
+});
+
+// O "tipo" só aparece quando acrescenta info além do rótulo do segmento (em
+// oficina ele é o próprio "Veículo" → redundante sob o cabeçalho VEÍCULO).
+const mostrarTipoObjeto = computed(() =>
+  tipoObjetoRelevante(props.orderService?.objeto?.tipo_equipamento, labelSingular.value),
+);
+
 const motivoCancelamento = computed(() => {
   const obs = props.orderService?.observacoes ?? '';
   const match = obs.match(/\[CANCELAMENTO\]\s*([\s\S]+)/);
   return match ? match[1].trim() : 'Motivo nao informado.';
 });
 
-const subTotal = computed(() => {
-  if (!props.orderService) return 0;
-  return props.orderService.itens.reduce((acc, item) => acc + item.valor_total, 0);
-});
+// Peça embutida no serviço não é listada para o cliente. `!== false` e não
+// `=== true`: item antigo vem sem o campo e tem que continuar aparecendo.
+const itensVisiveis = computed(() =>
+  (props.orderService?.itens ?? []).filter(
+    (item) => item.visivel_cliente !== false && item.status_aprovacao !== 'REPROVADO',
+  ),
+);
+
+const subTotal = computed(() =>
+  itensVisiveis.value.reduce((acc, item) => acc + item.valor_total, 0),
+);
+
+// Mesma regra da via em papel: com garantia por item, o termo geral não pode
+// afirmar que cobre as peças — os dois textos se contradiriam.
+const temGarantiaPorItem = computed(() =>
+  itensVisiveis.value.some((item) => formatGarantiaItem(item) !== ''),
+);
 
 const adiantamento = computed(() => props.orderService?.valor_entrada ?? 0);
+// Null em OS anterior a este campo: o cupom sai só com o valor, como antes.
+const formaEntradaNome = computed(
+  () => props.orderService?.forma_pagamento_entrada?.nome ?? null,
+);
 
-const adiantamentoUtilizado = computed(() => {
-  const entrada = adiantamento.value;
-  const total = props.orderService?.valor_total ?? 0;
-  return Math.min(entrada, total);
-});
+// Uma conta só para as três vias, inclusive a OS reaberta (ver recebidoOS.ts).
+const recebido = computed(() => calcularRecebidoOS(props.orderService ?? {}));
+const adiantamentoUtilizado = computed(() => recebido.value.adiantamentoUtilizado);
+const totalRecebido = computed(() => recebido.value.totalRecebido);
+// Soma das linhas, como sempre: o bloco de devolução (juros) fala do que passou no cartão.
+const paymentTotal = computed(() => recebido.value.somaPagamentos);
 
-const paymentTotal = computed(() => {
-  if (!props.orderService?.pagamentos) return 0;
-  return props.orderService.pagamentos.reduce((acc, pay) => acc + pay.valor, 0);
-});
-
-const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.value);
+/** QR do PIX no papel — só quando há pagamento em PIX e a loja tem chave ativa. */
+const pix = computed(() =>
+  pixParaImpressao({
+    empresa: companyInfo.value,
+    pagamentos: props.orderService?.pagamentos?.map((pgto) => ({
+      nome: pgto.forma_pagamento?.nome || '',
+      valor: pgto.valor,
+    })),
+    txid: props.orderService?.numero_os ?? undefined,
+  }),
+);
 </script>
 
 <template>
@@ -116,36 +187,42 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <div>{{ getClienteNome(orderService.cliente) }}</div>
       <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
       <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
+      <div v-if="clienteEndereco">{{ clienteEndereco }}</div>
     </div>
 
     <div class="separator">{{ SEPARATOR }}</div>
 
     <div class="section">
-      <div class="font-bold mb-0.5">EQUIPAMENTO</div>
-      <div class="flex items-center gap-1">
-        <span>{{ orderService.equipamento.tipo_equipamento }}</span>
+      <div class="font-bold mb-0.5">{{ labelSingular.toUpperCase() }}</div>
+      <div v-if="mostrarTipoObjeto || (situacao && type === 'SAIDA')" class="flex items-center gap-1">
+        <span v-if="mostrarTipoObjeto">{{ orderService.objeto.tipo_equipamento }}</span>
         <span v-if="situacao && type === 'SAIDA'" class="text-[9px] font-bold uppercase">
-          ({{ situacao === 'REPARADO' ? 'Reparado' : situacao === 'SEM_REPARO' ? 'Sem Reparo' : 'Condenado' }})
+          ({{ situacao === 'REPARADO' ? rotuloSituacao('REPARADO', 'Reparado') : situacao === 'SEM_REPARO' ? rotuloSituacao('SEM_REPARO', 'Sem Reparo') : rotuloSituacao('CONDENADO', 'Condenado') }})
         </span>
       </div>
-      <div v-if="orderService.equipamento.marca">
-        Marca: {{ orderService.equipamento.marca }}
+      <div v-if="orderService.objeto.marca">
+        Marca: {{ orderService.objeto.marca }}
       </div>
-      <div v-if="orderService.equipamento.modelo">
-        Modelo: {{ orderService.equipamento.modelo }}
+      <div v-if="orderService.objeto.modelo">
+        Modelo: {{ orderService.objeto.modelo }}
       </div>
-      <div v-if="orderService.equipamento.numero_serie">
-        N/S: {{ orderService.equipamento.numero_serie }}
+      <div v-if="orderService.objeto.numero_serie">
+        {{ identificadorCupom }}: {{ orderService.objeto.numero_serie }}
       </div>
-      <div v-if="orderService.equipamento.cor">
-        Cor: {{ orderService.equipamento.cor }}
+      <div v-if="orderService.objeto.cor">
+        Cor: {{ orderService.objeto.cor }}
+      </div>
+      <!-- Atributos do segmento (oficina: Ano, Chassi, KM de entrada). -->
+      <div v-for="attr in atributosObjeto" :key="attr.label">
+        {{ attr.label }}: {{ attr.valor }}
       </div>
     </div>
 
     <div class="separator">{{ SEPARATOR }}</div>
 
     <div class="section">
-      <div class="font-bold mb-0.5">DEFEITO RELATADO</div>
+      <!-- Mesmo cabeçalho do ESC/POS (era "DEFEITO RELATADO" fixo aqui). -->
+      <div class="font-bold mb-0.5">{{ t.defeito }}</div>
       <div>{{ orderService.defeito_relatado }}</div>
     </div>
 
@@ -154,6 +231,15 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <div class="section">
         <div class="font-bold mb-0.5">OBSERVACOES</div>
         <div class="whitespace-pre-line">{{ orderService.observacoes }}</div>
+      </div>
+    </template>
+
+    <!-- Avarias da entrada (lava-rápido): o cliente assina que as conferiu. -->
+    <template v-if="type === 'ENTRADA' && t.avarias">
+      <div class="separator">{{ SEPARATOR }}</div>
+      <div class="section">
+        <div class="font-bold mb-0.5">{{ t.avarias.titulo }}</div>
+        <div>{{ avariasEntrada.length ? avariasEntrada.join(', ') : t.avarias.vazio }}</div>
       </div>
     </template>
 
@@ -172,16 +258,20 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
         </div>
       </template>
 
-      <template v-if="orderService.itens?.length">
+      <template v-if="itensVisiveis.length">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section">
           <div class="font-bold mb-0.5">ITENS/SERVICOS</div>
           <div
-            v-for="item in orderService.itens"
+            v-for="item in itensVisiveis"
             :key="item.id"
             class="item-row"
           >
             <div>{{ item.nome }}</div>
+            <!-- Garantia da peça: só sai quando o mecânico preencheu. -->
+            <div v-if="formatGarantiaItem(item)" class="text-[9px]">
+              Garantia: {{ formatGarantiaItem(item) }}
+            </div>
             <div class="flex justify-between">
               <span>{{ item.quantidade }}x {{ formatCurrency(item.valor_unitario) }}</span>
               <span class="font-bold">{{ formatCurrency(item.valor_total) }}</span>
@@ -199,11 +289,30 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
             <span>Recebido na entrada:</span>
             <span class="font-bold">{{ formatCurrency(adiantamento) }}</span>
           </div>
+          <div v-if="formaEntradaNome" class="flex justify-between">
+            <span>Forma:</span>
+            <span>{{ formaEntradaNome }}</span>
+          </div>
         </div>
       </template>
 
+      <!-- OS reaberta: crédito no lugar das linhas antigas (ver recebidoOS.ts) -->
+      <template v-if="!recebido.listarLinhas">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <div class="section">
+          <div class="font-bold mb-0.5">PAGAMENTOS</div>
+          <div class="flex justify-between">
+            <span>Pago antes da reabertura</span>
+            <span>{{ formatCurrency(recebido.creditoAnterior) }}</span>
+          </div>
+          <div v-if="recebido.pagamentosAposReabertura > 0" class="flex justify-between">
+            <span>Apos a reabertura</span>
+            <span>{{ formatCurrency(recebido.pagamentosAposReabertura) }}</span>
+          </div>
+        </div>
+      </template>
       <!-- Pagamentos no fechamento -->
-      <template v-if="orderService.pagamentos?.length">
+      <template v-else-if="orderService.pagamentos?.length">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section">
           <div class="font-bold mb-0.5">PAGAMENTOS</div>
@@ -243,6 +352,10 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
           <span>Adiantamento:</span>
           <span>-{{ formatCurrency(adiantamentoUtilizado) }}</span>
         </div>
+        <div v-if="recebido.creditoAnterior > 0" class="flex justify-between">
+          <span>Pago antes da reabertura:</span>
+          <span>-{{ formatCurrency(recebido.creditoAnterior) }}</span>
+        </div>
         <div class="flex justify-between font-bold text-sm mt-1">
           <span>TOTAL PAGO:</span>
           <span>{{ formatCurrency(totalRecebido) }}</span>
@@ -261,12 +374,18 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
         </template>
       </div>
 
+      <!-- PIX: logo depois dos totais, antes da garantia -->
+      <template v-if="pix">
+        <div class="separator">{{ SEPARATOR }}</div>
+        <PixQrPrint :payload="pix.payload" :valor-centavos="pix.valorCentavos" />
+      </template>
+
       <!-- Garantia (só para REPARADO) -->
       <template v-if="!isSemReparo && orderService.garantia">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section text-justify">
           <div class="font-bold mb-0.5">GARANTIA: {{ orderService.garantia }}</div>
-          Cobre servicos prestados e pecas substituidas neste documento. Nao cobre mau uso, liquidos, quedas ou intervencao de terceiros.
+          Cobre servicos prestados e pecas substituidas neste documento<template v-if="temGarantiaPorItem">, exceto onde houver garantia indicada na linha do item</template>. Nao cobre {{ t.garantiaExclusoes }}
         </div>
       </template>
 
@@ -274,8 +393,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       <template v-else-if="isSemReparo">
         <div class="separator">{{ SEPARATOR }}</div>
         <div class="section text-justify">
-          Equipamento devolvido sem reparo.
-          Sem garantia aplicavel a esta OS.
+          {{ t.semReparo }}
         </div>
       </template>
     </template>
@@ -289,11 +407,7 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
       </div>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
-        A OS acima foi cancelada nesta data.
-        Equipamento devolvido ao cliente sem
-        reparos ou com reparos parciais,
-        isentando a assistencia de garantias
-        sobre servicos nao concluidos.
+        {{ t.cancelamento }}
       </div>
     </template>
 
@@ -301,24 +415,16 @@ const totalRecebido = computed(() => adiantamentoUtilizado.value + paymentTotal.
     <template v-else>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
-        O cliente declara estar ciente que a
-        empresa nao se responsabiliza por
-        perda de dados nem por chips/cartoes
-        deixados no aparelho. Autorizo a
-        analise tecnica do equipamento.
+        {{ t.condicoesEntrada }}
       </div>
       <div class="separator">{{ SEPARATOR }}</div>
       <div class="section text-justify">
-        PRAZO DE RETIRADA: Equipamentos nao
-        retirados em 90 dias apos aviso de
-        conclusao serao considerados
-        abandonados, conforme Art. 1.275
-        do Codigo Civil Brasileiro.
+        {{ t.prazoRetirada(configuracoesStore.prazoAbandonoDias) }}
       </div>
     </template>
 
     <PrintCupomSignatures
-      left-label="Tecnico Responsavel"
+      :left-label="textos.cupom.assinaturaLoja"
       right-label="Assinatura do Cliente"
       :right-name="orderService.cliente ? getClienteNome(orderService.cliente) : undefined"
     />

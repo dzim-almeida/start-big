@@ -93,17 +93,26 @@ export interface FuncionarioBase {
   tipo_contrato?: string;
   data_admissao?: string; // ISO date string YYYY-MM-DD
   cargo_id?: number;
+  // Comissão (override do cargo). Vazio/null = herda do cargo (cascata).
+  // Percentuais em BASIS POINTS (500 = 5,00%); meta em centavos.
+  comissao_venda_percentual?: number | null;
+  comissao_servico_percentual?: number | null;
+  meta_mensal?: number | null;
+  comissao_modo?: 'direto' | 'meta' | null;
+  comissao_divisao?: 'dividir' | 'inteira' | null;
 }
 
 export interface FuncionarioCreate extends FuncionarioBase {
-  usuario: UsuarioCreate;
+  /** Ausente = funcionário sem acesso ao sistema (só a ficha). */
+  usuario?: UsuarioCreate;
   endereco?: Endereco[];
 }
 
 export interface FuncionarioRead extends FuncionarioBase {
   id: number;
   ativo: boolean;
-  usuario: UsuarioRead;
+  /** null = funcionário sem acesso ao sistema. */
+  usuario: UsuarioRead | null;
   endereco?: EnderecoRead[];
 }
 
@@ -167,6 +176,8 @@ export interface EmployeeFormData {
   carteira_trabalho: string;
 
   // Usuario (for creating login - only in create mode)
+  /** true = cadastrar só a ficha, sem login. */
+  sem_acesso: boolean;
   usuario_nome: string;
   usuario_email: string;
   usuario_senha: string;
@@ -181,6 +192,13 @@ export interface EmployeeFormData {
   banco: string;
   agencia: string;
   conta: string;
+
+  // Comissão (override do cargo). null = herda.
+  comissao_venda_percentual: number | null;
+  comissao_servico_percentual: number | null;
+  meta_mensal: number | null;
+  comissao_modo: 'direto' | 'meta' | null;
+  comissao_divisao: 'dividir' | 'inteira' | null;
 
   // Observacoes
   observacao: string;

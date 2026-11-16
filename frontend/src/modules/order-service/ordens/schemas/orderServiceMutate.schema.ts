@@ -5,7 +5,7 @@ import { OrderServiceBaseSchema } from "./orderService.schema";
 
 import { OsPriorityEnum, OsStatusEnum, OsEquipSituacaoEnum } from "./enums/osEnums.schema";
 
-import { OsEquipCreateSchema } from "./relationship/osEquip.schema";
+import { OsObjetoCreateSchema } from "./relationship/osObjeto.schema";
 import { OsItemCreateSchema } from "./relationship/osItem.schema";
 import { OsPaymentCreateSchema } from "./relationship/osPayment.schema";
 
@@ -19,8 +19,11 @@ export const OrderServiceCreateSchema = z.object({
   funcionario_id: z.number({ required_error: 'O técnico é obrigatório' }).int().positive(),
 
   // Aninhamento
-  equipamento: OsEquipCreateSchema,
+  objeto: OsObjetoCreateSchema,
   itens: z.array(OsItemCreateSchema).default([]),
+
+  // Check-in do segmento (nível OS): ex. oficina → km_entrada, combustível, vistoria.
+  dados_adicionais: z.record(z.any()).optional().default({}),
 
   // Crédito
   usar_credito_cliente: z.boolean().default(false),
@@ -57,6 +60,7 @@ export const OrderServiceUpdateSchema = z.object({
   // Financeiro
   desconto: z.number().int().optional(),
   valor_entrada: z.number().int().optional(),
+  forma_pagamento_entrada_id: z.number().int().positive().optional(),
   taxa_entrega: z.number().int().min(0).optional(),
 
   // Relações
@@ -65,6 +69,9 @@ export const OrderServiceUpdateSchema = z.object({
   // Prazos e garantia
   garantia: z.string().max(20, 'A garantia deve ter máximo 20 caracteres').optional(),
   data_previsao: z.string().optional(),
+
+  // Check-in do segmento (nível OS): ex. oficina → km_entrada, combustível, vistoria.
+  dados_adicionais: z.record(z.any()).optional(),
 });
 
 export const orderServiceUpdateValidationSchema = toTypedSchema(OrderServiceUpdateSchema)

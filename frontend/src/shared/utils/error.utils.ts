@@ -4,7 +4,7 @@
  */
 
 import type { AxiosError } from 'axios';
-import type { ApiError, ValidationError } from '@/shared/types/axios.types';
+import type { ApiError, DetalheErroEstruturado, ValidationError } from '@/shared/types/axios.types';
 import { ERROR_MESSAGES, NETWORK_ERROR_MESSAGE, ConflictedData } from '@/shared/types/axios.types';
 
 /**
@@ -12,23 +12,65 @@ import { ERROR_MESSAGES, NETWORK_ERROR_MESSAGE, ConflictedData } from '@/shared/
  * @param errors - Array de erros de validação
  * @returns Mensagem formatada
  */
+/** Nomes amigáveis para o campo citado num erro de validação. */
+const ROTULOS_CAMPO: Record<string, string> = {
+  email: 'E-mail',
+  senha: 'Senha',
+  nome: 'Nome',
+  confirmarSenha: 'Confirmação de senha',
+  cpf: 'CPF',
+  cnpj: 'CNPJ',
+  genero: 'Gênero',
+  tipo_conta: 'Tipo de conta',
+  salario_bruto: 'Salário bruto',
+  data_admissao: 'Data de admissão',
+  data_nascimento: 'Data de nascimento',
+  logradouro: 'Logradouro',
+  numero: 'Número',
+  bairro: 'Bairro',
+  cidade: 'Cidade',
+  estado: 'Estado (UF)',
+  cep: 'CEP',
+};
+
+/** "endereco.0.estado" → "Estado (UF)"; "cpf" → "CPF". */
+function rotuloDoCampo(caminho: string): string {
+  const ultimo = caminho.split('.').filter((p) => !/^\d+$/.test(p)).pop() ?? caminho;
+  return ROTULOS_CAMPO[ultimo] ?? ultimo;
+}
+
+/**
+ * Formata o 422 de validação.
+ *
+ * ⚠ O backend NÃO usa o formato padrão do FastAPI. O handler em
+ * `app/core/exceptions.py` emite `[{field, message}]`, e não `[{loc, msg}]`.
+ * A versão anterior lia `firstError.loc[...]` e **estourava** (`undefined[...]`)
+ * — a exceção acontecia dentro do `onError` da mutation, então o toast nunca
+ * aparecia: o usuário via um 422 no console e absolutamente nada na tela.
+ *
+ * Aceita os dois formatos, e nunca lança: um erro ao formatar um erro deixa o
+ * usuário sem nenhuma pista, que é o pior resultado possível.
+ */
 function formatValidationErrors(errors: ValidationError[]): string {
-  if (errors.length === 0) return '';
+  if (!Array.isArray(errors) || errors.length === 0) return '';
 
-  // Pega o primeiro erro e formata
-  const firstError = errors[0];
-  const field = firstError.loc[firstError.loc.length - 1];
+  const partes = errors.slice(0, 3).map((erro) => {
+    const bruto = erro as unknown as {
+      field?: string;
+      message?: string;
+      loc?: unknown[];
+      msg?: string;
+    };
+    const caminho = bruto.field
+      ?? (Array.isArray(bruto.loc) ? bruto.loc.filter((p) => p !== 'body').join('.') : '');
+    const mensagem = bruto.message ?? bruto.msg ?? '';
+    if (!caminho && !mensagem) return '';
+    return caminho ? `${rotuloDoCampo(caminho)}: ${mensagem}` : mensagem;
+  }).filter(Boolean);
 
-  // Mapeia campos para nomes amigáveis
-  const fieldNames: Record<string, string> = {
-    email: 'Email',
-    senha: 'Senha',
-    nome: 'Nome',
-    confirmarSenha: 'Confirmação de senha',
-  };
-
-  const fieldName = fieldNames[field as string] || field;
-  return `${fieldName}: ${firstError.msg}`;
+  if (partes.length === 0) return '';
+  const resto = errors.length - partes.length;
+  return resto > 0 ? `${partes.join(' • ')} (e mais ${resto})` : partes.join(' • ');
 }
 
 /**
@@ -39,6 +81,31 @@ function formatValidationErrors(errors: ValidationError[]): string {
 function formatConflictErrors(errors: ConflictedData[]): string {
   if (errors.length === 0) return '';
   return errors.map(e => e.mensagem).join('. ');
+}
+
+/**
+ * Transforma o detalhe estruturado na frase que o toast mostra.
+ *
+ * As `pendencias` entram resumidas: a lista completa pode ter dezenas de itens
+ * e não cabe num toast -- quem quiser vê-las inteiras tem a tela de pendências
+ * do Centro Fiscal e, para o emitente, o card na tela da Empresa.
+ */
+function formatDetailObject(detalhe: DetalheErroEstruturado, padrao: string): string {
+  const base = detalhe?.mensagem ?? padrao;
+  const pendencias = detalhe?.pendencias;
+
+  if (!Array.isArray(pendencias) || pendencias.length === 0) return base;
+
+  const primeiras = pendencias
+    .slice(0, 2)
+    .map((p) => (typeof p === 'string' ? p : (p as { mensagem?: string })?.mensagem))
+    .filter(Boolean);
+
+  if (primeiras.length === 0) return base;
+
+  const resto = pendencias.length - primeiras.length;
+  const lista = resto > 0 ? `${primeiras.join(' • ')} (e mais ${resto})` : primeiras.join(' • ');
+  return `${base} ${lista}`;
 }
 
 /**
@@ -74,6 +141,17 @@ export function getErrorMessage(
       }
       // 422 Validation: array de {loc, msg, type}
       return formatValidationErrors(data.detail);
+    }
+    // Se detail for um OBJETO com {codigo, mensagem, ...}.
+    //
+    // Vários erros do módulo fiscal são assim -- NF_JA_AUTORIZADA,
+    // NF_INDETERMINADA, CSC_NAO_CONFIGURADO, EMITENTE_INCOMPLETO --, porque o
+    // frontend precisa do `codigo` para decidir o que oferecer. Sem este ramo o
+    // objeto caía no `return data.detail` abaixo e o toast exibia
+    // "[object Object]": justamente nos erros mais graves, o lojista ficava sem
+    // saber o que aconteceu.
+    if (typeof data.detail === 'object') {
+      return formatDetailObject(data.detail, defaultMessage);
     }
     // Se detail for uma string
     return data.detail;

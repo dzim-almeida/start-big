@@ -67,9 +67,15 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   // ── Produtos: preços e exibição ──
   const margemLucroPadrao = computed(() => configProdutos.value?.margem_lucro_padrao ?? 0)
   const utilizarPrecoAtacado = computed(() => configProdutos.value?.utilizar_preco_atacado ?? true)
+  // Embalagens (fardo/caixa): desligado, nem a seção do cadastro aparece.
+  const usarEmbalagens = computed(() => configProdutos.value?.usar_embalagens ?? false)
 
   // ── Produtos: controle de estoque ──
-  const permitirVendaEstoqueZerado = computed(() => configProdutos.value?.permitir_venda_estoque_zerado ?? false)
+  // O padrão acompanha o do banco (`configuracao_produtos.permitir_venda_estoque_zerado`,
+  // default=True). Assumir `false` aqui fazia a tela ser mais restritiva que o
+  // servidor enquanto a configuração da empresa ainda não existisse — e recusar
+  // uma venda que o backend teria aceitado.
+  const permitirVendaEstoqueZerado = computed(() => configProdutos.value?.permitir_venda_estoque_zerado ?? true)
   const quantidadeMinimaPadrao = computed(() => configProdutos.value?.quantidade_minima_padrao ?? 5)
   const unidadeMedidaPadrao = computed(() => configProdutos.value?.unidade_medida_padrao ?? 'UN')
 
@@ -79,6 +85,18 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const prazoAbandonoDias = computed(() => configOS.value?.prazo_abandono_dias ?? 90)
   const taxaDiagnosticoPadrao = computed(() => configOS.value?.taxa_diagnostico_padrao ?? 0)
 
+  // ── OS: apresentação dos comprovantes (só a FORMA; conteúdo é invariante) ──
+  const comprovanteEntradaFolha = computed(() => configOS.value?.comprovante_entrada_folha ?? 'A4')
+  const comprovanteEntradaDensidade = computed(() => configOS.value?.comprovante_entrada_densidade ?? 'normal')
+  const comprovanteEntregaFolha = computed(() => configOS.value?.comprovante_entrega_folha ?? 'A4')
+  const comprovanteEntregaDensidade = computed(() => configOS.value?.comprovante_entrega_densidade ?? 'normal')
+  const modoFabrica = computed(() => configOS.value?.modo_fabrica ?? false)
+  const fabricaTravarEtapas = computed(() => configOS.value?.fabrica_travar_etapas ?? false)
+  // Lava-rápido (SPEC-00 O11): veículos no mesmo horário da agenda. 0 = sem limite.
+  const vagasAgenda = computed(() => configOS.value?.vagas_agenda ?? 0)
+  // Aba em que o "Adicionar Item" da OS abre (só a ordem; as duas continuam).
+  const itemOsAbreEm = computed<'SERVICO' | 'PRODUTO'>(() => configOS.value?.item_os_abre_em ?? 'SERVICO')
+
   // ── Vendas: regras ──
   const permitirDesconto = computed(() => configVendas.value?.permitir_desconto ?? true)
   const descontoMaximoPercent = computed(() => configVendas.value?.desconto_maximo_percent ?? 30)
@@ -87,9 +105,35 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
   const permitirParcelamento = computed(() => configVendas.value?.permitir_parcelamento ?? true)
   const parcelasMaximas = computed(() => configVendas.value?.parcelas_maximas ?? 12)
 
+  // Controle de caixa. Os padrões repetem o comportamento de hoje de propósito:
+  // enquanto a loja não ligar nada, tudo se comporta como antes de existirem.
+  const controlarCaixa = computed(() => configVendas.value?.controlar_caixa ?? false)
+  const exigirCaixaAberto = computed(() => configVendas.value?.exigir_caixa_aberto ?? false)
+  const fechamentoCego = computed(() => configVendas.value?.fechamento_cego ?? false)
+  // Mora na config de VENDAS, e não junto dos PINs de Segurança: é regra do
+  // caixa e o dono a quis no bloco do caixa. O segredo conferido continua
+  // sendo o `pin_gerente` de Segurança — a chave é que mudou de casa.
+  const requerPinAbrirCaixa = computed(() => configVendas.value?.requer_pin_abrir_caixa ?? false)
+  // A fila do caixa e separada de `controlarCaixa`: controlar a gaveta e uma
+  // pergunta, ter gente diferente montando e recebendo e outra. Loja de um PC
+  // so responde nao a segunda.
+  const usarFilaDoCaixa = computed(() => configVendas.value?.usar_fila_do_caixa ?? false)
+
+  // Regras de preço por quantidade (§6.1) — todas desligadas por padrão.
+  const regraEmbalagemAvulsas = computed(() => configVendas.value?.regra_embalagem_avulsas ?? false)
+  const regraFaixasQuantidade = computed(() => configVendas.value?.regra_faixas_quantidade ?? false)
+  const regraLevePague = computed(() => configVendas.value?.regra_leve_pague ?? false)
+  const regraConflito = computed(() => configVendas.value?.regra_conflito ?? 'MENOR_PRECO')
+  const regraOrdem = computed(() => configVendas.value?.regra_ordem ?? 'R1,R2,R3')
+  const bloquearDescontoComRegra = computed(() => configVendas.value?.bloquear_desconto_com_regra ?? false)
+  // Venda no atacado — desligada por padrão; mínimo em centavos (0 = sem mínimo).
+  const atacadoHabilitado = computed(() => configVendas.value?.atacado_habilitado ?? false)
+  const atacadoPedidoMinimo = computed(() => configVendas.value?.atacado_pedido_minimo ?? 0)
+
   // ── Segurança: PINs ──
   const requerPinDescontoVenda = computed(() => configSeguranca.value?.requer_pin_desconto_venda ?? false)
   const requerPinAlterarPreco = computed(() => configSeguranca.value?.requer_pin_alterar_preco_venda ?? false)
+  const requerPinSangria = computed(() => configSeguranca.value?.requer_pin_sangria ?? false)
   const requerPinCancelarVenda = computed(() => configSeguranca.value?.requer_pin_cancelar_venda ?? false)
   const requerPinReabrirVenda = computed(() => configSeguranca.value?.requer_pin_reabrir_venda ?? false)
   const requerPinCancelarOS = computed(() => configSeguranca.value?.requer_pin_cancelar_os ?? false)
@@ -129,6 +173,7 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
 
     margemLucroPadrao,
     utilizarPrecoAtacado,
+    usarEmbalagens,
 
     permitirVendaEstoqueZerado,
     quantidadeMinimaPadrao,
@@ -139,15 +184,38 @@ export const useConfiguracoesStore = defineStore('configuracoes', () => {
     prazoAbandonoDias,
     taxaDiagnosticoPadrao,
 
+    comprovanteEntradaFolha,
+    comprovanteEntradaDensidade,
+    comprovanteEntregaFolha,
+    comprovanteEntregaDensidade,
+    modoFabrica,
+    fabricaTravarEtapas,
+    vagasAgenda,
+    itemOsAbreEm,
+
     permitirDesconto,
     descontoMaximoPercent,
     exigirClienteIdentificado,
     valorMinimoVenda,
     permitirParcelamento,
     parcelasMaximas,
+    controlarCaixa,
+    exigirCaixaAberto,
+    fechamentoCego,
+    requerPinAbrirCaixa,
+    usarFilaDoCaixa,
+    regraEmbalagemAvulsas,
+    regraFaixasQuantidade,
+    regraLevePague,
+    regraConflito,
+    regraOrdem,
+    bloquearDescontoComRegra,
+    atacadoHabilitado,
+    atacadoPedidoMinimo,
 
     requerPinDescontoVenda,
     requerPinAlterarPreco,
+    requerPinSangria,
     requerPinCancelarVenda,
     requerPinReabrirVenda,
     requerPinCancelarOS,

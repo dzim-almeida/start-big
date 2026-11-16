@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useOrdemServico } from '@/shared/composables/useOrdemServico';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 
@@ -12,24 +13,28 @@ import RankingFuncionarios from './RankingFuncionarios.vue';
 import OSPorStatusWidget from './OSPorStatusWidget.vue';
 import FormasPagamentoWidget from './FormasPagamentoWidget.vue';
 import OSAtrasadasEmpresaBanner from './OSAtrasadasEmpresaBanner.vue';
+import TendenciaChart from './TendenciaChart.vue';
 
+import { formatCurrency, formatVariacao } from '@/shared/utils/finance';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { useDashboard } from '../../composables/useDashboard';
 import { useRankingFuncionariosQuery } from '../../composables/queries/useRankingFuncionariosQuery';
 import { useOSPorStatusQuery } from '../../composables/queries/useOSPorStatusQuery';
 import { useFormasPagamentoQuery } from '../../composables/queries/useFormasPagamentoQuery';
 import { useOSAtrasadasEmpresaQuery } from '../../composables/queries/useOSAtrasadasEmpresaQuery';
+import { useTendenciaQuery } from '../../composables/queries/useTendenciaQuery';
 
 import type { PeriodFilter } from '../../types/dashboard.types';
+
+const { usaOrdemServico } = useOrdemServico();
 
 const authStore = useAuthStore();
 const { userData, isLoading } = storeToRefs(authStore);
 
-const activePeriodExtra = ref<PeriodFilter>('mes');
-
 const {
   activePeriod,
   stats,
+  statsData,
   setPeriod,
   periodDescription,
   osVencendo,
@@ -45,10 +50,24 @@ const {
   isErrorVendas,
 } = useDashboard();
 
-const rankingQuery   = useRankingFuncionariosQuery(activePeriodExtra);
+// Período ÚNICO: o mesmo activePeriod comanda KPIs, tendência e os widgets.
+const rankingQuery   = useRankingFuncionariosQuery(activePeriod);
 const osPorStatusQuery = useOSPorStatusQuery();
-const formasQuery    = useFormasPagamentoQuery(activePeriodExtra);
+const formasQuery    = useFormasPagamentoQuery(activePeriod);
 const atrasadasQuery = useOSAtrasadasEmpresaQuery();
+
+/**
+ * As Formas de Pagamento aparecem em dois lugares do template (com e sem OS).
+ * Os props ficam aqui para os dois nunca divergirem — copiar quatro linhas de
+ * `v-bind` e o tipo de coisa que se conserta em um lado so.
+ */
+const formasPagamentoProps = computed(() => ({
+  items: formasQuery.data.value?.items ?? [],
+  total: formasQuery.data.value?.total ?? 0,
+  isLoading: formasQuery.isLoading.value,
+  isError: formasQuery.isError.value,
+}));
+const tendenciaQuery = useTendenciaQuery(activePeriod);
 
 const periods: { id: PeriodFilter; label: string }[] = [
   { id: 'hoje', label: 'Hoje' },
@@ -68,7 +87,7 @@ const periods: { id: PeriodFilter; label: string }[] = [
     />
 
     <!-- Banner OS Atrasadas (só aparece quando há) -->
-    <OSAtrasadasEmpresaBanner
+    <OSAtrasadasEmpresaBanner v-if="usaOrdemServico"
       :items="atrasadasQuery.data.value?.items ?? []"
       :total="atrasadasQuery.data.value?.total ?? 0"
     />
@@ -124,7 +143,11 @@ const periods: { id: PeriodFilter; label: string }[] = [
             :value="stat.value"
           >
             <template #badge>
+              <span v-if="stat.isEmpty" class="text-[10px] md:text-[11px] font-medium text-zinc-400">
+                {{ stat.emptyLabel }}
+              </span>
               <div
+                v-else
                 :class="[
                   'flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] md:text-[11px] font-bold transition-transform group-hover:scale-105',
                   stat.isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
@@ -140,67 +163,95 @@ const periods: { id: PeriodFilter; label: string }[] = [
       </div>
     </div>
 
-    <!-- Período extra para widgets de análise -->
-    <div class="flex items-center gap-3">
-      <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Análise por período</span>
-      <div class="flex bg-white p-1 rounded-xl border border-zinc-200 shadow-sm text-xs font-semibold">
-        <button
-          v-for="period in periods"
-          :key="period.id"
-          :class="[
-            'px-3 py-1.5 rounded-lg transition-all duration-200',
-            activePeriodExtra === period.id
-              ? 'bg-zinc-900 text-white shadow-sm'
-              : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50',
-          ]"
-          @click="activePeriodExtra = period.id"
-        >
-          {{ period.label }}
-        </button>
+    <!-- Faturamento total (número-herói) + tendência — mesmo período dos KPIs -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div class="bg-white p-5 md:p-6 rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm flex flex-col justify-center">
+        <span class="text-[11px] md:text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          Faturamento total
+        </span>
+        <div class="mt-1 flex items-center gap-3 flex-wrap">
+          <p class="text-2xl md:text-3xl font-bold text-zinc-900 tabular-nums leading-none">
+            {{ formatCurrency(statsData?.faturamento_total ?? 0) }}
+          </p>
+          <div
+            v-if="(statsData?.faturamento_total ?? 0) > 0"
+            :class="[
+              'flex items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] md:text-[11px] font-bold',
+              (statsData?.faturamento_total_variacao ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600',
+            ]"
+          >
+            <ArrowUpRight v-if="(statsData?.faturamento_total_variacao ?? 0) >= 0" :size="14" />
+            <ArrowDownRight v-else :size="14" />
+            <span>{{ formatVariacao(statsData?.faturamento_total_variacao ?? 0) }}</span>
+          </div>
+          <span v-else class="text-xs font-medium text-zinc-400">Sem faturamento no período</span>
+        </div>
+        <div class="mt-3 text-xs text-zinc-500">
+          Vendas <span class="font-semibold text-zinc-700">{{ formatCurrency(statsData?.vendas_total ?? 0) }}</span>
+          · Serviços <span class="font-semibold text-zinc-700">{{ formatCurrency(statsData?.os_total ?? 0) }}</span>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2 bg-white p-4 md:p-5 rounded-2xl md:rounded-3xl border border-zinc-200 shadow-sm">
+        <h3 class="text-sm font-bold text-zinc-700 mb-3">Tendência de faturamento</h3>
+        <div class="h-48 md:h-56">
+          <TendenciaChart
+            v-if="tendenciaQuery.data.value && tendenciaQuery.data.value.items.length"
+            :por-dia="tendenciaQuery.data.value.items"
+          />
+          <div v-else class="h-full grid place-items-center text-xs text-zinc-400">
+            Sem faturamento no período.
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Linha 1: Ranking (3/5) + OS por Status (2/5) -->
+    <!--
+      Linha 1: Ranking (3/5) + OS por Status (2/5).
+
+      SEM ORDEM DE SERVICO as duas linhas viram UMA: o vizinho do Ranking passa a
+      ser as Formas de Pagamento. Esconder os widgets de OS com `v-if` deixava
+      metade da largura vazia em duas linhas seguidas, e um painel cheio de buraco
+      parece quebrado — o dono acha que faltou carregar, nao que a loja nao tem OS.
+    -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-3">
         <RankingFuncionarios
+          class="h-full"
           :items="rankingQuery.data.value?.items ?? []"
           :is-loading="rankingQuery.isLoading.value"
           :is-error="rankingQuery.isError.value"
         />
       </div>
       <div class="lg:col-span-2">
-        <OSPorStatusWidget
+        <OSPorStatusWidget v-if="usaOrdemServico"
+          class="h-full"
           :items="osPorStatusQuery.data.value?.items ?? []"
           :total-ativas="osPorStatusQuery.data.value?.total_ativas ?? 0"
           :is-loading="osPorStatusQuery.isLoading.value"
           :is-error="osPorStatusQuery.isError.value"
         />
+        <FormasPagamentoWidget v-else class="h-full" v-bind="formasPagamentoProps" />
       </div>
     </div>
 
     <!-- Linha 2: Formas de Pagamento (2/5) + OS Vencendo (3/5) -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div v-if="usaOrdemServico" class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-2">
-        <FormasPagamentoWidget
-          :items="formasQuery.data.value?.items ?? []"
-          :total="formasQuery.data.value?.total ?? 0"
-          :is-loading="formasQuery.isLoading.value"
-          :is-error="formasQuery.isError.value"
-        />
+        <FormasPagamentoWidget class="h-full" v-bind="formasPagamentoProps" />
       </div>
       <div class="lg:col-span-3">
-        <OSVencendoTable :items="osVencendo" :is-loading="isLoadingOS" :is-error="isErrorOS" />
+        <OSVencendoTable class="h-full" :items="osVencendo" :is-loading="isLoadingOS" :is-error="isErrorOS" />
       </div>
     </div>
 
     <!-- Linha 3: Estoque Baixo (2/5) + Últimas Vendas (3/5) -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
       <div class="lg:col-span-2">
-        <EstoqueBaixoTable :items="estoqueBaixo" :is-loading="isLoadingEstoque" :is-error="isErrorEstoque" />
+        <EstoqueBaixoTable class="h-full" :items="estoqueBaixo" :is-loading="isLoadingEstoque" :is-error="isErrorEstoque" />
       </div>
       <div class="lg:col-span-3">
-        <RecentTransactions :vendas="ultimasVendas" :is-loading="isLoadingVendas" :is-error="isErrorVendas" />
+        <RecentTransactions class="h-full" :vendas="ultimasVendas" :is-loading="isLoadingVendas" :is-error="isErrorVendas" />
       </div>
     </div>
 

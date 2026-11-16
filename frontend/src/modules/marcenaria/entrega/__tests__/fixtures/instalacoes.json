@@ -1,0 +1,91 @@
+{
+  "itens": [
+    {
+      "id": 2,
+      "data": "2026-10-08",
+      "hora_inicio": null,
+      "numero_os": "OS-2026-000001",
+      "status_os": "ABERTA",
+      "cliente": "Dona Marta",
+      "telefone": "11987654321",
+      "projeto": "Apto 802",
+      "endereco_obra": "Av. das Américas, 4200",
+      "ambientes": [
+        {
+          "ambiente_id": 3,
+          "nome": "Closet",
+          "situacao": "CONFORME"
+        }
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "observacao": "Levar o espelho",
+      "atrasado": false
+    },
+    {
+      "id": 1,
+      "data": "2026-10-10",
+      "hora_inicio": "08:00",
+      "numero_os": "OS-2026-000001",
+      "status_os": "ABERTA",
+      "cliente": "Dona Marta",
+      "telefone": "11987654321",
+      "projeto": "Apto 802",
+      "endereco_obra": "Av. das Américas, 4200",
+      "ambientes": [
+        {
+          "ambiente_id": 1,
+          "nome": "Cozinha Gourmet",
+          "situacao": "COM_RESSALVAS"
+        },
+        {
+          "ambiente_id": 2,
+          "nome": "Sala",
+          "situacao": "CONFORME"
+        }
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        },
+        {
+          "funcionario_id": 3,
+          "nome": "Davi"
+        }
+      ],
+      "observacao": null,
+      "atrasado": false
+    },
+    {
+      "id": 3,
+      "data": "2026-10-10",
+      "hora_inicio": "14:00",
+      "numero_os": "OS-2026-000002",
+      "status_os": "ABERTA",
+      "cliente": "Dona Marta",
+      "telefone": "11987654321",
+      "projeto": "Apto 802",
+      "endereco_obra": "Av. das Américas, 4200",
+      "ambientes": [
+        {
+          "ambiente_id": 5,
+          "nome": "Quarto",
+          "situacao": "PENDENTE"
+        }
+      ],
+      "montadores": [
+        {
+          "funcionario_id": 2,
+          "nome": "Carlos"
+        }
+      ],
+      "observacao": null,
+      "atrasado": false
+    }
+  ]
+}

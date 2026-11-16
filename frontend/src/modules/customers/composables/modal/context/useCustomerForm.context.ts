@@ -18,6 +18,7 @@ import type { CustomerFormContext } from '../types/context.type';
 import { useCustomerPFForm } from '../form/useCustomerPF.form';
 import { useCustomerPJForm } from '../form/useCustomerPJ.form';
 import { DEFAULT_PF_VALUES, DEFAULT_PJ_VALUES } from '../constants/modal.constant';
+import { criarConsultaReceita } from './consultaReceita';
 import {
   transformPFToCreateRequest,
   transformPJToCreateRequest,
@@ -196,6 +197,7 @@ export function useCustomerFormProvider(): CustomerFormContext {
       pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
       customerType.value = 'PF';
       apiError.value = null;
+      limparAvisoCnpj();                               // modal fechado: o aviso some junto
     }
   });
 
@@ -313,11 +315,28 @@ export function useCustomerFormProvider(): CustomerFormContext {
       updateMutation.isPending.value,
   );
 
+  // ── Busca do CNPJ na Receita (cliente PJ) ──────────────────
+  //
+  // Mesma consulta de Dados da Empresa. Preenche razão social, fantasia,
+  // regime (MEI/Simples, quando a Receita afirma), o PRIMEIRO endereço e o
+  // contato vazio. A Inscrição Estadual não vem: é cadastro do estado, não da
+  // Receita — continua digitada (e a prévia da NF-e avisa se faltar).
+  //
+  // A lógica mora em `consultaReceita.ts` (Spec 02): lá ela também avisa
+  // cliente duplicado, diz por que a consulta falhou e descarta resposta
+  // atrasada.
+  const { isConsultingCNPJ, avisoCnpj, consultarReceita, limparAvisoCnpj } = criarConsultaReceita({
+    pjForm,                                            // lê e preenche o formulário PJ
+    idEmEdicao: () => selectedCustomer.value?.id,      // o próprio cliente não é duplicado
+    toast,                                             // mensagens de sucesso e falha
+  });
+
   function resetForm() {
     pfForm.resetForm({ values: { ...DEFAULT_PF_VALUES } });
     pjForm.resetForm({ values: { ...DEFAULT_PJ_VALUES } });
     customerType.value = 'PF';
     apiError.value = null;
+    limparAvisoCnpj();                                 // o aviso era do cliente anterior
   }
 
   // ── Montar contexto ──────────────────────────
@@ -358,6 +377,13 @@ export function useCustomerFormProvider(): CustomerFormContext {
     submitCount: submitCount as unknown as Ref<number>,
     apiError,
     isPending,
+
+    // Busca na Receita (PJ)
+    isConsultingCNPJ,
+    consultarReceita,
+    avisoCnpj,
+    limparAvisoCnpj,
+    isCreateMode,
 
     // Ações
     onSubmit,

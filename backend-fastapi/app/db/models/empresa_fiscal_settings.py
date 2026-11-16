@@ -6,7 +6,7 @@
 
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -19,8 +19,9 @@ class EmpresaFiscalSettings(Base):
     Configurações fiscais da empresa para emissão de documentos eletrônicos.
     Relacionamento 1:1 com Empresa.
 
-    IMPORTANTE: A senha do certificado A1 NUNCA é persistida nesta tabela.
-    Ela trafega apenas no momento do upload para validação.
+    A senha do certificado A1 (`certificado_senha`) É persistida, criptografada
+    com Fernet — a emissão precisa dela a cada chamada. A docstring anterior
+    afirmava o contrário e contradizia o próprio modelo.
     """
     __tablename__ = "empresa_fiscal_settings"
 
@@ -75,16 +76,67 @@ class EmpresaFiscalSettings(Base):
         doc="Último número de NFCe emitida"
     )
 
+    # Piso da numeração da NF-e: o último número informado À MÃO (configuração
+    # ou ajuste depois de uma Rejeição 539). Abaixo dele, número sem nota é do
+    # sistema anterior, não buraco — a SEFAZ recusa inutilizar número usado.
+    # 0 = a regra de sempre. Ver `services/fiscal/numeracao.py`.
+    numeracao_piso_nfe: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default=text("0"),
+        nullable=False,
+        doc="Último número NF-e informado à mão; abaixo dele a sequência é do sistema anterior",
+    )
+
+    # Trava contra a Rejeição 204 (duplicidade). Uma loja que vem de outro ERP
+    # entra com "último número 0" por padrão e emitiria a nota 1 de novo. Fica
+    # False até alguém confirmar série e último número na tela de Emissão
+    # Estadual; até lá `verificar_emitente` barra qualquer emissão.
+    # `server_default="0"` e não "false": o SQLite guarda Boolean como inteiro.
+    numeracao_confirmada: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("0"),
+        nullable=False,
+        doc="Operador/implantador confirmou formalmente a série e o último número emitido",
+    )
+
+    # Fabricante do CE com ICMS-ST recolhido em DAE (Decreto 32.900/2018). Ver
+    # `services/fiscal/derivacao/st_fabricante_ce.py`. Nasce desligada.
+    nfe_st_fabricante_ce: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("0"),
+        nullable=False,
+        doc="Item 5401/6401 + CSOSN 500 sai sem valor de ST na nota; o imposto vai em DAE",
+    )
+
     # --- CSC (Código de Segurança do Contribuinte - NFCe) ---
     csc_token: Mapped[Optional[str]] = mapped_column(
-        String(100),
+        String(300),
         nullable=True,
-        doc="Token CSC para NFCe (código alfanumérico)"
+        doc=(
+            "Token CSC para NFCe, CRIPTOGRAFADO com Fernet. O CSC em si tem "
+            "poucas dezenas de caracteres, mas o texto cifrado passa de 180 — "
+            "daí o campo ser bem maior que o segredo que guarda."
+        )
     )
     csc_id: Mapped[Optional[str]] = mapped_column(
         String(10),
         nullable=True,
         doc="ID do Token CSC (ex: 000001)"
+    )
+    limite_consumidor_anonimo: Mapped[int] = mapped_column(
+        Integer,
+        default=1000000,
+        nullable=False,
+        doc=(
+            "Teto em CENTAVOS para emitir NFC-e sem identificar o comprador. "
+            "Acima dele a SEFAZ exige CPF/CNPJ no cupom. Configurável porque a "
+            "faixa é estadual (na maioria das UFs R$ 10.000,00 = 1000000) e "
+            "muda por legislação — fixar em código exigiria um instalador novo "
+            "a cada mudança de estado."
+        )
     )
 
     # --- NFSe (Serviços / RPS) ---
@@ -122,6 +174,38 @@ class EmpresaFiscalSettings(Base):
         doc="Regime de tributação ISS: 1-Microempresa Municipal, 2-Estimativa, 3-Sociedade de Profissionais, 4-Cooperativa, 5-MEI, 6-ME/EPP Simples Nacional"
     )
 
+    # --- NFS-e: as decisões do contador como opção (docs/nfse-fase2-plano.md, G3) ---
+    # Todas nascem no comportamento da fase 1: desligadas / vazias.
+    nfse_reter_iss_pj: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Tomador PJ retém o ISS (tpRetISSQN 2). Desligado: ISS não retido.",
+    )
+    nfse_uma_nota_por_codigo: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="OS com serviços de códigos nacionais diferentes vira uma NFS-e por código "
+            "(desligado: é pendência).",
+    )
+    nfse_ibs_cbs_cst: Mapped[Optional[str]] = mapped_column(
+        String(3), nullable=True,
+        doc="CST IBS/CBS padrão para o serviço que não tem o seu.",
+    )
+    nfse_ibs_cbs_cclass: Mapped[Optional[str]] = mapped_column(
+        String(6), nullable=True,
+        doc="cClassTrib IBS/CBS padrão para o serviço que não tem o seu.",
+    )
+    # Padrão fiscal da loja para serviços NOVOS (M2 de docs/nfse-melhorias-
+    # plano.md): o cadastro já nasce com eles. Não vale para a emissão --
+    # serviço sem código continua pendência; o padrão só poupa digitação.
+    nfse_padrao_codigo_nacional: Mapped[Optional[str]] = mapped_column(
+        String(6), nullable=True, doc="Código de tributação nacional sugerido para serviços novos.",
+    )
+    nfse_padrao_nbs: Mapped[Optional[str]] = mapped_column(
+        String(9), nullable=True, doc="NBS sugerido para serviços novos.",
+    )
+    nfse_padrao_aliquota_iss: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, doc="Alíquota de ISS sugerida (centésimos de ponto: 500 = 5%).",
+    )
+
     # --- Certificado Digital ---
     tipo_certificado: Mapped[str] = mapped_column(
         String(10),
@@ -148,6 +232,21 @@ class EmpresaFiscalSettings(Base):
         String(100),
         nullable=True,
         doc="Thumbprint do certificado Windows (identificador único)"
+    )
+    certificado_senha: Mapped[Optional[str]] = mapped_column(
+        String(200),
+        nullable=True,
+        doc="Senha do certificado digital A1 (Criptografada com Fernet)"
+    )
+    certificado_status: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        doc="Status da conexão do certificado. Ex: CONECTADO_NUVEM, ERRO, etc."
+    )
+    certificado_cnpj: Mapped[Optional[str]] = mapped_column(
+        String(14),
+        nullable=True,
+        doc="CNPJ extraído do certificado (somente números)"
     )
 
     # --- Metadados ---

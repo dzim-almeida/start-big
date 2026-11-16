@@ -26,6 +26,7 @@ import { useFornecedorModal } from './useFornecedorModal';
 
 const DEFAULT_FORM_VALUES: FornecedorFormData = {
   tipo: 'produto',
+  pessoa: 'PJ',
   nome: '',
   cnpj: '',
   cpf: '',
@@ -57,6 +58,8 @@ const unmask = (v: string) => v.replace(/\D/g, '');
 
 export interface FornecedorFormContext {
   tipo: Ref<SupplierTipo>;
+  /** Arquiteto (09B): pessoa física ou jurídica. */
+  pessoa: Ref<'PF' | 'PJ'>;
   nome: Ref<string>;
   cnpj: Ref<string>;
   cpf: Ref<string>;
@@ -94,7 +97,7 @@ export const FORNECEDOR_FORM_KEY: InjectionKey<FornecedorFormContext> =
   Symbol('fornecedor-form');
 
 export function useFornecedorFormProvider() {
-  const { selectedFornecedor, selectedTipo, isCreateMode, closeModal } = useFornecedorModal();
+  const { selectedFornecedor, selectedTipo, isCreateMode, closeModal, avisarCriado } = useFornecedorModal();
   const { handleSubmit, defineField, setValues, resetForm, submitCount, errors } =
     useForm<FornecedorFormData>({
       validationSchema: fornecedorFormValidationSchema,
@@ -106,6 +109,7 @@ export function useFornecedorFormProvider() {
   const apiError = ref<string | null>(null);
 
   const [tipo] = defineField('tipo');
+  const [pessoa] = defineField('pessoa');
   const [nome] = defineField('nome');
   const [cnpj] = defineField('cnpj');
   const [cpf] = defineField('cpf');
@@ -163,6 +167,8 @@ export function useFornecedorFormProvider() {
     const enderecoPrincipal = f.endereco?.[0] ?? null;
     setValues({
       tipo: tipoValue,
+      // Arquiteto gravado com CPF é pessoa física; com CNPJ (ou sem nada), jurídica.
+      pessoa: f.cpf && !f.cnpj ? 'PF' : 'PJ',
       nome: f.nome ?? '',
       cnpj: f.cnpj ? maskCnpj(f.cnpj) : '',
       cpf: f.cpf ? maskCpf(f.cpf) : '',
@@ -197,6 +203,9 @@ export function useFornecedorFormProvider() {
     apiError.value = null;
 
     const isEntregador = formData.tipo === 'entregador';
+    // Arquiteto pessoa física manda o CPF (e nunca um CNPJ que sobrou no campo).
+    const isArquitetoPF = formData.tipo === 'arquiteto' && formData.pessoa === 'PF';
+    const usaCpf = isEntregador || isArquitetoPF;
 
     // Monta o endereço se os campos obrigatórios estiverem preenchidos
     const temEndereco = !!(formData.logradouro?.trim() && formData.cep?.trim());
@@ -218,8 +227,8 @@ export function useFornecedorFormProvider() {
     const payload = {
       tipo: formData.tipo,
       nome: formData.nome.trim(),
-      cnpj: isEntregador ? undefined : unmask(formData.cnpj ?? '') || undefined,
-      cpf: isEntregador ? unmask(formData.cpf ?? '') || undefined : undefined,
+      cnpj: usaCpf ? undefined : unmask(formData.cnpj ?? '') || undefined,
+      cpf: usaCpf ? unmask(formData.cpf ?? '') || undefined : undefined,
       nome_fantasia: isEntregador ? undefined : formData.nome_fantasia?.trim() || undefined,
       ie: isEntregador ? undefined : formData.ie?.trim() || undefined,
       telefone: formData.telefone ? unmask(formData.telefone) || undefined : undefined,
@@ -239,9 +248,10 @@ export function useFornecedorFormProvider() {
 
     if (isCreateMode.value) {
       createMutation.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: (criado) => {
           closeModal();
           resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+          avisarCriado(criado);                            // quem abriu com callback recebe o novo (09B D4)
         },
         onError: () => {
           apiError.value = 'Erro ao cadastrar fornecedor. Verifique os dados e tente novamente.';
@@ -272,6 +282,7 @@ export function useFornecedorFormProvider() {
 
   const context: FornecedorFormContext = {
     tipo: tipo as Ref<SupplierTipo>,
+    pessoa: pessoa as Ref<'PF' | 'PJ'>,
     nome,
     cnpj,
     cpf,

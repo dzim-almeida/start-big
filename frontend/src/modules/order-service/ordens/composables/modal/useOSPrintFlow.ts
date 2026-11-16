@@ -2,8 +2,7 @@ import { ref } from 'vue';
 import { usePrintFlow } from '@/shared/composables/usePrintFlow';
 import { useImpressao } from '@/shared/composables/useImpressao';
 import { useImpressaoStore } from '@/shared/stores/impressao.store';
-import { useCompanyPrintInfo } from '@/shared/utils/print.utils';
-import { osToEscPos } from '../../components/osToEscPos';
+import { useCupomOS } from './useCupomOS';
 import type { OrderServiceReadDataType } from '../../schemas/orderServiceQuery.schema';
 import type { PrintFormat } from '@/shared/components/print/print.types';
 
@@ -24,30 +23,23 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     printDirect,
     handlePrintFormatSelected: handlePrintFormatSelectedBase,
     closePrintSelectModal,
-  } = usePrintFlow<'ENTRADA' | 'SAIDA'>();
+  } = usePrintFlow<'ENTRADA' | 'SAIDA'>((tipo) =>
+    tipo === 'ENTRADA' ? 'os_entrada' : 'os_entrega',
+  );
 
   const isFinalizarModalOpen = ref(false);
 
   const impressao = useImpressao();
   const impressaoStore = useImpressaoStore();
-  const { companyInfo } = useCompanyPrintInfo();
+  // Um montador só para o cupom do formulário e o da tabela (ver useCupomOS).
+  const { montarCupom } = useCupomOS();
 
   /** Manda o cupom térmico direto pra impressora configurada; false = sem impressora/falhou */
   async function imprimirEscPosDireto(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
     if (!impressao.podeImprimirDireto.value) return false;
     const os = getOS?.();
     if (!os) return false;
-    const dados = osToEscPos(os, tipo, {
-      bobina: impressaoStore.config.bobina,
-      empresa: companyInfo.value,
-    });
-    return impressao.imprimirCupom(dados);
-  }
-
-  /** Tenta o cupom térmico direto conforme a config local; false = usar o modal */
-  async function tentarImpressaoDireta(tipo: 'ENTRADA' | 'SAIDA'): Promise<boolean> {
-    if (impressaoStore.config.auto_imprimir_os !== 'automatico') return false;
-    return imprimirEscPosDireto(tipo);
+    return impressao.imprimirCupom(await montarCupom(os, tipo));
   }
 
   /**
@@ -64,25 +56,45 @@ export function useOSPrintFlow({ onClose, getOS }: UseOSPrintFlowParams) {
     handlePrintFormatSelectedBase(format);
   }
 
+  /**
+   * Regra única de impressão (sem perguntar formato), obedecendo `formato_os`:
+   * - Formato Cupom + térmica configurada → ESC/POS direto (silencioso).
+   * - Formato A4 → recibo A4 abrindo o diálogo do sistema, SEM tentar ESC/POS.
+   * - Sem térmica (ou falha no envio) → cai no A4.
+   *
+   * O teste do formato existe porque ESC/POS sao bytes de comando, nao texto:
+   * despejados numa impressora comum, saem como uma folha de pontinhos. Antes
+   * daqui o ramo ESC/POS era tentado SEMPRE que houvesse impressora, e escolher
+   * A4 na tela nao tinha efeito nenhum — o `formato_os` era gravado e nunca lido.
+   */
+  async function imprimir(tipo: 'ENTRADA' | 'SAIDA', afterPrint?: () => void) {
+    if (impressaoStore.config.formato_os === 'cupom' && (await imprimirEscPosDireto(tipo))) {
+      afterPrint?.();
+      return;
+    }
+    printDirect(tipo, 'A4', afterPrint);
+  }
+
   function printEntrada() {
-    openPrintSelect('ENTRADA');
+    imprimir('ENTRADA');
   }
 
   function printSaida() {
-    openPrintSelect('SAIDA');
+    imprimir('SAIDA');
   }
 
-  /** Imprime conforme a config (A4 direto, cupom silencioso ou modal) e fecha */
+  /**
+   * Impressão pós-criação/finalização, conforme `auto_imprimir_os`:
+   * 'perguntar' → o atendente escolhe o formato nesta OS;
+   * 'automatico' → segue a regra única (o formato configurado).
+   * O 'nao' é filtrado antes, por quem chama.
+   */
   async function imprimirAutomaticoEFechar(tipo: 'ENTRADA' | 'SAIDA') {
-    if (impressaoStore.config.auto_imprimir_os === 'automatico' && impressaoStore.config.formato_os === 'a4') {
-      printDirect(tipo, 'A4', () => onClose());
+    if (impressaoStore.config.auto_imprimir_os === 'perguntar') {
+      openPrintSelect(tipo, () => onClose());
       return;
     }
-    if (await tentarImpressaoDireta(tipo)) {
-      onClose();
-      return;
-    }
-    openPrintSelect(tipo, () => onClose());
+    await imprimir(tipo, () => onClose());
   }
 
   async function printEntradaAndClose() {

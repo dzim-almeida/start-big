@@ -4,16 +4,37 @@
  * @description Modal for creating/editing products with multi-section form and image upload
  */
 
-import { watch, onMounted, onUnmounted } from 'vue';
+import { defineAsyncComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import { X } from 'lucide-vue-next';
 
 import { useProductModal } from '../composables/useProductModal';
 import { useProductFormProvider } from '../composables/useProductForm';
+import { recursoDisponivel } from '@/shared/config/planos';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import DadosProdutoSection from './form/DadosProdutoSection.vue';
 import DadosEstoqueSection from './form/DadosEstoqueSection.vue';
+import DadosFiscaisSection from './form/DadosFiscaisSection.vue';
+import EmbalagensSection from './form/EmbalagensSection.vue';
+import RegrasPrecoSection from './form/RegrasPrecoSection.vue';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
+
+const nfeDisponivel = recursoDisponivel('nfe');
+
+// Fornecedores do produto: módulo Compras (contratável). Carregado sob demanda
+// para que o código do módulo nem chegue a quem não o tem.
+const { podeVer: comprasDisponivel } = useAcessoCompras();
+const FornecedoresProdutoSection = defineAsyncComponent(
+  () => import('@/modules/compras/fornecedores-produto/components/FornecedoresProdutoSection.vue'),
+);
+
+// A seção "Insumo da fábrica" (marcenaria) saiu com a aposentadoria da
+// fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D13): ela editava campos que o
+// orçamento técnico não usa. O "Sofre perda" volta na Spec 04B, em Dados do
+// Produto.
 
 // =============================================
 // Modal State
@@ -25,9 +46,19 @@ const {
   isViewMode,
   modalTitle,
   closeModal,
+  selectedProduct,
 } = useProductModal();
 
-const { onSubmit, isPending, submitCount, apiError } = useProductFormProvider();
+// Embalagens (fardo/caixa) só aparecem com a chave ligada em Configurações:
+// para quem não usa, o cadastro fica exatamente como sempre foi.
+const { usarEmbalagens, regraFaixasQuantidade, regraLevePague } = storeToRefs(useConfiguracoesStore());
+
+const { onSubmit, isPending, submitCount, apiError, fornecedor_id } = useProductFormProvider();
+
+/** A aba Fornecedores trocou o principal: o formulário passa a mandar o novo. */
+function aoTrocarPrincipal(fornecedorId: number) {
+  fornecedor_id.value = String(fornecedorId);
+}
 
 // =============================================
 // Event Handlers
@@ -45,10 +76,26 @@ function handleKeydown(event: KeyboardEvent) {
 /**
  * Handle backdrop click to close modal
  */
+const gestoComecouNoFundo = ref(false);
+
+function handleBackdropMousedown(event: MouseEvent) {
+  gestoComecouNoFundo.value = (event.target as HTMLElement).classList.contains('modal-backdrop');
+}
+
+/**
+ * Fecha ao clicar no fundo — mas só quando o clique COMEÇOU no fundo.
+ *
+ * Decidir pelo `click` fechava o modal no meio da edição: ao arrastar o mouse
+ * para selecionar o texto de um campo e soltar fora dele, o navegador dispara o
+ * `click` no ancestral comum entre onde apertou e onde soltou — o próprio
+ * backdrop. Só acontecia com o mouse; com teclado nunca.
+ */
 function handleBackdropClick(event: MouseEvent) {
-  if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
+  const terminouNoFundo = (event.target as HTMLElement).classList.contains('modal-backdrop');
+  if (gestoComecouNoFundo.value && terminouNoFundo) {
     closeModal();
   }
+  gestoComecouNoFundo.value = false;
 }
 
 // =============================================
@@ -82,6 +129,7 @@ watch(isOpen, (open) => {
       <div
         v-if="isOpen"
         class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @mousedown="handleBackdropMousedown"
         @click="handleBackdropClick"
       >
         <Transition
@@ -146,7 +194,91 @@ watch(isOpen, (open) => {
                   :disabled="isViewMode"
                   :is-create-mode="isCreateMode"
                 />
+
+                <!-- Dados Fiscais — visível apenas para licenças com módulo fiscal ativo -->
+                <template v-if="nfeDisponivel">
+                  <!-- Divider -->
+                  <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                      <div class="w-full border-t border-zinc-200"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                      <span
+                        class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider"
+                      >
+                        Dados Fiscais
+                      </span>
+                    </div>
+                  </div>
+
+                  <DadosFiscaisSection
+                    :submit-count="submitCount"
+                    :disabled="isViewMode"
+                  />
+                </template>
               </form>
+
+              <!--
+                Fora do <form> de propósito: tem o próprio "Salvar" (rota
+                separada), e Enter num campo daqui não pode salvar o produto.
+              -->
+              <template v-if="usarEmbalagens">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Embalagens (fardo, caixa)
+                    </span>
+                  </div>
+                </div>
+                <EmbalagensSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                />
+              </template>
+
+              <!-- Fornecedores do produto (módulo Compras): só com o módulo na
+                   licença e a linha "Compras" no cargo. Fora do <form> pelo
+                   mesmo motivo das embalagens: tem o próprio "Salvar". -->
+              <template v-if="comprasDisponivel">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Fornecedores (compras)
+                    </span>
+                  </div>
+                </div>
+                <FornecedoresProdutoSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                  @principal-alterado="aoTrocarPrincipal"
+                />
+              </template>
+
+              <!-- Regras de preço por quantidade (R2/R3, §6.1): só com a chave
+                   de alguma delas ligada em Regras de Vendas. Mesmo motivo de
+                   ficar fora do <form> que as embalagens. -->
+              <template v-if="regraFaixasQuantidade || regraLevePague">
+                <div class="relative mt-8 mb-6">
+                  <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-200"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-4 bg-white text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                      Preço por quantidade
+                    </span>
+                  </div>
+                </div>
+                <RegrasPrecoSection
+                  :produto="isCreateMode ? null : selectedProduct"
+                  :disabled="isViewMode"
+                />
+              </template>
             </div>
 
             <!-- Footer -->

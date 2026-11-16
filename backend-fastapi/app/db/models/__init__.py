@@ -17,7 +17,7 @@ from app.db.models.empresa import Empresa  # noqa: F401
 from app.db.models.empresa_fiscal_settings import EmpresaFiscalSettings  # noqa: F401
 from app.db.models.cargo import Cargo  # noqa: F401
 from app.db.models.ordem_servico import OrdemServico  # noqa: F401
-from app.db.models.ordem_servico_equipamento import OrdemServicoEquipamento  # noqa: F401
+from app.db.models.objeto_servico import ObjetoServico  # noqa: F401
 from app.db.models.ordem_servico_item import OrdemServicoItem  # noqa: F401
 from app.db.models.ordem_servico_pagamento import OrdemServicoPagamento  # noqa: F401
 from app.db.models.ordem_servico_foto import OrdemServicoFoto  # noqa: F401
@@ -36,6 +36,68 @@ from app.db.models.venda_produto import ProdutoVenda  # noqa: F401
 from app.db.models.venda_pagamento import PagamentoVenda  # noqa: F401
 from app.db.models.log_produto import LogProduto  # noqa: F401
 from app.db.models.movimentacao_estoque import MovimentacaoEstoque  # noqa: F401
+from app.db.models.movimentacao_financeira import MovimentacaoFinanceira  # noqa: F401
 from app.db.models.orcamento import Orcamento  # noqa: F401
 from app.db.models.orcamento_produto import OrcamentoProduto  # noqa: F401
 from app.db.models.contador_venda import ContadorVenda  # noqa: F401
+from app.db.models.terminal_conectado import TerminalConectado  # noqa: F401
+from app.db.models.terminal import Terminal  # noqa: F401
+
+# --- Gestão financeira (Onda 1) ---
+from app.db.models.plano_conta import PlanoConta  # noqa: F401
+from app.db.models.conta_bancaria import ContaBancaria  # noqa: F401
+from app.db.models.alerta_dispensado import AlertaDispensado  # noqa: F401
+from app.db.models.conta_pagar import ContaPagar  # noqa: F401
+from app.db.models.historico_financeiro import HistoricoFinanceiro  # noqa: F401
+from app.db.models.conta_receber import ContaReceber  # noqa: F401
+
+# --- Modulo fiscal (NF-e) ---
+from app.db.models.produto_fiscal import ProdutoFiscal  # noqa: F401
+from app.db.models.tributacao import TributacaoPadrao, RegraTributariaNcm  # noqa: F401
+from app.db.models.ncm import Ncm  # noqa: F401
+from app.db.models.nfse_tabelas import NfseServicoNacional, Nbs, NfseCorrelacaoNbs  # noqa: F401
+from app.db.models.servico_fiscal import ServicoFiscal  # noqa: F401
+from app.db.models.venda_nota_fiscal import VendaNotaFiscal  # noqa: F401
+from app.db.models.ordem_servico_nota_fiscal import OrdemServicoNotaFiscal  # noqa: F401
+from app.db.models.documento_fiscal import DocumentoFiscal  # noqa: F401
+from app.db.models.inutilizacao_fiscal import InutilizacaoFiscal  # noqa: F401
+from app.db.models.aliquota_uf import AliquotaUF  # noqa: F401
+from app.db.models.documento_fiscal_item import DocumentoFiscalItem  # noqa: F401
+from app.db.models.perfil_tributario import PerfilTributario  # noqa: F401
+from app.db.models.regra_perfil_tributario import RegraPerfilTributario  # noqa: F401
+
+# --- Central de Etiquetas ---
+from app.db.models.modelo_etiqueta import ModeloEtiqueta  # noqa: F401
+
+# --- Embalagens do produto (fardo/caixa) ---
+from app.db.models.produto_embalagem import ProdutoEmbalagem  # noqa: F401
+# --- Regras de preço por quantidade (R2/R3) ---
+from app.db.models.produto_regra_preco import ProdutoRegraPreco  # noqa: F401
+from app.db.models.nota_entrada import NotaEntrada  # noqa: F401
+from app.db.models.produto_codigo_fornecedor import ProdutoCodigoFornecedor  # noqa: F401
+
+# --- Compras (docs/compras-plano.md) ---
+from app.db.models.produto_fornecedor import ProdutoFornecedor  # noqa: F401
+from app.db.models.pedido_compra import (  # noqa: F401
+    PedidoCompra, PedidoCompraItem, PedidoCompraOrigem, PedidoCompraParcela,
+)
+from app.db.models.compra_log import CompraLog  # noqa: F401
+from app.db.models.recebimento_compra import RecebimentoCompra, RecebimentoCompraItem  # noqa: F401
+
+# --- Marcenaria: orçamento técnico (docs/marcenaria/, Spec 04A) ---
+from app.db.models.configuracao_marcenaria import ConfiguracaoMarcenaria  # noqa: F401
+# Orçamento (Spec 06A): orçamento, RT, anexos, ambiente, móvel, insumo e histórico.
+from app.db.models.marcenaria import (  # noqa: F401
+    MarcenariaOrcamento, MarcenariaOrcamentoRT, MarcenariaOrcamentoAnexo,
+    MarcenariaAmbiente, MarcenariaMovel, MarcenariaMovelInsumo, MarcenariaEvento,
+)
+
+# --- Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md) ---
+from app.db.models.fabrica_orcamento import (  # noqa: F401
+    FabricaOrcamento, FabricaAmbiente, FabricaMovel, FabricaMaterial, FabricaFaseLog,
+)
+
+# --- Lava-rápido (docs/lava-rapido/, Spec 02A): portes da loja e preço por porte ---
+from app.db.models.lava_rapido import Agendamento, PorteVeiculo, ServicoPrecoPorte  # noqa: F401
+# Executores da OS (lavadores do lava-rápido, Spec 10A).
+from app.db.models.ordem_servico_executor import OrdemServicoExecutor  # noqa: F401

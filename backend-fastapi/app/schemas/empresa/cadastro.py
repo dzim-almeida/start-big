@@ -1,0 +1,524 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: schemas/empresa/cadastro.py
+# DESCRICAO: Empresa - schemas do cadastro.
+# ---------------------------------------------------------------------------
+
+from typing import List, Optional, Sequence
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+from app.schemas.endereco import Endereco, EnderecoRead, EnderecoUpdate
+# Citados entre aspas em EmpresaUpdate e EmpresaAdminRead (resolvidos no
+# model_rebuild do fim do arquivo).
+from app.schemas.empresa.fiscal import FiscalSettingsRead, FiscalSettingsUpdate
+
+
+# NOTA ARQUITETURA:
+# Para evitar referencias circulares em schemas aninhados, usamos o nome
+# da classe como string literal ("NomeDaClasse").
+# E necessario importar os schemas abaixo para que o Pydantic os encontre
+# e use no tempo de execucao.
+
+# =========================
+# Schema Base
+# =========================
+class EmpresaBase(BaseModel):
+    """
+    Campos comuns para criar, ler ou atualizar uma empresa.
+
+    Attributes:
+        razao_social (str): Razao Social da empresa (obrigatorio).
+        nome_fantasia (Optional[str]): Nome Fantasia (comercial).
+        is_cnpj (bool): Indica se o documento e CPF ou CNPJ.
+        documento (str): Documento CPF/CNPJ (apenas numeros, 11 a 14 digitos).
+        inscricao_estadual (Optional[str]): Inscricao Estadual.
+        inscricao_municipal (Optional[str]): Inscricao Municipal.
+        regime_tributario (Optional[str]): Regime Tributario (ex: Simples Nacional).
+        cnae_principal (Optional[str]): CNAE Principal.
+        telefone (Optional[str]): Telefone fixo.
+        celular (Optional[str]): Celular / WhatsApp.
+        email (Optional[str]): Email principal para contato.
+        url_logo (Optional[str]): URL ou caminho relativo da logo da empresa.
+    """
+
+    # Identificacao
+    razao_social: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Razao Social da empresa",
+    )
+    nome_fantasia: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Nome Fantasia (comercial)",
+    )
+    is_cnpj: bool = Field(
+        ...,
+        description="Define se o documento e um CPF ou CNPJ",
+    )
+    documento: Optional[str] = Field(
+        None,
+        pattern=r"^\d{11,14}$",
+        description="Documento CPF/CNPJ (apenas numeros, 11 a 14 digitos)",
+    )
+    inscricao_estadual: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Inscricao Estadual",
+    )
+    inscricao_municipal: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Inscricao Municipal",
+    )
+    regime_tributario: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Regime Tributario (ex: Simples Nacional)",
+    )
+    cnae_principal: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="CNAE Principal",
+    )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
+    )
+    indicador_ie: Optional[str] = Field(
+        None,
+        max_length=1,
+        description="Indicador de IE: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte",
+    )
+    natureza_juridica: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)",
+    )
+    tipo_atividade: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO",
+    )
+    cnaes_secundarios: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="CNAEs secundários separados por vírgula",
+    )
+    data_abertura: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Data de abertura/fundação (YYYY-MM-DD)",
+    )
+    website: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Site da empresa",
+    )
+
+    # Contato
+    telefone: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Telefone fixo",
+    )
+    celular: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Celular / WhatsApp",
+    )
+    email: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Endereco de email principal para contato",
+    )
+
+    # Outros
+    url_logo: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="URL ou caminho da logo da empresa",
+    )
+    cor_tema: Optional[str] = Field(
+        None,
+        max_length=7,
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Cor da marca em hex (#RRGGBB). NULL usa a paleta de fabrica.",
+    )
+    chave_pix: Optional[str] = Field(
+        None,
+        max_length=77,
+        description="Chave PIX do recebedor (CPF, CNPJ, telefone, e-mail ou aleatoria).",
+    )
+    pix_ativo: Optional[bool] = Field(
+        None,
+        description="Se o QR PIX aparece na finalizacao da venda.",
+    )
+
+    # NAO validamos digito verificador do documento AQUI, de proposito.
+    #
+    # A versao da feat/fiscal-module plugava validar_cpf/validar_cnpj neste
+    # ponto. Medido: reprova 394 testes, porque o documento passa a exigir
+    # digito verificador correto no CADASTRO. Na loja o efeito e pior -- uma
+    # empresa cadastrada com documento digitado errado deixa de conseguir
+    # SALVAR qualquer alteracao, e a reprovacao chega ao usuario como "clico
+    # em Salvar e nao acontece nada".
+    #
+    # O digito verificador e conferido no PORTAO DE EMISSAO
+    # (services/fiscal/validators.py e verificacao_fiscal.py), que e onde ele
+    # de fato importa: a Receita recusa a nota, nao o cadastro.
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# =========================
+# Create (Entrada)
+# =========================
+class EmpresaCreate(EmpresaBase):
+    """
+    Dados necessarios para cadastrar uma nova empresa (Sign Up).
+    Aninha a lista opcional de enderecos.
+
+    Attributes:
+        endereco (Optional[List[Endereco]]): Lista opcional de enderecos da empresa.
+    """
+
+    endereco: Optional[List["Endereco"]] = Field(
+        None,
+        description="Lista de enderecos da empresa (Principal, Entrega, etc)",
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "razao_social": "Solucoes Tecnologicas Alpha S.A.",
+                "nome_fantasia": "Alpha Tech",
+                "is_cnpj": True,
+                "documento": "68056674073060",
+                "inscricao_estadual": "ISENTA",
+                "inscricao_municipal": "001.234/2025-0",
+                "regime_tributario": "Simples Nacional",
+                "cnae_principal": "6201-5/01",
+                "telefone": "6832104000",
+                "celular": "68999887766",
+                "email": "contato@alphatech.com",
+                "endereco": [
+                    {
+                        "logradouro": "Avenida Cicero Pompeu",
+                        "numero": "1500",
+                        "bairro": "Centro",
+                        "cidade": "Rio Branco",
+                        "estado": "AC",
+                        "cep": "69900-000",
+                        "complemento": "Sala 101, Predio Comercial",
+                    }
+                ],
+            }
+        },
+    )
+
+
+# =========================
+# Update (Entrada)
+# =========================
+class EmpresaUpdate(BaseModel):
+    """
+    Dados para atualizacao parcial de uma empresa (PATCH).
+    Todos os campos sao opcionais.
+
+    Attributes:
+        endereco (Optional[List[EnderecoUpdate]]): Enderecos da empresa para atualizar.
+    """
+
+    # Identificacao
+    razao_social: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Razao Social da empresa",
+    )
+    nome_fantasia: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Nome Fantasia (comercial)",
+    )
+    is_cnpj: Optional[bool] = Field(
+        None,
+        description="Define se o documento e um CPF ou CNPJ",
+    )
+    documento: Optional[str] = Field(
+        None,
+        pattern=r"^\d{11,14}$",
+        description="Documento CPF/CNPJ (apenas numeros, 11 a 14 digitos)",
+    )
+    inscricao_estadual: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Inscricao Estadual",
+    )
+    inscricao_municipal: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Inscricao Municipal",
+    )
+    regime_tributario: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Regime Tributario (ex: Simples Nacional)",
+    )
+    cnae_principal: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="CNAE Principal",
+    )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
+    )
+    indicador_ie: Optional[str] = Field(
+        None,
+        max_length=1,
+        description="Indicador de IE: 1=Contribuinte ICMS, 2=Isento, 9=Não contribuinte",
+    )
+    natureza_juridica: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Natureza jurídica (MEI, ME, EPP, LTDA, SA, EI, SLU)",
+    )
+    tipo_atividade: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Tipo de atividade: COMERCIO, INDUSTRIA, SERVICO, MISTO",
+    )
+    cnaes_secundarios: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="CNAEs secundários separados por vírgula",
+    )
+    data_abertura: Optional[str] = Field(
+        None,
+        max_length=10,
+        description="Data de abertura/fundação (YYYY-MM-DD)",
+    )
+    website: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Site da empresa",
+    )
+
+    # Contato
+    telefone: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Telefone fixo",
+    )
+    celular: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Celular / WhatsApp",
+    )
+    email: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Endereco de email principal para contato",
+    )
+
+    # Outros
+    url_logo: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="URL ou caminho da logo da empresa",
+    )
+    cor_tema: Optional[str] = Field(
+        None,
+        max_length=7,
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Cor da marca em hex (#RRGGBB). NULL usa a paleta de fabrica.",
+    )
+    chave_pix: Optional[str] = Field(
+        None,
+        max_length=77,
+        description="Chave PIX do recebedor (CPF, CNPJ, telefone, e-mail ou aleatoria).",
+    )
+    pix_ativo: Optional[bool] = Field(
+        None,
+        description="Se o QR PIX aparece na finalizacao da venda.",
+    )
+
+    endereco: Optional[List["EnderecoUpdate"]] = Field(
+        None,
+        description="Lista de enderecos da empresa para atualizacao",
+    )
+
+    fiscal_settings: Optional["FiscalSettingsUpdate"] = Field(
+        None,
+        description="Configurações fiscais para atualização",
+    )
+
+    # NAO validamos digito verificador do documento AQUI, de proposito.
+    #
+    # A versao da feat/fiscal-module plugava validar_cpf/validar_cnpj neste
+    # ponto. Medido: reprova 394 testes, porque o documento passa a exigir
+    # digito verificador correto no CADASTRO. Na loja o efeito e pior -- uma
+    # empresa cadastrada com documento digitado errado deixa de conseguir
+    # SALVAR qualquer alteracao, e a reprovacao chega ao usuario como "clico
+    # em Salvar e nao acontece nada".
+    #
+    # O digito verificador e conferido no PORTAO DE EMISSAO
+    # (services/fiscal/validators.py e verificacao_fiscal.py), que e onde ele
+    # de fato importa: a Receita recusa a nota, nao o cadastro.
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "nome_fantasia": "Alpha Tech Brasil",
+                "telefone": "1132104000",
+                "endereco": [
+                    {
+                        "id": 10,
+                        "logradouro": "Avenida Cicero Pompeu",
+                        "numero": "1500",
+                        "bairro": "Centro",
+                        "cidade": "Rio Branco",
+                        "estado": "AC",
+                        "cep": "69900-000",
+                        "complemento": "Sala 101",
+                    }
+                ],
+                "fiscal_settings": {
+                    "ambiente_emissao": 2,
+                    "serie_nfe": 1,
+                    "csc_token": "ABC123",
+                    "csc_id": "000001"
+                }
+            }
+        },
+    )
+
+
+# =========================
+# Admin Read (Saida)
+# =========================
+class EmpresaAdminRead(EmpresaBase):
+    """
+    Formato de resposta da API para Empresa. Inclui dados internos (id, ativo),
+    lista aninhada de enderecos e configurações fiscais.
+
+    Attributes:
+        id (int): ID unico da empresa.
+        ativo (bool): Status de ativo/inativo da empresa.
+        enderecos (Optional[List[EnderecoRead]]): Enderecos cadastrados (com IDs).
+        fiscal_settings (Optional[FiscalSettingsRead]): Configurações fiscais da empresa.
+    """
+
+    id: int = Field(..., description="ID unico da empresa")
+    ativo: bool = Field(..., description="Status da empresa")
+    enderecos: Optional[List["EnderecoRead"]] = Field(
+        None,
+        description="Enderecos cadastrados",
+    )
+    fiscal_settings: Optional["FiscalSettingsRead"] = Field(
+        None,
+        description="Configurações fiscais (NFe, NFCe, NFSe, certificados)",
+    )
+
+
+# =========================
+# User Read (Saida)
+# =========================
+class EmpresaUserRead(BaseModel):
+    """Resposta de Empresa para usuarios. Inclui dados de contato e endereco principal."""
+
+    id: int = Field(..., description="ID unico da empresa")
+    ativo: bool = Field(..., description="Status da empresa")
+    razao_social: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Razao Social da empresa",
+    )
+    nome_fantasia: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Nome Fantasia (comercial)",
+    )
+    url_logo: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="URL ou caminho da logo da empresa",
+    )
+    cor_tema: Optional[str] = Field(
+        None,
+        max_length=7,
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Cor da marca em hex (#RRGGBB). NULL usa a paleta de fabrica.",
+    )
+    chave_pix: Optional[str] = Field(
+        None,
+        max_length=77,
+        description="Chave PIX do recebedor (CPF, CNPJ, telefone, e-mail ou aleatoria).",
+    )
+    pix_ativo: Optional[bool] = Field(
+        None,
+        description="Se o QR PIX aparece na finalizacao da venda.",
+    )
+    documento: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="CNPJ ou CPF da empresa",
+    )
+    telefone: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Telefone fixo da empresa",
+    )
+    celular: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Celular / WhatsApp da empresa",
+    )
+    email: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Email principal da empresa",
+    )
+    segmento: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Segmento de negócio da empresa",
+    )
+    # Derivado do registry, não gravado no banco. Vai junto do /usuarios/me de
+    # propósito: o frontend precisa dessa resposta no BOOT para decidir se
+    # desenha o módulo de Ordem de Serviço, e uma requisição separada faria o
+    # menu piscar com "Serviços" antes de sumir. Ver
+    # `segmento_usa_ordem_servico`: o padrão é True para todo mundo.
+    usa_ordem_servico: bool = Field(
+        True,
+        description="Se a loja deste segmento trabalha com Ordem de Serviço",
+    )
+    regime_tributario: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Regime Tributário da empresa",
+    )
+    enderecos: Optional[Sequence["EnderecoRead"]] = Field(
+        None,
+        description="Enderecos cadastrados",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def _derivar_usa_ordem_servico(self) -> "EmpresaUserRead":
+        from app.core.segmentos import segmento_usa_ordem_servico
+
+        self.usa_ordem_servico = segmento_usa_ordem_servico(self.segmento)
+        return self
+
+
+EmpresaCreate.model_rebuild()
+EmpresaUpdate.model_rebuild()
+EmpresaAdminRead.model_rebuild()

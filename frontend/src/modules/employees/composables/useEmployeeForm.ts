@@ -24,8 +24,9 @@ import type {
   FuncionarioRead,
   State,
 } from '../types/employees.types';
-import { useCreateEmployeeMutation, useUpdateEmployeeMutation } from './useEmployeesQuery';
+import { useCreateEmployeeMutation, useUpdateEmployeeMutation, useConcederAcessoMutation } from './useEmployeesQuery';
 import { useEmployeeModal } from './useEmployeeModal';
+import { useToast } from '@/shared/composables/useToast';
 import { unmaskDocument, unmaskPhone, unmaskCep } from '@/shared/utils/unmask.utils';
 
 // =============================================
@@ -41,6 +42,58 @@ export const DEFAULT_ENDERECO: EnderecoFormData = {
   cidade: '',
   estado: '',
 };
+
+/**
+ * Rótulo de cada campo como ele aparece na TELA. Usado para dizer ao usuário
+ * qual campo reprovou — a chave técnica ("cargo_id", "mae") não ajuda ninguém.
+ */
+const ROTULOS: Record<string, string> = {
+  nome: 'Nome Completo',
+  cpf: 'CPF',
+  data_nascimento: 'Data Nascimento',
+  jornada_trabalho: 'Jornada',
+  genero: 'Gênero',
+  rg: 'RG',
+  telefone: 'Telefone',
+  celular: 'Celular',
+  email: 'E-mail',
+  cnh: 'CNH',
+  carteira_trabalho: 'Carteira de Trabalho',
+  salario_bruto: 'Salário Bruto',
+  tipo_contrato: 'Tipo de Contrato',
+  data_admissao: 'Data Admissão',
+  cargo_id: 'Cargo',
+  mae: 'Nome da Mãe',
+  pai: 'Nome do Pai',
+  titular_conta: 'Titular da Conta',
+  tipo_conta: 'Tipo da Conta',
+  banco: 'Banco',
+  agencia: 'Agência',
+  conta: 'Conta',
+  observacao: 'Observações',
+  usuario_nome: 'Nome de Usuário',
+  usuario_email: 'E-mail do Usuário',
+  usuario_senha: 'Senha',
+  // Endereço (array) — a seção não exibe erro por campo, então o toast é a
+  // ÚNICA forma de o usuário saber que o problema está aqui.
+  cep: 'CEP',
+  logradouro: 'Logradouro',
+  numero: 'Número',
+  complemento: 'Complemento',
+  bairro: 'Bairro',
+  cidade: 'Cidade',
+  estado: 'Estado',
+};
+
+/** "enderecos[0].cep" -> "Endereço 1: CEP"; "nome" -> "Nome Completo". */
+function rotuloDoCampo(chave: string): string {
+  const endereco = chave.match(/^enderecos\[(\d+)\]\.(.+)$/);
+  if (endereco) {
+    const [, indice, campo] = endereco;
+    return `Endereço ${Number(indice) + 1}: ${ROTULOS[campo] ?? campo}`;
+  }
+  return ROTULOS[chave] ?? chave;
+}
 
 const DEFAULT_FORM_VALUES: EmployeeFormData = {
   // Dados Funcionario
@@ -63,6 +116,7 @@ const DEFAULT_FORM_VALUES: EmployeeFormData = {
   carteira_trabalho: '',
 
   // Usuario
+  sem_acesso: false,
   usuario_nome: '',
   usuario_email: '',
   usuario_senha: '',
@@ -77,6 +131,13 @@ const DEFAULT_FORM_VALUES: EmployeeFormData = {
   banco: '',
   agencia: '',
   conta: '',
+
+  // Comissão (override do cargo). null = herda.
+  comissao_venda_percentual: null,
+  comissao_servico_percentual: null,
+  meta_mensal: null,
+  comissao_modo: null,
+  comissao_divisao: null,
 
   // Observacoes
   observacao: '',
@@ -107,6 +168,7 @@ export interface EmployeeFormContext {
   carteira_trabalho: Ref<string>;
 
   // Usuario fields
+  sem_acesso: Ref<boolean>;
   usuario_nome: Ref<string>;
   usuario_email: Ref<string>;
   usuario_senha: Ref<string>;
@@ -117,6 +179,13 @@ export interface EmployeeFormContext {
   banco: Ref<string>;
   agencia: Ref<string>;
   conta: Ref<string>;
+
+  // Comissão (override do cargo)
+  comissao_venda_percentual: Ref<number | null | undefined>;
+  comissao_servico_percentual: Ref<number | null | undefined>;
+  meta_mensal: Ref<number | null | undefined>;
+  comissao_modo: Ref<'direto' | 'meta' | null | undefined>;
+  comissao_divisao: Ref<'dividir' | 'inteira' | null | undefined>;
 
   // Observacoes
   observacao: Ref<string>;
@@ -132,6 +201,8 @@ export interface EmployeeFormContext {
   values: EmployeeFormData;
   apiError: Ref<string | null>;
   isPending: ComputedRef<boolean>;
+  /** Funcionário que existe só como ficha — cadastrado sem acesso ao sistema. */
+  funcionarioSemAcesso: ComputedRef<boolean>;
 
   // Actions
   onSubmit: (e?: Event) => void;
@@ -148,6 +219,18 @@ export const EMPLOYEE_FORM_KEY: InjectionKey<EmployeeFormContext> = Symbol('empl
 export function useEmployeeFormProvider() {
   const { selectedEmployee, isCreateMode, closeModal } = useEmployeeModal();
 
+  /**
+   * Funcionário que existe só como ficha — cadastrado sem acesso ao sistema.
+   *
+   * É o que faz a seção "Dados de Acesso" reaparecer na edição: sem ela, dar
+   * login depois exigiria apagar a ficha e refazer, e com ela iriam embora as
+   * vendas e a comissão que apontam para o `funcionario_id`.
+   */
+  const funcionarioSemAcesso = computed(
+    () => !isCreateMode.value && !!selectedEmployee.value && !selectedEmployee.value.usuario,
+  );
+  const toast = useToast();
+
   // Initialize form
   const { handleSubmit, errors, defineField, setValues, resetForm, submitCount, values, setErrors } =
     useForm<EmployeeFormData>({
@@ -157,6 +240,7 @@ export function useEmployeeFormProvider() {
 
   const createMutation = useCreateEmployeeMutation(setErrors);
   const updateMutation = useUpdateEmployeeMutation(setErrors);
+  const concederAcessoMutation = useConcederAcessoMutation(setErrors);
 
 
   // Define all fields
@@ -178,6 +262,7 @@ export function useEmployeeFormProvider() {
   const [pai] = defineField('pai');
   const [carteira_trabalho] = defineField('carteira_trabalho');
 
+  const [sem_acesso] = defineField('sem_acesso');
   const [usuario_nome] = defineField('usuario_nome');
   const [usuario_email] = defineField('usuario_email');
   const [usuario_senha] = defineField('usuario_senha');
@@ -187,6 +272,12 @@ export function useEmployeeFormProvider() {
   const [banco] = defineField('banco');
   const [agencia] = defineField('agencia');
   const [conta] = defineField('conta');
+
+  const [comissao_venda_percentual] = defineField('comissao_venda_percentual');
+  const [comissao_servico_percentual] = defineField('comissao_servico_percentual');
+  const [meta_mensal] = defineField('meta_mensal');
+  const [comissao_modo] = defineField('comissao_modo');
+  const [comissao_divisao] = defineField('comissao_divisao');
 
   const [observacao] = defineField('observacao');
 
@@ -228,6 +319,7 @@ export function useEmployeeFormProvider() {
       mae: employee.mae || '',
       pai: employee.pai || '',
       carteira_trabalho: employee.carteira_trabalho || '',
+      sem_acesso: false,
       usuario_nome: '',
       usuario_email: '',
       usuario_senha: '',
@@ -246,6 +338,11 @@ export function useEmployeeFormProvider() {
       banco: employee.banco || '',
       agencia: employee.agencia || '',
       conta: employee.conta || '',
+      comissao_venda_percentual: employee.comissao_venda_percentual ?? null,
+      comissao_servico_percentual: employee.comissao_servico_percentual ?? null,
+      meta_mensal: employee.meta_mensal ?? null,
+      comissao_modo: employee.comissao_modo ?? null,
+      comissao_divisao: employee.comissao_divisao ?? null,
       observacao: employee.observacao || '',
     });
   }
@@ -263,6 +360,17 @@ export function useEmployeeFormProvider() {
     { immediate: true },
   );
 
+
+/**
+ * Endereço em branco não vai no payload.
+ *
+ * O formulário começa com uma linha de endereço vazia, e mandá-la fazia o
+ * backend recusar com 422 (lá os seis campos são obrigatórios). Quem não quer
+ * endereço simplesmente não preenche.
+ */
+function enderecoTemConteudo(e: { cep?: string; logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string }): boolean {
+  return [e.cep, e.logradouro, e.numero, e.bairro, e.cidade, e.estado].some((v) => !!v?.trim());
+}
   // Transform to API format
   function transformToCreateRequest(formData: EmployeeFormData): FuncionarioCreate {
     return {
@@ -289,14 +397,25 @@ export function useEmployeeFormProvider() {
       tipo_contrato: formData.tipo_contrato || undefined,
       data_admissao: formData.data_admissao || undefined,
       cargo_id: formData.cargo_id || undefined,
-      usuario: {
-        nome: formData.usuario_nome,
-        email: formData.usuario_email,
-        senha: formData.usuario_senha,
-      },
+      // Comissão (override do cargo). null = herda -> omite.
+      comissao_venda_percentual: formData.comissao_venda_percentual ?? undefined,
+      comissao_servico_percentual: formData.comissao_servico_percentual ?? undefined,
+      meta_mensal: formData.meta_mensal ?? undefined,
+      comissao_modo: formData.comissao_modo ?? undefined,
+      comissao_divisao: formData.comissao_divisao ?? undefined,
+      // Sem acesso: o bloco NAO vai no payload. O backend trata a ausencia como
+      // "funcionario so de ficha" — mandar o objeto vazio criaria um login
+      // quebrado em vez de nenhum login.
+      usuario: formData.sem_acesso
+        ? undefined
+        : {
+            nome: formData.usuario_nome,
+            email: formData.usuario_email,
+            senha: formData.usuario_senha,
+          },
       endereco:
-        formData.enderecos.length > 0
-          ? formData.enderecos.map((e) => ({
+        formData.enderecos.some(enderecoTemConteudo)
+          ? formData.enderecos.filter(enderecoTemConteudo).map((e) => ({
               logradouro: e.logradouro,
               numero: e.numero,
               bairro: e.bairro,
@@ -315,7 +434,8 @@ export function useEmployeeFormProvider() {
       apiError.value = null;
 
       if (isCreateMode.value) {
-        // Validate user fields in create mode
+        // Validate user fields in create mode — só quando há acesso a criar.
+        if (!formData.sem_acesso) {
         if (!formData.usuario_nome || formData.usuario_nome.length < 3) {
           apiError.value = 'Nome de usuario deve ter no minimo 3 caracteres';
           return;
@@ -327,6 +447,7 @@ export function useEmployeeFormProvider() {
         if (!formData.usuario_senha || formData.usuario_senha.length < 8) {
           apiError.value = 'Senha deve ter no minimo 8 caracteres';
           return;
+        }
         }
 
         const request = transformToCreateRequest(formData);
@@ -366,13 +487,26 @@ export function useEmployeeFormProvider() {
           tipo_contrato: formData.tipo_contrato || undefined,
           data_admissao: formData.data_admissao || undefined,
 
+          // Comissão (override). Envia null explícito p/ permitir LIMPAR e voltar a herdar.
+          comissao_venda_percentual: formData.comissao_venda_percentual,
+          comissao_servico_percentual: formData.comissao_servico_percentual,
+          meta_mensal: formData.meta_mensal,
+          comissao_modo: formData.comissao_modo,
+          comissao_divisao: formData.comissao_divisao,
+
           // Observações
           observacao: formData.observacao || undefined,
 
           // Endereços (Mantendo a lógica de ID para edição)
           endereco:
-            formData.enderecos.length > 0
-              ? formData.enderecos.map((e, idx) => ({
+            // Guarda o índice ORIGINAL antes de filtrar: é ele que casa com o
+            // `id` do endereço já salvo. Filtrar primeiro deslocaria a posição
+            // e gravaria por cima do endereço errado.
+            formData.enderecos.some(enderecoTemConteudo)
+              ? formData.enderecos
+                  .map((e, idx) => ({ e, idx }))
+                  .filter(({ e }) => enderecoTemConteudo(e))
+                  .map(({ e, idx }) => ({
                   id: selectedEmployee.value?.endereco?.[idx]?.id,
                   logradouro: e.logradouro,
                   numero: e.numero,
@@ -385,19 +519,59 @@ export function useEmployeeFormProvider() {
               : undefined,
         };
 
+        const funcionarioId = selectedEmployee.value.id;
+        // Ficha sem login + campos de acesso preenchidos: o Salvar tambem cria o
+        // acesso. Duas chamadas porque sao dois assuntos no backend — cadastro e
+        // credencial —, e a credencial so nasce depois do cadastro estar salvo.
+        const vaiCriarAcesso =
+          funcionarioSemAcesso.value &&
+          !!formData.usuario_nome &&
+          !!formData.usuario_email &&
+          !!formData.usuario_senha;
+
+        const encerrar = () => {
+          closeModal();
+          resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+        };
+
         updateMutation.mutate(
-          { id: selectedEmployee.value.id, data: updateData },
+          { id: funcionarioId, data: updateData },
           {
             onSuccess: () => {
-              closeModal();
-              resetForm({ values: { ...DEFAULT_FORM_VALUES } });
+              if (!vaiCriarAcesso) {
+                encerrar();
+                return;
+              }
+              concederAcessoMutation.mutate(
+                {
+                  id: funcionarioId,
+                  usuario: {
+                    nome: formData.usuario_nome,
+                    email: formData.usuario_email,
+                    senha: formData.usuario_senha,
+                  },
+                },
+                { onSuccess: encerrar },
+              );
             },
           },
         );
       }
     },
-    (validationErrors) => {
-      console.log('[DEBUG] Validation errors:', validationErrors);
+    ({ errors: camposInvalidos }) => {
+      // O handleSubmit do vee-validate falha CALADO: se a validação reprova, ele
+      // não chama a mutation e não avisa ninguém. Antes aqui só havia um
+      // console.log('[DEBUG]'), então o usuário clicava em Salvar, nada
+      // acontecia, e não dava para saber o motivo — ainda mais porque a seção de
+      // Endereço não exibe erro por campo.
+      const nomes = Object.keys(camposInvalidos).map(rotuloDoCampo);
+      const unicos = [...new Set(nomes)];
+      toast.error(
+        unicos.length === 1
+          ? `Verifique o campo: ${unicos[0]}`
+          : `Verifique ${unicos.length} campos`,
+        unicos.join(' • '),
+      );
     },
   );
 
@@ -424,6 +598,7 @@ export function useEmployeeFormProvider() {
     mae,
     pai,
     carteira_trabalho,
+    sem_acesso,
     usuario_nome,
     usuario_email,
     usuario_senha,
@@ -432,6 +607,11 @@ export function useEmployeeFormProvider() {
     banco,
     agencia,
     conta,
+    comissao_venda_percentual,
+    comissao_servico_percentual,
+    meta_mensal,
+    comissao_modo,
+    comissao_divisao,
     observacao,
     enderecos,
     handleAddEndereco,
@@ -441,6 +621,7 @@ export function useEmployeeFormProvider() {
     values,
     apiError,
     isPending,
+    funcionarioSemAcesso,
     onSubmit,
     resetForm: () => resetForm({ values: { ...DEFAULT_FORM_VALUES } }),
   };

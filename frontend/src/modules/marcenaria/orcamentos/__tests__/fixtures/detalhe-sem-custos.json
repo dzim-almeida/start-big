@@ -1,0 +1,200 @@
+{
+  "id": 1,
+  "codigo": "ORC-2026-000001",
+  "versao": 1,
+  "status": "RASCUNHO",
+  "revisao": 6,
+  "cliente": {
+    "id": 1,
+    "nome": "Dona Marta",
+    "documento": "52998224725",
+    "telefone": "11987654321",
+    "email": "marta@example.com",
+    "endereco": "Rua das Flores, 100 - Centro, Campinas - SP, CEP 13010-000"
+  },
+  "vendedor": {
+    "id": 1,
+    "nome": "Admin Master",
+    "telefone": null
+  },
+  "projeto": {
+    "objeto_id": null,
+    "nome": "Residencial Alpha Ville - Apto 802",
+    "endereco_obra": null
+  },
+  "medicao_observacoes": null,
+  "observacoes_proposta": null,
+  "parametros": {
+    "validade_dias": 15,
+    "prazo_entrega_dias": 30
+  },
+  "arquitetos": [
+    {
+      "fornecedor_id": 1,
+      "nome": "Studio Renascer"
+    }
+  ],
+  "desconto": {
+    "modo": "PERCENTUAL",
+    "valor": 500
+  },
+  "sinal": {
+    "modo": "PERCENTUAL",
+    "valor": 4000
+  },
+  "ambientes": [
+    {
+      "id": 1,
+      "nome": "Cozinha Gourmet",
+      "ordem": 1,
+      "subtotal_centavos": 830015,
+      "moveis": [
+        {
+          "id": 1,
+          "ambiente_id": 1,
+          "nome": "Torre Quente",
+          "descricao": null,
+          "largura_mm": null,
+          "altura_mm": null,
+          "profundidade_mm": null,
+          "quantidade": 1,
+          "ordem": 1,
+          "tipo_producao": "TERCEIRIZADA",
+          "central": {
+            "fornecedor_id": 2,
+            "nome": "Madeiranit"
+          },
+          "aprovado": null,
+          "os_item_id": null,
+          "insumos": [
+            {
+              "id": 1,
+              "produto_id": 1,
+              "descricao": "MDF Branco TX 18mm",
+              "codigo": "P-1",
+              "unidade": "UN",
+              "quantidade_milesimos": 1400,
+              "sofre_perda": true
+            },
+            {
+              "id": 2,
+              "produto_id": 2,
+              "descricao": "MDF Freijó 18mm",
+              "codigo": "P-2",
+              "unidade": "UN",
+              "quantidade_milesimos": 900,
+              "sofre_perda": true
+            },
+            {
+              "id": 3,
+              "produto_id": 3,
+              "descricao": "Fita PVC",
+              "codigo": "P-3",
+              "unidade": "M",
+              "quantidade_milesimos": 26000,
+              "sofre_perda": true
+            },
+            {
+              "id": 4,
+              "produto_id": 4,
+              "descricao": "Corrediça Tandem",
+              "codigo": "P-4",
+              "unidade": "PAR",
+              "quantidade_milesimos": 2000,
+              "sofre_perda": false
+            },
+            {
+              "id": 5,
+              "produto_id": 5,
+              "descricao": "Perfil gola",
+              "codigo": "P-5",
+              "unidade": "UN",
+              "quantidade_milesimos": 2800,
+              "sofre_perda": false
+            }
+          ],
+          "calculo": {
+            "preco_unit_centavos": 422275,
+            "preco_total_centavos": 422275
+          }
+        },
+        {
+          "id": 2,
+          "ambiente_id": 1,
+          "nome": "Balcão",
+          "descricao": null,
+          "largura_mm": null,
+          "altura_mm": null,
+          "profundidade_mm": null,
+          "quantidade": 2,
+          "ordem": 2,
+          "tipo_producao": "INTERNA",
+          "central": null,
+          "aprovado": null,
+          "os_item_id": null,
+          "insumos": [
+            {
+              "id": 6,
+              "produto_id": 1,
+              "descricao": "MDF Branco TX 18mm",
+              "codigo": "P-1",
+              "unidade": "UN",
+              "quantidade_milesimos": 1000,
+              "sofre_perda": true
+            },
+            {
+              "id": 7,
+              "produto_id": 4,
+              "descricao": "Corrediça Tandem",
+              "codigo": "P-4",
+              "unidade": "PAR",
+              "quantidade_milesimos": 3000,
+              "sofre_perda": false
+            }
+          ],
+          "calculo": {
+            "preco_unit_centavos": 203870,
+            "preco_total_centavos": 407740
+          }
+        }
+      ]
+    }
+  ],
+  "calculo": {
+    "bruto_centavos": 972515,
+    "desconto_centavos": 48626,
+    "total_centavos": 923889,
+    "sinal_centavos": 369556,
+    "saldo_centavos": 554333,
+    "desconto_bp_efetivo": 500,
+    "sinal_bp_efetivo": 4000,
+    "instalacao": {
+      "preco_centavos": 142500
+    }
+  },
+  "avisos": [],
+  "datas": {
+    "criacao": "2026-10-09T04:33:13.159154",
+    "atualizacao": "2026-10-09T04:33:13.617982",
+    "envio": null,
+    "validade": null,
+    "recusa": null,
+    "aprovacao": null
+  },
+  "motivo_recusa": null,
+  "aprovacao": null,
+  "os": null,
+  "inclui_custos": false,
+  "acoes": {
+    "editar": true,
+    "enviar": true,
+    "voltar_a_editar": false,
+    "recusar": false,
+    "renovar": false,
+    "nova_versao": false,
+    "excluir": false,
+    "anexos": true,
+    "aprovar": true,
+    "desfazer_aprovacao": false
+  }
+}

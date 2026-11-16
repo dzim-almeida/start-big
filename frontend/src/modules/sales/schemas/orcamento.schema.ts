@@ -1,6 +1,7 @@
 import z from 'zod';
 
 import { ProductSaleReadSchema } from './productSale.schema';
+import { parseTimestampBackend } from '@/shared/utils/date.utils';
 
 export const FuncionarioOrcamentoReadSchema = z.object({
   id: z.number(),
@@ -23,13 +24,13 @@ export const OrcamentoUpdateSchema = z.object({
     .min(0)
     .optional()
     .default(0)
-    .transform((val) => val * 100),
+    .transform((val) => Math.round(val * 100)),
   desconto: z
     .number()
     .min(0)
     .optional()
     .default(0)
-    .transform((val) => val * 100),
+    .transform((val) => Math.round(val * 100)),
   observacao: z.string().max(255).nullable().optional(),
 }).partial();
 
@@ -43,8 +44,9 @@ export const OrcamentoSimpleReadSchema = z.object({
   venda_id: z.number().nullable().optional(),
 
   criado_em: z.string(),
+  // Timestamp de evento: gravado em UTC no backend.
   atualizado_em: z.string().transform((dateTimeStamp) =>
-    new Date(dateTimeStamp).toLocaleDateString('pt-BR', {
+    parseTimestampBackend(dateTimeStamp).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: '2-digit',

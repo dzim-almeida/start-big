@@ -6,9 +6,20 @@ import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 import { useConfiguracoesOSQuery } from '@/modules/configuracoes/composables/queries/useConfiguracoesOSQuery'
 import { GARANTIA_OPTIONS } from '@/modules/configuracoes/schemas/configuracoes.schema'
 import type { ConfiguracaoOSUpdate } from '@/modules/configuracoes/schemas/configuracoes.schema'
-
 const configStore = useConfiguracoesStore()
-const { prazoEntregaPadrao, garantiaPadrao, prazoAbandonoDias, taxaDiagnosticoPadrao } = storeToRefs(configStore)
+const {
+  prazoEntregaPadrao,
+  garantiaPadrao,
+  prazoAbandonoDias,
+  taxaDiagnosticoPadrao,
+  comprovanteEntradaFolha,
+  comprovanteEntradaDensidade,
+  comprovanteEntregaFolha,
+  comprovanteEntregaDensidade,
+  modoFabrica,
+  fabricaTravarEtapas,
+  itemOsAbreEm,
+} = storeToRefs(configStore)
 
 useConfiguracoesOSQuery()
 
@@ -18,8 +29,35 @@ function valoresDoStore(): ConfiguracaoOSUpdate {
     garantia_padrao: garantiaPadrao.value as typeof GARANTIA_OPTIONS[number],
     prazo_abandono_dias: prazoAbandonoDias.value,
     taxa_diagnostico_padrao: taxaDiagnosticoPadrao.value,
+    comprovante_entrada_folha: comprovanteEntradaFolha.value,
+    comprovante_entrada_densidade: comprovanteEntradaDensidade.value,
+    comprovante_entrega_folha: comprovanteEntregaFolha.value,
+    comprovante_entrega_densidade: comprovanteEntregaDensidade.value,
+    // Fábrica aposentada (Spec 03B, D11): sem tela, mas o valor que veio do
+    // backend volta igual no PUT. Mudar o contrato mexeria em todos os segmentos.
+    modo_fabrica: modoFabrica.value,
+    fabrica_travar_etapas: fabricaTravarEtapas.value,
+    item_os_abre_em: itemOsAbreEm.value,
   }
 }
+
+/** Rótulos dos comprovantes. O texto é o que ensina o lojista, não a documentação. */
+const DOCUMENTOS = [
+  {
+    chave: 'entrada' as const,
+    titulo: 'Via de entrada',
+    ajuda: 'Impressa ao abrir a OS — o protocolo que o cliente leva.',
+    campoFolha: 'comprovante_entrada_folha' as const,
+    campoDensidade: 'comprovante_entrada_densidade' as const,
+  },
+  {
+    chave: 'entrega' as const,
+    titulo: 'Via de entrega',
+    ajuda: 'Impressa ao finalizar — leva os itens e o resumo do pagamento.',
+    campoFolha: 'comprovante_entrega_folha' as const,
+    campoDensidade: 'comprovante_entrega_densidade' as const,
+  },
+]
 
 const form = ref<ConfiguracaoOSUpdate>(valoresDoStore())
 
@@ -111,6 +149,96 @@ defineExpose({ form, isDirty, resetar })
           <BaseMoneyInput v-model="taxaReais" />
         </div>
       </div>
+
+      <div class="py-3 border-b border-zinc-100">
+        <label class="text-xs font-medium text-zinc-600">"Adicionar item" abre em</label>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">
+          Qual aba aparece primeiro ao adicionar um item na OS. As duas continuam disponíveis —
+          muda só a ordem. Escolha Produto se a loja vende mais produto do que serviço.
+        </p>
+        <select
+          v-model="form.item_os_abre_em"
+          class="mt-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+        >
+          <option value="SERVICO">Serviço primeiro</option>
+          <option value="PRODUTO">Produto primeiro</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- O bloco "Fábrica de planejados" (Modo fábrica / Travar etapas) saiu com a
+         aposentadoria da fábrica (SPEC-00 da marcenaria, FB1; Spec 03B, D11). Os
+         campos continuam no formulário e voltam iguais no PUT: só não têm mais tela. -->
+
+    <!-- COMPROVANTES -->
+    <div class="flex flex-col">
+      <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Comprovantes</p>
+
+      <!--
+        Só a FORMA é configurável. O aviso abaixo existe porque a primeira
+        pergunta do lojista vai ser "e dá pra tirar tal informação?" — melhor
+        responder antes de ele procurar a opção que não existe.
+      -->
+      <p class="text-[11px] text-zinc-500 mb-3 leading-relaxed">
+        Dados da empresa, dados do cliente com endereço, os itens e o resumo do pagamento
+        aparecem sempre — eles protegem o cliente e não podem ser removidos.
+        Aqui você escolhe apenas <strong>como</strong> a via é montada no papel.
+      </p>
+
+      <div
+        v-for="doc in DOCUMENTOS"
+        :key="doc.chave"
+        class="py-3 border-b border-zinc-100"
+      >
+        <p class="text-sm font-medium text-zinc-800">{{ doc.titulo }}</p>
+        <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">{{ doc.ajuda }}</p>
+
+        <div class="flex flex-wrap gap-4">
+          <div>
+            <label class="text-xs font-medium text-zinc-600">Papel</label>
+            <select
+              v-model="form[doc.campoFolha]"
+              class="mt-1 block w-56 rounded-md border-2 border-zinc-200 px-2 py-1.5 text-sm focus:outline-none focus:border-brand-primary"
+            >
+              <option value="A4">Folha inteira (A4)</option>
+              <option value="A5">Meia folha — metade de uma A4</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-zinc-600">Layout</label>
+            <!--
+              Na meia folha o layout não é uma escolha: o Normal custa 209mm já
+              com um item, contra 148mm de metade de folha. Trancar o campo é
+              mais honesto do que deixar o lojista escolher Normal e receber
+              silenciosamente a via encolhida.
+            -->
+            <select
+              v-model="form[doc.campoDensidade]"
+              :disabled="form[doc.campoFolha] === 'A5'"
+              class="mt-1 block w-40 rounded-md border-2 border-zinc-200 px-2 py-1.5 text-sm focus:outline-none focus:border-brand-primary disabled:bg-zinc-50 disabled:text-zinc-400 disabled:cursor-not-allowed"
+            >
+              <option value="normal">Normal</option>
+              <option value="compacto">Compacto</option>
+            </select>
+            <p v-if="form[doc.campoFolha] === 'A5'" class="text-[10px] text-zinc-400 mt-1">
+              Meia folha usa sempre o compacto.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-zinc-400 mt-3 leading-relaxed">
+        O <strong>Compacto</strong> aproveita melhor a folha reduzindo molduras e espaços,
+        sem tirar informação. É o caminho quando a via está passando para a segunda página.
+        Em impressora térmica esta escolha não se aplica — o cupom já sai condensado.
+      </p>
+      <p class="text-[11px] text-zinc-400 mt-2 leading-relaxed">
+        Na <strong>meia folha</strong> a impressora continua usando papel A4: a via ocupa a
+        metade de cima, em letra menor, e sai uma linha de corte. Se tiver itens demais para
+        caber na metade, a via cresce para baixo — a letra é sempre a mesma, e ela continua
+        saindo em uma folha só.
+      </p>
     </div>
 
     <!-- NOTIFICAÇÕES (visual only) -->

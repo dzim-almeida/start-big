@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "orcamento_id": 1,
+    "tipo": "ORCAMENTO_CRIADO",
+    "descricao": "Orçamento criado.",
+    "dados": {
+      "codigo": "ORC-2026-000001"
+    },
+    "usuario_nome": "Admin Master",
+    "ocorrido_em": "2026-10-09T04:33:13.159836"
+  }
+]

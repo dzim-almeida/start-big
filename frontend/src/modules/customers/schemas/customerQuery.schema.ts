@@ -19,7 +19,7 @@ export type {
 
 // ── Params (filtros de busca) ──────────────────────────────────────────────
 
-const CustomerParamsSchema = z.object({
+export const CustomerParamsSchema = z.object({
   search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional().nullable(),
   only_active: z.boolean().optional(),
   page: z.number().int().min(1).optional(),

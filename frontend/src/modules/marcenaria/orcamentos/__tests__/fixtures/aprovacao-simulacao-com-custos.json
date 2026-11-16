@@ -1,0 +1,19 @@
+{
+  "moveis_aprovados": 1,
+  "moveis_recusados": 1,
+  "bruto_centavos": 564775,
+  "desconto_centavos": 28239,
+  "total_centavos": 536536,
+  "sinal_centavos": 214614,
+  "saldo_centavos": 321922,
+  "desconto_bp_efetivo": 500,
+  "sinal_bp_efetivo": 4000,
+  "credito_cliente_centavos": 0,
+  "previsao_entrega": "2026-11-08",
+  "avisos": [],
+  "custo_total_centavos": 297250,
+  "margem_bruta_centavos": 239286,
+  "rt_total_centavos": 42923,
+  "margem_liquida_centavos": 196363,
+  "margem_liquida_bp": 3660
+}

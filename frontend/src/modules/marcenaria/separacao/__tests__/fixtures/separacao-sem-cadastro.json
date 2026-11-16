@@ -1,0 +1,48 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000002",
+    "status": "ABERTA",
+    "editavel": true
+  },
+  "linhas": [
+    {
+      "item_id": 7,
+      "produto_id": 6,
+      "descricao": "Chapa MDP 15mm",
+      "codigo": "P-6",
+      "unidade": "UN",
+      "localizacao": null,
+      "planejado_milesimos": 1000,
+      "sugerido_milesimos": 1000,
+      "quantidade_milesimos": 1000,
+      "separada_milesimos": 0,
+      "falta_milesimos": 1000,
+      "concluida": false,
+      "nao_usado": false,
+      "no_estoque_milesimos": 1000,
+      "em_pedido_milesimos": 0,
+      "sem_cobertura_milesimos": 0,
+      "estoque_milesimos": 10000,
+      "diferenca_bp": null,
+      "moveis": [
+        {
+          "nome": "Rack",
+          "ambiente": "Sala",
+          "planejado_milesimos": 1000
+        }
+      ],
+      "alertas": []
+    }
+  ],
+  "sem_cadastro": [
+    {
+      "descricao": "Puxador perfil antigo",
+      "planejado_milesimos": 2000
+    }
+  ],
+  "resumo": {
+    "linhas": 1,
+    "concluidas": 0,
+    "com_falta": 0
+  }
+}

@@ -1,4 +1,5 @@
 import { REFETCH_REALTIME } from '@/core/config/queryIntervals'
+import { CLIENTES_KEY } from '@/shared/constants/entityKeys'
 
 export const BASE_ORDER_SERVICE_URL = "/ordens-servico"
 export const BASE_EMPLOYEE_OS_URL = "/funcionarios"
@@ -11,8 +12,22 @@ export const ORDER_SERVICE_QUERY_STALE_TIME = 1000 * 60
 export const OS_EMPLOYEE_QUERY_KEY = "os-employee-query"
 export const OS_EMPLOYEE_QUERY_STALE_TIME = 1000 * 60
 
-export const OS_CUSTOMER_QUERY_KEY = "os-customer-query"
+// Pende do prefixo canônico 'clientes': cadastrar/editar cliente em qualquer
+// módulo invalida esta lista. Continua sendo chave própria, então as mutations da
+// OS seguem invalidando só ela.
+export const OS_CUSTOMER_QUERY_KEY = [CLIENTES_KEY, 'os-lista'] as const
 export const OS_CUSTOMER_QUERY_STALE_TIME = 1000 * 60
+
+// Busca de objeto por placa / nº de série / código da arte — a outra metade do
+// mesmo seletor de cliente. Pende do MESMO prefixo que a lista de clientes de
+// propósito: as duas respondem "quem é o cliente" na mesma tela, então quem
+// invalida uma precisa alcançar a outra (cliente renomeado sai no rodapé da
+// linha do objeto).
+export const OS_OBJETO_BUSCA_QUERY_KEY = [CLIENTES_KEY, 'os-objeto-busca'] as const
+
+// Definição de campos por segmento (metadados): muda raramente -> stale time longo.
+export const OS_FIELD_DEFINITION_QUERY_KEY = "os-field-definition-query"
+export const OS_FIELD_DEFINITION_STALE_TIME = 1000 * 60 * 30
 
 export const ORDER_SERVICE_REFETCH_INTERVAL = REFETCH_REALTIME
 
@@ -27,18 +42,27 @@ export const DEFAULT_OS_CREATE_VALUES = {
   observacoes: undefined,
   desconto: undefined,
   valor_entrada: 0,
-  garantia: undefined,
+  // Garantia da mão de obra: 90 dias é o piso do CDC para serviço durável e o
+  // que a oficina e a assistência praticam. Vem preenchido para o campo não
+  // sair em branco — a via em papel já caía nesse mesmo texto por padrão, mas
+  // o cupom só imprime o bloco quando o campo tem valor.
+  garantia: '90 dias',
   data_previsao: undefined,
   cliente_id: undefined,
   funcionario_id: undefined,
-  equipamento: {
+  objeto: {
     tipo_equipamento: undefined,
     marca: '',
     modelo: '',
     numero_serie: '',
     imei: '',
     cor: undefined,
+    proxima_revisao_data: undefined,
+    proxima_revisao_km: undefined,
+    dados_adicionais: {} as Record<string, unknown>,
   },
+  // Check-in dinâmico no nível da OS (km_entrada, combustível, vistoria)
+  dados_adicionais: {} as Record<string, unknown>,
   itens: [] as never[],
 }
 
@@ -80,3 +104,5 @@ export const DEFAULT_OS_PAGAMENTO_VALUES = {
   bandeira_cartao: undefined,
   detalhes: undefined,
 }
+
+export const OS_NOTA_FISCAL_QUERY_KEY = 'os-nota-fiscal';

@@ -8,13 +8,18 @@ import {
   Package,
   ClipboardList,
   Users,
-  Banknote,
   Plug,
+  MonitorCog,
   Printer,
   Monitor,
   HardDrive,
   Headphones,
   ShieldCheck,
+  Wallet,
+  Network,
+  Hammer,
+  Car,
+  KeyRound,
 } from 'lucide-vue-next'
 
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue'
@@ -29,6 +34,9 @@ import { useSalvarConfiguracoesOSMutation } from '../composables/mutates/useSalv
 import { useSalvarConfiguracoesVendasMutation } from '../composables/mutates/useSalvarConfiguracoesVendasMutation'
 import { useSalvarConfiguracoesSegurancaMutation } from '../composables/mutates/useSalvarConfiguracoesSegurancaMutation'
 import { useSalvarConfiguracaoBackupMutation } from '../composables/mutates/useSalvarConfiguracaoBackupMutation'
+import { useSalvarConfiguracaoMarcenaria } from '../composables/mutates/useSalvarConfiguracaoMarcenaria'
+import { useUpdateEmpresaMutation } from '@/modules/enterprise/composables/useEmpresaQuery'
+import { guardarCorLocalmente } from '@/shared/theme/aplicar'
 import type { SecaoConfiguracao, SecaoExposta, SecaoId } from '../types/configuracoes.types'
 import { useGerenteAprovacao } from '@/shared/composables/useGerenteAprovacao'
 import { useConfirmacao } from '@/shared/composables/useConfirmacao'
@@ -38,18 +46,27 @@ import { useToast } from '@/shared/composables/useToast'
 import { storeToRefs } from 'pinia'
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store'
 import { useImpressaoStore } from '@/shared/stores/impressao.store'
+import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store'
+import { useUserQuery } from '@/shared/composables/useUser'
 
 import RegrasDeVendas from './sections/regras-de-vendas/components/RegrasDeVendas.vue'
+import GestaoFinanceira from './sections/gestao-financeira/components/GestaoFinanceira.vue'
 import Seguranca from './sections/seguranca/components/Seguranca.vue'
 import ProdutosEstoque from './sections/produtos-estoque/components/ProdutosEstoque.vue'
 import OrdensDeServico from './sections/ordens-de-servico/components/OrdensDeServico.vue'
+import Marcenaria from './sections/marcenaria/components/Marcenaria.vue'
+import LavaRapido from './sections/lava-rapido/components/LavaRapido.vue'
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades'
+import { useOrdemServico } from '@/shared/composables/useOrdemServico'
 import ClientesCadastro from './sections/clientes-cadastro/components/ClientesCadastro.vue'
-import FinanceiroTaxas from './sections/financeiro-taxas/components/FinanceiroTaxas.vue'
 import IntegracoesAPIs from './sections/integracoes-apis/components/IntegracoesAPIs.vue'
+import Terminais from './sections/terminais/components/Terminais.vue'
 import ImpressaoPeriferico from './sections/impressao/components/ImpressaoPeriferico.vue'
 import FormatosExibicao from './sections/formatos-exibicao/components/FormatosExibicao.vue'
 import BackupDados from './sections/backup-dados/components/BackupDados.vue'
 import Suporte from './sections/suporte/components/Suporte.vue'
+import RedeConexao from './sections/rede/components/RedeConexao.vue'
+import LicencaComputador from './sections/licenca/components/LicencaComputador.vue'
 
 const props = defineProps<{ isOpen: boolean; secaoInicial?: SecaoId }>()
 const emit = defineEmits<{ close: [] }>()
@@ -61,10 +78,17 @@ const { mutate: salvarOS, isPending: isPendingOS } = useSalvarConfiguracoesOSMut
 const { mutateAsync: salvarVendasAsync, isPending: isPendingVendas } = useSalvarConfiguracoesVendasMutation()
 const { mutate: salvarSeguranca, isPending: isPendingSeguranca } = useSalvarConfiguracoesSegurancaMutation()
 const { mutate: salvarBackup, isPending: isPendingBackup } = useSalvarConfiguracaoBackupMutation()
+// Marcenaria (Spec 04B): seção própria, com query e mutation próprias.
+const { mutate: salvarMarcenaria, isPending: isPendingMarcenaria } = useSalvarConfiguracaoMarcenaria()
+const { temOrcamentoTecnico, temPrecoPorPorte } = useCapacidades()
+// O tema mora na empresa (junto do logo), então reaproveita a mutation dela —
+// que já invalida o cache e sincroniza o auth store.
+const { mutate: salvarTema, isPending: isPendingTema } = useUpdateEmpresaMutation()
 
 const configuracoesStore = useConfiguracoesStore()
 const impressaoStore = useImpressaoStore()
 const { secoesProtegidas, temPinConfigurado } = storeToRefs(configuracoesStore)
+const { usaOrdemServico } = useOrdemServico()
 const gerenteConfig = useGerenteAprovacao()
 const confirmacao = useConfirmacao()
 const toast = useToast()
@@ -105,7 +129,7 @@ async function navegarParaSecao(secaoId: SecaoId): Promise<void> {
   if (await verificarPinComRetry(pin)) irPara(secaoId)
 }
 
-const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value || isPendingBackup.value)
+const isPending = computed(() => isPendingClientes.value || isPendingEstoque.value || isPendingOS.value || isPendingVendas.value || isPendingSeguranca.value || isPendingTema.value || isPendingBackup.value || isPendingMarcenaria.value)
 
 const activeComponentRef = ref<SecaoExposta | null>(null)
 const isDirtyAtivo = computed(() => activeComponentRef.value?.isDirty === true)
@@ -133,12 +157,63 @@ watch(() => props.isOpen, (aberto) => {
   if (aberto) {
     // Garante dados frescos mesmo se o carregamento do boot tiver falhado
     configuracoesStore.carregarConfiguracoes()
-    irPara(props.secaoInicial ?? 'regras-de-vendas')
+    void abrirSecaoInicial(props.secaoInicial ?? 'regras-de-vendas')
   }
 })
 
-const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao', 'backup-dados']
-const secaoFuncional = computed(() => secoesFuncionais.includes(secaoAtiva.value))
+/**
+ * A aba de ENTRADA passa pela mesma fechadura das outras.
+ *
+ * Aqui se chamava `irPara` direto — e `irPara` só troca a aba; quem confere o
+ * PIN e o `navegarParaSecao`. A fechadura estava na porta de dentro, nao na de
+ * entrada: a secao protegida que calhasse de ser a inicial (hoje "Regras de
+ * Vendas") abria de cara, com os dados na tela, e o PIN so era pedido quando o
+ * usuario clicava em OUTRA aba. Quem quisesse ver o que estava protegido nao
+ * precisava nem tentar burlar nada — bastava abrir Configuracoes.
+ *
+ * Vale tambem para quem chega por atalho (`secaoInicial`), que e o mesmo buraco
+ * por outra porta.
+ */
+async function abrirSecaoInicial(secaoId: SecaoId): Promise<void> {
+  if (!precisaPin(secaoId)) {
+    irPara(secaoId)
+    return
+  }
+
+  // Primeiro sair de cima do conteudo protegido, depois pedir o PIN: enquanto a
+  // senha nao vem, nada do que ela protege pode estar montado na tela.
+  const livre = secoesVisiveis.value.find((s) => !precisaPin(s.id))
+  if (livre) irPara(livre.id)
+
+  const pin = await gerenteConfig.pedirPin()
+  const autorizado = pin ? await verificarPinComRetry(pin) : false
+
+  if (autorizado) {
+    irPara(secaoId)
+    return
+  }
+
+  // Nenhuma aba livre para onde cair e sem autorizacao: nao ha o que mostrar.
+  if (!livre) emit('close')
+}
+
+const secoesFuncionais: SecaoId[] = ['seguranca', 'clientes-cadastro', 'produtos-estoque', 'ordens-de-servico', 'regras-de-vendas', 'impressao', 'formatos-exibicao', 'integracoes-apis', 'backup-dados']
+const secaoFuncional = computed(() => {
+  // Marcenaria só oferece "Salvar" a quem pode alterar os parâmetros; para os
+  // outros ela é somente leitura e o rodapé mostra só "Fechar" (Spec 04B, D9).
+  if (secaoAtiva.value === 'marcenaria') return activeComponentRef.value?.podeGerir === true
+  return secoesFuncionais.includes(secaoAtiva.value)
+})
+
+/**
+ * Seções que salvam SOZINHAS, campo a campo (ver o cabeçalho de
+ * `GestaoFinanceira.vue`). Elas não entram em `secoesFuncionais`, e o rodapé
+ * mostrava um "Salvar Alterações" apagado ao lado de um campo que acabou de
+ * mudar — o lojista lia "não salvou" (15/09/2026). Aqui o botão some e o
+ * rodapé diz o que de fato acontece.
+ */
+const secoesAutoSave: SecaoId[] = ['gestao-financeira', 'lava-rapido']
+const secaoAutoSave = computed(() => secoesAutoSave.includes(secaoAtiva.value))
 
 async function salvar(): Promise<void> {
   const comp = activeComponentRef.value
@@ -168,6 +243,20 @@ async function salvar(): Promise<void> {
     case 'seguranca':
       salvarSeguranca(comp.form as any, fecharAposSalvar)
       break
+    case 'backup-dados':
+      salvarBackup(comp.form as any, fecharAposSalvar)
+      break
+    case 'marcenaria': {
+      // Mesmas regras do backend, conferidas antes de mandar (Spec 04B §6.5).
+      const erros = Object.values(comp.erros ?? {})
+      if (erros.length) {
+        toast.error('Corrija os campos marcados antes de salvar.', erros[0])
+        return
+      }
+      // A tela guarda % e R$; o corpo vai em basis points e centavos (D10).
+      salvarMarcenaria(comp.paraApi!(comp.form as never) as any, fecharAposSalvar)
+      break
+    }
     case 'impressao':
       // Config local deste PC (localStorage) — sem chamada ao backend
       impressaoStore.salvar(comp.form as any)
@@ -179,9 +268,40 @@ async function salvar(): Promise<void> {
       toast.success('Configurações de impressão salvas!')
       fecharComDelay()
       break
-    case 'backup-dados':
-      salvarBackup(comp.form as any, fecharAposSalvar)
+    case 'formatos-exibicao': {
+      // Só o tema é gravável aqui (data e hora são informativos). A cor mora na
+      // empresa, junto do logo, e o PUT /empresas/ já exige master — a regra de
+      // "só o dono decide a identidade visual" vem da rota, não da tela.
+      const { cor_tema } = comp.form as { cor_tema: string | null }
+      salvarTema({ data: { cor_tema } }, {
+        // A mutation de empresa já emite o toast de sucesso e invalida o cache.
+        onSuccess: () => {
+          // Guardar ANTES de recarregar: é daqui que o boot tira a cor, e é o que
+          // faz a tela de login já abrir colorida.
+          guardarCorLocalmente(cor_tema)
+
+          // Recarrega ao salvar. É rede de segurança, não a correção: a prévia ao
+          // vivo continua sendo reativa (não dá para recarregar a cada movimento
+          // do mouse). O reload existe porque `<canvas>` não reage a CSS — o
+          // gráfico lê a cor uma vez ao montar — e garante que QUALQUER coisa que
+          // tenha capturado uma cor na montagem apareça correta, inclusive o que
+          // ainda não mapeamos.
+          //
+          // Custo aceito: perde-se o cache do TanStack e o toast. Tolerável porque
+          // trocar o tema é ação rara, feita pelo dono, a partir de um modal de
+          // configuração — não há trabalho em andamento para perder.
+          setTimeout(() => window.location.reload(), 600)
+        },
+      })
       break
+    }
+    case 'integracoes-apis': {
+      // A chave PIX mora na empresa, como o logo e a cor: dado de identidade, não
+      // regra de negócio. Reaproveita a mutation dela, que já exige master.
+      const { chave_pix, pix_ativo } = comp.form as { chave_pix: string; pix_ativo: boolean }
+      salvarTema({ data: { chave_pix: chave_pix.trim() || null, pix_ativo } }, fecharAposSalvar)
+      break
+    }
     case 'regras-de-vendas': {
       const { vendas, estoque } = comp.form as { vendas: Record<string, unknown>; estoque: Record<string, unknown> }
       const resultados = await Promise.allSettled([
@@ -197,30 +317,68 @@ async function salvar(): Promise<void> {
 const secoes: SecaoConfiguracao[] = [
   { id: 'seguranca',         label: 'Segurança',             icone: ShieldCheck },
   { id: 'regras-de-vendas',  label: 'Regras de Vendas',      icone: Tag },
+  { id: 'gestao-financeira', label: 'Gestão Financeira',      icone: Wallet },
   { id: 'produtos-estoque',  label: 'Produtos e Estoque',    icone: Package },
   { id: 'ordens-de-servico', label: 'Ordens de Serviço',     icone: ClipboardList },
+  { id: 'marcenaria',        label: 'Marcenaria',            icone: Hammer },
+  { id: 'lava-rapido',       label: 'Lava-Rápido',           icone: Car },
   { id: 'clientes-cadastro', label: 'Clientes e Cadastro',   icone: Users },
-  { id: 'financeiro-taxas',  label: 'Financeiro e Taxas',    icone: Banknote },
   { id: 'integracoes-apis',  label: 'Integrações e APIs',    icone: Plug },
+  { id: 'terminais',         label: 'Computadores da Loja',  icone: MonitorCog },
   { id: 'impressao',         label: 'Impressão e Periféricos', icone: Printer },
   { id: 'formatos-exibicao', label: 'Formatos e Exibição',   icone: Monitor },
   { id: 'backup-dados',      label: 'Backup dos Dados',      icone: HardDrive },
+  { id: 'rede',              label: 'Rede e Conexão',        icone: Network },
+  { id: 'licenca',           label: 'Licença',               icone: KeyRound },
   { id: 'suporte',           label: 'Suporte',               icone: Headphones },
 ]
 
 const componenteMap: Record<SecaoId, Component> = {
   'seguranca':         Seguranca,
   'regras-de-vendas':  RegrasDeVendas,
+  'gestao-financeira': GestaoFinanceira,
   'produtos-estoque':  ProdutosEstoque,
   'ordens-de-servico': OrdensDeServico,
+  'marcenaria':        Marcenaria,
+  'lava-rapido':       LavaRapido,
   'clientes-cadastro': ClientesCadastro,
-  'financeiro-taxas':  FinanceiroTaxas,
   'integracoes-apis':  IntegracoesAPIs,
+  'terminais':         Terminais,
   'impressao':         ImpressaoPeriferico,
   'formatos-exibicao': FormatosExibicao,
   'backup-dados':      BackupDados,
+  'rede':              RedeConexao,
+  'licenca':           LicencaComputador,
   'suporte':           Suporte,
 }
+
+/**
+ * As secoes que esta loja realmente tem.
+ *
+ * "Ordens de Servico" numa adega e uma aba inteira de configuracao de um modulo
+ * que nao existe ali -- e das piores de esquecer, porque o dono entra em
+ * Configuracoes e encontra prazos e numeracao de OS.
+ */
+const { controlarCaixa } = storeToRefs(configuracoesStore)
+const { papel } = storeToRefs(useNetworkConfigStore())
+const { data: usuarioLogado } = useUserQuery()
+
+const secoesVisiveis = computed(() =>
+  secoes.filter((s) => {
+    if (s.id === 'ordens-de-servico') return usaOrdemServico.value
+    // Só no segmento com orçamento técnico (hoje, a marcenaria; Spec 04B, D5).
+    if (s.id === 'marcenaria') return temOrcamentoTecnico.value
+    // Portes da loja: só no segmento com preço por porte (lava-rápido, Spec 02B).
+    if (s.id === 'lava-rapido') return temPrecoPorPorte.value
+    // Nomear maquina e marcar retaguarda so faz sentido onde ha turno de caixa.
+    // Loja que nao usa caixa nao ganha uma aba nova que nao explica nada.
+    if (s.id === 'terminais') return controlarCaixa.value
+    // Licença e troca de servidor: só no próprio servidor e só para o dono.
+    // Num caixa, "desativar" derrubaria a loja inteira.
+    if (s.id === 'licenca') return papel.value === 'servidor' && usuarioLogado.value?.is_master === true
+    return true
+  }),
+)
 
 const componenteAtivo = computed(() => componenteMap[secaoAtiva.value])
 const labelSecaoAtiva = computed(() => secoes.find((s) => s.id === secaoAtiva.value)?.label ?? '')
@@ -276,7 +434,7 @@ const labelSecaoAtiva = computed(() => secoes.find((s) => s.id === secaoAtiva.va
         </p>
 
         <button
-          v-for="secao in secoes"
+          v-for="secao in secoesVisiveis"
           :key="secao.id"
           type="button"
           :class="[
@@ -307,13 +465,28 @@ const labelSecaoAtiva = computed(() => secoes.find((s) => s.id === secaoAtiva.va
     </div>
 
     <template #footer>
-      <div class="flex justify-end gap-2">
-        <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="fecharModal">
-          Cancelar
-        </BaseButton>
-        <BaseButton variant="primary" size="sm" :isLoading="isPending" :disabled="!secaoFuncional || isPending || !isDirtyAtivo" @click="salvar">
-          Salvar Alterações
-        </BaseButton>
+      <div class="flex items-center justify-between gap-3">
+        <p v-if="secaoAutoSave" class="text-xs text-gray-500">
+          Cada campo desta seção é salvo sozinho ao sair dele — não há o que aplicar.
+        </p>
+        <span v-else />
+        <div class="flex justify-end gap-2">
+          <BaseButton variant="ghost" size="sm" :disabled="isPending" @click="fecharModal">
+            {{ secaoFuncional ? 'Cancelar' : 'Fechar' }}
+          </BaseButton>
+          <!-- Seção sem formulário (auto-save, terminais, rede, suporte) não
+               ganha um "Salvar" apagado: botão desabilitado ali é mentira. -->
+          <BaseButton
+            v-if="secaoFuncional"
+            variant="primary"
+            size="sm"
+            :isLoading="isPending"
+            :disabled="isPending || !isDirtyAtivo"
+            @click="salvar"
+          >
+            Salvar Alterações
+          </BaseButton>
+        </div>
       </div>
     </template>
   </BaseModal>

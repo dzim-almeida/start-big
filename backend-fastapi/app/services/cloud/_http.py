@@ -16,7 +16,7 @@ def _client(timeout: httpx.Timeout) -> httpx.AsyncClient:
 
 def _get_license_token(db) -> Optional[str]:
     # Import local evita importação circular com app.db
-    from app.db.crud import configuracao_licenca as license_crud
+    from app.db.crud.configuracao import licenca as license_crud
     license = license_crud.get_licenca(db)
     return license.token if license else None
 

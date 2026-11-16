@@ -11,7 +11,7 @@ import { SaleRead } from '../../schemas/sale.schema';
 export function useSaleDetailQuery(saleId: MaybeRef<number | null | undefined>) {
   return useQuery<SaleRead>({
     queryKey: computed(() =>
-      !!unref(saleId)
+      unref(saleId)
         ? saleKeys.detail(unref(saleId)!)
         : ([...saleKeys.all, 'detail', 'empty'] as const),
     ),

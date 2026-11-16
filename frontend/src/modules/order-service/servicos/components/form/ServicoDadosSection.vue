@@ -12,7 +12,7 @@ interface Props {
 
 defineProps<Props>();
 
-const { descricao, valor, errors } = useServicoForm();
+const { descricao, valor, duracao_minutos, temDuracao, errors } = useServicoForm();
 </script>
 
 <template>
@@ -20,7 +20,7 @@ const { descricao, valor, errors } = useServicoForm();
     <!-- Section Header -->
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Wrench" />
       </div>
@@ -28,7 +28,7 @@ const { descricao, valor, errors } = useServicoForm();
     </div>
 
     <div class="grid grid-cols-12 gap-4">
-      <div class="col-span-12 md:col-span-8">
+      <div class="col-span-12" :class="temDuracao ? 'md:col-span-6' : 'md:col-span-8'">
         <BaseInput
           v-model="descricao"
           label="Descrição do serviço"
@@ -39,13 +39,26 @@ const { descricao, valor, errors } = useServicoForm();
         />
       </div>
 
-      <div class="col-span-12 md:col-span-4">
+      <div class="col-span-12" :class="temDuracao ? 'md:col-span-3' : 'md:col-span-4'">
         <MoneyInput
           v-model="valor"
           label="Valor base"
           :error="submitCount > 0 ? errors.valor : undefined"
           :disabled="disabled"
           required
+        />
+      </div>
+
+      <!-- Lava-rápido: dá o "Pronto às…" do pátio e a duração do agendamento -->
+      <div v-if="temDuracao" class="col-span-12 md:col-span-3">
+        <BaseInput
+          v-model="duracao_minutos"
+          label="Duração (min)"
+          placeholder="Ex: 40"
+          inputmode="numeric"
+          :error="submitCount > 0 ? errors.duracao_minutos : undefined"
+          :disabled="disabled"
+          data-testid="servico-duracao"
         />
       </div>
     </div>

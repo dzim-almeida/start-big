@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { refDebounced } from '@vueuse/core';
-import { useQuery } from '@tanstack/vue-query';
-import { Wrench, ShoppingBag, Save, Search, Loader2 } from 'lucide-vue-next';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { Wrench, ShoppingBag, Save, Search, Loader2, Lock, BookmarkPlus } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -10,19 +10,34 @@ import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import { useProductsQuery } from '@/modules/products/inventory/composables/useProductsQuery';
-import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
+import { createServico, getServicos } from '@/modules/order-service/servicos/services/servicos.service';
+import ConfirmationTemplate from '@/shared/components/templates/ConfirmationTemplate.vue';
+import { useToast } from '@/shared/composables/useToast';
+import { SERVICOS_KEY } from '@/shared/constants/entityKeys';
+import { SERVICOS_DO_PORTE_KEY } from '@/modules/lava-rapido/shared/composables/usePortes';
+import { SERVICOS_OS_ITEM_QUERY_KEY } from '@/modules/order-service/shared/constants/queryKeys';
+import { REFETCH_CADASTROS } from '@/core/config/queryIntervals';
 import { MEDIDA_SERVICO_OPTIONS, MEDIDA_PRODUTO_OPTIONS } from '../../constants/core.constant';
 import type { OsItemCreateSchemaDataType } from '../../schemas/relationship/osItem.schema';
-import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType } from '../../schemas/enums/osEnums.schema';
+import type { OsItemTypeEnumDataType, OsItemMeasureEnumDataType, OsItemAprovacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
 
 interface Props {
   isOpen: boolean;
   item?: OsItemCreateSchemaDataType | null;
+  /**
+   * Serviço digitado à mão (fora do catálogo): confere se já existe um com o
+   * mesmo nome e, se não existir, pergunta se salva no cadastro de serviços.
+   * Ligado em TODOS os segmentos (13/11/2026, pedido do Alan); `false` desliga.
+   */
+  oferecerCadastroServico?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isOpen: false,
   item: null,
+  oferecerCadastroServico: true,
 });
 
 const emit = defineEmits<{
@@ -30,34 +45,68 @@ const emit = defineEmits<{
   save: [item: OsItemCreateSchemaDataType];
 }>();
 
+// --- Aba inicial: escolha da loja (Configurações › Ordens de Serviço) ---
+// 14/11/2026: loja que vende mais produto quer a aba de Produto primeiro. Só
+// muda em qual aba o item NOVO abre e a ordem dos botões; as duas continuam.
+// Padrão 'SERVICO' = o comportamento de sempre.
+const configStore = useConfiguracoesStore();
+const tipoInicial = computed<OsItemTypeEnumDataType>(() =>
+  configStore.itemOsAbreEm === 'PRODUTO' ? 'PRODUTO' : 'SERVICO');
+
 // --- Estado do formulário ---
-const tipo = ref<OsItemTypeEnumDataType>('SERVICO');
+const tipo = ref<OsItemTypeEnumDataType>(tipoInicial.value);
 const nome = ref('');
 const unidade_medida = ref<OsItemMeasureEnumDataType>('UN');
 const quantidade = ref(1);
 const valorUnitarioNum = ref(0);
 const selectedCatalogId = ref<number | null>(null);
+// Quanto a loja PAGOU por unidade. Campo interno — não sai em nenhuma via
+// impressa. É o que permite lançar só o serviço ("Troca de conector, R$ 150") e
+// mesmo assim o relatório saber que a peça custou R$ 40.
+const custoUnitarioNum = ref(0);
+
+// Aprovação/garantia por item (fluxo de orçamento): dirigidas por capacidade,
+// não por segmento — qualquer negócio de serviço pode querer orçar e garantir.
+const { temAprovacaoItens, temGarantiaItens } = useCapacidades();
+const statusAprovacao = ref<OsItemAprovacaoEnumDataType>('APROVADO');
+const garantiaDias = ref<number | null>(null);
+const garantiaKm = ref<number | null>(null);
+
+const STATUS_APROVACAO: { value: OsItemAprovacaoEnumDataType; label: string; selected: string }[] = [
+  { value: 'PENDENTE', label: 'Pendente', selected: 'bg-amber-500 text-white shadow-sm' },
+  { value: 'APROVADO', label: 'Aprovado', selected: 'bg-emerald-500 text-white shadow-sm' },
+  { value: 'REPROVADO', label: 'Reprovado', selected: 'bg-red-500 text-white shadow-sm' },
+];
 
 // --- Catálogo ---
 const catalogSearch = ref('');
 const debouncedCatalogSearch = refDebounced(catalogSearch, 400);
 
+// O limite espelha o dos serviços (logo abaixo): as duas abas da busca do
+// catálogo devem devolver o mesmo tanto de sugestões.
 const { data: produtosData, isLoading: isLoadingProdutos } = useProductsQuery(
   computed(() => tipo.value === 'PRODUTO' && debouncedCatalogSearch.value
     ? debouncedCatalogSearch.value
     : null
   ),
+  20,
 );
 
+// A chave pende do prefixo canônico 'servicos': é o que faz o preço editado no
+// catálogo aparecer aqui sem F5. Como chave própria ('servicos-os-item'), a
+// invalidação das mutations do catálogo nunca alcançava este cache.
 const { data: servicosData, isLoading: isLoadingServicos } = useQuery({
-  queryKey: ['servicos-os-item', debouncedCatalogSearch] as const,
+  queryKey: [...SERVICOS_OS_ITEM_QUERY_KEY, debouncedCatalogSearch] as const,
   queryFn: () => getServicos({
     search: debouncedCatalogSearch.value || undefined,
     active: true,
     limit: 20,
   }),
   enabled: computed(() => tipo.value === 'SERVICO' && debouncedCatalogSearch.value.length > 0),
-  staleTime: 1000 * 60,
+  staleTime: 1000 * 30,
+  // Invalidação é local ao navegador: sem polling, serviço cadastrado em outro
+  // terminal só apareceria aqui depois de um F5.
+  refetchInterval: REFETCH_CADASTROS,
 });
 
 interface CatalogItem {
@@ -111,6 +160,20 @@ const medidaOptions = computed(() =>
 const total = computed(() => Math.round(quantidade.value * valorUnitarioNum.value * 100));
 const isValid = computed(() => nome.value.trim().length > 0 && quantidade.value > 0);
 
+// Produto do catálogo tem o custo vindo do livro de estoque, congelado na baixa.
+// Pedir o custo de novo aqui abriria espaço para dois números divergentes para a
+// mesma peça — e o relatório contaria os dois.
+const custoVemDoEstoque = computed(
+  () => tipo.value === 'PRODUTO' && selectedCatalogId.value != null,
+);
+
+const margemItem = computed(() => {
+  const receita = Math.round(quantidade.value * valorUnitarioNum.value * 100);
+  const custo = Math.round(quantidade.value * custoUnitarioNum.value * 100);
+  if (custo <= 0) return null;
+  return { lucro: receita - custo, custo };
+});
+
 // --- Watchers ---
 watch(tipo, () => {
   catalogSearch.value = '';
@@ -131,13 +194,17 @@ watch(() => props.isOpen, (open) => {
 
 // --- Ações ---
 function reset(): void {
-  tipo.value = 'SERVICO';
+  tipo.value = tipoInicial.value;
   nome.value = '';
   unidade_medida.value = 'UN';
   quantidade.value = 1;
   valorUnitarioNum.value = 0;
+  custoUnitarioNum.value = 0;
   catalogSearch.value = '';
   selectedCatalogId.value = null;
+  statusAprovacao.value = 'APROVADO';
+  garantiaDias.value = null;
+  garantiaKm.value = null;
 }
 
 function populate(item: OsItemCreateSchemaDataType): void {
@@ -146,17 +213,91 @@ function populate(item: OsItemCreateSchemaDataType): void {
   unidade_medida.value = item.unidade_medida;
   quantidade.value = item.quantidade;
   valorUnitarioNum.value = item.valor_unitario / 100;
+  custoUnitarioNum.value = (item.custo_unitario ?? 0) / 100;
   selectedCatalogId.value = item.item_id ?? null;
+  statusAprovacao.value = item.status_aprovacao ?? 'APROVADO';
+  garantiaDias.value = item.garantia_dias ?? null;
+  garantiaKm.value = item.garantia_km ?? null;
 }
 
-function handleSave(): void {
-  if (!isValid.value) return;
+// --- Conferência do serviço digitado à mão --------------------------------------------
+const queryClient = useQueryClient();
+const toast = useToast();
+const conferindo = ref(false);
+const perguntandoCadastro = ref(false);
+const salvandoNoCadastro = ref(false);
+
+const normalizar = (t: string) =>
+  t.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** Serviço ativo com o mesmo nome (sem ligar para acento, caixa e espaços). */
+async function procurarServicoCadastrado(texto: string) {
+  const { items } = await getServicos({ search: texto.trim(), active: true, limit: 50 });
+  return items.find((s) => normalizar(s.descricao) === normalizar(texto)) ?? null;
+}
+
+async function handleSave(): Promise<void> {
+  if (!isValid.value || conferindo.value) return;
+  // Só ao ADICIONAR: editar um avulso (mudar a quantidade) não pergunta de novo.
+  if (props.oferecerCadastroServico && !props.item && tipo.value === 'SERVICO' && selectedCatalogId.value == null) {
+    conferindo.value = true;
+    try {
+      const existente = await procurarServicoCadastrado(nome.value);
+      if (!existente) {
+        perguntandoCadastro.value = true;
+        return;
+      }
+      // Já cadastrado: a linha fica ligada a ele (o valor digitado vale).
+      selectedCatalogId.value = existente.id;
+    } catch {
+      // Sem conseguir conferir, o item entra como avulso, como sempre entrou.
+    } finally {
+      conferindo.value = false;
+    }
+  }
+  emitirItem();
+}
+
+async function salvarNoCadastro(): Promise<void> {
+  salvandoNoCadastro.value = true;
+  try {
+    const servico = await createServico({
+      descricao: nome.value.trim(),
+      valor: Math.round(valorUnitarioNum.value * 100),
+    });
+    selectedCatalogId.value = servico.id;
+    queryClient.invalidateQueries({ queryKey: [SERVICOS_KEY] });
+    queryClient.invalidateQueries({ queryKey: [SERVICOS_DO_PORTE_KEY] });
+    toast.success('Serviço salvo no cadastro.');
+  } catch {
+    toast.error('Não foi possível salvar no cadastro. O item entra só nesta OS.');
+  } finally {
+    salvandoNoCadastro.value = false;
+    perguntandoCadastro.value = false;
+  }
+  emitirItem();
+}
+
+function soNestaOS(): void {
+  perguntandoCadastro.value = false;
+  emitirItem();
+}
+
+function emitirItem(): void {
   emit('save', {
     tipo: tipo.value,
     nome: nome.value.trim(),
     unidade_medida: unidade_medida.value,
     quantidade: quantidade.value,
     valor_unitario: Math.round(valorUnitarioNum.value * 100),
+    // Só envia custo quando ele é desta linha. Com produto do catálogo, quem
+    // manda é o livro de estoque.
+    custo_unitario: custoVemDoEstoque.value || custoUnitarioNum.value <= 0
+      ? undefined
+      : Math.round(custoUnitarioNum.value * 100),
+    status_aprovacao: statusAprovacao.value,
+    garantia_dias: garantiaDias.value ?? undefined,
+    garantia_km: garantiaKm.value ?? undefined,
     ...(selectedCatalogId.value != null && { item_id: selectedCatalogId.value }),
   });
   emit('close');
@@ -175,8 +316,8 @@ function handleClose(): void {
     @close="handleClose"
   >
     <form @submit.prevent="handleSave" class="space-y-5">
-      <!-- Toggle Tipo -->
-      <div class="flex p-1 bg-slate-100 rounded-lg">
+      <!-- Toggle Tipo: a aba que a loja escolheu vem primeiro -->
+      <div :class="['flex p-1 bg-slate-100 rounded-lg', tipoInicial === 'PRODUTO' && 'flex-row-reverse']" data-testid="os-item-toggle-tipo">
         <button
           type="button"
           @click="tipo = 'SERVICO'"
@@ -289,6 +430,82 @@ function handleClose(): void {
           :label="tipo === 'SERVICO' ? 'Valor / Hora' : 'Valor Unitário'"
         />
 
+        <!--
+          Custo interno. Existe porque o normal é lançar só o serviço, sem
+          cadastrar a peça — e aí o gasto com ela não tem por onde entrar no
+          relatório. NÃO aparece em nenhuma via do cliente.
+        -->
+        <div v-if="!custoVemDoEstoque" class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-2">
+          <div class="flex items-center gap-1.5">
+            <Lock :size="13" class="text-slate-400" />
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Custo para a loja
+            </span>
+            <span class="text-[10px] text-slate-400">(opcional)</span>
+          </div>
+          <BaseMoneyInput v-model="custoUnitarioNum" label="" />
+          <p v-if="margemItem" class="text-xs text-slate-500">
+            Custo {{ formatCurrency(margemItem.custo) }} · sobra
+            <strong :class="margemItem.lucro >= 0 ? 'text-emerald-600' : 'text-red-600'">
+              {{ formatCurrency(margemItem.lucro) }}
+            </strong>
+          </p>
+          <p class="text-[11px] text-slate-400 leading-snug">
+            Quanto você pagou pela peça. Fica só no relatório —
+            <strong class="text-slate-500">o cliente nunca vê este valor</strong>.
+          </p>
+        </div>
+
+        <p v-else class="flex items-start gap-1.5 text-[11px] text-slate-400 leading-snug">
+          <Lock :size="12" class="shrink-0 mt-0.5" />
+          <span>
+            Custo vem do estoque automaticamente, congelado no dia da baixa — não
+            precisa informar aqui.
+          </span>
+        </p>
+
+        <!-- Aprovação e garantia por item: cada uma é uma capacidade independente
+             do segmento. Item REPROVADO não entra no total. -->
+        <div
+          v-if="temAprovacaoItens || temGarantiaItens"
+          class="space-y-3 border-t border-slate-100 pt-4"
+        >
+          <template v-if="temAprovacaoItens">
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Aprovação do Item
+            </label>
+            <div class="flex p-1 bg-slate-100 rounded-lg gap-1">
+              <button
+                v-for="s in STATUS_APROVACAO"
+                :key="s.value"
+                type="button"
+                class="flex-1 py-2 text-sm font-bold rounded-md transition-all"
+                :class="statusAprovacao === s.value ? s.selected : 'text-slate-500 hover:text-slate-700'"
+                @click="statusAprovacao = s.value"
+              >
+                {{ s.label }}
+              </button>
+            </div>
+          </template>
+
+          <div v-if="temGarantiaItens" class="grid grid-cols-2 gap-4">
+            <BaseInput
+              v-model.number="garantiaDias"
+              label="Garantia (dias)"
+              type="number"
+              :min="0"
+              placeholder="Ex: 90"
+            />
+            <BaseInput
+              v-model.number="garantiaKm"
+              label="Garantia (KM)"
+              type="number"
+              :min="0"
+              placeholder="Ex: 10000"
+            />
+          </div>
+        </div>
+
         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center justify-between">
           <span class="text-sm font-bold text-slate-500 uppercase">Total do Item</span>
           <span class="text-xl font-black text-slate-800">{{ formatCurrency(total) }}</span>
@@ -301,11 +518,36 @@ function handleClose(): void {
         <BaseButton variant="secondary" @click="handleClose">
           CANCELAR
         </BaseButton>
-        <BaseButton type="submit" variant="primary" :disabled="!isValid" @click="handleSave">
+        <BaseButton type="submit" variant="primary" :disabled="!isValid" :is-loading="conferindo" @click="handleSave">
           <Save :size="16" class="mr-2" />
           {{ item ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR ITEM' }}
         </BaseButton>
       </div>
     </template>
+  </BaseModal>
+
+  <!-- Serviço digitado que não existe no cadastro: salvar lá ou só nesta OS -->
+  <BaseModal
+    :is-open="perguntandoCadastro"
+    title="Serviço não cadastrado"
+    size="sm"
+    overlay
+    @close="perguntandoCadastro = false"
+  >
+    <ConfirmationTemplate :icon="BookmarkPlus" icon-bg-class="bg-brand-primary-light" icon-color-class="text-brand-primary">
+      <template #description>
+        <p class="text-sm leading-relaxed text-slate-600">
+          <strong class="text-slate-800">{{ nome.trim() }}</strong> não está no cadastro de serviços.
+          Quer salvar com o valor de <strong class="text-slate-800">{{ formatCurrency(Math.round(valorUnitarioNum * 100)) }}</strong>
+          para usar nas próximas vezes?
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex w-full gap-3">
+          <BaseButton variant="secondary" class="flex-1" :disabled="salvandoNoCadastro" @click="soNestaOS">Só nesta OS</BaseButton>
+          <BaseButton variant="primary" class="flex-1" :is-loading="salvandoNoCadastro" @click="salvarNoCadastro">Salvar no cadastro</BaseButton>
+        </div>
+      </template>
+    </ConfirmationTemplate>
   </BaseModal>
 </template>

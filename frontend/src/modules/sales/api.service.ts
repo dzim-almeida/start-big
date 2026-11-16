@@ -1,4 +1,5 @@
 import api from '@/api/axios';
+import type { ResultadoVerificacaoFiscal } from '@/shared/types/fiscal.types';
 
 import { parseSchema } from './parseSchema.util';
 
@@ -13,6 +14,9 @@ import {
   SaleReadSchema,
   SaleListSchema,
   SaleUpdateSchema,
+  VendaNotaFiscalRead,
+  VendaNotaFiscalUpdate,
+  VendaNotaFiscalReadSchema,
 } from './schemas/sale.schema';
 
 import {
@@ -66,8 +70,11 @@ export const saleService = {
     return parseSchema(ProductAlterationSchema, data, 'saleService.updateItemInSale.response');
   },
 
-  async finishSale(sale_id: number, payments: PaymentSaleCreate[]): Promise<SaleRead> {
-    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/finalizar`, { pagamentos: payments });
+  async finishSale(sale_id: number, payments: PaymentSaleCreate[], acrescimo = 0): Promise<SaleRead> {
+    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/finalizar`, {
+      pagamentos: payments,
+      acrescimo,
+    });
     return parseSchema(SaleReadSchema, data, 'saleService.finishSale.response');
   },
 
@@ -83,6 +90,21 @@ export const saleService = {
   async reopenSale(sale_id: number, codigo_gerente?: string | null): Promise<SaleRead> {
     const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/reabrir`, codigo_gerente ? { codigo_gerente } : {});
     return parseSchema(SaleReadSchema, data, 'saleService.reopenSale.response');
+  },
+
+  /**
+   * Entrega a venda ao caixa. Não muda o status — ela continua ATIVA.
+   * Idempotente no backend: reenviar mantém o lugar original na fila.
+   */
+  async enviarAoCaixa(sale_id: number): Promise<SaleRead> {
+    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/enviar-ao-caixa`);
+    return parseSchema(SaleReadSchema, data, 'saleService.enviarAoCaixa.response');
+  },
+
+  /** Tira a venda da fila. Qualquer operador pode. */
+  async devolverParaMontagem(sale_id: number): Promise<SaleRead> {
+    const { data } = await api.post<SaleRead>(`${SALE_ENDPOINT}/${sale_id}/devolver-para-montagem`);
+    return parseSchema(SaleReadSchema, data, 'saleService.devolverParaMontagem.response');
   },
 
   async getSale(sale_id: number): Promise<SaleRead> {
@@ -105,6 +127,40 @@ export const saleService = {
     const { data } = await api.get<SalesStatus>(`${SALE_ENDPOINT}/status/`);
     return parseSchema(SalesStatusSchema, data, 'saleService.getSalesStatus.response');
   },
+
+  async getVendaNotaFiscal(venda_id: number): Promise<VendaNotaFiscalRead | null> {
+    try {
+      const { data } = await api.get<VendaNotaFiscalRead>(`${SALE_ENDPOINT}/${venda_id}/fiscal`);
+      return parseSchema(VendaNotaFiscalReadSchema, data, 'saleService.getVendaNotaFiscal.response');
+    } catch (err: any) {
+      if (err?.response?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  async upsertVendaNotaFiscal(venda_id: number, dados: VendaNotaFiscalUpdate): Promise<VendaNotaFiscalRead> {
+    const { data } = await api.put<VendaNotaFiscalRead>(`${SALE_ENDPOINT}/${venda_id}/fiscal`, dados);
+    return parseSchema(VendaNotaFiscalReadSchema, data, 'saleService.upsertVendaNotaFiscal.response');
+  },
+
+  /**
+   * Pendencias fiscais da venda.
+   *
+   * `tipoDocumento` nao e detalhe: a NF-e exige o endereco do destinatario e a
+   * NFC-e o omite. Conferir um cupom de balcao com as regras da NF-e reprovaria
+   * todo consumidor que so informou o CPF -- que e o caso normal do PDV.
+   */
+  async verificarFiscal(
+    venda_id: number,
+    tipoDocumento: 'nfe' | 'nfce' = 'nfe',
+  ): Promise<ResultadoVerificacaoFiscal> {
+    const { data } = await api.get<ResultadoVerificacaoFiscal>(
+      `${SALE_ENDPOINT}/${venda_id}/verificar-fiscal`,
+      { params: { tipo_documento: tipoDocumento } },
+    );
+    return data;
+  },
+
 };
 
 export const productService = {

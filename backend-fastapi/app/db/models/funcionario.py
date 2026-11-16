@@ -43,13 +43,22 @@ class Funcionario(Base):
         doc="ID da empresa à qual o funcionário pertence"
     )
 
-    # CHAVE ESTRANGEIRA (FK) para a relação 1:1 com Usuarios
-    usuario_id: Mapped[int] = mapped_column(
+    # CHAVE ESTRANGEIRA (FK) para a relação 1:1 com Usuarios.
+    #
+    # NULLABLE de propósito: ficha de RH e credencial de acesso são coisas
+    # diferentes. Loja que só precisa registrar o entregador não deveria ser
+    # obrigada a inventar um e-mail e uma senha para alguém que nunca vai entrar
+    # — essa credencial passaria a existir de verdade.
+    #
+    # O `unique` continua: em SQL vários NULL convivem numa coluna única, então
+    # muitos funcionários podem ficar sem acesso, mas um usuário segue valendo
+    # para um funcionário só.
+    usuario_id: Mapped[Optional[int]] = mapped_column(
         Integer, 
         ForeignKey("usuarios.id"), 
         unique=True, # ESSENCIAL: Garante que um usuário de acesso só pode estar vinculado a um funcionário
-        nullable=False,
-        doc="ID do usuário de acesso associado (FK, restrição 1:1)"
+        nullable=True,
+        doc="ID do usuário de acesso associado (FK, restrição 1:1). NULL = funcionário sem acesso ao sistema"
     )
     
     # --- Dados Pessoais/Gerais ---
@@ -85,6 +94,17 @@ class Funcionario(Base):
     salario_bruto: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, doc="Salário bruto mensal")
     tipo_contrato: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, doc="Tipo de contrato do funcionário")
     data_admissao: Mapped[Optional[Date]] = mapped_column(Date, nullable=True, doc="Data de admissão no cargo")
+
+    # --- Comissão (override do padrão do Cargo) ---
+    # Percentuais em BASIS POINTS (int): 500 = 5,00%. Meta mensal em centavos.
+    # Nullable: vazio = herda do cargo (cascata funcionário -> cargo -> empresa).
+    comissao_venda_percentual: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, doc="Comissão sobre vendas (basis points); vazio herda do cargo")
+    comissao_servico_percentual: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, doc="Comissão sobre serviços/OS (basis points); vazio herda do cargo")
+    meta_mensal: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, doc="Meta mensal de faturamento (centavos); vazio herda do cargo")
+    # Modo de comissão: 'direto' | 'meta'. Vazio herda do cargo (cascata); sem nada = 'direto'.
+    comissao_modo: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="Modo de comissão: 'direto' | 'meta'; vazio herda do cargo")
+    # OS com varios executores (Spec 10A): 'dividir' | 'inteira'; vazio herda do cargo.
+    comissao_divisao: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, doc="OS com varios executores: 'dividir' | 'inteira'; vazio herda do cargo")
      # --- Outros ---
     data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, doc="Data de nascimento do funcionário")
     mae: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Nome completo da mãe")
@@ -103,9 +123,9 @@ class Funcionario(Base):
     )
 
     # RELACIONAMENTO 1:1 com Usuario
-    usuario: Mapped["Usuario"] = relationship(
+    usuario: Mapped[Optional["Usuario"]] = relationship(
         back_populates="funcionario",
-        doc="Relacionamento Um-para-Um com o usuário de acesso associado"
+        doc="Relacionamento Um-para-Um com o usuário de acesso associado (None = sem acesso ao sistema)"
     )
 
     # Relacionamento M:1 com Cargo

@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import _handle_db_transaction, check_permission
 from app.db.session import get_db
-from app.schemas.cargo import CargoCreate, CargoRead, CargoUpdate
-from app.services import cargo as cargo_service
+from app.schemas.funcionario import CargoCreate, CargoRead, CargoUpdate
+from app.services.funcionario import cargo as cargo_service
 
 # Inicializa o roteador do FastAPI
 router = APIRouter()

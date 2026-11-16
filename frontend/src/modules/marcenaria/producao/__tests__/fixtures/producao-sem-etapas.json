@@ -1,0 +1,52 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000002",
+    "status": "ABERTA",
+    "editavel": true,
+    "previsao": "2026-11-08"
+  },
+  "progresso": {
+    "etapas_concluidas": 0,
+    "etapas_total": 0,
+    "moveis_prontos": 0,
+    "moveis_total": 2
+  },
+  "producao_concluida": false,
+  "moveis": [
+    {
+      "movel_id": 5,
+      "nome": "Nicho",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "INTERNA",
+      "pronto": false,
+      "sem_etapas": true,
+      "proxima_etapa": null,
+      "etapas": []
+    },
+    {
+      "movel_id": 6,
+      "nome": "Torre Quente",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "TERCEIRIZADA",
+      "pronto": false,
+      "terceirizado": {
+        "situacao": "A_PEDIR",
+        "previsao": null,
+        "atrasado": false
+      }
+    }
+  ],
+  "sugestao_status": null
+}

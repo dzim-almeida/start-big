@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "codigo": "ORC-2026-000001",
+      "versao": 1,
+      "status": "RASCUNHO",
+      "cliente_nome": "Dona Marta",
+      "projeto_nome": "Residencial Alpha Ville - Apto 802",
+      "vendedor_nome": "Admin Master",
+      "resumo_total_centavos": 923889,
+      "resumo_qtd_moveis": 2,
+      "data_validade": null,
+      "data_atualizacao": "2026-10-09T04:33:13.617982",
+      "os_numero": null
+    }
+  ],
+  "total_items": 1,
+  "page": 1,
+  "limit": 20,
+  "total_pages": 1,
+  "links": null
+}

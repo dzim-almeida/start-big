@@ -11,7 +11,7 @@ export function useSalesListQuery(
 ) {
   return useQuery<SaleList>({
     queryKey: computed(() => 
-      !!unref(filters)
+      unref(filters)
         ? saleKeys.list(unref(filters) ?? undefined, unref(page) ?? 1)
         : saleKeys.list(undefined, unref(page) ?? 1)
     ),

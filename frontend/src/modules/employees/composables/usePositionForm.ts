@@ -34,6 +34,11 @@ function getDefaultFormValues(): PositionFormData {
   return {
     nome: '',
     permissoes: buildPermissionDefaults(),
+    comissao_venda_percentual: null,
+    comissao_servico_percentual: null,
+    meta_mensal: null,
+    comissao_modo: null,
+    comissao_divisao: null,
   };
 }
 
@@ -47,6 +52,12 @@ function normalizePermissions(permissoes?: Record<string, boolean>) {
 export interface PositionFormContext {
   nome: Ref<string>;
   permissoes: Ref<Record<string, boolean>>;
+  comissaoVenda: Ref<number | null | undefined>;
+  comissaoServico: Ref<number | null | undefined>;
+  metaMensal: Ref<number | null | undefined>;
+  comissaoModo: Ref<'direto' | 'meta' | null | undefined>;
+  /** Lava-rápido (Spec 10B): OS com 2 lavadores — dividir ou inteira. */
+  comissaoDivisao: Ref<'dividir' | 'inteira' | null | undefined>;
 
   errors: Ref<Record<string, string | undefined>>;
   submitCount: Ref<number>;
@@ -56,7 +67,7 @@ export interface PositionFormContext {
 
   setPermission: (key: string, value: boolean) => void;
   togglePermission: (key: string) => void;
-  setAllPermissions: (value: boolean) => void;
+  setAllPermissions: (value: boolean, chaves?: string[]) => void;
 
   onSubmit: (e?: Event) => void;
   resetForm: () => void;
@@ -87,6 +98,11 @@ export function usePositionFormProvider() {
 
   const [nome] = defineField('nome');
   const [permissoes] = defineField('permissoes');
+  const [comissaoVenda] = defineField('comissao_venda_percentual');
+  const [comissaoServico] = defineField('comissao_servico_percentual');
+  const [metaMensal] = defineField('meta_mensal');
+  const [comissaoModo] = defineField('comissao_modo');
+  const [comissaoDivisao] = defineField('comissao_divisao');
 
   const apiError = ref<string | null>(null);
 
@@ -94,6 +110,11 @@ export function usePositionFormProvider() {
     setValues({
       nome: position.nome,
       permissoes: normalizePermissions(position.permissoes),
+      comissao_venda_percentual: position.comissao_venda_percentual ?? null,
+      comissao_servico_percentual: position.comissao_servico_percentual ?? null,
+      meta_mensal: position.meta_mensal ?? null,
+      comissao_modo: position.comissao_modo ?? null,
+      comissao_divisao: position.comissao_divisao ?? null,
     });
   }
 
@@ -121,9 +142,9 @@ export function usePositionFormProvider() {
     setPermission(key, !currentValue);
   }
 
-  function setAllPermissions(value: boolean) {
+  function setAllPermissions(value: boolean, chaves: string[] = PERMISSION_KEYS) {
     const updated = { ...normalizePermissions(permissoes.value) };
-    PERMISSION_KEYS.forEach((key) => {
+    chaves.forEach((key) => {
       updated[key] = value;
     });
     setFieldValue('permissoes', updated);
@@ -136,6 +157,11 @@ export function usePositionFormProvider() {
       const payload: CargoCreate = {
         nome: formData.nome,
         permissoes: applyEndpointPermissions(formData.permissoes),
+        comissao_venda_percentual: formData.comissao_venda_percentual,
+        comissao_servico_percentual: formData.comissao_servico_percentual,
+        meta_mensal: formData.meta_mensal,
+        comissao_modo: formData.comissao_modo,
+        comissao_divisao: formData.comissao_divisao,
       };
 
       if (isCreateMode.value) {
@@ -149,6 +175,11 @@ export function usePositionFormProvider() {
         const updateData: CargoUpdate = {
           nome: formData.nome,
           permissoes: applyEndpointPermissions(formData.permissoes),
+          comissao_venda_percentual: formData.comissao_venda_percentual,
+          comissao_servico_percentual: formData.comissao_servico_percentual,
+          meta_mensal: formData.meta_mensal,
+          comissao_modo: formData.comissao_modo,
+          comissao_divisao: formData.comissao_divisao,
         };
 
         updateMutation.mutate(
@@ -174,6 +205,11 @@ export function usePositionFormProvider() {
   const context: PositionFormContext = {
     nome,
     permissoes,
+    comissaoVenda,
+    comissaoServico,
+    metaMensal,
+    comissaoModo,
+    comissaoDivisao,
     errors,
     submitCount,
     values,

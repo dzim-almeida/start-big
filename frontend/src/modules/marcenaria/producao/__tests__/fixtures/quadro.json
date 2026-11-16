@@ -1,0 +1,41 @@
+{
+  "itens": [
+    {
+      "numero_os": "OS-2026-000003",
+      "cliente": "Dona Marta",
+      "projeto": "Apto 802",
+      "status": "EM_ANDAMENTO",
+      "rotulo_status": "Em Produção",
+      "previsao": "2026-10-04",
+      "progresso": {
+        "etapas_concluidas": 4,
+        "etapas_total": 10,
+        "moveis_prontos": 0,
+        "moveis_total": 3
+      },
+      "producao_concluida": false,
+      "moveis_atrasados": 3,
+      "proxima_etapa": {
+        "nome": "Furação",
+        "moveis": 2
+      }
+    },
+    {
+      "numero_os": "OS-2026-000002",
+      "cliente": "Dona Marta",
+      "projeto": "Apto 802",
+      "status": "ABERTA",
+      "rotulo_status": "Aberta",
+      "previsao": "2026-10-21",
+      "progresso": {
+        "etapas_concluidas": 0,
+        "etapas_total": 0,
+        "moveis_prontos": 0,
+        "moveis_total": 2
+      },
+      "producao_concluida": false,
+      "moveis_atrasados": 0,
+      "proxima_etapa": null
+    }
+  ]
+}

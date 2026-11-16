@@ -6,7 +6,7 @@
 
 ## Visão Geral
 
-O módulo `order-service/ordens` gerencia o ciclo de vida das Ordens de Serviço no frontend da aplicação BigPDV. Ele conecta a interface do usuário à API REST do backend, cobrindo criação, edição, gerenciamento de itens, upload de fotos, finalização com pagamentos e cancelamento.
+O módulo `order-service/ordens` gerencia o ciclo de vida das Ordens de Serviço no frontend da aplicação StartBig. Ele conecta a interface do usuário à API REST do backend, cobrindo criação, edição, gerenciamento de itens, upload de fotos, finalização com pagamentos e cancelamento.
 
 O módulo é **feature-completo em infraestrutura**: schemas, services, mutations e queries estão todos implementados. A camada de formulário (form composables + context) encapsula a lógica VeeValidate + Zod e é consumida pelos componentes via `provide/inject`.
 
@@ -20,14 +20,14 @@ frontend/src/modules/order-service/ordens/
 │   ├── form/
 │   │   ├── useOSCreate.form.ts              ✅ Form de criação de OS (campos + FieldArray itens)
 │   │   ├── useOSUpdateGeral.form.ts         ✅ Form de atualização geral (status, prioridade, texto)
-│   │   ├── useOSUpdateEquip.form.ts         ✅ Form de atualização de equipamento
+│   │   ├── useOSUpdateObjeto.form.ts         ✅ Form de atualização de objeto
 │   │   ├── useOSItem.form.ts                ✅ Form de add/edit de item (modo create/update)
 │   │   ├── useOSFinalizar.form.ts           ✅ Form de finalização (solução + FieldArray pagamentos)
 │   │   └── useOSCancelar.form.ts            ✅ Form de cancelamento (motivo)
 │   └── request/
 │       ├── useOrderServiceGet.queries.ts    ✅ Queries: lista paginada, detalhe, stats
 │       ├── useOrderServiceCreate.mutate.ts  ✅ Mutations: criar OS, adicionar item
-│       ├── useOrderServiceUpdate.mutate.ts  ✅ Mutations: atualizar, equipamento, item,
+│       ├── useOrderServiceUpdate.mutate.ts  ✅ Mutations: atualizar, objeto, item,
 │       │                                          finalizar, cancelar, reabrir
 │       ├── useOrderServiceDelete.mutate.ts  ✅ Mutation: deletar item
 │       └── relationship/
@@ -51,7 +51,7 @@ frontend/src/modules/order-service/ordens/
 │   │   └── osEnums.schema.ts               ✅ Status, Prioridade, TipoItem, TipoEquip, Medida, Bandeira
 │   └── relationship/
 │       ├── osItem.schema.ts                ✅ Create / Read / Update de itens
-│       ├── osEquip.schema.ts               ✅ Create / Read / Update de equipamentos
+│       ├── osObjeto.schema.ts               ✅ Create / Read / Update de objetos
 │       ├── osPayment.schema.ts             ✅ Create / Read de pagamentos
 │       ├── osPhoto.schema.ts               ✅ Read de fotos
 │       ├── customer/
@@ -67,7 +67,7 @@ frontend/src/modules/order-service/ordens/
 ├── services/
 │   ├── orderServiceGet.service.ts           ✅ GET: lista, detalhe, stats
 │   ├── orderServiceCreate.service.ts        ✅ POST: criar OS, adicionar item
-│   ├── orderServiceUpdate.service.ts        ✅ PUT: atualizar, equipamento, item,
+│   ├── orderServiceUpdate.service.ts        ✅ PUT: atualizar, objeto, item,
 │   │                                               finalizar, cancelar, reabrir
 │   ├── orderServiceDelete.service.ts        ✅ DELETE: item
 │   └── relationship/
@@ -92,13 +92,13 @@ frontend/src/modules/order-service/ordens/
 │       ├── OSFormFooter.vue                 ✅ Footer com total e botão FINALIZAR
 │       ├── OSClientCard.vue                 ✅ Card de dados do cliente e datas
 │       ├── OSControlsCard.vue               ✅ Card de status, técnico, prioridade, previsão
-│       ├── OSEquipmentTab.vue               ✅ Aba de dados do equipamento (v-model EquipamentoForm)
+│       ├── OSObjetoTab.vue               ✅ Aba de dados do objeto (v-model ObjetoForm)
 │       ├── OSDiagnosticoTab.vue             ✅ Aba de diagnóstico técnico e galeria de fotos
 │       ├── OSServicesTab.vue                ✅ Aba de serviços/peças com resumo financeiro
 │       ├── OSFotoGallery.vue                ✅ Galeria de fotos com upload/delete via mutations
 │       ├── OSItemFormModal.vue              ✅ Modal de add/edit de item (dumb: emite save)
 │       ├── OSReopenOptionsModal.vue         ✅ Modal de opções de reabertura (TEXT_ONLY / FULL)
-│       └── OSEquipamentoSelectModal.vue     ✅ Modal de seleção de equipamento do histórico
+│       └── OSObjetoSelectModal.vue     ✅ Modal de seleção de objeto do histórico
 │
 └── docs/
     └── order-service.md                     ✅ Esta documentação
@@ -168,7 +168,7 @@ O formulário da OS é dividido em **6 segmentos independentes**, cada um mapean
 |----------|-----------|----------|--------|
 | `criar` | `useOSCreateForm` | `POST /ordens-servico/` | `OrderServiceCreateSchema` |
 | `atualizarGeral` | `useOSUpdateGeralForm` | `PUT /ordens-servico/{n}` | `OrderServiceUpdateSchema` |
-| `atualizarEquipamento` | `useOSUpdateEquipForm` | `PUT /ordens-servico/{n}/equipamento` | `OsEquipUpdateSchema` |
+| `atualizarObjeto` | `useOSUpdateObjetoForm` | `PUT /ordens-servico/{n}/objeto` | `OsObjetoUpdateSchema` |
 | `item` | `useOSItemForm` | `POST/PUT /ordens-servico/{n}/itens[/{id}]` | `OsItemCreateSchema` |
 | `finalizar` | `useOSFinalizarForm` | `PUT /ordens-servico/{n}/finalizar` | `OrderServiceReadySchema` |
 | `cancelar` | `useOSCancelarForm` | `PUT /ordens-servico/{n}/cancelar` | `OrderServiceCancelSchema` |
@@ -178,7 +178,7 @@ O formulário da OS é dividido em **6 segmentos independentes**, cada um mapean
 **`criar`** (POST /ordens-servico/)
 - Campos gerais: `prioridade`, `defeito_relatado`, `diagnostico`, `observacoes`, `desconto`, `garantia`, `data_previsao`, `senha_aparelho`, `acessorios`, `condicoes_aparelho`
 - Vínculos: `cliente_id`, `funcionario_id`
-- Equipamento nested: `equipamento_tipo_equipamento`, `equipamento_marca`, `equipamento_modelo`, `equipamento_numero_serie`, `equipamento_imei`, `equipamento_cor`
+- Objeto nested: `objeto_tipo_equipamento`, `objeto_marca`, `objeto_modelo`, `objeto_numero_serie`, `objeto_imei`, `objeto_cor`
 - FieldArray: `itens[]` (tipo, nome, unidade_medida, quantidade, valor_unitario)
 
 **`atualizarGeral`** (PUT /ordens-servico/{n})
@@ -186,10 +186,10 @@ O formulário da OS é dividido em **6 segmentos independentes**, cada um mapean
 - `populateForm(os: OrderServiceReadDataType)` — carrega os dados atuais da OS
 - **Atenção**: datas vêm do backend em formato ISO — converter para `YYYY-MM-DD` ao popular campos `type="date"`
 
-**`atualizarEquipamento`** (PUT /ordens-servico/{n}/equipamento)
+**`atualizarObjeto`** (PUT /ordens-servico/{n}/objeto)
 - `tipo_equipamento`, `marca`, `modelo`, `numero_serie`, `imei`, `cor`, `cliente_id`
-- `cliente_id` permite troca do cliente vinculado ao equipamento
-- `populateForm(equip: OsEquipUpdateSchemaDataType)` — carrega os dados atuais
+- `cliente_id` permite troca do cliente vinculado ao objeto
+- `populateForm(objeto: OsObjetoUpdateSchemaDataType)` — carrega os dados atuais
 
 **`item`** (POST ou PUT /ordens-servico/{n}/itens[/{id}])
 - `tipo`, `nome`, `unidade_medida`, `quantidade`, `valor_unitario`
@@ -204,6 +204,22 @@ O formulário da OS é dividido em **6 segmentos independentes**, cada um mapean
 
 **`cancelar`** (PUT /ordens-servico/{n}/cancelar)
 - `motivo` (opcional, máx. 500 chars)
+
+---
+
+## Rótulos de status por segmento
+
+(Spec 01A/01B da marcenaria, em `backend-fastapi/docs/marcenaria/`.)
+
+- O **enum** de status (`OsStatusEnum`) é o mesmo em todos os segmentos: transições, filtros, relatórios e o valor enviado à API não mudam. Um segmento só pode trocar o **texto** exibido, declarando `definicao.rotulos_status` no backend (`app/core/segmentos/definicoes/<segmento>.py`). Hoje só a marcenaria declara ("Em Produção", "Aguardando Material", "Aguardando Entrega").
+- O texto vem **sempre** de `shared/segmento/useRotulosStatusOS.ts`:
+  - `estadoOS(status, situacao)` — `getEstadoOS` com os rótulos do segmento (badges da lista, resumo e histórico);
+  - `statusOptions` / `statusFilterConfig` — select do modal e menu de filtro (valor/chave = código do enum, para o filtro salvo continuar valendo);
+  - `rotuloStatus(s)` — texto final (o do segmento ou o padrão de `OS_ESTADO_CONFIG`);
+  - `rotuloStatusProprio(s, curto?)` — só o texto do segmento, ou `undefined`, para telas com padrão próprio (Atividade de Hoje: "P/ Retirada").
+- O mesmo composable aplica `rotulos_situacao` ao **desfecho** na lista e no filtro ("Não produzido" no lugar de "Sem Reparo").
+- **Não** criar mapa próprio de rótulos de OS em componente, nem `if` pelo nome do segmento. As cores continuam únicas em `OS_ESTADO_CONFIG`.
+- O composable tem um **fallback** por segmento, usado só enquanto o contrato carrega (para a lista não piscar). Mudou o texto no backend? Mude o fallback também.
 
 ---
 
@@ -238,7 +254,7 @@ const isPending = useOSFormPendingState(form)
 watch(() => props.ordemServico, (os) => {
   if (os) {
     form.atualizarGeral.populateForm(os)
-    form.atualizarEquipamento.populateForm(os.equipamento)
+    form.atualizarObjeto.populateForm(os.objeto)
   } else {
     form.criar.resetForm()
   }
@@ -346,7 +362,7 @@ import { useOsPaymentMethodsGet } from '../composables/request/relationship/useO
 | Parâmetro | Tipo | Descrição |
 |-----------|------|-----------|
 | `searchQuery` | `Ref<string>` | Busca por numero_os, nome do cliente, razão social |
-| `activeStatusFilterQuery` | `Ref<OsStatusEnumDataType \| undefined>` | Filtro por status |
+| `activeStatusFilterQuery` | `Ref<OsEstadoKey \| undefined>` | Filtro por estado: um status do fluxo (vira `status`) ou um desfecho SEM_REPARO/CONDENADO (vira `situacao_equipamento`) |
 | `activePriorityFilterQuery` | `Ref<boolean>` | Ordena por prioridade (URGENTE → BAIXA) |
 
 ### Retorno de `useOrderServiceQueryStats`
@@ -371,7 +387,7 @@ useCreateItemOSMutation()         // POST /ordens-servico/{n}/itens
 
 // Atualização
 useUpdateOrderServiceMutation()   // PUT /ordens-servico/{n}
-useUpdateEquipOSMutation()        // PUT /ordens-servico/{n}/equipamento
+useUpdateObjetoOSMutation()        // PUT /ordens-servico/{n}/objeto
 useUpdateItemOSMutation()         // PUT /ordens-servico/{n}/itens/{id}
 useReadyOrderServiceMutation()    // PUT /ordens-servico/{n}/finalizar
 useCancelOrderServiceMutation()   // PUT /ordens-servico/{n}/cancelar
@@ -401,7 +417,7 @@ OrderServiceStatsDataType      // { total, abertas, finalizadas, ticket_medio }
 ```typescript
 OrderServiceCreateSchemaDataType
 OrderServiceUpdateDataType
-OsEquipUpdateSchemaDataType
+OsObjetoUpdateSchemaDataType
 OrderServiceReadyDataType
 OrderServiceCancelDataType
 ```
@@ -413,10 +429,10 @@ OsItemUpdateSchemaDataType   // todos opcionais (exceto tipo)
 OsItemReadSchemaDataType     // + id, ordem_servico_id, produto_id?, servico_id?, valor_total
 ```
 
-### `schemas/relationship/osEquip.schema.ts`
+### `schemas/relationship/osObjeto.schema.ts`
 ```typescript
-OsEquipUpdateSchemaDataType  // todos opcionais
-OsEquipReadSchemaDataType    // + id, cliente_id, ativo, datas
+OsObjetoUpdateSchemaDataType  // todos opcionais
+OsObjetoReadSchemaDataType    // + id, cliente_id, ativo, datas
 ```
 
 ### `schemas/relationship/osPayment.schema.ts`
@@ -445,10 +461,10 @@ CustomerUnionReadSchemaDataType  // union: CustomerPFReadSchemaDataType | Custom
 | Antigo (deletado) | Novo |
 |---|---|
 | `ordemServico.numero` | `ordemServico.numero_os` |
-| `ordemServico.equipamento` (string) | `ordemServico.equipamento.tipo_equipamento` |
-| `ordemServico.marca` | `ordemServico.equipamento.marca` |
-| `ordemServico.modelo` | `ordemServico.equipamento.modelo` |
-| `ordemServico.numero_serie` | `ordemServico.equipamento.numero_serie` |
+| `ordemServico.objeto` (string) | `ordemServico.objeto.tipo_equipamento` |
+| `ordemServico.marca` | `ordemServico.objeto.marca` |
+| `ordemServico.modelo` | `ordemServico.objeto.modelo` |
+| `ordemServico.numero_serie` | `ordemServico.objeto.numero_serie` |
 | `item.descricao` | `item.nome` |
 | `item.servico_id` (FK lookup) | `item.tipo` (enum PRODUTO/SERVICO) + `item.nome` (texto livre) |
 | Stats: `emAndamento` | removido — não existe no novo schema |
@@ -496,7 +512,7 @@ PRODUTO | SERVICO
 
 ### `OsEquipTypeEnum`
 ```
-COMPUTADOR | CELULAR | TABLET | IMPRESSORA | MONITOR | PRINTER | SCANNER | OUTROS
+COMPUTADOR | NOTEBOOK | CELULAR | TABLET | IMPRESSORA | MONITOR | PRINTER | SCANNER | OUTROS
 ```
 
 ### `OsItemMeasureEnum`
@@ -550,14 +566,14 @@ OrdensServicoTab (views/)
 │   ├── OSFormHeader
 │   ├── OSClientCard
 │   ├── OSControlsCard
-│   ├── OSEquipmentTab
+│   ├── OSObjetoTab
 │   ├── OSDiagnosticoTab → OSFotoGallery
 │   ├── OSServicesTab
 │   ├── OSFormFooter
 │   ├── OSFinalizarModal (standalone interno)
 │   ├── OSItemFormModal  (dumb: emite save)
 │   ├── OSReopenOptionsModal
-│   └── OSEquipamentoSelectModal
+│   └── OSObjetoSelectModal
 ├── OSCancelModal        ← standalone
 └── OSPrintTemplate      ← oculto, ativado por window.print()
 ```
@@ -662,10 +678,10 @@ changeCliente: []   // usuário clicou em "Trocar" → parent abre OSClienteSear
 
 **Comportamentos internos:**
 - **Modo criação**: popula `form.criar` com `resetForm()` ao abrir; ao submit, `form.criar.onSubmit()` chama o backend e imprime ENTRADA automaticamente
-- **Modo edição**: chama `populateEditForm(os)` ao abrir — popula `atualizarGeral` e `atualizarEquipamento`; `data_previsao` convertida de ISO → `YYYY-MM-DD`
-- **Auto-save de equipamento**: ao mudar de aba "Equipamento" para outra aba (edit mode), `form.atualizarEquipamento.onSubmit()` é chamado automaticamente
+- **Modo edição**: chama `populateEditForm(os)` ao abrir — popula `atualizarGeral` e `atualizarObjeto`; `data_previsao` convertida de ISO → `YYYY-MM-DD`
+- **Auto-save de objeto**: ao mudar de aba "Objeto" para outra aba (edit mode), `form.atualizarObjeto.onSubmit()` é chamado automaticamente
 - **Reopen**: `TEXT_ONLY` → salva texto mas mantém status FINALIZADA; `FULL` → chama `useReopenOrderServiceMutation` e libera todos os campos
-- **Adapter de equipamento**: `equipamentoFormData` computed converte entre os campos individuais dos form contexts e o `EquipamentoForm` esperado por `OSEquipmentTab`
+- **Adapter de objeto**: `objetoFormData` computed converte entre os campos individuais dos form contexts e o `ObjetoForm` esperado por `OSObjetoTab`
 - **Itens (create mode)**: gerenciados via `form.criar.itens` FieldArray — `handleAddItem`, `handleRemoveItem`, `handleUpdateItem`
 - **Itens (edit mode)**: novos itens via `useCreateItemOSMutation`; edição via `form.item.setEditingItem + onSubmit`; remoção via `useOrderServiceDeleteItem`
 
@@ -725,13 +741,13 @@ funcionariosOptions: SelectOption[]
 // emits: update:status, update:funcionarioId, update:prioridade, update:dataPrevisao
 ```
 
-#### `OSEquipmentTab.vue`
+#### `OSObjetoTab.vue`
 
-Aba de equipamento. Usa `v-model` com objeto `EquipamentoForm` (bridge do OSFormModal):
+Aba de objeto. Usa `v-model` com objeto `ObjetoForm` (bridge do OSFormModal):
 
 ```typescript
-interface EquipamentoForm {
-  equipamento: string    // = tipo_equipamento no backend
+interface ObjetoForm {
+  objeto: string    // = tipo_equipamento no backend
   marca: string
   modelo: string
   numero_serie: string
@@ -744,7 +760,7 @@ interface EquipamentoForm {
 }
 ```
 
-> **Atenção**: o campo `equipamento` do `EquipamentoForm` mapeia para `tipo_equipamento` nos schemas do backend. O adapter `equipamentoFormData` computed no `OSFormModal` faz essa conversão.
+> **Atenção**: o campo `objeto` do `ObjetoForm` mapeia para `tipo_equipamento` nos schemas do backend. O adapter `objetoFormData` computed no `OSFormModal` faz essa conversão.
 
 #### `OSDiagnosticoTab.vue`
 

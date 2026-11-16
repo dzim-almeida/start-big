@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Zap, ShoppingCart, FileText, Package, Wrench } from 'lucide-vue-next';
+import { Zap, ShoppingCart, FileText, Package, Wrench, PencilRuler } from 'lucide-vue-next';
 import { useMagicKeys, whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia';
 
@@ -14,7 +14,7 @@ import CustomerSearchModal from '@/modules/sales/components/CustomerSearchModal.
 import SaleModal from '@/modules/sales/components/SaleModal.vue';
 import OSClienteSearchModal from '@/modules/order-service/ordens/components/OSClienteSearchModal.vue';
 import OSFormModal from '@/modules/order-service/ordens/components/OSFormModal.vue';
-import OSEquipamentoSelectModal from '@/modules/order-service/ordens/components/form/OSEquipamentoSelectModal.vue';
+import OSObjetoSelectModal from '@/modules/order-service/ordens/components/form/OSObjetoSelectModal.vue';
 import OSCreditoAlertModal from '@/modules/order-service/ordens/components/OSCreditoAlertModal.vue';
 
 import { useLayoutStore } from '../store/layout.store';
@@ -29,17 +29,26 @@ import { getComunicados } from '../services/comunicado.service';
 import { watch, onMounted, computed } from 'vue';
 import MinhaContaModal from '@/modules/minha-conta/components/MinhaContaModal.vue';
 import ConfiguracoesModal from '@/modules/configuracoes/components/ConfiguracoesModal.vue';
+import RenovarAssinaturaModal from '@/modules/license/components/RenovarAssinaturaModal.vue';
 import { useCustomerSearchModal } from '@/modules/sales/composables/flows/useCustomerSearchModal';
 import { useOSCreateFlow } from '@/modules/order-service/ordens/composables/useOSCreateFlow';
+import { useTiposDeTrabalho } from '@/modules/order-service/shared/segmento/useTiposDeTrabalho';
+import { ATALHO_NOVO_ORCAMENTO, atalhosComOrcamento, semCadastroDeServicos } from '@/modules/order-service/shared/segmento/botoesCriacaoOS';
+import { usePermissoesOrcamento } from '@/modules/marcenaria/orcamentos/composables/usePermissoesOrcamento';
+import { useRoute, useRouter } from 'vue-router';
 import { useProductModal } from '@/modules/products/inventory/composables/useProductModal.ts';
 import { useServicoModal } from '@/modules/order-service/servicos/composables/useServicoModal';
+import { getRevisoesPendentes } from '@/modules/order-service/revisoes/services/revisao.service';
+import { REVISOES_PENDENTES_QUERY_KEY } from '@/modules/order-service/shared/constants/queryKeys';
+import { useCapacidades } from '@/modules/order-service/shared/segmento/useCapacidades';
 
 const layoutStore = useLayoutStore();
 const settingsStore = useSettingsStore();
 const configuracoesStore = useConfiguracoesStore();
 const impressaoStore = useImpressaoStore();
 const notificacoesStore = useNotificacoesStore();
-const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
+const { temRevisoes, temOrcamentoTecnico } = useCapacidades();
+const { isMobile, isMobileOpen, isQuickOpen, isSettingsOpen, isMinhaContaOpen, isConfiguracoesOpen, isRenovarAssinaturaOpen, secaoConfiguracoesAtiva } = storeToRefs(layoutStore);
 
 const { data: osAbandonoData } = useQuery({
   queryKey: ['os-abandono'],
@@ -57,6 +66,22 @@ const { data: osAtrasadasData } = useQuery({
 });
 watch(osAtrasadasData, (lista) => {
   if (lista) notificacoesStore.setOsAtrasadas(lista);
+}, { immediate: true });
+
+// Revisões vencidas viram aviso no sino. Gateado pela capacidade: informática
+// não tem revisão (o backend já devolve vazio), e sem o gate a loja ficaria
+// batendo num endpoint inútil a cada 15 minutos.
+const { data: revisoesData } = useQuery({
+  // MESMA chave da aba Revisões: um cache só, uma requisição só, e os dois
+  // consumidores atualizam juntos. O refetch é rede de segurança — quem traz o
+  // aviso na hora é a invalidação disparada ao gravar o alvo da revisão.
+  queryKey: REVISOES_PENDENTES_QUERY_KEY,
+  queryFn: getRevisoesPendentes,
+  refetchInterval: 1000 * 60 * 15,
+  enabled: temRevisoes,
+});
+watch(revisoesData, (lista) => {
+  if (lista) notificacoesStore.setRevisoes(lista);
 }, { immediate: true });
 
 const { data: comunicadosData } = useQuery({
@@ -82,19 +107,21 @@ const { openCustomerModal } = useCustomerSearchModal();
 const {
   isClienteSearchOpen,
   isFormModalOpen,
-  isEquipSelectOpen,
+  isObjetoSelectOpen,
   isCreditAlertOpen,
   selectedCliente,
   selectedOS,
-  equipamentosHistoricoFlow,
-  selectedEquipamento,
+  objetosHistoricoFlow,
+  selectedObjeto,
+  autoOpenReopen,
   autoUsarCredito,
   openNovaOS,
   handleClienteSelected,
+  handleObjetoEncontrado,
   handleCreditoUsado,
   handleCreditoIgnorado,
-  handleEquipamentoSelectedFlow,
-  skipEquipamentoSelectFlow,
+  handleObjetoSelectedFlow,
+  skipObjetoSelectFlow,
   handleChangeCliente,
   closeClienteSearch,
   closeFormModal,
@@ -113,12 +140,36 @@ const valorCreditoCliente = computed(() =>
 const { openCreateModal: openProductCreate } = useProductModal();
 const { openCreateModal: openServicoCreate } = useServicoModal();
 
-const quickActions: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
+/** Todos os atalhos do menu rápido (Ctrl+K), na ordem de sempre. */
+const TODOS_OS_ATALHOS: import('@/modules/home/types/dashboard.types').QuickActionItem[] = [
   { id: 'nova-venda', icon: ShoppingCart, label: 'Criar Venda', variant: 'primary', action: () => openCustomerModal() },
   { id: 'nova-os', icon: FileText, label: 'Criar OS', variant: 'primary', action: () => openNovaOS() },
   { id: 'novo-produto', icon: Package, label: 'Criar Produto', variant: 'secondary', action: () => openProductCreate() },
   { id: 'novo-servico', icon: Wrench, label: 'Criar Serviço', variant: 'secondary', action: () => openServicoCreate() },
 ];
+
+// "Criar OS" só onde a OS pode ser criada à mão; na marcenaria ela nasce do
+// orçamento (Spec 03B, D3), e o atalho vira "Novo orçamento" para quem pode
+// gerir orçamentos (Spec 06B, D4). Os outros atalhos ficam iguais.
+const router = useRouter();
+// Rota em tela cheia (ex.: editor de orçamento): sem sidebar, cabeçalho nem ações rápidas.
+const route = useRoute();
+const telaCheia = computed(() => route.meta.telaCheia === true);
+const { podeCriarOSManual } = useTiposDeTrabalho();
+const { podeGerir: podeGerirOrcamentos } = usePermissoesOrcamento();
+const quickActions = computed(() => {
+  const novoOrcamento = temOrcamentoTecnico.value && podeGerirOrcamentos.value
+    ? {
+      id: ATALHO_NOVO_ORCAMENTO,
+      icon: PencilRuler,
+      label: 'Novo orçamento',
+      variant: 'primary' as const,
+      action: () => { void router.push({ name: 'marcenaria-orcamento-novo' }); },
+    }
+    : null;
+  const atalhos = semCadastroDeServicos(TODOS_OS_ATALHOS, temOrcamentoTecnico.value);   // marcenaria: sem "Criar Serviço"
+  return atalhosComOrcamento(atalhos, podeCriarOSManual.value, novoOrcamento);
+});
 
 const { Ctrl_K } = useMagicKeys();
 
@@ -149,17 +200,18 @@ whenever(Ctrl_K, () => {
         @click="layoutStore.closeSettings"
       />
 
-    <BaseSidebar />
+    <BaseSidebar v-if="!telaCheia" />
 
     <main class="relative flex-1 overflow-y-auto flex flex-col min-w-0">
-      <BaseHeader />
+      <BaseHeader v-if="!telaCheia" />
       <div class="flex-1 overflow-y-auto">
         <router-view />
       </div>
 
       <Transition name="pop" mode="out-in">
+        <div v-if="telaCheia" />
         <button
-          v-if="!isQuickOpen"
+          v-else-if="!isQuickOpen"
           class="fixed z-10 right-5 bottom-5 text-white bg-brand-primary p-3 rounded-full cursor-pointer shadow-lg hover:bg-brand-primary/90 transition-colors"
           @click="layoutStore.toggleQuick"
         >
@@ -185,6 +237,11 @@ whenever(Ctrl_K, () => {
       @close="layoutStore.closeConfiguracoes"
     />
 
+    <RenovarAssinaturaModal
+      :is-open="isRenovarAssinaturaOpen"
+      @close="layoutStore.closeRenovarAssinatura"
+    />
+
     <!-- Modais globais (disponíveis em todo o sistema) -->
     <CustomerFormModal />
     <ProductModal />
@@ -196,6 +253,7 @@ whenever(Ctrl_K, () => {
       :is-open="isClienteSearchOpen"
       @close="closeClienteSearch"
       @select-cliente="handleClienteSelected"
+      @select-objeto="handleObjetoEncontrado"
     />
 
     <OSCreditoAlertModal
@@ -206,19 +264,20 @@ whenever(Ctrl_K, () => {
       @fechar="handleCreditoIgnorado"
     />
 
-    <OSEquipamentoSelectModal
-      :is-open="isEquipSelectOpen"
-      :equipamentos="equipamentosHistoricoFlow"
-      @close="skipEquipamentoSelectFlow"
-      @select="handleEquipamentoSelectedFlow"
+    <OSObjetoSelectModal
+      :is-open="isObjetoSelectOpen"
+      :objetos="objetosHistoricoFlow"
+      @close="skipObjetoSelectFlow"
+      @select="handleObjetoSelectedFlow"
     />
 
     <OSFormModal
       :is-open="isFormModalOpen"
       :ordem-servico="selectedOS"
       :selected-cliente="selectedCliente"
-      :initial-equipamento="selectedEquipamento"
+      :initial-objeto="selectedObjeto"
       :auto-usar-credito="autoUsarCredito"
+      :auto-open-reopen="autoOpenReopen"
       @close="closeFormModal"
       @change-cliente="handleChangeCliente"
     />

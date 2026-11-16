@@ -4,9 +4,12 @@
 # DESCRIÇÃO: Gerencia o ciclo de vida da entidade Empresa (Tenant).
 # ---------------------------------------------------------------------------
 
+import base64
+import mimetypes
+import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, Path, UploadFile, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.schemas.empresa import (
@@ -16,10 +19,11 @@ from app.schemas.empresa import (
     WindowsCertificateRead,
     CertificadoWindowsVincular,
 )
-from app.db.models.usuario import Usuario as UsuarioModel
-from app.core.depends import get_current_master_user, get_current_user, _handle_db_transaction
+from app.core.config import BASE_DIR
+from app.core.depends import get_current_master_user, get_current_user, _handle_db_transaction, requer_configuracao_fiscal
 from app.db.session import get_db
 from app.services import empresa as empresa_service
+from app.db.crud import empresa as empresa_crud
 
 
 router = APIRouter()
@@ -106,26 +110,84 @@ def create_image_empresa(
     )
 
 @router.get(
+    "/tema",
+    status_code=status.HTTP_200_OK,
+    summary="Cor do tema da empresa (público)",
+    description=(
+        "Devolve **apenas** a cor da marca, sem autenticação — a tela de login "
+        "precisa dela antes de existir token, e o terminal precisa dela no boot.\n\n"
+        "Exposição deliberadamente mínima: um hex e nada mais. Não revela razão "
+        "social, documento nem qualquer dado da empresa. `null` significa paleta "
+        "de fábrica.\n\n"
+        "Quem GRAVA a cor é o `PUT /empresas/`, que exige usuário master."
+    ),
+)
+def get_tema_empresa(db: Session = Depends(get_db)):
+    empresa = empresa_crud.get_empresa_atual(db)
+    return {"cor_tema": empresa.cor_tema if empresa else None}
+
+
+@router.get(
     "/",
     response_model=EmpresaAdminRead,
     status_code=status.HTTP_200_OK,
     summary="Retorna os dados da empresa cadastrada!",
-    description="Retorna empresa com fiscal_settings sempre instanciado (nunca null)."
+    description="Retorna a empresa cadastrada. `fiscal_settings` vem null enquanto o módulo fiscal não for configurado."
 )
 def get_empresa_data(
     user_token: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # NÃO criar fiscal_settings aqui.
+    #
+    # Este endpoint exige apenas autenticação e é chamado por PixQrCode,
+    # FormatosExibicao e IntegracoesAPIs — ou seja, abrir configurações ou
+    # vender no PIX passava por aqui. Enquanto ele fazia get_or_create +
+    # commit, a linha criada satisfazia sozinha o gate `requer_modulo_fiscal`,
+    # destrancando o módulo fiscal inteiro sem que ninguém pedisse.
+    #
+    # A criação agora acontece só no PUT /fiscal/configuracao, que já é gated.
+    # O frontend trata o null desde sempre (useEmpresaFormProvider: `?? DEFAULT_FISCAL_SETTINGS`).
+    return empresa_service.get_empresa_by_id(db, empresa_id=user_token.get('empresa_id'))
+
+@router.get(
+    "/logo-base64",
+    status_code=status.HTTP_200_OK,
+    summary="Logo da empresa como data URL base64",
+    description=(
+        "Devolve a logo da empresa em base64 (data URL). Usado pela impressão "
+        "térmica (ESC/POS), que precisa LER os pixels da imagem para gerar o "
+        "raster monocromático. O `<img>`/`fetch` cru contra o /static falha em "
+        "modo CORS dentro do webview do Tauri (origem tauri.localhost != backend "
+        "127.0.0.1:porta); este endpoint trafega pelo mesmo canal /api já "
+        "autenticado, entregando os bytes em JSON sem depender de CORS no /static."
+    ),
+)
+def get_logo_base64(
+    user_token: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     empresa_id = user_token.get('empresa_id')
     empresa = empresa_service.get_empresa_by_id(db, empresa_id)
 
-    # Garantir que fiscal_settings existe (get_or_create)
-    if empresa and not empresa.fiscal_settings:
-        empresa_service.get_or_create_fiscal_settings(db, empresa_id)
-        db.commit()
-        db.refresh(empresa)
+    if not empresa or not empresa.url_logo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Empresa sem logo cadastrada.",
+        )
 
-    return empresa
+    caminho = os.path.join(BASE_DIR, empresa.url_logo)
+    if not os.path.isfile(caminho):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo da logo não encontrado no servidor.",
+        )
+
+    mime = mimetypes.guess_type(caminho)[0] or "image/webp"
+    with open(caminho, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+
+    return {"data_url": f"data:{mime};base64,{b64}"}
 
 @router.put(
     '/',
@@ -153,47 +215,10 @@ def update_empresa(
 # ENDPOINTS DE CERTIFICADO DIGITAL
 # ---------------------------------------------------------------------------
 
-@router.post(
-    "/certificado-a1",
-    response_model=EmpresaAdminRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Upload de Certificado A1 (PKCS#12)",
-    description="""
-    Realiza upload e validação de certificado digital A1.
-
-    **Segurança:**
-    - A senha é usada APENAS para validar o certificado
-    - A senha NÃO é persistida no banco de dados
-    - O arquivo é salvo em diretório seguro (fora de /static)
-
-    **Validações:**
-    - Verifica se a senha está correta
-    - Verifica se o certificado não está expirado
-    - Extrai metadados (subject, validade)
-    """
-)
-def upload_certificado_a1(
-    user_token: dict = Depends(get_current_master_user),
-    file: UploadFile = File(..., description="Arquivo .pfx ou .p12"),
-    senha: str = Form(..., description="Senha do certificado"),
-    db: Session = Depends(get_db)
-):
-    empresa_id: Optional[int] = user_token.get("empresa_id")
-
-    if not empresa_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="ID da Empresa não encontrado no token. Crie a empresa primeiro."
-        )
-
-    return _handle_db_transaction(
-        db,
-        empresa_service.upload_certificado_a1,
-        empresa_id,
-        file,
-        senha
-    )
-
+# POST /certificado-a1 (upload de A1 guardado no disco, com a senha cifrada) foi
+# APOSENTADO em 12/10/2026: chamava `encrypt_data` sem importar (dava 500), a
+# emissao nao le mais o certificado local (quem assina e a plataforma) e nenhuma
+# tela chegava nela. O certificado vai pelo fiscal: POST /fiscal/certificado/upload-focus.
 
 @router.get(
     "/certificados-windows",
@@ -229,6 +254,7 @@ def list_certificados_windows(
 )
 def vincular_certificado_windows(
     user_token: dict = Depends(get_current_master_user),
+    _fiscal: dict = Depends(requer_configuracao_fiscal),
     payload: CertificadoWindowsVincular = ...,
     db: Session = Depends(get_db)
 ):

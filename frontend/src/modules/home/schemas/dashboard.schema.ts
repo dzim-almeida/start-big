@@ -5,8 +5,18 @@ import { z } from 'zod';
 // ===========================================================================
 
 export const DashboardStatsSchema = z.object({
+  faturamento_total: z.number(),
+  faturamento_total_variacao: z.number(),
   vendas_total: z.number(),
   vendas_total_variacao: z.number(),
+
+  // OPCIONAL de proposito: backend mais antigo que o frontend nao devolve o
+  // campo, e um `.default(0)` faria a tela afirmar "0 vendas" — mentira pior
+  // que a informacao que faltava. Ausente, o card volta a mostrar o valor.
+  vendas_count: z.number().optional(),
+  vendas_count_variacao: z.number().optional(),
+  os_total: z.number(),
+  os_total_variacao: z.number(),
   os_count: z.number(),
   os_count_variacao: z.number(),
   novos_clientes: z.number(),
@@ -16,6 +26,25 @@ export const DashboardStatsSchema = z.object({
 });
 
 export type DashboardStatsData = z.infer<typeof DashboardStatsSchema>;
+
+// ===========================================================================
+// Tendência — série de faturamento por dia (gráfico)
+// ===========================================================================
+
+export const TendenciaDiaItemSchema = z.object({
+  dia: z.string(),
+  total_vendas: z.number(),
+  total_os: z.number(),
+  total_geral: z.number(),
+});
+
+export type TendenciaDiaItemData = z.infer<typeof TendenciaDiaItemSchema>;
+
+export const TendenciaResponseSchema = z.object({
+  items: z.array(TendenciaDiaItemSchema),
+});
+
+export type TendenciaResponseData = z.infer<typeof TendenciaResponseSchema>;
 
 // ===========================================================================
 // OS Vencendo
@@ -82,8 +111,10 @@ export type UltimasVendasResponseData = z.infer<typeof UltimasVendasResponseSche
 // ===========================================================================
 
 export const MeuResumoStatsSchema = z.object({
+  meu_faturamento: z.number(),
   minhas_vendas_valor: z.number(),
   minhas_vendas_count: z.number(),
+  minhas_os_valor: z.number(),
   minhas_os_abertas: z.number(),
   minhas_os_concluidas: z.number(),
 });
@@ -181,6 +212,8 @@ export const RankingFuncionarioItemSchema = z.object({
   id: z.number(),
   nome: z.string(),
   total_vendas_valor: z.number(),
+  total_os_valor: z.number(),
+  total_geral: z.number(),
   qtd_vendas: z.number(),
   qtd_os_fechadas: z.number(),
 });
