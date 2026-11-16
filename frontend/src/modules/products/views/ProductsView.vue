@@ -7,7 +7,7 @@
 // ============================================================================
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid } from 'lucide-vue-next';
+import { PackageSearch, Plus, ArrowLeftRight, LayoutGrid, FileUp, FileSpreadsheet } from 'lucide-vue-next';
 
 import PageReview from '@/shared/components/layout/PageReview/PageReview.vue';
 import BaseTab2 from '@/shared/components/ui/BaseTab2/BaseTab2.vue';
@@ -19,12 +19,21 @@ import ProductCard from '@/modules/products/inventory/components/ProductCard.vue
 import ProductModal from '@/modules/products/inventory/components/ProductModal.vue';
 import TransacoesEstoquePanel from '@/modules/products/inventory/components/TransacoesEstoquePanel.vue';
 import MovimentacaoModal from '@/modules/products/inventory/components/MovimentacaoModal.vue';
+import EntradaXmlModal from '@/modules/products/inventory/components/EntradaXmlModal.vue';
+import ImportarPlanilhaModal from '@/modules/products/inventory/components/ImportarPlanilhaModal.vue';
 import FornecedorTable from '../suppliers/components/FornecedorTable.vue';
 import FornecedorStats from '../suppliers/components/FornecedorStats.vue';
 import FornecedorFormModal from '../suppliers/components/FornecedorFormModal.vue';
+import EtiquetasTab from '../labels/components/EtiquetasTab.vue';
+import { useFilaEtiquetasStore } from '../labels/store/filaEtiquetas.store';
 
+import { correspondeBusca } from '@/shared/utils/busca';
 import { FILTER_CONFIG, SORT_FILTER_CONFIG } from '@/modules/products/inventory/constants/product.constants';
 import { TAB_OPTIONS } from '@/modules/products/shared/constants/tabs.constants';
+import { usePermissoesEtiqueta } from '@/shared/etiquetas/usePermissoesEtiqueta';
+import { storeToRefs } from 'pinia';
+import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { saldoEmEmbalagem } from '@/shared/utils/embalagem';
 import { useProductModal } from '../inventory/composables/useProductModal';
 import { useProductsQuery, useToggleProductActiveMutation } from '../inventory/composables/useProductsQuery';
 import type { ProdutoRead } from '../inventory/types/products.types';
@@ -41,6 +50,7 @@ const {
 } = useFornecedorModal();
 
 import { getImageUrl } from '@/shared/utils/print.utils';
+import { recursoDisponivel } from '@/shared/config/planos';
 
 const activeTab = ref('product');
 const searchTerm = ref<string | null>('');
@@ -49,6 +59,12 @@ const selectedSort = ref<string | null>(null);
 const selectedCategory = ref<string | null>(null);
 const isGroupedByCategory = ref(false);
 const isTransacoesPanelOpen = ref(false);
+const isEntradaXmlOpen = ref(false);
+const isImportarPlanilhaOpen = ref(false);
+// "Importar XML" só para loja com módulo fiscal (NF-e ou NFC-e): no modo não
+// fiscal a loja não lida com nota, e o botão seria ruído. Mesma fonte que o
+// formulário de produto usa para mostrar os dados fiscais (a licença).
+const lojaFiscal = computed(() => recursoDisponivel('nfe') || recursoDisponivel('nfce'));
 const isMovimentacaoModalOpen = ref(false);
 const movimentacaoInitialProdutoId = ref<number | undefined>(undefined);
 const movimentacaoInitialTipo = ref<'ENTRADA' | 'SAIDA' | undefined>(undefined);
@@ -67,9 +83,25 @@ const isFornecedorToggleModalOpen = ref(false);
 const fornecedorToToggle = ref<FornecedorReadType | null>(null);
 
 const { data: products } = useProductsQuery(searchTerm);
+// A aba de etiquetas lista o catálogo inteiro, com busca própria: não pode
+// herdar o filtro da busca da aba Estoque.
+const { data: todosProdutos, isLoading: isTodosProdutosLoading } = useProductsQuery();
+const filaEtiquetas = useFilaEtiquetasStore();
+const { podeVer: podeVerEtiquetas } = usePermissoesEtiqueta();
+// Fardo discreto no card ("= 10 FD"), só com as embalagens ligadas.
+const { usarEmbalagens } = storeToRefs(useConfiguracoesStore());
+function saldoDoCard(produto: ProdutoRead): string | null {
+  return usarEmbalagens.value ? saldoEmEmbalagem(produto.estoque.quantidade || 0, produto.embalagens) : null;
+}
+// A aba Etiquetas só aparece para quem tem a linha "Etiquetas" no cargo.
+const abas = computed(() => TAB_OPTIONS.filter((aba) => aba.id !== 'labels' || podeVerEtiquetas.value));
 const toggleMutation = useToggleProductActiveMutation();
 
 const localOverrides = ref<Record<number, ProdutoRead>>({});
+
+import { useRoute, useRouter } from 'vue-router';
+const route = useRoute();
+const router = useRouter();
 
 const mergedProducts = computed(() => {
   const base = products.value || [];
@@ -82,6 +114,39 @@ const mergedProducts = computed(() => {
   });
   return merged;
 });
+
+// Auto-open edit modal if query param 'editar' is present
+import { watch } from 'vue';
+watch(
+  () => [mergedProducts.value, route.query.editar] as const,
+  ([list, editarId]) => {
+    if (editarId && list.length > 0) {
+      const id = Number(editarId);
+      const product = list.find((p) => p.id === id);
+      if (product) {
+        openEditModal(product);
+        // Remove from query so it doesn't re-open on refresh
+        router.replace({ query: { ...route.query, editar: undefined } });
+      }
+    }
+  },
+  { immediate: true }
+);
+
+// Atalho "Etiqueta de envio" da lista de vendas: ?envio=venda:5 abre a aba
+// Etiquetas já na sub-aba Envio, com a venda escolhida.
+const envioInicial = ref<{ tipo: 'venda'; id: number } | null>(null);
+watch(
+  () => route.query.envio,
+  (valor) => {
+    const [tipo, id] = String(valor ?? '').split(':');
+    if (tipo !== 'venda' || !Number(id)) return;
+    envioInicial.value = { tipo, id: Number(id) };
+    activeTab.value = 'labels';
+    router.replace({ query: { ...route.query, envio: undefined } });
+  },
+  { immediate: true },
+);
 
 function normalizarCategoria(cat: string | null | undefined): string {
   const raw = (cat || 'SEM CATEGORIA').trim().toUpperCase();
@@ -112,15 +177,21 @@ const categoryFilterConfig = computed(() => {
 });
 
 const filteredProducts = computed(() => {
-  const term = (searchTerm.value || '').trim().toLowerCase();
+  const term = (searchTerm.value || '').trim();
   let list = mergedProducts.value;
 
   if (term) {
-    list = list.filter((product) => {
-      const nameMatch = product.nome?.toLowerCase().includes(term);
-      const codeMatch = product.codigo_produto?.toLowerCase().startsWith(term);
-      return nameMatch || codeMatch;
-    });
+    // Mesmas regras do backend (shared/utils/busca) — se divergirem, este
+    // filtro descarta em silêncio o que o servidor já tinha encontrado.
+    list = list.filter((product) =>
+      correspondeBusca(term, [
+        product.nome,
+        product.codigo_produto,
+        product.codigo_barras,
+        product.marca,
+        product.categoria,
+      ]),
+    );
   }
 
   if (selectedFilter.value === 'active') {
@@ -190,12 +261,39 @@ function getProductImage(product: ProdutoRead) {
   return product.fotos?.[0]?.url || '';
 }
 
+// Título, descrição e botão do topo por aba. Com três abas, o ternário de duas
+// opções que havia aqui já não servia.
+// `addLabel` nulo = aba sem botão de adicionar (na de Etiquetas ele não teria
+// relação com a tela, principalmente no Envio).
+const CABECALHO_POR_ABA: Record<string, { title: string; description: string; addLabel: string | null }> = {
+  product: { title: 'Estoque', description: 'Gerencia os produtos no seu estoque', addLabel: 'Adicionar Produto' },
+  supplier: { title: 'Fornecedores', description: 'Gerencie os fornecedores da sua empresa', addLabel: 'Adicionar Fornecedor' },
+  labels: { title: 'Etiquetas', description: 'Etiquetas de preço, código de barras e envio', addLabel: null },
+};
+const cabecalho = computed(() => CABECALHO_POR_ABA[activeTab.value] ?? CABECALHO_POR_ABA.product);
+
 function handleAddClick() {
-  if (activeTab.value === 'product') {
-    openCreateModal();
-  } else {
+  if (activeTab.value === 'supplier') {
     openCreateFornecedorModal();
+  } else {
+    openCreateModal();
   }
+}
+
+// O que a nota acabou de dar entrada vai para a fila, uma etiqueta por unidade
+// (a fila limita por item). Fracionado (peso) não vira etiqueta.
+function handleEtiquetasDaNota(entradas: { produto_id: number; unidades: number }[]) {
+  for (const e of entradas) {
+    if (Number.isInteger(e.unidades) && e.unidades > 0) filaEtiquetas.adicionar(e.produto_id, e.unidades);
+  }
+  filaEtiquetas.painelAberto = true;
+  activeTab.value = 'labels';
+}
+
+function handleEtiqueta(id: number) {
+  filaEtiquetas.adicionar(id);
+  filaEtiquetas.painelAberto = true;
+  activeTab.value = 'labels';
 }
 
 function handleToggleFornecedor(fornecedor: FornecedorReadType) {
@@ -269,22 +367,51 @@ function handleEmptyAction() {
   <div class="p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8">
     <div class="flex flex-col flex-wrap sm:flex-row sm:justify-between sm:items-end gap-4">
       <PageReview
-        :title="activeTab === 'product' ? 'Estoque' : 'Fornecedores'"
-        :description="activeTab === 'product' ? 'Gerencia os produtos no seu estoque' : 'Gerencie os fornecedores da sua empresa'"
+        :title="cabecalho.title"
+        :description="cabecalho.description"
       />
 
-      <div class="flex gap-5">
-        <BaseTab2 :options="TAB_OPTIONS" v-model="activeTab" />
-        <BaseButton
-          variant="primary"
-          size="md"
-          type="button"
-          class="flex gap-1"
-          @click="handleAddClick"
-        >
-          <Plus :size="20" />
-          {{ activeTab === 'product' ? 'Adicionar Produto' : 'Adicionar Fornecedor' }}
-        </BaseButton>
+      <div class="flex flex-wrap items-center gap-5">
+        <BaseTab2 :options="abas" v-model="activeTab" />
+        <div class="flex gap-3">
+          <!-- Trazer produtos pela nota de compra: ação de "abastecer o estoque",
+               par do "Adicionar Produto" — fica ao lado dele, não na barra de busca. -->
+          <BaseButton
+            v-if="activeTab === 'product' && lojaFiscal"
+            variant="ghost"
+            size="md"
+            type="button"
+            class="flex gap-1.5"
+            title="Dar entrada na nota de compra pelo arquivo XML do fornecedor"
+            @click="isEntradaXmlOpen = true"
+          >
+            <FileUp :size="18" />
+            Importar XML
+          </BaseButton>
+          <BaseButton
+            v-if="activeTab === 'product'"
+            variant="ghost"
+            size="md"
+            type="button"
+            class="flex gap-1.5"
+            title="Cadastrar vários produtos de uma vez por uma planilha Excel"
+            @click="isImportarPlanilhaOpen = true"
+          >
+            <FileSpreadsheet :size="18" />
+            Importar planilha
+          </BaseButton>
+          <BaseButton
+            v-if="cabecalho.addLabel"
+            variant="primary"
+            size="md"
+            type="button"
+            class="flex gap-1"
+            @click="handleAddClick"
+          >
+            <Plus :size="20" />
+            {{ cabecalho.addLabel }}
+          </BaseButton>
+        </div>
       </div>
     </div>
 
@@ -346,6 +473,7 @@ function handleEmptyAction() {
               :category="product.categoria || 'SEM CATEGORIA'"
               :price="product.estoque.valor_varejo / 100"
               :storage="product.estoque.quantidade || 0"
+              :unidade="product.unidade_medida"
               :image_url="getImageUrl(getProductImage(product)) ?? ''"
               :status="product.ativo"
               @view="handleViewProduct"
@@ -353,6 +481,9 @@ function handleEmptyAction() {
               @toggle="handleToggleProduct"
               @entrada="handleEntrada"
               @saida="handleSaida"
+              :mostrar-etiqueta="podeVerEtiquetas"
+              :saldo-embalagem="saldoDoCard(product)"
+              @etiqueta="handleEtiqueta"
             />
           </div>
         </div>
@@ -369,6 +500,7 @@ function handleEmptyAction() {
           :category="product.categoria || 'SEM CATEGORIA'"
           :price="product.estoque.valor_varejo / 100"
           :storage="product.estoque.quantidade || 0"
+              :unidade="product.unidade_medida"
           :image_url="getImageUrl(getProductImage(product)) ?? ''"
           :status="product.ativo"
           @view="handleViewProduct"
@@ -376,6 +508,9 @@ function handleEmptyAction() {
           @toggle="handleToggleProduct"
           @entrada="handleEntrada"
           @saida="handleSaida"
+          :saldo-embalagem="saldoDoCard(product)"
+          :mostrar-etiqueta="podeVerEtiquetas"
+          @etiqueta="handleEtiqueta"
         />
       </div>
 
@@ -403,6 +538,15 @@ function handleEmptyAction() {
           </BaseButton>
         </div>
       </div>
+    </template>
+
+    <!-- Etiquetas Tab -->
+    <template v-else-if="activeTab === 'labels' && podeVerEtiquetas">
+      <EtiquetasTab
+        :produtos="todosProdutos ?? []"
+        :is-loading="isTodosProdutosLoading"
+        :envio-inicial="envioInicial"
+      />
     </template>
 
     <!-- Fornecedores Tab -->
@@ -434,6 +578,16 @@ function handleEmptyAction() {
       :produtos="mergedProducts"
       @close="isTransacoesPanelOpen = false"
     />
+
+    <EntradaXmlModal
+      v-if="lojaFiscal"
+      :is-open="isEntradaXmlOpen"
+      :produtos="mergedProducts"
+      @close="isEntradaXmlOpen = false"
+      @etiquetas="handleEtiquetasDaNota"
+    />
+
+    <ImportarPlanilhaModal :is-open="isImportarPlanilhaOpen" @close="isImportarPlanilhaOpen = false" />
 
     <MovimentacaoModal
       :is-open="isMovimentacaoModalOpen"

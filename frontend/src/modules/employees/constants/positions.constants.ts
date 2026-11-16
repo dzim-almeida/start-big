@@ -10,12 +10,19 @@ import {
   Wrench,
   Users,
   Tags,
-  BookOpen,
+  BarChart3,
   Building,
   IdCard,
   ShieldCheck,
+  Wallet,
+  Printer,
+  ClipboardList,
+  PackageCheck,
+  Calculator,
+  PencilRuler,
 } from 'lucide-vue-next';
 
+import { MODULOS } from '@/shared/constants/modulos.constants';
 import { PERMISSIONS } from '@/shared/constants/permissions.constants';
 import type { FilterOption } from '@/shared/types/filter.types';
 import type {
@@ -129,13 +136,63 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     deleteKey: 'delete_products',
   },
   {
-    id: 'catalog',
-    label: 'Catalogo',
-    description: 'Experiencias e apresentacoes',
-    icon: BookOpen,
-    viewKey: 'view_catalog',
-    manageKey: 'manage_catalog',
-    deleteKey: 'delete_catalog',
+    id: 'labels',
+    label: 'Etiquetas',
+    description: 'Imprimir etiquetas e editar modelos',
+    icon: Printer,
+    // Visualizar = ver a aba e imprimir; Gerenciar = criar e editar modelos;
+    // Excluir = apagar modelos (some de todos os terminais da loja).
+    viewKey: 'view_labels',
+    manageKey: 'manage_labels',
+    deleteKey: 'delete_labels',
+  },
+  {
+    id: 'purchases',
+    label: 'Compras',
+    description: 'Fornecedores do produto e pedidos de compra',
+    icon: ClipboardList,
+    // Visualizar = ver necessidades, pedidos e precos de compra;
+    // Gerenciar = fornecedores do produto, criar/editar/enviar pedidos;
+    // Excluir = CANCELAR pedido (desfaz o que ja foi mandado ao fornecedor).
+    viewKey: 'view_purchases',
+    manageKey: 'manage_purchases',
+    deleteKey: 'delete_purchases',
+    modulo: MODULOS.COMPRAS,
+  },
+  {
+    id: 'purchase_receiving',
+    label: 'Recebimento',
+    description: 'Conferir e dar entrada na mercadoria comprada',
+    icon: PackageCheck,
+    // Para o almoxarife: confere QUANTIDADE, nunca ve preco (plano de compras,
+    // D14). Visualizar = ver os pedidos a receber; Gerenciar = dar entrada.
+    viewKey: 'view_receiving',
+    manageKey: 'receive_purchases',
+    modulo: MODULOS.COMPRAS,
+  },
+  // A linha "Fabrica" (view_fabrica/manage_fabrica, so na marcenaria) saiu com
+  // a aposentadoria da fabrica (SPEC-00 da marcenaria, FB1; Spec 03B, D12). Ela
+  // nao contava no nivel do cargo, entao nenhum nivel muda. As constantes de
+  // PERMISSIONS e o mapa `fabrica` abaixo ficam: o codigo inerte ainda os importa.
+  {
+    id: 'reports',
+    label: 'Relatorios',
+    description: 'Faturamento, ranking e comissoes',
+    icon: BarChart3,
+    viewKey: 'view_reports',
+    manageKey: 'manage_reports',
+    // Read-only: sem acao de excluir.
+  },
+  {
+    id: 'finance',
+    label: 'Financeiro',
+    description: 'Contas a pagar, a receber e resultado',
+    icon: Wallet,
+    viewKey: 'view_financeiro',
+    manageKey: 'manage_financeiro',
+    // Sem acao de excluir, e nao por esquecimento: lancamento financeiro nao se
+    // apaga, se estorna. Oferecer o botao aqui prometeria uma operacao que o
+    // modulo nao vai ter.
   },
   {
     id: 'enterprise',
@@ -164,30 +221,103 @@ export const PERMISSION_MATRIX: PermissionMatrixItem[] = [
     manageKey: 'manage_positions',
     deleteKey: 'delete_positions',
   },
+  {
+    // Spec 06B (marcenaria, D51): ver, montar, enviar e excluir orçamentos.
+    // Marcar Gerenciar ou Excluir marca Ver (chavesAoAlternar).
+    id: 'marcenaria_orcamentos',
+    label: 'Orçamentos de Marcenaria',
+    description: 'Ver, montar, enviar e excluir orçamentos',
+    icon: PencilRuler,
+    viewKey: 'view_orcamentos_marcenaria',
+    manageKey: 'manage_orcamentos_marcenaria',
+    deleteKey: 'delete_orcamentos_marcenaria',
+    // Só na marcenaria e fora do nível de acesso (mesmo mecanismo da linha
+    // de custos abaixo). As chaves são as que o backend confere
+    // (app/services/marcenaria/permissoes.py); fora do MODULE_PERMISSION_MAP.
+    segmento: 'marcenaria',
+  },
+  {
+    // Spec 04B (marcenaria, D16): ver custos e margens do orçamento; alterar
+    // markup, perda, custo/hora e RT. As chaves são as MESMAS que o backend
+    // confere (app/services/marcenaria/permissoes.py), por isso a linha não
+    // entra no MODULE_PERMISSION_MAP. Sem Excluir.
+    id: 'marcenaria_custos',
+    label: 'Custos da Marcenaria',
+    description: 'Ver custos e margens; alterar markup, perda e RT',
+    icon: Calculator,
+    viewKey: 'view_custos_marcenaria',
+    manageKey: 'manage_custos_marcenaria',
+    // Só na marcenaria, e fora do nível de acesso dos outros segmentos: é o
+    // mecanismo que a matriz já tem (PERMISSION_KEYS e PositionModal.matrizVisivel).
+    segmento: 'marcenaria',
+  },
 ];
 
-export const PERMISSION_KEYS = Array.from(
-  new Set(
-    PERMISSION_MATRIX.flatMap((item) => [
-      item.viewKey,
-      item.manageKey,
-      item.deleteKey,
-    ]),
-  ),
-);
+/**
+ * Chaves que mudam JUNTO com a que foi clicada (Spec 04B, D16).
+ *
+ * Só nas linhas de um SEGMENTO ("Custos da Marcenaria", "Orçamentos de
+ * Marcenaria"), onde gerenciar ou excluir sem ver não faz sentido: marcar
+ * Gerenciar (ou Excluir, Spec 06B D51) marca Ver; desmarcar Ver desmarca
+ * Gerenciar e Excluir. Nas outras linhas devolve só a própria chave, que é a
+ * regra de sempre (mudar o comportamento delas mexeria em cargos de todos os
+ * segmentos).
+ */
+export function chavesAoAlternar(chave: string, marcar: boolean): string[] {
+  const linha = PERMISSION_MATRIX.find(
+    (item) => item.segmento && (item.viewKey === chave || item.manageKey === chave || item.deleteKey === chave),
+  );
+  if (!linha) return [chave];                                       // linha comum: só ela
+  // Gerenciar ou excluir implica ver.
+  if (marcar && (chave === linha.manageKey || chave === linha.deleteKey)) return [chave, linha.viewKey];
+  if (!marcar && chave === linha.viewKey) {
+    // Sem ver, sem gerenciar e sem excluir (só as caixas que a linha tem).
+    return [chave, ...[linha.manageKey, linha.deleteKey].filter((k): k is string => Boolean(k))];
+  }
+  return [chave];
+}
+
+function chavesDe(itens: PermissionMatrixItem[]): string[] {
+  return Array.from(
+    new Set(
+      itens.flatMap((item) =>
+        [item.viewKey, item.manageKey, item.deleteKey].filter(
+          (key): key is string => Boolean(key),
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * As caixas que contam no nivel do cargo (Administrador, Gestor...): so as dos
+ * modulos que toda loja tem. As dos modulos contrataveis (`modulo`) ficam de
+ * fora de proposito -- contar Compras rebaixaria o nivel de todo cargo ja
+ * cadastrado no dia da atualizacao, numa loja que nem contratou o modulo.
+ */
+export const PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX.filter((item) => !item.modulo && !item.segmento));
+
+/** Todas as caixas, inclusive as dos modulos contrataveis. */
+export const ALL_PERMISSION_KEYS = chavesDe(PERMISSION_MATRIX);
 
 export const MODULE_PERMISSION_MAP: Partial<Record<PermissionMatrixItem['id'], string>> = {
   sales: 'venda',
   services: PERMISSIONS.services,
   customers: PERMISSIONS.customers,
   products: PERMISSIONS.products,
+  labels: PERMISSIONS.labels,
+  purchases: PERMISSIONS.purchases,
+  // Chave PROPRIA, nao `compra`: duas linhas gravando a mesma chave fariam a
+  // segunda sobrescrever a primeira em `applyEndpointPermissions`.
+  purchase_receiving: PERMISSIONS.receiving,
+  fabrica: 'fabrica',
   enterprise: PERMISSIONS.enterprise,
   employees: PERMISSIONS.employees,
   roles: PERMISSIONS.positions,
 };
 
 export function buildPermissionDefaults(): Record<string, boolean> {
-  return PERMISSION_KEYS.reduce(
+  return ALL_PERMISSION_KEYS.reduce(
     (acc, key) => {
       acc[key] = false;
       return acc;
@@ -204,7 +334,7 @@ export function applyEndpointPermissions(permissoes: Record<string, boolean>) {
     if (!permissionKey) return;
 
     const hasAny = [module.viewKey, module.manageKey, module.deleteKey].some(
-      (key) => updated[key],
+      (key) => key && updated[key],
     );
 
     updated[permissionKey] = hasAny;

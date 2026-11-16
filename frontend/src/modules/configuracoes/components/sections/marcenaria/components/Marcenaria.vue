@@ -1,0 +1,429 @@
+<script setup lang="ts">
+/**
+ * @component Marcenaria
+ * @description Configurações › Marcenaria (Spec 04B): os valores padrão que
+ * todo orçamento novo copia — markup, perda, custo/hora, RT, prazos — e as
+ * listas de etapas de produção e de checklist de vistoria.
+ *
+ * Como as outras seções, ela só MOSTRA e expõe `form`/`isDirty`/`resetar`;
+ * quem salva é o modal de Configurações. Duas permissões mudam a tela:
+ *   - sem `view_custos_marcenaria`, o bloco de custos nem existe (a API nem
+ *     manda esses campos) e aparece uma frase no lugar (D8);
+ *   - sem `manage_custos_marcenaria` (e sem ser master), tudo fica somente
+ *     leitura e o modal não oferece "Salvar" (D9).
+ */
+import { computed, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+
+import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
+import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
+import { useQuery } from '@tanstack/vue-query';
+import { recursoDisponivel } from '@/shared/config/planos';
+import { getServicos } from '@/modules/order-service/servicos/services/servicos.service';
+import { useCheckPermission } from '@/modules/mainLayout/composables/useCheckPermission';
+import { PERMISSIONS } from '@/shared/constants/permissions.constants';
+import { useAuthStore } from '@/shared/stores/auth.store';
+import { formatCurrency } from '@/shared/utils/finance';
+
+import { useConfiguracaoMarcenariaQuery } from '../../../../composables/queries/useConfiguracaoMarcenariaQuery';
+import {
+  LIMITES_LISTA,
+  errosDoFormulario,
+  paraApi,
+  paraTela,
+  type FormMarcenaria,
+} from '../marcenariaForm';
+import ListaTextosEditavel from '@/shared/components/ui/ListaTextosEditavel/ListaTextosEditavel.vue';
+import { useToast } from '@/shared/composables/useToast';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+import type { ApiError } from '@/shared/types/axios.types';
+import type { AxiosError } from 'axios';
+import { criarProdutosAcabados, sincronizarMoveisProntos } from '../../../../services/configuracaoMarcenaria.service';
+import ProdutoAcabadoCampo from '@/modules/marcenaria/shared/components/ProdutoAcabadoCampo.vue';
+
+const { data, isPending, isError, refetch } = useConfiguracaoMarcenariaQuery();
+
+// Quem pode alterar: master ou a permissão de gerir (manage implica view).
+const { userData } = storeToRefs(useAuthStore());
+const { hasPermission } = useCheckPermission();
+const podeGerir = computed(
+  () => userData.value?.is_master === true || hasPermission(PERMISSIONS.manageCustosMarcenaria),
+);
+
+/** O formulário da tela (% e R$). Vazio até a API responder. */
+const form = ref<FormMarcenaria | null>(null);
+
+/**
+ * Instalação em NFS-e (docs/nfse-fase2-plano.md, G5): a opção só aparece com o
+ * módulo NFSE. Os serviços do catálogo viram a lista do "serviço da instalação"
+ * (só buscados quando a opção está escolhida).
+ */
+const nfseDisponivel = recursoDisponivel('nfse');
+const { data: servicosAtivos } = useQuery({
+  queryKey: ['marcenaria', 'servicos-para-instalacao'],
+  queryFn: () => getServicos({ active: true, limit: 200 }),
+  enabled: computed(() => nfseDisponivel && form.value?.instalacao_modo === 'NFSE'),
+});
+const opcoesServico = computed(() =>
+  (servicosAtivos.value?.items ?? []).map((s) => ({ value: s.id, label: s.descricao })),
+);
+
+/** Volta ao que está salvo (também usado pelo "Descartar" do modal). */
+function resetar() {
+  form.value = data.value ? paraTela(data.value) : null;
+}
+
+// Preenche (e repreenche, depois de salvar) quando a resposta chega.
+watch(data, resetar, { immediate: true });
+
+/** Mudou algo em relação ao que está salvo? */
+const isDirty = computed(
+  () => !!form.value && !!data.value && JSON.stringify(form.value) !== JSON.stringify(paraTela(data.value)),
+);
+
+/** Erros com as mesmas regras e mensagens do backend (Spec 04A §4.1). */
+const erros = computed(() => (form.value ? errosDoFormulario(form.value) : {}));
+
+/** O bloco de custos só existe para quem vê custo (a API manda `inclui_custos`). */
+const mostraCustos = computed(() => form.value?.markup_percentual !== undefined);
+
+// --- Exemplos numéricos ao lado de cada parâmetro (D11) ---------------------
+const exemploMarkup = computed(() => {
+  const markup = form.value?.markup_percentual ?? 0;
+  const custoCentavos = 10000;                                          // R$ 100,00 (formatCurrency recebe centavos)
+  const precoCentavos = Math.round(custoCentavos * (1 + markup / 100)); // custo + markup
+  return `Custo de ${formatCurrency(custoCentavos)} → preço de ${formatCurrency(precoCentavos)} com ${markup.toLocaleString('pt-BR')}%.`;
+});
+const exemploPerda = computed(() => {
+  const perda = form.value?.perda_percentual ?? 0;
+  const chapas = 1 + perda / 100;                        // 1 chapa + a perda do corte
+  return `1 chapa no projeto → ${chapas.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} chapa no custo com ${perda.toLocaleString('pt-BR')}%.`;
+});
+
+// --- Faturamento dos móveis (docs/marcenaria-faturamento-plano.md) ---------
+const faturamentoLigado = computed(() => !!form.value && form.value.faturamento_modo !== 'DESLIGADO');
+/** O aviso do cadastro fiscal vem do que está SALVO (é o backend que confere). */
+const pendenciasFaturamento = computed(() => data.value?.pendencias_faturamento ?? []);
+const faltaProduto = computed(
+  () => !!form.value && (form.value.produto_acabado_padrao_id === null || form.value.produto_acabado_revenda_id === null),
+);
+
+const toast = useToast();
+const criandoProdutos = ref(false);
+/**
+ * Cria os dois produtos acabados no backend (já ficam ligados lá). Com a tela
+ * limpa, relê; com edição em andamento, só preenche os dois campos, para não
+ * apagar o que a pessoa digitou.
+ */
+async function criarProdutos() {
+  criandoProdutos.value = true;
+  try {
+    const salvo = await criarProdutosAcabados();
+    if (!isDirty.value) {
+      await refetch();
+    } else if (form.value) {
+      form.value.produto_acabado_padrao_id = salvo.produto_acabado_padrao_id;
+      form.value.produto_acabado_revenda_id = salvo.produto_acabado_revenda_id;
+    }
+    toast.success('Produtos acabados criados. Peça ao contador para preencher o cadastro fiscal deles.');
+  } catch (erro) {
+    toast.error(getErrorMessage(erro as AxiosError<ApiError>, 'Não foi possível criar os produtos acabados.'));
+  } finally {
+    criandoProdutos.value = false;
+  }
+}
+
+/** O faturamento está ligado no que está SALVO (a entrada roda no backend). */
+const faturamentoSalvoLigado = computed(() => !!data.value && data.value.faturamento_modo !== 'DESLIGADO');
+const sincronizando = ref(false);
+/** Móveis que já estavam prontos antes de ligar: entram no estoque agora. */
+async function darEntradaDosProntos() {
+  sincronizando.value = true;
+  try {
+    const { entraram_agora } = await sincronizarMoveisProntos();
+    toast.success(
+      entraram_agora
+        ? `${entraram_agora} móvel(is) pronto(s) entraram no estoque como produto acabado.`
+        : 'Nenhum móvel pronto ficou de fora: o estoque já estava em dia.',
+    );
+  } catch (erro) {
+    toast.error(getErrorMessage(erro as AxiosError<ApiError>, 'Não foi possível dar entrada nos móveis prontos.'));
+  } finally {
+    sincronizando.value = false;
+  }
+}
+
+defineExpose({ form, isDirty, resetar, paraApi, podeGerir, erros });
+
+/** Classes do campo numérico, iguais às das outras seções. */
+const CLASSE_NUMERO =
+  'mt-1 w-28 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary disabled:bg-zinc-50 disabled:text-zinc-500';
+</script>
+
+<template>
+  <div class="flex flex-col gap-6">
+    <div>
+      <h3 class="text-base font-bold text-zinc-900">Marcenaria</h3>
+      <p class="text-sm text-zinc-500 mt-0.5">Valores padrão que todo orçamento novo copia</p>
+    </div>
+
+    <!-- Carregando / erro -->
+    <p v-if="isPending" class="text-sm text-zinc-400 animate-pulse">Carregando parâmetros…</p>
+    <div v-else-if="isError" class="flex flex-col items-start gap-2">
+      <p class="text-sm text-red-600">Não foi possível carregar os parâmetros da marcenaria.</p>
+      <button type="button" class="text-xs font-medium text-brand-primary hover:underline" @click="refetch()">
+        Tentar de novo
+      </button>
+    </div>
+
+    <template v-else-if="form">
+      <!-- Somente leitura sem a permissão de alterar (D9). -->
+      <p v-if="!podeGerir" class="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2" data-testid="somente-leitura">
+        Só quem tem a permissão de alterar os parâmetros da marcenaria pode editar.
+      </p>
+
+      <!-- PREÇO E CUSTOS (só para quem vê custo; D8) -->
+      <div v-if="mostraCustos" class="flex flex-col" data-testid="bloco-custos">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Preço e custos</p>
+
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Markup padrão (%)</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">{{ exemploMarkup }}</p>
+          <input v-model.number="form.markup_percentual" type="number" min="0" max="1000" step="0.01" :disabled="!podeGerir" :class="CLASSE_NUMERO" />
+          <span class="ml-2 text-xs text-zinc-400">%</span>
+          <p v-if="erros.markup_percentual" class="text-[11px] text-red-600 mt-1">{{ erros.markup_percentual }}</p>
+        </div>
+
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Perda padrão (%)</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">{{ exemploPerda }} Vale para os produtos marcados com "Sofre perda".</p>
+          <input v-model.number="form.perda_percentual" type="number" min="0" max="50" step="0.01" :disabled="!podeGerir" :class="CLASSE_NUMERO" />
+          <span class="ml-2 text-xs text-zinc-400">%</span>
+          <p v-if="erros.perda_percentual" class="text-[11px] text-red-600 mt-1">{{ erros.perda_percentual }}</p>
+        </div>
+
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Custo da mão de obra por hora</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5 mb-2">Usado quando a mão de obra do móvel é calculada por horas.</p>
+          <div class="w-36">
+            <BaseMoneyInput v-model="form.custo_hora_reais" :disabled="!podeGerir" />
+          </div>
+          <!-- R$ 0,00: a mão de obra por horas sai zerada (D12). -->
+          <p v-if="!form.custo_hora_reais" class="text-[11px] text-amber-700 mt-1" data-testid="aviso-custo-hora">
+            Sem custo por hora, a mão de obra calculada por horas sai zerada nos orçamentos.
+          </p>
+          <p v-if="erros.custo_hora_reais" class="text-[11px] text-red-600 mt-1">{{ erros.custo_hora_reais }}</p>
+        </div>
+
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">RT padrão do arquiteto (%)</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">Reserva técnica paga ao arquiteto que indicou o cliente. Pode ser trocada em cada orçamento.</p>
+          <input v-model.number="form.rt_percentual" type="number" min="0" max="30" step="0.01" :disabled="!podeGerir" :class="CLASSE_NUMERO" />
+          <span class="ml-2 text-xs text-zinc-400">%</span>
+          <p v-if="erros.rt_percentual" class="text-[11px] text-red-600 mt-1">{{ erros.rt_percentual }}</p>
+        </div>
+
+        <!-- Modo do RT: o rótulo técnico sozinho não diz o efeito (D13). -->
+        <fieldset class="py-3 border-b border-zinc-100">
+          <legend class="text-xs font-medium text-zinc-600">Como o RT entra no orçamento</legend>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.rt_modo" type="radio" value="MARGEM" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Sai da margem</span>
+              <span class="block text-[11px] text-zinc-400">O preço não muda: a marcenaria paga o arquiteto com o próprio lucro.</span>
+            </span>
+          </label>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.rt_modo" type="radio" value="PRECO" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Embutido no preço</span>
+              <span class="block text-[11px] text-zinc-400">O preço sobe para cobrir o RT.</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <!-- Prazo para pagar o RT (Spec 09B D11) -->
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Prazo para pagar o RT (dias após finalizar a OS)</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">A conta a pagar do arquiteto nasce quando a OS é finalizada e vence depois deste prazo.</p>
+          <input v-model.number="form.rt_vencimento_dias" type="number" min="0" max="180" :disabled="!podeGerir" :class="CLASSE_NUMERO" data-testid="rt-vencimento" />
+          <span class="ml-2 text-xs text-zinc-400">dias</span>
+          <p v-if="erros.rt_vencimento_dias" class="text-[11px] text-red-600 mt-1">{{ erros.rt_vencimento_dias }}</p>
+        </div>
+      </div>
+      <!-- Sem view_custos_marcenaria: a API nem manda os custos (D8). -->
+      <p v-else class="text-xs text-zinc-500" data-testid="custos-ocultos">
+        Os custos e margens estão ocultos para o seu perfil.
+      </p>
+
+      <!-- PRAZOS -->
+      <div class="flex flex-col">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Prazos</p>
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Validade do orçamento</label>
+          <input v-model.number="form.validade_dias" type="number" min="1" max="365" :disabled="!podeGerir" :class="CLASSE_NUMERO" />
+          <span class="ml-2 text-xs text-zinc-400">dias</span>
+          <p v-if="erros.validade_dias" class="text-[11px] text-red-600 mt-1">{{ erros.validade_dias }}</p>
+        </div>
+        <div class="py-3 border-b border-zinc-100">
+          <label class="text-xs font-medium text-zinc-600">Prazo de entrega padrão</label>
+          <p class="text-[11px] text-zinc-400 mt-0.5">Contado da aprovação do orçamento.</p>
+          <input v-model.number="form.prazo_entrega_dias" type="number" min="1" max="365" :disabled="!podeGerir" :class="CLASSE_NUMERO" />
+          <span class="ml-2 text-xs text-zinc-400">dias</span>
+          <p v-if="erros.prazo_entrega_dias" class="text-[11px] text-red-600 mt-1">{{ erros.prazo_entrega_dias }}</p>
+        </div>
+      </div>
+
+      <!-- FATURAMENTO DOS MÓVEIS (docs/marcenaria-faturamento-plano.md) -->
+      <div class="flex flex-col" data-testid="bloco-faturamento">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Faturamento dos móveis</p>
+
+        <fieldset class="py-3 border-b border-zinc-100">
+          <legend class="text-xs font-medium text-zinc-600">Como os móveis saem na nota fiscal</legend>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="DESLIGADO" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Não faturar pelo sistema</span>
+              <span class="block text-[11px] text-zinc-400">Como hoje: a nota dos móveis não sai pelo sistema.</span>
+            </span>
+          </label>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="NOTA_NA_ENTREGA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">NF-e a cada entrega</span>
+              <span class="block text-[11px] text-zinc-400">O móvel pronto entra no estoque e sai numa NF-e de venda quando é entregue.</span>
+            </span>
+          </label>
+          <label class="mt-2 flex items-start gap-2 cursor-pointer">
+            <input v-model="form.faturamento_modo" type="radio" value="ENTREGA_FUTURA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+            <span>
+              <span class="text-xs font-medium text-zinc-700">Venda para entrega futura</span>
+              <span class="block text-[11px] text-zinc-400">Uma nota de simples faturamento no fechamento e uma nota de remessa a cada entrega.</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <template v-if="faturamentoLigado">
+          <fieldset class="py-3 border-b border-zinc-100">
+            <legend class="text-xs font-medium text-zinc-600">Instalação</legend>
+            <label class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="EMBUTIDA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Dentro do preço dos móveis</span>
+                <span class="block text-[11px] text-zinc-400">O valor da instalação é dividido entre os móveis da NF-e.</span>
+              </span>
+            </label>
+            <label class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="FORA" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Fora da NF-e</span>
+                <span class="block text-[11px] text-zinc-400">A nota de serviço da instalação é emitida na prefeitura.</span>
+              </span>
+            </label>
+            <label v-if="nfseDisponivel || form.instalacao_modo === 'NFSE'" class="mt-2 flex items-start gap-2 cursor-pointer">
+              <input v-model="form.instalacao_modo" type="radio" value="NFSE" :disabled="!podeGerir" class="mt-0.5 accent-brand-primary" />
+              <span>
+                <span class="text-xs font-medium text-zinc-700">Nota de serviço (NFS-e) emitida aqui</span>
+                <span class="block text-[11px] text-zinc-400">A instalação sai numa NFS-e da OS, com a cidade da obra. Fora da NF-e dos móveis.</span>
+              </span>
+            </label>
+            <div v-if="form.instalacao_modo === 'NFSE'" class="mt-3 ml-6 max-w-sm" data-servico-instalacao>
+              <BaseSelect
+                :model-value="form.servico_instalacao_id ?? undefined"
+                @update:model-value="form.servico_instalacao_id = $event === undefined || $event === '' ? null : Number($event)"
+                label="Serviço da instalação"
+                :options="opcoesServico"
+                placeholder="Escolha o serviço"
+                :disabled="!podeGerir"
+              />
+              <p class="mt-1 text-[11px] text-zinc-400">
+                O código nacional e o NBS da NFS-e vêm do cadastro fiscal deste serviço.
+              </p>
+            </div>
+          </fieldset>
+
+          <ProdutoAcabadoCampo
+            v-model="form.produto_acabado_padrao_id"
+            rotulo="Produto do móvel fabricado"
+            ajuda="O que sai na nota do móvel que a marcenaria faz. Cada móvel do orçamento pode trocar."
+            :disabled="!podeGerir"
+            :erro="erros.produto_acabado_padrao_id"
+          />
+          <ProdutoAcabadoCampo
+            v-model="form.produto_acabado_revenda_id"
+            rotulo="Produto do móvel comprado pronto"
+            ajuda="O que sai na nota do móvel terceirizado (revenda)."
+            :disabled="!podeGerir"
+          />
+
+          <div v-if="podeGerir && faltaProduto" class="py-3">
+            <button
+              type="button"
+              class="text-xs font-medium text-brand-primary hover:underline disabled:opacity-50"
+              :disabled="criandoProdutos"
+              data-testid="criar-produtos-acabados"
+              @click="criarProdutos"
+            >
+              {{ criandoProdutos ? 'Criando…' : 'Criar os produtos "Móvel planejado" automaticamente' }}
+            </button>
+          </div>
+
+          <div v-if="podeGerir && faturamentoSalvoLigado" class="py-3 border-b border-zinc-100">
+            <p class="text-[11px] text-zinc-400">
+              Ligou o faturamento com obras em andamento? Os móveis que já estavam prontos entram no estoque por aqui.
+            </p>
+            <button
+              type="button"
+              class="mt-1 text-xs font-medium text-brand-primary hover:underline disabled:opacity-50"
+              :disabled="sincronizando"
+              data-testid="sincronizar-moveis"
+              @click="darEntradaDosProntos"
+            >
+              {{ sincronizando ? 'Conferindo…' : 'Dar entrada dos móveis já prontos' }}
+            </button>
+          </div>
+
+          <div
+            v-if="pendenciasFaturamento.length"
+            class="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+            data-testid="pendencias-faturamento"
+          >
+            <p class="font-medium">Falta no cadastro fiscal (sem isso a NF-e não sai):</p>
+            <ul class="mt-1 list-disc pl-4">
+              <li v-for="pendencia in pendenciasFaturamento" :key="pendencia">{{ pendencia }}</li>
+            </ul>
+          </div>
+        </template>
+      </div>
+
+      <!-- Cada OS copia as listas: mudar aqui não altera as que já existem (D15). -->
+      <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        Mudanças valem para os próximos orçamentos e OS. As que já existem mantêm as etapas e o checklist que receberam.
+      </p>
+
+      <div class="flex flex-col">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Etapas de produção</p>
+        <ListaTextosEditavel
+          v-model="form.etapas_producao"
+          :max-itens="LIMITES_LISTA.etapas.maxItens"
+          :max-caracteres="LIMITES_LISTA.etapas.maxCaracteres"
+          rotulo-item="etapa"
+          :disabled="!podeGerir"
+        />
+        <p v-if="erros.etapas_producao" class="text-[11px] text-red-600 mt-1">{{ erros.etapas_producao }}</p>
+      </div>
+
+      <div class="flex flex-col">
+        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Checklist de vistoria</p>
+        <ListaTextosEditavel
+          v-model="form.checklist_vistoria"
+          :max-itens="LIMITES_LISTA.checklist.maxItens"
+          :max-caracteres="LIMITES_LISTA.checklist.maxCaracteres"
+          rotulo-item="item do checklist"
+          :disabled="!podeGerir"
+        />
+        <p v-if="erros.checklist_vistoria" class="text-[11px] text-red-600 mt-1">{{ erros.checklist_vistoria }}</p>
+      </div>
+    </template>
+  </div>
+</template>

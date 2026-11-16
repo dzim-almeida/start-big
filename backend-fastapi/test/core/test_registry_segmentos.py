@@ -1,0 +1,774 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: test/core/test_registry_segmentos.py
+# DESCRICAO: Guard do contrato de segmentos.
+#
+#            A REGRA que este teste protege: segmento novo so acrescenta
+#            DECLARACAO. Isso so e seguro enquanto tudo que um segmento declara
+#            for algo que o sistema sabe desenhar e gravar. Metadado orfao --
+#            declarado e nao suportado -- e a unica forma de um segmento novo
+#            quebrar uma tela que ja esta em producao.
+#
+#            Estes testes nao tocam banco: leem o registry, que e declaracao
+#            pura, e falham no CI antes de chegar perto de uma loja.
+# ---------------------------------------------------------------------------
+
+import pytest
+
+from app.core.enum import OrdemServicoStatus
+from app.core.segmentos import (
+    CAPACIDADES_CONHECIDAS,
+    DEFINICOES,
+    label_do_tipo,
+    rotulo_status,
+    segmento_declara_coluna,
+    segmento_tem_capacidade,
+    tipo_permite_criacao_manual,
+)
+from app.core.segmentos.capacidades import (
+    CAP_APROVACAO_ITENS,
+    CAP_GARANTIA_PRAZO,
+    CAP_IMAGEM_NA_ENTRADA,
+    CAP_ORCAMENTO_TECNICO,
+)
+from app.core.segmentos.campos import (
+    ESCOPOS_SUPORTADOS,
+    LARGURAS_SUPORTADAS,
+    ORIGENS_SUPORTADAS,
+    TIPOS_DE_CAMPO_SUPORTADOS,
+)
+from app.db.models.objeto_servico import ObjetoServico
+
+# Colunas reais da tabela, para conferir quem declara origem="coluna".
+COLUNAS_OBJETO = set(ObjetoServico.__table__.columns.keys())
+
+
+def _campos_da_definicao(definicao):
+    """Todos os campos de uma definicao, venham de onde vierem.
+
+    Segmento sem tipos de trabalho declara em `veiculo`/`checkin`; segmento com
+    tipos (serigrafia) declara dentro de cada tipo. O guard tem que enxergar os
+    dois, senao o caminho novo passaria sem conferencia -- que e justamente o
+    caminho que ninguem testou ainda.
+    """
+    for chave in ("veiculo", "checkin"):
+        for campo in definicao.get(chave, []):
+            yield campo
+    for tipo in definicao.get("tipos", []):
+        for campo in tipo.get("campos", []):
+            yield campo
+
+
+def _todos_os_campos():
+    """(segmento, campo) de todos os campos declarados por todos os segmentos."""
+    for segmento, definicao in DEFINICOES.items():
+        for campo in _campos_da_definicao(definicao):
+            yield segmento, campo
+
+
+def _ids(par):
+    segmento, campo = par
+    return f"{segmento}:{campo['nome']}"
+
+
+CAMPOS = list(_todos_os_campos())
+
+
+def test_registry_tem_pelo_menos_os_segmentos_conhecidos():
+    """Se algum segmento sumir do mapa, a tela dele para de receber contrato."""
+    assert "oficina_mecanica" in DEFINICOES
+    assert "assistencia_tecnica" in DEFINICOES
+
+
+def test_chave_do_mapa_bate_com_o_segmento_declarado():
+    """DEFINICOES e montado a partir da chave "segmento" de cada definicao;
+    divergencia aqui significaria segmento inalcancavel."""
+    for chave, definicao in DEFINICOES.items():
+        assert definicao["segmento"] == chave
+
+
+def test_toda_definicao_tem_rotulos_e_identificador():
+    """Todo segmento COM OS descreve o objeto que entra na loja.
+
+    Quem nao tem OS e dispensado do identificador, e nao por conveniencia: sem
+    Ordem de Servico nao existe objeto de servico para identificar. Exigir um
+    obrigaria o PDV a inventar "numero de serie" para uma garrafa de cerveja.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        assert definicao.get("rotulo_objeto_singular"), segmento
+        assert definicao.get("rotulo_objeto_plural"), segmento
+
+        if not definicao.get("usa_ordem_servico", True):
+            assert not definicao.get("checkin"), f"{segmento}: sem OS, nao ha check-in"
+            assert not definicao.get("vistoria"), f"{segmento}: sem OS, nao ha vistoria"
+            continue
+
+        identificador = definicao.get("identificador")
+        assert identificador, segmento
+        assert set(identificador) >= {"nome", "label", "regex"}, segmento
+
+
+def test_ordem_de_servico_e_o_padrao_para_quem_nao_declara():
+    """A trava mais importante desta regra.
+
+    Se o padrao virasse "so tem OS quem declarar", ligar isto apagaria o modulo
+    de Ordem de Servico de toda loja cujo segmento nao tem arquivo de definicao
+    -- marcenaria, eletricista, outros, e qualquer empresa cadastrada sem
+    segmento. O sintoma na loja seria "sumiu o menu de Servicos".
+    """
+    from app.core.segmentos import segmento_usa_ordem_servico
+
+    # Os tres que ja rodam em producao.
+    assert segmento_usa_ordem_servico("assistencia_tecnica") is True
+    assert segmento_usa_ordem_servico("oficina_mecanica") is True
+    assert segmento_usa_ordem_servico("serigrafia") is True
+
+    # Segmentos sem arquivo de definicao continuam com OS.
+    assert segmento_usa_ordem_servico("marcenaria") is True
+    assert segmento_usa_ordem_servico("eletricista") is True
+    assert segmento_usa_ordem_servico("outros") is True
+    assert segmento_usa_ordem_servico("segmento_que_nao_existe") is True
+
+    # Instalacao antiga, sem segmento gravado.
+    assert segmento_usa_ordem_servico(None) is True
+
+    # O unico que nao tem.
+    assert segmento_usa_ordem_servico("pdv") is False
+
+
+def test_capacidades_declaradas_sao_conhecidas():
+    """Capacidade inventada nao liga nada no frontend -- falha silenciosa."""
+    for segmento, definicao in DEFINICOES.items():
+        for capacidade in definicao.get("capacidades", []):
+            assert capacidade in CAPACIDADES_CONHECIDAS, f"{segmento}: {capacidade}"
+
+
+@pytest.mark.parametrize("par", CAMPOS, ids=_ids)
+def test_campo_usa_vocabulario_suportado(par):
+    """O coracao do guard: tipo/escopo/largura/origem tem que ser desenhaveis."""
+    segmento, campo = par
+    assert campo["tipo"] in TIPOS_DE_CAMPO_SUPORTADOS, f"{segmento}:{campo['nome']}"
+    assert campo["escopo"] in ESCOPOS_SUPORTADOS, f"{segmento}:{campo['nome']}"
+    assert campo["largura"] in LARGURAS_SUPORTADAS, f"{segmento}:{campo['nome']}"
+    assert campo["origem"] in ORIGENS_SUPORTADAS, f"{segmento}:{campo['nome']}"
+
+
+@pytest.mark.parametrize("par", CAMPOS, ids=_ids)
+def test_campo_de_opcao_declara_opcoes(par):
+    """Select sem opcoes vira campo morto na tela."""
+    segmento, campo = par
+    if campo["tipo"] == "opcao":
+        assert campo.get("opcoes"), f"{segmento}:{campo['nome']}"
+
+
+@pytest.mark.parametrize("par", CAMPOS, ids=_ids)
+def test_campo_de_coluna_aponta_para_coluna_que_existe(par):
+    """O guard mais importante.
+
+    `origem="coluna"` faz o valor ir para uma coluna real; se o nome estiver
+    errado, grava-se no lugar errado (ou em lugar nenhum). O campo pode usar
+    `coluna` quando o nome dele difere do nome da coluna -- e o caso de
+    `placa`, que e a coluna `numero_serie`.
+    """
+    segmento, campo = par
+    if campo["origem"] != "coluna":
+        return
+    if campo["escopo"] != "objeto":
+        return
+    alvo = campo.get("coluna", campo["nome"])
+    assert alvo in COLUNAS_OBJETO, (
+        f"{segmento}:{campo['nome']} declara origem=coluna apontando para "
+        f"'{alvo}', que nao existe em objetos_servico"
+    )
+
+
+def test_nomes_de_campo_nao_se_repetem_no_mesmo_formulario():
+    """Campos do mesmo formulario caem no mesmo espaco de nomes; nome repetido
+    faria um sobrescrever o outro em silencio.
+
+    Em segmento com tipos de trabalho a conferencia e POR TIPO -- dois tipos
+    podem ter "cor_impressao" cada um, porque nunca aparecem juntos na tela.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        formularios = {
+            "veiculo+checkin": [
+                campo["nome"]
+                for chave in ("veiculo", "checkin")
+                for campo in definicao.get(chave, [])
+            ],
+        }
+        for tipo in definicao.get("tipos", []):
+            formularios[f"tipo:{tipo['id']}"] = [c["nome"] for c in tipo.get("campos", [])]
+
+        for qual, nomes in formularios.items():
+            assert len(nomes) == len(set(nomes)), f"{segmento}/{qual}: {nomes}"
+
+
+def test_tipos_de_trabalho_sao_bem_formados():
+    """Tipo sem id/label vira opcao vazia no seletor; id repetido faz um tipo
+    ficar inalcancavel."""
+    for segmento, definicao in DEFINICOES.items():
+        tipos = definicao.get("tipos", [])
+        if not tipos:
+            continue
+        ids = []
+        for tipo in tipos:
+            assert tipo.get("id"), f"{segmento}: tipo sem id"
+            assert tipo.get("label"), f"{segmento}: tipo {tipo.get('id')} sem label"
+            assert tipo.get("campos"), f"{segmento}: tipo {tipo['id']} sem campos"
+            ids.append(tipo["id"])
+        assert len(ids) == len(set(ids)), f"{segmento}: ids repetidos {ids}"
+
+
+def test_identificador_gerado_nao_e_pedido_ao_usuario():
+    """A regra que nasceu do erro do "Codigo da arte".
+
+    Se o SISTEMA gera o identificador, o formulario nao pode pedi-lo: campo
+    obrigatorio que o usuario nao tem como preencher vira lixo ("1", "teste"),
+    e lixo como chave faz dois bens distintos colapsarem num cadastro so.
+
+    Placa e numero de serie NAO sao gerados justamente porque existem no mundo
+    -- estao escritos no bem, e o atendente so copia.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        identificador = definicao.get("identificador") or {}
+        if not identificador.get("gerado"):
+            continue
+
+        assert identificador.get("prefixo"), f"{segmento}: identificador gerado sem prefixo"
+
+        declarados = {c["nome"] for c in _campos_da_definicao(definicao)}
+        assert identificador["nome"] not in declarados, (
+            f"{segmento}: '{identificador['nome']}' e gerado pelo sistema, mas esta "
+            f"declarado como campo do formulario -- o usuario seria obrigado a "
+            f"inventar um valor que ele nao tem como saber"
+        )
+
+
+def test_segmento_com_tipos_nao_usa_veiculo_nem_checkin():
+    """As duas formas de declarar campo se excluem: misturar faria a tela
+    dinamica ignorar `veiculo`/`checkin` sem ninguem perceber."""
+    for segmento, definicao in DEFINICOES.items():
+        if not definicao.get("tipos"):
+            continue
+        assert not definicao.get("veiculo"), segmento
+        assert not definicao.get("checkin"), segmento
+
+
+# ===========================================================================
+# Campo `lista` (repetivel)
+# ===========================================================================
+
+def test_sacola_pede_referencias_e_nao_medida_unica():
+    """
+    O dono da serigrafia trabalha por REFERENCIA ("20.1", "22", "Bolo"), nao por
+    medida em centimetros, e uma mesma producao sai com varios tamanhos -- o
+    campo precisa ser repetivel.
+
+    Trava as duas pontas: que os dois tipos de sacola declaram `referencias` do
+    tipo `lista`, e que a `medidas` de valor unico saiu de cena (era ela que
+    obrigava a escrever tudo numa linha so).
+    """
+    tipos_de_sacola = [
+        tipo
+        for tipo in DEFINICOES["serigrafia"].get("tipos", [])
+        if tipo["id"].startswith("sacola_")
+    ]
+    assert tipos_de_sacola, "serigrafia deveria declarar tipos de sacola"
+
+    for tipo in tipos_de_sacola:
+        por_nome = {campo["nome"]: campo for campo in tipo["campos"]}
+
+        assert "referencias" in por_nome, f"{tipo['id']}: sem campo de referencias"
+        assert por_nome["referencias"]["tipo"] == "lista", (
+            f"{tipo['id']}: referencia precisa ser repetivel"
+        )
+        assert "medidas" not in por_nome, (
+            f"{tipo['id']}: 'medidas' foi substituido por 'referencias'"
+        )
+
+
+def test_ids_dos_tipos_da_serigrafia_sao_contrato_com_o_frontend():
+    """
+    Estes ids nao sao detalhe interno: o pacote de textos das vias impressas
+    (frontend/src/modules/order-service/shared/segmento/textosImpressaoOS.ts)
+    indexa `porTipoTrabalho` por eles para trocar os termos entre camisa e
+    sacola -- a clausula de "pecas entregues pelo cliente" vale para camisa e
+    nao para sacola, que a loja produz do zero.
+
+    Renomear um id aqui nao quebraria build nenhum: a sobrescrita simplesmente
+    deixaria de casar, e a via da sacola voltaria a sair com o texto de camisa,
+    em silencio, no papel entregue ao cliente. Este teste e o aviso.
+    """
+    ids = {tipo["id"] for tipo in DEFINICOES["serigrafia"].get("tipos", [])}
+
+    assert {"camisa", "sacola_plastica", "sacola_papel"} <= ids, (
+        f"ids esperados pelo pacote de textos das vias nao encontrados: {ids}"
+    )
+
+
+def test_ids_dos_tipos_da_marcenaria_sao_contrato_com_o_frontend():
+    """
+    Mesmo aviso da serigrafia. O pacote MARCENARIA em textosImpressaoOS.ts
+    sobrescreve por tipo: Planejados nao tem "prazo de retirada" (o movel e
+    instalado na obra). Renomear o id aqui faria a via de Planejados sair com a
+    clausula de retirada, em silencio.
+
+    Fase 1 = so Planejados (Spec 03A, D3): a Reforma de moveis saiu do
+    registry e volta numa fase seguinte (SPEC-00, secao 7.1).
+    """
+    ids = {tipo["id"] for tipo in DEFINICOES["marcenaria"].get("tipos", [])}
+
+    assert ids == {"planejados"}, (
+        f"ids esperados pelo pacote de textos das vias nao encontrados: {ids}"
+    )
+
+
+def test_imagem_na_entrada_e_de_quem_recebe_o_pedido_em_imagem():
+    """
+    A capacidade libera a aba de imagens durante a CRIACAO da OS e imprime as
+    imagens na via de entrada.
+
+    Em serigrafia a imagem e a arte a estampar: sem ela nao ha o que produzir, e
+    quem pinta trabalha a partir do papel. Em marcenaria (ligada em 16/09/2026)
+    e o ambiente ou o projeto em Planejados -- o cliente assina a via vendo a
+    foto. Em oficina e informatica
+    a foto e prova do estado do bem: nasce depois, com o aparelho na bancada, e
+    nao vai para a via do cliente.
+
+    Ligar isto em oficina ou informatica passaria a imprimir foto de aparelho na
+    via de entrada dos dois clientes em producao. Se um dia for intencional,
+    este teste e o lugar de dizer isso em voz alta.
+    """
+    assert CAP_IMAGEM_NA_ENTRADA in DEFINICOES["serigrafia"]["capacidades"]
+    assert CAP_IMAGEM_NA_ENTRADA in DEFINICOES["marcenaria"]["capacidades"]
+    assert CAP_IMAGEM_NA_ENTRADA not in DEFINICOES["oficina_mecanica"]["capacidades"]
+    assert CAP_IMAGEM_NA_ENTRADA not in DEFINICOES["assistencia_tecnica"]["capacidades"]
+
+
+def test_garantia_por_prazo_segue_ligada_em_quem_conserta():
+    """
+    A garantia em dias e obrigatoria em oficina e informatica desde sempre --
+    desligar aqui deixaria de exigir o prazo e faria a via de saida das duas
+    lojas em producao sair sem o Termo de Garantia.
+
+    Serigrafia nao declara: estampa nao tem prazo (se dura, mede-se em lavagens)
+    e o fallback da via prometeria "90 (noventa) dias" que a loja nunca deu.
+
+    Marcenaria declara: movel tem garantia em dias (90 e comum, planejados as
+    vezes 1 ano), e sem a capacidade a via de saida sairia sem o Termo.
+    """
+    assert CAP_GARANTIA_PRAZO in DEFINICOES["oficina_mecanica"]["capacidades"]
+    assert CAP_GARANTIA_PRAZO in DEFINICOES["assistencia_tecnica"]["capacidades"]
+    assert CAP_GARANTIA_PRAZO in DEFINICOES["marcenaria"]["capacidades"]
+    assert CAP_GARANTIA_PRAZO not in DEFINICOES["serigrafia"]["capacidades"]
+
+
+def test_rotulos_de_situacao_nao_inventam_valor_de_enum():
+    """
+    O desfecho e o MESMO enum em todo segmento: ele carrega a regra de dispensar
+    o pagamento integral (SEM_REPARO/CONDENADO) e alimenta filtro, relatorio e
+    historico. So os ROTULOS mudam.
+
+    Uma chave fora do enum viraria botao que nunca casa com o valor salvo --
+    silenciosamente, porque o frontend cai no rotulo padrao.
+    """
+    validas = {"REPARADO", "SEM_REPARO", "CONDENADO"}
+
+    for segmento, definicao in DEFINICOES.items():
+        rotulos = definicao.get("rotulos_situacao")
+        if not rotulos:
+            continue  # segmento sem rotulo proprio usa o de conserto
+        assert set(rotulos) <= validas, f"{segmento}: chave fora do enum -> {set(rotulos) - validas}"
+        assert all(str(v).strip() for v in rotulos.values()), f"{segmento}: rotulo vazio"
+
+
+def test_objeto_feminino_declara_o_titulo_da_situacao_inteiro():
+    """
+    A tela montava 'Situacao do ' + rotulo do objeto, o que exibia
+    "SITUACAO DO ARTE". Objeto de genero feminino precisa declarar o titulo
+    inteiro -- e a mesma razao pela qual `tituloObjeto` existe no pacote de
+    textos das vias.
+    """
+    serigrafia = DEFINICOES["serigrafia"]
+    assert serigrafia.get("rotulo_situacao") == "Situação da Arte"
+
+
+def test_quem_declara_a_coluna_marca():
+    """
+    `segmento_declara_coluna` decide se o servico preenche `marca` com o nome
+    do cliente (e se a exige). Oficina declara (campo Marca do veiculo);
+    serigrafia declara (Empresa / Marca da estampa, origem coluna);
+    marcenaria NAO declara -- e por isso a via dela nao imprime "Marca".
+    Informatica nao declara no registry porque o formulario dela e estatico;
+    ela nem passa pelo preenchimento (nao gera identificador), entao continua
+    exigindo `marca` pela guarda de sempre.
+    """
+    assert segmento_declara_coluna("oficina_mecanica", "marca") is True
+    assert segmento_declara_coluna("serigrafia", "marca") is True
+    assert segmento_declara_coluna("marcenaria", "marca") is False
+    assert segmento_declara_coluna("marcenaria", "modelo") is True
+    assert segmento_declara_coluna(None, "marca") is False
+
+
+# =========================
+# Spec 01A -- rotulos de STATUS por segmento
+# =========================
+
+def test_rotulos_de_status_nao_inventam_valor_de_enum():
+    """
+    Caso 01 da Spec 01A. O status gravado e o MESMO enum em todo segmento:
+    transicoes, filtros e relatorios dependem dele. So o TEXTO muda.
+
+    Uma chave fora do enum nunca casaria com o valor salvo, e o erro seria
+    silencioso: a tela cairia no texto padrao sem ninguem perceber.
+    """
+    validas = {s.value for s in OrdemServicoStatus}  # os 7 codigos que existem no banco
+
+    for segmento, definicao in DEFINICOES.items():
+        rotulos = definicao.get("rotulos_status")  # chave opcional (Spec 01A, D1)
+        if not rotulos:
+            continue  # segmento sem rotulo proprio usa o texto padrao
+        assert set(rotulos) <= validas, f"{segmento}: chave fora do enum -> {set(rotulos) - validas}"
+
+
+def test_rotulo_de_status_declara_os_dois_tamanhos():
+    """
+    Casos 02 e 03 da Spec 01A. Cada rotulo tem o texto completo (telas e
+    impressao) e o curto (widget do dashboard). Os dois precisam existir: a
+    abreviacao nao e derivavel com seguranca (D3).
+
+    O curto tem no maximo 20 caracteres para caber no widget -- o maior texto
+    padrao de hoje e "Aguard. aprovação", com 17.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        for status, rotulo in (definicao.get("rotulos_status") or {}).items():
+            onde = f"{segmento}.{status}"  # para a mensagem de erro dizer quem falhou
+            assert str(rotulo.get("rotulo", "")).strip(), f"{onde}: rotulo completo vazio"
+            assert str(rotulo.get("curto", "")).strip(), f"{onde}: rotulo curto vazio"
+            assert len(rotulo["curto"]) <= 20, f"{onde}: curto com {len(rotulo['curto'])} caracteres"
+
+
+def test_so_marcenaria_e_lava_rapido_renomeiam_status():
+    """
+    Caso 04 da Spec 01A. Oficina, informatica, serigrafia e PDV estao em
+    producao com os textos de sempre ("Em Andamento", "Aguardando Retirada").
+    Declarar `rotulos_status` em um deles mudaria a tela de um cliente que nao
+    pediu nada. Se um dia for intencional, este teste e o lugar de dizer isso
+    em voz alta.
+
+    Dito em voz alta (lava-rapido, Spec 01A D10 e Spec 03A / SPEC-00 U3,
+    12/11/2026): o lava-rapido fala a lingua do patio -- Aguardando, Lavando,
+    Pronto. Finalizada fica com o texto de sempre.
+    """
+    assert set(DEFINICOES["lava_rapido"]["rotulos_status"]) == {
+        "ABERTA", "EM_ANDAMENTO", "AGUARDANDO_RETIRADA",
+    }
+    assert rotulo_status("lava_rapido", "ABERTA") == "Aguardando"
+    assert rotulo_status("lava_rapido", "EM_ANDAMENTO") == "Lavando"
+    assert rotulo_status("lava_rapido", "AGUARDANDO_RETIRADA") == "Pronto"
+    assert "rotulos_status" not in DEFINICOES["oficina_mecanica"]
+    assert "rotulos_status" not in DEFINICOES["assistencia_tecnica"]
+    assert "rotulos_status" not in DEFINICOES["serigrafia"]
+    assert "rotulos_status" not in DEFINICOES["pdv"]
+    # A marcenaria declara exatamente os tres status da secao 4.1 da spec.
+    assert set(DEFINICOES["marcenaria"]["rotulos_status"]) == {
+        "EM_ANDAMENTO",
+        "AGUARDANDO_PECAS",
+        "AGUARDANDO_RETIRADA",
+    }
+
+
+def test_rotulo_status_devolve_o_texto_declarado():
+    """Casos 05 e 06 da Spec 01A: o tamanho certo para cada uso."""
+    # Completo: o padrao da tela de OS (cada palavra com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA") == "Aguardando Entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO") == "Em Produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS") == "Aguardando Material"
+    # Curto: o padrao do dashboard (so a primeira com maiuscula).
+    assert rotulo_status("marcenaria", "AGUARDANDO_RETIRADA", curto=True) == "Aguard. entrega"
+    assert rotulo_status("marcenaria", "EM_ANDAMENTO", curto=True) == "Em produção"
+    assert rotulo_status("marcenaria", "AGUARDANDO_PECAS", curto=True) == "Aguard. material"
+
+
+def test_rotulo_status_devolve_none_quando_nao_ha_rotulo_proprio():
+    """
+    Casos 07 e 08 da Spec 01A. None quer dizer "use o seu padrao": a funcao
+    nunca inventa texto (D6), quem chama ja tem a tabela de hoje.
+    """
+    # Status que a marcenaria nao renomeou.
+    assert rotulo_status("marcenaria", "ABERTA") is None
+    # Empresa sem segmento, segmento sem arquivo de definicao, e segmento com
+    # definicao mas sem `rotulos_status`.
+    assert rotulo_status(None, "ABERTA") is None
+    assert rotulo_status("outros", "ABERTA") is None
+    assert rotulo_status("assistencia_tecnica", "AGUARDANDO_RETIRADA") is None
+
+
+# =========================
+# Spec 03A -- tipo de trabalho que so nasce de outro documento
+# =========================
+
+def test_todo_tipo_declara_criacao_manual():
+    """
+    Caso 01 da Spec 03A. O servico da OS le esta marcacao para decidir se a OS
+    pode nascer pelo caminho comum. `tipo_de_trabalho()` sempre preenche (padrao
+    True); um tipo montado a mao sem ela cairia no padrao calado.
+    """
+    for segmento, definicao in DEFINICOES.items():
+        for tipo in definicao.get("tipos", []):
+            onde = f"{segmento}.{tipo['id']}"  # para a mensagem dizer quem falhou
+            assert isinstance(tipo.get("criacao_manual"), bool), f"{onde}: sem criacao_manual"
+
+
+def test_tipos_da_serigrafia_continuam_criaveis_a_mao():
+    """Caso 02 (GUARDIAO): a serigrafia esta em producao e abre OS pela tela."""
+    for tipo in DEFINICOES["serigrafia"]["tipos"]:
+        assert tipo["criacao_manual"] is True, tipo["id"]
+
+
+def test_marcenaria_tem_so_planejados_e_ele_nasce_do_orcamento():
+    """
+    Caso 03 da Spec 03A. Um tipo so (D1, D3), que nao se cria a mao (D4), com
+    os dados do PROJETO: o nome (coluna `modelo`) e o endereco da obra.
+    Ambiente, modulos, material, montagem e etapa vivem no orcamento (D2).
+    """
+    tipos = DEFINICOES["marcenaria"]["tipos"]
+    assert [t["id"] for t in tipos] == ["planejados"]
+
+    planejados = tipos[0]
+    assert planejados["criacao_manual"] is False
+    assert {c["nome"] for c in planejados["campos"]} == {"nome_projeto", "endereco_obra"}
+
+
+def test_capacidades_da_marcenaria_sem_aprovacao_por_item():
+    """
+    Caso 04 da Spec 03A (D10). Os moveis sao aprovados no ORCAMENTO, antes de a
+    OS existir: aprovacao por item na OS seria a mesma decisao duas vezes.
+    A Spec 04A acrescentou `orcamento_tecnico`.
+    """
+    capacidades = set(DEFINICOES["marcenaria"]["capacidades"])
+    assert capacidades == {CAP_IMAGEM_NA_ENTRADA, CAP_GARANTIA_PRAZO, CAP_ORCAMENTO_TECNICO}
+    assert CAP_APROVACAO_ITENS not in capacidades
+
+
+@pytest.mark.parametrize("tipo_id", ["planejados", None, "inexistente", "reforma_moveis"])
+def test_marcenaria_nao_cria_os_a_mao_com_tipo_nenhum(tipo_id):
+    """
+    Caso 07 da Spec 03A. Tipo omitido ou desconhecido tambem e recusado (D5-b):
+    sem isso bastaria nao mandar o tipo para furar a trava.
+    """
+    assert tipo_permite_criacao_manual("marcenaria", tipo_id) is False
+
+
+@pytest.mark.parametrize(
+    "segmento, tipo_id",
+    [
+        ("serigrafia", "camisa"),          # tipo conhecido e criavel
+        ("serigrafia", None),              # sem tipo: a serigrafia tem tipo criavel
+        ("serigrafia", "inexistente"),     # idem
+        ("assistencia_tecnica", None),     # segmento sem tipos: como sempre
+        (None, None),                      # empresa sem segmento
+    ],
+)
+def test_quem_cria_os_a_mao_continua_criando(segmento, tipo_id):
+    """Caso 08 da Spec 03A (GUARDIAO): nada muda para quem esta em producao."""
+    assert tipo_permite_criacao_manual(segmento, tipo_id) is True
+
+
+def test_label_do_tipo_para_a_mensagem_de_erro():
+    """Caso 09 da Spec 03A: sem tipo informado, a mensagem usa o primeiro."""
+    assert label_do_tipo("marcenaria", None) == "Móveis planejados"
+    assert label_do_tipo("marcenaria", "planejados") == "Móveis planejados"
+
+
+def test_quem_tem_todos_os_tipos_fora_da_criacao_manual():
+    """
+    Caso 10 da Spec 03A. Permitido -- mas este teste diz EM VOZ ALTA quais
+    segmentos nao abrem OS pela tela. A Spec 03B esconde o botao "Criar OS"
+    exatamente nesses; um segmento novo entrando nesta lista precisa da mesma
+    atencao.
+    """
+    sem_criacao_manual = {
+        segmento                                              # nome do segmento
+        for segmento, definicao in DEFINICOES.items()
+        if definicao.get("tipos")                             # declara tipos...
+        and not any(t["criacao_manual"] for t in definicao["tipos"])  # ...e nenhum e criavel
+    }
+    assert sem_criacao_manual == {"marcenaria"}
+
+
+# =========================
+# Spec 04A -- capacidade `orcamento_tecnico`
+# =========================
+
+def test_orcamento_tecnico_e_capacidade_conhecida():
+    """Caso 01 da Spec 04A: declarar uma capacidade que o sistema nao conhece
+    seria metadado orfao (o guard de cima ja recusa)."""
+    assert CAP_ORCAMENTO_TECNICO in CAPACIDADES_CONHECIDAS
+
+
+def test_so_a_marcenaria_tem_orcamento_tecnico():
+    """
+    Caso 02 da Spec 04A. A capacidade liga os parametros da marcenaria, a flag
+    "sofre perda" no produto e o menu Orcamentos. Liga-la em outro segmento
+    mostraria tudo isso a uma loja em producao que nao pediu. Se um dia for
+    intencional, este teste e o lugar de dizer isso em voz alta.
+    """
+    quem_declara = {
+        segmento
+        for segmento, definicao in DEFINICOES.items()
+        if CAP_ORCAMENTO_TECNICO in definicao.get("capacidades", [])
+    }
+    assert quem_declara == {"marcenaria"}
+
+
+def test_segmento_tem_capacidade():
+    """Casos 03 e 04 da Spec 04A: a primeira consulta de capacidade no backend."""
+    assert segmento_tem_capacidade("marcenaria", CAP_ORCAMENTO_TECNICO) is True
+    for segmento in ("serigrafia", "oficina_mecanica", None, "outros"):
+        assert segmento_tem_capacidade(segmento, CAP_ORCAMENTO_TECNICO) is False, segmento
+
+
+# ===========================================================================
+# Lava-rapido (docs/lava-rapido/SPEC-01A)
+# ===========================================================================
+# Duas chaves novas e OPCIONAIS no registry: `status_usados` e
+# `identificador.gerado_se_vazio`. Quem nao as declara (todos os segmentos que
+# ja estavam em producao) recebe exatamente o comportamento de antes -- e os
+# testes abaixo sao o lugar de dizer, em voz alta, quem as declara.
+
+def test_status_usados_so_tem_valores_do_enum_e_o_fluxo_base():
+    """Caso 1. Uma chave fora do enum nunca casaria com o status gravado; e
+    sem ABERTA, FINALIZADA e CANCELADA a OS nao nasce, nao fecha ou nao cancela."""
+    validas = {s.value for s in OrdemServicoStatus}              # os codigos que existem no banco
+    for segmento, definicao in DEFINICOES.items():
+        usados = definicao.get("status_usados")                  # chave opcional
+        if usados is None:
+            continue                                             # usa todos, como sempre
+        assert set(usados) <= validas, f"{segmento}: fora do enum -> {set(usados) - validas}"
+        assert {"ABERTA", "FINALIZADA", "CANCELADA"} <= set(usados), segmento
+
+
+def test_so_o_lava_rapido_declara_as_chaves_novas():
+    """Caso 2. Declarar `status_usados` num segmento em producao sumiria
+    status da tela de uma loja que nao pediu nada; `gerado_se_vazio` mudaria
+    como o objeto dela nasce. Se um dia for intencional, e aqui que se diz."""
+    com_status = {s for s, d in DEFINICOES.items() if d.get("status_usados") is not None}
+    com_gerado_se_vazio = {
+        s for s, d in DEFINICOES.items()
+        if (d.get("identificador") or {}).get("gerado_se_vazio")
+    }
+    assert com_status == {"lava_rapido"}
+    assert com_gerado_se_vazio == {"lava_rapido"}
+
+
+def test_gerado_e_gerado_se_vazio_nao_convivem():
+    """Caso 3. `gerado` tira o campo do formulario; `gerado_se_vazio` mantem.
+    Os dois juntos seriam uma contradicao, e o servico escolheria um em silencio."""
+    for segmento, definicao in DEFINICOES.items():
+        identificador = definicao.get("identificador") or {}
+        if not identificador.get("gerado_se_vazio"):
+            continue
+        assert not identificador.get("gerado"), segmento
+        assert identificador.get("prefixo"), f"{segmento}: gerado_se_vazio sem prefixo"
+
+
+def test_ids_dos_tipos_do_lava_rapido_sao_contrato_com_o_frontend():
+    """Caso 4. Os textos de impressao e (Spec 02A) os portes por tipo sao
+    indexados por estes ids. Renomear um deles nao quebra build nenhum -- a
+    sobrescrita so deixa de casar, em silencio."""
+    ids = [tipo["id"] for tipo in DEFINICOES["lava_rapido"]["tipos"]]
+    assert ids == ["carro", "moto", "pesado", "bicicleta", "outros"]
+
+
+def test_todo_tipo_do_lava_rapido_tem_porte_com_opcoes_e_opcional():
+    """Caso 5. Todo tipo oferece porte -- mas opcional desde 13/11/2026: o
+    cliente nao quer identificar o veiculo, e sem porte a comanda usa o preco
+    do cadastro."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        porte = next((c for c in tipo["campos"] if c["nome"] == "porte"), None)
+        assert porte, f"{tipo['id']}: sem campo porte"
+        assert porte["obrigatorio"] is False, tipo["id"]
+        assert porte["escopo"] == "objeto", tipo["id"]           # e do veiculo, nao da OS (P3)
+        assert porte.get("opcoes"), tipo["id"]
+
+
+def test_nenhum_tipo_exige_a_placa():
+    """D6, revista em 13/11/2026: o cliente nao quer identificar o veiculo.
+    Placa vazia vira o codigo gerado (SPEC-00 U5), em qualquer tipo."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        placa = next(c for c in tipo["campos"] if c["nome"] == "placa")
+        assert placa["obrigatorio"] is False, tipo["id"]
+        assert placa["origem"] == "coluna" and placa["coluna"] == "numero_serie"
+
+
+def test_capacidades_do_lava_rapido():
+    """Caso 6. Fotos na entrada sim; nada de conserto (SPEC-00 O6). Sem a
+    vistoria da oficina (13/11/2026): as avarias sao o checklist da comanda."""
+    capacidades = set(DEFINICOES["lava_rapido"]["capacidades"])
+    # preco_por_porte: Spec 02A. operacao_patio: Spec 03A (comanda e patio).
+    # executores_os: Spec 10A (lavadores e comissao Dividir/Inteira).
+    assert capacidades == {
+        CAP_IMAGEM_NA_ENTRADA, "preco_por_porte", "operacao_patio", "executores_os",
+        "agenda_servicos",                               # Spec 08A
+    }
+    assert DEFINICOES["lava_rapido"]["vistoria"] == []
+
+
+def test_status_permitido_e_identificador_gerado_se_vazio():
+    """Caso 7. As funcoes do registry, nos segmentos que declaram e nos que nao."""
+    from app.core.segmentos import (
+        gerar_identificador,
+        identificador_gerado_se_vazio,
+        status_permitido,
+    )
+
+    assert status_permitido("lava_rapido", "AGUARDANDO_RETIRADA") is True
+    assert status_permitido("lava_rapido", "AGUARDANDO_PECAS") is False
+    assert status_permitido("lava_rapido", "AGUARDANDO_APROVACAO") is False
+    # Quem nao declara usa todos -- inclusive segmento nulo (instalacao antiga).
+    for segmento in ("oficina_mecanica", "assistencia_tecnica", "serigrafia", None, "outros"):
+        assert status_permitido(segmento, "AGUARDANDO_PECAS") is True, segmento
+
+    assert identificador_gerado_se_vazio("lava_rapido") is True
+    assert identificador_gerado_se_vazio("oficina_mecanica") is False
+    assert identificador_gerado_se_vazio("serigrafia") is False      # serigrafia e `gerado`, outra coisa
+
+    assert gerar_identificador("lava_rapido", "OS-2026-000042") == "VEI-2026-000042"
+    assert gerar_identificador("oficina_mecanica", "OS-2026-000042") is None
+
+
+# ---------------------------------------------------------------------------
+# Lava-rapido: comanda (docs/lava-rapido/SPEC-03A)
+# ---------------------------------------------------------------------------
+
+def test_todo_tipo_do_lava_rapido_tem_checklist_de_avarias():
+    """U4: cada tipo tem a SUA lista (moto nao tem para-brisa)."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        avarias = tipo.get("avarias")
+        assert avarias, f"{tipo['id']}: sem checklist de avarias"
+        assert len(avarias) == len(set(avarias)), f"{tipo['id']}: avaria repetida"
+        assert all(isinstance(a, str) and a.strip() for a in avarias), tipo["id"]
+
+
+def test_so_o_lava_rapido_declara_avarias_e_colunas_opcionais():
+    """D4/D5 da 03A. `colunas_opcionais` dispensa a marca na abertura da OS:
+    declarar num segmento em producao mudaria o que a loja aceita. A oficina
+    desenha a marca sem asterisco e mesmo assim o backend sempre a exigiu --
+    por isso a chave e explicita, e nao deduzida dos campos."""
+    com_colunas = {s for s, d in DEFINICOES.items() if d.get("colunas_opcionais")}
+    com_avarias = {
+        s for s, d in DEFINICOES.items() if any("avarias" in t for t in d.get("tipos", []))
+    }
+    assert com_colunas == {"lava_rapido"}
+    assert DEFINICOES["lava_rapido"]["colunas_opcionais"] == ["marca", "modelo"]
+    assert com_avarias == {"lava_rapido"}
+
+
+def test_nada_do_veiculo_tem_asterisco_no_lava_rapido():
+    """A tela e o backend dizem a mesma coisa: marca e modelo opcionais
+    (13/11/2026: o cliente nao quer identificar o veiculo)."""
+    for tipo in DEFINICOES["lava_rapido"]["tipos"]:
+        por_nome = {c["nome"]: c for c in tipo["campos"]}
+        assert por_nome["marca"]["obrigatorio"] is False, tipo["id"]
+        assert por_nome["modelo"]["obrigatorio"] is False, tipo["id"]

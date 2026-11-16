@@ -68,9 +68,11 @@ export const FornecedorReadSchema = z.object({
 
 export const FornecedorFormSchema = z
   .object({
-    tipo: z.enum(['produto', 'transportadora', 'entregador'], {
+    tipo: z.enum(['produto', 'transportadora', 'entregador', 'arquiteto'], {
       required_error: 'Tipo é obrigatório',
     }),
+    // Arquiteto (Spec 09B D3): pessoa física (CPF) ou jurídica (CNPJ). Os outros tipos não usam.
+    pessoa: z.enum(['PF', 'PJ']).optional(),
     nome: z
       .string({ required_error: 'Nome é obrigatório' })
       .min(2, 'Nome deve ter no mínimo 2 caracteres')
@@ -108,6 +110,17 @@ export const FornecedorFormSchema = z
     cep: z.string().max(10).optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
+    // Arquiteto (09B): CPF ou CNPJ conforme a escolha. Os outros tipos seguem a regra de antes.
+    if (data.tipo === 'arquiteto') {
+      if (data.pessoa === 'PF') {
+        if (!data.cpf || unmask(data.cpf).length !== 11) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cpf'], message: 'CPF deve ter 11 dígitos' });
+        }
+      } else if (!data.cnpj || unmask(data.cnpj).length !== 14) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cnpj'], message: 'CNPJ deve ter 14 dígitos' });
+      }
+      return;
+    }
     if (data.tipo === 'entregador') {
       if (!data.cpf || unmask(data.cpf).length !== 11) {
         ctx.addIssue({

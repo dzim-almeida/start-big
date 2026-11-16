@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING
-from sqlalchemy import Integer, String, DateTime, ForeignKey
+from sqlalchemy import Boolean, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -27,6 +27,52 @@ class ConfiguracaoOS(Base):
     garantia_padrao: Mapped[str] = mapped_column(String(20), default="90 dias", nullable=False)
     prazo_abandono_dias: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
     taxa_diagnostico_padrao: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # -----------------------------------------------------------------------
+    # APRESENTACAO DOS COMPROVANTES
+    #
+    # Só a FORMA. O conteúdo do comprovante é invariante: dados da empresa,
+    # dados do cliente com endereço, itens discriminados e resumo exato do
+    # pagamento saem SEMPRE, em qualquer empresa e qualquer segmento, porque
+    # protegem o cliente. Nao existe configuracao que os remova — e e de
+    # proposito: assim nenhuma combinacao produz uma via com a qual a loja nao
+    # consiga provar o que entregou.
+    #
+    # Fica na empresa, e nao na maquina, porque a mesma OS impressa no balcao e
+    # na oficina tem que sair igual. A maquina decide so ONDE imprime.
+    #
+    # Entrada e entrega sao separadas: a via de recebimento e a de entrega tem
+    # conteudos quase disjuntos, e a loja costuma querer a entrada enxuta (so
+    # protocolo) e a entrega completa.
+    #
+    # Ver backend-fastapi/docs/comprovantes-perfil-plano.md
+    # -----------------------------------------------------------------------
+    # 'A4' | 'A5'
+    comprovante_entrada_folha: Mapped[str] = mapped_column(String(2), default="A4", nullable=False)
+    # 'normal' | 'compacto'
+    comprovante_entrada_densidade: Mapped[str] = mapped_column(String(10), default="normal", nullable=False)
+    comprovante_entrega_folha: Mapped[str] = mapped_column(String(2), default="A4", nullable=False)
+    comprovante_entrega_densidade: Mapped[str] = mapped_column(String(10), default="normal", nullable=False)
+
+    # Marcenaria-fábrica (plano, D0): ligado, toda OS NOVA de Planejados nasce
+    # no trilho da fábrica (orçamento por móvel). Só vale no segmento
+    # Marcenaria; desligado, nada muda — nem para as OS que já estão no trilho.
+    modo_fabrica: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    # D0b: ligado, a etapa não avança com trava pendente; desligado (padrão),
+    # a trava vira aviso e quem avança confirma com um motivo (vai para o log).
+    fabrica_travar_etapas: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+
+    # Lava-rapido (SPEC-00 O11, 14/11/2026): quantos veiculos a loja atende no
+    # mesmo horario (boxes/vagas). 0 = sem limite. A agenda so AVISA quando o
+    # horario passa disso; nunca trava. Sem efeito fora da capacidade
+    # `agenda_servicos`.
+    vagas_agenda: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
+    # Em qual aba o "Adicionar Item" da OS abre: 'SERVICO' (padrao, o de
+    # sempre) ou 'PRODUTO' (loja que vende mais produto). So muda a ordem;
+    # as duas abas continuam la. Vale para todos os segmentos.
+    item_os_abre_em: Mapped[str] = mapped_column(
+        String(10), default="SERVICO", server_default="SERVICO", nullable=False)
 
     data_atualizacao: Mapped[datetime] = mapped_column(
         DateTime,

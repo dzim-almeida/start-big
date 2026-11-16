@@ -4,7 +4,9 @@
  * @description Form section for PJ (company) customer data
  */
 
-import { Building2 } from 'lucide-vue-next';
+import { computed, watch } from 'vue';
+import { Building2, Search } from 'lucide-vue-next';
+import { cnpj as validadorCnpj } from 'cpf-cnpj-validator';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
@@ -38,7 +40,38 @@ const {
   responsavel,
   errors,
   submitCount,
+  isConsultingCNPJ,
+  consultarReceita,
+  avisoCnpj,
+  limparAvisoCnpj,
+  isCreateMode,
 } = useCustomerForm();
+
+// =============================================
+// Busca na Receita pelo CNPJ
+// =============================================
+
+const cnpjDigitos = computed(() => (cnpj.value ?? '').replace(/\D/g, ''));
+
+/**
+ * CNPJ completo E com o dígito verificador certo (Spec 02, D3). CNPJ digitado
+ * errado não gasta consulta e não mostra "não encontrado" por cima do erro do
+ * próprio campo.
+ */
+const cnpjValido = computed(
+  () => cnpjDigitos.value.length === 14 && validadorCnpj.isValid(cnpjDigitos.value),
+);
+
+/**
+ * No cadastro NOVO, buscar sozinho quando o CNPJ fica completo e válido — como
+ * em Dados da Empresa. Na edição, só pelo botão: abrir um cliente salvo não
+ * pode sobrescrever o que alguém já corrigiu à mão.
+ */
+watch(cnpjDigitos, (digitos, anterior) => {
+  if (digitos !== anterior) limparAvisoCnpj();                   // o aviso era do CNPJ anterior
+  if (!isCreateMode.value || !cnpjValido.value || digitos === anterior) return;
+  consultarReceita(digitos);
+});
 </script>
 
 <template>
@@ -46,7 +79,7 @@ const {
     <!-- Section Header -->
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Building2" />
       </div>
@@ -85,8 +118,34 @@ const {
           mask="##.###.###/####-##"
           :required="configStore.exigirCnpjPj"
           :error="submitCount > 0 ? errors.cnpj : ''"
-          :disabled="disabled"
+          :disabled="disabled || isConsultingCNPJ"
         />
+        <div
+          v-if="isConsultingCNPJ"
+          class="mt-1.5 text-xs text-brand-primary animate-pulse"
+        >
+          Consultando Receita Federal...
+        </div>
+        <!-- Desabilitado com dígito verificador errado (Spec 02, D3). -->
+        <button
+          v-else-if="cnpjDigitos.length === 14 && !disabled"
+          type="button"
+          class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+          :disabled="!cnpjValido"
+          @click="consultarReceita(cnpjDigitos)"
+        >
+          <Search :size="11" />
+          Buscar dados na Receita
+        </button>
+        <!-- Aviso de duplicidade: fica visível até o CNPJ mudar (Spec 02, D4/D6).
+             aria-live avisa o leitor de tela sem roubar o foco. -->
+        <p aria-live="polite" class="text-xs text-amber-700">
+          <!-- A margem fica no texto: vazio, o parágrafo não ocupa espaço na tela. -->
+          <span v-if="avisoCnpj?.tipo === 'duplicado'" class="block mt-1.5">
+            Já existe um cliente com este CNPJ: <strong>{{ avisoCnpj.nomeCliente }}</strong>.
+            Salvar vai dar erro de duplicidade.
+          </span>
+        </p>
       </div>
       <div class="col-span-12 md:col-span-6">
         <BaseInput

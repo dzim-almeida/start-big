@@ -1,0 +1,29 @@
+{
+  "orcamento_id": 1,
+  "codigo": "ORC-2026-000001",
+  "versao": 1,
+  "status": "APROVADO",
+  "data_aprovacao": "2026-10-09T05:10:50.773412",
+  "aprovado_por": "Admin Master",
+  "projeto": "Residencial Alpha Ville - Apto 802",
+  "moveis": [
+    {
+      "nome": "Torre Quente",
+      "ambiente": "Cozinha Gourmet",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "os_item_id": 1
+    }
+  ],
+  "moveis_nao_aprovados": 1,
+  "instalacao_aprovada": true,
+  "total_aprovado_centavos": 536536,
+  "sinal_combinado_centavos": 214614,
+  "sinal_recebido_centavos": 0,
+  "pode_desfazer": true,
+  "motivos_desfazer": []
+}

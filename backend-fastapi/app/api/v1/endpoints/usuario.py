@@ -7,10 +7,10 @@
 from fastapi import APIRouter, Depends, File, status, UploadFile
 from sqlalchemy.orm import Session
 
-from app.schemas.usuario import UsuarioCreate, UsuarioRead, UsuarioUpdateMe, UsuarioAlterarSenha
+from app.schemas.funcionario import UsuarioCreate, UsuarioRead, UsuarioUpdateMe, UsuarioAlterarSenha
 from app.core.depends import get_current_user, _handle_db_transaction
 from app.db.session import get_db
-from app.services import usuario as usuario_service
+from app.services.acesso import usuario as usuario_service
 
 router = APIRouter()
 

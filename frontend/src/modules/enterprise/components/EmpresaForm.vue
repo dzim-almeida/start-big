@@ -6,7 +6,8 @@
  * Todas as sections injetam context diretamente
  */
 
-import { Building, Save, Globe } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { Building, Save } from 'lucide-vue-next';
 import { onBeforeRouteLeave } from 'vue-router';
 
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
@@ -17,9 +18,11 @@ import { useConfirmacao } from '@/shared/composables/useConfirmacao';
 import IdentificationSection from './form/IdentificationSection.vue';
 import AddressSection from './form/AddressSection.vue';
 import TaxDataSection from './form/TaxDataSection.vue';
-import EmissaoSection from './form/EmissaoSection.vue';
-import CertificateSection from './form/CertificateSection.vue';
 import ContactSection from './form/ContactSection.vue';
+import EmissaoStatusSection from './form/EmissaoStatusSection.vue';
+// Emissão/Certificado (fiscal) saíram desta tela: a v1 é não-fiscal. A parte
+// fiscal vive na tela separada /fiscal (gated por plano). Os componentes fiscais
+// seguem preservados em ./form/, prontos para o módulo fiscal do próximo release.
 
 import { useEmpresaFormProvider } from '../composables/useEmpresaFormProvider';
 
@@ -29,13 +32,28 @@ import { useEmpresaFormProvider } from '../composables/useEmpresaFormProvider';
 
 const {
   is_cnpj,
-  fiscal_settings,
+  documento,
+  razao_social,
   apiError,
   isLoading,
   isPending,
   temAlteracoesPendentes,
   onSubmit,
 } = useEmpresaFormProvider();
+
+// O selo do cabeçalho olhava para `is_cnpj`, o que marcava toda empresa de CPF
+// como "Cadastro Incompleto" para sempre. O que define completo é ter nome e
+// documento — o tipo de pessoa é só uma característica do cadastro.
+const cadastroCompleto = computed(
+  () =>
+    !!razao_social.value?.trim() &&
+    documento.value.replace(/\D/g, '').length >= 11,
+);
+
+const seloCadastro = computed(() => {
+  if (!cadastroCompleto.value) return 'Cadastro Incompleto';
+  return is_cnpj.value ? 'Pessoa Jurídica' : 'Pessoa Física';
+});
 
 // =============================================
 // Confirmações
@@ -110,20 +128,16 @@ onBeforeRouteLeave(async () => {
           <span
             class="px-3 py-1 bg-brand-primary-light text-brand-primary text-xs font-bold uppercase rounded-full tracking-wide"
           >
-            {{ is_cnpj ? 'Empresa Verificada' : 'Cadastro Incompleto' }}
+            {{ seloCadastro }}
           </span>
-          <span
-            v-if="fiscal_settings"
-            class="ml-2 px-3 py-1 text-xs font-bold uppercase rounded-full tracking-wide border"
-            :class="
-              fiscal_settings.ambiente_emissao === 1
-                ? 'bg-red-50 text-red-600 border-red-200'
-                : 'bg-brand-primary-light text-brand-primary border-brand-primary/20'
-            "
-          >
-            <Globe :size="12" class="inline mb-0.5 mr-1" />
-            {{ fiscal_settings.ambiente_emissao === 1 ? 'Produção' : 'Homologação' }}
-          </span>
+          <!--
+            O selo de ambiente (Homologação/Produção) saiu daqui: é conceito de
+            emissão de NF-e e pertence ao módulo Fiscal, que na v1 é um estado
+            BLOQUEADO com CTA de upgrade e não expõe configuração fiscal
+            (ver FiscalView.vue). Nesta tela ele anunciava um ambiente de emissão
+            para um recurso que o plano nem libera.
+          -->
+
         </div>
       </div>
 
@@ -133,10 +147,15 @@ onBeforeRouteLeave(async () => {
           <!-- Todas as sections injetam context via useEmpresaForm() -->
           <IdentificationSection />
           <AddressSection />
-          <TaxDataSection />
-          <EmissaoSection />
-          <CertificateSection />
+          <!-- Dados Fiscais são exclusivos de PJ: IE, regime tributário,
+               natureza jurídica e CNAE não existem para uma pessoa física. -->
+          <TaxDataSection v-if="is_cnpj" />
           <ContactSection />
+
+          <!-- Acesso à tela fiscal (separada). Sem o módulo NF-e continua
+               sendo o upsell bloqueado; com o módulo, passa a dizer se o
+               cadastro desta empresa já permite emitir. -->
+          <EmissaoStatusSection />
         </div>
 
         <!-- Right Column: Actions -->
@@ -150,7 +169,7 @@ onBeforeRouteLeave(async () => {
             <BaseButton
               type="submit"
               variant="primary"
-              :loading="isPending"
+              :is-loading="isPending"
               :disabled="!temAlteracoesPendentes"
               class="w-full justify-center py-3 text-sm font-bold shadow-brand-primary-light/20 shadow-lg hover:shadow-brand-primary-light/30 transition-all transform active:scale-95"
             >

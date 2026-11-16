@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: app/core/segmentos/capacidades.py
+# DESCRICAO: O que um segmento FAZ (motor). Ver o __init__.py do pacote.
+# ---------------------------------------------------------------------------
+
+# ===========================================================================
+# CAPACIDADES
+# ===========================================================================
+# O que um segmento FAZ, em oposicao a quais campos ele tem. Existe porque o
+# frontend precisava perguntar "quem e o cliente?" (if segmento == oficina) para
+# decidir se mostrava a aprovacao de itens, a vistoria, etc. Isso obrigava a
+# editar o frontend a cada segmento novo.
+#
+# Com capacidades, o frontend pergunta "o que este segmento faz?" e liga a UI
+# pelo contrato. Ligar uma capacidade para um segmento novo passa a ser uma
+# linha no arquivo de definicao do segmento, sem tocar em Vue.
+#
+# NAO sao exclusivas de nenhum segmento: aprovacao de orcamento e garantia
+# servem qualquer negocio de servico. Hoje so a oficina as usa porque foi para
+# ela que foram construidas -- nao porque sejam "de oficina".
+
+CAP_VISTORIA = "vistoria"                # checklist de inspecao (DVI) na entrada
+CAP_REVISOES = "revisoes"                # lembrete de manutencao por data/KM
+CAP_APROVACAO_ITENS = "aprovacao_itens"  # cliente aprova/reprova item do orcamento
+CAP_GARANTIA_ITENS = "garantia_itens"    # garantia (dias/KM) por item
+
+# O negocio DIAGNOSTICA antes de executar: recebe algo com problema, investiga e
+# emite laudo. E o caso de oficina e informatica.
+#
+# Serigrafia nao diagnostica nada -- o cliente chega dizendo o que quer, e a
+# loja produz. Sem esta capacidade, a aba deixa de pedir laudo tecnico e passa a
+# servir so para as imagens (que em serigrafia sao a ARTE -- por isso a aba
+# continua existindo).
+CAP_DIAGNOSTICO = "diagnostico"
+
+# A imagem faz parte do PEDIDO, e nao do laudo.
+#
+# Em oficina e informatica a foto e prova do estado do bem: nasce depois, com o
+# aparelho ja na bancada, e por isso a aba de imagens so aparece na OS ja salva.
+# Em serigrafia a imagem E a arte a ser estampada -- sem ela nao ha o que
+# produzir. Ela precisa entrar no primeiro cadastro, junto com o pedido, e sair
+# na via de entrada para quem vai pintar poder trabalhar a partir do papel.
+#
+# Ligar esta capacidade faz duas coisas: libera a aba de imagens durante a
+# criacao da OS e imprime as imagens na via de ENTRADA. Segmento que nao a
+# declara continua exatamente como sempre foi.
+CAP_IMAGEM_NA_ENTRADA = "imagem_na_entrada"
+
+# O servico tem garantia contada em PRAZO (dias/meses), escolhida ao finalizar.
+#
+# Faz sentido onde se conserta: o reparo responde por um periodo. Numa
+# serigrafia a estampa nao tem prazo -- se dura, mede-se em LAVAGENS, e ninguem
+# conta dia de camisa. Pedir "90 dias" ali obriga o atendente a responder uma
+# pergunta que nao existe, e ainda faz a via prometer uma garantia que a loja
+# nao deu.
+#
+# Desligada, o campo some da finalizacao e o Termo de Garantia so e impresso
+# quando houver prazo de fato. As exclusoes de garantia (o "NAO COBRE") seguem
+# no pacote de textos, que e outro assunto.
+CAP_GARANTIA_PRAZO = "garantia_prazo"
+
+# O segmento orca por ambiente, movel e insumo (BOM), com perda, markup e
+# margem (orcamento tecnico da marcenaria, docs/marcenaria/ SPEC-00 e Spec 04A).
+# Liga os parametros da marcenaria (GET/PUT /configuracoes/marcenaria), a flag
+# "sofre perda" no produto e, nas proximas specs, o menu Orcamentos. Segmento
+# que nao declara continua exatamente como antes.
+CAP_ORCAMENTO_TECNICO = "orcamento_tecnico"
+
+# O preco do servico depende do PORTE do veiculo (hatch, SUV, caminhao de 3
+# eixos) -- docs/lava-rapido/ SPEC-00 P1/P2a e Spec 02A. Liga a tabela de
+# portes da loja e a grade "porte -> preco e duracao" no cadastro de servico.
+# Generica de proposito: pet shop (porte do animal) usaria o mesmo mecanismo.
+CAP_PRECO_POR_PORTE = "preco_por_porte"
+
+# O dia de trabalho e uma FILA de veiculos (lava-rapido, SPEC-00 U1/U3 e
+# Spec 03A/04A): liga a comanda de uma tela, o patio (Aguardando -> Lavando
+# -> Pronto) e a troca de status com um clique. O documento continua sendo a
+# OS de sempre; so a porta de entrada e a tela do dia mudam.
+CAP_OPERACAO_PATIO = "operacao_patio"
+
+# A OS registra quem a EXECUTA alem do responsavel (lava-rapido: 1 ou 2
+# lavadores; SPEC-00 O7a/O7c e Spec 10A). Liga as rotas de executores e, na
+# tela, o campo de lavadores e a escolha Dividir/Inteira no cargo/funcionario.
+# A comissao com executores e calculada para qualquer OS que os tenha -- e so
+# este segmento consegue grava-los.
+CAP_EXECUTORES_OS = "executores_os"
+
+# Agenda de servicos: o agendamento vem ANTES da OS e vira OS quando o
+# cliente chega (lava-rapido, SPEC-00 O11 e Spec 08A). A agenda da marcenaria
+# e outra coisa: ela agenda uma OS que ja existe.
+CAP_AGENDA_SERVICOS = "agenda_servicos"
+
+CAPACIDADES_CONHECIDAS = [
+    CAP_VISTORIA,
+    CAP_REVISOES,
+    CAP_APROVACAO_ITENS,
+    CAP_GARANTIA_ITENS,
+    CAP_DIAGNOSTICO,
+    CAP_IMAGEM_NA_ENTRADA,
+    CAP_GARANTIA_PRAZO,
+    CAP_ORCAMENTO_TECNICO,
+    CAP_PRECO_POR_PORTE,
+    CAP_OPERACAO_PATIO,
+    CAP_EXECUTORES_OS,
+    CAP_AGENDA_SERVICOS,
+]

@@ -15,6 +15,10 @@ export const ConfiguracaoProdutosSchema = z.object({
   quantidade_minima_padrao: z.number(),
   unidade_medida_padrao: z.string(),
 
+  // Embalagens (fardo/caixa) — desligado por padrão. `default` para um
+  // backend antigo, que ainda não manda o campo, não quebrar a tela.
+  usar_embalagens: z.boolean().default(false),
+
   data_atualizacao: z.string(),
 })
 
@@ -68,6 +72,33 @@ export const ConfiguracaoVendasSchema = z.object({
   permitir_parcelamento: z.boolean(),
   parcelas_maximas: z.number().int().min(1).max(48),
 
+  /**
+   * Controle de caixa. `.catch(false)` de propósito: um backend mais antigo que
+   * o frontend não devolve estes campos, e sem o fallback o Zod reprovaria a
+   * resposta inteira — derrubando a tela de configurações por causa de um campo
+   * que a loja nem usa.
+   */
+  controlar_caixa: z.boolean().catch(false),
+  exigir_caixa_aberto: z.boolean().catch(false),
+  fechamento_cego: z.boolean().catch(false),
+  requer_pin_abrir_caixa: z.boolean().catch(false),
+  usar_fila_do_caixa: z.boolean().catch(false),
+
+  /**
+   * Regras de preço por quantidade (plano de embalagens, §6.1). Mesmo `.catch`
+   * do caixa: backend mais antigo não manda, e tudo desligado é o padrão.
+   */
+  regra_embalagem_avulsas: z.boolean().catch(false),
+  regra_faixas_quantidade: z.boolean().catch(false),
+  regra_leve_pague: z.boolean().catch(false),
+  regra_conflito: z.enum(['MENOR_PRECO', 'ORDEM']).catch('MENOR_PRECO'),
+  regra_ordem: z.string().catch('R1,R2,R3'),
+  bloquear_desconto_com_regra: z.boolean().catch(false),
+
+  /** Venda no atacado: botão no PDV + pedido mínimo (centavos). Nasce desligado. */
+  atacado_habilitado: z.boolean().catch(false),
+  atacado_pedido_minimo: z.number().int().min(0).catch(0),
+
   data_atualizacao: z.string(),
 })
 
@@ -87,6 +118,19 @@ export const GARANTIA_OPTIONS = [
   '1 ano',
 ] as const
 
+/**
+ * Apresentação dos comprovantes. Só a FORMA — o conteúdo é invariante (dados da
+ * empresa, do cliente com endereço, itens discriminados e resumo do pagamento
+ * saem sempre, porque protegem o cliente).
+ * Ver backend-fastapi/docs/comprovantes-perfil-plano.md
+ *
+ * `.catch()` nos dois: uma loja atualizada cujo backend ainda não tenha as
+ * colunas devolveria o campo ausente, e sem isso o Zod reprovaria a resposta
+ * inteira — derrubando toda a config de OS por causa de um campo novo.
+ */
+export const FOLHA_OPTIONS = ['A4', 'A5'] as const
+export const DENSIDADE_OPTIONS = ['normal', 'compacto'] as const
+
 export const ConfiguracaoOSSchema = z.object({
   id: z.number(),
   empresa_id: z.number(),
@@ -95,6 +139,21 @@ export const ConfiguracaoOSSchema = z.object({
   garantia_padrao: z.enum(GARANTIA_OPTIONS),
   prazo_abandono_dias: z.number().int().min(1),
   taxa_diagnostico_padrao: z.number().int().min(0),
+
+  comprovante_entrada_folha: z.enum(FOLHA_OPTIONS).catch('A4'),
+  comprovante_entrada_densidade: z.enum(DENSIDADE_OPTIONS).catch('normal'),
+  comprovante_entrega_folha: z.enum(FOLHA_OPTIONS).catch('A4'),
+  comprovante_entrega_densidade: z.enum(DENSIDADE_OPTIONS).catch('normal'),
+
+  // Marcenaria-fábrica (só tem efeito no segmento Marcenaria). `.catch` pelo
+  // mesmo motivo dos comprovantes: backend antigo sem o campo não derruba a config.
+  modo_fabrica: z.boolean().catch(false),
+  fabrica_travar_etapas: z.boolean().catch(false),
+
+  // 14/11/2026. `.catch` pelo mesmo motivo: backend antigo sem o campo cai no
+  // comportamento de sempre (sem limite de vagas; Adicionar Item abre em Serviço).
+  vagas_agenda: z.number().int().min(0).catch(0),
+  item_os_abre_em: z.enum(['SERVICO', 'PRODUTO']).catch('SERVICO'),
 
   data_atualizacao: z.string(),
 })
@@ -113,6 +172,10 @@ export const ConfiguracaoSegurancaSchema = z.object({
   tem_pin_configurado: z.boolean(),
 
   secoes_protegidas: z.array(z.string()),
+  // Sangria mora aqui, junto das outras aprovações de gerente: é proteção
+  // por PIN, e o lojista procura todas no mesmo lugar.
+  requer_pin_sangria: z.boolean().catch(false),
+
   requer_pin_cancelar_venda: z.boolean(),
   requer_pin_reabrir_venda: z.boolean(),
   requer_pin_desconto_venda: z.boolean(),

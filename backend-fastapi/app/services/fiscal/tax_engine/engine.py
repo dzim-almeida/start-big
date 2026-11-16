@@ -1,0 +1,219 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: app/services/fiscal/tax_engine/engine.py
+# DESCRIÇÃO: Orquestrador principal do motor de cálculo tributário.
+#            Função pura — sem dependência de DB ou HTTP.
+#
+# Fluxo:
+#   1. Rateio proporcional de frete/seguro/despesas/desconto
+#   2. Cálculo de ICMS por item (CST ou CSOSN)
+#   2b. Encruzilhada interestadual, um ramo por item:
+#       DIFAL/FCP  — não contribuinte (TASK007), fora do vNF
+#       ICMS-ST    — contribuinte com MVA na regra (TASK008), dentro do vNF
+#   3. Cálculo de PIS/COFINS por item (com exclusão opcional de ICMS)
+#   4. Consolidação dos totais do cabeçalho
+# ---------------------------------------------------------------------------
+
+from decimal import Decimal
+from typing import Optional
+
+from .calculators.difal import ResultadoDIFAL, calcular_difal
+from .calculators.icms import ResultadoICMS, _base_calculo_padrao, calcular_icms
+from .calculators.icms_st import ResultadoICMSST, calcular_icms_st
+from .calculators.pis_cofins import calcular_pis_cofins
+from .consolidador import consolidar_totais
+from .constants import (
+    CST_IPI_NAO_TRIBUTADO,
+    IPI_CODIGO_ENQUADRAMENTO,
+    PRECISAO,
+    ROUND_MODE,
+)
+from .rateio import aplicar_rateio
+from .types import DadosNota, ImpostosItem, ItemEntrada, ResultadoCalculo
+
+
+def calcular_impostos(
+    itens: list[ItemEntrada],
+    dados_nota: DadosNota,
+) -> ResultadoCalculo:
+    """
+    Calcula todos os tributos para uma lista de itens de venda.
+
+    Função pura: recebe DTOs, retorna DTOs. Sem efeitos colaterais.
+
+    Args:
+        itens: Lista de ItemEntrada com dados e alíquotas já resolvidas.
+        dados_nota: Dados globais da nota (frete, seguro, flags).
+
+    Returns:
+        ResultadoCalculo com tributos por item e totais consolidados.
+
+    Raises:
+        RateioError: se dados de rateio forem inválidos.
+        CSTNaoSuportadoError: se CST/CSOSN não for suportado.
+    """
+    # 1. Rateio proporcional
+    rateios = aplicar_rateio(
+        itens,
+        frete=dados_nota.frete,
+        seguro=dados_nota.seguro,
+        outras_despesas=dados_nota.outras_despesas,
+        desconto_nota=dados_nota.desconto_nota,
+    )
+
+    # 2 & 3. Cálculo por item
+    itens_impostos: list[ImpostosItem] = []
+
+    for i, item in enumerate(itens):
+        r = rateios[i]
+
+        # Desconto total = desconto do item + desconto rateado da nota
+        desconto_total = (
+            item.desconto_item + r["valor_desconto_nota"]
+        ).quantize(PRECISAO, ROUND_MODE)
+
+        # ICMS
+        icms = calcular_icms(
+            item=item,
+            valor_frete=r["valor_frete"],
+            valor_seguro=r["valor_seguro"],
+            valor_outras_despesas=r["valor_outras_despesas"],
+            valor_desconto=desconto_total,
+            simples_nacional=dados_nota.simples_nacional,
+        )
+
+        # Encruzilhada interestadual: DIFAL (não contribuinte) OU ST (contribuinte)
+        difal = _calcular_difal_do_item(item, icms, r, desconto_total)
+        st = _calcular_st_do_item(item, icms, r, desconto_total, dados_nota.simples_nacional) if difal is None else None
+
+        # PIS/COFINS (usa ICMS calculado para possível exclusão da base)
+        piscofins = calcular_pis_cofins(
+            valor_bruto=item.valor_bruto,
+            valor_frete=r["valor_frete"],
+            valor_seguro=r["valor_seguro"],
+            valor_outras_despesas=r["valor_outras_despesas"],
+            valor_desconto=desconto_total,
+            aliquota_pis=item.aliquota_pis,
+            aliquota_cofins=item.aliquota_cofins,
+            cst_pis=item.cst_pis,
+            cst_cofins=item.cst_cofins,
+            icms_valor=icms.valor,
+            excluir_icms_base=dados_nota.excluir_icms_base_pis_cofins,
+        )
+
+        itens_impostos.append(ImpostosItem(
+            numero_item=item.numero_item,
+            cfop=item.cfop,
+            cfop_sugerido=item.cfop_sugerido,
+            # Rateio
+            valor_frete=r["valor_frete"],
+            valor_seguro=r["valor_seguro"],
+            valor_outras_despesas=r["valor_outras_despesas"],
+            valor_desconto=desconto_total,
+            # ICMS
+            icms_origem=icms.origem,
+            icms_situacao_tributaria=icms.situacao_tributaria,
+            icms_base_calculo=icms.base_calculo,
+            icms_aliquota=icms.aliquota,
+            icms_valor=icms.valor,
+            icms_reducao_base=icms.reducao_base,
+            icms_codigo_beneficio_fiscal=icms.codigo_beneficio_fiscal,
+            icms_aliquota_credito_simples=icms.aliquota_credito_simples,
+            icms_valor_credito_simples=icms.valor_credito_simples,
+            # DIFAL / FCP
+            difal_base_calculo=difal.base_calculo if difal else None,
+            difal_aliquota_interestadual=difal.aliquota_interestadual if difal else None,
+            difal_aliquota_interna_destino=difal.aliquota_interna_destino if difal else None,
+            difal_valor=difal.valor_difal if difal else None,
+            difal_valor_remetente=difal.icms_interestadual_valor if difal else None,
+            fcp_base_calculo=difal.fcp_base_calculo if difal else None,
+            fcp_aliquota=difal.fcp_aliquota if difal else None,
+            fcp_valor=difal.fcp_valor if difal else None,
+            # ICMS-ST
+            icms_st_base_calculo=st.base_calculo_st if st else None,
+            icms_st_aliquota=st.aliquota_interna_destino if st else None,
+            icms_st_valor=st.valor_icms_st if st else None,
+            icms_st_mva=st.mva if st else None,
+            icms_st_reducao_base=st.reducao_base_st if st else None,
+            # PIS
+            pis_situacao_tributaria=piscofins.pis_cst,
+            pis_base_calculo=piscofins.pis_base,
+            pis_aliquota=piscofins.pis_aliquota,
+            pis_valor=piscofins.pis_valor,
+            # COFINS
+            cofins_situacao_tributaria=piscofins.cofins_cst,
+            cofins_base_calculo=piscofins.cofins_base,
+            cofins_aliquota=piscofins.cofins_aliquota,
+            cofins_valor=piscofins.cofins_valor,
+            # IPI (não calculado — comércio/serviços)
+            ipi_situacao_tributaria=CST_IPI_NAO_TRIBUTADO,
+            ipi_codigo_enquadramento=IPI_CODIGO_ENQUADRAMENTO,
+        ))
+
+    # 4. Consolidação
+    totais = consolidar_totais(itens, itens_impostos)
+
+    return ResultadoCalculo(itens=itens_impostos, totais=totais)
+
+
+def _calcular_difal_do_item(
+    item: ItemEntrada,
+    icms: ResultadoICMS,
+    rateio: dict,
+    desconto_total: Decimal,
+) -> Optional[ResultadoDIFAL]:
+    """
+    DIFAL só para item marcado pelo resolver (alíquota interestadual presente).
+
+    A base é a mesma do ICMS próprio, SEM a redução do CST 20: a redução é
+    benefício da UF de origem e não diminui o diferencial devido ao destino.
+    """
+    if item.difal_aliquota_interestadual is None:
+        return None
+
+    if icms.reducao_base is not None:
+        base = _base_calculo_padrao(
+            item, rateio["valor_frete"], rateio["valor_seguro"],
+            rateio["valor_outras_despesas"], desconto_total,
+        )
+    else:
+        base = icms.base_calculo
+
+    return calcular_difal(
+        base_icms=base,
+        aliquota_interestadual=item.difal_aliquota_interestadual,
+        aliquota_interna_destino=item.difal_aliquota_interna_destino,
+        percentual_fcp=item.difal_percentual_fcp,
+        base_dupla=item.difal_base_dupla,
+    )
+
+
+def _calcular_st_do_item(
+    item: ItemEntrada,
+    icms: ResultadoICMS,
+    rateio: dict,
+    desconto_total: Decimal,
+    simples_nacional: bool,
+) -> Optional[ResultadoICMSST]:
+    """
+    ICMS-ST só para item com MVA na regra (contribuinte, remetente substituto).
+
+    A base parte da base CHEIA (a redução do CST 70 é só do ICMS próprio; a da
+    ST vem da regra). O ICMS próprio deduzido é o REAL do item no regime
+    normal; no Simples, que não destaca ICMS próprio, a calculadora usa o
+    valor pela alíquota interestadual (Conv. 142/2018).
+    """
+    if item.st_mva is None or item.st_mva <= Decimal("0"):
+        return None
+
+    base = _base_calculo_padrao(
+        item, rateio["valor_frete"], rateio["valor_seguro"],
+        rateio["valor_outras_despesas"], desconto_total,
+    )
+    return calcular_icms_st(
+        base_inicial=base,
+        aliquota_interestadual=item.st_aliquota_interestadual,
+        aliquota_interna_destino=item.st_aliquota_interna_destino,
+        mva=item.st_mva,
+        reducao_base_st=item.st_reducao_base,
+        icms_proprio_informado=None if simples_nacional else icms.valor,
+    )

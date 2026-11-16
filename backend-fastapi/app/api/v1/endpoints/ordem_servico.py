@@ -26,10 +26,15 @@
 #   DELETE /{os_number}/fotos/{foto_id}   → Remover foto
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, status, Path, Query, UploadFile, File, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Path, Query, UploadFile, File, Response
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal, requer_modulo_fiscal_servico
+from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal
+from app.schemas.fiscal.emissao import EmissaoResponse
+from app.services.fiscal.completude import verificacao as verificacao_fiscal_service
+from app.schemas.ordem_servico import OrdemServicoNotaFiscalRead, OrdemServicoNotaFiscalUpdate
+from app.services.ordem_servico import nota_fiscal as os_nota_fiscal_service
 from app.db.session import get_db
 from app.schemas.ordem_servico import (
     OrdemServicoCreate,
@@ -45,13 +50,114 @@ from app.schemas.ordem_servico import (
     OrdemServicoCancelar,
     OrdemServicoReabrir,
     OSFotoRead,
+    OSIdentificadorCheck,
+    OSObjetoBuscaItem,
 )
 from app.services import ordem_servico as os_service
-from app.services import ordem_servico_foto as os_foto_service
+from app.services.ordem_servico import foto as os_foto_service
+from app.services.sistema import segmentos as segmentos_service
 
 router = APIRouter()
 
 module_permission = "servico"
+
+
+# ===========================================================================
+# DEFINIÇÃO DE CAMPOS DO SEGMENTO (GET /definicao-campos)
+# Rota estática — declarada antes das rotas com /{os_number}.
+# ===========================================================================
+
+@router.get(
+    "/definicao-campos",
+    summary="Definição de campos dinâmicos do segmento da empresa",
+    description=(
+        "Retorna o contrato de campos dinâmicos (veículo, check-in, acessórios e "
+        "vistoria) do segmento da empresa, para o frontend renderizar o formulário "
+        "de OS adequado. Segmentos sem definição dedicada retornam tem_definicao=false."
+    ),
+)
+def get_definicao_campos_segmento(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return segmentos_service.get_definicao_campos(db)
+
+
+@router.get(
+    "/revisoes-pendentes",
+    summary="Veículos com revisão vencida (por data e/ou KM)",
+    description=(
+        "Lista os veículos cuja próxima revisão está vencida — por data "
+        "(proxima_revisao_data <= hoje) e/ou por KM (km atual >= proxima_revisao_km). "
+        "Objetos sem revisão agendada (ex: informática) não aparecem."
+    ),
+)
+def get_revisoes_pendentes(
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.get_revisoes_pendentes(db)
+
+
+@router.get(
+    "/objeto/{objeto_id}/historico-km",
+    summary="Histórico de KM do objeto/veículo",
+    description=(
+        "Retorna a evolução da quilometragem (km_entrada) de um objeto/veículo "
+        "ao longo das suas OS, da mais antiga para a mais recente. Útil para oficina."
+    ),
+)
+def get_historico_km_objeto(
+    objeto_id: int = Path(..., description="ID do objeto/veículo"),
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.get_historico_km(db, objeto_id)
+
+
+@router.get(
+    "/objeto/verificar-identificador",
+    response_model=OSIdentificadorCheck,
+    summary="Verificar se a placa/nº de série já está cadastrada",
+    description=(
+        "Procura objetos ativos com o mesmo identificador, **inclusive de outros "
+        "clientes** — o reuso comum é escopado ao dono e nunca enxerga esse caso. "
+        "É informativo: quem decide é o atendente, porque o bem pode ter sido vendido.\n\n"
+        "Não retorna conflito quando o texto não identifica um bem ('S/N', 'não sei') "
+        "nem quando o próprio `cliente_id` já possui um objeto com esse identificador — "
+        "aí é o mesmo cliente voltando com o mesmo bem."
+    ),
+)
+def verificar_identificador_objeto(
+    identificador: str = Query(..., min_length=1, max_length=100, description="Placa ou nº de série digitado"),
+    cliente_id: int | None = Query(None, description="Cliente selecionado na OS, se já houver"),
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.verificar_identificador_objeto(db, identificador, cliente_id)
+
+
+@router.get(
+    "/objeto/buscar",
+    response_model=list[OSObjetoBuscaItem],
+    summary="Buscar objeto pela placa / nº de série / código da arte",
+    description=(
+        "Procura objetos ativos cujo identificador case com o texto digitado, "
+        "**de qualquer cliente**, e devolve o dono junto. É o que permite achar "
+        "o cliente pela placa no balcão, quando quem chega tem o carro na mão e "
+        "não o CPF.\n\n"
+        "Aceita pedaço do identificador ('1D23' acha 'ABC1D23') — diferente da "
+        "verificação de duplicidade, que exige o identificador inteiro porque "
+        "decide dedup. Devolve lista vazia para texto curto demais ou genérico "
+        "('S/N', 'não sei')."
+    ),
+)
+def buscar_objetos_por_identificador(
+    termo: str = Query(..., min_length=1, max_length=100, description="Placa, nº de série ou código da arte (pode ser parcial)"),
+    user_token: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    return os_service.buscar_objetos_por_identificador(db, termo)
 
 
 # ===========================================================================
@@ -235,12 +341,19 @@ def update_ordem_servico(
 # ===========================================================================
 
 @router.put(
+    "/{os_number}/objeto",
+    response_model=OrdemServicoRead,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar Objeto da OS",
+    description="Atualiza as informações do objeto associado à OS."
+)
+@router.put(
     "/{os_number}/equipamento",
     response_model=OrdemServicoRead,
     status_code=status.HTTP_200_OK,
-    summary="Atualizar Equipamento da OS",
+    summary="Atualizar Equipamento da OS (Legado)",
     description=(
-        "Atualiza as informações do equipamento associado à OS. "
+        "Atualiza as informações do equipamento associado à OS (compatibilidade). "
         "Permite também trocar o cliente proprietário do equipamento via cliente_id. "
         "Não é permitido em OS com status FINALIZADA ou CANCELADA."
     )
@@ -341,7 +454,7 @@ def finalizar_ordem_servico(
     data: OrdemServicoFinalizar,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.finalizar_ordem_servico, os_number, data)
+    return _handle_db_transaction(db, os_service.finalizar_ordem_servico, os_number, data, user_token)
 
 
 @router.put(
@@ -361,7 +474,7 @@ def cancelar_ordem_servico(
     data: OrdemServicoCancelar,
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.cancelar_ordem_servico, os_number, data)
+    return _handle_db_transaction(db, os_service.cancelar_ordem_servico, os_number, data, user_token)
 
 
 @router.put(
@@ -382,7 +495,9 @@ def reabrir_ordem_servico(
     payload: OrdemServicoReabrir = OrdemServicoReabrir(),
     db: Session = Depends(get_db)
 ):
-    return _handle_db_transaction(db, os_service.reabrir_ordem_servico, os_number, payload.codigo_gerente)
+    return _handle_db_transaction(
+        db, os_service.reabrir_ordem_servico, os_number, payload.codigo_gerente, payload.cliente_pagou, user_token
+    )
 
 
 # ===========================================================================
@@ -425,3 +540,193 @@ def delete_foto_os(
 ):
     _handle_db_transaction(db, os_foto_service.delete_foto_os, os_number, foto_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ===========================================================================
+# NOTA FISCAL (GET + PUT /{os_number}/fiscal)
+# ===========================================================================
+
+@router.get(
+    "/{os_number}/fiscal",
+    response_model=OrdemServicoNotaFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Dados Fiscais da OS",
+    description="Retorna a configuração de nota fiscal de uma OS. 404 se ainda não preenchidos.",
+)
+def get_nota_fiscal_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    os_number: str = Path(..., description="Número da OS"),
+    db: Session = Depends(get_db),
+):
+    resultado = os_nota_fiscal_service.get_dados_fiscais(db, os_number)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Nota fiscal ainda não configurada para esta OS")
+    return resultado
+
+
+@router.put(
+    "/{os_number}/fiscal",
+    response_model=OrdemServicoNotaFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Salvar Dados Fiscais da OS",
+    description="Cria ou atualiza (upsert) a configuração de nota fiscal de uma OS.",
+)
+def upsert_nota_fiscal_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    *,
+    os_number: str = Path(..., description="Número da OS"),
+    dados: OrdemServicoNotaFiscalUpdate,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db,
+        os_nota_fiscal_service.upsert_dados_fiscais,
+        os_number,
+        dados,
+    )
+
+
+# ===========================================================================
+# VERIFICAÇÃO E EMISSÃO FISCAL
+# ===========================================================================
+
+@router.get(
+    "/{os_number}/verificar-fiscal",
+    response_model=ResultadoVerificacaoFiscal,
+    summary="Verificar Completude Fiscal da OS",
+    description="Retorna lista de pendências fiscais que impedem a emissão de NF-e/NFSe.",
+)
+def verificar_fiscal_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    os_number: str = Path(..., description="Número da OS"),
+    tipo_documento: str = Query("ambos", description="nfe, nfse ou ambos"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = user_token["empresa_id"]
+    return verificacao_fiscal_service.verificar_completude_os(
+        db, os_number, empresa_id, tipo_documento
+    )
+
+
+@router.get(
+    "/{os_number}/notas-fiscais",
+    summary="Notas desta OS (peças → NF-e, serviço → NFS-e)",
+    description=(
+        "Quanto vai em cada nota, a situação de cada uma e se a loja emite "
+        "aquele tipo. Só leitura; nota só sai quando o cliente pede."
+    ),
+)
+def notas_fiscais_da_os(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
+    os_number: str = Path(..., description="Número da OS"),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.os_notas import notas_da_os
+
+    notas = notas_da_os(db, os_number)
+    if notas is None:
+        raise HTTPException(status_code=404, detail="Ordem de Serviço não encontrada.")
+    return notas
+
+
+@router.get(
+    "/{os_number}/notas-fiscais/{documento_id}/whatsapp",
+    summary="Texto da nota para mandar ao cliente pelo WhatsApp",
+    description=(
+        "Número, valor e, na NF-e, a chave de acesso; na NFS-e, o link público do "
+        "DANFSe e o código de verificação. `telefone` nulo = cliente sem celular."
+    ),
+)
+def mensagem_da_nota(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal_servico),
+    os_number: str = Path(..., description="Número da OS"),
+    documento_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.os_notas import mensagem_whatsapp
+
+    mensagem = mensagem_whatsapp(db, os_number, documento_id)
+    if mensagem is None:
+        raise HTTPException(status_code=404, detail="Nota não encontrada nesta OS.")
+    return mensagem
+
+
+@router.post(
+    "/{os_number}/emitir-fiscal",
+    response_model=EmissaoResponse,
+    summary="Emitir Nota Fiscal da OS",
+    description=(
+        "Emite a NF-e das PEÇAS da OS. A mão de obra é serviço e depende da "
+        "NFS-e municipal, ainda não disponível."
+    ),
+)
+def emitir_fiscal_os(
+    background_tasks: BackgroundTasks,
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    os_number: str = Path(..., description="Número da OS"),
+    tipo_documento: str = Query("ambos", description="nfe, nfse ou ambos"),
+    db: Session = Depends(get_db),
+):
+    from app.services.fiscal.emissao import emitir_nfe_os, poll_nfe_status_async
+
+    empresa_id = user_token["empresa_id"]
+
+    # NFS-e (mão de obra) é municipal e este sistema não a emite. Dizer isso
+    # aqui, com todas as letras, é melhor do que emitir a NF-e das peças em
+    # silêncio e deixar o lojista achar que a OS inteira foi documentada.
+    if tipo_documento == "nfse":
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail={
+                "codigo": "NFSE_NAO_DISPONIVEL",
+                "mensagem": (
+                    "A nota de serviço (NFS-e) é emitida pela prefeitura e ainda "
+                    "não está disponível no sistema. A NF-e das peças pode ser "
+                    "emitida normalmente."
+                ),
+            },
+        )
+
+    # O gate roda sobre "nfe", mesmo quando pediram "ambos".
+    #
+    # Com "ambos" ele também exigiria código LC 116 de cada serviço — e
+    # reprovaria a emissão das PEÇAS por falta de dado de uma nota que nem
+    # sabemos emitir. A verificação do que se pretende emitir é a que vale.
+    resultado = verificacao_fiscal_service.verificar_completude_os(
+        db, os_number, empresa_id, "nfe"
+    )
+    if not resultado.completo:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "codigo": "PENDENCIAS_FISCAIS",
+                "mensagem": "Existem pendências que impedem a emissão.",
+                "pendencias": [p.model_dump() for p in resultado.pendencias],
+            },
+        )
+
+    doc = _handle_db_transaction(db, emitir_nfe_os, os_number, empresa_id)
+
+    if doc.status == "PROCESSANDO":
+        background_tasks.add_task(poll_nfe_status_async, doc.id, empresa_id)
+
+    mensagem = doc.mensagem_sefaz or f"NF-e {doc.status.lower()}."
+    if tipo_documento == "ambos":
+        mensagem += (
+            " A nota cobre as peças; a mão de obra depende da NFS-e da "
+            "prefeitura, ainda não disponível."
+        )
+
+    return EmissaoResponse(
+        documento_id=doc.id,
+        ref_api=doc.ref_api,
+        status=doc.status,
+        mensagem=mensagem,
+        ambiente=doc.ambiente_emissao,
+    )

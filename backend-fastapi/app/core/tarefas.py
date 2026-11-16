@@ -2,33 +2,53 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI
 
+from app.db.base import Base
 from app.db.migrations import aplicar_migracoes
 from app.db.session import SessionLocal, engine
 from app.db.models.contador_venda import ContadorVenda
+from app.db.models.empresa import Empresa
 from app.db.models.forma_pagamento import FormaPagamento
-from app.services.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados, limpar_temp_data
+from app.services.sistema.limpeza_temporal import cancelar_vendas_ativas_expiradas, limpar_orcamentos_expirados, limpar_temp_data
 from app.services.licenca import enviar_heartbeat, renovar_licenca_background, desconectar_terminal
-from app.services.backup import create_backup, get_last_backup, apply_pending_restore, limpar_snapshots_antigos
-from app.services.cloud.sync import sync as _cloud_sync
-from app.services.cloud.flow import CloudSyncError as _CloudSyncError
-from app.services.configuracao_backup import get_or_create_configuracao_backup
-from app.db.crud import terminal_conectado as terminal_crud
+from app.services.backup import (
+    create_backup,
+    get_last_backup,
+    apply_pending_restore,
+    limpar_snapshots_antigos,
+)
+# `cloud` reexporta sync/CloudSyncError; o alias mantem o resto do arquivo igual.
+from app.services import cloud as cloud_sync
+from app.services.configuracao.backup import get_or_create_configuracao_backup
+from app.db.crud.terminal import conectados as terminal_crud
 
-from app.core.discovery import register_service, stop_discovery
+from app.core.discovery import atualizar_anuncio, register_service, stop_discovery
+from app.core.seed_nfse import seed_tabelas_nfse
 
 logger = logging.getLogger(__name__)
 
 INTERVALO_LIMPEZA_HORAS = 6
-
 INTERVALO_HEARTBEAT_SEGUNDOS = 100  # 5 minutos
 INTERVALO_RENOVACAO_SEGUNDOS = 3600  # 1 hora
+# Re-anúncio mDNS: troca de IP por DHCP ou placa que sobe depois do boot + 30 s.
+INTERVALO_MDNS_SEGUNDOS = 45
+
+
+async def _loop_mdns_watchdog():
+    """Re-anuncia o servidor via mDNS quando os IPs desta máquina mudam."""
+    while True:
+        await asyncio.sleep(INTERVALO_MDNS_SEGUNDOS)
+        try:
+            await asyncio.to_thread(atualizar_anuncio)
+        except Exception:
+            logger.exception("Erro no watchdog do mDNS")
 
 ATRASO_INICIAL_BACKUP_SEGUNDOS = 180
+# Checagem curta: o horario do backup diario e escolhido pelo lojista e pode
+# mudar a qualquer momento, entao o loop rele a configuracao a cada minuto.
 INTERVALO_CHECAGEM_BACKUP_SEGUNDOS = 60
 
 FREQUENCIA_HORAS = {
@@ -39,6 +59,44 @@ FREQUENCIA_HORAS = {
 
 ATRASO_INICIAL_SYNC_SEGUNDOS = 300
 INTERVALO_SYNC_SEGUNDOS = 3600
+
+
+# De hora em hora. Nao precisa ser mais rapido: o dinheiro cai na conta em D+n,
+# e uma hora de atraso num deposito de ontem nao muda decisao nenhuma. Mais
+# lento perderia a virada do dia numa loja que fica aberta ate tarde.
+INTERVALO_BAIXA_AUTOMATICA_SEGUNDOS = 3600
+
+
+async def _loop_baixa_automatica():
+    """Entra o dinheiro das cobrancas que o dono declarou que caem sozinhas.
+
+    RODA ANTES DO PRIMEIRO SLEEP, de proposito: e no boot que ela recupera o
+    que passou. Loja fecha na sexta e abre na segunda -- as cobrancas de sabado
+    e domingo entram todas no boot de segunda, porque a consulta e por
+    "vencimento <= hoje" e nao "vencimento = hoje".
+
+    So alcanca o que nasceu marcado, que e cartao com prazo declarado na forma
+    de pagamento. Fiado nunca entra sozinho: cliente nao paga por agendamento.
+    """
+    from app.services.financeiro import conciliacao as receber_service
+
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                quantidade = receber_service.baixar_automaticas(db)
+                if quantidade:
+                    logger.info(
+                        "Baixa automatica: %d cobranca(s) entraram no caixa.",
+                        quantidade,
+                    )
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("Erro na baixa automatica de recebimentos")
+
+        await asyncio.sleep(INTERVALO_BAIXA_AUTOMATICA_SEGUNDOS)
+
 
 async def _loop_limpeza_temporal():
     """Loop em segundo plano que executa a limpeza periodicamente."""
@@ -54,9 +112,13 @@ async def _loop_limpeza_temporal():
             logger.exception("Erro na limpeza automatica temporal")
 
         await asyncio.sleep(INTERVALO_LIMPEZA_HORAS * 3600)
-        
+
+
 def _precisa_backup_por_horario(horario: str, last_backup_created_at: datetime | None) -> bool:
-    """Verifica se o backup diário no horário configurado precisa ser executado."""
+    """
+    Decide o backup diario: so dispara depois do horario escolhido e no maximo
+    uma vez por dia. `horario` invalido cai em 02:00 em vez de derrubar o loop.
+    """
     agora = datetime.now()
     try:
         hora, minuto = map(int, horario.split(":"))
@@ -75,19 +137,26 @@ def _precisa_backup_por_horario(horario: str, last_backup_created_at: datetime |
 
 
 async def _loop_backup():
-
+    """Loop que mantem o backup local em dia, na frequencia escolhida na tela."""
     await asyncio.sleep(ATRASO_INICIAL_BACKUP_SEGUNDOS)
-
 
     while True:
         try:
             db = SessionLocal()
             try:
-                config = get_or_create_configuracao_backup(db, 1)
-                ativo = config.backup_automatico_ativo
-                frequencia = config.frequencia
-                horario = config.horario
-                db.commit()
+                # A loja tem uma empresa so, mas o id nem sempre e 1 (banco
+                # recriado/restaurado). Fixar 1 faria a linha nascer com FK
+                # invalida e o loop errar de minuto em minuto, sem backup.
+                empresa_id = db.query(Empresa.id).order_by(Empresa.id).limit(1).scalar()
+                if empresa_id is None:
+                    # Onboarding ainda nao rodou: nao ha o que salvar.
+                    ativo = False
+                else:
+                    config = get_or_create_configuracao_backup(db, empresa_id)
+                    ativo = config.backup_automatico_ativo
+                    frequencia = config.frequencia
+                    horario = config.horario
+                    db.commit()
             finally:
                 db.close()
 
@@ -116,26 +185,29 @@ async def _loop_backup():
             print(f"[BACKUP] Próxima tentativa em {INTERVALO_CHECAGEM_BACKUP_SEGUNDOS}s")
 
         await asyncio.sleep(INTERVALO_CHECAGEM_BACKUP_SEGUNDOS)
-        
+
+
 async def _loop_cloud_sync():
+    """Loop em segundo plano que envia o backup local para a nuvem (a cada 1h)."""
     await asyncio.sleep(ATRASO_INICIAL_SYNC_SEGUNDOS)
-    
+
     while True:
         try:
             db = SessionLocal()
-            
+
             try:
                 print("[SYNC] Iniciando ciclo de sincronização com nuvem...")
-                summary = await _cloud_sync(db)
+                summary = await cloud_sync.sync(db)
                 print(f"[SYNC] Status da sincronização: {summary}")
             except Exception as e:
                 print(f"[SYNC] Erro durante a sincronização: {type(e).__name__}: {e}")
             finally:
                 db.close()
-        except _CloudSyncError as e:
+        except cloud_sync.CloudSyncError as e:
             print(f"[SYNC] Ciclo encerrado: {e} (codigo={e.code})")
-        
+
         await asyncio.sleep(INTERVALO_SYNC_SEGUNDOS)
+
 
 async def _loop_heartbeat_licenca():
     """Loop em segundo plano que envia heartbeat à API StartBig periodicamente."""
@@ -168,6 +240,55 @@ async def _loop_renovacao_licenca():
         await asyncio.sleep(INTERVALO_RENOVACAO_SEGUNDOS)
 
 
+# Espera antes de reconsultar as notas presas: o boot termina, a janela abre e
+# o caixa já pode vender antes de a primeira consulta sair para a rede.
+ESPERA_RECONCILIACAO_FISCAL_SEGUNDOS = 60
+
+
+async def _reconciliar_fiscal_apos_boot():
+    """
+    Reconsulta, UMA vez por boot, as notas que ficaram sem desfecho
+    (PROCESSANDO/INDETERMINADA) porque o app fechou no meio do polling.
+
+    Roda numa thread e depois da espera: são consultas de rede (até 50), e nem
+    o boot nem o caixa podem esperar por elas. Loja sem nota pendente não faz
+    chamada nenhuma. Nunca levanta — `reconciliar_no_startup` engole e loga.
+    """
+    from app.services.fiscal.emissoes.reconciliacao import reconciliar_no_startup
+
+    await asyncio.sleep(ESPERA_RECONCILIACAO_FISCAL_SEGUNDOS)
+    await asyncio.to_thread(reconciliar_no_startup)
+
+
+# Nome da forma de pagamento -> código `tPag` do layout da NF-e.
+#
+# POR QUE ISTO EXISTE
+# -------------------
+# As seis formas padrão nasciam com `codigo_sefaz` NULL, nenhuma tela permitia
+# preencher, e o gate de emissão recusa a nota enquanto houver forma ativa sem
+# código (`pendencias_globais.pagamentos_sem_sefaz`). Resultado: TODA instalação
+# ficava impedida de emitir por um campo que não havia como preencher. Achado
+# numa loja real em 12/09/2026, na tentativa da primeira NF-e.
+#
+# O 17 é o PIX. A NT 2023.004 separou 17 (dinâmico) de 20 (estático) — o nosso
+# QR é estático, mas a forma "PIX" da loja também recebe PIX dinâmico pelo app
+# do banco. Fica 17, que é o de uso geral, e a tela permite trocar.
+_CODIGO_SEFAZ_PADRAO = {
+    "dinheiro": "01",
+    "pix": "17",
+    "cartão de crédito": "03",
+    "cartao de credito": "03",
+    "cartão de débito": "04",
+    "cartao de debito": "04",
+    "transferência bancária": "18",
+    "transferencia bancaria": "18",
+    "boleto": "15",
+    "fiado": "05",           # 05 = Crédito Loja
+    "crediário": "05",
+    "crediario": "05",
+    "cheque": "02",
+}
+
 _FORMAS_PAGAMENTO_PADRAO = [
     "Dinheiro",
     "PIX",
@@ -179,14 +300,35 @@ _FORMAS_PAGAMENTO_PADRAO = [
 
 
 def _seed_formas_pagamento():
-    """Insere formas de pagamento padrão caso a tabela esteja vazia ou faltem registros."""
+    """
+    Insere as formas de pagamento padrão e completa o código SEFAZ do que faltar.
+
+    SÓ PREENCHE O QUE FALTA. Forma com código já gravado não é tocada: a loja
+    pode ter trocado de propósito (o 20 do PIX estático, por exemplo), e
+    sobrescrever desfaria a escolha a cada reinício do sistema.
+    """
     db = SessionLocal()
     try:
         for nome in _FORMAS_PAGAMENTO_PADRAO:
             existe = db.query(FormaPagamento).filter(FormaPagamento.nome.ilike(nome)).first()
             if not existe:
-                db.add(FormaPagamento(nome=nome, ativo=True))
+                db.add(FormaPagamento(
+                    nome=nome,
+                    ativo=True,
+                    codigo_sefaz=_CODIGO_SEFAZ_PADRAO.get(nome.strip().lower()),
+                ))
                 logger.info("Forma de pagamento criada: %s", nome)
+
+        # Backfill: alcança as instalações que já rodam, onde as formas foram
+        # criadas antes de o código existir.
+        for forma in db.query(FormaPagamento).filter(
+            (FormaPagamento.codigo_sefaz == None) | (FormaPagamento.codigo_sefaz == "")  # noqa: E711
+        ).all():
+            codigo = _CODIGO_SEFAZ_PADRAO.get((forma.nome or "").strip().lower())
+            if codigo:
+                forma.codigo_sefaz = codigo
+                logger.info("Código SEFAZ %s atribuído a '%s'.", codigo, forma.nome)
+
         db.commit()
     except Exception:
         db.rollback()
@@ -217,12 +359,17 @@ async def lifespan(app: FastAPI):
     Gerenciador de ciclo de vida do FastAPI.
     Inicia tarefas em segundo plano ao iniciar e cancela ao encerrar.
     """
+    # PRIMEIRA COISA DO BOOT, antes de create_all/migracoes: a restauracao troca
+    # o ARQUIVO do banco no disco. Se rodasse depois, o create_all abriria o
+    # banco antigo e as migracoes seriam aplicadas no arquivo que esta prestes a
+    # ser substituido. So faz algo se houver um marcador pendente confirmado.
     try:
         result = apply_pending_restore()
         if result:
             print(f"[RESTORE] Restauração aplicada no boot: "
                   f"ciclo {result['restored_cycle']}. "
                   f"Cópia de segurança em {result.get('old_db')}")
+            print(f"[RESTORE] Licença: {result.get('license')}")
     except Exception as e:
         print(f"[RESTORE] Erro ao aplicar restauração pendente: {type(e).__name__}: {e}")
 
@@ -233,7 +380,11 @@ async def lifespan(app: FastAPI):
 
     await asyncio.to_thread(limpar_temp_data)
 
-    aplicar_migracoes()
+    # create_all CONTINUA AQUI. A versao do master removeu esta linha porque la
+    # o Alembic tem um baseline unico que cria o schema inteiro; nesta branch a
+    # cadeia de migracoes pressupoe que o create_all rodou antes (ver
+    # db/migrations.py e CLAUDE.md). Remover isto deixaria banco novo sem tabelas.
+    Base.metadata.create_all(bind=engine)
 
     # Limpar terminais conectados da sessão anterior (stale após restart)
     db = SessionLocal()
@@ -243,14 +394,21 @@ async def lifespan(app: FastAPI):
         logger.info("Terminais conectados da sessão anterior limpos.")
     finally:
         db.close()
+
+    aplicar_migracoes()
     _seed_formas_pagamento()
+    _seed_ncm()
+    seed_tabelas_nfse()
     _seed_contador_venda()
+    print("Iniciando tarefa de baixa automatica de recebimentos...")
+    tarefa_baixa_automatica = asyncio.create_task(_loop_baixa_automatica())
+
     print("Iniciando tarefa de limpeza automatica temporal...")
     tarefa_limpeza = asyncio.create_task(_loop_limpeza_temporal())
-    
+
     print("Iniciando tarefa de backup automático...")
     tarefa_backup = asyncio.create_task(_loop_backup())
-    
+
     print("Iniciando tarefa de sincronização com nuvem automático...")
     tarefa_cloud_sync = asyncio.create_task(_loop_cloud_sync())
 
@@ -260,25 +418,38 @@ async def lifespan(app: FastAPI):
     print("Iniciando tarefa de renovação de licença...")
     tarefa_renovacao = asyncio.create_task(_loop_renovacao_licenca())
 
+    print("Agendando reconciliação fiscal das notas sem desfecho...")
+    tarefa_reconciliacao_fiscal = asyncio.create_task(_reconciliar_fiscal_apos_boot())
+
     host = os.getenv("STARTBIG_HOST", "0.0.0.0")
     port = int(os.getenv("STARTBIG_PORT", "8080"))
     
     print(f"Iniciando mDNS em {host}:{port}")
     
     await asyncio.to_thread(register_service, host, port)
+    tarefa_mdns = asyncio.create_task(_loop_mdns_watchdog())
 
     yield
 
     print("Encerrando mDNS...")
+    tarefa_mdns.cancel()
     await asyncio.to_thread(stop_discovery)
     
     print("Encerrando tarefas em segundo plano...")
+    tarefa_baixa_automatica.cancel()
     tarefa_limpeza.cancel()
     tarefa_backup.cancel()
     tarefa_cloud_sync.cancel()
     tarefa_heartbeat.cancel()
     tarefa_renovacao.cancel()
-    for tarefa in (tarefa_limpeza, tarefa_backup, tarefa_cloud_sync, tarefa_heartbeat, tarefa_renovacao):
+    tarefa_reconciliacao_fiscal.cancel()
+    # União das duas linhagens: as tarefas desta branch (backup, sincronização
+    # com a nuvem, baixa automática) MAIS a `tarefa_mdns`, que veio junto do
+    # conserto de IP — sem ela o anúncio na rede fica rodando depois do
+    # shutdown.
+    for tarefa in (tarefa_baixa_automatica, tarefa_limpeza, tarefa_backup,
+                   tarefa_cloud_sync, tarefa_heartbeat, tarefa_renovacao,
+                   tarefa_reconciliacao_fiscal, tarefa_mdns):
         try:
             await tarefa
         except asyncio.CancelledError:
@@ -296,5 +467,84 @@ async def lifespan(app: FastAPI):
         print(f"Todos os {len(terminais)} terminais desconectados.")
     except Exception:
         print("Erro ao desconectar terminais no shutdown.")
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Tabela NCM
+# ---------------------------------------------------------------------------
+
+def _caminho_arquivo_ncm() -> str:
+    """
+    Onde está o `ncm.csv.gz`, em dev e no app instalado.
+
+    No sidecar o código roda OFUSCADO de dentro de `dist/`, e o PyArmor só
+    copia `.py` — arquivo de dado não vai junto. Quem o carrega é o
+    PyInstaller, via `run.spec`, e o destino é o `STARTBIG_BUNDLE_DIR` que o
+    `run.py` publica no ambiente.
+
+    Sem a variável (dev), cai no caminho do código-fonte.
+    """
+    bundle = os.environ.get("STARTBIG_BUNDLE_DIR")
+    if bundle:
+        empacotado = os.path.join(bundle, "app", "data", "ncm.csv.gz")
+        if os.path.exists(empacotado):
+            return empacotado
+
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ncm.csv.gz"
+    )
+
+
+def _seed_ncm():
+    """
+    Carrega a tabela NCM no banco, uma vez.
+
+    POR QUE NO BOOT E NÃO NUMA MIGRATION: são 10.437 linhas de dado de
+    referência, não de negócio. Migration serve para mudar forma de tabela; o
+    conteúdo vem do arquivo, e o arquivo muda quando a Camex publica revisão —
+    aí basta trocá-lo e o boot seguinte reconcilia.
+
+    IDEMPOTENTE e barato: se a contagem já bate com o arquivo, sai sem ler
+    nada. Só recarrega quando o arquivo muda de tamanho (revisão nova) ou o
+    banco está vazio.
+
+    NUNCA derruba o boot. Sem a tabela, o campo NCM volta a ser digitação livre
+    — que é como ele funcionou até 13/09/2026.
+    """
+    import csv
+    import gzip
+
+    from app.db.models.ncm import Ncm
+
+    arquivo_ncm = _caminho_arquivo_ncm()
+    if not os.path.exists(arquivo_ncm):
+        logger.warning("[NCM] Arquivo de dados não encontrado em %s", arquivo_ncm)
+        return
+
+    db = SessionLocal()
+    try:
+        with gzip.open(arquivo_ncm, "rt", encoding="utf-8", newline="") as arquivo:
+            linhas = list(csv.DictReader(arquivo))
+
+        if db.query(Ncm).count() == len(linhas):
+            return
+
+        logger.info("[NCM] Carregando %d códigos...", len(linhas))
+        db.query(Ncm).delete()
+        db.bulk_save_objects([
+            Ncm(
+                codigo=linha["codigo"],
+                descricao=linha["descricao"][:500],
+                descricao_completa=linha["descricao_completa"][:2000],
+            )
+            for linha in linhas
+        ])
+        db.commit()
+        logger.info("[NCM] %d códigos disponíveis para busca.", len(linhas))
+    except Exception:
+        db.rollback()
+        logger.exception("[NCM] Falha ao carregar a tabela; o campo segue como digitação livre.")
     finally:
         db.close()

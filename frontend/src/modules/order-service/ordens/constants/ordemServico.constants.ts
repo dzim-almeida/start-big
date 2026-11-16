@@ -1,15 +1,91 @@
-import type { OsStatusEnumDataType, OsPriorityEnumDataType, OsEquipTypeEnumDataType } from '../schemas/enums/osEnums.schema';
+import type {
+  OsStatusEnumDataType,
+  OsPriorityEnumDataType,
+  OsEquipTypeEnumDataType,
+  OsEquipSituacaoEnumDataType,
+} from '../schemas/enums/osEnums.schema';
 import type { FilterOption } from '@/shared/types/filter.types';
 
-export const OS_STATUS_OPTIONS = [
-  { value: 'ABERTA' as OsStatusEnumDataType, label: 'Aberta', color: 'blue' },
-  { value: 'EM_ANDAMENTO' as OsStatusEnumDataType, label: 'Em Andamento', color: 'yellow' },
-  { value: 'AGUARDANDO_PECAS' as OsStatusEnumDataType, label: 'Aguardando Peças', color: 'orange' },
-  { value: 'AGUARDANDO_APROVACAO' as OsStatusEnumDataType, label: 'Aguardando Aprovação', color: 'yellow' },
-  { value: 'AGUARDANDO_RETIRADA' as OsStatusEnumDataType, label: 'Aguardando Retirada', color: 'indigo' },
-  { value: 'FINALIZADA' as OsStatusEnumDataType, label: 'Finalizada', color: 'green' },
-  { value: 'CANCELADA' as OsStatusEnumDataType, label: 'Cancelada', color: 'red' },
+/**
+ * Chave do "estado" que a OS exibe ao usuário.
+ *
+ * A coluna Status da tabela junta, de propósito, duas dimensões que no banco são
+ * campos separados:
+ *   - `status`               → onde a OS está no fluxo (ABERTA → … → FINALIZADA)
+ *   - `situacao_equipamento` → o desfecho do objeto, gravado só na finalização
+ *
+ * SEM_REPARO e CONDENADO NÃO são status novos: uma OS condenada continua
+ * FINALIZADA, e o faturamento, o `data_finalizacao` e os relatórios dependem
+ * disso. Eles apenas substituem o rótulo "Finalizada" para quem lê a tabela.
+ */
+export type OsEstadoKey = OsStatusEnumDataType | 'SEM_REPARO' | 'CONDENADO';
+
+export interface OsEstadoConfig {
+  label: string;
+  /** fundo + texto do badge */
+  badge: string;
+  /** borda, para os badges contornados */
+  border: string;
+  /** pontinho colorido do menu de filtro */
+  dot: string;
+}
+
+/**
+ * Fonte ÚNICA de rótulo e cor do estado da OS — tabela, histórico do cliente,
+ * resumo da OS e menu de filtro saem todos daqui. Não recriar mapas locais em
+ * componente: era assim que a mesma OS aparecia indigo num lugar e teal noutro.
+ */
+export const OS_ESTADO_CONFIG: Record<OsEstadoKey, OsEstadoConfig> = {
+  ABERTA:               { label: 'Aberta',               badge: 'bg-blue-50 text-blue-600',       border: 'border-blue-200',    dot: 'bg-blue-500'    },
+  EM_ANDAMENTO:         { label: 'Em Andamento',         badge: 'bg-amber-50 text-amber-700',     border: 'border-amber-200',   dot: 'bg-amber-500'   },
+  AGUARDANDO_PECAS:     { label: 'Aguardando Peças',     badge: 'bg-orange-50 text-orange-700',   border: 'border-orange-200',  dot: 'bg-orange-500'  },
+  AGUARDANDO_APROVACAO: { label: 'Aguardando Aprovação', badge: 'bg-purple-50 text-purple-700',   border: 'border-purple-200',  dot: 'bg-purple-500'  },
+  AGUARDANDO_RETIRADA:  { label: 'Aguardando Retirada',  badge: 'bg-indigo-50 text-indigo-700',   border: 'border-indigo-200',  dot: 'bg-indigo-500'  },
+  FINALIZADA:           { label: 'Finalizada',           badge: 'bg-emerald-50 text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  CANCELADA:            { label: 'Cancelada',            badge: 'bg-red-50 text-red-700',         border: 'border-red-200',     dot: 'bg-red-500'     },
+  SEM_REPARO:           { label: 'Sem Reparo',           badge: 'bg-amber-50 text-amber-700',     border: 'border-amber-200',   dot: 'bg-amber-400'   },
+  CONDENADO:            { label: 'Condenado',            badge: 'bg-red-50 text-red-700',         border: 'border-red-200',     dot: 'bg-red-600'     },
+};
+
+/** Desfechos filtráveis. No backend viram `situacao_equipamento`, não `status`. */
+export const OS_DESFECHO_KEYS = ['SEM_REPARO', 'CONDENADO'] as const;
+
+/** Distingue, na chave escolhida no filtro, um desfecho de um status do fluxo. */
+export function isDesfechoKey(key: string): key is OsEquipSituacaoEnumDataType {
+  return (OS_DESFECHO_KEYS as readonly string[]).includes(key);
+}
+
+/** Ordem do fluxo no select de status (a mesma de sempre). */
+const OS_STATUS_ORDEM = [
+  'ABERTA',
+  'EM_ANDAMENTO',
+  'AGUARDANDO_PECAS',
+  'AGUARDANDO_APROVACAO',
+  'AGUARDANDO_RETIRADA',
+  'FINALIZADA',
+  'CANCELADA',
 ] as const;
+
+/**
+ * Quem decide o TEXTO de cada estado. Por padrão, o label de OS_ESTADO_CONFIG;
+ * o composable `useRotulosStatusOS` passa um que conhece os rótulos do
+ * segmento (Spec 01B). As cores nunca mudam: vêm sempre de OS_ESTADO_CONFIG.
+ */
+export type TextoDoEstado = (chave: OsEstadoKey) => string;
+const textoPadrao: TextoDoEstado = (chave) => OS_ESTADO_CONFIG[chave].label;
+
+/**
+ * Opções do select de status. `value` é o código do enum (é o que vai para a
+ * API); `label` é o texto exibido (Spec 01B, D5).
+ */
+export function montarOpcoesStatus(
+  texto: TextoDoEstado = textoPadrao,       // sem parâmetro = textos padrão
+): { value: OsStatusEnumDataType; label: string }[] {
+  return OS_STATUS_ORDEM.map((value) => ({ value, label: texto(value) }));
+}
+
+/** Constante de sempre, agora montada pela função: mesmo conteúdo de antes. */
+export const OS_STATUS_OPTIONS: { value: OsStatusEnumDataType; label: string }[] = montarOpcoesStatus();
 
 export const OS_PRIORIDADE_OPTIONS = [
   { value: 'BAIXA' as OsPriorityEnumDataType, label: 'Baixa', color: 'gray' },
@@ -35,7 +111,7 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 export const STORAGE_KEY_OS_FILTER = 'os_filter_status';
 
-export const EQUIPMENT_HISTORY_LIMIT = 20;
+export const OBJETO_HISTORY_LIMIT = 20;
 
 export const REOPEN_MODES = {
   NONE: 'NONE',
@@ -49,6 +125,7 @@ export const OS_EQUIP_TYPE_OPTIONS = [
   { value: 'CELULAR' as OsEquipTypeEnumDataType, label: 'Celular' },
   { value: 'TABLET' as OsEquipTypeEnumDataType, label: 'Tablet' },
   { value: 'COMPUTADOR' as OsEquipTypeEnumDataType, label: 'Computador' },
+  { value: 'NOTEBOOK' as OsEquipTypeEnumDataType, label: 'Notebook' },
   { value: 'IMPRESSORA' as OsEquipTypeEnumDataType, label: 'Impressora' },
   { value: 'MONITOR' as OsEquipTypeEnumDataType, label: 'Monitor' },
   { value: 'SCANNER' as OsEquipTypeEnumDataType, label: 'Scanner' },
@@ -60,12 +137,40 @@ export const TAB_OPTIONS = [
   { id: 'servicos', label: 'Cadastro de Serviços' },
 ];
 
-export const OS_STATUS_FILTER_CONFIG: Record<string, FilterOption> = {
-  ABERTA:               { label: 'Aberta',              class: 'bg-blue-50 text-blue-600',       color: 'bg-blue-500'    },
-  EM_ANDAMENTO:         { label: 'Em Andamento',         class: 'bg-amber-50 text-amber-700',     color: 'bg-amber-500'   },
-  AGUARDANDO_PECAS:     { label: 'Aguardando Peças',     class: 'bg-orange-50 text-orange-700',   color: 'bg-orange-500'  },
-  AGUARDANDO_APROVACAO: { label: 'Aguardando Aprovação', class: 'bg-purple-50 text-purple-700',   color: 'bg-purple-500'  },
-  AGUARDANDO_RETIRADA:  { label: 'Aguardando Retirada',  class: 'bg-indigo-50 text-indigo-700',   color: 'bg-indigo-500'  },
-  FINALIZADA:           { label: 'Finalizada',           class: 'bg-emerald-50 text-emerald-700', color: 'bg-emerald-500' },
-  CANCELADA:            { label: 'Cancelada',            class: 'bg-red-50 text-red-700',         color: 'bg-red-500'     },
-};
+/**
+ * Estados que NÃO viram opção de filtro.
+ *
+ * CANCELADA sai porque na prática da loja a OS não é cancelada: ou ela é
+ * entregue Sem Reparo / Condenado, ou finaliza reparada. O rótulo continua no
+ * mapa acima — OS canceladas antigas ainda precisam de badge na tabela, e o
+ * botão "Cancelar OS" segue existindo; o que some é só o atalho no menu.
+ */
+const OS_FILTRO_OCULTOS: readonly OsEstadoKey[] = ['CANCELADA'];
+
+/**
+ * Opções do menu de filtro — derivadas do mapa acima, na mesma ordem: primeiro
+ * os status do fluxo, depois os desfechos ("Sem Reparo" / "Condenado").
+ *
+ * A CHAVE de cada opção é o código do enum: é ela que fica salva no
+ * localStorage (STORAGE_KEY_OS_FILTER) e vai para a API. Só o texto pode vir
+ * do segmento (Spec 01B, D5).
+ */
+export function montarFiltroStatus(
+  texto: TextoDoEstado = textoPadrao,       // sem parâmetro = textos padrão
+): Record<string, FilterOption> {
+  return Object.fromEntries(
+    (Object.keys(OS_ESTADO_CONFIG) as OsEstadoKey[])
+      .filter((key) => !OS_FILTRO_OCULTOS.includes(key))   // CANCELADA continua fora
+      .map((key) => [
+        key,                                               // chave = código do enum
+        {
+          label: texto(key),                               // texto: padrão ou do segmento
+          class: OS_ESTADO_CONFIG[key].badge,              // cores: sempre as mesmas
+          color: OS_ESTADO_CONFIG[key].dot,
+        },
+      ]),
+  );
+}
+
+/** Constante de sempre, agora montada pela função: mesmo conteúdo de antes. */
+export const OS_STATUS_FILTER_CONFIG: Record<string, FilterOption> = montarFiltroStatus();

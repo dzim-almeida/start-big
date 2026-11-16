@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { UserRound, CalendarDays, XCircle } from 'lucide-vue-next';
 import BaseTextarea from '@/shared/components/ui/BaseInput/BaseTextarea.vue';
 import type { SaleRead, SaleUpdate } from '../../schemas/sale.schema';
+import { formatDataHora } from '@/shared/utils/date.utils';
 
 const props = defineProps<{
   sale: SaleRead | undefined;
@@ -12,16 +13,11 @@ const props = defineProps<{
   onSave: () => void;
 }>();
 
-const createdAt = computed(() => {
-  if (!props.sale?.criado_em) return null;
-  const date = new Date(props.sale.criado_em).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-  const time = props.sale.criado_em.split('T')[1];
-  return `${date} às ${time}`;
-});
+// `criado_em` é UTC no backend. O `.split('T')[1]` anterior mostrava a hora UTC
+// crua (com microssegundos) — agora sai a hora local, formatada.
+const createdAt = computed(() =>
+  props.sale?.criado_em ? formatDataHora(props.sale.criado_em).replace(',', ' às') : null,
+);
 </script>
 
 <template>
@@ -51,6 +47,7 @@ const createdAt = computed(() => {
     <!-- Observação -->
     <div class="flex flex-col gap-1">
       <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Observação</span>
+      <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
       <BaseTextarea
         v-model="form.observacao"
         :disabled="isSaving || readonly"
@@ -59,11 +56,13 @@ const createdAt = computed(() => {
         class="w-full text-sm"
         @blur="onSave"
       />
+      <!-- eslint-enable vue/no-mutating-props -->
     </div>
 
     <!-- Observação Interna -->
     <div class="flex flex-col gap-1">
       <span class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Obs. Interna</span>
+      <!-- eslint-disable vue/no-mutating-props -- o `form` da venda é um reactive do SaleModal, editado aqui de propósito e salvo no blur; trocar por emit é refatoração do PDV, não lint -->
       <BaseTextarea
         v-model="form.observacao_interna"
         :disabled="isSaving || readonly"
@@ -72,6 +71,7 @@ const createdAt = computed(() => {
         class="w-full text-sm"
         @blur="onSave"
       />
+      <!-- eslint-enable vue/no-mutating-props -->
     </div>
 
     <!-- Motivo do Cancelamento (apenas para vendas canceladas) -->

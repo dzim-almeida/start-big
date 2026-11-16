@@ -1,0 +1,31 @@
+{
+  "fator": 10,
+  "linha": {
+    "item_id": 4,
+    "produto_id": 4,
+    "descricao": "Corrediça Tandem",
+    "codigo": "P-4",
+    "unidade": "PAR",
+    "localizacao": null,
+    "planejado_milesimos": 6000,
+    "sugerido_milesimos": 6000,
+    "quantidade_milesimos": 6000,
+    "separada_milesimos": 6000,
+    "falta_milesimos": 0,
+    "concluida": true,
+    "nao_usado": false,
+    "no_estoque_milesimos": 0,
+    "em_pedido_milesimos": 0,
+    "sem_cobertura_milesimos": 0,
+    "estoque_milesimos": 4000,
+    "diferenca_bp": 0,
+    "moveis": [
+      {
+        "nome": "Balcão",
+        "ambiente": "Cozinha Gourmet",
+        "planejado_milesimos": 6000
+      }
+    ],
+    "alertas": []
+  }
+}

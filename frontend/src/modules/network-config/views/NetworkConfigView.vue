@@ -8,14 +8,16 @@ import TerminalConfigStep from '../components/TerminalConfigStep.vue'
 import ConexaoStatusStep from '../components/ConexaoStatusStep.vue'
 
 import backgroundImage from '@/shared/assets/images/login/background.png'
-import logoImage from '@/shared/assets/images/login/start-logo.png'
+import AppLogo from '@/shared/components/AppLogo.vue'
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue'
 
 const { currentStep, tipoMaquina, resetConfig, iniciarModoTerminalOnly } = useNetworkConfig()
 const networkStore = useNetworkConfigStore()
 
 onMounted(() => {
-  if (networkStore.erroConexaoTerminal) {
+  // Terminal sem servidor: pula direto para o passo de endereço. Um servidor nunca
+  // chega aqui pela tela de erro (ela não oferece reconfigurar o papel).
+  if (networkStore.semConexaoBackend && networkStore.papel === 'terminal') {
     iniciarModoTerminalOnly()
   }
 })
@@ -50,7 +52,7 @@ onUnmounted(() => {
               <h1 class="text-xl font-bold text-brand-action">Configuração de Rede</h1>
               <p class="text-gray-500 text-xs mt-0.5">Configure a comunicação do sistema</p>
             </div>
-            <img :src="logoImage" alt="Start Big Logo" class="h-12 w-auto" />
+            <AppLogo class="h-12 w-auto" />
           </div>
         </header>
 

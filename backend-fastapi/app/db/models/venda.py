@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
+from sqlalchemy import Boolean, String, Integer, DateTime, Enum as SqlAlchemyEnum, ForeignKey, CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, TYPE_CHECKING
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .venda_produto import ProdutoVenda
     from .venda_pagamento import PagamentoVenda
     from .log_produto import LogProduto
+    from .venda_nota_fiscal import VendaNotaFiscal
 
 
 class Venda(Base):
@@ -92,14 +93,27 @@ class Venda(Base):
     # --- Financeiro (valores em centavos) ---
     subtotal: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Soma dos itens sem descontos e fretes (centavos)")
     entrega: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="Valor do frete/motoboy (centavos)")
+    acrescimo: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0", doc="Acrescimo de juros/cartao aplicado no checkout (centavos)")
+    # Venda no atacado (Configurações › Regras de Vendas): as linhas de unidade
+    # saem pelo `valor_atacado` do produto. Ver services/venda_atacado.py.
+    modo_atacado: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Venda no preço de atacado",
+    )
     @property
     def total_bruto(self):
         total_itens = sum(item.subtotal for item in self.itens)
         return total_itens + (self.entrega or 0)
     @property
     def descontos(self):
+        # Só o do OPERADOR — é o que o limite de desconto confere e o que a tela
+        # devolve no campo de desconto da venda. O da regra fica à parte.
         return sum(item.desconto for item in self.itens)
-    total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (descontos) (centavos)")
+    @property
+    def descontos_regra(self):
+        """R1/R3 (§6.1): fora do limite de desconto do operador."""
+        return sum(item.desconto_regra or 0 for item in self.itens)
+    total: Mapped[int] = mapped_column(Integer, default=0, nullable=False, doc="(subtotal + entrega) - (descontos) + acrescimo (centavos)")
     @property
     def troco(self):
         total_pago = sum(pagamento.valor for pagamento in self.pagamentos)
@@ -107,6 +121,26 @@ class Venda(Base):
     
     # --- Datas ---
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, doc="Data de criacao do rascunho")
+    # A FILA DO CAIXA. NULL = em montagem; preenchida = o atendente entregou.
+    #
+    # E uma COLUNA e nao um valor novo em `VendaStatus` de proposito. O modulo
+    # compara status por igualdade em varios lugares -- a listagem e o
+    # `get_sales_status`, que alimenta os cards ATIVAS/FINALIZADAS/CANCELADAS.
+    # Um `AGUARDANDO_PAGAMENTO` obrigaria a revisar toda comparacao, e uma
+    # esquecida faz a venda sumir de uma contagem SEM ERRO NENHUM -- com tres
+    # lojas em producao nessas telas. Aqui o status continua ATIVA nos dois
+    # casos e nada que filtra status muda.
+    #
+    # E SINAL DE LISTA, NAO REGRA DE NEGOCIO: `finish_sale` ignora esta coluna
+    # por completo. O caixa pode finalizar venda que nunca entrou na fila, e
+    # pode editar uma que entrou. Nenhuma regra de dinheiro depende dela.
+    #
+    # Timestamp e nao booleano: custa o mesmo e da a ordem da fila de graca --
+    # quem esperou mais aparece primeiro.
+    enviada_ao_caixa_em: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True,
+        doc="Quando o atendente mandou a venda para a fila do caixa. NULL = em montagem",
+    )
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, doc="Ultima alteracao no carrinho")
 
     # --- Relacionamentos ---
@@ -141,4 +175,10 @@ class Venda(Base):
         "LogProduto",
         back_populates="venda",
         doc="Logs de movimentacao de estoque desta venda"
+    )
+    nota_fiscal: Mapped[Optional["VendaNotaFiscal"]] = relationship(
+        "VendaNotaFiscal",
+        back_populates="venda",
+        cascade="all, delete-orphan",
+        uselist=False,
     )

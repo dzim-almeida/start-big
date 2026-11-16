@@ -8,9 +8,11 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "opener:allow-open-path",
     "fs:allow-app-read",
     "fs:allow-app-write",
     "fs:allow-exists",
+    "dialog:allow-save",
     "shell:default",
     {
       "identifier": "shell:allow-execute",

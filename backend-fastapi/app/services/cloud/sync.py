@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 
-from app.schemas.backup import BackupInfo, SyncResponse
+from app.schemas.backup.operacoes import BackupInfo, SyncResponse
 
 from ._constants import API_BACKUP_STATUS_URL
 from ._http import _request, _safe_json

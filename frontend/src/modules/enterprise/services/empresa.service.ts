@@ -67,32 +67,6 @@ export async function updateEmpresa(payload: EmpresaUpdate): Promise<EmpresaRead
 // =============================================
 
 /**
- * Faz upload do certificado digital A1 (PKCS#12)
- *
- * IMPORTANTE: A senha é enviada apenas nesta requisição para validação.
- * Ela NÃO é persistida no banco de dados.
- *
- * @param file - Arquivo .pfx ou .p12
- * @param senha - Senha do certificado (usada apenas para validação)
- * @returns Empresa com certificado atualizado
- * @example
- * const file = event.target.files[0];
- * const empresa = await uploadCertificado(file, 'minhaSenha123');
- * console.log(empresa.fiscal_settings?.certificado_validade);
- */
-export async function uploadCertificado(file: File, senha: string): Promise<EmpresaRead> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('senha', senha);
-
-  const { data } = await api.post<EmpresaRead>(`${BASE_URL}/certificado-a1`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-
-  return data;
-}
-
-/**
  * Vincula um certificado do Windows Certificate Store à empresa
  *
  * O certificado é identificado pelo thumbprint (hash único).

@@ -10,15 +10,17 @@ import {
   CustomerPJReadSchema,
 } from './relationship/customer/customer.schema';
 import { EmployeeReadSchema } from './relationship/employee/employee.schema';
-import { OsEquipReadSchema } from './relationship/osEquip.schema';
+import { OsObjetoReadSchema } from './relationship/osObjeto.schema';
 import { OsItemReadSchema } from './relationship/osItem.schema';
 import { OsPaymentReadSchema } from './relationship/osPayment.schema';
+import { PaymentFormReadSchema } from '@/shared/schemas/payments/payment.schema';
 import { OsImageReadSchema } from './relationship/osPhoto.schema';
 import { PaginationBaseSchema } from '@/shared/schemas/pagination/pagination.schema';
 
 const OrderServiceParamsSchema = z.object({
   search: z.string().max(255, 'A busca pode ter no máximo 255 caracteres').optional().nullable(),
   status: OsStatusEnum.optional().nullable(),
+  situacao_equipamento: OsEquipSituacaoEnum.optional().nullable(),
   priority_sort: z.boolean().optional(),
   page: z.number().int().min(1).optional(),
   limit: z.number().int().min(1).max(100).optional(),
@@ -37,6 +39,8 @@ export const OrderServiceReadSchema = z.object({
   // Estados
   status: OsStatusEnum,
   situacao_equipamento: OsEquipSituacaoEnum.optional().nullable(),
+  // Marcenaria-fábrica: etapa do trilho. Nula em toda OS fora do modo fábrica.
+  fase_fabrica: z.string().optional().nullable(),
 
   // Financeiro
   valor_bruto: z.number().int(),
@@ -44,6 +48,10 @@ export const OrderServiceReadSchema = z.object({
   taxa_entrega: z.number().int().default(0),
   acrescimo: z.number().int().default(0),
   credito_anterior: z.number().int().nullable().optional(),
+  // A parte do crédito que NÃO está em `pagamentos`: os adiantamentos das
+  // sessões anteriores. É o que permite separar, sem chute, "linhas que o
+  // crédito já cobre" de "pagamentos feitos depois da reabertura".
+  adiantamentos_anteriores: z.number().int().nullable().optional(),
 
   // Datas
   data_finalizacao: z.string().optional().nullable(),
@@ -56,9 +64,13 @@ export const OrderServiceReadSchema = z.object({
   // Relacionamentos
   cliente: z.union([CustomerPFReadSchema, CustomerPJReadSchema]),
   funcionario: EmployeeReadSchema,
-  equipamento: OsEquipReadSchema,
+  objeto: OsObjetoReadSchema,
   itens: z.array(OsItemReadSchema),
   pagamentos: z.array(OsPaymentReadSchema),
+  // O adiantamento não gera linha em `pagamentos` (a trava de finalização é
+  // soma(pagamentos) + valor_entrada), então a forma dele vem por fora.
+  // Nula em OS aberta antes deste campo existir.
+  forma_pagamento_entrada: PaymentFormReadSchema.optional().nullable(),
   fotos: z.array(OsImageReadSchema),
 }).passthrough();
 

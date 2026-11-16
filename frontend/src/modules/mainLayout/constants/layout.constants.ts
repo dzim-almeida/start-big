@@ -6,10 +6,16 @@ import {
   Building,
   IdCard,
   Wrench,
+  ChartColumn,
+  Wallet,
+  FileText,
+  ClipboardList,
 } from 'lucide-vue-next';
 
 import { SidebarSection } from '../types/layout.types';
 import { PERMISSIONS } from '@/shared/constants/permissions.constants';
+import { MODULOS } from '@/shared/constants/modulos.constants';
+import { recursoDisponivel } from '@/shared/config/planos';
 
 export const SIDEBAR_SECTIONS: SidebarSection[] = [
   {
@@ -33,6 +39,8 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         label: 'Serviços',
         requiredPermission: PERMISSIONS.services,
       },
+      // Orçamentos de marcenaria: não têm item próprio no menu. São a aba
+      // "Orçamentos" dentro de Serviços (decisão do Alan, 12/10/2026).
       {
         id: 'customers',
         icon: Users,
@@ -45,6 +53,128 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         label: 'Produtos',
         requiredPermission: PERMISSIONS.products,
       },
+      {
+        id: 'reports',
+        icon: ChartColumn,
+        label: 'Relatórios',
+        requiredPermission: PERMISSIONS.reports,
+      },
+      {
+        // Vizinho de Relatórios de propósito: um olha para trás (quanto vendi),
+        // o outro para o compromisso (quanto devo, quanto tenho a receber).
+        //
+        // O `id` do pai não é rota — grupo não navega, quem navega são os
+        // filhos. Ver SidebarItemGroup.
+        id: 'finance',
+        icon: Wallet,
+        label: 'Gestão Financeira',
+        requiredPermission: PERMISSIONS.finance,
+        requiredModule: MODULOS.FINANCEIRO,
+        children: [
+          {
+            id: 'finance-overview',
+            label: 'Visão Geral',
+            requiredPermission: PERMISSIONS.finance,
+            requiredModule: MODULOS.FINANCEIRO,
+          },
+          {
+            id: 'finance-analysis',
+            label: 'Análise',
+            // Basta `view`: é leitura, e não expõe documento de folha nenhum.
+            requiredPermission: PERMISSIONS.finance,
+            // PRO junto com Fluxo de Caixa e Conciliação. A linha é: base
+            // guarda e controla o dinheiro; pro avisa e aconselha.
+            requiredModule: MODULOS.FINANCEIRO_PRO,
+          },
+          {
+            id: 'finance-payable',
+            label: 'Contas a Pagar',
+            // Mostra aluguel e salário. Exige `manage` porque não existe motivo
+            // para alguém só consultar a folha de pagamento da loja.
+            requiredPermission: PERMISSIONS.manageFinance,
+            requiredModule: MODULOS.FINANCEIRO,
+          },
+          {
+            id: 'finance-receivable',
+            label: 'Contas a Receber',
+            // Basta `view`: cobrar quem ficou para o fim do mês é tarefa de
+            // atendimento, e não abre a despesa da loja junto.
+            requiredPermission: PERMISSIONS.finance,
+            requiredModule: MODULOS.FINANCEIRO,
+          },
+          {
+            id: 'finance-cashflow',
+            label: 'Fluxo de Caixa',
+            requiredPermission: PERMISSIONS.finance,
+            requiredModule: MODULOS.FINANCEIRO_PRO,
+          },
+          {
+            id: 'finance-reconciliation',
+            label: 'Conciliação',
+            requiredPermission: PERMISSIONS.manageFinance,
+            requiredModule: MODULOS.FINANCEIRO_PRO,
+          },
+          {
+            id: 'finance-statement',
+            label: 'Extrato',
+            // Basta `view`, como o Contas a Receber: conferir o dinheiro que
+            // andou é o trabalho de fechar o mês, e a tela não expõe salário —
+            // mostra movimento, não o documento de RH.
+            requiredPermission: PERMISSIONS.finance,
+            // FINANCEIRO e não PRO: conferir o próprio dinheiro não é recurso
+            // avançado.
+            requiredModule: MODULOS.FINANCEIRO,
+          },
+          {
+            id: 'finance-chart-accounts',
+            label: 'Plano de Contas',
+            requiredPermission: PERMISSIONS.manageFinance,
+            requiredModule: MODULOS.FINANCEIRO,
+          },
+        ],
+      },
+      {
+        // Módulo de Compras (contratável). `featureFlag`, e não cadeado, pelo
+        // mesmo motivo da NF-e: enquanto a plataforma não vende o módulo,
+        // mostrar o item travado anunciaria algo que o cliente não consegue
+        // comprar — e a loja sem o módulo tem de ver o menu de sempre (plano de
+        // compras, C11). Quando for hora de vender pelo cadeado, troque por
+        // `requiredModule: MODULOS.COMPRAS` neste item.
+        id: 'purchases',
+        icon: ClipboardList,
+        label: 'Compras',
+        // Qualquer das duas linhas de Cargos (Compras ou Recebimento): o
+        // almoxarife vê o grupo com só o item dele.
+        requiredPermission: PERMISSIONS.purchasesAny,
+        featureFlag: () => recursoDisponivel('compras'),
+        children: [
+          {
+            id: 'purchases-needs',
+            label: 'Necessidades',
+            requiredPermission: PERMISSIONS.purchases,
+            requiredModule: MODULOS.COMPRAS,
+          },
+          {
+            id: 'purchases-orders',
+            label: 'Pedidos',
+            requiredPermission: PERMISSIONS.purchases,
+            requiredModule: MODULOS.COMPRAS,
+          },
+          {
+            id: 'purchases-receiving',
+            label: 'Recebimento',
+            requiredPermission: PERMISSIONS.purchasesAny,
+            requiredModule: MODULOS.COMPRAS,
+          },
+          {
+            id: 'purchases-reports',
+            label: 'Relatórios',
+            // Mostra preço: só quem vê custo (linha Compras), nunca quem só recebe.
+            requiredPermission: PERMISSIONS.viewPurchaseCosts,
+            requiredModule: MODULOS.COMPRAS,
+          },
+        ],
+      },
     ],
   },
   {
@@ -55,6 +185,33 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
         icon: Building,
         label: 'Dados da Empresa',
         requiredPermission: PERMISSIONS.enterprise,
+      },
+      {
+        // SOME quando a licenca nao traz o modulo NFE -- e nao aparece com
+        // cadeado, como faz a Gestao Financeira. A diferenca e deliberada:
+        // cadeado serve para vender upgrade de recurso que existe no produto;
+        // a NF-e ainda esta em implantacao, e anunciar cria expectativa de algo
+        // que o cliente nao consegue usar. Ver `featureFlag` em layout.types.ts.
+        //
+        // Quem responde e a LICENCA: `recursoDisponivel('nfe')` consulta os
+        // modulos assinados pela plataforma, entao liberar para esta loja e um
+        // clique no app da web -- por plano ou por cliente. E NFE nega por
+        // padrao: licenca sem resposta nao libera.
+        id: 'fiscal',
+        icon: FileText,
+        label: 'Centro Fiscal',
+        requiredPermission: PERMISSIONS.enterprise,
+        // Basta UM para o Centro Fiscal existir: NF-e, NFC-e e NFS-e sao
+        // contratacoes separadas -- ha loja que so emite cupom, e prestador
+        // MEI que so emite nota de servico.
+        featureFlag: () => recursoDisponivel('nfe') || recursoDisponivel('nfce') || recursoDisponivel('nfse'),
+        children: [
+          // Cada aba carrega o SEU modulo: quem tem NF-e e nao tem cupom ve a
+          // aba de NFC-e com cadeado, e nao um 403 depois da venda fechada.
+          { id: 'fiscal-nfe', label: 'NF-e', requiredModule: MODULOS.NFE },
+          { id: 'fiscal-nfce', label: 'NFC-e', requiredModule: MODULOS.NFCE },
+          { id: 'fiscal-nfse', label: 'NFS-e', requiredModule: MODULOS.NFSE },
+        ],
       },
       {
         id: 'employees',

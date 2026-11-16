@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_current_active_user, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.comunicado import ComunicadoCreate, ComunicadoRead
-from app.services import comunicado as comunicado_service
+from app.schemas.comunicado.comunicados import ComunicadoCreate, ComunicadoRead
+from app.services.comunicado import comunicados as comunicado_service
 
 router = APIRouter()
 

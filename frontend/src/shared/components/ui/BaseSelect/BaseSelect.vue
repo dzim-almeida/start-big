@@ -10,6 +10,7 @@ import { computed, ref, watch } from 'vue';
 import { onClickOutside } from '@vueuse/core';
 
 import LucideIcon from '../../icons/LucideIcon.vue';
+import BaseAjuda from '../BaseAjuda/BaseAjuda.vue';
 import { ChevronDown } from 'lucide-vue-next';
 
 export interface SelectOption {
@@ -27,6 +28,8 @@ interface SelectProps {
   id?: string;
   emptyMessage?: string;
   hideChevron?: boolean;
+  /** Texto do "?" ao lado do rótulo. Sem ele, nada é renderizado a mais. */
+  ajuda?: string;
 }
 
 const props = withDefaults(defineProps<SelectProps>(), {
@@ -142,6 +145,24 @@ function handleKeydown(event: KeyboardEvent) {
       event.preventDefault();
       closeDropdown();
       break;
+
+    // Sair no Tab fecha a lista.
+    //
+    // Sem isto o dropdown ficava aberto depois que o foco já tinha ido embora:
+    // o `@focus` do campo SEGUINTE abria o dele, e os dois apareciam
+    // sobrepostos. O texto digitado também ficava preso no campo, porque quem
+    // zera o `searchQuery` é o `closeDropdown` — e ninguém o chamava. Só o
+    // Escape desfazia, o que é muito pedir de quem navega por teclado.
+    //
+    // ⚠️ NÃO trate isso no `blur`: o blur dispara ANTES do click, então fechar
+    // ali derrubaria a lista antes de a opção clicada registrar, e quem usa
+    // mouse pararia de conseguir escolher. Amarrar na tecla evita a corrida.
+    //
+    // E aqui NÃO tem `preventDefault`, ao contrário dos outros casos: o Tab
+    // precisa seguir e levar o foco ao próximo campo, como o navegador faria.
+    case 'Tab':
+      closeDropdown();
+      break;
   }
 }
 
@@ -177,6 +198,7 @@ watch(
     >
       {{ label }}
       <span v-if="required" class="text-red-600"> * </span>
+      <BaseAjuda v-if="ajuda" :texto="ajuda" :campo="label" class="ml-1" />
     </label>
 
     <div class="relative">

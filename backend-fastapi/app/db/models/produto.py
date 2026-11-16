@@ -16,6 +16,9 @@ from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .log_produto import LogProduto
+    from .produto_fiscal import ProdutoFiscal
+    from .produto_embalagem import ProdutoEmbalagem
+    from .produto_regra_preco import ProdutoRegraPreco
 class Produto(Base):
     """
     Representa a tabela base 'produtos', contendo os dados de
@@ -35,16 +38,40 @@ class Produto(Base):
     observacao: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, doc="Observações gerais sobre o produto")
     categoria: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Categoria à qual o produto pertence")
     marca: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, doc="Marca do produto")
+    localizacao_estoque: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Onde o produto fica guardado (corredor, prateleira)")
     @property
     def imagem_url(self) -> Optional[str]:
         return next((foto.url for foto in self.fotos if foto.principal), None)
-    # localizacao_estoque: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, doc="Localização do produto no estoque")
     
     # Chave estrangeira para o fornecedor (Muitos-para-Um)
     # A tipagem Mapped[int | None] reflete o nullable=True
     fornecedor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("fornecedores.id", ondelete="SET NULL"), nullable=True, doc="ID do fornecedor principal (FK)")
 
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, doc="Define se o produto está ativo (True) ou desativado (False)")
+    # Plano de embalagens, A3: distribuidora que não abre fardo. Ligado, o caixa
+    # recusa a unidade avulsa — só vende as embalagens. Só vale com a chave
+    # `usar_embalagens` da empresa ligada.
+    so_embalagem_fechada: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="Só vende em embalagem fechada (recusa a unidade avulsa no caixa)",
+    )
+
+    # Marcenaria-fábrica, F1 (docs/marcenaria-fabrica-plano.md, D2/D3): o
+    # produto como INSUMO. O estoque continua na unidade de COMPRA (chapa,
+    # rolo, unidade); o orçamento fala em consumo (m², metro) e a conversão é
+    # services/fabrica/calculo.py. Nulos/false = produto comum, nada muda.
+    unidade_consumo: Mapped[Optional[str]] = mapped_column(
+        String(4), nullable=True,
+        doc="Unidade em que o orçamento consome o insumo: M2, M ou UN (nulo = não é insumo)",
+    )
+    consumo_por_unidade: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc="Quanto UMA unidade de estoque rende, em inteiro: mm² por chapa, mm por rolo, unidades por UN",
+    )
+    sofre_perda: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False,
+        doc="A perda do orçamento (%) entra na quantidade deste insumo (MDF e fita sim, ferragem não)",
+    )
     
     # Relação Lado "Muitos" (Produto) para "Um" (Fornecedor)
     # Tipagem simplificada: Um produto tem UM fornecedor (ou None, devido à FK SET NULL)
@@ -78,6 +105,38 @@ class Produto(Base):
         "LogProduto",
         back_populates="produto",
         doc="Historico de movimentacoes de estoque deste produto"
+    )
+
+    # Relação 1:1 opcional com dados fiscais (tabela satélite)
+    # Só existe para empresas com módulo fiscal ativo — ausência é o comportamento normal.
+    fiscal: Mapped[Optional["ProdutoFiscal"]] = relationship(
+        "ProdutoFiscal",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        uselist=False,
+        doc="Dados fiscais do produto (NCM, CFOP, CST etc.) — None para empresas sem módulo fiscal"
+    )
+
+    # Embalagens (fardo, caixa, pack) — o estoque continua na unidade deste
+    # produto; ver produto_embalagem.py. `selectin` porque a listagem de
+    # produtos devolve as embalagens junto, e lazy viraria uma consulta por produto.
+    embalagens: Mapped[List["ProdutoEmbalagem"]] = relationship(
+        "ProdutoEmbalagem",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ProdutoEmbalagem.fator",
+        doc="Embalagens de venda/compra do produto",
+    )
+
+    # Regras de preço por quantidade (R2 faixas, R3 leve-pague) — plano de
+    # embalagens, §6.1. Só a venda lê; a listagem não precisa delas.
+    regras_preco: Mapped[List["ProdutoRegraPreco"]] = relationship(
+        "ProdutoRegraPreco",
+        back_populates="produto",
+        cascade="all, delete-orphan",
+        order_by="[ProdutoRegraPreco.tipo, ProdutoRegraPreco.quantidade]",
+        doc="Faixas 'a partir de N' e promoções 'leve X pague Y'",
     )
 
     # Restrições (Constraints)

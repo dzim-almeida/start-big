@@ -4,6 +4,9 @@
 #            da API. Este arquivo centraliza os módulos de rotas.
 # ---------------------------------------------------------------------------
 
+import os
+import sys
+
 from fastapi import APIRouter
 from app.api.v1.endpoints import reset_bd
 from app.api.v1.endpoints import auth
@@ -18,20 +21,66 @@ from app.api.v1.endpoints import cargo
 from app.api.v1.endpoints import usuario
 from app.api.v1.endpoints import ordem_servico
 from app.api.v1.endpoints import forma_pagamento
+from app.api.v1.endpoints import financeiro
+from app.api.v1.endpoints import sessao_caixa
+from app.api.v1.endpoints import terminal
 from app.api.v1.endpoints import venda
 from app.api.v1.endpoints import orcamento
 from app.api.v1.endpoints import dashboard
+from app.api.v1.endpoints import relatorios
 from app.api.v1.endpoints import movimentacao_estoque
 from app.api.v1.endpoints import configuracao
 from app.api.v1.endpoints import comunicado
 from app.api.v1.endpoints import licenca
+from app.api.v1.endpoints import checklist_mobile
 from app.api.v1.endpoints import backup
+from app.api.v1.endpoints import fiscal
+from app.api.v1.endpoints import fiscal_produto
+from app.api.v1.endpoints import fiscal_nfse
+from app.api.v1.endpoints import fiscal_franquia
+from app.api.v1.endpoints import etiquetas
+from app.api.v1.endpoints import produto_embalagem
+from app.api.v1.endpoints import produto_regra_preco
+from app.api.v1.endpoints import nfe_entrada
+from app.api.v1.endpoints import produto_importacao
+from app.api.v1.endpoints import compras
+from app.api.v1.endpoints import fabrica
+from app.api.v1.endpoints import lava_rapido
+from app.api.v1.endpoints import (
+    marcenaria_entrega,
+    marcenaria_orcamento,
+    marcenaria_orcamento_itens,
+    marcenaria_faturamento,
+    marcenaria_producao,
+    marcenaria_separacao,
+    marcenaria_terceirizado,
+)
+from app.services.marcenaria import ganchos as marcenaria_ganchos
 
 # Cria a instância principal do roteador para a V1
 router = APIRouter()
 
-# Endpoint utilitário para resetar o banco de dados (provavelmente para testes)
-router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
+
+
+def rota_de_reset_liberada() -> bool:
+    """A rota que APAGA o banco (GET /reset/, sem login) só existe em desenvolvimento.
+
+    Até 12/10/2026 ela ia em todo instalador: qualquer aparelho na rede da loja
+    que abrisse http://servidor:8080/api/v1/reset/ zerava vendas, clientes e
+    notas. Duas travas, porque uma só não basta:
+    - `sys.frozen`: o .exe do PyInstaller SEMPRE marca, rode como rodar. É a que
+      cobre o servidor da loja: a tarefa agendada StartBigServer não passa
+      APP_ENV (o XML de tarefa do Windows não define variável de ambiente).
+    - `APP_ENV=production`: o que o Tauri passa ao subir o sidecar.
+    """
+    empacotado = getattr(sys, "frozen", False)
+    producao = os.getenv("APP_ENV", "development").lower() == "production"
+    return not empacotado and not producao
+
+
+# Utilitário de desenvolvimento: recria o banco vazio. Ver rota_de_reset_liberada.
+if rota_de_reset_liberada():
+    router.include_router(reset_bd.router, prefix="/reset", tags=["Resetar BD"])
 
 # Inclui o roteador de autenticação sob o prefixo /auth
 router.include_router(auth.router, prefix="/auth", tags=["Login"])
@@ -55,6 +104,21 @@ router.include_router(cliente.router, prefix="/clientes", tags=["Clientes"])
 router.include_router(fornecedor.router, prefix="/fornecedores", tags=["Fornecedores"])
 
 # Inclui o roteador de produtos sob o prefixo /produtos
+# Inclui o roteador de movimentações de estoque sob o prefixo /produtos
+# Contém sub-recursos: registrar movimentação e listar movimentações
+#
+# IMPORTANTE: precisa vir ANTES de produto.router. Desde que produto.py ganhou
+# GET /produtos/{produto_id}, o caminho literal /produtos/movimentacoes passa a
+# casar com {produto_id}, e o FastAPI tenta converter "movimentacoes" em int --
+# devolvendo 422 numa rota que funcionava.
+router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
+# Embalagens (fardo/caixa) — também antes de produto.router, pelo mesmo motivo.
+router.include_router(produto_embalagem.router, prefix="/produtos", tags=["Embalagens do Produto"])
+router.include_router(produto_regra_preco.router, prefix="/produtos", tags=["Regras de Preço do Produto"])
+# Entrada de mercadoria pela XML da NF-e do fornecedor.
+router.include_router(nfe_entrada.router, prefix="/estoque/nfe-entrada", tags=["Entrada por XML da NF-e"])
+router.include_router(produto_importacao.router, prefix="/estoque/importar-planilha", tags=["Importação de produtos por planilha"])
+
 router.include_router(produto.router, prefix="/produtos", tags=["Produtos"])
 
 # Inclui o roteador de serviços sob o prefixo /servicos
@@ -75,15 +139,26 @@ router.include_router(forma_pagamento.router, prefix="/formas-pagamento", tags=[
 # Contém sub-recursos: itens do carrinho e ações de status (cancelar, finalizar)
 router.include_router(venda.router, prefix="/vendas", tags=["Vendas"])
 
+# Turno de caixa (abrir, sangria, suprimento, fechar).
+# So responde quando a empresa liga `controlar_caixa`; sem isso o service
+# recusa toda operacao -- a rota existir nao muda nada para quem nao usa.
+router.include_router(sessao_caixa.router, prefix="/caixa", tags=["Caixa"])
+
+# Cadastro duravel das maquinas. Separado de /licenca (que cuida da PRESENCA
+# por HWID) porque sao dois tempos de vida: presenca some no logout, cadastro
+# fica.
+router.include_router(terminal.router, prefix="/terminais", tags=["Terminais"])
+
 # Inclui o roteador de orcamentos sob o prefixo /orcamentos
 router.include_router(orcamento.router, prefix="/orcamentos", tags=["Orcamentos"])
 
 # Inclui o roteador do Dashboard sob o prefixo /dashboard
 # Endpoints read-only para metricas, OS vencendo, estoque e vendas recentes
 router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
-# Inclui o roteador de movimentações de estoque sob o prefixo /produtos
-# Contém sub-recursos: registrar movimentação e listar movimentações
-router.include_router(movimentacao_estoque.router, prefix="/produtos", tags=["Movimentações de Estoque"])
+
+# Inclui o roteador de Relatorios sob o prefixo /relatorios
+# Endpoints read-only de faturamento/analytics, protegidos por permissao
+router.include_router(relatorios.router, prefix="/relatorios", tags=["Relatórios"])
 
 # Inclui o roteador de configurações do sistema sob o prefixo /configuracoes
 router.include_router(configuracao.router, prefix="/configuracoes", tags=["Configurações"])
@@ -93,4 +168,55 @@ router.include_router(comunicado.router, prefix="/comunicados", tags=["Comunicad
 # Endpoint público (sem autenticação) para verificação de licença no boot
 router.include_router(licenca.router, prefix="/licenca", tags=["Licença"])
 
+# Inclui o roteador do checklist mobile (formulario web via QR code)
+# Endpoints publicos autenticados por token HMAC + gerador de token via JWT
+router.include_router(checklist_mobile.router, prefix="/checklist", tags=["Checklist Mobile"])
+
+# Inclui o roteador de backup sob o prefixo /backup
+# Restauracao de cadeia vinda da nuvem — exclusivo do Master
 router.include_router(backup.router, prefix="/backup", tags=["Backup"])
+
+# Inclui o roteador de Gestao Financeira sob o prefixo /financeiro
+# Contas a pagar, plano de contas e contas bancarias. TODA rota exige o modulo
+# FINANCEIRO na licenca (403 MODULO_NAO_CONTRATADO) alem da permissao do cargo.
+router.include_router(financeiro.router, prefix="/financeiro", tags=["Financeiro"])
+
+# Inclui o roteador do Centro Fiscal sob o prefixo /fiscal
+# Documentos fiscais, resumo e pendencias globais da NF-e.
+router.include_router(fiscal.router, prefix="/fiscal", tags=["Fiscal"])
+# O lado fiscal do cadastro de produto (sugestão, campos, NCM, pré-validação).
+# MESMO prefixo: saiu de fiscal.py pelo teto do PyArmor, e nenhuma URL mudou.
+router.include_router(fiscal_produto.router, prefix="/fiscal", tags=["Fiscal"])
+# NFS-e (docs/nfse-plano.md): o router inteiro exige o módulo NFSE na licença.
+router.include_router(fiscal_nfse.router, prefix="/fiscal/nfse", tags=["Fiscal"])
+# Franquia fiscal do mês (docs/nfse-fase2-plano.md, G1): sem trava de módulo.
+router.include_router(fiscal_franquia.router, prefix="/fiscal", tags=["Fiscal"])
+
+# Central de Etiquetas: modelos de layout compartilhados pela loja. Imprimir é
+# papel do terminal (Tauri), não do backend -- ver docs/etiquetas-plano.md.
+router.include_router(etiquetas.router, prefix="/etiquetas", tags=["Etiquetas"])
+# Módulo de Compras (docs/compras-plano.md): o router inteiro exige o módulo
+# COMPRAS na licença; cada rota, a linha "Compras" da tela de Cargos.
+router.include_router(compras.router, prefix="/compras", tags=["Compras"])
+# Marcenaria-fábrica (docs/marcenaria-fabrica-plano.md): o router inteiro só
+# responde no segmento Marcenaria.
+router.include_router(fabrica.router, prefix="/fabrica", tags=["Marcenaria-fábrica"])
+# Orçamento de marcenaria (docs/marcenaria/, Spec 06A): tudo responde 404 fora
+# de segmento com a capacidade `orcamento_tecnico`. Dois arquivos, um prefixo.
+router.include_router(marcenaria_orcamento.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
+router.include_router(marcenaria_orcamento_itens.router, prefix="/marcenaria/orcamentos", tags=["Marcenaria - Orçamento"])
+# Spec 10A: separacao de material da OS e o disponivel da busca de insumo.
+router.include_router(marcenaria_separacao.router, prefix="/marcenaria", tags=["Marcenaria - Separação"])
+# Spec 11A: moveis terceirizados (pedido a central, com ou sem o Compras).
+router.include_router(marcenaria_terceirizado.router, prefix="/marcenaria", tags=["Marcenaria - Terceirizados"])
+# Spec 12A: etapas de producao por movel e o quadro da fabrica.
+router.include_router(marcenaria_producao.router, prefix="/marcenaria", tags=["Marcenaria - Produção"])
+# Spec 13A: entrega por ambiente, pendencias, fotos e agenda de instalacao.
+router.include_router(marcenaria_entrega.router, prefix="/marcenaria", tags=["Marcenaria - Entrega"])
+# Faturamento dos moveis (docs/marcenaria-faturamento-plano.md): produto acabado e NF-e.
+router.include_router(marcenaria_faturamento.router, prefix="/marcenaria", tags=["Marcenaria - Faturamento"])
+# Lava-rapido (docs/lava-rapido/, Spec 02A): portes da loja e preco por porte.
+router.include_router(lava_rapido.router, prefix="/lava-rapido", tags=["Lava-rápido"])
+# Spec 09A: a marcenaria reage a finalizacao/reabertura/cancelamento da OS (conta
+# do RT do arquiteto). Nas OS dos outros segmentos os ganchos saem na hora.
+marcenaria_ganchos.registrar()

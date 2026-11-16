@@ -1,0 +1,85 @@
+{
+  "consumidor_final": 1,
+  "destinatario": {
+    "cpf": "52998224725",
+    "indicador_ie": "9"
+  },
+  "emitente": {
+    "cnpj": "11222333000181",
+    "codigo_regime_tributario": 3,
+    "endereco": {
+      "bairro": "Centro",
+      "cep": "01001000",
+      "cidade": "Sao Paulo",
+      "complemento": "Sala 2",
+      "logradouro": "Rua das Flores",
+      "numero": "100",
+      "uf": "SP"
+    },
+    "inscricao_estadual": "110042490114",
+    "inscricao_municipal": "12345",
+    "nome_fantasia": "Loja Teste",
+    "razao_social": "Loja Teste Comercio LTDA",
+    "regime_tributario": "Lucro Presumido"
+  },
+  "finalidade_emissao": 1,
+  "formas_pagamento": [
+    {
+      "forma_pagamento": "01",
+      "valor_pagamento": 25.0
+    }
+  ],
+  "items": [
+    {
+      "cfop": "5102",
+      "codigo_barras_comercial": "7891234567895",
+      "codigo_barras_tributavel": "7891234567895",
+      "codigo_produto": "P0001",
+      "cofins_aliquota_porcentual": 7.6,
+      "cofins_base_calculo": 25.0,
+      "cofins_situacao_tributaria": "01",
+      "cofins_valor": 1.9,
+      "descricao": "Teclado Mecanico",
+      "icms_aliquota": 18.0,
+      "icms_base_calculo": 25.0,
+      "icms_modalidade_base_calculo": 0,
+      "icms_origem": 0,
+      "icms_situacao_tributaria": "00",
+      "icms_valor": 4.5,
+      "ncm": "84716052",
+      "numero_item": 1,
+      "pis_aliquota_porcentual": 1.65,
+      "pis_base_calculo": 25.0,
+      "pis_situacao_tributaria": "01",
+      "pis_valor": 0.41,
+      "quantidade_comercial": 1.0,
+      "unidade_comercial": "UN",
+      "unidade_tributavel": "UN",
+      "valor_bruto": 25.0,
+      "valor_desconto": 0.0,
+      "valor_frete": 0.0,
+      "valor_outras_despesas_acessorias": 0.0,
+      "valor_seguro": 0.0,
+      "valor_unitario_comercial": 25.0
+    }
+  ],
+  "local_destino": 1,
+  "modalidade_frete": 9,
+  "modelo": 65,
+  "natureza_operacao": "Venda de Mercadoria",
+  "numero": 42,
+  "presenca_comprador": 1,
+  "serie": 2,
+  "tipo_documento": 1,
+  "totais": {
+    "icms_base_calculo": 25.0,
+    "icms_valor_total": 4.5,
+    "valor_desconto": 0.0,
+    "valor_frete": 0.0,
+    "valor_outras_despesas": 0.0,
+    "valor_produtos": 25.0,
+    "valor_seguro": 0.0,
+    "valor_total": 25.0
+  },
+  "valor_troco": 0.0
+}

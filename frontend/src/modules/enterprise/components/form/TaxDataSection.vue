@@ -5,6 +5,7 @@
  * Refatorado para usar inject pattern
  */
 
+import { computed } from 'vue';
 import { Landmark } from 'lucide-vue-next';
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
@@ -38,6 +39,27 @@ const {
   errors,
   submitCount,
 } = useEmpresaForm();
+
+/**
+ * Natureza MEI × regime diferente de MEI (ou o contrário).
+ *
+ * Na nota vai o REGIME (CRT), não a natureza. O primeiro cliente em produção
+ * tinha natureza MEI e regime "1 - Simples" e gastou três números com a
+ * Rejeição 481 antes de alguém olhar este formulário. Avisa, não trava: se a
+ * empresa deixou de ser MEI, o regime está certo e a natureza é que envelheceu.
+ */
+const avisoMei = computed(() => {
+  const natureza = natureza_juridica.value;
+  const regime = regime_tributario.value;
+  if (!natureza || !regime) return '';
+  if (natureza === 'MEI' && regime !== 'MEI') {
+    return 'A Natureza Jurídica é MEI, mas o Regime Tributário não. É o regime que vai na nota: se a empresa é MEI, escolha "4 - MEI", senão a SEFAZ recusa (Rejeição 481). Se ela deixou de ser MEI, corrija a Natureza Jurídica.';
+  }
+  if (regime === 'MEI' && natureza !== 'MEI') {
+    return 'O Regime Tributário é MEI, mas a Natureza Jurídica não. Confira com o contador qual dos dois está certo — regime errado faz a SEFAZ recusar a nota (Rejeição 481).';
+  }
+  return '';
+});
 </script>
 
 <template>
@@ -54,14 +76,25 @@ const {
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Inscrição Estadual -->
-      <BaseInput
-        v-model="inscricao_estadual"
-        label="Inscrição Estadual (IE)"
-        type="text"
-        placeholder="Ex: Isento"
-        :disabled="disabled"
-        :error="submitCount > 0 ? errors.inscricao_estadual : ''"
-      />
+      <!-- "Inscrição Estadual" e "Indicador de IE" sao campos DIFERENTES com
+           nomes quase iguais. Quem nao e contador preenche um achando que
+           preencheu o outro, e a pendencia continua aparecendo sem explicacao.
+           A linha de ajuda existe para desfazer essa confusao no lugar onde ela
+           acontece. -->
+      <div>
+        <BaseInput
+          v-model="inscricao_estadual"
+          label="Inscrição Estadual (IE)"
+          type="text"
+          placeholder="Ex: Isento"
+          :disabled="disabled"
+          :error="submitCount > 0 ? errors.inscricao_estadual : ''"
+        />
+        <p class="text-xs text-zinc-500 mt-1.5">
+          O número da inscrição na Secretaria da Fazenda do seu estado. Não confundir
+          com o "Indicador de IE" abaixo.
+        </p>
+      </div>
 
       <!-- Inscrição Municipal -->
       <BaseInput
@@ -82,16 +115,39 @@ const {
           :disabled="disabled"
           :error="submitCount > 0 ? errors.regime_tributario : ''"
         />
+        <p
+          v-if="avisoMei"
+          class="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed"
+        >
+          {{ avisoMei }}
+        </p>
       </div>
 
       <!-- Indicador de IE -->
-      <BaseSelect
-        v-model="indicador_ie"
-        label="Indicador de IE"
-        :options="INDICADOR_IE_OPTIONS"
-        placeholder="Selecione..."
-        :disabled="disabled"
-      />
+      <div>
+        <BaseSelect
+          v-model="indicador_ie"
+          label="Indicador de IE"
+          :options="INDICADOR_IE_OPTIONS"
+          placeholder="Selecione..."
+          :disabled="disabled"
+        />
+        <!--
+          O texto dizia "Diz à SEFAZ a sua situação perante o ICMS", e isso é
+          falso: no layout da NF-e o indicador de IE existe só para o
+          DESTINATÁRIO. No emitente vão a Inscrição Estadual e o CRT. Este
+          campo é a declaração da loja sobre si mesma, usada pelo sistema para
+          conferir o cadastro antes de emitir.
+        -->
+        <p class="text-xs text-zinc-500 mt-1.5">
+          Sua situação perante o ICMS:
+          <strong>1</strong> se você tem Inscrição Estadual,
+          <strong>2</strong> se é isento e
+          <strong>9</strong> se não é contribuinte.
+          Tem IE e vende mercadoria? Então é <strong>1</strong> — o sistema avisa se
+          os dois se contradisserem.
+        </p>
+      </div>
 
       <!-- Natureza Jurídica -->
       <BaseSelect

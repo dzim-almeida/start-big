@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-type size = 'uxs' | 'sm' | 'md' | 'lg';
+type TamanhoIcone = 'uxs' | 'sm' | 'md' | 'lg';
 
 interface Props {
   icon: Component;
-  size?: size;
+  size?: TamanhoIcone;
 }
 
 withDefaults(defineProps<Props>(), {

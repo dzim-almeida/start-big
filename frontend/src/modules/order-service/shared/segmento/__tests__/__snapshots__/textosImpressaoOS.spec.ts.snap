@@ -1,0 +1,143 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pacotes que não mudam (GUARDIÃO) > 17 — pacote BASE da marcenaria (Reforma) igual ao de antes 1`] = `
+{
+  "assinaturaLoja": "Responsável",
+  "condicoesEntrada": "O cliente declara ter conferido o estado do móvel entregue, registrado nas fotos e na descrição desta OS. Peças, ferragens ou materiais fornecidos pelo cliente são de sua responsabilidade. Alterações no serviço após a aprovação do orçamento geram novo orçamento, e o prazo é contado a partir da aprovação e do pagamento do adiantamento.",
+  "cupom": {
+    "assinaturaLoja": "Responsavel",
+    "cancelamento": "A OS acima foi cancelada nesta data. Movel devolvido ao cliente sem o servico ou com servico parcial, isentando a empresa de garantias sobre servicos nao concluidos.",
+    "condicoesEntrada": "Cliente declara ter conferido o estado do movel (fotos/descricao). Alteracoes apos a aprovacao geram novo orcamento; o prazo conta da aprovacao e do adiantamento.",
+    "defeito": "DESCRICAO DO PEDIDO",
+    "garantiaExclusoes": "umidade, cupim, sobrecarga, mau uso, alteracao por terceiros ou desgaste natural.",
+    "identificador": "Projeto",
+    "objeto": "Movel",
+    "prazoRetirada": "PRAZO DE RETIRADA: Moveis nao retirados em <PRAZO> dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+    "semReparo": "Movel devolvido sem o servico. Sem garantia aplicavel a esta OS.",
+  },
+  "defeito": "Descrição do Pedido",
+  "empresa": "A empresa",
+  "garantiaExclusoes": "umidade, infiltração ou contato com água, ataque de cupim ou outras pragas, sobrecarga ou mau uso, alteração, desmontagem ou montagem por terceiros, e desgaste natural do acabamento.",
+  "identificador": "Projeto",
+  "objeto": "móvel",
+  "objetoPlural": "Móveis",
+  "prazoRetiradaEntradaA4": "Móveis com serviço concluído que não forem retirados no prazo de <PRAZO> após notificação serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "prazoRetiradaGarantiaA4": "Móveis não retirados no prazo de <PRAZO> após notificação de conclusão serão considerados abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "tituloObjeto": "Dados do Projeto",
+}
+`;
+
+exports[`pacotes que não mudam (GUARDIÃO) > 18 — pacote de assistencia_tecnica igual ao de antes 1`] = `
+{
+  "assinaturaLoja": "Técnico Responsável",
+  "condicoesEntrada": "O cliente declara estar ciente que a empresa não se responsabiliza por perda de dados (backup é responsabilidade do cliente) nem por chips/cartões de memória deixados no aparelho. Autorizo a análise técnica do objeto acima. Em caso de não aprovação do orçamento, estou ciente que poderá ser cobrada taxa de análise técnica.",
+  "cupom": {
+    "assinaturaLoja": "Tecnico Responsavel",
+    "cancelamento": "A OS acima foi cancelada nesta data. Objeto devolvido ao cliente sem reparos ou com reparos parciais, isentando a assistencia de garantias sobre servicos nao concluidos.",
+    "condicoesEntrada": "O cliente declara estar ciente que a empresa nao se responsabiliza por perda de dados nem por chips/cartoes deixados no aparelho. Autorizo a analise tecnica do objeto.",
+    "defeito": "DEFEITO RELATADO",
+    "garantiaExclusoes": "mau uso, liquidos, quedas ou intervencao de terceiros.",
+    "identificador": "N/S",
+    "objeto": "Objeto",
+    "prazoRetirada": "PRAZO DE RETIRADA: Objetos nao retirados em <PRAZO> dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+    "semReparo": "Objeto devolvido sem reparo. Sem garantia aplicavel a esta OS.",
+  },
+  "defeito": "Defeito Relatado / Solicitação",
+  "empresa": "A assistência técnica",
+  "garantiaExclusoes": "mau uso, contato com líquidos, quedas, oxidação, violação de selos de garantia ou intervenção de terceiros.",
+  "identificador": "Nº Série",
+  "objeto": "objeto",
+  "objetoPlural": "Objetos",
+  "prazoRetiradaEntradaA4": "Objetos com serviço concluído que não forem retirados no prazo de <PRAZO> após notificação serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "prazoRetiradaGarantiaA4": "Objetos não retirados no prazo de <PRAZO> após notificação de conclusão serão considerados abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "tituloObjeto": "Dados do Equipamento",
+}
+`;
+
+exports[`pacotes que não mudam (GUARDIÃO) > 18 — pacote de oficina_mecanica igual ao de antes 1`] = `
+{
+  "assinaturaLoja": "Técnico Responsável",
+  "condicoesEntrada": "O cliente declara estar ciente que a empresa não se responsabiliza por objetos pessoais deixados no interior do veículo. Autorizo a execução dos serviços descritos e a movimentação do veículo por funcionários da empresa para testes e diagnóstico. Em caso de não aprovação do orçamento, estou ciente que poderá ser cobrada taxa de diagnóstico.",
+  "cupom": {
+    "assinaturaLoja": "Tecnico Responsavel",
+    "cancelamento": "A OS acima foi cancelada nesta data. Veiculo devolvido ao cliente sem reparos ou com reparos parciais, isentando a empresa de garantias sobre servicos nao concluidos.",
+    "condicoesEntrada": "O cliente declara estar ciente que a empresa nao se responsabiliza por objetos pessoais deixados no interior do veiculo. Autorizo a execucao dos servicos e a movimentacao do veiculo para testes.",
+    "defeito": "DEFEITO RELATADO",
+    "garantiaExclusoes": "mau uso, falta de manutencao, desgaste natural ou intervencao de terceiros.",
+    "identificador": null,
+    "objeto": "Veiculo",
+    "prazoRetirada": "PRAZO DE RETIRADA: Veiculos nao retirados em <PRAZO> dias apos aviso de conclusao serao considerados abandonados, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+    "semReparo": "Veiculo devolvido sem reparo. Sem garantia aplicavel a esta OS.",
+  },
+  "defeito": "Defeito Relatado / Solicitação",
+  "empresa": "A empresa",
+  "garantiaExclusoes": "mau uso, falta de manutenção preventiva, desgaste natural de peças, uso indevido do veículo, adulteração de componentes ou intervenção de terceiros.",
+  "identificador": null,
+  "objeto": "veículo",
+  "objetoPlural": "Veículos",
+  "prazoRetiradaEntradaA4": "Veículos com serviço concluído que não forem retirados no prazo de <PRAZO> após notificação serão considerados abandonados e poderão ser destinados para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "prazoRetiradaGarantiaA4": "Veículos não retirados no prazo de <PRAZO> após notificação de conclusão serão considerados abandonados e poderão ser vendidos para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "tituloObjeto": "Dados do Veículo",
+}
+`;
+
+exports[`pacotes que não mudam (GUARDIÃO) > 18 — pacote de serigrafia igual ao de antes 1`] = `
+{
+  "assinaturaLoja": "Responsável",
+  "condicoesEntrada": "As peças entregues pelo cliente devem ser novas, sem uso e do mesmo modelo. A empresa não se responsabiliza por defeitos de fabricação das peças fornecidas pelo cliente nem repõe peças danificadas durante o processo de estampa. O cliente declara ter conferido e aprovado a arte, as cores e a posição da estampa antes da produção.",
+  "cupom": {
+    "assinaturaLoja": "Responsavel",
+    "cancelamento": "A OS acima foi cancelada nesta data. Pecas devolvidas ao cliente sem estampa ou com producao parcial, isentando a empresa de garantias sobre servicos nao concluidos.",
+    "condicoesEntrada": "Pecas do cliente devem ser novas e sem uso. A empresa nao repoe pecas danificadas no processo de estampa. Cliente declara ter aprovado arte, cores e posicao antes da producao.",
+    "defeito": "DESCRICAO DO PEDIDO",
+    "garantiaExclusoes": "agua quente, alvejante, secadora, ferro sobre a estampa ou uso indevido da peca.",
+    "identificador": "Arte",
+    "objeto": "Peca",
+    "prazoRetirada": "PRAZO DE RETIRADA: Pecas nao retiradas em <PRAZO> dias apos aviso de conclusao serao consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+    "semReparo": "Pecas devolvidas sem estampa. Sem garantia aplicavel a esta OS.",
+  },
+  "defeito": "Descrição do Pedido",
+  "empresa": "A empresa",
+  "garantiaExclusoes": "lavagem com água quente, uso de alvejante ou secadora, passar ferro diretamente sobre a estampa, desgaste natural por lavagens sucessivas ou uso indevido da peça.",
+  "identificador": "Arte",
+  "objeto": "peça",
+  "objetoPlural": "Peças",
+  "porTipoTrabalho": {
+    "sacola_papel": {
+      "condicoesEntrada": "O cliente declara ter conferido e aprovado a arte, as cores, a posição da impressão, as referências e as quantidades antes da produção. Por se tratar de produção sob encomenda, pequenas variações de tonalidade e de medida são inerentes ao processo de impressão.",
+      "cupom": {
+        "cancelamento": "A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a empresa de garantias sobre servicos nao concluidos.",
+        "condicoesEntrada": "Cliente declara ter aprovado arte, cores, posicao, referencias e quantidades antes da producao. Pequenas variacoes de tonalidade e medida sao inerentes ao processo.",
+        "garantiaExclusoes": "agua ou umidade, carga acima da capacidade, objetos cortantes ou desgaste natural.",
+        "objeto": "Sacola",
+        "prazoRetirada": "PRAZO DE RETIRADA: Sacolas nao retiradas em <PRAZO> dias apos aviso de conclusao serao consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+        "semReparo": "Producao nao realizada. Sem garantia aplicavel a esta OS.",
+      },
+      "garantiaExclusoes": "contato com água ou umidade, uso de carga acima da capacidade da sacola, contato com objetos cortantes e desgaste natural pelo uso.",
+      "objeto": "sacola",
+      "objetoPlural": "Sacolas",
+      "prazoRetiradaEntradaA4": "Sacolas com serviço concluído que não forem retiradas no prazo de <PRAZO> após notificação serão consideradas abandonadas e poderão ser destinadas para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+      "prazoRetiradaGarantiaA4": "Sacolas não retiradas no prazo de <PRAZO> após notificação de conclusão serão consideradas abandonadas e poderão ser vendidas para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+    },
+    "sacola_plastica": {
+      "condicoesEntrada": "O cliente declara ter conferido e aprovado a arte, as cores, a posição da impressão, as referências e as quantidades antes da produção. Por se tratar de produção sob encomenda, pequenas variações de tonalidade e de medida são inerentes ao processo de impressão.",
+      "cupom": {
+        "cancelamento": "A OS acima foi cancelada nesta data, com producao nao iniciada ou parcial, isentando a empresa de garantias sobre servicos nao concluidos.",
+        "condicoesEntrada": "Cliente declara ter aprovado arte, cores, posicao, referencias e quantidades antes da producao. Pequenas variacoes de tonalidade e medida sao inerentes ao processo.",
+        "garantiaExclusoes": "carga acima da capacidade, objetos cortantes, calor ou desgaste natural pelo uso.",
+        "objeto": "Sacola",
+        "prazoRetirada": "PRAZO DE RETIRADA: Sacolas nao retiradas em <PRAZO> dias apos aviso de conclusao serao consideradas abandonadas, conforme Art. 1.275 do Codigo Civil Brasileiro.",
+        "semReparo": "Producao nao realizada. Sem garantia aplicavel a esta OS.",
+      },
+      "garantiaExclusoes": "uso de carga acima da capacidade da sacola, contato com objetos cortantes, exposição prolongada ao sol ou ao calor, e desgaste natural pelo uso.",
+      "objeto": "sacola",
+      "objetoPlural": "Sacolas",
+      "prazoRetiradaEntradaA4": "Sacolas com serviço concluído que não forem retiradas no prazo de <PRAZO> após notificação serão consideradas abandonadas e poderão ser destinadas para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+      "prazoRetiradaGarantiaA4": "Sacolas não retiradas no prazo de <PRAZO> após notificação de conclusão serão consideradas abandonadas e poderão ser vendidas para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+    },
+  },
+  "prazoRetiradaEntradaA4": "Peças com serviço concluído que não forem retiradas no prazo de <PRAZO> após notificação serão consideradas abandonadas e poderão ser destinadas para cobrir as despesas do serviço, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "prazoRetiradaGarantiaA4": "Peças não retiradas no prazo de <PRAZO> após notificação de conclusão serão consideradas abandonadas e poderão ser vendidas para custeio das despesas, conforme Art. 1.275 do Código Civil Brasileiro.",
+  "tituloObjeto": "Dados da Arte",
+}
+`;

@@ -16,10 +16,15 @@
 #   POST   /{venda_id}/finalizar          → Finalizar venda (checkout)
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial
+from app.core.depends import check_permission, get_db, _handle_db_transaction, is_visao_gerencial, requer_modulo_fiscal
+from app.schemas.vendas import VendaNotaFiscalRead, VendaNotaFiscalUpdate
+from app.schemas.vendas import VendaCorrecaoFiscalPayload, VendaCorrecaoFiscalRead
+from app.schemas.fiscal.verificacao import ResultadoVerificacaoFiscal, ResultadoVerificacaoBatch
+from app.services.venda import nota_fiscal as venda_nota_fiscal_service
+from app.services.fiscal.completude import verificacao as verificacao_fiscal_service
 from app.schemas.vendas import (
     ProdutosAlterSummary,
     FinalizarVendaPayload,
@@ -64,7 +69,11 @@ def criar_venda(
     return _handle_db_transaction(
         db,
         venda_service.create_sale,
-        payload
+        payload,
+        # Sem `operador_funcionario_id` aqui: abrir a venda deixou de consultar
+        # o turno de quem opera (ver `create_sale`). A distincao entre operador
+        # e vendedor continua importando -- mas so no momento do dinheiro, e la
+        # ela esta, em `finalizar_venda`.
     )
 
 
@@ -128,10 +137,18 @@ def adicionar_item(
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
             descontos=sale.descontos or 0,
+            descontos_regra=sale.descontos_regra or 0,
             entrega=sale.entrega or 0,
             total=sale.total or 0
-        )
+        ),
+        itens_alterados=_itens_alterados_pela_regra(sale, product),
     )
+
+
+def _itens_alterados_pela_regra(sale, product) -> list:
+    """As outras linhas que a regra de preço mexeu (ver `_recalc_total_sale`)."""
+    ids = getattr(sale, "itens_alterados_pela_regra", None) or set()
+    return [item for item in sale.itens if item.id in ids and item.id != product.id]
 
 
 @router.patch(
@@ -164,9 +181,11 @@ def editar_item(
         financeiro_atualizado=VendaFinanceSummary(
             subtotal=sale.subtotal or 0,
             descontos=sale.descontos or 0,
+            descontos_regra=sale.descontos_regra or 0,
             entrega=sale.entrega or 0,
             total=sale.total or 0
-        )
+        ),
+        itens_alterados=_itens_alterados_pela_regra(sale, product),
     )
 
 
@@ -282,8 +301,52 @@ def finalizar_venda(
         db,
         venda_service.finish_sale,
         venda_id,
-        payload.pagamentos
+        payload.pagamentos,
+        payload.acrescimo or 0,
+        # Quem esta finalizando e quem esta NO CAIXA -- e nem sempre e o mesmo
+        # que `venda.funcionario_id`, que e o VENDEDOR (o que conta comissao).
+        # Numa loja onde um atende e outro recebe, o dinheiro cai no turno de
+        # quem recebeu. Opcional: sem controle de caixa ligado, e ignorado.
+        user_token.get("funcionario_id"),
     )
+
+@router.post(
+    "/{venda_id}/enviar-ao-caixa",
+    response_model=VendaRead,
+    summary="Entregar a venda ao caixa",
+    description=(
+        "Marca a venda como pronta para o caixa receber. O status NAO muda -- ela "
+        "continua ATIVA; o que muda e o carimbo que separa, na lista, a venda "
+        "pronta da que ainda esta sendo montada. Idempotente: reenviar mantem o "
+        "lugar original na fila."
+    ),
+)
+def enviar_ao_caixa(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    venda_id: int = Path(..., description="ID da venda"),
+):
+    return _handle_db_transaction(db, venda_service.enviar_ao_caixa, venda_id)
+
+
+@router.post(
+    "/{venda_id}/devolver-para-montagem",
+    response_model=VendaRead,
+    summary="Tirar a venda da fila do caixa",
+    description=(
+        "Devolve a venda para montagem. Qualquer operador pode: o atendente que "
+        "se arrependeu e o caixa que viu problema."
+    ),
+)
+def devolver_para_montagem(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    db: Session = Depends(get_db),
+    venda_id: int = Path(..., description="ID da venda"),
+):
+    return _handle_db_transaction(db, venda_service.devolver_para_montagem, venda_id)
+
 
 @router.get(
     "/",
@@ -301,7 +364,16 @@ def listar_vendas(
     page: int = Query(1, ge=1, description="Número da página para paginação"),
     filters: VendaSearchFilters = Depends()
 ):
-    if not is_visao_gerencial(user_token):
+    # A FILA DO CAIXA E COMPARTILHADA -- e a unica coisa que fura o recorte
+    # pessoal desta lista.
+    #
+    # Fora dela, quem nao tem visao gerencial ve so as proprias vendas. Isso
+    # continua igual: carrinho em montagem e assunto de quem esta montando.
+    #
+    # Mas entregar a venda ao caixa E o ato de compartilha-la. Sem esta excecao
+    # a funcionalidade nao existiria: o caixa e um funcionario comum, e a venda
+    # que o atendente acabou de entregar simplesmente nao apareceria para ele.
+    if not is_visao_gerencial(user_token) and filters.na_fila is not True:
         filters.funcionario_id = user_token.get("funcionario_id")
 
     sales_in_db, total_sales, total_pages, links = venda_service.get_sales(
@@ -317,6 +389,32 @@ def listar_vendas(
         total_pages=total_pages,
         links=links
     )
+
+# ===========================================================================
+# VERIFICAÇÃO FISCAL BATCH (path estático — antes de {venda_id})
+# ===========================================================================
+
+@router.get(
+    "/verificar-fiscal-batch",
+    response_model=ResultadoVerificacaoBatch,
+    summary="Verificação Fiscal em Lote",
+    description="Verifica completude fiscal de múltiplas vendas simultaneamente.",
+)
+def verificar_fiscal_batch(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    ids: str = Query(..., description="IDs de venda separados por vírgula, máximo 50"),
+    db: Session = Depends(get_db),
+):
+    empresa_id = user_token["empresa_id"]
+    venda_ids = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
+    if not venda_ids or len(venda_ids) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe entre 1 e 50 IDs de venda.",
+        )
+    return verificacao_fiscal_service.verificar_completude_vendas_batch(db, venda_ids, empresa_id)
+
 
 @router.get(
     "/{venda_id}",
@@ -352,3 +450,111 @@ def resumo_status_vendas(
     return venda_service.get_sales_status(db, funcionario_id=funcionario_id)
 
     
+
+
+# ===========================================================================
+# NOTA FISCAL (GET + PUT /{venda_id}/fiscal)
+# ===========================================================================
+
+@router.get(
+    "/{venda_id}/fiscal",
+    response_model=VendaNotaFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Dados Fiscais da Venda",
+    description="Retorna a configuração de nota fiscal de uma venda. 404 se ainda não preenchidos.",
+)
+def get_nota_fiscal_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    venda_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+):
+    resultado = venda_nota_fiscal_service.get_dados_fiscais(db, venda_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Nota fiscal ainda não configurada para esta venda")
+    return resultado
+
+
+@router.put(
+    "/{venda_id}/fiscal",
+    response_model=VendaNotaFiscalRead,
+    status_code=status.HTTP_200_OK,
+    summary="Salvar Dados Fiscais da Venda",
+    description="Cria ou atualiza (upsert) a configuração de nota fiscal de uma venda.",
+)
+def upsert_nota_fiscal_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    *,
+    venda_id: int = Path(..., ge=1),
+    dados: VendaNotaFiscalUpdate,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db,
+        venda_nota_fiscal_service.upsert_dados_fiscais,
+        venda_id,
+        dados,
+    )
+
+
+@router.patch(
+    "/{venda_id}/correcao-fiscal",
+    response_model=VendaRead,
+    status_code=status.HTTP_200_OK,
+    summary="Correção Cadastral e Fiscal da Venda",
+    description=(
+        "Permite atualizar o cliente vinculado, observações e dados fiscais de uma venda "
+        "(inclusive no status FINALIZADA) para fins de emissão de NF-e, garantindo a "
+        "invariância dos valores financeiros e do estoque."
+    ),
+)
+def corrigir_venda_fiscal(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    *,
+    venda_id: int = Path(..., ge=1, description="ID da venda"),
+    payload: VendaCorrecaoFiscalPayload,
+    db: Session = Depends(get_db),
+):
+    return _handle_db_transaction(
+        db,
+        venda_service.corrigir_dados_venda_fiscal,
+        venda_id,
+        payload,
+    )
+
+
+
+
+# ===========================================================================
+# VERIFICAÇÃO E EMISSÃO FISCAL (rotas com {venda_id})
+# ===========================================================================
+
+@router.get(
+    "/{venda_id}/verificar-fiscal",
+    response_model=ResultadoVerificacaoFiscal,
+    summary="Verificar Completude Fiscal da Venda",
+    description=(
+        "Retorna lista de pendências fiscais que impedem a emissão. Use "
+        "`tipo_documento=nfce` antes de emitir cupom: a NFC-e não exige o "
+        "endereço do destinatário, que a NF-e exige."
+    ),
+)
+def verificar_fiscal_venda(
+    user_token: dict = Depends(check_permission(required_permission=module_permission)),
+    _fiscal: dict = Depends(requer_modulo_fiscal),
+    venda_id: int = Path(..., ge=1),
+    tipo_documento: str = Query("nfe", description="nfe ou nfce"),
+    db: Session = Depends(get_db),
+):
+    """
+    O padrão é `nfe` porque é a conferência mais restritiva: quem esquecer de
+    informar o tipo vê uma pendência a mais, e não um cupom recusado pela SEFAZ
+    depois de a numeração já ter sido reservada.
+    """
+    empresa_id = user_token["empresa_id"]
+    return verificacao_fiscal_service.verificar_completude_venda(
+        db, venda_id, empresa_id, tipo_documento,
+    )
+
+

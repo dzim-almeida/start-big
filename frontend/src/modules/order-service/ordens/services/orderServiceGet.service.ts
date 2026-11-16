@@ -10,6 +10,16 @@ import {
   OrderServiceStatsDataType,
 } from '../schemas/orderServiceQuery.schema';
 
+import {
+  IdentificadorCheckSchema,
+  type IdentificadorCheckDataType,
+} from '../schemas/relationship/identificadorCheck.schema';
+
+import {
+  ObjetoBuscaListSchema,
+  type ObjetoBuscaItemDataType,
+} from '../schemas/relationship/objetoBusca.schema';
+
 import { BASE_ORDER_SERVICE_URL } from '../constants/core.constant';
 import { safeParseResponse } from '@/shared/utils/parse.utils';
 
@@ -20,6 +30,7 @@ export async function getAllOs(
   if (query.search) params.search = query.search;
   if (query.priority_sort !== undefined) params.priority_sort = query.priority_sort;
   if (query.status) params.status = query.status;
+  if (query.situacao_equipamento) params.situacao_equipamento = query.situacao_equipamento;
   if (query.page) params.page = query.page;
   if (query.limit) params.limit = query.limit;
 
@@ -61,4 +72,46 @@ export async function getOsAbandono(): Promise<OrderServiceReadDataType[]> {
 export async function getOsAtrasadas(): Promise<OrderServiceReadDataType[]> {
   const { data } = await api.get<OrderServiceReadDataType[]>(`${BASE_ORDER_SERVICE_URL}/atrasadas`);
   return data;
+}
+
+/**
+ * Verifica se a placa / nº de série digitada já pertence a um objeto cadastrado,
+ * inclusive de outro cliente. Informativo: quem decide é o atendente, porque o
+ * bem pode ter sido vendido.
+ */
+export async function verificarIdentificadorObjeto(
+  identificador: string,
+  clienteId?: number | null,
+): Promise<IdentificadorCheckDataType> {
+  const params: Record<string, string | number> = { identificador };
+  if (clienteId) params.cliente_id = clienteId;
+
+  const { data } = await api.get<IdentificadorCheckDataType>(
+    `${BASE_ORDER_SERVICE_URL}/objeto/verificar-identificador`,
+    { params },
+  );
+  return safeParseResponse(IdentificadorCheckSchema, data, 'verificarIdentificadorObjeto');
+}
+
+/**
+ * Objetos cujo identificador casa com o texto digitado, de qualquer cliente.
+ *
+ * É o que faz o seletor de cliente da OS achar quem chegou com o carro pela
+ * PLACA, e não só por nome/CPF. Aceita pedaço ("1D23" acha "ABC1D23") — quem
+ * está no balcão raramente lembra a placa inteira.
+ *
+ * Não confundir com `verificarIdentificadorObjeto`: aquela compara o
+ * identificador INTEIRO para decidir dedup e avisar duplicidade; esta é busca.
+ */
+export async function buscarObjetosPorIdentificador(
+  termo: string,
+): Promise<ObjetoBuscaItemDataType[]> {
+  const texto = termo.trim();
+  if (!texto) return [];
+
+  const { data } = await api.get<ObjetoBuscaItemDataType[]>(
+    `${BASE_ORDER_SERVICE_URL}/objeto/buscar`,
+    { params: { termo: texto } },
+  );
+  return safeParseResponse(ObjetoBuscaListSchema, data, 'buscarObjetosPorIdentificador');
 }

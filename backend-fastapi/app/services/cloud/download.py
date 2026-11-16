@@ -5,7 +5,7 @@ from typing import Optional
 
 import httpx
 
-from app.schemas.backup import CloudPlanResponse, DownloadChainResponse
+from app.schemas.backup.operacoes import CloudPlanResponse, DownloadChainResponse
 
 from ._constants import API_BACKUP_DOWNLOAD, GET_TIMEOUT
 from ._http import _client, _request, _safe_json

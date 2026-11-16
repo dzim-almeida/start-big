@@ -12,9 +12,14 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseSelect from '@/shared/components/ui/BaseSelect/BaseSelect.vue';
 import ImageUploadSection from './ImageUploadSection.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseCheckbox from '@/shared/components/ui/BaseCheckbox/BaseCheckbox.vue';
 import { useProductForm } from '../../composables/useProductForm';
 import { useFornecedoresQuery } from '../../../suppliers/composables/useFornecedoresQuery';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+// Lista UNICA de unidades. Havia duas — esta, com G/ML/CM/PC, e a da unidade
+// tributavel, com M2/PAR — e dava para escolher uma unidade comercial que nao
+// existia na tributavel, que nasce igual a ela.
+import { UNIDADE_PRODUTO_OPTIONS } from '@/shared/constants/fiscal.constants';
 
 // =============================================
 // Props
@@ -31,18 +36,6 @@ defineProps<Props>();
 // Constants
 // =============================================
 
-const UNIDADE_MEDIDA_OPTIONS = [
-  { value: 'UN', label: 'Unidade (UN)' },
-  { value: 'KG', label: 'Quilograma (KG)' },
-  { value: 'G', label: 'Grama (G)' },
-  { value: 'L', label: 'Litro (L)' },
-  { value: 'ML', label: 'Mililitro (ML)' },
-  { value: 'M', label: 'Metro (M)' },
-  { value: 'CM', label: 'Centímetro (CM)' },
-  { value: 'CX', label: 'Caixa (CX)' },
-  { value: 'PC', label: 'Peça (PC)' },
-  { value: 'PCT', label: 'Pacote (PCT)' },
-];
 
 // =============================================
 // Form Fields
@@ -58,6 +51,8 @@ const {
   fornecedor_id,
   localizacao_estoque,
   observacao,
+  sofre_perda,
+  temOrcamentoTecnico,
   errors,
 } = useProductForm();
 
@@ -83,7 +78,7 @@ function handleGenerateSku() {
     <!-- Section Header -->
     <div class="flex items-center gap-3 mb-6">
       <div
-        class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-brand-primary"
+        class="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center text-brand-primary"
       >
         <LucideIcon :icon="Package" />
       </div>
@@ -108,31 +103,33 @@ function handleGenerateSku() {
           />
         </div>
         <div class="col-span-12 md:col-span-5">
+          <!-- Campo e botão alinhados pela base do campo; a dica fica embaixo
+               da linha inteira. Com a dica dentro do campo, o botão (alinhado
+               pelo fundo do bloco) descia até ela e ficava torto. -->
           <div class="flex items-end gap-2">
             <BaseInput
-            v-model="codigo_produto"
-            label="Código SKU"
-            placeholder="Ex: PRD-001"
-            :required="true"
-            :error="submitCount > 0 ? errors.codigo_produto : ''"
-            :disabled="disabled"
-            class="flex-1"
-          >
-            <template #hint>
-              <span class="text-xs text-zinc-400">Identificador interno do sistema</span>
-            </template>
-          </BaseInput>
-          <div>
-          <BaseButton
-            v-if="!disabled"
-            variant="primary"
-            :disabled="codigo_produto.length > 0"
-            @click="handleGenerateSku"
-          >
-            Gerar
-          </BaseButton>
+              v-model="codigo_produto"
+              label="Código SKU"
+              placeholder="Ex: PRD-001"
+              :required="true"
+              :disabled="disabled"
+              class="flex-1"
+            />
+            <BaseButton
+              v-if="!disabled"
+              variant="primary"
+              size="sm"
+              class="min-h-9.5 px-4"
+              :disabled="codigo_produto.length > 0"
+              @click="handleGenerateSku"
+            >
+              Gerar
+            </BaseButton>
           </div>
-        </div>
+          <p v-if="submitCount > 0 && errors.codigo_produto" class="select-none mt-0.5 text-xs text-red-500">
+            {{ errors.codigo_produto }}
+          </p>
+          <p v-else class="select-none mt-0.5 text-xs text-zinc-400">Identificador interno do sistema</p>
         </div>
         <!-- Row 2: Código Barras, Unidade Medida, Categoria -->
         <div class="col-span-12 md:col-span-4">
@@ -154,7 +151,7 @@ function handleGenerateSku() {
             v-model="unidade_medida"
             label="Unidade de Medida"
             :placeholder="unidadeMedidaPadrao"
-            :options="UNIDADE_MEDIDA_OPTIONS"
+            :options="UNIDADE_PRODUTO_OPTIONS"
             :error="submitCount > 0 ? errors.unidade_medida : ''"
             :disabled="disabled"
           />
@@ -198,6 +195,16 @@ function handleGenerateSku() {
             :error="submitCount > 0 ? errors.localizacao_estoque : ''"
             :disabled="disabled"
           />
+        </div>
+
+        <!-- Marcenaria: só no segmento com orçamento técnico (Spec 04B, D1/D4).
+             O dono decide por produto e precisa saber o efeito na hora de marcar. -->
+        <div v-if="temOrcamentoTecnico" class="col-span-12" data-testid="sofre-perda">
+          <BaseCheckbox v-model="sofre_perda" label="Sofre perda no orçamento" :disabled="disabled" />
+          <p class="text-xs text-zinc-500 mt-1">
+            Marque para chapas e fitas de borda: o orçamento acrescenta o percentual de perda
+            do corte. Não marque ferragens e acessórios.
+          </p>
         </div>
 
         <!-- Row 4: Observações -->

@@ -1,0 +1,81 @@
+/**
+ * Contrato de GET/PUT /configuracoes/marcenaria (Spec 04A §5, Spec 04B §5).
+ *
+ * A resposta tem DOIS formatos, decididos por `inclui_custos`: quem não tem a
+ * permissão `view_custos_marcenaria` recebe só a parte sem custo, e as chaves
+ * de custo nem vêm (não chegam como null). O zod confere isso na chegada.
+ *
+ * Percentuais em basis points (9000 = 90,00%) e dinheiro em centavos (PR4).
+ */
+import { z } from 'zod';
+
+/** Como o RT do arquiteto entra no orçamento (SPEC-00, C5c). */
+export const rtModoSchema = z.enum(['MARGEM', 'PRECO']);
+
+/** Como os móveis viram nota (docs/marcenaria-faturamento-plano.md, D7). */
+export const faturamentoModoSchema = z.enum(['DESLIGADO', 'NOTA_NA_ENTREGA', 'ENTREGA_FUTURA']);
+
+/**
+ * Onde a instalação entra (D6): no preço dos móveis da NF-e, fora dela, ou numa
+ * NFS-e da OS emitida aqui (NFSE — docs/nfse-fase2-plano.md, G5; módulo NFSE).
+ */
+export const instalacaoModoSchema = z.enum(['EMBUTIDA', 'FORA', 'NFSE']);
+
+/** O que qualquer usuário logado recebe. */
+const base = z.object({
+  validade_dias: z.number().int(),
+  prazo_entrega_dias: z.number().int(),
+  etapas_producao: z.array(z.string()),
+  checklist_vistoria: z.array(z.string()),
+  // Faturamento dos móveis: não é custo, todo usuário vê. Os `default` cobrem
+  // um backend anterior a ele (nasce desligado, como no banco).
+  faturamento_modo: faturamentoModoSchema.default('DESLIGADO'),
+  instalacao_modo: instalacaoModoSchema.default('EMBUTIDA'),
+  produto_acabado_padrao_id: z.number().int().nullable().default(null),
+  produto_acabado_revenda_id: z.number().int().nullable().default(null),
+  /** Com a instalação em NFS-e: o serviço do catálogo com o código nacional/NBS dela. */
+  servico_instalacao_id: z.number().int().nullable().default(null),
+  /** O que falta no cadastro fiscal dos produtos acabados (só aviso). */
+  pendencias_faturamento: z.array(z.string()).default([]),
+});
+
+/** Resposta do GET: sem custo (`inclui_custos: false`) ou completa (`true`). */
+export const configuracaoMarcenariaSchema = z.discriminatedUnion('inclui_custos', [
+  base.extend({ inclui_custos: z.literal(false) }),
+  base.extend({
+    inclui_custos: z.literal(true),
+    markup_padrao_bp: z.number().int(),
+    perda_padrao_bp: z.number().int(),
+    custo_hora_centavos: z.number().int(),
+    rt_padrao_bp: z.number().int(),
+    rt_modo: rtModoSchema,
+    /** Dias depois de finalizar a OS para a conta do RT vencer (Spec 09A §5 / 09B D11). */
+    rt_vencimento_dias: z.number().int(),
+  }),
+]);
+
+export type ConfiguracaoMarcenaria = z.infer<typeof configuracaoMarcenariaSchema>;
+/** A resposta ANTES dos `default` do zod (o faturamento pode faltar num backend antigo). */
+export type ConfiguracaoMarcenariaEntrada = z.input<typeof configuracaoMarcenariaSchema>;
+export type RtModo = z.infer<typeof rtModoSchema>;
+export type FaturamentoModo = z.infer<typeof faturamentoModoSchema>;
+export type InstalacaoModo = z.infer<typeof instalacaoModoSchema>;
+
+/** Corpo do PUT: parcial, só os campos enviados mudam. */
+export interface ConfiguracaoMarcenariaUpdate {
+  markup_padrao_bp?: number;
+  perda_padrao_bp?: number;
+  custo_hora_centavos?: number;
+  rt_padrao_bp?: number;
+  rt_modo?: RtModo;
+  rt_vencimento_dias?: number;
+  validade_dias?: number;
+  prazo_entrega_dias?: number;
+  etapas_producao?: string[];
+  checklist_vistoria?: string[];
+  faturamento_modo?: FaturamentoModo;
+  instalacao_modo?: InstalacaoModo;
+  produto_acabado_padrao_id?: number | null;
+  produto_acabado_revenda_id?: number | null;
+  servico_instalacao_id?: number | null;
+}

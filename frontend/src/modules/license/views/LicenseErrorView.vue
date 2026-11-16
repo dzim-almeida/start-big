@@ -5,13 +5,17 @@
  * Mostra título contextual baseado no código de erro e permite tentar novamente.
  */
 
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import axios from 'axios';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
-import { verificarLicenca } from '@/shared/services/licenca.service';
+import { verificarLicenca, ehLicencaDeOutraMaquina } from '@/shared/services/licenca.service';
+import { useLicencaStore } from '@/shared/stores/licenca.store';
+import { LINKS } from '@/shared/config/links';
 
-import logoImage from '@/shared/assets/images/login/start-logo.png';
+import AppLogo from '@/shared/components/AppLogo.vue';
 
 const props = defineProps<{
   codigo: string;
@@ -19,13 +23,57 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const licencaStore = useLicencaStore();
 const isRetrying = ref(false);
 const retryError = ref('');
 
+/**
+ * Licença de outro computador é troca de servidor: o banco foi copiado e a
+ * ativação dentro dele é da máquina antiga. Tentar de novo nunca resolve; o
+ * que resolve é a tela de transferência. O router já manda direto para lá —
+ * este caminho cobre quem chegar aqui por link antigo.
+ */
+const trocaDeMaquina = computed(() => ehLicencaDeOutraMaquina(props.codigo));
+
+function irParaTransferencia() {
+  router.replace({ name: 'licenca.transferir' });
+}
+
+/**
+ * Sai desta tela e entra no sistema para pagar.
+ *
+ * Vencimento não se resolve aqui: se resolve DEPOIS do login, na tela de
+ * renovação — a cobrança é da conta do dono, e `/licenca/renovacao/*` é
+ * autenticado e só master. O caminho é logar; o `router.beforeEach` vê o estado
+ * de vencida e leva direto para lá.
+ */
+function entrarParaRenovar(msg?: string) {
+  licencaStore.marcarExpirada(msg || props.mensagem);
+  router.replace({ name: 'auth.user' });
+}
+
+/**
+ * ESTA TELA NÃO SE REAVALIA SOZINHA — e é por isso que este `onMounted` existe.
+ *
+ * A rota tem `skipLicenseCheck` (senão o guard a recarregaria em laço), então
+ * quem foi parado aqui fica aqui: nem que o servidor volte a dizer outra coisa,
+ * nem que uma versão nova do sistema passe a classificar a recusa como
+ * vencimento. Era exatamente o que acontecia — o cliente vencido ficava preso
+ * numa tela cuja única saída era o navegador.
+ */
+onMounted(() => {
+  if (props.codigo === 'LICENCA_EXPIRADA') {
+    entrarParaRenovar();
+  } else if (trocaDeMaquina.value) {
+    irParaTransferencia();
+  }
+});
+
 const titulo = computed(() => {
   switch (props.codigo) {
+    case 'LICENCA_DE_OUTRA_MAQUINA':
     case 'CLONAGEM_DETECTADA':
-      return 'Licença Inválida';
+      return 'Licença de Outro Computador';
     case 'REQUISITA_CONEXAO_INTERNET':
       return 'Conexão com Internet Necessária';
     case 'LICENCA_EXPIRADA':
@@ -43,6 +91,7 @@ const titulo = computed(() => {
 
 const icone = computed(() => {
   switch (props.codigo) {
+    case 'LICENCA_DE_OUTRA_MAQUINA':
     case 'CLONAGEM_DETECTADA':
       return '🔒';
     case 'REQUISITA_CONEXAO_INTERNET':
@@ -58,6 +107,45 @@ const icone = computed(() => {
   }
 });
 
+/**
+ * Códigos em que o caminho de saída é comercial (pagar), não técnico.
+ *
+ * Os demais (clonagem, falta de internet, bloqueio administrativo) ficam de
+ * fora de propósito: mandar para pagamento quem só está sem conexão, ou quem
+ * já pagou e foi bloqueado, joga a pessoa no lugar errado.
+ *
+ * Todos vão para a página de planos por enquanto — ela já está no ar e resolve
+ * tanto quem nunca assinou quanto quem precisa renovar.
+ *
+ * `LICENCA_RECUSADA` entra na lista como rede de segurança. O backend agora
+ * separa "venceu" de "foi recusada por outro motivo" e manda quem venceu para
+ * a tela de cobrança, sem passar por aqui — mas ele faz isso lendo o texto que
+ * a nuvem devolve. No dia em que essa frase mudar, a pessoa cai nesta tela; ter
+ * o caminho comercial aqui é a diferença entre "renove pelo site" e um beco sem
+ * saída com um botão de tentar de novo.
+ *
+ * TODO(renovacao): esta tela NÃO consegue separar trial de licença paga — o
+ * erro 403 carrega só `codigo` e `mensagem`, e o flag `trial` existe apenas no
+ * GET /licenca/status (e ainda não é preenchido pela API StartBig). Quando der
+ * para distinguir, o cliente pagante deve pular a tabela de planos e ir direto
+ * ao link de pagamento (Stripe) gerado na hora.
+ */
+const CODIGOS_COMERCIAIS = [
+  'LICENCA_EXPIRADA',
+  'LICENCA_NAO_ENCONTRADA',
+  'LICENCA_RECUSADA',
+];
+
+const casoComercial = computed(() => CODIGOS_COMERCIAIS.includes(props.codigo));
+
+function verPlanos() {
+  openUrl(LINKS.planos);
+}
+
+function falarComSuporte() {
+  openUrl(LINKS.whatsapp);
+}
+
 async function tentarNovamente() {
   isRetrying.value = true;
   retryError.value = '';
@@ -66,7 +154,21 @@ async function tentarNovamente() {
     await verificarLicenca();
     // Licença válida — redirecionar para login
     router.push({ name: 'auth.user' });
-  } catch {
+  } catch (error) {
+    // Continua barrada, mas pode ter MUDADO de motivo. O caso que importa:
+    // o servidor agora diz que a licença venceu — e vencimento tem saída
+    // dentro do sistema, não neste beco.
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const detail = error.response.data?.detail || {};
+      if (detail.codigo === 'LICENCA_EXPIRADA') {
+        entrarParaRenovar(detail.mensagem);
+        return;
+      }
+      if (ehLicencaDeOutraMaquina(detail.codigo)) {
+        irParaTransferencia();
+        return;
+      }
+    }
     retryError.value = 'A verificação falhou novamente. Verifique sua conexão e tente mais tarde.';
   } finally {
     isRetrying.value = false;
@@ -79,7 +181,7 @@ async function tentarNovamente() {
     <div class="flex flex-col items-center flex-1 justify-center max-w-md w-full">
       <!-- Logo -->
       <div class="flex justify-center mb-6">
-        <img :src="logoImage" alt="Start Big Logo" class="h-16 w-auto" />
+        <AppLogo class="h-16 w-auto" />
       </div>
 
       <!-- Ícone e Título -->
@@ -103,20 +205,63 @@ async function tentarNovamente() {
         {{ retryError }}
       </div>
 
-      <!-- Botão Tentar Novamente -->
+      <!-- Troca de servidor: a saída é transferir a licença com a conta -->
+      <BaseButton
+        v-if="trocaDeMaquina"
+        type="button"
+        variant="primary"
+        class="w-full mb-2"
+        @click="irParaTransferencia"
+      >
+        Transferir a licença para este computador
+      </BaseButton>
+
+      <!-- Ação principal quando o que falta é pagar -->
+      <!--
+        Vai para o navegador, e não para a tela de renovação do sistema, por um
+        motivo que não dá para contornar aqui: esta tela é ANTES do login, e a
+        cobrança é da conta do dono — `/licenca/renovacao/*` é autenticado e só
+        master. Quem venceu não passa mais por aqui de qualquer forma: aquele
+        caso loga e cai direto na tela de renovação (ver o router).
+      -->
+      <BaseButton
+        v-if="casoComercial"
+        type="button"
+        variant="primary"
+        class="w-full mb-2"
+        @click="verPlanos"
+      >
+        Renovar no site
+      </BaseButton>
+
+      <!-- Revalidação.
+           Esta tela NÃO revalida sozinha: a rota tem skipLicenseCheck, senão
+           o guard do router a recarregaria em laço. Para quem acabou de pagar
+           este botão é a ÚNICA saída — esperar não adianta —, então o rótulo
+           precisa dizer isso com todas as letras. -->
       <BaseButton
         type="button"
+        :variant="casoComercial || trocaDeMaquina ? 'secondary' : 'primary'"
         class="w-full"
         :disabled="isRetrying"
         @click="tentarNovamente"
       >
-        {{ isRetrying ? 'Verificando...' : 'Tentar Novamente' }}
+        {{ isRetrying ? 'Verificando...' : (casoComercial ? 'Já paguei — liberar acesso' : 'Tentar Novamente') }}
       </BaseButton>
 
       <!-- Orientação -->
-      <p class="text-xs text-gray-400 text-center mt-4">
-        Se o problema persistir, entre em contato com o suporte técnico.
+      <p v-if="casoComercial" class="text-xs text-gray-500 text-center mt-4">
+        Depois de pagar, a liberação é automática: basta estar conectado à
+        internet e clicar em <strong>Já paguei — liberar acesso</strong>.
       </p>
+
+      <button
+        type="button"
+        class="text-xs text-gray-400 hover:text-gray-600 underline text-center mt-4 cursor-pointer"
+        @click="falarComSuporte"
+      >
+        {{ casoComercial ? 'Precisa de ajuda? Falar com o suporte' : 'Se o problema persistir, fale com o suporte técnico' }}
+      </button>
     </div>
 
     <BaseFooter />

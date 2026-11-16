@@ -3,15 +3,19 @@ import { computed } from 'vue';
 import type { SaleRead } from '../../schemas/sale.schema';
 import type { OrcamentoRead } from '../../schemas/orcamento.schema';
 import { formatCurrency } from '@/shared/utils/finance';
+import { descontosRegraDaVenda, multiplicadorDaLinha, regraDaLinha, unidadesDaLinha } from '@/shared/utils/embalagem';
 import {
   useCompanyPrintInfo,
   getClienteNome,
   getClienteDoc,
   getClientePhone,
+  getClienteEndereco,
   formatPrintDate,
   formatPrintDoc,
+  pixParaImpressao,
 } from '@/shared/utils/print.utils';
 
+import PixQrPrint from '@/shared/components/print/PixQrPrint.vue';
 import PrintCupomHeader from '@/shared/components/print/cupom/PrintCupomHeader.vue';
 import PrintCupomSignatures from '@/shared/components/print/cupom/PrintCupomSignatures.vue';
 import PrintCupomFooter from '@/shared/components/print/cupom/PrintCupomFooter.vue';
@@ -48,10 +52,25 @@ const clientePhone = computed(() => {
   return getClientePhone(saleData.value?.cliente as any);
 });
 
+const clienteEndereco = computed(() => {
+  return getClienteEndereco(saleData.value?.cliente as any);
+});
+
 const totalPago = computed(() => {
   if (!saleData.value?.pagamentos) return 0;
   return saleData.value.pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
 });
+
+/** QR do PIX no papel — só quando há pagamento em PIX e a loja tem chave ativa. */
+const pix = computed(() =>
+  pixParaImpressao({
+    empresa: companyInfo.value,
+    pagamentos: saleData.value?.pagamentos?.map((pgto) => ({
+      nome: props.paymentMethodResolver?.(pgto.forma_pagamento_id) ?? '',
+      valor: pgto.valor,
+    })),
+  }),
+);
 </script>
 
 <template>
@@ -78,6 +97,7 @@ const totalPago = computed(() => {
         <div>{{ getClienteNome(saleData?.cliente as any) }}</div>
         <div v-if="clienteDoc">Doc: {{ clienteDoc }}</div>
         <div v-if="clientePhone">Tel: {{ clientePhone }}</div>
+        <div v-if="clienteEndereco">{{ clienteEndereco }}</div>
       </div>
 
       <div class="separator">{{ SEPARATOR }}</div>
@@ -93,8 +113,13 @@ const totalPago = computed(() => {
       >
         <div>{{ item.nome }}</div>
         <div class="flex justify-between">
-          <span>{{ item.quantidade }}x {{ formatCurrency(item.valor_unitario) }}</span>
+          <span>{{ multiplicadorDaLinha(item) }} {{ formatCurrency(item.valor_unitario) }}</span>
           <span class="font-bold">{{ formatCurrency(item.total) }}</span>
+        </div>
+        <div v-if="unidadesDaLinha(item)" class="text-[10px]">{{ unidadesDaLinha(item) }}</div>
+        <div v-if="regraDaLinha(item)" class="flex justify-between">
+          <span>{{ regraDaLinha(item)!.texto }}</span>
+          <span v-if="regraDaLinha(item)!.desconto > 0">-{{ formatCurrency(regraDaLinha(item)!.desconto) }}</span>
         </div>
         <div v-if="item.desconto > 0" class="flex justify-between">
           <span>Desc:</span>
@@ -129,6 +154,10 @@ const totalPago = computed(() => {
         <span>Subtotal:</span>
         <span>{{ formatCurrency(sale.subtotal) }}</span>
       </div>
+      <div v-if="descontosRegraDaVenda(sale) > 0" class="flex justify-between">
+        <span>Preço por qtd.:</span>
+        <span>-{{ formatCurrency(descontosRegraDaVenda(sale)) }}</span>
+      </div>
       <div v-if="sale.descontos > 0" class="flex justify-between">
         <span>Desconto:</span>
         <span>-{{ formatCurrency(sale.descontos) }}</span>
@@ -136,6 +165,10 @@ const totalPago = computed(() => {
       <div v-if="sale.entrega > 0" class="flex justify-between">
         <span>Entrega:</span>
         <span>+{{ formatCurrency(sale.entrega) }}</span>
+      </div>
+      <div v-if="isVenda && (saleData?.acrescimo ?? 0) > 0" class="flex justify-between">
+        <span>Juros:</span>
+        <span>+{{ formatCurrency(saleData?.acrescimo ?? 0) }}</span>
       </div>
       <div class="flex justify-between font-bold text-sm mt-1">
         <span>TOTAL:</span>
@@ -152,6 +185,12 @@ const totalPago = computed(() => {
         </div>
       </template>
     </div>
+
+    <!-- PIX: onde o cliente procura o que fazer depois de ver o total -->
+    <template v-if="pix">
+      <div class="separator">{{ SEPARATOR }}</div>
+      <PixQrPrint :payload="pix.payload" :valor-centavos="pix.valorCentavos" />
+    </template>
 
     <!-- Observações -->
     <template v-if="sale.observacao">

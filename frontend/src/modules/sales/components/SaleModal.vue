@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
-import { X, Printer, ShoppingCart, PackagePlus, Trash2 } from 'lucide-vue-next';
+import { computed, nextTick, ref, toRef, watch } from 'vue';
+import { X, Printer, ShoppingCart, PackagePlus, Trash2, Warehouse } from 'lucide-vue-next';
+import { formatCurrency } from '@/shared/utils/finance';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import { useSessaoCaixaQuery } from '../caixa/composables/queries/useSessaoCaixaQuery';
+import { useEsteTerminalQuery } from '../caixa/composables/queries/useTerminaisQuery';
+import {
+  useEnviarAoCaixaMutation,
+  useDevolverParaMontagemMutation,
+} from '../composables/mutates/useFilaCaixaMutations';
 
 import ProductSearch from './SaleModal/ProductSearch.vue';
 import CustomerCard from './SaleModal/CustomerCard.vue';
@@ -10,7 +17,8 @@ import SaleCard from './SaleModal/SaleCard.vue';
 import SaleItemsTable from './SaleModal/SaleItemsTable.vue';
 import SaleSummary from './SaleModal/SaleSummary.vue';
 import ItemModal from './SaleModal/ItemModal.vue';
-import FinishSaleModal from './SaleModal/FinishSaleModal.vue';
+import FinishSaleModal, { type FiscalFechamento } from './SaleModal/FinishSaleModal.vue';
+import PendenciasFiscaisModal from '@/shared/components/commons/PendenciasFiscaisModal.vue';
 import AddProductModal from './SaleModal/AddProductModal.vue';
 import CancelSaleModal from './SaleModal/CancelSaleModal.vue';
 import GerenteAprovacaoModal from '@/shared/components/commons/GerenteAprovacaoModal/GerenteAprovacaoModal.vue';
@@ -26,11 +34,15 @@ import { useUpdateSaleMutation } from '../composables/mutates/useUpdateSaleMutat
 import { useCustomerSearchModal } from '../composables/flows/useCustomerSearchModal';
 import { useSaleShortcuts } from '../composables/useSaleShortcuts';
 import { useSalePrintFlow } from '../composables/flows/useSalePrintFlow';
+import { useNfcePrintFlow } from '../composables/flows/useNfcePrintFlow';
+import { useEmitirFiscal } from '@/shared/composables/useEmitirFiscal';
+import { recursoDisponivel } from '@/shared/config/planos';
 import { useSaleDetailsForm } from '../composables/flows/useSaleDetailsForm';
 import { useAddProductModal } from '../composables/flows/useAddProductModal';
 import type { SaleRead } from '../schemas/sale.schema';
 import { storeToRefs } from 'pinia';
 import { useConfiguracoesStore } from '@/shared/stores/configuracoes.store';
+import { useBalcaoStore } from '@/shared/stores/balcao.store';
 
 import PrintFormatSelectModal from '@/shared/components/print/PrintFormatSelectModal.vue';
 import SalePrintTemplate from './print/SalePrintTemplate.vue';
@@ -44,14 +56,136 @@ const {
   saveNow: saveSaleForm,
   gerenteDesconto,
 } = useSaleDetailsForm(sale);
-const { openFinishModal, closeFinishModal, finishModalIsOpen } = useFinishSaleModal();
+const { openFinishModal, closeFinishModal, finishModalIsOpen, showPaymentDetails } = useFinishSaleModal();
 const { itemModalIsOpen, openCreateItemModal, closeItemModal } = useItemModal();
 const { openConfirmModal, closeConfirmModal: closeConfirm, confirmModalPending } = useConfirmSaleAction();
 const deleteMutation = useDeleteSaleMutation();
 const updateSaleMutation = useUpdateSaleMutation();
 const cancelSaleModalIsOpen = ref(false);
-const { openCustomerModalForChange } = useCustomerSearchModal();
-const { valorMinimoVenda } = storeToRefs(useConfiguracoesStore());
+const { openCustomerModalForChange, iniciarVendaSemCliente } = useCustomerSearchModal();
+const { valorMinimoVenda, exigirClienteIdentificado, usarFilaDoCaixa, atacadoHabilitado, atacadoPedidoMinimo } =
+  storeToRefs(useConfiguracoesStore());
+
+/**
+ * Venda no atacado (Configurações › Regras de Vendas). O botão só aparece com a
+ * chave da loja ligada — ou numa venda que já está em atacado, para ter como
+ * voltar. Quem troca os preços e trava a finalização é o backend; aqui o
+ * "faltam R$ X" e o Finalizar desabilitado só poupam a ida e volta.
+ */
+const modoAtacado = computed(() => !!sale.value?.modo_atacado);
+const mostraAtacado = computed(() => atacadoHabilitado.value || modoAtacado.value);
+const faltaParaAtacado = computed(() => {
+  if (!modoAtacado.value || !atacadoPedidoMinimo.value) return 0;
+  const itens = (sale.value?.produtos ?? []).reduce((soma, p) => soma + (p.subtotal ?? 0), 0);
+  return Math.max(0, atacadoPedidoMinimo.value - itens);
+});
+async function alternarAtacado() {
+  if (!sale.value) return;
+  await updateSaleMutation
+    .mutateAsync({ saleId: sale.value.id, payload: { modo_atacado: !modoAtacado.value } })
+    .catch(() => undefined); // o toast de erro já sai no onError da mutation
+  focarBuscaDeProduto();
+}
+const { modoBalcao } = storeToRefs(useBalcaoStore());
+const { caixaAberto, caixaHabilitado, exigeCaixaAberto } = useSessaoCaixaQuery();
+const { eRetaguarda } = useEsteTerminalQuery();
+
+/**
+ * A entrega da venda ao caixa.
+ *
+ * Só aparece com `controlar_caixa` ligado — loja sem caixa não tem fila, e o
+ * botão seria ruído. E some no Modo Balcão: ali é uma pessoa só, do começo ao
+ * fim, e entregar a venda a si mesmo não significa nada.
+ *
+ * O par (enviar / devolver) alterna no mesmo lugar: quem entregou por engano
+ * desfaz onde entregou, sem procurar o comando em outra tela.
+ */
+const enviarAoCaixaMutation = useEnviarAoCaixaMutation();
+const devolverParaMontagemMutation = useDevolverParaMontagemMutation();
+
+/**
+ * Nesta máquina, agora, dá para receber o dinheiro?
+ *
+ * Espelha `exigir_caixa_aberto_para_vender`: só e sempre com as duas chaves
+ * ligadas e sem turno aberto. NÃO desabilita nada -- o backend continua sendo a
+ * autoridade, e ele aceita tambem o turno do VENDEDOR, que esta tela não
+ * conhece. Aqui isto serve só para decidir qual botão é o principal.
+ */
+const podeFinalizar = computed(
+  () => !(caixaHabilitado.value && exigeCaixaAberto.value && !caixaAberto.value),
+);
+
+/**
+ * O botão de entregar some no Modo Balcão -- MAS SÓ SE DER PARA FINALIZAR.
+ *
+ * A primeira versão escondia sempre, com o argumento de que no balcão é uma
+ * pessoa só. O argumento vale, o "sempre" não: o Modo Balcão é uma preferência
+ * POR MÁQUINA, e nada impede que ele esteja ligado numa retaguarda. Quando isso
+ * acontecia e não havia turno, o operador ficava sem saída nenhuma -- não podia
+ * finalizar (o backend recusa) e não tinha como entregar.
+ */
+const mostraFilaDoCaixa = computed(
+  () => usarFilaDoCaixa.value && (!modoBalcao.value || !podeFinalizar.value),
+);
+
+/**
+ * "Finalizar Venda" só cede o destaque quando há outro botão para recebê-lo.
+ *
+ * A intenção do rebaixamento é hierarquia — apontar "entregar ao caixa" numa
+ * máquina que não recebe. Sem a fila ligada não existe segundo botão, e o que
+ * sobrava era um único comando cinza, com cara de desabilitado, no lugar mais
+ * importante da tela. Rebaixar sem promover ninguém não é hierarquia: é só
+ * apagar a ação principal.
+ *
+ * A recusa continua sendo dita — pelo rodapé logo abaixo e pelo backend. O que
+ * o botão não faz mais é PARECER inerte quando é a única saída.
+ */
+const finalizarEhPrincipal = computed(() => podeFinalizar.value || !mostraFilaDoCaixa.value);
+const naFilaDoCaixa = computed(() => !!sale.value?.enviada_ao_caixa_em);
+const filaPendente = computed(
+  () => enviarAoCaixaMutation.isPending.value || devolverParaMontagemMutation.isPending.value,
+);
+
+/**
+ * O que acontece quando o atendimento termina — finalizado OU entregue ao caixa.
+ *
+ * As duas coisas terminam igual para quem monta a venda: aquele cliente acabou
+ * e o próximo está esperando.
+ *
+ * Fora do Modo Balcão: volta para a lista, como sempre.
+ *
+ * No Modo Balcão a próxima venda já abre — no balcão as vendas são encadeadas e
+ * mandar o operador clicar em "Nova venda" a cada cliente é atrito puro.
+ *
+ * A ORDEM IMPORTA: fecha primeiro, abre depois. Se a criação da próxima falhar
+ * (caixa fechado no meio do turno, por exemplo), o operador cai na lista com o
+ * aviso do servidor, em vez de ficar preso numa tela mostrando a venda que ele
+ * acabou de despachar.
+ */
+function encerrarAtendimento() {
+  closeSaleModal();
+  if (modoBalcao.value && !exigirClienteIdentificado.value) {
+    iniciarVendaSemCliente();
+  }
+}
+
+function alternarFilaDoCaixa() {
+  const saleId = sale.value?.id;
+  if (!saleId) return;
+
+  // Tirar da fila e o contrario de terminar: quem clica ali quer MEXER na
+  // venda. A tela tem que ficar exatamente onde esta.
+  if (naFilaDoCaixa.value) {
+    devolverParaMontagemMutation.mutate(saleId);
+    return;
+  }
+
+  // Entregue ao caixa, a venda saiu das maos de quem monta. Segurar o carrinho
+  // do cliente anterior na tela so cria o risco de o proximo item entrar na
+  // venda errada -- e alterar item aqui devolve a venda para montagem, ou seja,
+  // desfaz a entrega que o operador acabou de fazer.
+  enviarAoCaixaMutation.mutate(saleId, { onSuccess: encerrarAtendimento });
+}
 
 const {
   saleForPrint,
@@ -65,17 +199,81 @@ const {
   resolvePaymentMethodName,
 } = useSalePrintFlow();
 
+/**
+ * Põe o cursor na busca de produto — e confere que ele ficou lá.
+ *
+ * A venda abre dentro de um `<Transition>` e a busca só existe em modo edição,
+ * então houve mais de um jeito de o `nextTick` chegar antes do elemento estar
+ * focável. Quando isso acontecia, a venda abria sem cursor em lugar nenhum e o
+ * operador era obrigado a clicar na barra com o mouse — no primeiro passo do
+ * fluxo que deveria ser todo de teclado.
+ *
+ * A segunda tentativa no quadro seguinte é barata e cobre a corrida.
+ */
+function focarBuscaDeProduto() {
+  const tentar = () => {
+    const input = document.querySelector<HTMLInputElement>('[data-search-products] input');
+    if (!input) return false;
+    input.focus();
+    return document.activeElement === input;
+  };
+
+  nextTick(() => {
+    if (tentar()) return;
+    requestAnimationFrame(() => void tentar());
+  });
+}
+
 watch(saleModalIsOpen, (isOpen) => {
-  if (isOpen) {
-    nextTick(() => {
-      const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');
-      searchInput?.focus();
-    });
-  }
+  if (isOpen) focarBuscaDeProduto();
 }, { immediate: true });
 
-function handleFinalized(finishedSale: SaleRead) {
-  imprimirAposFinalizar(finishedSale, () => closeSaleModal());
+const { emitirNFCeVenda, pendencias, pendenciasModalOpen } = useEmitirFiscal();
+const { imprimirDanfeNfce } = useNfcePrintFlow(resolvePaymentMethodName);
+
+/**
+ * Emenda só depois da impressão, porque é o `afterPrint` que roda quando o
+ * cupom saiu — trocar a venda da tela antes disso mexeria no que está sendo
+ * impresso.
+ *
+ * Com NFC-e existe um passo ENTRE finalizar e imprimir: a SEFAZ. A venda já
+ * está paga quando chega aqui, então nenhum desfecho fiscal a desfaz -- o que
+ * muda é o papel que sai:
+ *
+ *   autorizada        -> cupom fiscal (DANFE NFC-e com QR Code), e nada mais;
+ *   qualquer outro    -> comprovante gerencial marcado como NAO FISCAL, e o
+ *                        operador resolve pelo Centro Fiscal (pendência de
+ *                        cadastro, rejeição, ou emissão sem resposta).
+ *
+ * Nunca saem os dois, e o Modo Balcão só emenda a próxima venda depois do
+ * desfecho -- `encerrarAtendimento` é chamado no fim de cada caminho, nunca
+ * antes.
+ */
+async function handleFinalized(finishedSale: SaleRead, fiscal?: FiscalFechamento) {
+  if (!fiscal?.emitir) {
+    // Numa loja COM módulo fiscal, o comprovante gerencial sai marcado como
+    // não fiscal -- senão o cliente leva um papel que parece cupom e não é.
+    // Sem o módulo, nada muda: é o comprovante de sempre.
+    imprimirAposFinalizar(finishedSale, encerrarAtendimento, {
+      naoFiscal: recursoDisponivel('nfe'),
+    });
+    return;
+  }
+
+  const documento = await emitirNFCeVenda(
+    finishedSale.id, fiscal.documento, fiscal.indicadorPresenca,
+  );
+
+  if (documento) {
+    await imprimirDanfeNfce(finishedSale, documento, {
+      documentoConsumidor: fiscal.documento,
+      abrirGaveta: true,
+    });
+    encerrarAtendimento();
+    return;
+  }
+
+  imprimirAposFinalizar(finishedSale, encerrarAtendimento, { naoFiscal: true });
 }
 
 function handleChangeCliente() {
@@ -129,10 +327,18 @@ useSaleShortcuts({
   saleModalIsOpen,
   isEditMode,
   finishModalIsOpen,
+  paymentDetailsIsOpen: showPaymentDetails,
   itemModalIsOpen,
+  addProductModalIsOpen: toRef(addProductModal, 'isAddProductModalOpen'),
   onCreateSale: () => {},
-  onOpenFinishModal: openFinishModal,
+  // O atalho não passa pelo botão desabilitado: mesma trava do atacado aqui.
+  onOpenFinishModal: () => {
+    if (faltaParaAtacado.value > 0) return;
+    openFinishModal();
+  },
   onOpenItemModal: openCreateItemModal,
+  onOpenAddProductModal: () => addProductModal.openAddProductModal(),
+  onCloseAddProductModal: addProductModal.closeAddProductModal,
   onFocusPaymentGrid: () => {
     nextTick(() => {
       const btn = document.querySelector<HTMLButtonElement>('[data-payment-grid] button');
@@ -142,13 +348,9 @@ useSaleShortcuts({
   onCancelSale: handleCancel,
   onCloseSaleModal: closeSaleModal,
   onCloseFinishModal: closeFinishModal,
+  onClosePaymentDetails: () => { showPaymentDetails.value = false; },
   onCloseItemModal: closeItemModal,
-  onFocusSearch: () => {
-    nextTick(() => {
-      const searchInput = document.querySelector<HTMLInputElement>('[data-search-products] input');
-      searchInput?.focus();
-    });
-  },
+  onFocusSearch: focarBuscaDeProduto,
   onFocusSaleInputs: (field) => {
     nextTick(() => {
       document.querySelector<HTMLInputElement>(`[data-sale-${field}] input`)?.focus();
@@ -247,16 +449,47 @@ const saleDisplay = computed(() => {
           <button
             type="button"
             class="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-sm font-semibold hover:bg-brand-primary/20 hover:border-brand-primary/30 transition-all shrink-0 cursor-pointer"
-            @click="addProductModal.openAddProductModal"
+            title="Quantidade e desconto (F3)"
+            @click="addProductModal.openAddProductModal()"
           >
             <PackagePlus :size="16" />
             Adicionar Produto
+            <kbd class="ml-0.5 inline-flex items-center rounded border border-brand-primary/30 bg-white/60 px-1 text-[10px] font-semibold">F3</kbd>
           </button>
+          <button
+            v-if="mostraAtacado"
+            type="button"
+            :class="[
+              'flex items-center gap-2 h-9 px-4 rounded-lg border text-sm font-semibold transition-all shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+              modoAtacado
+                ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                : 'bg-white text-zinc-600 border-zinc-200 hover:border-amber-400 hover:text-amber-700',
+            ]"
+            :disabled="updateSaleMutation.isPending.value"
+            :title="modoAtacado ? 'Voltar a venda para o preço de varejo' : 'Passar a venda para o preço de atacado'"
+            :aria-pressed="modoAtacado"
+            @click="alternarAtacado"
+          >
+            <Warehouse :size="16" />
+            {{ modoAtacado ? 'Atacado' : 'Varejo' }}
+          </button>
+        </div>
+        <div
+          v-if="modoAtacado && faltaParaAtacado > 0"
+          class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+        >
+          <Warehouse :size="14" class="shrink-0" />
+          <span>
+            Pedido mínimo do atacado: {{ formatCurrency(atacadoPedidoMinimo) }} —
+            <strong class="font-semibold">faltam {{ formatCurrency(faltaParaAtacado) }}</strong>.
+            Complete o pedido ou volte para o varejo.
+          </span>
         </div>
         <SaleItemsTable :sale="sale" :readonly="isViewMode" class="flex-1 min-h-0" />
         <SaleSummary
           :subtotal="sale?.subtotal"
           :discount="sale?.descontos"
+          :desconto-regra="sale?.descontos_regra"
           :delivery="sale?.entrega"
           :total="sale?.total"
           :form="saleForm"
@@ -276,18 +509,69 @@ const saleDisplay = computed(() => {
 
         <div class="shrink-0 pt-4 flex flex-col gap-2">
           <template v-if="isEditMode">
+            <!--
+              QUEM E O BOTAO PRINCIPAL DEPENDE DE PODER RECEBER.
+              Onde da para receber, finalizar e o caminho normal e entregar e a
+              excecao. Onde nao da -- retaguarda, ou turno fechado -- a ordem se
+              inverte: deixar "Finalizar Venda" grande numa maquina que nao
+              finaliza e convidar o operador para uma recusa.
+              Nenhum dos dois e desabilitado: quem recusa e o backend, que aceita
+              tambem o turno do vendedor, e esta tela nao conhece esse caso.
+            -->
             <BaseButton
+              v-if="mostraFilaDoCaixa && !podeFinalizar"
               variant="primary"
               size="lg"
               class="w-full text-base font-bold py-4 shadow-lg shadow-brand-primary/20"
-              :disabled="!sale?.produtos?.length"
+              :disabled="!sale?.produtos?.length || filaPendente"
+              @click="alternarFilaDoCaixa"
+            >
+              {{ naFilaDoCaixa ? 'Tirar da fila do caixa' : 'Enviar para o caixa' }}
+            </BaseButton>
+
+            <BaseButton
+              :variant="finalizarEhPrincipal ? 'primary' : 'secondary'"
+              :size="finalizarEhPrincipal ? 'lg' : 'md'"
+              data-ir-pagamento
+              class="w-full"
+              :class="finalizarEhPrincipal ? 'text-base font-bold py-4 shadow-lg shadow-brand-primary/20' : ''"
+              :disabled="!sale?.produtos?.length || faltaParaAtacado > 0"
+              @keydown.tab.exact.prevent="focarBuscaDeProduto"
               @click="openFinishModal"
             >
               <div class="flex flex-col items-center">
                 <span>Finalizar Venda</span>
-                <span class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>
+                <span v-if="finalizarEhPrincipal" class="text-[9px] opacity-70 font-normal">Ctrl+Enter</span>
               </div>
             </BaseButton>
+
+            <BaseButton
+              v-if="mostraFilaDoCaixa && podeFinalizar"
+              variant="secondary"
+              size="md"
+              class="w-full"
+              :disabled="!sale?.produtos?.length || filaPendente"
+              @click="alternarFilaDoCaixa"
+            >
+              {{ naFilaDoCaixa ? 'Tirar da fila do caixa' : 'Enviar para o caixa' }}
+            </BaseButton>
+
+            <p v-if="mostraFilaDoCaixa && naFilaDoCaixa" class="text-[11px] text-center text-emerald-700">
+              Na fila do caixa — alterar um item devolve a venda para montagem.
+            </p>
+            <p v-else-if="!podeFinalizar && mostraFilaDoCaixa" class="text-[11px] text-center text-zinc-500">
+              Sem caixa aberto, esta venda é finalizada por quem estiver no caixa.
+            </p>
+            <!-- "Abra o caixa" é conselho impossível numa retaguarda, que não
+                 tem botão para abrir. Foi a frase que mandou o operador bater
+                 na parede uma vez. -->
+            <p v-else-if="!podeFinalizar && eRetaguarda" class="text-[11px] text-center text-amber-700">
+              Esta máquina é retaguarda e não finaliza vendas. Ligue a Fila do caixa,
+              ou mude o papel dela para PDV em Configurações.
+            </p>
+            <p v-else-if="!podeFinalizar" class="text-[11px] text-center text-zinc-500">
+              Abra o caixa para finalizar esta venda.
+            </p>
           </template>
           <template v-else>
             <BaseButton variant="secondary" size="md" class="w-full" @click="closeSaleModal()">
@@ -302,6 +586,7 @@ const saleDisplay = computed(() => {
       :is-open="addProductModal.isAddProductModalOpen"
       :sale-id="selectedSaleId"
       :current-items="sale?.produtos"
+      :termo-inicial="addProductModal.termoInicial"
       @close="addProductModal.closeAddProductModal"
     />
     <CancelSaleModal
@@ -340,4 +625,15 @@ const saleDisplay = computed(() => {
       :payment-method-resolver="resolvePaymentMethodName"
     />
   </BaseModal>
+
+  <!-- FORA do BaseModal de propósito: ele desmonta os filhos ao fechar, e a
+       venda fecha (e no Modo Balcão a próxima abre) logo depois de a NFC-e
+       não sair. As pendências de cadastro precisam sobreviver a isso -- é o
+       que o operador vai corrigir para emitir depois pelo Centro Fiscal. -->
+  <PendenciasFiscaisModal
+    :is-open="pendenciasModalOpen"
+    :pendencias="pendencias"
+    titulo="NFC-e não emitida — pendências de cadastro"
+    @close="pendenciasModalOpen = false"
+  />
 </template>

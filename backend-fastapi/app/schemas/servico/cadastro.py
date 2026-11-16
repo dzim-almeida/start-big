@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: schemas/servico/cadastro.py
+# DESCRICAO: Schemas de servico - entrada (criar e editar).
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
+
+
+# =========================
+# Schema: Criar Serviço
+# =========================
+class ServicoCreate(BaseModel):
+    """
+    Schema usado para validar os dados ao **criar** um novo serviço.
+    Define os campos obrigatórios no corpo da requisição POST.
+    """
+    descricao: str = Field(
+        ..., # '...' indica que o campo é obrigatório
+        max_length=255,
+        description="Descrição do serviço disponibilizado."
+    )
+
+    valor: int = Field(
+        ..., # Campo obrigatório
+        description="Valor do serviço ofertado (em centavos)."
+    )
+
+    # Opcional (lava-rapido): da a previsao no patio e a duracao do agendamento.
+    duracao_minutos: Optional[int] = Field(
+        None, ge=1, le=24 * 60,
+        description="Duração típica do serviço, em minutos."
+    )
+
+    # Configurações do modelo Pydantic
+    model_config = ConfigDict(
+        from_attributes=True, # Permite mapear de atributos de objetos (ex: SQLAlchemy)
+        json_schema_extra={
+            # Define um exemplo para a documentação da API (Swagger/OpenAPI)
+            "example": {
+                "descricao": "Troca de tela do Iphone 16",
+                "valor": 75049 # Exemplo de valor em centavos
+            }
+        }
+    )
+
+
+# =========================
+# Schema: Atualizar Serviço
+# =========================
+class ServicoUpdate(BaseModel):
+    """
+    Schema usado para validar os dados ao **atualizar** um serviço (PUT/PATCH).
+    Todos os campos são opcionais, permitindo atualizações parciais.
+    """
+    descricao: Optional[str] = Field(
+        None, # Valor padrão 'None', tornando o campo opcional
+        max_length=255,
+        description="Descrição do serviço disponibilizado."
+    )
+
+    valor: Optional[int] = Field(
+        None, # Valor padrão 'None', tornando o campo opcional
+        description="Valor do serviço ofertado (em centavos)."
+    )
+
+    duracao_minutos: Optional[int] = Field(
+        None, ge=1, le=24 * 60,
+        description="Duração típica do serviço, em minutos."
+    )
+
+    # Configurações do modelo Pydantic
+    model_config = ConfigDict(
+        from_attributes=True, # Permite mapear de atributos de objetos
+        json_schema_extra={
+            # Exemplo de payload para a documentação (atualização parcial)
+            "example": {
+                "valor": 80049
+            }
+        }
+    )

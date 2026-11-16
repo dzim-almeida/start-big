@@ -1,0 +1,208 @@
+# ---------------------------------------------------------------------------
+# ARQUIVO: app/db/models/documento_fiscal.py
+# DESCRIÇÃO: Tabela unificada de documentos fiscais emitidos.
+#
+# Registra cada emissão fiscal (NFe, NFCe, NFSe) independente da origem
+# (Venda ou Ordem de Serviço). A referência à origem é polimórfica
+# (origem_tipo + origem_id/origem_numero_os), sem FK rígida.
+#
+# Esta tabela é usada pelo Centro Fiscal para exibir todos os documentos
+# emitidos, seus status e permitir ações como reemissão e download.
+# ---------------------------------------------------------------------------
+
+from datetime import datetime
+from typing import Optional, TYPE_CHECKING
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.db.models.carta_correcao_fiscal import CartaCorrecaoFiscal
+    from app.db.models.documento_fiscal_item import DocumentoFiscalItem
+    from app.db.models.documento_fiscal import DocumentoFiscal as _Self
+
+
+class DocumentoFiscal(Base):
+    __tablename__ = "documento_fiscal"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    # --- Tipo e origem polimórfica (sem FK) ---
+    # NFE, NFCE, NFSE
+    tipo_documento: Mapped[str] = mapped_column(String(5), nullable=False)
+    # VENDA, ORDEM_SERVICO
+    origem_tipo: Mapped[str] = mapped_column(String(15), nullable=False)
+    # ID da venda (quando origem_tipo = VENDA)
+    origem_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    # Número da OS (quando origem_tipo = ORDEM_SERVICO)
+    origem_numero_os: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
+
+    # --- Status ---
+    # PENDENTE, PROCESSANDO, AUTORIZADA, REJEITADA, CANCELADA, DENEGADA,
+    # INDETERMINADA, NAO_TRANSMITIDA.
+    #
+    # NAO_TRANSMITIDA e PENDENTE nao sao sinonimos: PENDENTE e "criado, ainda
+    # nao houve tentativa"; NAO_TRANSMITIDA e "houve tentativa e a nota nao
+    # chegou a SEFAZ". Nenhum dos dois entra em `get_documento_ativo_por_*`
+    # depois da limpeza, para nao trancar a venda para sempre.
+    status: Mapped[str] = mapped_column(String(15), nullable=False, default="PENDENTE", index=True)
+
+    # --- Dados do documento emitido ---
+    chave_acesso: Mapped[Optional[str]] = mapped_column(String(44), nullable=True)
+    numero_documento: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    serie: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    protocolo_autorizacao: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    data_autorizacao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # --- Arquivos ---
+    url_pdf: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    url_xml: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    # Onde o XML autorizado ficou GUARDADO nesta máquina.
+    #
+    # As duas URLs acima são endereços na emissora: dependem de ela estar no
+    # ar, do link não expirar e de continuarmos clientes dela. Quem é obrigado
+    # a guardar o XML por cinco anos é o emitente — a loja. Ver
+    # `services/fiscal/arquivos.py`.
+    caminho_xml_local: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    # O DANFE guardado nesta máquina, em `fiscal/danfe/`. Entra no backup
+    # enquanto a pasta couber no teto (ver `backup/_constants.py`): o XML é
+    # obrigação legal e sobe sempre, o PDF cede lugar se o pacote crescer
+    # demais. Local ele fica de todo jeito, para reimprimir sem internet.
+    caminho_pdf_local: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # --- Destinatario ENVIADO (parte do snapshot, gravado antes de transmitir) ---
+    # E o que a SEFAZ viu. A tela lia o cliente da venda, e a nota de teste nao
+    # tem venda: quando a SEFAZ recusou citando um CNPJ, nao havia como provar
+    # o que tinha ido no payload. So digitos; None em documentos anteriores.
+    destinatario_documento_enviado: Mapped[Optional[str]] = mapped_column(String(14), nullable=True)
+    destinatario_nome_enviado: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
+    # --- SEFAZ feedback ---
+    mensagem_sefaz: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    codigo_status_sefaz: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    status_focus: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True,
+        doc=(
+            "Status CRU devolvido pela emissora (ex.: 'autorizado', "
+            "'denegado', 'erro_autorizacao'). Fica ao lado do `status` "
+            "normalizado porque 'denegado' e 'erro_autorizacao' viram ambos "
+            "uma recusa, e sao coisas diferentes: denegada e decisao da SEFAZ "
+            "sobre o contribuinte e reenviar nao adianta."
+        )
+    )
+    motivo_rejeicao: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # --- Valor total (centavos) ---
+    valor_total: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # --- Específicos da NFC-e (modelo 65) ---
+    # Ficam AQUI, e não só em venda_nota_fiscal, porque a reimpressão do cupom
+    # parte do documento fiscal: sem estes três não há como reimprimir sem
+    # consultar o provedor de novo — e o cliente está no balcão esperando.
+    qrcode: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True,
+        doc="Texto do QR Code do DANFE NFC-e, montado pelo provedor com o CSC"
+    )
+    url_consulta: Mapped[Optional[str]] = mapped_column(
+        String(300), nullable=True,
+        doc="Endereço de consulta da SEFAZ impresso no cupom"
+    )
+    valor_tributos: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc="Tributos totais aproximados em CENTAVOS (Lei 12.741/2012 — IBPT)"
+    )
+
+    # --- Emissão via API ---
+    ref_api: Mapped[Optional[str]] = mapped_column(
+        String(50), unique=True, index=True, nullable=True,
+        doc="Referência única enviada à API de emissão"
+    )
+    ambiente_emissao: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True,
+        doc=(
+            "Ambiente: 1=Produção, 2=Homologação. Nasce com o palpite local e é "
+            "CORRIGIDO pelo protocolo quando a SEFAZ responde (helpers."
+            "ambiente_do_protocolo) — só vale como fato quando há protocolo."
+        ),
+    )
+    idempotency_key: Mapped[Optional[str]] = mapped_column(
+        String(36), unique=True, index=True, nullable=True,
+        doc=(
+            "UUID gerado e persistido ANTES do disparo HTTP. Reenviado em "
+            "X-Idempotency-Key para que a retentativa de rede após timeout "
+            "não vire uma segunda nota na API intermediária."
+        )
+    )
+
+    # --- Cadeia de tentativas (linked list) ---
+    tentativa_anterior_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("documento_fiscal.id"), nullable=True, index=True,
+        doc="ID da tentativa anterior (reemissão cria nova linha)"
+    )
+
+    # --- Devolução (finalidade 4) ---
+    # Uma NF-e de devolução é uma EMISSÃO nova que aponta para a nota que está
+    # sendo devolvida. A chave fica copiada porque é ela que vai no XML
+    # (refNFe) e porque o documento de origem pode ser uma NFC-e.
+    finalidade_emissao: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1"),
+        doc="finNFe: 1=Normal, 4=Devolução de mercadoria",
+    )
+    documento_referenciado_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("documento_fiscal.id", ondelete="SET NULL"), nullable=True, index=True,
+        doc="Nota/cupom devolvido por esta NF-e (só finalidade 4)",
+    )
+    chave_documento_referenciado: Mapped[Optional[str]] = mapped_column(
+        String(44), nullable=True, index=True,
+        doc="Chave SEFAZ (44 dígitos) da nota devolvida",
+    )
+    # A decisão "devolver ao estoque?" precisa sobreviver até a autorização,
+    # que pode chegar pelo polling em outra requisição. Só faz sentido na
+    # devolução; nos demais fica NULL.
+    devolver_estoque: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    # Marcenaria (docs/marcenaria-faturamento-plano.md): VENDA_MARCENARIA,
+    # SIMPLES_FATURAMENTO ou REMESSA_ENTREGA_FUTURA. NULL em toda outra nota.
+    papel: Mapped[Optional[str]] = mapped_column(String(25), nullable=True)
+    # NFS-e: com ele o tomador confere a nota no portal (n5f0s3rv1c02). NULL nas demais.
+    codigo_verificacao: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    # CFOP trocado na conferência (c1cf0p7r0c01): JSON {"trocas": {"5102": "5101"},
+    # "por": usuário}. NULL = a nota saiu com o CFOP que o sistema sugeriu.
+    cfop_trocado: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    itens: Mapped[list["DocumentoFiscalItem"]] = relationship(
+        "DocumentoFiscalItem",
+        back_populates="documento",
+        cascade="all, delete-orphan",
+        order_by="DocumentoFiscalItem.numero_item",
+        doc=(
+            "Snapshot do que foi enviado à SEFAZ. Vazio em documentos anteriores "
+            "a 05/09/2026 — aí o serviço reconstrói do cadastro, como fazia antes."
+        ),
+    )
+
+    tentativa_anterior: Mapped[Optional["DocumentoFiscal"]] = relationship(
+        "DocumentoFiscal",
+        remote_side="DocumentoFiscal.id",
+        foreign_keys=[tentativa_anterior_id],
+        uselist=False,
+        doc="Documento da tentativa anterior"
+    )
+
+    cartas_correcao: Mapped[list["CartaCorrecaoFiscal"]] = relationship(
+        "CartaCorrecaoFiscal",
+        back_populates="documento",
+        order_by="CartaCorrecaoFiscal.sequencia",
+        doc="Eventos de CC-e registrados nesta NF-e (só modelo 55)",
+    )
+
+    # --- Timestamps ---
+    data_emissao: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    data_criacao: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=func.now()
+    )
+    data_atualizacao: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=func.now(), onupdate=func.now()
+    )

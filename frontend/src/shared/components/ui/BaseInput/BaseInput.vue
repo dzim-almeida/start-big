@@ -6,6 +6,7 @@
  */
 
 import { computed, ref } from 'vue';
+import BaseAjuda from '../BaseAjuda/BaseAjuda.vue';
 
 interface InputProps {
   type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'date';
@@ -16,6 +17,23 @@ interface InputProps {
   error?: string;
   disabled?: boolean;
   id?: string;
+  /** Só para type="number". Sem `step`, o padrão do navegador é 1 e qualquer casa decimal vira valor inválido. */
+  step?: string | number;
+  min?: string | number;
+  max?: string | number;
+  /**
+   * Teclado sugerido em telas de toque. Use `decimal` num campo `text` que
+   * recebe número com vírgula — `type="number"` não serve para isso, porque
+   * aceita só o separador decimal do locale do navegador.
+   */
+  inputmode?: 'text' | 'decimal' | 'numeric' | 'tel' | 'email' | 'url' | 'search';
+  /** Texto do "?" ao lado do rótulo. Sem ele, nada é renderizado a mais. */
+  ajuda?: string;
+  /**
+   * Unidade escrita no fim do campo, por dentro da borda (ex.: "mm", "%", "kg").
+   * Só aparece; não entra no valor. Sem ele, o campo fica como sempre foi.
+   */
+  sufixo?: string;
 }
 
 const props = withDefaults(defineProps<InputProps>(), {
@@ -23,7 +41,43 @@ const props = withDefaults(defineProps<InputProps>(), {
   required: false,
 });
 
-const model = defineModel();
+/**
+ * `v-model.number` / `v-model.trim` só funcionam sozinhos em input NATIVO. Num
+ * componente, o Vue entrega os modificadores e quem aplica é o componente — e
+ * este não aplicava. Resultado: todo `v-model.number` do projeto era inerte e
+ * `type="number"` devolvia string.
+ *
+ * Onde havia um `z.number()` na frente, isso virava perda silenciosa: a garantia
+ * do item da OS saía como "90", o Zod reprovava e o `handleSubmit` do
+ * vee-validate abortava sem chamar o handler e sem erro na tela — o campo
+ * simplesmente voltava vazio.
+ *
+ * Campo vazio vira `null` (e não `''`): `''` reprova em `z.number().nullable()`
+ * exatamente como a string reprovava, e o bug voltaria pela porta dos fundos.
+ */
+// `any` (e não `unknown`) preserva o contrato que já existia: o componente
+// serve texto, número e data, e os chamadores tipam o handler como quiserem.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const [model, modelModifiers] = defineModel<any>({
+  set(valor: unknown) {
+    if (modelModifiers.trim && typeof valor === 'string') {
+      valor = valor.trim();
+    }
+    if (modelModifiers.number) {
+      if (valor === '' || valor === null || valor === undefined) return null;
+      const numero = Number(valor);
+      // Não engole o que o usuário digitou se não for número: devolver NaN
+      // apagaria o campo enquanto ele ainda está escrevendo.
+      return Number.isNaN(numero) ? valor : numero;
+    }
+    return valor;
+  },
+});
+
+// `blur` não borbulha, então o listener que o Vue jogaria na div raiz nunca
+// dispararia. Emitir explicitamente é o que permite normalizar um campo
+// numérico só quando o usuário termina de digitar.
+const emit = defineEmits<{ blur: [event: FocusEvent] }>();
 
 const showPassword = ref(false);
 const uniqueId = props.id || `input-${Math.random().toString(36).slice(2, 7)}`;
@@ -44,7 +98,9 @@ const inputClasses = computed(() => [
   props.disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white',
   props.type === 'password' ? 'pr-10' : '',
   props.type === 'date' ? 'pr-1' : '',
-  props.type === 'number' ? 'input-number-no-spinner' : ''
+  props.type === 'number' ? 'input-number-no-spinner' : '',
+  // Com sufixo, o texto digitado não pode passar por baixo da unidade: reserva espaço à direita.
+  props.sufixo ? 'pr-10' : '',
 ]);
 
 function togglePasswordVisibility() {
@@ -66,6 +122,7 @@ function togglePasswordVisibility() {
       >
          *
       </span>
+      <BaseAjuda v-if="ajuda" :texto="ajuda" :campo="label" class="ml-1" />
     </label>
 
     <div class="relative">
@@ -78,8 +135,22 @@ function togglePasswordVisibility() {
         :placeholder="placeholder"
         :required="required"
         :disabled="disabled"
+        :inputmode="inputmode"
+        :step="type === 'number' ? step : undefined"
+        :min="type === 'number' ? min : undefined"
+        :max="type === 'number' ? max : undefined"
         :class="inputClasses"
+        @blur="emit('blur', $event)"
       />
+
+      <!-- Unidade no fim do campo ("mm"). `pointer-events-none`: clicar nela ainda foca o campo. -->
+      <span
+        v-if="sufixo"
+        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs text-gray-500"
+        data-testid="input-sufixo"
+      >
+        {{ sufixo }}
+      </span>
 
       <button
         v-if="type === 'password'"
@@ -130,5 +201,10 @@ function togglePasswordVisibility() {
     <p v-if="error" class="select-none mt-0.5 text-xs text-red-500">
       {{ error }}
     </p>
+    <!-- Dica embaixo do campo (`<template #hint>`). Some quando há erro: os
+         dois no mesmo lugar empilhavam e o erro perdia destaque. -->
+    <div v-else-if="$slots.hint" class="select-none mt-0.5">
+      <slot name="hint" />
+    </div>
   </div>
 </template>

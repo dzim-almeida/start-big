@@ -5,9 +5,20 @@
 
 import type { Component } from 'vue';
 
+// Modo de comissão: 'direto' paga a taxa sobre tudo; 'meta' só paga ao bater a meta.
+export type ComissaoModo = 'direto' | 'meta';
+/** OS com mais de um lavador (lava-rápido, Spec 10B): dividir a base ou pagar inteira a cada um. */
+export type ComissaoDivisao = 'dividir' | 'inteira';
+
 export interface CargoBase {
   nome: string;
   permissoes: Record<string, boolean>;
+  // Comissão: percentuais em BASIS POINTS (500 = 5,00%); meta em centavos.
+  comissao_venda_percentual?: number | null;
+  comissao_servico_percentual?: number | null;
+  meta_mensal?: number | null;
+  comissao_modo?: ComissaoModo | null;
+  comissao_divisao?: ComissaoDivisao | null;
 }
 
 export interface CargoCreate extends CargoBase {}
@@ -20,11 +31,22 @@ export interface CargoRead extends CargoBase {
 export interface CargoUpdate {
   nome?: string;
   permissoes?: Record<string, boolean>;
+  comissao_venda_percentual?: number | null;
+  comissao_servico_percentual?: number | null;
+  meta_mensal?: number | null;
+  comissao_modo?: ComissaoModo | null;
+  comissao_divisao?: ComissaoDivisao | null;
 }
 
 export interface PositionFormData {
   nome: string;
   permissoes: Record<string, boolean>;
+  // Mesmas unidades da API (basis points / centavos); a conversão p/ % e R$ é só no input.
+  comissao_venda_percentual: number | null;
+  comissao_servico_percentual: number | null;
+  meta_mensal: number | null;
+  comissao_modo: ComissaoModo | null;
+  comissao_divisao: ComissaoDivisao | null;
 }
 
 export interface PermissionMatrixItem {
@@ -34,7 +56,19 @@ export interface PermissionMatrixItem {
   icon: Component;
   viewKey: string;
   manageKey: string;
-  deleteKey: string;
+  // Opcional: módulos read-only (ex.: Relatórios) não têm ação de excluir.
+  deleteKey?: string;
+  /**
+   * Módulo contratável (ex.: COMPRAS): a linha só aparece com ele na licença,
+   * e suas caixas NÃO entram na conta do nível do cargo — senão contratar um
+   * módulo novo rebaixaria o "Gestor" de toda loja que já existia.
+   */
+  modulo?: string;
+  /**
+   * Só neste segmento (ex.: a linha "Fábrica" da marcenaria). Como as de
+   * módulo, fica fora da conta do nível do cargo.
+   */
+  segmento?: string;
 }
 
 export interface PositionCardTheme {

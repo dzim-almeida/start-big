@@ -7,6 +7,8 @@ export interface ServidorDescobertoPayload {
   role: string
   ip: string
   port: number
+  /** O servidor anunciado roda NESTA máquina — nunca gravar terminal apontando para ele. */
+  local: boolean
 }
 
 export type EstadoDescoberta = 'buscando' | 'encontrado' | 'timeout' | 'inativo'
@@ -112,6 +114,9 @@ export async function tentarAutoDiscovery(
 ): Promise<ServidorDescobertoPayload | null> {
   if (!isTauri()) return null
 
+  // O `await listen` precisa acontecer antes do timeout armar; reescrever a
+  // descoberta (incidente de rede de 09/2026) não cabe numa migração de lint.
+  // eslint-disable-next-line no-async-promise-executor -- ver acima
   return new Promise(async (resolve) => {
     let resolvido = false
 

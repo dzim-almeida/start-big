@@ -11,12 +11,12 @@ import { CustomerSimpleRead } from "../../schemas/customers.schema";
 export function useCustomersQuery(term: MaybeRef<string | null | undefined>) {
     return useQuery<CustomerSimpleRead>({
         queryKey: computed(() => 
-            !!unref(term)
+            unref(term)
               ? customerKeys.search(unref(term)!)
-              : [...customerKeys.all, 'search', 'empty']
+              : [...customerKeys.all, 'venda-busca', 'empty']
         ),
         queryFn: () => customerService.searchCustomers(unref(term)!),
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 30, // auto-complete: igual ao de produto, ao lado
         refetchInterval: REFETCH_REALTIME,
     })
 }

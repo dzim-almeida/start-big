@@ -1,18 +1,25 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.depends import get_current_active_user, _handle_db_transaction
+from app.core.depends import check_permission, get_current_active_user, _handle_db_transaction
 from app.db.session import get_db
-from app.schemas.configuracao_clientes import ConfiguracaoClientesRead, ConfiguracaoClientesUpdate
-from app.schemas.configuracao_produtos import ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate
-from app.schemas.configuracao_os import ConfiguracaoOSRead, ConfiguracaoOSUpdate
-from app.schemas.configuracao_vendas import ConfiguracaoVendasRead, ConfiguracaoVendasUpdate
-from app.schemas.configuracao_seguranca import ConfiguracaoSegurancaRead, ConfiguracaoSegurancaUpdate, VerificarPinPayload
-from app.services import configuracao_clientes as configuracao_clientes_service
-from app.services import configuracao_produtos as configuracao_produtos_service
-from app.services import configuracao_os as configuracao_os_service
-from app.services import configuracao_vendas as configuracao_vendas_service
-from app.services import configuracao_seguranca as configuracao_seguranca_service
+from app.schemas.configuracao.clientes import ConfiguracaoClientesRead, ConfiguracaoClientesUpdate
+from app.schemas.configuracao.produtos import ConfiguracaoProdutosRead, ConfiguracaoProdutosUpdate
+from app.schemas.configuracao.ordem_servico import ConfiguracaoOSRead, ConfiguracaoOSUpdate
+from app.schemas.configuracao.vendas import ConfiguracaoVendasRead, ConfiguracaoVendasUpdate
+from app.schemas.configuracao.seguranca import ConfiguracaoSegurancaRead, ConfiguracaoSegurancaUpdate, VerificarPinPayload
+from app.services.configuracao import clientes as configuracao_clientes_service
+from app.services.configuracao import produtos as configuracao_produtos_service
+from app.services.configuracao import ordem_servico as configuracao_os_service
+from app.services.configuracao import vendas as configuracao_vendas_service
+from app.services.configuracao import seguranca as configuracao_seguranca_service
+from app.schemas.configuracao.marcenaria import (
+    ConfiguracaoMarcenariaCompleta,
+    ConfiguracaoMarcenariaPublica,
+    ConfiguracaoMarcenariaUpdate,
+)
+from app.services.configuracao import marcenaria as configuracao_marcenaria_service
+from app.services.marcenaria.permissoes import PERMISSOES_GERIR_CUSTOS, pode_ver_custos_marcenaria
 
 router = APIRouter()
 
@@ -220,3 +227,85 @@ def verificar_pin_seguranca(
     empresa_id = int(usuario_token.get("empresa_id"))
     configuracao_seguranca_service.verificar_pin_gerente(db, empresa_id, payload.pin)
     return {"ok": True}
+
+
+# ===========================================================================
+# MARCENARIA (Spec 04A) — parametros padrao do orcamento tecnico
+# ===========================================================================
+
+@router.get(
+    "/marcenaria",
+    response_model=ConfiguracaoMarcenariaCompleta | ConfiguracaoMarcenariaPublica,
+    status_code=status.HTTP_200_OK,
+    summary="Parâmetros do orçamento de marcenaria",
+    description=(
+        "Qualquer usuário logado lê validade, prazo, etapas e checklist. Markup, perda, "
+        "custo/hora e RT só vêm para quem tem 'view_custos_marcenaria' (ou master/'all'); "
+        "`inclui_custos` diz qual dos dois formatos veio. 404 fora da marcenaria."
+    ),
+)
+def get_configuracao_marcenaria(
+    usuario_token: dict = Depends(get_current_active_user),       # qualquer usuario logado (D9)
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(usuario_token.get("empresa_id"))
+    config = _handle_db_transaction(db, configuracao_marcenaria_service.obter_configuracao, empresa_id)
+    _com_pendencias(db, config, empresa_id)
+    # Recorte por permissao: sem view_custos, so os campos sem custo (D9). Os
+    # campos de custo NAO aparecem (nem como null) na resposta publica.
+    if pode_ver_custos_marcenaria(usuario_token):
+        return ConfiguracaoMarcenariaCompleta.model_validate(config)
+    return ConfiguracaoMarcenariaPublica.model_validate(config)
+
+
+def _com_pendencias(db: Session, config, empresa_id: int):
+    """Pendura no objeto o aviso do cadastro fiscal dos produtos acabados."""
+    config.pendencias_faturamento = configuracao_marcenaria_service.pendencias_faturamento(db, config, empresa_id)
+    return config
+
+
+@router.put(
+    "/marcenaria",
+    response_model=ConfiguracaoMarcenariaCompleta,
+    status_code=status.HTTP_200_OK,
+    summary="Atualizar parâmetros do orçamento de marcenaria",
+    description="Exige 'manage_custos_marcenaria' (D10). Corpo parcial: só os campos enviados mudam.",
+)
+def update_configuracao_marcenaria(
+    data: ConfiguracaoMarcenariaUpdate,
+    # A permissao e conferida ANTES do segmento: sem ela, 403 em qualquer segmento.
+    usuario_token: dict = Depends(check_permission(required_permission=PERMISSOES_GERIR_CUSTOS)),
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(usuario_token.get("empresa_id"))
+    config = _handle_db_transaction(
+        db,
+        configuracao_marcenaria_service.atualizar_configuracao,
+        empresa_id,
+        data,
+    )
+    return ConfiguracaoMarcenariaCompleta.model_validate(_com_pendencias(db, config, empresa_id))
+
+
+@router.post(
+    "/marcenaria/produtos-acabados",
+    response_model=ConfiguracaoMarcenariaCompleta,
+    status_code=status.HTTP_200_OK,
+    summary="Criar os produtos acabados da marcenaria",
+    description=(
+        "Cria (ou reaproveita, pelo código) 'Móvel planejado' e 'Móvel planejado (revenda)' e os liga "
+        "ao faturamento dos móveis. Vínculo já escolhido não é trocado. Exige 'manage_custos_marcenaria'."
+    ),
+)
+def criar_produtos_acabados_marcenaria(
+    usuario_token: dict = Depends(check_permission(required_permission=PERMISSOES_GERIR_CUSTOS)),
+    db: Session = Depends(get_db),
+):
+    empresa_id = int(usuario_token.get("empresa_id"))
+    config = _handle_db_transaction(
+        db,
+        configuracao_marcenaria_service.criar_produtos_acabados,
+        empresa_id,
+        usuario_token,
+    )
+    return ConfiguracaoMarcenariaCompleta.model_validate(_com_pendencias(db, config, empresa_id))

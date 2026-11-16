@@ -1,0 +1,256 @@
+{
+  "os": {
+    "numero_os": "OS-2026-000001",
+    "status": "ABERTA",
+    "editavel": true,
+    "previsao": "2026-11-08"
+  },
+  "progresso": {
+    "etapas_concluidas": 15,
+    "etapas_total": 15,
+    "moveis_prontos": 4,
+    "moveis_total": 4
+  },
+  "producao_concluida": true,
+  "moveis": [
+    {
+      "movel_id": 1,
+      "nome": "Balcão",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "INTERNA",
+      "pronto": true,
+      "sem_etapas": false,
+      "proxima_etapa": null,
+      "etapas": [
+        {
+          "id": 1,
+          "nome": "Corte",
+          "ordem": 1,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.436577",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 2,
+          "nome": "Borda",
+          "ordem": 2,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.477496",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 3,
+          "nome": "Furação",
+          "ordem": 3,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": "2026-10-09T18:28:07.516557",
+          "concluida_em": "2026-10-09T18:28:07.744642",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 4,
+          "nome": "Montagem",
+          "ordem": 4,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.770326",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 5,
+          "nome": "Embalagem",
+          "ordem": 5,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.794489",
+          "concluida_por": "Admin Master"
+        }
+      ]
+    },
+    {
+      "movel_id": 2,
+      "nome": "Aéreo",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "INTERNA",
+      "pronto": true,
+      "sem_etapas": false,
+      "proxima_etapa": null,
+      "etapas": [
+        {
+          "id": 6,
+          "nome": "Corte",
+          "ordem": 1,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.560777",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 7,
+          "nome": "Borda",
+          "ordem": 2,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.716866",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 8,
+          "nome": "Furação",
+          "ordem": 3,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.744653",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 9,
+          "nome": "Montagem",
+          "ordem": 4,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.770375",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 10,
+          "nome": "Embalagem",
+          "ordem": 5,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.794503",
+          "concluida_por": "Admin Master"
+        }
+      ]
+    },
+    {
+      "movel_id": 3,
+      "nome": "Armário",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "INTERNA",
+      "pronto": true,
+      "sem_etapas": false,
+      "proxima_etapa": null,
+      "etapas": [
+        {
+          "id": 11,
+          "nome": "Corte",
+          "ordem": 1,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.692311",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 12,
+          "nome": "Borda",
+          "ordem": 2,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.716942",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 13,
+          "nome": "Furação",
+          "ordem": 3,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.744660",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 14,
+          "nome": "Montagem",
+          "ordem": 4,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.770384",
+          "concluida_por": "Admin Master"
+        },
+        {
+          "id": 15,
+          "nome": "Embalagem",
+          "ordem": 5,
+          "status": "CONCLUIDA",
+          "responsavel": "Admin Master",
+          "responsavel_funcionario_id": 1,
+          "iniciada_em": null,
+          "concluida_em": "2026-10-09T18:28:07.794509",
+          "concluida_por": "Admin Master"
+        }
+      ]
+    },
+    {
+      "movel_id": 4,
+      "nome": "Torre Quente",
+      "ambiente": "Cozinha",
+      "quantidade": 1,
+      "medidas": {
+        "largura_mm": null,
+        "altura_mm": null,
+        "profundidade_mm": null
+      },
+      "tipo_producao": "TERCEIRIZADA",
+      "pronto": true,
+      "terceirizado": {
+        "situacao": "CONFERIDO",
+        "previsao": "2026-10-20",
+        "atrasado": false
+      }
+    }
+  ],
+  "sugestao_status": {
+    "de": "ABERTA",
+    "para": "AGUARDANDO_RETIRADA",
+    "rotulo": "Aguardando Entrega"
+  }
+}

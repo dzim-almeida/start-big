@@ -6,10 +6,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import { useToast } from '@/shared/composables/useToast';
 import { useAuthStore } from '@/shared/stores/auth.store';
+import { fiscalKeys } from '@/modules/fiscal/constants/fiscal.constants';
 import {
   getEmpresa,
   updateEmpresa,
-  uploadCertificado,
   uploadLogo,
   getWindowsCertificates,
   vincularCertificadoWindows,
@@ -79,11 +79,26 @@ export function useUpdateEmpresaMutation() {
       toast.success(MESSAGES.success.save);
       await queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.empresa] });
 
+      // O mapa de campos fiscais do produto é DERIVADO do regime da empresa,
+      // e fica fresco por meia hora. Sem esta invalidação, trocar o regime e
+      // abrir o cadastro de produto mostrava os campos do regime ANTIGO até a
+      // próxima meia hora — e o lojista concluiria que a tela está quebrada.
+      await queryClient.invalidateQueries({ queryKey: fiscalKeys.camposProduto() });
+
       // Atualiza empresa no auth store
       authStore.revalidateUser()
     },
     onError: (error) => {
-      const message = (error.response?.data as any)?.detail || MESSAGES.error.save;
+      // Um 422 devolve `detail` como LISTA de {field, message}. O toast espera
+      // texto: recebendo o array cru, ele não mostra nada de útil e a falha volta
+      // a ser invisível. Reduz ao primeiro item.
+      const detail = (error.response?.data as any)?.detail;
+      const message =
+        (typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail[0]?.message
+            : null) || MESSAGES.error.save;
       toast.error(message);
     },
   });
@@ -92,43 +107,6 @@ export function useUpdateEmpresaMutation() {
 // =============================================
 // Mutation: Upload de certificado A1
 // =============================================
-
-/**
- * Interface para payload de upload de certificado
- */
-interface UploadCertificadoPayload {
-  file: File;
-  senha: string;
-}
-
-/**
- * Mutation para upload de certificado digital A1
- *
- * IMPORTANTE: A senha é enviada apenas para validação do certificado.
- * Ela NÃO é persistida no banco de dados.
- *
- * @returns Mutation com função mutate e estados
- * @example
- * const { mutate, isPending } = useUploadCertificadoMutation();
- * mutate({ file, senha: 'minhaSenha123' });
- */
-export function useUploadCertificadoMutation() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation<EmpresaRead, AxiosError, UploadCertificadoPayload>({
-    mutationFn: ({ file, senha }) => uploadCertificado(file, senha),
-    onSuccess: () => {
-      toast.success(MESSAGES.success.uploadCert);
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.empresa] });
-    },
-    onError: (error) => {
-      // Exibe mensagem detalhada do backend (ex: "Senha incorreta")
-      const message = (error.response?.data as any)?.detail || MESSAGES.error.uploadCert;
-      toast.error(message);
-    },
-  });
-}
 
 // =============================================
 // Mutation: Vincular certificado Windows

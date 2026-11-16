@@ -4,9 +4,11 @@ import { Receipt, Banknote, CreditCard, Wallet, QrCode, FileText, Truck, CheckCi
 import BaseMoneyInput from '@/shared/components/ui/BaseMoneyInput/MoneyInput.vue';
 import { formatCurrency } from '@/shared/utils/finance';
 import type { OsPaymentReadSchemaDataType } from '../../schemas/relationship/osPayment.schema';
-import type { OsStatusEnumDataType } from '../../schemas/enums/osEnums.schema';
+import type { OsStatusEnumDataType, OsEquipSituacaoEnumDataType } from '../../schemas/enums/osEnums.schema';
 import { inferPaymentType, getPaymentDisplayName } from '@/shared/utils/print.utils';
-import { getStatusLabel, getStatusColor } from '../../../shared/utils/formatters';
+import { useRotulosStatusOS } from '../../../shared/segmento/useRotulosStatusOS';
+import { formatDataHora } from '@/shared/utils/date.utils';
+import { useOsPaymentMethodsGet } from '../../composables/request/relationship/useOSPaymentMethods.queries';
 
 interface Props {
   subtotal: number;
@@ -14,6 +16,8 @@ interface Props {
   valorDesconto: number;
   valorTotal: number;
   valorEntrada: number;
+  /** Forma de pagamento do adiantamento. Null em OS anterior a este campo. */
+  formaPagamentoEntradaId?: number | null;
   valorAcrescimo?: number;
   isLocked: boolean;
   isFinalizada?: boolean;
@@ -21,6 +25,7 @@ interface Props {
   creditoAoReabrir?: number | null;
   saldoCreditoCliente?: number;
   status?: OsStatusEnumDataType | null;
+  situacaoEquipamento?: OsEquipSituacaoEnumDataType | null;
   osNumber?: string | null;
   dataCriacao?: string | Date;
   dataFinalizacao?: string | Date | null;
@@ -73,12 +78,30 @@ const troco = computed(() => {
 const emit = defineEmits<{
   'update:valorEntrada': [value: number];
   'update:valorEntrega': [value: number];
+  'update:formaPagamentoEntradaId': [value: number | null];
   'usarCredito': [];
 }>();
 
 const valorEntradaReais = computed({
   get: () => (props.valorEntrada || 0) / 100,
   set: (val: number) => emit('update:valorEntrada', Math.round((val || 0) * 100)),
+});
+
+// ─── Forma de pagamento do adiantamento ──────────────────────────────────────
+// O adiantamento guardava só o número: não dava para saber depois se o cliente
+// adiantou em PIX, dinheiro ou cartão. O valor aparecia no resumo, a forma não
+// existia em lugar nenhum.
+const { formasPagamento } = useOsPaymentMethodsGet();
+
+const formaEntradaSelecionada = computed({
+  get: () => props.formaPagamentoEntradaId ?? null,
+  set: (val: number | null) => emit('update:formaPagamentoEntradaId', val),
+});
+
+const formaEntradaNome = computed(() => {
+  const id = props.formaPagamentoEntradaId;
+  if (id == null) return null;
+  return formasPagamento.value.find((forma) => forma.id === id)?.nome ?? null;
 });
 
 const valorEntregaReais = computed({
@@ -105,38 +128,18 @@ const restante = computed(() => {
 
 // --- Dados de OS (movidos de OSClientCard) ---
 
-const statusLabel = computed(() => {
-  if (!props.status) return 'Nova OS';
-  return getStatusLabel(props.status);
-});
+// Texto do status com o rótulo do segmento (Spec 01B); cores de sempre.
+const { estadoOS } = useRotulosStatusOS();
+const estado = computed(() => estadoOS(props.status, props.situacaoEquipamento));
 
-const statusColorClass = computed(() => {
-  const status = props.status || 'ABERTA';
-  const color = getStatusColor(status);
-  const map: Record<string, string> = {
-    blue: 'bg-brand-primary-light text-brand-primary border-brand-primary/20',
-    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    gray: 'bg-zinc-50 text-zinc-700 border-zinc-200',
-  };
-  return map[color] || map.gray;
-});
+const statusLabel = computed(() => (props.status ? estado.value.label : 'Nova OS'));
 
-const formattedDataEntrada = computed(() => {
-  if (!props.dataCriacao) return '-';
-  const date = typeof props.dataCriacao === 'string' ? new Date(props.dataCriacao) : props.dataCriacao;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-});
+const statusColorClass = computed(() => `${estado.value.badge} ${estado.value.border}`);
 
-const formattedDataSaida = computed(() => {
-  if (!props.dataFinalizacao) return '-';
-  const date = typeof props.dataFinalizacao === 'string' ? new Date(props.dataFinalizacao) : props.dataFinalizacao;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-});
+// Timestamps de evento: gravados em UTC no backend.
+const formattedDataEntrada = computed(() => formatDataHora(props.dataCriacao));
+
+const formattedDataSaida = computed(() => formatDataHora(props.dataFinalizacao));
 </script>
 
 <template>
@@ -212,6 +215,30 @@ const formattedDataSaida = computed(() => {
               input-class="text-right"
             />
           </div>
+        </div>
+
+        <!-- Forma do adiantamento: só faz sentido havendo valor adiantado.
+             Em OS antiga (aberta antes deste campo) fica sem forma; nesse caso
+             não inventamos nada, apenas não exibimos a linha. -->
+        <div
+          v-if="valorEntrada > 0 && (!isFinalizada || formaEntradaNome)"
+          class="flex items-center justify-between gap-2 pl-5"
+        >
+          <span class="text-xs text-slate-400">Pago em</span>
+          <div v-if="!isFinalizada && !isLocked" class="w-36">
+            <select
+              v-model="formaEntradaSelecionada"
+              class="w-full text-xs text-right text-slate-600 bg-white border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-brand-primary cursor-pointer"
+            >
+              <option :value="null">Não informado</option>
+              <option v-for="forma in formasPagamento" :key="forma.id" :value="forma.id">
+                {{ forma.nome }}
+              </option>
+            </select>
+          </div>
+          <span v-else class="text-xs font-semibold text-slate-600">
+            {{ formaEntradaNome ?? 'Não informado' }}
+          </span>
         </div>
 
         <!-- Crédito disponível do cliente -->
