@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Harness do agente (leia primeiro)
+
+Antes de qualquer tarefa, leia **`.agent/AGENT.md`**. Ele é o ponto de entrada do Harness do agente:
+trilhas de trabalho (completa e leve), regras de arquitetura (`.agent/rules/`), skills (`.agent/skills/`),
+specs (`.agent/specs/`), docs por módulo (`.agent/docs/`) e cenários de avaliação (`.agent/evals/`).
+Este `CLAUDE.md` continua sendo a fonte dos comandos, portas, sidecar, banco e papel da máquina.
+
 ## Project Overview
 
 StartBig is an ERP / Point of Sale system built as a desktop application using Tauri with a Vue 3 frontend and FastAPI Python backend.
