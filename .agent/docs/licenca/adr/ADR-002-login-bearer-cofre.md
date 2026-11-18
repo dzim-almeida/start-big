@@ -1,6 +1,6 @@
 # ADR-002 — Login do ERP com Bearer, guardado no cofre local
 
-- **Status:** Aceita em 2026-11-18
+- **Status:** Aceita em 2026-11-18. O armazenamento do token (item 2, cofre local) foi **substituído pela ADR-003**; o uso do Bearer continua valendo.
 - **Módulos afetados:** `acesso`, `core`, `licenca`, front `auth`, `sign-in`, `api`
 
 ## 1. Contexto

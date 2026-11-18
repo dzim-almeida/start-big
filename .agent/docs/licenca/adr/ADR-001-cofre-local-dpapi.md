@@ -34,7 +34,7 @@ Os segredos locais passam a ser protegidos pela **DPAPI do Windows**, chamada di
   - A chave de ativação continua sendo a base do backup (ACORDO D-03). A DPAPI protege o que fica no computador; a chave de ativação protege o que sai dele.
 - **Efeitos em outros módulos, regras e skills:**
   - Nenhuma regra do harness precisa mudar.
-  - O CLAUDE.md não muda por esta ADR. Quem muda o CLAUDE.md é a ADR-002.
+  - O CLAUDE.md não muda por esta ADR. Quem muda a parte de autenticação é a ADR-003, e a DPAPI passa a valer só para o token da licença.
 
 ## 5. Como reverter
 

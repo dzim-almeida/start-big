@@ -192,7 +192,7 @@ app/
 
 **Key entities:** Usuario, Funcionario, Cliente, Empresa, Produto, Servico, Fornecedor, Cargo, Endereco, Estoque
 
-**Auth flow:** JWT tokens with blocklist for logout. O login do ERP usa **Bearer** no cabeçalho `Authorization` (não há cookie de sessão). Hoje o token fica no `localStorage`; a ADR-002 manda guardá-lo no cofre local protegido pela DPAPI (ADR-001), ainda não implementado. Decisões em `.agent/docs/licenca/adr/`.
+**Auth flow:** JWT tokens with blocklist for logout. O login do ERP usa **Bearer** no cabeçalho `Authorization` (não há cookie de sessão). O token fica só em `sessionStorage`: some ao fechar o app, e ao abrir o sistema pede login de novo (ADR-003). O token da licença é outro, guardado no banco, e é protegido pela DPAPI (ADR-001). Decisões em `.agent/docs/licenca/adr/`.
 
 ### Tauri (`frontend/src-tauri/`)
 

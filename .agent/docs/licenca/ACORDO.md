@@ -50,7 +50,7 @@
 
 | ID | Decisão | Motivo | Alternativa descartada |
 |----|---------|--------|------------------------|
-| D-12 | O login do ERP continua com **Bearer**, e o token passa a ficar no cofre local. O CLAUDE.md é corrigido para refletir isso. Ver **ADR-002**. | O backend roda em outra origem e o cookie complicaria a comunicação dentro do Tauri. O cofre protege o token sem essa mudança. | Migrar para cookie HTTP-only (B); híbrido com refresh no cofre (C). |
+| D-12 | O login do ERP continua com **Bearer**. O token fica só em `sessionStorage`: some ao fechar o app e não é guardado em disco. Vale igual para servidor e terminal. Ver **ADR-002** (Bearer) e **ADR-003** (armazenamento). | O backend roda em outra origem e o cookie complicaria a comunicação dentro do Tauri. O token do login fica só na sessão da janela, sem persistir (ADR-003). | Migrar para cookie HTTP-only (B); híbrido com refresh no cofre (C). |
 
 ### 2.C. Decisões técnicas padrão (sem objeção do usuário)
 
@@ -70,7 +70,7 @@
 - **D-02 e D-03:** o backend passa a depender da DPAPI, que só existe no Windows. Os testes no Linux precisam de um caminho alternativo que não grave segredo real. A ADR-001 registra isso.
 - **D-03:** o backup antigo, cifrado pela regra antiga ou não cifrado, precisa de caminho de leitura para não quebrar a restauração. Isso entra na spec de backup.
 - **D-08 (explicação):** o identificador da máquina no Windows (MachineGuid) muda quando o Windows é reinstalado. Para a nuvem, é um computador novo. Sem o aviso, o dono pode gastar as trocas do mês (3 em 30 dias) sem perceber e depois ficar bloqueado até falar com o suporte.
-- **D-12:** o CLAUDE.md muda. Pela regra, a alteração de premissa do projeto vai pela ADR-002, antes de editar o documento.
+- **D-12:** o CLAUDE.md muda. Pela regra, a alteração de premissa do projeto vai por ADR; a ADR-003 substitui a parte do cofre da ADR-002.
 
 ## 4. Endpoints e códigos de erro
 
@@ -91,13 +91,13 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 
 ## 6. Pontos pendentes
 
-- **Aberto (escrito em 2026-11-18, ao criar as specs):** cinco perguntas, uma por vez, com recomendação em cada spec:
+- **Aberto (escrito em 2026-11-18, ao criar as specs):** quatro perguntas, uma por vez, com recomendação em cada spec:
   - **LIC-03 · D-11:** como comparar o documento do titular. Recomendação: a API devolve os últimos 4 dígitos.
-  - **LIC-04:** onde guardar o token nos terminais. O cofre DPAPI só protege o servidor, porque o terminal não roda backend local. Recomendação: cofre do Tauri, com dependência aprovada. **Isto muda a premissa da ADR-001 para os terminais.**
   - **LIC-04 · F34:** proteção da rede da loja. Recomendação: restringir à LAN agora, e TLS no plano de infraestrutura.
   - **LIC-06:** como o app recebe a chave depois da confirmação de e-mail. Recomendação: login com e-mail e senha.
   - **LIC-06:** trial só depois da confirmação. Recomendação: sim.
-- **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação (Bearer, token ainda no `localStorage`, cofre previsto na ADR-002) e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.
+- **Fechado em 2026-11-18:** token do terminal (LIC-04): token do login fica só em `sessionStorage` (ADR-003), para servidor e terminal. Não há cofre para o login, então as rotas `/sessao/token-erp` saem da SPEC-04.
+- **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.
 - **Próxima etapa:** SPEC-01 (cofre e backup). Só começa com a aprovação explícita da spec.
 
 ## 7. Fora do escopo (registrado)

@@ -15,7 +15,7 @@ Visão geral do módulo de licença do StartBig: como o computador se liga à co
 |------|----------------|------------------|
 | Chave de ativação e chave pública | SQLite, cifrados com o HWID | Mantido |
 | Token da licença | SQLite, em texto puro | Cofre local com DPAPI (ADR-001) |
-| Token do login do ERP | `localStorage` do navegador | Cofre local (ADR-002) |
+| Token do login do ERP | `sessionStorage`, só enquanto o app está aberto | Mantido (ADR-003) |
 | Backup na nuvem | ZIP sem cifra, com o banco inteiro | ZIP cifrado com a chave de ativação (ACORDO D-03) |
 
 ## Principais arquivos
@@ -29,7 +29,8 @@ Visão geral do módulo de licença do StartBig: como o computador se liga à co
 
 - `ACORDO.md`: decisões D-01 a D-20 e o mapeamento das specs.
 - `adr/ADR-001-cofre-local-dpapi.md`: segredos locais protegidos pela DPAPI do Windows.
-- `adr/ADR-002-login-bearer-cofre.md`: login com Bearer, token no cofre local.
+- `adr/ADR-002-login-bearer-cofre.md`: login com Bearer. A parte do cofre foi substituída.
+- `adr/ADR-003-token-login-session-storage.md`: token do login só em `sessionStorage`, para servidor e terminal.
 
 ## Situação
 
