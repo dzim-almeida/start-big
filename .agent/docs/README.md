@@ -21,6 +21,33 @@ docs/
     └── design/                # Referências visuais (imagens, PDFs, protótipos) e LINKS.md
 ```
 
+## Módulos documentados
+
+Cada módulo do `frontend/src/modules/` tem uma pasta com `README.md` (visão geral, onde está o código, vocabulário, fluxos, decisões e integrações). `SUMMARY.md`, `CHANGELOG.md` e `learn/` nascem na primeira tarefa de cada um (modelo em `_modelo/`).
+
+| Módulo | Para que serve | README |
+|--------|----------------|--------|
+| `auth` | Login, token e sessão | [`auth/`](./auth/README.md) |
+| `sign-in` | Configuração inicial (onboarding) | [`sign-in/`](./sign-in/README.md) |
+| `mainLayout` | Casca do app, menu e todas as rotas autenticadas | [`mainLayout/`](./mainLayout/README.md) |
+| `home` | Painel inicial (empresa e funcionário) | [`home/`](./home/README.md) |
+| `customers` | Cadastro de clientes PF/PJ | [`customers/`](./customers/README.md) |
+| `employees` | Funcionários, cargos e permissões | [`employees/`](./employees/README.md) |
+| `enterprise` | Dados da empresa e configuração fiscal dela | [`enterprise/`](./enterprise/README.md) |
+| `products` | Produtos, estoque, fornecedores e etiquetas | [`products/`](./products/README.md) |
+| `sales` | PDV, vendas, caixa e orçamentos | [`sales/`](./sales/README.md) |
+| `order-service` | Ordens de Serviço e catálogo de serviços | [`order-service/`](./order-service/README.md) |
+| `compras` | Necessidades, pedidos e recebimento (módulo `COMPRAS`) | [`compras/`](./compras/README.md) |
+| `financeiro` | Contas, fluxo de caixa e plano de contas (`FINANCEIRO`/`FINANCEIRO_PRO`) | [`financeiro/`](./financeiro/README.md) |
+| `fiscal` | NF-e, NFC-e e NFS-e (`NFE`/`NFCE`/`NFSE`) | [`fiscal/`](./fiscal/README.md) |
+| `reports` | Relatórios e impressões | [`reports/`](./reports/README.md) |
+| `configuracoes` | Modal de configurações e backup | [`configuracoes/`](./configuracoes/README.md) |
+| `minha-conta` | Conta, senha e foto do usuário logado | [`minha-conta/`](./minha-conta/README.md) |
+| `license` | Licença, renovação e transferência | [`license/`](./license/README.md) |
+| `network-config` | Papel da máquina (servidor/terminal) e erro de conexão | [`network-config/`](./network-config/README.md) |
+| `marcenaria` | Segmento de móveis planejados | [`marcenaria/`](./marcenaria/README.md) |
+| `lava-rapido` | Segmento de lava-rápido | [`lava-rapido/`](./lava-rapido/README.md) |
+
 ## Quem escreve o quê
 
 | Arquivo | Autor | Quando |
