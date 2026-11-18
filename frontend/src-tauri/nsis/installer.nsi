@@ -628,6 +628,18 @@ Section Install
     File /a "/oname={{this.[1]}}" "{{no-escape @key}}"
   {{/each}}
 
+  ; Para o backend DE NOVO logo antes de copiar o erp-api.exe (14/11/2026).
+  ; A tarefa StartBigServer tem RestartOnFailure de 1 min e o taskkill do
+  ; PREINSTALL conta como falha: se o CheckIfAppIsRunning ficar esperando o
+  ; usuario fechar o app, ou a copia acima demorar (maquina lenta), o Windows
+  ; religa o backend ANTIGO e o File abaixo da "Erro ao abrir o arquivo pra
+  ; gravacao: ...\erp-api.exe" (cliente do lava-rapido, 14/11/2026).
+  ; Nao desligamos a tarefa de proposito: se a instalacao for cancelada no meio,
+  ; ela ficaria desligada e o servidor nao subiria mais no boot.
+  !ifmacrodef STARTBIG_PARAR_SERVIDOR
+    !insertmacro STARTBIG_PARAR_SERVIDOR
+  !endif
+
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{no-escape @key}}"

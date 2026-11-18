@@ -1,17 +1,9 @@
 !define FIREWALL_RULE_NAME "StartBigERP_API_Server"
 !define FIREWALL_PING_RULE_NAME "StartBigERP_Ping_Server"
 
-!macro NSIS_HOOK_PREINSTALL
-    ; O backend NAO e filho do app: roda como tarefa agendada (StartBigServer, como
-    ; SYSTEM) a partir de $INSTDIR\erp-api.exe -- ver app/core/system.py.
-    ;
-    ; O template so mata o MAINBINARYNAME (CheckIfAppIsRunning), nunca o erp-api.
-    ; Com o processo vivo, o Windows trava o .exe e o `File /a "/oname=erp-api.exe"`
-    ; da Section Install nao consegue sobrescrever: o instalador conclui "com
-    ; sucesso" e o cliente segue rodando o BACKEND ANTIGO. Foi o que segurou o fix
-    ; do IMEI na loja em 01/08/2026 -- reinstalar o app nao adiantava nada.
-    DetailPrint "Parando o servidor StartBig antes de atualizar..."
-
+; Para o backend (tarefa + processo). Usado no PREINSTALL e DE NOVO no template
+; (installer.nsi), logo antes de copiar o erp-api.exe -- ver o comentario la.
+!macro STARTBIG_PARAR_SERVIDOR
     ; /End encerra a instancia da task. Nao espera o processo morrer, e uma
     ; instalacao anterior pode ter deixado um erp-api orfao (sem task nenhuma),
     ; entao o taskkill logo abaixo cobre os dois casos.
@@ -23,6 +15,19 @@
 
     ; Da tempo do Windows liberar o lock do arquivo antes da copia.
     Sleep 2000
+!macroend
+
+!macro NSIS_HOOK_PREINSTALL
+    ; O backend NAO e filho do app: roda como tarefa agendada (StartBigServer, como
+    ; SYSTEM) a partir de $INSTDIR\erp-api.exe -- ver app/core/system.py.
+    ;
+    ; O template so mata o MAINBINARYNAME (CheckIfAppIsRunning), nunca o erp-api.
+    ; Com o processo vivo, o Windows trava o .exe e o `File /a "/oname=erp-api.exe"`
+    ; da Section Install nao consegue sobrescrever: o instalador conclui "com
+    ; sucesso" e o cliente segue rodando o BACKEND ANTIGO. Foi o que segurou o fix
+    ; do IMEI na loja em 01/08/2026 -- reinstalar o app nao adiantava nada.
+    DetailPrint "Parando o servidor StartBig antes de atualizar..."
+    !insertmacro STARTBIG_PARAR_SERVIDOR
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
