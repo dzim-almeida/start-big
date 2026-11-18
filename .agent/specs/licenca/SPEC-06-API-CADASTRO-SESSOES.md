@@ -84,6 +84,7 @@ Confirma o e-mail pelo link. Não devolve a chave na resposta: manda a chave e o
 | E-mail não existe, senha errada ou conta sem senha | 401 | `CREDENCIAIS_INVALIDAS` (mesma resposta nos três casos, F12) |
 | Muitas tentativas | 429 | `MUITAS_TENTATIVAS`, com `message` dizendo para tentar em alguns minutos |
 | Login certo com licença vencida | 402 | `LICENCA_VENCIDA` (sem mudança) |
+| Login certo, mas o e-mail ainda não foi confirmado (sem licença criada) | 403 | `AGUARDANDO_CONFIRMACAO_EMAIL`, com `message` pedindo a confirmação |
 
 ### 4.4. `POST /erp/auth/reenviar-primeiro-acesso` (nova, F23)
 
@@ -252,6 +253,7 @@ Se nenhuma linha for gravada, a resposta é o mesmo erro de limite de hoje.
 - **CA-06:** desconectar sem o `tokenSessao` recebe `TOKEN_SESSAO_INVALIDO`.
 - **CA-07:** sessão sem heartbeat por 10 minutos some da contagem.
 - **CA-08:** `PUT /erp/cadastro/titular` com `documento` no corpo recebe `403 DOCUMENTO_TRAVADO` e não altera nada.
+- **CA-09:** login de cliente que ainda não confirmou o e-mail recebe `403 AGUARDANDO_CONFIRMACAO_EMAIL`, e nenhuma chave é devolvida.
 
 Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de um envio simulado, e fica marcado conforme o caso.
 
@@ -276,6 +278,8 @@ Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de u
 | CT-15 | `PUT /erp/cadastro/titular` com dados válidos | `200`, cadastro atualizado |
 | CT-16 | `PUT` com `documento` no corpo | `403 DOCUMENTO_TRAVADO`, nada alterado |
 | CT-17 | `PUT` com token de máquina revogada | `401 LICENCA_HWID_REVOGADO` |
+| CT-18 | Login antes da confirmação do e-mail | `403 AGUARDANDO_CONFIRMACAO_EMAIL`, sem chave |
+| CT-19 | Login depois da confirmação | `200`, com a chave de ativação (D-23) |
 
 ## 9. Testes existentes que a mudança afeta
 
@@ -284,11 +288,9 @@ Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de u
 
 ## 10. Perguntas antes da aprovação
 
-- **1. Como o app recebe a chave depois da confirmação de e-mail (F2).** O cadastro deixa de devolver a chave na resposta. O app precisa de outro caminho para ativar.
-  - **A.** O dono copia a chave do e-mail e cola no app. Simples, mas é um passo a mais que confunde.
-  - **B.** Depois de confirmar, o dono entra no app com e-mail e senha, pelo re-login que já existe (SPEC-03). A API já devolve a chave nesse login. Sem passo novo.
-  - **C.** O app fica consultando a API até a confirmação chegar. Automático, mas exige uma conexão aberta enquanto o dono espera.
-  - **Recomendação: B.** Reaproveita o fluxo que já existe e não exige copiar chave.
+- **1. Como o app recebe a chave depois da confirmação de e-mail (F2). Resolvida em 2026-11-18: opção B (D-23).** Depois de confirmar, o dono entra com e-mail e senha pelo re-login (SPEC-03). A API já devolve a chave nesse login. A B não cria confirmação própria: a confirmação é a do cadastro (F2), e sem ela não há licença nem chave.
+  - Sub-decisão de código: o login de quem ainda não confirmou responde `AGUARDANDO_CONFIRMACAO_EMAIL` (seção 4.3), para o app mostrar a mensagem certa em vez de "sem licença ativa".
+  - *Opções originais, mantidas para registro:* A. copiar a chave do e-mail; B. entrar com e-mail e senha (escolhida); C. consultar a API até a confirmação.
 
 - **2. Trial só depois da confirmação (F13).** Com a confirmação, o cadastro some do app até o e-mail chegar. Quer confirmar que isso é aceitável para a loja?
   - **A.** Sim, o trial começa só depois da confirmação. É a proteção pedida.
