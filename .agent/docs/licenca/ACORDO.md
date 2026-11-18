@@ -64,6 +64,7 @@
 | D-18 | CORS com lista fechada de origens (F1). |
 | D-19 | Permissões de arquivo do banco e da configuração restritas ao usuário (F37). |
 | D-20 | Argumentos do sidecar e escopo do `fs` restritos (F38). |
+| D-24 | O trial só começa depois da confirmação do e-mail. Sem confirmação, não há licença criada para o cadastro. **Aprovada em 2026-11-18.** |
 | D-23 | Depois da confirmação de e-mail, a chave de ativação do cadastro novo é obtida pelo login com e-mail e senha (re-login). O cadastro não devolve a chave. Login antes da confirmação responde `AGUARDANDO_CONFIRMACAO_EMAIL`. **Aprovada em 2026-11-18.** |
 | D-22 | Re-login não passa pelo setup. Com backup, a tela só oferece restaurar. Sem backup, o setup abre com os dados da nuvem, o documento do titular fica travado, e a API é atualizada **antes** de a empresa local ser criada (nuvem primeiro, banco depois). Substitui o D-11. **Aprovada em 2026-11-18.** |
 | D-21 | Rede da loja: a API local só aceita conexões das redes privadas (`10/8`, `172.16/12`, `192.168/16`), por regra de firewall no instalador e por verificação no app (F34, opção A). **Aprovada em 2026-11-18.** TLS (opção C) fica para a LIC-07. |
@@ -94,8 +95,9 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 
 ## 6. Pontos pendentes
 
-- **Aberto (escrito em 2026-11-18, ao criar as specs):** uma pergunta, com recomendação na spec:
-  - **LIC-06:** trial só depois da confirmação de e-mail. Recomendação: sim.
+- **Aberto:** nenhuma pergunta. Todas as perguntas das specs foram respondidas.
+- **Fechado em 2026-11-18:** trial só depois da confirmação de e-mail (D-24).
+- **Risco aceito R-01 (2026-11-18):** a senha é definida no cadastro, antes da confirmação do e-mail. Se alguém cadastrar o e-mail de outra pessoa com a própria senha, o dono confirma o link, mas a senha que vale é a do atacante. **Mitigação exigida na SPEC-06 §4.4:** o link de recuperação deve permitir ao dono definir uma nova senha, mesmo com senha já cadastrada (CT-20).
 - **Fechado em 2026-11-18:** chave do cadastro novo pelo login com e-mail e senha (D-23).
 - **Fechado em 2026-11-18:** comparação de documento (D-11) substituída pelo D-22: setup fora do re-login, com os dados da nuvem.
 - **Fechado em 2026-11-18:** proteção da rede da loja (F34), opção A aprovada (D-21).
