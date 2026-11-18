@@ -28,6 +28,7 @@ Fechar a porta de entrada da licença na API: quem cadastra precisa provar que �
 - Troca de servidor apaga as sessões dos terminais do servidor antigo (F17).
 - Desconexão exige o token da sessão (F5).
 - Contagem de sessões em operação atômica (F6).
+- Atualização dos dados do titular pela nuvem, antes do setup local (D-22, `PUT /erp/cadastro/titular`).
 
 **Fora do escopo**
 - Tela para o dono liberar vagas (ACORDO D-10, alternativa B). Fica para depois de medir o efeito do expurgo automático.
@@ -91,6 +92,31 @@ Corpo `{ "email": "..." }`. Responde sempre `202`, com a mesma mensagem, existin
 ### 4.5. `POST /licenca/desconectar` (muda, F5)
 
 O corpo passa a exigir `tokenSessao`, o token devolvido pelo `conectar` daquela sessão. Sem ele: `401 TOKEN_SESSAO_INVALIDO`.
+
+### 4.6. `PUT /erp/cadastro/titular` (nova, D-22)
+
+Atualiza os dados da empresa do titular na nuvem, antes de o setup criar a empresa local. Protegida por `ErpLicencaGuard`, com o token da licença (como `erp-backup.controller.ts`).
+
+**Corpo**
+
+```json
+{
+  "nomeOuRazao": "Loja Exemplo Ltda",
+  "nomeFantasia": "Loja Exemplo",
+  "telefone": "(85) 3000-0000",
+  "celular": "(85) 99999-0000",
+  "endereco": { "cep": "63000-000", "logradouro": "Rua A", "numero": "10", "bairro": "Centro", "cidade": "Iguatu", "estado": "CE" }
+}
+```
+
+O **documento não vem no corpo**. Se vier, a API recusa com `DOCUMENTO_TRAVADO`, porque o documento do titular não muda por este caminho (D-22).
+
+| Status | `codigo` | Quando |
+|--------|----------|--------|
+| 200 | — | Dados atualizados; corpo com o cadastro salvo |
+| 401 | `LICENCA_HWID_REVOGADO` | Token de máquina revogada (SPEC-05) |
+| 403 | `DOCUMENTO_TRAVADO` | Corpo trouxe documento |
+| 422 | — | Campo inválido (texto do Zod, como hoje) |
 
 ## 5. Schemas
 
@@ -182,6 +208,27 @@ if (!sessao || sessao.tokenSessao !== dados.tokenSessao)
 await deletarSessao(licenca.id, dados.hwid)
 ```
 
+### 6.6. Atualização do titular (D-22)
+
+Grava os dados no `Cliente` (`pf` ou `pj`, conforme o tipo que a nuvem já tem) e em `enderecos`. O tipo de documento não muda aqui.
+
+```typescript
+// atualizar-titular.ts — grava os dados da empresa do titular; o documento nunca muda aqui (D-22)
+async atualizarTitular(licencaId: string, dados: AtualizarTitularDto) {
+  if ('documento' in dados)
+    throw this.erro(HttpStatus.FORBIDDEN, 'DOCUMENTO_TRAVADO',
+                    'O documento do titular não pode ser alterado pelo app. Fale com o suporte.')
+  const cliente = await findClienteDaLicenca(licencaId)      // o titular da licença
+  await prisma.cliente.update({ where: { id: cliente.id }, data: {
+    pj: { update: { nomeFantasia: dados.nomeFantasia, telefone: dados.telefone, celular: dados.celular,
+                    razaoSocial: dados.nomeOuRazao } },      // para PF, o campo é nomeCompleto
+  } })
+  return { ok: true }
+}
+```
+
+Para titular PF, o nome vai para `pf.nomeCompleto`, no mesmo formato. Se a nuvem não tiver o endereço, ele é criado em `enderecos`.
+
 ### 6.5. Contador atômico (F6)
 
 A contagem de sessões e a gravação passam a ser uma única operação com condição, para dois caixas não passarem juntos pelo limite:
@@ -204,6 +251,7 @@ Se nenhuma linha for gravada, a resposta é o mesmo erro de limite de hoje.
 - **CA-05:** dois caixas ao mesmo tempo, com limite 1, só um entra.
 - **CA-06:** desconectar sem o `tokenSessao` recebe `TOKEN_SESSAO_INVALIDO`.
 - **CA-07:** sessão sem heartbeat por 10 minutos some da contagem.
+- **CA-08:** `PUT /erp/cadastro/titular` com `documento` no corpo recebe `403 DOCUMENTO_TRAVADO` e não altera nada.
 
 Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de um envio simulado, e fica marcado conforme o caso.
 
@@ -225,6 +273,9 @@ Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de u
 | CT-12 | Desconectar com `tokenSessao` certo | Sessão apagada |
 | CT-13 | Desconectar com `tokenSessao` errado | `401 TOKEN_SESSAO_INVALIDO` |
 | CT-14 | Troca de servidor com terminais do antigo | Sessões dos terminais apagadas |
+| CT-15 | `PUT /erp/cadastro/titular` com dados válidos | `200`, cadastro atualizado |
+| CT-16 | `PUT` com `documento` no corpo | `403 DOCUMENTO_TRAVADO`, nada alterado |
+| CT-17 | `PUT` com token de máquina revogada | `401 LICENCA_HWID_REVOGADO` |
 
 ## 9. Testes existentes que a mudança afeta
 
