@@ -33,7 +33,8 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 | `backend-fastapi/app/api/v1/endpoints/licenca.py` | alterar | Rota `POST /restaurar-backup`. Público, como `/transferir`, porque roda antes do login. |
 | `backend-fastapi/app/services/licenca/restauracao_titular.py` | criar | Confere a conta na nuvem, confere se a licença é a desta máquina e prepara a restauração. |
 | `backend-fastapi/app/services/backup/restore.py` | alterar | Expõe `preparar_restauracao_do_titular(ciclo)`, sem exigir Master. |
-| `backend-fastapi/app/services/sistema/setup.py` | alterar | Não roda no re-login. Quando não há backup, recebe os dados da nuvem, envia a atualização à API e só então cria a empresa local (seção 6.5). |
+| `backend-fastapi/app/services/licenca/cadastro.py` | alterar | Trata a resposta `202` do cadastro sem gravar licença (seção 6.5). |
+| `backend-fastapi/app/services/sistema/setup.py` | alterar | Não roda no re-login. Quando não há backup, recebe os dados da nuvem, envia a atualização à API e só então cria a empresa local (seção 6.6). |
 | `frontend/src/modules/sign-in/composables/useSetup.ts` | alterar | Pré-preenche o setup com os dados da nuvem e trava o documento do titular. |
 | `backend-fastapi/app/schemas/licenca/restauracao.py` | criar | Schemas `RestaurarBackupPayload` e `RestaurarBackupResposta`. |
 | `frontend/src/modules/sign-in/services/sign-in.service.ts` | alterar | Função `restaurarBackupDaNuvem(email, senha, ciclo?)`. |
@@ -141,7 +142,7 @@ Quando `inicializado` volta `false`, o fluxo em `useSignIn.ts` leva a uma tela c
 
 Regra: **com backup, a tela só oferece restaurar.** Sem backup, a tela só oferece preencher os dados da empresa. Assim o dono não cria uma empresa local diferente da que a nuvem tem (D-22).
 
-"Preencher os dados da empresa" abre o setup com os dados da nuvem (seção 6.5).
+"Preencher os dados da empresa" abre o setup com os dados da nuvem (seção 6.6).
 
 Ao restaurar, a tela mostra a mensagem da resposta 200 e pede para reiniciar o sistema. Antes de reiniciar, o botão de sair fica desabilitado, para não deixar o banco pela metade.
 
@@ -178,7 +179,15 @@ export function mensagemDoCodigo(codigo: string | undefined): string {
 }
 ```
 
-### 6.5. Setup com os dados da nuvem, sem backup (D-22, F16)
+### 6.5. Cadastro novo com confirmação de e-mail (D-23)
+
+Quando o cadastro responde `202`, o app não grava licença nenhuma. A tela mostra a mensagem da API ("Enviamos um link de confirmação para o seu e-mail") e um botão "Já confirmei, quero entrar", que leva ao re-login com e-mail e senha.
+
+- Em `registrar_licenca` (`services/licenca/cadastro.py`), o caminho do `202` não grava nada e devolve o aviso.
+- O re-login depois da confirmação é o mesmo caminho da seção 6.1, e a chave vem da resposta do login.
+- Se o login responder `AGUARDANDO_CONFIRMACAO_EMAIL`, a tela mostra "Confirme o link enviado ao seu e-mail antes de entrar" e um botão para reenviar o link (SPEC-06 §4.4).
+
+### 6.6. Setup com os dados da nuvem, sem backup (D-22, F16)
 
 O setup não roda no re-login com backup. Sem backup, o setup abre com os dados que a nuvem já tem: nome ou razão social, documento e endereço do titular.
 
