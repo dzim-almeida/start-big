@@ -6,7 +6,7 @@
 | Camada       | Backend (FastAPI) e Frontend (Vue 3 + TypeScript) |
 | Dependências | SPEC-01 (backup cifrado, restauração que entende o formato 2), SPEC-02 (aviso de relógio e códigos de recusa) |
 | Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-11, D-16; quadro F10, F11, F16, F18, F19, F22 |
+| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-16, D-22; quadro F10, F11, F16, F18, F19, F22 |
 
 ## 1. Objetivo
 
@@ -19,7 +19,7 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 - Tela de primeiro acesso oferece "Restaurar backup da nuvem" antes do setup, quando houver backup.
 - Aviso antes de confirmar uma troca de computador (D-08, F18 e F22).
 - Mensagens de erro vindas de código, com texto fixo em português (D-16, F10).
-- Comparação do CPF ou CNPJ do setup com o documento do titular (D-11, F16). Depende de uma decisão pendente (seção 10).
+- Re-login não passa pelo setup. Sem backup, o setup abre com os dados da nuvem, e a empresa local só é criada depois que a API confirma a atualização (D-22, F16). A comparação de documento de D-11 deixa de existir.
 
 **Fora do escopo**
 - Trial com backup (D-06). É da API, na SPEC-05.
@@ -33,7 +33,8 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 | `backend-fastapi/app/api/v1/endpoints/licenca.py` | alterar | Rota `POST /restaurar-backup`. Público, como `/transferir`, porque roda antes do login. |
 | `backend-fastapi/app/services/licenca/restauracao_titular.py` | criar | Confere a conta na nuvem, confere se a licença é a desta máquina e prepara a restauração. |
 | `backend-fastapi/app/services/backup/restore.py` | alterar | Expõe `preparar_restauracao_do_titular(ciclo)`, sem exigir Master. |
-| `backend-fastapi/app/services/sistema/setup.py` | alterar | Confere o documento informado com o do titular antes de criar a empresa. |
+| `backend-fastapi/app/services/sistema/setup.py` | alterar | Não roda no re-login. Quando não há backup, recebe os dados da nuvem, envia a atualização à API e só então cria a empresa local (seção 6.5). |
+| `frontend/src/modules/sign-in/composables/useSetup.ts` | alterar | Pré-preenche o setup com os dados da nuvem e trava o documento do titular. |
 | `backend-fastapi/app/schemas/licenca/restauracao.py` | criar | Schemas `RestaurarBackupPayload` e `RestaurarBackupResposta`. |
 | `frontend/src/modules/sign-in/services/sign-in.service.ts` | alterar | Função `restaurarBackupDaNuvem(email, senha, ciclo?)`. |
 | `frontend/src/modules/sign-in/components/steps/ReconnectStep.vue` | alterar | Depois do re-login, mostra a escolha entre restaurar e começar do zero. |
@@ -41,7 +42,7 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 | `frontend/src/modules/license/views/TransferirLicencaView.vue` | alterar | Aviso antes de confirmar a troca (texto da seção 6.4). |
 | `frontend/src/shared/services/licenca.service.ts` | alterar | Tabela `MENSAGENS_DE_CODIGO` e função `mensagemDoCodigo(codigo)`. |
 | `backend-fastapi/test/api/v1/test_restaurar_backup_titular.py` | criar | Casos CT-01 a CT-07. |
-| `backend-fastapi/test/api/v1/test_setup_documento_titular.py` | criar | Casos CT-08 a CT-10. |
+| `backend-fastapi/test/api/v1/test_setup_reconcilia_nuvem.py` | criar | Casos CT-08 a CT-10. |
 | `frontend/src/modules/sign-in/__tests__/reconnect.spec.ts` | criar | Casos CT-11 a CT-14. |
 
 Testes existentes que precisam continuar passando: `test/api/v1/test_licenca_transferencia.py` (fluxo de transferência), `test/api/v1/test_backup_preserva_licenca.py` (restauração preserva a licença local).
@@ -135,10 +136,12 @@ Quando `inicializado` volta `false`, o fluxo em `useSignIn.ts` leva a uma tela c
 | Título | Sua licença foi encontrada |
 | Corpo | Se você já usava o sistema neste computador ou em outro, é possível recuperar os dados do último backup da nuvem. |
 | Botão principal | Restaurar backup da nuvem |
-| Botão secundário | Começar do zero |
-| Aviso, quando não houver backup | Não há backup na nuvem para esta licença. Você pode começar do zero. |
+| Botão secundário (só quando não houver backup) | Preencher os dados da empresa |
+| Aviso, quando não houver backup | Não há backup na nuvem para esta licença. Confira os dados da empresa, que vêm da sua conta na StartBig. |
 
-"Começar do zero" segue o setup atual, sem mudança.
+Regra: **com backup, a tela só oferece restaurar.** Sem backup, a tela só oferece preencher os dados da empresa. Assim o dono não cria uma empresa local diferente da que a nuvem tem (D-22).
+
+"Preencher os dados da empresa" abre o setup com os dados da nuvem (seção 6.5).
 
 Ao restaurar, a tela mostra a mensagem da resposta 200 e pede para reiniciar o sistema. Antes de reiniciar, o botão de sair fica desabilitado, para não deixar o banco pela metade.
 
@@ -175,9 +178,28 @@ export function mensagemDoCodigo(codigo: string | undefined): string {
 }
 ```
 
-### 6.5. Documento do titular no setup (D-11, F16)
+### 6.5. Setup com os dados da nuvem, sem backup (D-22, F16)
 
-Hoje `setup.py` não compara o CPF ou CNPJ informado com o do titular. A comparação exige que a nuvem devolva o documento do titular. Essa resposta ainda não existe na API. A seção 10 traz a recomendação.
+O setup não roda no re-login com backup. Sem backup, o setup abre com os dados que a nuvem já tem: nome ou razão social, documento e endereço do titular.
+
+**Regras:**
+- O **documento do titular fica travado** (CPF ou CNPJ). Ele não é editado pelo app. Se o dono precisar mudar, procura o suporte.
+- Os demais campos (nome fantasia, endereço, telefone) podem ser completados.
+- A **ordem é nuvem primeiro, banco depois.** A API atualiza o cadastro. Só depois disso a empresa local é criada. Se a API não responder, nada é criado localmente, e o setup pede para tentar de novo.
+
+```python
+# setup.py — a nuvem é atualizada antes da empresa local (D-22)
+def setup_sem_backup(db, dados_setup):
+    # 1. Envia os dados da empresa à API. Se falhar, para aqui: nada foi criado localmente.
+    resposta = enviar_atualizacao_cadastro(dados_setup)      # chamada à API (SPEC-06 §4.6)
+    if resposta.status != 200:
+        raise _erro(503, "NUVEM_INDISPONIVEL",
+                    "Não foi possível salvar os dados da empresa. Tente de novo.")
+    # 2. Só agora cria a empresa local, com os mesmos dados que a nuvem recebeu.
+    return criar_empresa_local(db, dados_setup)
+```
+
+Isso segue o mesmo padrão de `transferencia.py::desativar_esta_maquina`: nuvem primeiro, banco depois.
 
 ## 7. Critérios de aceite
 
@@ -186,7 +208,8 @@ Hoje `setup.py` não compara o CPF ou CNPJ informado com o do titular. A compara
 - **CA-03:** conta de outra licença recebe 403 e o banco não muda.
 - **CA-04:** trocar o servidor mostra o aviso da seção 6.3 antes de qualquer chamada à API.
 - **CA-05:** nenhum erro mostra texto técnico do servidor (sem "Expecting value", sem nome de classe).
-- **CA-06:** com o documento do titular disponível, um CPF diferente pede confirmação.
+- **CA-06:** sem backup, o setup abre com os dados da nuvem, o documento aparece travado, e a empresa local só existe depois que a API confirmou a atualização.
+- **CA-07:** com backup, o re-login não mostra o setup em nenhum momento.
 
 CA-01 e CA-02 precisam do sistema rodando (`verify`). Ficam marcados como verificados por teste automatizado, e a verificação no app é feita na skill `verify` no fim da série.
 
@@ -201,12 +224,12 @@ CA-01 e CA-02 precisam do sistema rodando (`verify`). Ficam marcados como verifi
 | CT-05 | Já existe restauração pendente | 409, `RESTAURACAO_JA_PENDENTE` |
 | CT-06 | Nuvem fora do ar | 503, `NUVEM_INDISPONIVEL` |
 | CT-07 | Restauração com ciclo informado | Usa o ciclo pedido |
-| CT-08 | CPF do setup igual ao do titular | Segue o setup |
-| CT-09 | CPF diferente do titular | Pede confirmação (erro `DOCUMENTO_DIFERENTE` até a confirmação) |
-| CT-10 | Titular sem documento na resposta da nuvem | Segue o setup e registra aviso no log |
+| CT-08 | Setup sem backup, dados da nuvem carregados | Campos preenchidos e documento travado |
+| CT-09 | Tentativa de alterar o documento pelo app | Campo não aceita edição; a API recusa se o pedido vier com outro documento |
+| CT-10 | API não responde na atualização do cadastro | Nenhuma empresa local criada; mensagem para tentar de novo |
 | CT-11 | Código conhecido no front | Mostra o texto da tabela |
 | CT-12 | Código desconhecido no front | Mostra a mensagem genérica |
-| CT-13 | Tela de escolha depois do re-login sem backup | Mostra o aviso e só "Começar do zero" |
+| CT-13 | Tela de escolha depois do re-login | Com backup: só restaurar. Sem backup: só preencher os dados da empresa |
 | CT-14 | Aviso de troca aparece antes da chamada à API | Sim |
 
 ## 9. Testes existentes que a mudança afeta
@@ -216,10 +239,8 @@ CA-01 e CA-02 precisam do sistema rodando (`verify`). Ficam marcados como verifi
 
 ## 10. Perguntas antes da aprovação
 
-- **Como comparar o documento do titular (D-11).** A nuvem precisa devolver o documento, e não dá para comparar com um CPF inteiro sem expor dados.
-  - **A.** A API devolve os últimos 4 dígitos do documento do titular na resposta de login. O app compara só esses 4 dígitos. Recomendo esta opção: não expõe o documento completo e cobre o erro de digitação.
-  - **B.** A API devolve o documento completo, criptografado com a chave de ativação. Mais seguro, mas mais complexo.
-  - **C.** O app não compara; só mostra o documento do titular para o dono conferir visualmente.
+- **Re-login sem backup (D-22).** **Resolvida em 2026-11-18: opção A.** O setup abre com os dados da nuvem, e a nuvem é atualizada antes da empresa local. O comparativo de documento (D-11) foi retirado, porque o setup não roda mais no re-login.
+  - **Sub-decisão tomada por padrão, para revisão:** o documento do titular fica travado. Se a loja precisar mudar o documento, o caminho é o suporte, e não o app.
 
 ## 11. Observações
 
