@@ -192,13 +192,13 @@ app/
 
 **Key entities:** Usuario, Funcionario, Cliente, Empresa, Produto, Servico, Fornecedor, Cargo, Endereco, Estoque
 
-**Auth flow:** JWT tokens with blocklist for logout. Tokens stored as HTTP-only cookies.
+**Auth flow:** JWT tokens with blocklist for logout. O login do ERP usa **Bearer** no cabeçalho `Authorization` (não há cookie de sessão). Hoje o token fica no `localStorage`; a ADR-002 manda guardá-lo no cofre local protegido pela DPAPI (ADR-001), ainda não implementado. Decisões em `.agent/docs/licenca/adr/`.
 
 ### Tauri (`frontend/src-tauri/`)
 
 Rust-based desktop shell using:
-- `tauri-plugin-stronghold` - Secure storage
-- `tauri-plugin-keyring` - System keychain integration
+- `tauri-plugin-stronghold` - Secure storage (pacote JS declarado no front, mas o plugin **não está registrado** no Rust e nenhum código o usa; ver ADR-001 e ACORDO D-02 em `.agent/docs/licenca/`)
+- `tauri-plugin-keyring` - System keychain integration (mesma situação: declarado, não registrado nem usado; ver ADR-001)
 - `rust-argon2` - Password hashing
 
 ## API Endpoints

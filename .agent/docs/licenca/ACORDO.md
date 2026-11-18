@@ -92,6 +92,7 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 ## 6. Pontos pendentes
 
 - Nenhum ponto de decisão aberto no momento.
+- **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação (Bearer, token ainda no `localStorage`, cofre previsto na ADR-002) e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.
 - **Próxima etapa:** SPEC-01 (cofre e backup). Só começa com a aprovação explícita da spec.
 
 ## 7. Fora do escopo (registrado)
