@@ -64,6 +64,7 @@
 | D-18 | CORS com lista fechada de origens (F1). |
 | D-19 | Permissões de arquivo do banco e da configuração restritas ao usuário (F37). |
 | D-20 | Argumentos do sidecar e escopo do `fs` restritos (F38). |
+| D-22 | Re-login não passa pelo setup. Com backup, a tela só oferece restaurar. Sem backup, o setup abre com os dados da nuvem, o documento do titular fica travado, e a API é atualizada **antes** de a empresa local ser criada (nuvem primeiro, banco depois). Substitui o D-11. **Aprovada em 2026-11-18.** |
 | D-21 | Rede da loja: a API local só aceita conexões das redes privadas (`10/8`, `172.16/12`, `192.168/16`), por regra de firewall no instalador e por verificação no app (F34, opção A). **Aprovada em 2026-11-18.** TLS (opção C) fica para a LIC-07. |
 
 ## 3. Consequências
@@ -92,10 +93,10 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 
 ## 6. Pontos pendentes
 
-- **Aberto (escrito em 2026-11-18, ao criar as specs):** três perguntas, uma por vez, com recomendação em cada spec:
-  - **LIC-03 · D-11:** como comparar o documento do titular. Recomendação: a API devolve os últimos 4 dígitos.
+- **Aberto (escrito em 2026-11-18, ao criar as specs):** duas perguntas, uma por vez, com recomendação em cada spec:
   - **LIC-06:** como o app recebe a chave depois da confirmação de e-mail. Recomendação: login com e-mail e senha.
   - **LIC-06:** trial só depois da confirmação. Recomendação: sim.
+- **Fechado em 2026-11-18:** comparação de documento (D-11) substituída pelo D-22: setup fora do re-login, com os dados da nuvem.
 - **Fechado em 2026-11-18:** proteção da rede da loja (F34), opção A aprovada (D-21).
 - **Fechado em 2026-11-18:** token do terminal (LIC-04): token do login fica só em `sessionStorage` (ADR-003), para servidor e terminal. Não há cofre para o login, então as rotas `/sessao/token-erp` saem da SPEC-04.
 - **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.

@@ -12,7 +12,7 @@ Branch de trabalho: `fix/licenca-seguranca`, no `start-big`. Um commit por spec 
 | 2 | Tarefa: comentário do heartbeat | start-big | Backend | — | Qualquer momento (uma linha) |
 | 3 | LIC-02 · Token offline | start-big | Backend | 1 | Passo 1 concluído |
 | 4 | LIC-04 · Rede e front | start-big | Front, Backend e Tauri | 1 | Passo 1 concluído; decisões da SPEC-04 §10 |
-| 5 | LIC-03 · Re-login | start-big | Backend e Front | 2, 4 | Passos 3 e 4 concluídos; decisão D-11 da SPEC-03 §10 |
+| 5 | LIC-03 · Re-login | start-big | Backend e Front | 2, 4, 7 (só a parte sem backup) | Passos 3, 4 e 7 concluídos |
 | 6 | LIC-05 · API revogação e backup | plataformaADM | API | Acesso de escrita | Acesso liberado |
 | 7 | LIC-06 · API cadastro e sessões | plataformaADM | API | Passo 6 e acesso | Decisões da SPEC-06 §10 |
 | 8 | Verificação de integração | ambos | — | Todos | Passos 1 a 7 concluídos |
@@ -46,7 +46,7 @@ Branch de trabalho: `fix/licenca-seguranca`, no `start-big`. Um commit por spec 
 ### Passo 5 · LIC-03 (re-login)
 
 - **Pontos de atenção:** a restauração é aplicada no próximo boot. A tela não pode deixar sair no meio.
-- **Decisões pendentes:** SPEC-03 §10 (como comparar o documento do titular, D-11). Sem resposta, a comparação fica de fora, e o resto da spec segue.
+- **Decisões:** fechadas. O setup sai do re-login com backup, e sem backup usa os dados da nuvem (D-22). A atualização da nuvem fica na SPEC-06 §4.6, e por isso o passo 7 precisa estar pronto antes do passo 5 ir para produção.
 - **Dependência de integração:** o cadastro da API (LIC-06) muda o retorno para `202`. O tratamento disso no `registrar_licenca` entra aqui, junto com o re-login depois da confirmação.
 - **Pronto quando:** CT-01 a CT-14 passam e CA-01 a CA-06 foram verificados.
 
@@ -78,7 +78,6 @@ Feita pela skill `verify`, com o app rodando no Windows, na ordem:
 
 | Spec | Pergunta | Recomendação |
 |------|----------|--------------|
-| LIC-03 | Como comparar o documento do titular (D-11) | A: API devolve os últimos 4 dígitos |
 | LIC-06 | Como o app recebe a chave depois da confirmação | B: login com e-mail e senha (re-login) |
 | LIC-06 | Trial só depois da confirmação | A: sim |
 

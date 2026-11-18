@@ -73,6 +73,7 @@ A linha pontilhada significa dependência de integração, não de código: a LI
 | `POST /erp/auto-cadastro` (API, muda) | Pública | LIC-06 §4.1 |
 | `GET /erp/auto-cadastro/confirmar` (API, nova) | Pública, pelo link | LIC-06 §4.2 |
 | `POST /erp/auth/reenviar-primeiro-acesso` (API, nova) | Pública | LIC-06 §4.4 |
+| `PUT /erp/cadastro/titular` (API, nova) | Com token da licença | LIC-06 §4.6 |
 | `POST /licenca/desconectar` (API, muda) | Com token de sessão | LIC-06 §4.5 |
 
 ## 6. Referências
