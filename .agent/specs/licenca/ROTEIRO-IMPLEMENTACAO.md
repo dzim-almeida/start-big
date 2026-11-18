@@ -40,7 +40,7 @@ Branch de trabalho: `fix/licenca-seguranca`, no `start-big`. Um commit por spec 
 ### Passo 4 · LIC-04 (rede e front)
 
 - **Pontos de atenção:** a origem da janela Tauri no Windows precisa ser confirmada antes do fechamento do CORS. Mudança nas permissões do Tauri exige recompilar o app.
-- **Decisões pendentes:** SPEC-04 §10, pergunta 1 (token nos terminais) e pergunta 2 (rede da loja). Sem resposta, a spec não sai do backlog.
+- **Decisões pendentes:** SPEC-04 §10, pergunta 2 (rede da loja, F34). O token do login já está decidido (ADR-003). Sem resposta sobre a rede, a spec não sai do backlog.
 - **Pronto quando:** CT-01 a CT-12 passam e CA-01 a CA-08 foram verificados (os de Windows na skill `verify`).
 
 ### Passo 5 · LIC-03 (re-login)
@@ -79,7 +79,6 @@ Feita pela skill `verify`, com o app rodando no Windows, na ordem:
 | Spec | Pergunta | Recomendação |
 |------|----------|--------------|
 | LIC-03 | Como comparar o documento do titular (D-11) | A: API devolve os últimos 4 dígitos |
-| LIC-04 | Onde guardar o token nos terminais | A: cofre do Tauri, com dependência aprovada |
 | LIC-04 | Proteção da rede da loja (F34) | A agora, com C no plano de infraestrutura |
 | LIC-06 | Como o app recebe a chave depois da confirmação | B: login com e-mail e senha (re-login) |
 | LIC-06 | Trial só depois da confirmação | A: sim |
@@ -88,6 +87,5 @@ Cada pergunta é respondida separadamente, como combinado. Até a resposta, a sp
 
 ## 4. Riscos conhecidos
 
-- **Terminais sem cofre:** a DPAPI só protege o servidor. A pergunta sobre o token dos terminais é necessária antes de dizer que o token está protegido na loja inteira.
 - **Dependência de API:** o caso 1 do re-login pede a revogação (LIC-05). Sem ela, o computador antigo continua gerando backup, mesmo com o novo funcionando.
 - **Cadastro:** a confirmação de e-mail sem a SPEC-03 deixa o novo cadastro sem caminho no app.

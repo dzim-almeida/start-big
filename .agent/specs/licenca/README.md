@@ -11,7 +11,7 @@ Este módulo cruza dois repositórios: `start-big` (backend Python, front Vue e 
 | LIC-01 | [`SPEC-01-COFRE-LICENCA.md`](./SPEC-01-COFRE-LICENCA.md) | Backend | start-big | Backlog | Cofre pela DPAPI, token cifrado, backup cifrado e sem token |
 | LIC-02 | [`SPEC-02-TOKEN-OFFLINE.md`](./SPEC-02-TOKEN-OFFLINE.md) | Backend | start-big | Backlog | Carência e prazos do token assinado, relógio que voltou, dias da API |
 | LIC-03 | [`SPEC-03-RE-LOGIN.md`](./SPEC-03-RE-LOGIN.md) | Backend e Frontend | start-big | Backlog | Restauração pelo titular, escolha depois do re-login, avisos de troca |
-| LIC-04 | [`SPEC-04-REDE-E-FRONT.md`](./SPEC-04-REDE-E-FRONT.md) | Frontend, Backend e Tauri | start-big | Backlog | CORS fechado, token do login no servidor, sem `v-html`, permissões do Tauri |
+| LIC-04 | [`SPEC-04-REDE-E-FRONT.md`](./SPEC-04-REDE-E-FRONT.md) | Frontend, Backend e Tauri | start-big | Backlog | CORS fechado, token do login só na sessão da janela, sem `v-html`, permissões do Tauri |
 | LIC-05 | [`SPEC-05-API-REVOGACAO.md`](./SPEC-05-API-REVOGACAO.md) | API | plataformaADM | Backlog · bloqueada por acesso | Revogação no guard, backup só do servidor atual, trial com um backup |
 | LIC-06 | [`SPEC-06-API-CADASTRO-SESSOES.md`](./SPEC-06-API-CADASTRO-SESSOES.md) | API | plataformaADM | Backlog · bloqueada por acesso | Cadastro com confirmação, bloqueio de login, sessões de 10 minutos |
 
@@ -54,7 +54,6 @@ A linha pontilhada significa dependência de integração, não de código: a LI
 | `backend-fastapi/app/services/licenca/restauracao_titular.py` | LIC-03 |
 | `backend-fastapi/app/services/backup/local.py` | LIC-01 |
 | `backend-fastapi/app/services/backup/restore.py` | LIC-01, LIC-03 |
-| `backend-fastapi/app/api/v1/endpoints/sessao.py` | LIC-04 |
 | `backend-fastapi/app/main.py` | LIC-04 |
 | `frontend/src/api/axios.ts` | LIC-04 |
 | `frontend/src/modules/sign-in/composables/useSignIn.ts` | LIC-03 |
@@ -69,7 +68,6 @@ A linha pontilhada significa dependência de integração, não de código: a LI
 | Método e rota | Permissão | Spec |
 |---------------|-----------|------|
 | `POST /api/v1/licenca/restaurar-backup` | Pública, com a conta da loja | LIC-03 §4.1 |
-| `GET`, `PUT`, `DELETE /api/v1/sessao/token-erp` | Só na própria máquina | LIC-04 §4.2 |
 | `POST /erp/auto-cadastro` (API, muda) | Pública | LIC-06 §4.1 |
 | `GET /erp/auto-cadastro/confirmar` (API, nova) | Pública, pelo link | LIC-06 §4.2 |
 | `POST /erp/auth/reenviar-primeiro-acesso` (API, nova) | Pública | LIC-06 §4.4 |
