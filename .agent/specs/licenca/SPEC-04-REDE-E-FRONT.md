@@ -3,10 +3,10 @@
 | Campo        | Valor |
 |--------------|-------|
 | Status       | Backlog |
-| Camada       | Frontend (Vue 3 + TypeScript), Backend (FastAPI, só CORS) e configuração do Tauri |
+| Camada       | Frontend (Vue 3 + TypeScript), Backend (FastAPI, CORS e rede da loja) e configuração do Tauri |
 | Dependências | — |
 | Bloqueia     | SPEC-03 (o re-login usa o token guardado pelo front desta spec) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-12, D-17, D-18, D-20; [ADR-002](../../docs/licenca/adr/ADR-002-login-bearer-cofre.md) (Bearer); [ADR-003](../../docs/licenca/adr/ADR-003-token-login-session-storage.md) (sessionStorage); quadro F1, F33, F35, F38, F34 |
+| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-12, D-17, D-18, D-20; [ADR-002](../../docs/licenca/adr/ADR-002-login-bearer-cofre.md) (Bearer); [ADR-003](../../docs/licenca/adr/ADR-003-token-login-session-storage.md) (sessionStorage); [ACORDO D-21](../../docs/licenca/ACORDO.md) (rede da loja); quadro F1, F33, F35, F38, F34 |
 
 ## 1. Objetivo
 
@@ -19,17 +19,20 @@ Fechar a superfície do app: quem pode falar com a API local, onde o login do ER
 - Token do login do ERP guardado só em `sessionStorage` (D-12, F33). Ele some quando a janela fecha, e o sistema pede login a cada abertura. Vale igual para servidor e terminal (ADR-003).
 - Remoção do `v-html` dos modais de confirmação (D-17, F35).
 - Permissões do Tauri restritas: o sidecar não é mais liberado para o front, e o escopo de arquivos fica no mínimo necessário (D-20, F38).
+- Rede da loja: a API local só aceita conexões das redes privadas, por regra de firewall e por verificação no próprio app (D-21, F34).
 
 **Fora do escopo**
 - Cookie HTTP-only. Decisão rejeitada na ADR-002.
-- TLS na rede da loja (F34). A pergunta está na seção 10.
+- TLS na rede da loja (F34, opção C). Vai para uma spec própria, LIC-07, depois desta.
 - Cofre DPAPI para o token do login. Não se aplica: o token não é guardado em disco (ADR-003). O cofre é só para o token da licença (SPEC-01).
 
 ## 3. Arquivos afetados
 
 | Arquivo | Ação | O quê |
 |---------|------|-------|
-| `backend-fastapi/app/main.py` | alterar | `allow_origins` com lista fechada, no lugar de `["*"]` (linha ~50). |
+| `backend-fastapi/app/main.py` | alterar | `allow_origins` com lista fechada, no lugar de `["*"]` (linha ~50). Acrescenta o middleware de rede da loja. |
+| `backend-fastapi/app/core/rede_local.py` | criar | Middleware que recusa, com 403, quem não está nas redes privadas da loja (D-21). |
+| `frontend/src-tauri/nsis/extend/hooks.nsh` | alterar | A regra de firewall do `erp-api.exe` passa a ter `remoteip` com as redes privadas (seção 6.5). |
 | `backend-fastapi/app/core/config.py` | alterar | Constante `ORIGENS_PERMITIDAS` lida de uma variável de ambiente, com padrão para o app. |
 | `frontend/src/api/axios.ts` | alterar | Lê o token de `sessionStorage` (linhas 14 e 26-28). Deixa de usar `localStorage`. |
 | `frontend/src/modules/auth/services/auth.service.ts` | alterar | `TOKEN_KEY` vai para `sessionStorage` (linhas 32, 44). |
@@ -42,6 +45,7 @@ Fechar a superfície do app: quem pode falar com a API local, onde o login do ER
 | `frontend/src-tauri/capabilities/default.json` | alterar | Remove `shell:allow-execute` do `erp-api` e restringe o `fs` ao mínimo (seção 6.3). |
 | `frontend/src-tauri/tauri.conf.json` | alterar | Confere a origem usada pelo Tauri no Windows (seção 6.1). |
 | `backend-fastapi/test/api/v1/test_cors_origens.py` | criar | Casos CT-01 a CT-04. |
+| `backend-fastapi/test/core/test_rede_local.py` | criar | Casos CT-12 a CT-14. |
 | `frontend/src/modules/auth/__tests__/sessao-token.spec.ts` | criar | Casos CT-05 a CT-08. |
 | `frontend/src/shared/components/commons/BaseConfirmModal/__tests__/BaseConfirmModal.spec.ts` | criar | Casos CT-09 a CT-11. |
 
@@ -62,6 +66,18 @@ As origens permitidas passam a ser:
 `allow_credentials` continua `True`. Nenhuma origem fora da lista recebe `Access-Control-Allow-Origin`.
 
 Não há rota nova. Nesta versão, o token do login não é guardado no backend (ADR-003).
+
+### 4.2. Rede da loja (D-21)
+
+Quem chama de fora das redes privadas recebe, em qualquer rota:
+
+```json
+{
+  "statusCode": 403,
+  "message": "Esta API só aceita conexões da rede da loja.",
+  "codigo": "FORA_DA_REDE_DA_LOJA"
+}
+```
 
 ## 5. Schemas
 
@@ -155,6 +171,56 @@ O front não inicia o sidecar. Quem inicia é o Rust, em `backend.rs`. Por isso 
 
 Se a verificação mostrar que `arquivo.ts` precisa de escrita fora do caminho do diálogo, a permissão volta com um escopo fixo, e a spec registra o motivo.
 
+### 6.5. Rede da loja (D-21, F34, opção A)
+
+Duas camadas, para que uma funcione mesmo se a outra for desligada:
+
+1. **Firewall do Windows.** O instalador cria a regra do `erp-api.exe` com `profile=any` e sem limite de endereço. A mudança acrescenta `remoteip` com as redes privadas:
+
+```nsis
+; hooks.nsh — a regra do erp-api só aceita endereços das redes privadas da loja (D-21)
+nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_RULE_NAME}" dir=in action=allow program="$INSTDIR\erp-api.exe" profile=any remoteip=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,LocalSubnet description="Recebe conexões só da rede da loja"'
+```
+
+2. **Middleware no próprio app.** Recusa, com 403, qualquer conexão que não venha de uma rede privada ou do próprio computador:
+
+```python
+# rede_local.py — recusa quem está fora da rede da loja (D-21, F34)
+import ipaddress                                    # biblioteca para comparar endereços IP
+from starlette.responses import JSONResponse        # resposta de erro em JSON
+
+# Redes privadas (as que a loja usa) e o próprio computador.
+REDES_DA_LOJA = [ipaddress.ip_network(r) for r in
+                 ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8")]
+
+def _endereco_permitido(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host)             # converte o texto em endereço IP
+    except ValueError:
+        return False                                # texto que não é IP é recusado
+    return any(ip in rede for rede in REDES_DA_LOJA)
+
+class ExigirRedeDaLoja:
+    """Middleware: é chamado antes de cada requisição, para barrar quem está fora."""
+    def __init__(self, app):
+        self.app = app
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            host = scope["client"][0] if scope.get("client") else ""
+            if not _endereco_permitido(host):
+                resposta = JSONResponse(status_code=403, content={
+                    "codigo": "FORA_DA_REDE_DA_LOJA",
+                    "message": "Esta API só aceita conexões da rede da loja.",
+                })
+                await resposta(scope, receive, send)   # responde o erro e para aqui
+                return
+        await self.app(scope, receive, send)           # dentro da rede: segue normalmente
+```
+
+O middleware é registrado em `main.py` com `app.add_middleware(ExigirRedeDaLoja)`.
+
+**Limites conhecidos:** a regra não protege contra quem já está na rede, e o `LocalSubnet` não cobre caixas em outra sub-rede. Se uma loja tiver caixas em outra sub-rede, o `remoteip` precisa ser ajustado, e isso fica registrado na loja.
+
 ## 7. Critérios de aceite
 
 - **CA-01:** uma chamada à API local vinda de origem fora da lista não recebe `Access-Control-Allow-Origin`.
@@ -165,6 +231,8 @@ Se a verificação mostrar que `arquivo.ts` precisa de escrita fora do caminho d
 - **CA-06:** um nome de fornecedor com `<img src=x onerror=...>` aparece como texto, sem executar nada.
 - **CA-07:** o app abre e grava arquivo pelo diálogo de salvar, sem erro de permissão.
 - **CA-08:** o `erp-api` não pode ser iniciado pelo front (checado por tentativa no console da janela).
+- **CA-09:** uma requisição vinda de endereço público recebe `403 FORA_DA_REDE_DA_LOJA`.
+- **CA-10:** a regra de firewall do `erp-api.exe` mostra o `remoteip` com as redes privadas (`netsh advfirewall firewall show rule`).
 
 Os critérios CA-02, CA-03, CA-07 e CA-08 precisam do app rodando no Windows. Ficam para a skill `verify`.
 
@@ -183,6 +251,9 @@ Os critérios CA-02, CA-03, CA-07 e CA-08 precisam do app rodando no Windows. Fi
 | CT-09 | `BaseConfirmModal` com texto contendo `<img onerror>` | Texto aparece escapado, sem elemento `img` |
 | CT-10 | Slot com `<b>` e interpolação | Negrito aplicado ao valor escapado |
 | CT-11 | Nenhum `v-html` na árvore do modal | Verdadeiro |
+| CT-12 | Requisição de `192.168.1.20` | Passa |
+| CT-13 | Requisição de `8.8.8.8` | `403 FORA_DA_REDE_DA_LOJA` |
+| CT-14 | Requisição de `127.0.0.1` e texto que não é IP | Localhost passa; texto inválido é recusado |
 
 ## 9. Testes existentes que a mudança afeta
 
@@ -193,7 +264,9 @@ Os critérios CA-02, CA-03, CA-07 e CA-08 precisam do app rodando no Windows. Fi
 
 - **1. Onde guardar o token do login nos terminais.** **Resolvida em 2026-11-18:** `sessionStorage`, para servidor e terminal, sem persistência entre aberturas (ADR-003). Não há mais pergunta sobre isso.
 
-- **2. Rede da loja (F34).** O caixa chama o servidor por `http://IP:porta`, sem criptografia, e o token do login viaja em claro na rede.
+- **2. Rede da loja (F34). Resolvida em 2026-11-18: opção A (D-21).** A API local só aceita conexões das redes privadas, por regra de firewall e por verificação no app. Não protege contra quem já está na rede; isso fica para a LIC-07 (TLS).
+- **Sub-decisão tomada por padrão, para revisão:** as redes privadas são `10.0.0.0/8`, `172.16.0.0/12` e `192.168.0.0/16`, e não a sub-rede do servidor. A sub-rede exigiria detectar a máscara, o que é frágil, e o DHCP pode mudar o IP.
+- *Texto original da pergunta, mantido para registro:*
   - **A.** Restringir a API local à rede da loja e configurar o firewall. Não exige certificado. Não protege contra quem já está na rede.
   - **B.** Token amarrado a cada terminal, com um segredo que assina cada pedido. Protege sem TLS, com complexidade.
   - **C.** TLS na rede da loja, com certificado próprio. É a solução completa, e exige configuração de cada loja.
