@@ -254,4 +254,4 @@ Na gaveta de resumo de totais (ao lado do Subtotal, Frete e Desconto):
 ---
 
 ## Desvios aplicados (2026-09-19) — backend
-Ver `docs/done/fiscal/TASK009.md`. Destaques: `local_destino` pelo grupo do CFOP calculado (mesma decisão do resolver); campos ST/DIFAL só quando existem (contrato exato da venda interna); guard da IE valida formato (Rejeição 232); endereço já era validado. **Pendência de negócio**: o total da venda do PDV precisa incluir a ST para fechar com o vNF. CA-5 (PDV) fica para a rodada de interface. 20 testes novos, gate 1063 passed.
+Ver `docs/fiscal/archive/TASK009.md`. Destaques: `local_destino` pelo grupo do CFOP calculado (mesma decisão do resolver); campos ST/DIFAL só quando existem (contrato exato da venda interna); guard da IE valida formato (Rejeição 232); endereço já era validado. **Pendência de negócio**: o total da venda do PDV precisa incluir a ST para fechar com o vNF. CA-5 (PDV) fica para a rodada de interface. 20 testes novos, gate 1063 passed.

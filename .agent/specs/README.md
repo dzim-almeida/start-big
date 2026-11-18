@@ -31,7 +31,8 @@ Cada módulo ganha uma pasta e uma linha nesta tabela **na primeira spec dele** 
 
 | Módulo | Índice | Observação |
 |--------|--------|------------|
-| _(nenhum módulo com specs ainda)_ | — | Copie `_modelo/` para `specs/{módulo}/` ao escrever a primeira spec |
+| `fiscal` | [`fiscal/README.md`](./fiscal/README.md) | Trava de numeração, CC-e, devolução e emissão interestadual (TASK001 a TASK009, todas concluídas) |
+| `licenca` | [`licenca/README.md`](./licenca/README.md) | Cofre da licença, token offline, re-login e API (LIC-01 a LIC-06, em backlog); cruza o `start-big` e a `plataformaADM` |
 
 ## Contrato
 

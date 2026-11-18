@@ -1,6 +1,6 @@
 # TASK001-BACKEND — Locker de confirmação da numeração fiscal
 
-**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/completed/TASK001-BACKEND-LockerNumeracaoFiscal.md`
+**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/fiscal/completed/TASK001-BACKEND-LockerNumeracaoFiscal.md`
 
 ## Objetivo
 Impedir emissão (NF-e e NFC-e) enquanto o operador não confirmar série e último número — prevenção da Rejeição 204 em lojas migradas de outro ERP.

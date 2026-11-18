@@ -7,7 +7,8 @@ A memória de longo prazo do projeto. Enquanto `specs/` diz **o que fazer**, `do
 ```
 docs/
 ├── _shared/
-│   └── learn/                 # Aprendizados que valem para o projeto todo (ambiente, ferramentas, testes, Tauri)
+│   ├── learn/                 # Aprendizados que valem para o projeto todo (ambiente, ferramentas, testes, Tauri)
+│   └── archive/               # Documentos superados do projeto todo (só histórico)
 ├── _modelo/                   # Modelo de pasta de módulo (copie ao criar um módulo novo)
 └── {módulo}/                  # customers, sales, fiscal...
     ├── README.md              # Visão geral e arquitetura do módulo. Mantido pelo time

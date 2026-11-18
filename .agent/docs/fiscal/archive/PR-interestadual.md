@@ -50,7 +50,7 @@ Tudo que barra, barra em `_preparar_dados_emissao`, **antes** de reservar númer
 - Gate `pytest test/services test/core test/db test/api/v1/fiscal`: **893 → 1072 passed**.
 - Cenários numéricos das specs exatos (DIFAL A–E, ST 1–3).
 - Boot real simulado para as duas migrations (loja carimbada na revisão anterior → `create_all` → `aplicar_migracoes`).
-- A suíte completa continua fora do gate: o lifespan toca o banco real (ver `docs/done/fiscal/00-baseline.md`).
+- A suíte completa continua fora do gate: o lifespan toca o banco real (ver `docs/fiscal/archive/00-baseline.md`).
 
 ## ⚠️ Decisões que precisam de confirmação
 
@@ -68,6 +68,6 @@ Tudo que barra, barra em `_preparar_dados_emissao`, **antes** de reservar númer
 
 - Telas de perfis tributários (TASK005 § 6), select de perfil na aba fiscal do produto (TASK006 § 7), badges "Interestadual B2C/B2B" e linhas ICMS-ST/DIFAL no checkout com total a cobrar (TASK009 § 6).
 
-Documentação completa em `.agent/docs/done/fiscal/` (`TASK004.md`…`TASK009.md`, `CODE-REVIEW-interestadual.md`, `README-interestadual.md`).
+Documentação completa em `.agent/docs/fiscal/archive/` (`TASK004.md`…`TASK009.md`, `CODE-REVIEW-interestadual.md`, `README-interestadual.md`).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

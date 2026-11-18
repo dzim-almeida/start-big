@@ -40,11 +40,11 @@ Arquivos: XML/PDF da carta são guardados com sufixo `_cce_NN` no nome, porque `
 - Migration idempotente (`has_table → return`) por causa do `create_all()` antes das migrations.
 
 ## Referências
-- Spec: `.agent/specs/completed/TASK002-EmitirCartaCorrecao.md`
+- Spec: `.agent/specs/fiscal/completed/TASK002-EmitirCartaCorrecao.md`
 - Focus NFe: https://doc.focusnfe.com.br/reference/emitir_carta_correcao
 - Código: `backend-fastapi/app/services/fiscal/carta_correcao.py`, `app/db/models/carta_correcao_fiscal.py`
 - Precedente: `app/db/models/inutilizacao_fiscal.py`, `app/services/fiscal/inutilizacao.py`
-- Progresso: `.agent/docs/progress/TASK002.md`
+- Progresso: `.agent/docs/fiscal/archive/TASK002.md`
 
 ## Próximos Passos
 - [ ] API intermediária StartBig: expor `POST /erp/fiscal/nfe/carta-correcao` (`{ref, correcao}`) repassando à Focus — bloqueia o teste em homologação.

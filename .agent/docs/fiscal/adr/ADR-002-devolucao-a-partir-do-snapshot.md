@@ -44,10 +44,10 @@ A devolução (finalidade 4) precisa espelhar "fielmente o que foi cobrado no do
 - `test_falha_de_rede_consome_o_numero_e_fica_indeterminada` e `test_rejeicao_da_sefaz_nao_consome_saldo` protegem o invariante central.
 
 ## Referências
-- Spec: `.agent/specs/completed/TASK003-BACKEND-NotaDevolucao.md`
+- Spec: `.agent/specs/fiscal/completed/TASK003-BACKEND-NotaDevolucao.md`
 - Código: `app/services/fiscal/devolucao.py`, `payload_builder.py::montar_payload_devolucao`, `derivacao/cfop.py::cfop_devolucao`
 - ADR-001 (carta de correção — o outro "documento anexo" fiscal)
-- Progresso: `.agent/docs/progress/TASK003-BACKEND.md`
+- Progresso: `.agent/docs/fiscal/archive/TASK003-BACKEND.md`
 
 ## Próximos Passos
 - [ ] TASK003-FRONTEND: modal de devolução no drawer.

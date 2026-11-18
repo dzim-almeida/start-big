@@ -110,6 +110,7 @@ Nunca "corrija" uma spec em silêncio. Divergência encontrada → registrar e p
 | `migration` | `@/skills/migration/SKILL.md` | Criar ou alterar models SQLAlchemy, gerar ou aplicar migrações Alembic |
 | `design` | `@/skills/design/SKILL.md` | Implementar ou ajustar telas e componentes visuais a partir de um protótipo, imagem ou tela de referência, respeitando os tokens e os componentes `Base*` |
 | `verify` | `@/skills/verify/SKILL.md` | Verificação ponta a ponta local (backend na porta certa, frontend, login, fluxos no navegador ou na janela Tauri) quando um critério de aceite pedir, ao fim de uma série de specs e quando o usuário pedir |
+| `code-quality` | `@/skills/code-quality/SKILL.md` | Checklist de DRY, YAGNI e Clean Code. Use junto com `code-review` ao revisar qualidade |
 | `code-review` | `@/skills/code-review/SKILL.md` | Antes de concluir uma spec, na versão curta ao fim da trilha leve (§3.2) e quando o usuário pedir revisão |
 | `spec` | `@/skills/spec/SKILL.md` | Planejar um módulo ou série (acordo, ADR, roteiro) e escrever ou revisar specs no modelo padrão, com o checklist de validação |
 | `handbook` | `@/skills/handbook/SKILL.md` | Documentar um módulo implementado para pessoas em três artefatos (Visão Geral, Especificação de Negócio, Documentação Técnica). Sob demanda, ou quando a skill `doc` §7.4 sugerir |

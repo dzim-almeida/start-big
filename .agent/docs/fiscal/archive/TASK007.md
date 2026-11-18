@@ -1,6 +1,6 @@
 # TASK007 — Motor de cálculo DIFAL (não contribuinte)
 
-**Status:** ✅ concluída · **Data:** 2026-09-18 · **Spec:** `specs/completed/TASK007 - MOTOR-DIFAL.md`
+**Status:** ✅ concluída · **Data:** 2026-09-18 · **Spec:** `specs/fiscal/completed/TASK007 - MOTOR-DIFAL.md`
 
 ## Objetivo
 `calcular_difal` (base simples e dupla, FCP), DTOs expandidos, resolver consultando o perfil (TASK006) e liberando a operação interestadual **só** para não contribuinte com perfil em todos os itens, engine com o passo DIFAL após o ICMS, consolidador somando DIFAL/FCP fora do `valor_total_nota`. Payload não muda (TASK009).

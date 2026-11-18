@@ -1,6 +1,6 @@
 # TASK003-BACKEND — NF-e de devolução (finalidade 4)
 
-**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/completed/TASK003-BACKEND-NotaDevolucao.md` · **ADR:** [ADR-002](../adrs/ADR-002_devolucao_a_partir_do_snapshot.md)
+**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/fiscal/completed/TASK003-BACKEND-NotaDevolucao.md` · **ADR:** [ADR-002](../adr/ADR-002-devolucao-a-partir-do-snapshot.md)
 
 ## Objetivo
 Emitir NF-e de devolução (modelo 55, entrada, finalidade 4), total ou parcial, a partir de NF-e/NFC-e autorizada, com os 4 pilares da Focus/SEFAZ, controle de saldo por item e entrada no estoque quando autorizada.

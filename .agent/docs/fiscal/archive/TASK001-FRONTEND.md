@@ -1,6 +1,6 @@
 # TASK001-FRONTEND — Interface de alerta e confirmação da numeração fiscal
 
-**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/completed/TASK001-FRONTEND-InterfaceConfirmacaoNumeroFiscal.md`
+**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/fiscal/completed/TASK001-FRONTEND-InterfaceConfirmacaoNumeroFiscal.md`
 
 ## Objetivo
 Mostrar ao lojista/implantador que a sequência precisa ser confirmada, orientar o preenchimento (empresa nova × migração) e enviar a confirmação ao salvar; interceptar tentativas de emissão antes da confirmação.

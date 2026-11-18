@@ -28,6 +28,7 @@ Arquivos de apoio (modelos, scripts, exemplos) ficam na mesma pasta da skill.
 | [`migration`](./migration/SKILL.md) | Criar ou alterar models; gerar, revisar e aplicar migrações Alembic (SQLite) |
 | [`design`](./design/SKILL.md) | Telas e componentes visuais a partir de um protótipo ou imagem de referência, com tokens do tema e componentes `Base*` |
 | [`verify`](./verify/SKILL.md) | Verificação ponta a ponta local (backend, frontend, login, fluxos no navegador ou na janela Tauri, evidência) quando um critério de aceite pedir, ao fim de uma série e a pedido |
+| [`code-quality`](./code-quality/SKILL.md) | Checklist de DRY, YAGNI e Clean Code (frontend e backend). Complementa a `code-review`: use junto quando a revisão for sobre qualidade de código |
 | [`code-review`](./code-review/SKILL.md) | Antes de concluir uma spec, na versão curta da trilha leve e quando o usuário pedir revisão |
 | [`spec`](./spec/SKILL.md) | Planejar um módulo ou série e escrever specs no modelo padrão, com checklist de validação |
 | [`handbook`](./handbook/SKILL.md) | Documentar um módulo implementado para pessoas em três artefatos (Visão Geral, Especificação de Negócio, Documentação Técnica). Modelos em `handbook/templates/` |

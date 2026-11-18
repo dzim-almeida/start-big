@@ -1,6 +1,6 @@
 # TASK009 — Payload interestadual (Focus NFe) e guardrails — backend
 
-**Status:** ✅ concluída (backend) · **Data:** 2026-09-19 · **Spec:** `specs/completed/TASK009 - PAYLOAD-INTERESTADUAL-INTERFACE.md`
+**Status:** ✅ concluída (backend) · **Data:** 2026-09-19 · **Spec:** `specs/fiscal/completed/TASK009 - PAYLOAD-INTERESTADUAL-INTERFACE.md`
 
 ## Objetivo
 `payload_builder` passa a emitir, com a nomenclatura da Focus NFe, o grupo DIFAL/FCP (`ICMSUFDest`) e o grupo ST por item, os totais de ST/DIFAL e o `local_destino` dinâmico; CFOP do item vem da operação. Guardrails antes de reservar número. Interface do PDV (§ 6) fora desta rodada.

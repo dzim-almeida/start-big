@@ -1,6 +1,6 @@
 # TASK003-FRONTEND — Modal e ações de devolução no Centro Fiscal
 
-**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/completed/TASK003-FRONTEND-NotaDevolucao.md`
+**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/fiscal/completed/TASK003-FRONTEND-NotaDevolucao.md`
 
 ## Arquivos
 | Arquivo | O quê |

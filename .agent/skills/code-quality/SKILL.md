@@ -1,3 +1,8 @@
+---
+name: code-quality
+description: Checklist de qualidade de código do StartBig (DRY, YAGNI e Clean Code) para frontend Vue/TypeScript e backend FastAPI/Python. Use junto com a skill code-review ao revisar qualidade, ou ao refatorar.
+---
+
 # Code Quality Skill — DRY, YAGNI, CLEAN CODE
 
 **Versão:** 1.0

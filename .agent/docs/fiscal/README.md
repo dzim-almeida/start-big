@@ -52,4 +52,8 @@ O **Centro Fiscal** (`/fiscal/*`): configuração fiscal da loja e emissão e ac
 
 ## 7. Referências
 
+- **Decisões (ADR):** [`adr/`](./adr/README.md) — ADR-001 (CC-e em tabela própria) e ADR-002 (devolução a partir do snapshot).
+- **Specs concluídas:** [`specs/fiscal/`](../../specs/fiscal/README.md) (TASK001 a TASK009).
+- **Histórico de execução** (commits, desvios, code review, textos de PR): [`archive/`](./archive/README.md).
+
 - `backend-fastapi/docs/` — `fiscal-refatoracao-plano.md`, `fiscal-onboarding-plano.md`, `fiscal-conclusao-plano.md`, `fiscal-100-plano.md`, `contrato-api-fiscal-plataforma.md`, `nfse-plano.md`, `nfse-fase2-plano.md`, `nfse-melhorias-plano.md`, `nfe-cfop-e-notas-da-os-plano.md`, `pdv-fiscal-e-nao-fiscal-plano.md`

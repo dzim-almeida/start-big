@@ -390,4 +390,4 @@ Cálculo:
 ---
 
 ## Desvios aplicados (2026-09-19)
-Ver `docs/done/fiscal/TASK008.md`. Destaques: CST 10/70 e CSOSN 201/202 só na emissão (não no cadastro); sem ST a situação do produto não muda; 6107/6101/6403 por produção própria; dedução do ICMS próprio no Simples pela interestadual; CFOP 6xxx também para Simples B2C. 36 testes novos, gate 1043 passed. Payload intacto.
+Ver `docs/fiscal/archive/TASK008.md`. Destaques: CST 10/70 e CSOSN 201/202 só na emissão (não no cadastro); sem ST a situação do produto não muda; 6107/6101/6403 por produção própria; dedução do ICMS próprio no Simples pela interestadual; CFOP 6xxx também para Simples B2C. 36 testes novos, gate 1043 passed. Payload intacto.

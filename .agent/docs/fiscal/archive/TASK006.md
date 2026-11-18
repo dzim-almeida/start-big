@@ -1,6 +1,6 @@
 # TASK006 — Vínculo ProdutoFiscal → PerfilTributario + resolver de regra (backend)
 
-**Status:** ✅ concluída (backend) · **Data:** 2026-09-18 · **Spec:** `specs/completed/TASK006 - VINCULO-PRODUTO-PERFIL-TRIBUTARIO.md`
+**Status:** ✅ concluída (backend) · **Data:** 2026-09-18 · **Spec:** `specs/fiscal/completed/TASK006 - VINCULO-PRODUTO-PERFIL-TRIBUTARIO.md`
 
 ## Objetivo
 FK `produto_fiscal.perfil_tributario_id` (SET NULL) + migration, campo nos schemas do produto, `resolver_regra_perfil` (match por especificidade em uma query), e o guard real de exclusão de perfil. Nenhum cálculo novo; a trava interestadual continua. Frontend (spec § 7) fora desta rodada.

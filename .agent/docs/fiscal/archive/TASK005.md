@@ -1,6 +1,6 @@
 # TASK005 — CRUD + API REST de perfis tributários (backend)
 
-**Status:** ✅ concluída (backend) · **Data:** 2026-09-18 · **Spec:** `specs/completed/TASK005 - CRUD+API-REST-PERFIL-TRIBUTARIO.md`
+**Status:** ✅ concluída (backend) · **Data:** 2026-09-18 · **Spec:** `specs/fiscal/completed/TASK005 - CRUD+API-REST-PERFIL-TRIBUTARIO.md`
 
 ## Objetivo
 Schemas Pydantic, CRUD, serviço e 5 endpoints REST (`/fiscal/perfis-tributarios`) para criar/listar/ver/atualizar (replace-all das regras)/apagar perfis. Frontend (spec § 6) fica fora desta rodada.

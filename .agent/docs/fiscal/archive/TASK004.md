@@ -1,6 +1,6 @@
 # TASK004 — Modelagem: PerfilTributario e RegraPerfilTributario
 
-**Status:** ✅ concluída · **Data:** 2026-09-18 · **Spec:** `specs/completed/TASK004 - MODELAGEM-BANCO-PERFIL-TRIBUTARIO.md`
+**Status:** ✅ concluída · **Data:** 2026-09-18 · **Spec:** `specs/fiscal/completed/TASK004 - MODELAGEM-BANCO-PERFIL-TRIBUTARIO.md`
 
 ## Objetivo
 Duas tabelas novas (`perfil_tributario`, `regra_perfil_tributario`) + migration, sem tocar em nada que já existe. Um perfil agrupa N regras (UF destino × NCM exceção) com alíquota interestadual, alíquota interna do destino, FCP, base dupla, MVA-ST e redução de base.

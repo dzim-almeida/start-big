@@ -151,8 +151,8 @@ Se decisão for superada:
 
 | ADR | Título | Status |
 |-----|--------|--------|
-| [ADR-001](ADR-001_eventos_fiscais_em_tabela_propria.md) | Eventos fiscais (CC-e) em tabela própria | Accepted |
-| [ADR-002](ADR-002_devolucao_a_partir_do_snapshot.md) | NF-e de devolução nasce do snapshot, saldo por item | Accepted |
+| [ADR-001](ADR-001-eventos-fiscais-em-tabela-propria.md) | Eventos fiscais (CC-e) em tabela própria | Accepted |
+| [ADR-002](ADR-002-devolucao-a-partir-do-snapshot.md) | NF-e de devolução nasce do snapshot, saldo por item | Accepted |
 
 ---
 

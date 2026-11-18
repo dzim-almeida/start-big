@@ -435,4 +435,4 @@ Tabela editável onde cada linha é uma regra:
 ---
 
 ## Desvios aplicados (2026-09-18) — backend
-Ver `docs/done/fiscal/TASK005.md`. Destaques: serviço entre endpoint e CRUD (rule backend-layer § 1); GET para usuário ativo, escrita master; `get_perfil` escopado por empresa; **§ 4.2 tinha bug** — `clear()`+`append` colide na UNIQUE ao reenviar a mesma UF (INSERT antes do DELETE); corrigido com `flush` intermediário. CA-4 (frontend) fica para a rodada de interface. 47 testes novos, gate 956 passed.
+Ver `docs/fiscal/archive/TASK005.md`. Destaques: serviço entre endpoint e CRUD (rule backend-layer § 1); GET para usuário ativo, escrita master; `get_perfil` escopado por empresa; **§ 4.2 tinha bug** — `clear()`+`append` colide na UNIQUE ao reenviar a mesma UF (INSERT antes do DELETE); corrigido com `flush` intermediário. CA-4 (frontend) fica para a rodada de interface. 47 testes novos, gate 956 passed.

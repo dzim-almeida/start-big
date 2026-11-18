@@ -1,6 +1,6 @@
 # TASK002 — Carta de Correção Eletrônica (CC-e) — backend + frontend
 
-**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/completed/TASK002-EmitirCartaCorrecao.md` · **ADR:** [ADR-001](../adrs/ADR-001_eventos_fiscais_em_tabela_propria.md)
+**Status:** ✅ concluída · **Data:** 2026-09-17 · **Spec:** `specs/fiscal/completed/TASK002-EmitirCartaCorrecao.md` · **ADR:** [ADR-001](../adr/ADR-001-eventos-fiscais-em-tabela-propria.md)
 
 ## Objetivo
 Corrigir erros não fiscais de uma NF-e autorizada (texto, endereço, transporte) sem cancelar nem reemitir, via evento CC-e da Focus NFe (`POST /v2/nfe/{ref}/carta_correcao`), com histórico, arquivos e limite de 20 cartas.

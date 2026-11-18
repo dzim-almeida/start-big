@@ -574,4 +574,4 @@ Comportamento idêntico ao de antes da SPEC 4.
 ---
 
 ## Desvios aplicados (2026-09-18)
-Ver `docs/done/fiscal/TASK007.md`. Destaques: **Simples Nacional liberado sem DIFAL e sem perfil** (ADI 5464 — premissa legal a confirmar); CST 20 com base cheia; trava reestruturada em `_uf_destino_interestadual`; teste antigo da trava reescrito. Cenários A–E exatos. 24 testes novos, gate 1006 passed. Payload intacto (CA-7).
+Ver `docs/fiscal/archive/TASK007.md`. Destaques: **Simples Nacional liberado sem DIFAL e sem perfil** (ADI 5464 — premissa legal a confirmar); CST 20 com base cheia; trava reestruturada em `_uf_destino_interestadual`; teste antigo da trava reescrito. Cenários A–E exatos. 24 testes novos, gate 1006 passed. Payload intacto (CA-7).

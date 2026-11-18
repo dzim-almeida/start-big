@@ -57,5 +57,7 @@ O segmento para **fábricas de móveis planejados e marcenarias**. Acompanha um 
 
 ## 7. Referências
 
+- **Telas de design** (PNG/SVG: checklist da OS, orçamento e engenharia, separação de almoxarifado, termo de entrega, visão geral da OS): [`design/`](./design/).
+
 - `backend-fastapi/docs/marcenaria/` — `PLANO-MARCENARIA.md`, `SPEC-00` a `SPEC-12` (backend A / frontend B)
 - `backend-fastapi/docs/marcenaria-fabrica-plano.md` · `marcenaria-faturamento-plano.md` · `segmento-marcenaria-plano.md` (histórico) · `etiquetas-plano.md`

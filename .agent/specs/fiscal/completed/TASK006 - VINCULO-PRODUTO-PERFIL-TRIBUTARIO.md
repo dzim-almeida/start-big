@@ -388,4 +388,4 @@ Esta migration depende da migration da SPEC 1 (que cria a tabela `perfil_tributa
 ---
 
 ## Desvios aplicados (2026-09-18) — backend
-Ver `docs/done/fiscal/TASK006.md`. Destaques: `crud.produto_fiscal.upsert` preservando o unset (CA-2 dependia disso e havia bug pré-existente); migration com `ADD COLUMN … REFERENCES` cru (§ 8.1 não roda no SQLite); 422 para perfil de outra empresa; `perfil_tributario_id` no `FiscalEfetivo` por exigência do teste de contrato (sem cascata). CA-5 (frontend) fica para a rodada de interface. 27 testes novos, gate 982 passed.
+Ver `docs/fiscal/archive/TASK006.md`. Destaques: `crud.produto_fiscal.upsert` preservando o unset (CA-2 dependia disso e havia bug pré-existente); migration com `ADD COLUMN … REFERENCES` cru (§ 8.1 não roda no SQLite); 422 para perfil de outra empresa; `perfil_tributario_id` no `FiscalEfetivo` por exigência do teste de contrato (sem cascata). CA-5 (frontend) fica para a rodada de interface. 27 testes novos, gate 982 passed.

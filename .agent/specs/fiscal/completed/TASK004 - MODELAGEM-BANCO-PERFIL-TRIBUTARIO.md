@@ -275,4 +275,4 @@ def __repr__(self) -> str:
 ---
 
 ## Desvios aplicados (2026-09-18)
-Ver `docs/done/fiscal/TASK004.md` § "Desvios da spec": `server_default` nas colunas com default; migration à mão (sem autogenerate) que decide pela ausência da tabela; índice em `id` pelo padrão do projeto. Todos os CAs atendidos — 16 testes novos, gate 909 passed.
+Ver `docs/fiscal/archive/TASK004.md` § "Desvios da spec": `server_default` nas colunas com default; migration à mão (sem autogenerate) que decide pela ausência da tabela; índice em `id` pelo padrão do projeto. Todos os CAs atendidos — 16 testes novos, gate 909 passed.

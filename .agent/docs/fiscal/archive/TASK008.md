@@ -1,6 +1,6 @@
 # TASK008 — Motor ICMS-ST + derivação de CST/CFOP interestadual
 
-**Status:** ✅ concluída · **Data:** 2026-09-19 · **Spec:** `specs/completed/TASK008 - MOTOR-ICMS-ST+DERIVACAO-CST-CFOP-INTERESTADUAL.md`
+**Status:** ✅ concluída · **Data:** 2026-09-19 · **Spec:** `specs/fiscal/completed/TASK008 - MOTOR-ICMS-ST+DERIVACAO-CST-CFOP-INTERESTADUAL.md`
 
 ## Objetivo
 `calcular_icms_st` (MVA, redução de base, dedução do ICMS próprio, piso zero), ST **dentro** do `valor_total_nota`, derivação determinística de CFOP (6102/6108/6404…) e CST/CSOSN (10/70, 201/202) para a operação interestadual, e a rota do contribuinte no resolver — a trava cai de vez quando há perfil. Payload intacto (TASK009).
