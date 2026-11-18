@@ -32,7 +32,7 @@ Cada módulo ganha uma pasta e uma linha nesta tabela **na primeira spec dele** 
 | Módulo | Índice | Observação |
 |--------|--------|------------|
 | `fiscal` | [`fiscal/README.md`](./fiscal/README.md) | Trava de numeração, CC-e, devolução e emissão interestadual (TASK001 a TASK009, todas concluídas) |
-| `licenca` | [`licenca/README.md`](./licenca/README.md) | Cofre da licença, token offline, re-login e API (LIC-01 a LIC-06, em backlog); cruza o `start-big` e a `plataformaADM` |
+| `licenca` | [`licenca/README.md`](./licenca/README.md) | Cofre da licença, token offline, re-login, rede, avisos e API (LIC-01 a LIC-09, em backlog; LIC-07 reservada); cruza o `start-big` e o `aalan-big/plataformaADM` |
 
 ## Contrato
 

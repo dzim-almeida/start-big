@@ -50,7 +50,7 @@ O controle da **licença** do sistema: valida se a máquina pode usar o ERP, mos
 
 ## 7. Referências
 
-- **Correções de segurança e re-login da licença** (acordo, ADRs, specs LIC-01 a LIC-06): [`docs/licenca/`](../licenca/ACORDO.md) e [`specs/licenca/`](../../specs/licenca/README.md). A pasta usa o nome `licenca`; este README usa `license`, que é o nome do módulo no frontend.
+- **Correções de segurança e re-login da licença** (acordo, ADRs, specs LIC-01 a LIC-09): [`docs/licenca/`](../licenca/ACORDO.md) e [`specs/licenca/`](../../specs/licenca/README.md). A pasta usa o nome `licenca`; este README usa `license`, que é o nome do módulo no frontend.
 
 - `docs/licenca-troca-de-servidor.md` (incidente e correção) · `backend-fastapi/docs/renovacao-assinatura-contrato-web.md`
 - `frontend/src/shared/constants/modulos.constants.ts`

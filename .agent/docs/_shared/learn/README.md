@@ -6,7 +6,7 @@ Leia este índice no início de toda tarefa (skill `doc` §2) e abra só os apre
 
 | Aprendizado | Área | Quando abrir |
 |-------------|------|--------------|
-| _(nenhum aprendizado registrado ainda)_ | — | — |
+| [O backend da loja roda com duas contas do Windows](./2026-11-18-backend-roda-com-duas-contas-windows.md) | Backend, Windows, segurança | Ao mexer em cifra, permissões de arquivo, pastas do usuário ou "modo produção" no backend |
 
 ## Promovidos
 

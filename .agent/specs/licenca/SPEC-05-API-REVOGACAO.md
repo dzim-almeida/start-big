@@ -4,10 +4,12 @@
 |--------------|-------|
 | Status       | Backlog |
 | Camada       | Backend da API (NestJS, Prisma), repositório `plataformaADM` |
-| Repositório  | `dzim-almeida/plataformaADM` (outro repositório: fora do harness do `start-big`) |
+| Repositório  | `aalan-big/plataformaADM` (público; outro repositório, fora do harness do `start-big`) |
 | Dependências | Acesso de escrita ao repositório `plataformaADM` (ACORDO D-01). A SPEC-02 não depende desta spec para funcionar. |
-| Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-01, D-04, D-06; quadro F15, F23, F27, F28, F29, F32 |
+| Bloqueia     | LIC-06 (as rotas do titular usam a recusa de máquina revogada deste guard) |
+| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-01, D-04, D-06; quadro F15, F27, F28, F29, F32 |
+
+> **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação. O repositório é `aalan-big/plataformaADM` (não `dzim-almeida`). O F23 saiu das referências: o reenvio de link é da LIC-06. O tratamento dos códigos novos no app (`BACKUP_TRIAL_LIMITE`, `BACKUP_MAQUINA_REVOGADA`, `LICENCA_HWID_REVOGADO`) fica na LIC-08 (conflito 13). Conferido no código da API (conflito 9): o token já traz as claims de carência e vencimento, então esta spec não precisa mexer nelas. Os caminhos citados na §3 existem.
 
 > **Pré-requisito:** a implementação só começa com acesso de escrita ao `plataformaADM` e uma branch nova no próprio repositório. Esta spec fica no `start-big` para o planejamento ficar em um lugar só (D-01).
 
@@ -28,7 +30,7 @@ Fechar o acesso de uma máquina que já foi trocada. Hoje o token de uma máquin
 **Fora do escopo**
 - Lista de tokens por `jti` (ACORDO D-04, alternativa C).
 - Redução da validade do token para 24 h (ACORDO D-04, alternativa B).
-- Reenvio do link de primeiro acesso. Está na SPEC-06, junto dos outros itens de cadastro.
+- Reenvio de link (confirmação e nova senha). Está na LIC-06, junto dos outros itens de conta e cadastro.
 
 ## 3. Arquivos afetados
 
@@ -99,7 +101,7 @@ Hoje a resposta é `400` com texto "Licença vencida.". Passa a ser:
 }
 ```
 
-O app já trata `402` como vencimento (`recusa.ts`, `_recusa_por_vencimento`). Por isso a mudança de status não quebra o cliente atual.
+O app já trata `402` como vencimento (`backend-fastapi/app/services/licenca/recusa.py`, `_recusa_por_vencimento`, linha 172). Por isso a mudança de status não quebra o cliente atual.
 
 ## 5. Schemas
 
@@ -188,7 +190,7 @@ Hoje `/licenca/validar` responde `201` com `valida: false` em recusa, e `/licenc
 - **CA-03:** token sem `hwid` recebe `BACKUP_HWID_AUSENTE`.
 - **CA-04:** trial envia um backup completo e recebe `BACKUP_TRIAL_LIMITE` no segundo.
 - **CA-05:** vencimento em `/licenca/conectar` responde `402` com `codigo: LICENCA_VENCIDA`.
-- **CA-06:** o app continua reconhecendo o vencimento sem mudança, porque `recusa.ts` já aceita o status `402`.
+- **CA-06:** o app continua reconhecendo o vencimento sem mudança, porque `recusa.py` já aceita o status `402`.
 
 Verificável com `npm test` no `apps/server`, sem Postgres (banco fake de `test/apoio/prisma-falso.ts`).
 
@@ -220,4 +222,4 @@ Verificável com `npm test` no `apps/server`, sem Postgres (banco fake de `test/
 
 - Repositório separado: a branch e o PR são do `plataformaADM`, e o padrão de commits dele é o do próprio repositório.
 - O guard passa a fazer uma consulta ao banco por requisição autenticada. Medir o efeito no primeiro uso.
-- O `start-big` não muda nesta spec. O app só passa a ver os códigos novos quando a SPEC-02 e a SPEC-06 forem entregues.
+- O `start-big` não muda nesta spec. O app trata os códigos novos pela SPEC-02 (vencimento) e pela LIC-08 (backup e máquina revogada). As duas funcionam antes desta spec, com a rede de segurança de cada uma.

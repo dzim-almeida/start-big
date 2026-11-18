@@ -104,6 +104,20 @@ Todo erro tem o mesmo formato (tratado em `core/exceptions.py`):
 - O **composable** traduz o erro da requisição em aviso ao usuário (toast) usando o `detail` quando for texto, e mostra cada `message` do `422` no campo `field` correspondente.
 - Decida por **status**, não por comparar texto da mensagem (mensagens mudam).
 
+### 5.5. Erros com código (decisão D-29 do módulo `licenca`)
+
+Quando a tela precisa decidir **pelo tipo do erro** (e não só mostrar o texto), o `detail` é um **objeto** com um código estável:
+
+```json
+{ "error": "Mensagem curta do tipo de erro", "detail": { "codigo": "LICENCA_DE_OUTRA_CONTA", "mensagem": "Texto em PT-BR para o usuário" } }
+```
+
+- No backend: `raise HTTPException(status_code=..., detail={"codigo": "...", "mensagem": "..."})`. O handler de `core/exceptions.py` acrescenta o `error`.
+- O `codigo` é em `MAIUSCULAS_COM_SUBLINHADO` e não muda depois de publicado: o front e os caixas em versões antigas dependem dele.
+- Um middleware que responde antes do handler monta o mesmo corpo à mão (exemplo: `FORA_DA_REDE_DA_LOJA`, LIC-04).
+- No front, o código é lido por **uma** função do módulo (exemplo: `lerErroDaLicenca`), que também aceita o código no topo do corpo, para conversar com servidores em versão antiga.
+- Erro de negócio sem decisão por código continua com `detail` em texto (§5.1).
+
 ---
 
 ## 6. Consumo no frontend (`*.service.ts`)
@@ -164,4 +178,3 @@ Lista viva: contradições do código atual que ainda não viraram decisão. Ao 
 
 - Estilo de URL misto (`snake_case` e `kebab-case`) e barra final inconsistente entre recursos.
 - Nome do campo da lista paginada e dos parâmetros de busca (`buscar` × `search`) varia por recurso.
-- Formato de resposta de erro: `error` + `detail`, mas alguns services devolvem `detail` como texto livre e outros como estrutura.
