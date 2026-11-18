@@ -90,6 +90,8 @@ Confirma o e-mail pelo link. Não devolve a chave na resposta: manda a chave e o
 
 Corpo `{ "email": "..." }`. Responde sempre `202`, com a mesma mensagem, existindo ou não o e-mail (sem enumeração). Só envia de novo se passou 60 segundos desde o último envio.
 
+**Recuperação de senha (risco aceito R-01, ACORDO):** o link enviado por este caminho também permite ao dono **definir uma nova senha**, mesmo que já exista uma senha cadastrada. Isso cobre o caso em que alguém cadastrou o e-mail dele com outra senha. A mudança é exigida pela SPEC-06 e precisa ser testada (CT-20).
+
 ### 4.5. `POST /licenca/desconectar` (muda, F5)
 
 O corpo passa a exigir `tokenSessao`, o token devolvido pelo `conectar` daquela sessão. Sem ele: `401 TOKEN_SESSAO_INVALIDO`.
@@ -280,6 +282,7 @@ Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de u
 | CT-17 | `PUT` com token de máquina revogada | `401 LICENCA_HWID_REVOGADO` |
 | CT-18 | Login antes da confirmação do e-mail | `403 AGUARDANDO_CONFIRMACAO_EMAIL`, sem chave |
 | CT-19 | Login depois da confirmação | `200`, com a chave de ativação (D-23) |
+| CT-20 | Dono recupera a senha pelo link, com senha antiga já cadastrada | Nova senha vale; a antiga deixa de valer |
 
 ## 9. Testes existentes que a mudança afeta
 
@@ -292,10 +295,8 @@ Verificável com `npm test` no `apps/server`. CA-02 precisa de SMTP real ou de u
   - Sub-decisão de código: o login de quem ainda não confirmou responde `AGUARDANDO_CONFIRMACAO_EMAIL` (seção 4.3), para o app mostrar a mensagem certa em vez de "sem licença ativa".
   - *Opções originais, mantidas para registro:* A. copiar a chave do e-mail; B. entrar com e-mail e senha (escolhida); C. consultar a API até a confirmação.
 
-- **2. Trial só depois da confirmação (F13).** Com a confirmação, o cadastro some do app até o e-mail chegar. Quer confirmar que isso é aceitável para a loja?
-  - **A.** Sim, o trial começa só depois da confirmação. É a proteção pedida.
-  - **B.** Não, o trial começa na hora, e a confirmação só libera a chave. Menos atrito, mas o trial continua disponível para quem não é dono do e-mail.
-  - **Recomendação: A.** É o que a análise pediu, e o custo é o tempo de espera do e-mail.
+- **2. Trial só depois da confirmação (F13). Resolvida em 2026-11-18: opção A (D-24).** O trial só começa com a confirmação do e-mail. Antes disso, não há licença criada para o cadastro. O custo é a espera pelo e-mail, aliviada pelo reenvio (seção 4.4).
+  - *Opção B descartada:* o trial começaria no cadastro, e a licença existiria mesmo para e-mails que não são do dono.
 
 ## 11. Observações
 
