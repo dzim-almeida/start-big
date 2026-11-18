@@ -58,7 +58,7 @@ Branch de trabalho: `fix/licenca-seguranca`, no `start-big`. Um commit por spec 
 
 ### Passo 7 · LIC-06 (API cadastro e sessões)
 
-- **Decisões pendentes:** SPEC-06 §10, pergunta 2 (trial só depois da confirmação). A chave pelo login já está decidida (D-23, opção B). Recomendação: A.
+- **Decisões:** fechadas. A chave pelo login é D-23 (opção B). O trial só começa após a confirmação é D-24 (opção A). O risco R-01 (senha no cadastro) está aceito, com a mitigação de CT-20.
 - **Pontos de atenção:** a migração Prisma tem campos novos em `Cliente` e `LicencaSessao`. Mudança de heartbeat depende do passo 2.
 - **Pronto quando:** CT-01 a CT-14 passam e CA-01 a CA-07 foram verificados.
 
@@ -76,11 +76,7 @@ Feita pela skill `verify`, com o app rodando no Windows, na ordem:
 
 ## 3. Perguntas abertas
 
-| Spec | Pergunta | Recomendação |
-|------|----------|--------------|
-| LIC-06 | Trial só depois da confirmação | A: sim |
-
-Cada pergunta é respondida separadamente, como combinado. Até a resposta, a spec correspondente fica no backlog.
+Nenhuma pergunta aberta. Todas as decisões das specs foram respondidas. Os itens de LIC-01 a LIC-06 estão prontos para aprovação, uma spec por vez.
 
 ## 4. Riscos conhecidos
 
