@@ -55,6 +55,8 @@ A linha pontilhada significa dependência de integração, não de código: a LI
 | `backend-fastapi/app/services/backup/local.py` | LIC-01 |
 | `backend-fastapi/app/services/backup/restore.py` | LIC-01, LIC-03 |
 | `backend-fastapi/app/main.py` | LIC-04 |
+| `backend-fastapi/app/core/rede_local.py` | LIC-04 |
+| `frontend/src-tauri/nsis/extend/hooks.nsh` | LIC-04 |
 | `frontend/src/api/axios.ts` | LIC-04 |
 | `frontend/src/modules/sign-in/composables/useSignIn.ts` | LIC-03 |
 | `frontend/src/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue` | LIC-04 |

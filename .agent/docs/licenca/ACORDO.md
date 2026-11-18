@@ -64,6 +64,7 @@
 | D-18 | CORS com lista fechada de origens (F1). |
 | D-19 | Permissões de arquivo do banco e da configuração restritas ao usuário (F37). |
 | D-20 | Argumentos do sidecar e escopo do `fs` restritos (F38). |
+| D-21 | Rede da loja: a API local só aceita conexões das redes privadas (`10/8`, `172.16/12`, `192.168/16`), por regra de firewall no instalador e por verificação no app (F34, opção A). **Aprovada em 2026-11-18.** TLS (opção C) fica para a LIC-07. |
 
 ## 3. Consequências
 
@@ -91,11 +92,11 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 
 ## 6. Pontos pendentes
 
-- **Aberto (escrito em 2026-11-18, ao criar as specs):** quatro perguntas, uma por vez, com recomendação em cada spec:
+- **Aberto (escrito em 2026-11-18, ao criar as specs):** três perguntas, uma por vez, com recomendação em cada spec:
   - **LIC-03 · D-11:** como comparar o documento do titular. Recomendação: a API devolve os últimos 4 dígitos.
-  - **LIC-04 · F34:** proteção da rede da loja. Recomendação: restringir à LAN agora, e TLS no plano de infraestrutura.
   - **LIC-06:** como o app recebe a chave depois da confirmação de e-mail. Recomendação: login com e-mail e senha.
   - **LIC-06:** trial só depois da confirmação. Recomendação: sim.
+- **Fechado em 2026-11-18:** proteção da rede da loja (F34), opção A aprovada (D-21).
 - **Fechado em 2026-11-18:** token do terminal (LIC-04): token do login fica só em `sessionStorage` (ADR-003), para servidor e terminal. Não há cofre para o login, então as rotas `/sessao/token-erp` saem da SPEC-04.
 - **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.
 - **Próxima etapa:** SPEC-01 (cofre e backup). Só começa com a aprovação explícita da spec.
@@ -103,6 +104,7 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 ## 7. Fora do escopo (registrado)
 
 - Alterações no `plataformaADM` — quando houver acesso de escrita (D-01).
+- TLS na rede da loja com certificado próprio (F34, opção C) — **LIC-07**, spec própria depois da LIC-04. Exige IP ou nome estável na loja e instalação da autoridade da loja em cada caixa.
 - SQLCipher para o banco inteiro (F30 alternativa B) — pode voltar se o cofre não for suficiente.
 - Lista de tokens revogados por `jti` (D-04, alternativa C) — só se for preciso revogar um token específico.
 - Tela de liberação manual de vagas (D-10, alternativa B) — depois de medir se o expurgo automático basta.
