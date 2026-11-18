@@ -58,7 +58,7 @@ Branch de trabalho: `fix/licenca-seguranca`, no `start-big`. Um commit por spec 
 
 ### Passo 7 · LIC-06 (API cadastro e sessões)
 
-- **Decisões pendentes:** SPEC-06 §10. Pergunta 1 (como o app recebe a chave depois da confirmação) e pergunta 2 (trial só depois da confirmação). A recomendação é B e A.
+- **Decisões pendentes:** SPEC-06 §10, pergunta 2 (trial só depois da confirmação). A chave pelo login já está decidida (D-23, opção B). Recomendação: A.
 - **Pontos de atenção:** a migração Prisma tem campos novos em `Cliente` e `LicencaSessao`. Mudança de heartbeat depende do passo 2.
 - **Pronto quando:** CT-01 a CT-14 passam e CA-01 a CA-07 foram verificados.
 
@@ -78,7 +78,6 @@ Feita pela skill `verify`, com o app rodando no Windows, na ordem:
 
 | Spec | Pergunta | Recomendação |
 |------|----------|--------------|
-| LIC-06 | Como o app recebe a chave depois da confirmação | B: login com e-mail e senha (re-login) |
 | LIC-06 | Trial só depois da confirmação | A: sim |
 
 Cada pergunta é respondida separadamente, como combinado. Até a resposta, a spec correspondente fica no backlog.
