@@ -91,7 +91,12 @@ A ser detalhado depois da aprovação deste acordo. Ordem sugerida, por entrega 
 
 ## 6. Pontos pendentes
 
-- Nenhum ponto de decisão aberto no momento.
+- **Aberto (escrito em 2026-11-18, ao criar as specs):** cinco perguntas, uma por vez, com recomendação em cada spec:
+  - **LIC-03 · D-11:** como comparar o documento do titular. Recomendação: a API devolve os últimos 4 dígitos.
+  - **LIC-04:** onde guardar o token nos terminais. O cofre DPAPI só protege o servidor, porque o terminal não roda backend local. Recomendação: cofre do Tauri, com dependência aprovada. **Isto muda a premissa da ADR-001 para os terminais.**
+  - **LIC-04 · F34:** proteção da rede da loja. Recomendação: restringir à LAN agora, e TLS no plano de infraestrutura.
+  - **LIC-06:** como o app recebe a chave depois da confirmação de e-mail. Recomendação: login com e-mail e senha.
+  - **LIC-06:** trial só depois da confirmação. Recomendação: sim.
 - **Fechado em 2026-11-18:** CLAUDE.md corrigido na seção de autenticação (Bearer, token ainda no `localStorage`, cofre previsto na ADR-002) e na seção do Tauri (Stronghold e keyring declarados, não registrados). Módulo com `README.md` e `learn/`.
 - **Próxima etapa:** SPEC-01 (cofre e backup). Só começa com a aprovação explícita da spec.
 
