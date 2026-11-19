@@ -23,6 +23,8 @@
 > - **Conflito 29 (D-28 revista):** as rotas do titular são `GET` e `PUT /erp/usuario/titular`.
 > - **Documentação (D13):** erro de validação da API sai como `400`, não `422`.
 
+> **Revisão 3 (2026-11-19):** mockups aprovados pelo usuário. A referência de design desta spec são os quadros 1a, 1b, 2, 3a, 3b, 7 e 8 da página [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (skill `design`). Propostas aprovadas junto: a tela 1a pede a senha da conta de novo (D-07), com o e-mail preenchido e travado, e mostra a semana do backup encontrado; a tela 3a também oferece "Reenviar link". As tabelas da §6.2 e da §6.5 já trazem isso.
+
 ## 1. Objetivo
 
 Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta da loja e recupera os dados, em vez de cair num setup vazio. Também fazer o caso 1 avisar antes de qualquer troca de computador, e mostrar mensagens claras no lugar de textos técnicos.
@@ -231,6 +233,8 @@ Quando `inicializado` volta `false`, o fluxo em `useSignIn.ts` leva a uma tela c
 |----------|-------|
 | Título | Sua licença foi encontrada |
 | Corpo | Se você já usava o sistema neste computador ou em outro, é possível recuperar os dados do último backup da nuvem. |
+| Backup encontrado (só quando houver backup) | Backup encontrado na nuvem · Semana de {dd/mm/aaaa} · último envio em {data e hora} (do `/status`) |
+| Campos (só quando houver backup) | "E-mail da conta StartBig" (preenchido do re-login, travado) e "Confirme a senha da conta" (D-07: a senha vai na chamada de `restaurar-backup`) |
 | Botão (só quando houver backup) | Restaurar backup da nuvem |
 | Botão (só quando não houver backup) | Preencher os dados da empresa |
 | Aviso, quando não houver backup | Não há backup na nuvem para esta licença. Confira os dados da empresa, que vêm da sua conta na StartBig. |
@@ -308,6 +312,8 @@ O app novo manda `fluxoConfirmacao: true` no cadastro, e a API responde `202` (L
 > Enviamos as instruções para o seu e-mail. Se este e-mail já tiver conta, enviamos as instruções para entrar.
 >
 > [Já confirmei, quero entrar]
+>
+> Não recebeu? Reenviar link
 
 - Em `registrar_licenca` (`services/licenca/cadastro.py`), o caminho do `202` não grava nada e devolve o aviso.
 - "Já confirmei, quero entrar" leva ao re-login com e-mail e senha. A chave vem da resposta do login (D-23).

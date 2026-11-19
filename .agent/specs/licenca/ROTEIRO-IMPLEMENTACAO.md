@@ -15,7 +15,7 @@ Ordem das specs e das tarefas auxiliares. A série cruza dois repositórios, ent
 
 | Passo | Spec | Repositório | Camada | Depende de | Pode começar quando |
 |-------|------|-------------|--------|------------|---------------------|
-| 0 | Mockups das telas da série | — | Design | — | **Aguardando aprovação do usuário** |
+| 0 | Mockups das telas da série | — | Design | — | **Concluído: aprovado em 2026-11-19, com as propostas** |
 | 1 | LIC-01 · Cofre e backup cifrado | start-big | Backend | — | Aprovação da LIC-01 |
 | 2 | Tarefa: comentário do heartbeat | start-big | Backend | — | Qualquer momento (uma linha) |
 | 3 | LIC-02 · Token offline e heartbeat com token | start-big | Backend | 1 | Passo 1 concluído |
@@ -35,7 +35,7 @@ Ordem das specs e das tarefas auxiliares. A série cruza dois repositórios, ent
 ### Passo 0 · Mockups das telas (design)
 
 - **Onde:** página de mockups [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (privada: só abre para quem tiver acesso compartilhado).
-- **Situação:** publicada em 2026-11-19, **aguardando a aprovação do usuário**. Ajustes são pedidos por comentário na própria página ou na conversa.
+- **Situação:** publicada e **aprovada pelo usuário em 2026-11-19**, com as propostas. Ajustes futuros são pedidos por comentário na própria página ou na conversa, e entram nas specs como nota de revisão.
 - **O que cobre:**
 
 | Tela | Spec | Quadro |
@@ -50,7 +50,7 @@ Ordem das specs e das tarefas auxiliares. A série cruza dois repositórios, ent
 | Confirmação antes da troca de servidor | LIC-03 §6.3 | 8 |
 
 - **Pronto quando:** o usuário aprovou os quadros (com ou sem ajustes). A versão aprovada passa a ser a **referência de design** da skill `design` para a LIC-03, a LIC-06 (página web) e a LIC-08.
-- **Propostas além das specs** (anotadas ao lado de cada linha da página): senha pedida de novo na tela 1a (D-07), semana do backup na 1a, "Reenviar link" também na 3a, botão "Assinar" no aviso do trial, faixa do relógio sem botão de fechar. Se aprovadas, entram nas specs como nota de revisão.
+- **Propostas além das specs** (anotadas ao lado de cada linha da página): senha pedida de novo na tela 1a (D-07), semana do backup na 1a, "Reenviar link" também na 3a, botão "Assinar" no aviso do trial, faixa do relógio sem botão de fechar. **Aprovadas** junto com os mockups e registradas como "Revisão 3" na SPEC-03, na LIC-06 e na LIC-08.
 - **Arquivo do design:** a pasta `docs/licenca/design/` é do time (o agente não edita, `docs/README.md`). Depois da aprovação, o link entra no `docs/licenca/design/LINKS.md` por quem mantém a pasta, ou pelo agente com autorização.
 - **Sem tela nova:** LIC-01, LIC-02, LIC-05 e LIC-09. A LIC-04 só mexe no `BaseConfirmModal` (o negrito vem por slot, sem mudança visual).
 

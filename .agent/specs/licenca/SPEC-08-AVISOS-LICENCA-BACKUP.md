@@ -12,6 +12,8 @@
 
 > **Revisão 2 (2026-11-19, conflito 22):** a versão anterior supunha que o envio para a nuvem "recebe recusa de hora em hora" e criava uma pausa em memória (`estado_envio.py`). Na verdade, o start-big consulta o `GET /erp/backup/status` antes de enviar e **para em silêncio** quando ele diz que o plano não permite (`backend-fastapi/app/services/cloud/flow.py:26-27`). A pausa saiu: o aviso passa a ser o **código do último ciclo de envio** (o `codigoBloqueio` do `/status` ou o código do erro). Entrou o código `TRIAL_BACKUP_USADO` (SPEC-05).
 
+> **Revisão 3 (2026-11-19):** mockups aprovados pelo usuário. A referência de design desta spec são os quadros 4 e 9 (faixa do relógio e dias estimados) e 5 (avisos na tela de backup) da página [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (skill `design`). Propostas aprovadas junto: a faixa do relógio **não tem botão de fechar** (some sozinha quando o aviso deixa de vir); o aviso `TRIAL_BACKUP_USADO` tem o botão "Assinar", que leva à tela de renovação que já existe (`/renovar-assinatura`).
+
 ## 1. Objetivo
 
 O dono precisa **saber** quando algo que o protege não está funcionando. Hoje o sistema detecta (ou vai detectar) estas situações e só registra no log:
@@ -104,7 +106,7 @@ A SPEC-02 inclui `aviso: "relogio_recuou"` e `estimativa: true` na resposta de `
 | `aviso = "relogio_recuou"` | Faixa no topo, enquanto o aviso vier | O relógio deste computador está atrasado. Ajuste a data e a hora do Windows para a licença continuar funcionando sem internet. |
 | `estimativa = true` | Ao lado dos dias, no `LicencaStatusBadge` | (estimado, sem internet) |
 
-A faixa não bloqueia nada (D-05).
+A faixa não bloqueia nada (D-05) e não tem botão de fechar: ela some sozinha quando o `/licenca/status` deixa de trazer o aviso.
 
 ### 6.2. Resultado do último ciclo (`ultimo_ciclo.py`)
 
@@ -137,7 +139,7 @@ O valor fica **em memória**, sem tabela nova. O ciclo roda a cada hora (`tarefa
 
 | Código | Texto |
 |--------|-------|
-| `TRIAL_BACKUP_USADO` | Período de teste: 1 backup na nuvem, feito em {data}. Assine para ter backups contínuos. |
+| `TRIAL_BACKUP_USADO` | Período de teste: 1 backup na nuvem, feito em {data}. Assine para ter backups contínuos. Com o botão "Assinar", que abre `/renovar-assinatura`. |
 | `TRIAL` | O backup na nuvem não está disponível no período de teste. |
 | `LICENCA_VENCIDA` | Licença vencida: o backup na nuvem volta quando a assinatura for renovada. |
 | `LICENCA_SUSPENSA`, `LICENCA_BLOQUEADA`, `LICENCA_REVOGADA` | A licença não está ativa: o backup na nuvem está parado. Fale com o suporte. |

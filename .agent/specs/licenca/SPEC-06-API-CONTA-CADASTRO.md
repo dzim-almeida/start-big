@@ -19,6 +19,7 @@
 > - **Conflito 25 (D-35):** um campo de token por finalidade, em hash. O link de senha usa `tokenSenha`; o `tokenEmail` fica só para a troca de e-mail.
 > - **Conflito 29 (D-28 revista):** as rotas do titular são `GET` e `PUT /erp/usuario/titular`, no controller que já existe.
 > - **Conflito 30 (D-31 revista):** caminhos corrigidos. A mudança do cadastro é no serviço, que atende `/erp/auto-cadastro` (usado pelo app) e `/licenca/auto-cadastro`. Os e-mails do painel do administrador ficam fora do escopo.
+> - **Revisão 3 (2026-11-19):** mockups aprovados. A página `confirmar-cadastro` segue o quadro 6 de [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z): estado "Conta confirmada" e estado "Este link expirou", no estilo atual das páginas da plataforma (como `primeiro-acesso`).
 > - **Documentação (D13, D16 a D20):** erro de validação do Zod sai como `400` com `detalhes`; como as rotas passam pelo guard global; `Cliente.email` não é único; padrão de arquivos do repositório.
 
 ## 1. Objetivo
