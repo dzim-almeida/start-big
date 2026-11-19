@@ -2,6 +2,16 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-19 — SPEC-05 API: revogação, backup do servidor atual e trial (plataforma)
+
+**Módulos afetados:** API StartBig (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `b735773`)
+
+### Alterado
+- `ErpLicencaGuard` recusa token de máquina revogada (`401 LICENCA_HWID_REVOGADO`); helper `lerTokenDaLicenca`.
+- Backup (`status`, `url-upload`, `url-download`) só do servidor atual: `BACKUP_MAQUINA_REVOGADA`, `BACKUP_HWID_AUSENTE`; licença antiga grava o primeiro servidor (D-33).
+- Trial com um full: `TRIAL_BACKUP_USADO` no `/status` e `BACKUP_TRIAL_LIMITE` no envio; download como o das pagas (D-06). O código `TRIAL` saiu.
+- `/licenca/conectar` vencida: `402 LICENCA_VENCIDA` (F27).
+
 ## 2026-11-19 — SPEC-02 Token offline, relógio e heartbeat com token
 
 **Módulos afetados:** licenca (backend), db (migração)

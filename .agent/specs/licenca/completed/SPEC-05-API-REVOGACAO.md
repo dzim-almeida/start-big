@@ -2,12 +2,12 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-19) |
 | Camada       | Backend da API (NestJS, Prisma) |
 | Repositório  | Trabalho no fork `dzim-almeida/plataformaADM`; entrega por PR ao `aalan-big/plataformaADM` (D-01) |
 | Dependências | — |
 | Bloqueia     | LIC-06 e LIC-09 (usam a verificação do token deste guard) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-01, D-04, D-06, D-33; quadro F15, F27, F28, F29, F32 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-01, D-04, D-06, D-33; quadro F15, F27, F28, F29, F32 |
 
 > **Revisão 1 (2026-11-18):** o repositório é o `plataformaADM`, não `dzim-almeida` (corrigido na época para `aalan-big`). O F23 saiu das referências. Os códigos novos no app ficam na LIC-08. As claims do token já existem.
 
@@ -16,6 +16,13 @@
 > - **Conflito 21 (D-33):** licenças antigas têm `hwidServidor` vazio. A primeira chamada de backup grava o servidor, de forma condicional, em vez de recusar.
 > - **Conflito 22 (D-06 revista):** o trial é tratado na regra única `motivoDeBloqueio`, que vale para o `/status`, o envio e o download. O start-big lê o `/status` antes de enviar e para em silêncio quando ele diz "não"; liberar o trial só no envio não funcionaria, e o download continuaria bloqueado. Código novo `TRIAL_BACKUP_USADO`.
 > - **Documentação (D14 a D17, D20):** os exemplos usam o guard real (`jsonwebtoken` + `getPublicKey()`), o import `@startbig/database` e funções que existem (`findUltimoFullConfirmado`). Os tipos de backup são `full` e `fragmento`. Os testes rodam com `npm test` em `apps/server`.
+
+> **Revisão 3 (2026-11-19, implementação):** fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca` (uma branch para as três specs da API, pedido do usuário), commit `b735773`.
+> - **Vencimento no `conectar`:** a licença que o cron já marcou como `VENCIDA` (sem carência) também responde `402 LICENCA_VENCIDA`. Antes ela caía no `400 "Licença vencida. Acesso negado."` da checagem de status, antes da data (CT-14b).
+> - **`hwidServidor` vazio:** `assumirServidorSeVazio` trata `null` e texto vazio como "sem servidor".
+> - **Ordem no backup:** licença existe → servidor atual (`exigirServidorAtual`) → regra do plano. `carregarLicencaLiberada` passou a receber o hwid do token, o do pedido e a operação. O `urlUpload` do trial recusa `fragmento` com `BACKUP_TRIAL_LIMITE` antes de olhar o ciclo.
+> - **Banco falso:** `prisma-falso.ts` ganhou a tabela `backup`, `licenca.updateMany` e o operador `lt`.
+> - **Verificação:** CT-01 a CT-16 com `node --test` (pasta `test/licenca`, 44 testes). `tsc --noEmit` sem erro. CA-07 (start-big atual faz o full do trial sozinho) fica para a verificação de integração (passo 11 do roteiro), não verificado nesta sessão.
 
 ## 1. Objetivo
 
