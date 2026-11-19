@@ -53,6 +53,12 @@ class AutoCadastroResponse(BaseModel):
         ),
     )
     proximaValidacaoEm: datetime = Field(..., description="Data da próxima validação obrigatória da licença")
+    # LIC-02 (F26): a API calcula os dias e manda FORA do token, para o numero
+    # nao ficar congelado por 7 dias. Opcional: sem ele, o app calcula e marca
+    # como estimativa.
+    diasRestantes: Optional[int] = Field(
+        None, description="Dias até o vencimento, calculados pela API"
+    )
 
     # --- Carencia de pagamento (opcionais) ---
     # Opcionais porque a API so passou a mandar depois; servidor que nao mandar

@@ -4,12 +4,14 @@
 # ---------------------------------------------------------------------------
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 import httpx
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from app.schemas.licenca import (
+    ConectarPayload,
     HeartbeatPayload,
     ValidarPayload,
     ValidarResponse,
@@ -18,7 +20,7 @@ from app.db.models.terminal_conectado import TerminalConectado
 from app.db.crud.configuracao import licenca as licenca_crud
 from app.db.crud.terminal import conectados as terminal_crud
 from app.core.hwid import obter_hwid
-from app.services.licenca.constantes import API_HEARTBEAT_URL, API_VALIDAR_URL, HEARTBEAT_TIMEOUT
+from app.services.licenca.constantes import API_CONECTAR_URL, API_HEARTBEAT_URL, API_VALIDAR_URL, HEARTBEAT_TIMEOUT
 from app.services.licenca import segredos_licenca  # unico dono do token e da chave (LIC-01)
 from app.services.licenca.recusa import _limpar_bloqueio
 
@@ -33,9 +35,13 @@ async def _enviar_heartbeat_terminal(
     client: httpx.AsyncClient,
     licenca_id: str,
     terminal: "TerminalConectado",
+    headers: dict | None = None,
 ) -> tuple["TerminalConectado", int | None]:
     """
     Envia heartbeat para um terminal específico.
+
+    `headers` leva o token da licença (`Authorization: Bearer ...`, LIC-02 §6.8):
+    é ele que prova à API que o pedido vem do servidor da loja (D-37).
 
     Returns:
         Tupla (terminal, status_code). status_code é None em caso de erro de rede.
@@ -45,6 +51,7 @@ async def _enviar_heartbeat_terminal(
         response = await client.post(
             API_HEARTBEAT_URL,
             json=payload.model_dump(),
+            headers=headers or {},
         )
         return terminal, response.status_code, response.text
     except httpx.RequestError as error:
@@ -74,15 +81,23 @@ async def enviar_heartbeat(db: Session) -> None:
         print("[licenca] Nenhum terminal conectado — heartbeat ignorado.")
         return
 
+    # O token da licença vai no cabeçalho (D-37). Se ele não abrir, o
+    # heartbeat segue sem o cabeçalho, como antes: a API, na transição,
+    # ainda renova sessão existente sem token (ADR-004).
+    headers = _cabecalho_com_token(licenca)
+
     # Enviar heartbeats em paralelo
     async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
         resultados = await asyncio.gather(
             *[
-                _enviar_heartbeat_terminal(client, licenca.licenca_id, terminal)
+                _enviar_heartbeat_terminal(client, licenca.licenca_id, terminal, headers)
                 for terminal in terminais
             ],
             return_exceptions=True,
         )
+
+    # Caixas cuja sessão a API não conhece (404 SESSAO_INEXISTENTE).
+    para_reconectar: list[str] = []
 
     tem_ok = False
     todos_bloqueados = True
@@ -101,6 +116,22 @@ async def enviar_heartbeat(db: Session) -> None:
             tem_ok = True
             todos_bloqueados = False
 
+        elif status_code == 404 and _codigo_da_resposta(response_text) == "SESSAO_INEXISTENTE":
+            # A API (LIC-09) não tem sessão para este caixa: reconecta com a
+            # chave de ativação. NÃO remove o caixa nem conta como bloqueio.
+            para_reconectar.append(terminal.hwid)
+            todos_bloqueados = False
+
+        elif status_code in (401, 403):
+            # 401 LICENCA_HWID_REVOGADO: a validação da licença trata a revogação.
+            # 403 HEARTBEAT_LICENCA_DIVERGENTE: não deveria acontecer (o token é
+            # da própria licença). Nos dois casos: só o log.
+            logger.warning(
+                "[licenca] Heartbeat %s...: %d %s",
+                terminal.hwid[:8], status_code, _codigo_da_resposta(response_text) or "",
+            )
+            todos_bloqueados = False
+
         elif status_code == 400:
             terminal_crud.delete_terminal_by_hwid(db, terminal.hwid)
             print(f"[terminal] Terminal {terminal.hwid[:8]}... bloqueado (400), REMOVIDO pelo heartbeat. Body: {response_text}")
@@ -113,6 +144,9 @@ async def enviar_heartbeat(db: Session) -> None:
             # Erro de rede — não conta como bloqueio
             todos_bloqueados = False
 
+    if para_reconectar:
+        await _reconectar_caixas(licenca, para_reconectar)
+
     # Atualizar flag de bloqueio da licença
     if tem_ok and licenca.bloqueada:
         licenca.bloqueada = False
@@ -124,6 +158,51 @@ async def enviar_heartbeat(db: Session) -> None:
         print("[licenca] Licença BLOQUEADA (todos terminais rejeitados).")
 
     db.commit()
+
+
+def _cabecalho_com_token(licenca) -> dict:
+    """Cabeçalho `Authorization: Bearer <token>` do heartbeat, ou {} sem token legível."""
+    try:
+        token = segredos_licenca.ler_token(licenca.token)   # LIC-01: abre o token do cofre
+    except Exception as e:  # noqa: BLE001 - cofre fora do ar ou banco de outra máquina
+        logger.warning("[licenca] Heartbeat sem token: o token não abre (%s).", type(e).__name__)
+        return {}
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def _codigo_da_resposta(texto: str | None) -> str | None:
+    """`codigo` do corpo JSON da resposta (texto), ou None se não houver."""
+    try:
+        corpo = json.loads(texto or "")
+    except ValueError:
+        return None
+    return corpo.get("codigo") if isinstance(corpo, dict) else None
+
+
+async def _reconectar_caixas(licenca, hwids: list[str]) -> None:
+    """Abre de novo, na API, a sessão dos caixas que ela não conhece (LIC-02 §6.8).
+
+    Faz o mesmo POST /licenca/conectar do login do caixa (`conectar_terminal`),
+    com a chave de ativação. O `conectar_terminal` em si não serve aqui: ele é
+    idempotente e não chama a API para um caixa que já está na tabela local.
+    Falhas só vão para o log: o próximo heartbeat tenta de novo.
+    """
+    try:
+        chave = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, obter_hwid())
+    except Exception as e:  # noqa: BLE001 - cofre fora do ar ou banco de outra máquina
+        logger.warning("[licenca] Reconexão adiada: a chave de ativação não abre (%s).", type(e).__name__)
+        return
+
+    async with httpx.AsyncClient(timeout=HEARTBEAT_TIMEOUT) as client:
+        for hwid in hwids:
+            try:
+                resposta = await client.post(
+                    API_CONECTAR_URL,
+                    json=ConectarPayload(chave=chave, hwid=hwid).model_dump(),
+                )
+                logger.info("[licenca] Caixa %s... reconectado (status %d).", hwid[:8], resposta.status_code)
+            except httpx.RequestError as e:
+                logger.warning("[licenca] Reconexão do caixa %s... falhou: %s", hwid[:8], e)
 
 
 # ===========================================================================
@@ -199,6 +278,10 @@ async def renovar_licenca_background(db: Session) -> None:
             licenca.ultima_sinc = resposta.ultimaSincronizacao
             licenca.data_vencimento = resposta.dataVencimento
             licenca.grace_period = resposta.gracePeriodDias
+            # Carência também aqui (F25), como no caminho online. As colunas
+            # são só informação de tela: a decisão offline vem do token (D-13).
+            licenca.em_carencia = resposta.emCarencia
+            licenca.data_limite_carencia = resposta.dataLimiteCarencia
             _limpar_bloqueio(licenca)
 
             licenca_crud.update_licenca(db, licenca)

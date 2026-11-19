@@ -95,6 +95,16 @@ class ConfiguracaoLicenca(Base):
         doc="Ate quando a carencia vale. Sem esta data a carencia NAO e honrada."
     )
 
+    # --- Relogio (LIC-02, ACORDO D-05) ---
+    # O MAIOR horario ja visto por esta instalacao. Se o relogio do computador
+    # voltar no tempo, a validacao offline usa este horario e avisa o dono, em
+    # vez de "ganhar" dias. NULL = ainda nao registrado (instalacao atualizada
+    # agora): o primeiro uso so grava, sem aviso.
+    ultimo_horario_visto: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True,
+        doc="Maior horario ja visto (UTC); base do aviso de relogio recuado"
+    )
+
     # --- Controle de bloqueio remoto ---
     bloqueada: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False,

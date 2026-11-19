@@ -22,7 +22,16 @@ from app.services.licenca.cadastro import resgatar_chave_publica_online
 from app.services.licenca.constantes import API_CONECTAR_URL, CONECTAR_TIMEOUT_SECONDS
 from app.services.licenca.cripto import decriptar_valor  # so para a chave publica (que nao vai ao cofre)
 from app.services.licenca import segredos_licenca  # unico dono do token e da chave de ativacao (LIC-01)
-from app.services.licenca.recusa import _carencia_vigente, _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento
+from app.services.licenca import relogio  # relogio que voltou no tempo (LIC-02)
+from app.services.licenca.recusa import (
+    CODIGOS_REPASSADOS_AO_FRONT,
+    _carencia_vigente,
+    _codigo_da_recusa,
+    _detalhe_da_recusa,
+    _erro_licenca,
+    _limpar_bloqueio,
+    _recusa_por_vencimento,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +81,10 @@ def _tentar_conexao_remota(
 
         logger.info("[licenca] Validação online bem-sucedida.")
 
-        # dias_restantes a partir do vencimento recém-sincronizado do servidor,
-        # para o frontend (badge de licença) alertar sobre renovação também no
-        # caminho online — antes só o fallback offline devolvia esse número.
+        # dias_restantes: o número que a API calculou (F26, LIC-02 §6.4). Ele
+        # não depende do relógio deste computador, que pode estar errado. Só
+        # quando a API ainda não manda o campo o número é calculado aqui, e a
+        # resposta o marca como estimativa.
         vencimento = licenca.data_vencimento
         if vencimento.tzinfo is None:
             vencimento = vencimento.replace(tzinfo=timezone.utc)
@@ -93,16 +103,31 @@ def _tentar_conexao_remota(
             dias_carencia = None
             dias_restantes = (vencimento - agora_online).days
 
+        estimativa = resposta.diasRestantes is None
+        if not estimativa:
+            dias_restantes = resposta.diasRestantes
+        if em_carencia and resposta.diasRestantesCarencia is not None:
+            dias_carencia = resposta.diasRestantesCarencia
+            dias_restantes = dias_carencia   # em carência, o prazo que conta é o dela
+
         return {
             "status": "online_valid",
             "dias_restantes": dias_restantes,
             "em_carencia": em_carencia,
             "dias_restantes_carencia": dias_carencia,
+            "estimativa": estimativa,
         }
 
     # Erro 4xx do servidor (licença inválida/suspensa/vencida)
     if 400 <= response.status_code < 500:
         detail, corpo = _detalhe_da_recusa(response)
+
+        # Recusa com código que o front trata pelo nome (F27, LIC-02 §6.6):
+        # o código da API chega à tela como veio. Hoje: LICENCA_TRANSFERIDA.
+        codigo = _codigo_da_recusa(corpo)
+        if codigo in CODIGOS_REPASSADOS_AO_FRONT:
+            logger.info("[licenca] Nuvem recusou com o código %s: %s", codigo, detail)
+            raise _erro_licenca(codigo, CODIGOS_REPASSADOS_AO_FRONT[codigo])
 
         # Vencimento tem saída pelo próprio sistema: o frontend deixa entrar e
         # leva para a tela de cobrança. Qualquer outra recusa segue barrando
@@ -228,37 +253,100 @@ def _token_para_ler_modulos(licenca: ConfiguracaoLicenca) -> str | None:
         return None
 
 
+# ===========================================================================
+# Claims do token assinado (LIC-02 §6.1 e §6.2, ACORDO D-13 e D-15)
+# ===========================================================================
+# "Claim" e cada informacao que vem DENTRO do token (licencaId, hwid,
+# dataVencimento...). O token e assinado pela API com a chave privada dela, e
+# o app confere essa assinatura com a chave publica: se alguem mudar uma
+# virgula do token, a assinatura deixa de bater. As COLUNAS do banco, ao
+# contrario, qualquer pessoa edita. Por isso, sem internet, os prazos saem do
+# token, e nao das colunas.
+
+def _claims_do_token(token: str, chave_publica: str) -> dict:
+    """Confere a assinatura RS256 e devolve as claims do token.
+
+    A validade ('exp') continua sendo conferida: token vencido tambem e
+    recusado. Lanca JWTError/JOSEError se a assinatura nao bater.
+    """
+    return jwt.decode(
+        token,
+        chave_publica,
+        algorithms=["RS256"],             # aceita so o algoritmo que a API usa
+        options={"verify_aud": False},    # a API nao envia 'aud'
+    )
+
+
+def _data_da_claim(valor) -> datetime | None:
+    """Converte a data de uma claim (texto ISO da API) em datetime com fuso.
+
+    A API manda datas em ISO com "Z" no fim (UTC). Trocar o "Z" por "+00:00"
+    deixa o fromisoformat entender em qualquer versao do Python.
+    """
+    if not valor:
+        return None
+    data = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+    if data.tzinfo is None:
+        data = data.replace(tzinfo=timezone.utc)   # sem fuso: a API fala em UTC
+    return data
+
+
+def _carencia_do_token(claims: dict, agora: datetime) -> bool:
+    """A carencia so vale com a flag E a data limite no token, e a data nao passou.
+
+    Flag sem data nao basta (mesma regra de recusa._carencia_vigente): um token
+    com `emCarencia` e sem data daria uso ilimitado.
+    """
+    if not claims.get("emCarencia"):
+        return False
+    limite = _data_da_claim(claims.get("dataLimiteCarencia"))
+    if limite is None:
+        return False
+    return agora < limite
+
+
+def _conferir_identidade(claims: dict, licenca: ConfiguracaoLicenca, hwid: str) -> None:
+    """O token precisa ser DESTA licenca e DESTA maquina (D-15).
+
+    O `hwid` so e conferido quando o token tem o campo: a API emite
+    `hwid: null` quando o conectar e feito sem maquina, e nesse caso a
+    checagem da licenca basta.
+    """
+    if claims.get("licencaId") != licenca.licenca_id:
+        raise _erro_licenca("TOKEN_DE_OUTRA_LICENCA", "O token não confere com esta instalação.")
+    if claims.get("hwid") and claims.get("hwid") != hwid:
+        raise _erro_licenca("TOKEN_DE_OUTRA_LICENCA", "O token não confere com esta máquina.")
+
+
 def _validar_offline(
     licenca: ConfiguracaoLicenca,
     public_key: str,
+    hwid: str | None = None,
 ) -> dict:
     """
-    Validação offline usando JWT RS256 e regras de grace period.
+    Validação offline: tudo o que decide vem do token ASSINADO (LIC-02).
 
     Args:
         licenca: Registro da licença no banco.
-        public_key: Chave pública RSA PEM descriptografada.
+        public_key: Chave pública RSA PEM, já aberta.
+        hwid: HWID desta máquina (quem chama já tem; se faltar, é lido aqui).
 
     Returns:
-        dict com status e dias_restantes.
+        dict com status, dias_restantes (estimados), carência e, se o relógio
+        recuou, o aviso "relogio_recuou".
 
     Raises:
         HTTPException 403: Se a validação offline falhar.
     """
-    agora = datetime.now(timezone.utc)
+    agora_real = datetime.now(timezone.utc)
 
     # 0. Abrir o token guardado no cofre. Sem internet nao ha como pedir outro,
     #    entao um token que nao abre aqui vira TOKEN_ILEGIVEL (LIC-01 §6.4).
     token = segredos_licenca.abrir_token_ou_erro(licenca.token)
 
-    # 1. Validar JWT com a chave pública RSA
+    # 1. Conferir a assinatura e a validade ('exp') do token e ler as claims.
     try:
-        jwt.decode(
-            token,
-            public_key,
-            algorithms=["RS256"],
-            options={"verify_exp": True, "verify_aud": False}
-        )
+        claims = _claims_do_token(token, public_key)
     except (JWTError, JOSEError) as e:
         logger.warning("[licenca] Falha na validação JWT offline: %s", e)
         raise _erro_licenca(
@@ -266,35 +354,46 @@ def _validar_offline(
             "Token de licença inválido ou expirado. Conecte-se à internet para revalidar.",
         )
 
-    # 2. Verificar data de vencimento do plano
-    data_vencimento = licenca.data_vencimento
-    if data_vencimento.tzinfo is None:
-        data_vencimento = data_vencimento.replace(tzinfo=timezone.utc)
+    # 2. O token e desta licenca e desta maquina? (D-15)
+    _conferir_identidade(claims, licenca, hwid if hwid is not None else obter_hwid())
 
-    # A carencia afrouxa ESTE limite e so ele. Os dois seguintes -- validade
-    # offline e proxima validacao obrigatoria -- continuam valendo iguais, senao
-    # a carencia viraria uma porta para rodar desconectado o tempo que quisesse.
-    if agora >= data_vencimento and not _carencia_vigente(licenca, agora):
+    # 3. Relogio: se ele voltou no tempo, as contas usam o maior horario ja
+    #    visto, e a resposta leva o aviso (D-05). Nunca bloqueia por isso.
+    agora, relogio_recuou = relogio.verificar_relogio(licenca, agora_real)
+
+    # 4. Vencimento do plano, pela claim (D-13). Token sem `dataVencimento` e
+    #    licenca sem vencimento, como a API define.
+    #    A carencia afrouxa ESTE limite e so ele. Os dois seguintes -- validade
+    #    offline e proxima validacao obrigatoria -- continuam valendo iguais,
+    #    senao a carencia viraria uma porta para rodar desconectado.
+    data_vencimento = _data_da_claim(claims.get("dataVencimento"))
+    em_carencia = _carencia_do_token(claims, agora)
+    if data_vencimento is not None and agora >= data_vencimento and not em_carencia:
         raise _erro_licenca(
             "LICENCA_EXPIRADA",
             "Sua licença expirou. Entre em contato com o suporte para renovação.",
         )
 
-    # 3. Verificar grace period (dias desde última sincronização)
+    # 5. Validade offline (dias desde a ultima sincronizacao). O prazo vem da
+    #    claim `gracePeriodDias`; a coluna so vale para token antigo sem ela.
+    grace_period = claims.get("gracePeriodDias")
+    if grace_period is None:
+        grace_period = licenca.grace_period
     ultima_sinc = licenca.ultima_sinc
     if ultima_sinc.tzinfo is None:
         ultima_sinc = ultima_sinc.replace(tzinfo=timezone.utc)
 
     dias_offline = (agora - ultima_sinc).days
-    if dias_offline > licenca.grace_period:
+    if dias_offline > grace_period:
         raise _erro_licenca(
             "REQUISITA_CONEXAO_INTERNET",
-            f"Limite de {licenca.grace_period} dias offline excedido ({dias_offline} dias). "
+            f"Limite de {grace_period} dias offline excedido ({dias_offline} dias). "
             "Conecte-se à internet para revalidar a licença.",
         )
 
-    # 4. Verificar próxima validação obrigatória
-    proxima_validacao = licenca.proxima_validacao
+    # 6. Proxima validacao obrigatoria: claim `proximaValidacaoEm` (coluna so
+    #    para token antigo sem ela).
+    proxima_validacao = _data_da_claim(claims.get("proximaValidacaoEm")) or licenca.proxima_validacao
     if proxima_validacao.tzinfo is None:
         proxima_validacao = proxima_validacao.replace(tzinfo=timezone.utc)
 
@@ -304,32 +403,34 @@ def _validar_offline(
             "Data de validação obrigatória atingida. Conecte-se à internet para revalidar.",
         )
 
-    # 5. Calcular dias restantes
-    # Em carencia o vencimento ja passou, entao `dias_ate_vencimento` e
-    # NEGATIVO -- e a tela mostraria "-3 dias restantes". Nesse estado quem
-    # conta e o prazo da carencia, que e o que de fato resta.
-    if _carencia_vigente(licenca, agora):
-        limite_carencia = licenca.data_limite_carencia
-        if limite_carencia.tzinfo is None:
-            limite_carencia = limite_carencia.replace(tzinfo=timezone.utc)
-        dias_ate_vencimento = (limite_carencia - agora).days
-    else:
+    # 7. Dias restantes: o MENOR dos tres prazos. Em carencia o vencimento ja
+    #    passou, e quem conta e o prazo da carencia. Sem internet o numero e
+    #    calculado aqui, entao a resposta o marca como ESTIMATIVA (F26).
+    if em_carencia:
+        dias_ate_vencimento = (_data_da_claim(claims.get("dataLimiteCarencia")) - agora).days
+    elif data_vencimento is not None:
         dias_ate_vencimento = (data_vencimento - agora).days
+    else:
+        dias_ate_vencimento = None   # sem vencimento: so os prazos offline contam
 
-    dias_ate_grace = licenca.grace_period - dias_offline
+    dias_ate_grace = grace_period - dias_offline
     dias_ate_validacao = (proxima_validacao - agora).days
-    dias_restantes = min(dias_ate_vencimento, dias_ate_grace, dias_ate_validacao)
+    prazos = [d for d in (dias_ate_vencimento, dias_ate_grace, dias_ate_validacao) if d is not None]
+    dias_restantes = min(prazos)
 
     logger.info(
-        "[licenca] Validação offline aceita. Dias restantes: %d", dias_restantes
+        "[licenca] Validação offline aceita. Dias restantes (estimados): %d", dias_restantes
     )
-    em_carencia = _carencia_vigente(licenca, agora)
-    return {
+    resultado = {
         "status": "offline_valid",
         "dias_restantes": dias_restantes,
         "em_carencia": em_carencia,
         "dias_restantes_carencia": dias_ate_vencimento if em_carencia else None,
+        "estimativa": True,
     }
+    if relogio_recuou:
+        resultado["aviso"] = "relogio_recuou"
+    return resultado
 
 
 def verificar_licenca_ativa(db: Session) -> dict:
@@ -384,24 +485,30 @@ def verificar_licenca_ativa(db: Session) -> dict:
             "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
         )
 
+    # 2b. Guarda o maior horário já visto (LIC-02 §6.5). Só anda para frente:
+    #     se o relógio recuou, o valor guardado fica e a validação offline
+    #     percebe. O commit vem junto com o da validação (online ou offline).
+    relogio.registrar_horario(licenca, datetime.now(timezone.utc))
+
     # 3. Abrir a chave de ativação: só abre na máquina que a ativou (cofre do
     #    Windows no formato novo, HWID no antigo). Banco copiado de outro
     #    computador -> LICENCA_DE_OUTRA_MAQUINA (tela de transferência).
     chave_ativacao = segredos_licenca.abrir_chave_ou_erro(licenca, hwid)
 
-    # 4. Tentar validação online (prioridade)
+    # 4. Tentar validação online (prioridade). Erros 4xx da API (HTTPException)
+    #    sobem direto; só a falta de rede cai no caminho offline.
+    resultado = None
     try:
         resultado = _tentar_conexao_remota(db, licenca, chave_ativacao, hwid)
-        # O token acabou de ser trocado pelo que o servidor mandou: os módulos
-        # saem DELE, na hora. Quem manda é sempre o token corrente.
-        resultado["modulos"] = ler_modulos_liberados(
-            _token_para_ler_modulos(licenca), _decifrar_public_key(licenca, hwid)
-        )
-        return resultado
     except (httpx.ConnectError, httpx.TimeoutException) as e:
         logger.info("[licenca] Nuvem inacessível (%s), iniciando fallback offline.", e)
-    except HTTPException:
-        raise  # Erros 403 da API são repassados
+
+    if resultado is not None:
+        # O token acabou de ser trocado pelo que o servidor mandou: os módulos
+        # saem DELE, na hora, e NUNCA com uma chave pública ilegível (D-14).
+        chave_publica = _chave_publica_com_resgate(db, licenca, hwid)
+        resultado["modulos"] = ler_modulos_liberados(_token_para_ler_modulos(licenca), chave_publica)
+        return resultado
 
     # 5. Desencriptar chave pública com resiliência
     public_key = None
@@ -421,6 +528,29 @@ def verificar_licenca_ativa(db: Session) -> dict:
             )
 
     # 6. Fallback offline
-    resultado = _validar_offline(licenca, public_key)
+    resultado = _validar_offline(licenca, public_key, hwid)
     resultado["modulos"] = ler_modulos_liberados(_token_para_ler_modulos(licenca), public_key)
+    # Grava o maior horário visto (passo 2b): no caminho online quem grava é
+    # o commit de _tentar_conexao_remota.
+    licenca_crud.update_licenca(db, licenca)
+    db.commit()
     return resultado
+
+
+def _chave_publica_com_resgate(db: Session, licenca: ConfiguracaoLicenca, hwid: str) -> str:
+    """Chave pública para ler os módulos no caminho COM internet (LIC-02 §6.3, D-14).
+
+    Se a guardada não abrir, busca de novo na API (a mesma função do caminho
+    offline, que grava a chave boa no banco). Se nem assim, CHAVE_CORROMPIDA:
+    ler os módulos com uma chave ilegível daria "não sei" e liberaria tudo.
+    """
+    chave_publica = _decifrar_public_key(licenca, hwid)   # None se a coluna não abrir
+    if chave_publica:
+        return chave_publica
+    try:
+        return resgatar_chave_publica_online(db, hwid, licenca.licenca_id)
+    except Exception:  # noqa: BLE001 - rede ou resposta ruim: o resultado é o mesmo
+        raise _erro_licenca(
+            "CHAVE_CORROMPIDA",
+            "Chave de segurança corrompida. Necessária ligação à internet para recuperação.",
+        )

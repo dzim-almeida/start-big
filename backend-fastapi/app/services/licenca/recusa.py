@@ -153,6 +153,23 @@ def _plano_vencido_localmente(licenca, agora: datetime | None = None) -> bool:
     return agora >= vencimento and not _carencia_vigente(licenca, agora)
 
 
+# Codigos de recusa da API que chegam a tela com o MESMO nome (F27, LIC-02
+# §6.6), com a frase que o dono le. LICENCA_TRANSFERIDA: a API ja manda hoje
+# (400) quando a licenca foi levada para outro computador.
+CODIGOS_REPASSADOS_AO_FRONT = {
+    "LICENCA_TRANSFERIDA": "Esta licença foi transferida para outro computador.",
+}
+
+
+def _codigo_da_recusa(corpo: dict) -> str:
+    """Codigo estruturado do corpo da recusa, em maiusculas ('' se nao houver).
+
+    A API usa `codigo`; `code` e `erro` ficam como rede de seguranca.
+    """
+    codigo = corpo.get("codigo") or corpo.get("code") or corpo.get("erro") or ""
+    return codigo.strip().upper() if isinstance(codigo, str) else ""
+
+
 def _recusa_por_vencimento(status_code: int, mensagem: str, corpo: dict, licenca) -> bool:
     """A recusa da nuvem e "falta pagar" (True) ou outra coisa (False)?
 
@@ -165,8 +182,9 @@ def _recusa_por_vencimento(status_code: int, mensagem: str, corpo: dict, licenca
     antigo: tela de erro, cliente liga para o suporte. Errar para MAIS deixa a
     pessoa logar numa tela que so sabe cobrar. Nenhum dos dois libera o sistema.
     """
-    codigo = (corpo.get("codigo") or corpo.get("code") or corpo.get("erro") or "")
-    if isinstance(codigo, str) and codigo.strip().upper() in _CODIGOS_DE_VENCIMENTO:
+    # 1. Codigo estruturado: LICENCA_VENCIDA (402, depois da LIC-05) e os
+    #    outros nomes de vencimento ja reconhecidos.
+    if _codigo_da_recusa(corpo) in _CODIGOS_DE_VENCIMENTO:
         return True
 
     if status_code == 402:

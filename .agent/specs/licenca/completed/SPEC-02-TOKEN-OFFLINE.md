@@ -2,11 +2,11 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-19) |
 | Camada       | Backend (FastAPI) |
 | Dependências | SPEC-01 (o token e a chave passam a ser lidos por `segredos_licenca.py`) |
 | Bloqueia     | SPEC-03, LIC-08 (os avisos desta spec são mostrados pela LIC-08) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-05, D-13, D-14, D-15, D-37; quadro F7, F8, F24, F25, F26, F27 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-05, D-13, D-14, D-15, D-37; quadro F7, F8, F24, F25, F26, F27 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
 > - **Conflito 9:** as claims foram conferidas no `aalan-big/plataformaADM` (`apps/server/src/features/dispositivos/dispositivo.service.ts:275-307`). O token já traz `licencaId`, `hwid`, `dataVencimento`, `gracePeriodDias`, `proximaValidacaoEm`, `emCarencia`, `dataLimiteCarencia` e `modulos`. A spec não depende de mudança na API.
@@ -17,6 +17,17 @@
 > **Revisão 2 (2026-11-19):** conferência no código da plataforma.
 > - **Conflito 27 (D-37):** o heartbeat dos caixas passa a mandar o token da licença, e o app reconecta o caixa quando a API responde `404 SESSAO_INEXISTENTE` (§6.8). É o lado do app da LIC-09.
 > - **Documentação (D17):** a plataforma tem rotas em dobro (`/licenca/conectar` e `/erp/conectar`); o app usa a primeira, e as mudanças da API ficam no serviço.
+
+> **Revisão 3 (2026-11-19, implementação):** ajustes de implementação, sem mudar o comportamento pedido.
+> - **Reconexão no `404 SESSAO_INEXISTENTE` (§6.8):** o `conectar_terminal` é idempotente e **não chama a API** para um caixa que já está na tabela local. O heartbeat faz o mesmo `POST /licenca/conectar`, com a chave de ativação, direto do `sincronizacao.py` (`_reconectar_caixas`). O caixa fica na tabela e a licença não é bloqueada (CT-20, CT-21).
+> - **Prazos offline (§6.1):** além de vencimento e carência, a validade offline e a próxima validação também saem das claims (`gracePeriodDias`, `proximaValidacaoEm`). A coluna só vale para um token antigo sem a claim. A base da validade offline continua sendo `ultima_sinc`.
+> - **Carência offline:** `_carencia_do_token` (em `validacao.py`) decide no caminho offline. O `recusa._carencia_vigente` não mudou de assinatura: ele segue servindo ao caminho online (colunas recém-gravadas da resposta) e à "segunda opinião" de `_plano_vencido_localmente`.
+> - **`recusa.py`:** `LICENCA_VENCIDA` já estava entre os códigos de vencimento. Entrou `CODIGOS_REPASSADOS_AO_FRONT` (hoje só `LICENCA_TRANSFERIDA`) e `_codigo_da_recusa`, usado pelos dois caminhos.
+> - **`estimativa` no caminho online:** `false` quando a API manda `diasRestantes`; `true` quando ela ainda não manda e o número é calculado aqui.
+> - **Relógio:** `registrar_horario` roda no começo de `verificar_licenca_ativa` (só anda para frente, então não esconde o recuo); o caminho offline dá `commit` para guardar o horário.
+> - **Fora da lista:** `app/schemas/licenca/cadastro.py` (`diasRestantes` opcional na resposta da API) e `app/schemas/licenca/status.py` (`aviso` e `estimativa`, pedidos na §5); `test/db/test_migracao_ultimo_horario_visto.py` (CA-06); o heartbeat ganhou um teste da carência na renovação (F25).
+> - **Migração:** `l1c02r3l0g10_ultimo_horario_visto_na_licenca.py`, depois da `l4v4v4g4s005`. `alembic check` sem pendência.
+> - **Verificação:** todos os CA por teste automatizado (pytest), sem subir o backend na porta 8000. O CA-07 ("chega ao front") foi verificado na resposta do backend; a tela é da LIC-03.
 
 ## 1. Objetivo
 

@@ -39,6 +39,21 @@ class LicencaStatusResponse(BaseModel):
             "PREENCHIDA sem o identificador e que bloqueia."
         ),
     )
+    # --- LIC-02: avisos para a tela (mostrados pela LIC-08) ---
+    aviso: Optional[str] = Field(
+        None,
+        description=(
+            "'relogio_recuou' quando o relogio do computador voltou no tempo: a "
+            "validacao offline usou o maior horario ja visto e seguiu (ACORDO D-05)."
+        ),
+    )
+    estimativa: Optional[bool] = Field(
+        None,
+        description=(
+            "True quando `dias_restantes` foi calculado neste computador (sem "
+            "internet, ou API sem `diasRestantes`); False quando veio da API."
+        ),
+    )
 
 
 class LicencaErroResponse(BaseModel):

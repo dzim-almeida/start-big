@@ -21,12 +21,22 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from jose import jwt
 
 from app.services import licenca as licenca_service
+from app.services.licenca import validacao as licenca_validacao
 
 
 AGORA = datetime.now(timezone.utc)
+
+
+# Claims de cada token de mentira, pelo texto do token. Desde a LIC-02 o
+# vencimento, a carencia e os prazos offline saem das CLAIMS do token assinado
+# (ACORDO D-13), nao das colunas: as fixtures montam as claims.
+_CLAIMS: dict[str, dict] = {}
+
+
+def _iso(momento):
+    return momento.isoformat() if momento is not None else None
 
 
 def _licenca(
@@ -38,19 +48,35 @@ def _licenca(
     em_carencia: bool | None = None,
     carencia_ate_em_dias: int | None = None,
 ):
-    """Licenca de mentira com os quatro prazos sob controle do teste."""
+    """Licenca de mentira com os quatro prazos sob controle do teste.
+
+    Os prazos vao nas CLAIMS do token; as colunas de carencia ficam vazias,
+    como numa instalacao que nunca as gravou.
+    """
+    token = f"token-falso-{len(_CLAIMS)}"
+    _CLAIMS[token] = {
+        "licencaId": "lic-abc",
+        "hwid": None,
+        "dataVencimento": _iso(AGORA + timedelta(days=vencimento_em_dias)),
+        "gracePeriodDias": grace_period,
+        "proximaValidacaoEm": _iso(AGORA + timedelta(days=proxima_validacao_em_dias)),
+        "emCarencia": em_carencia,
+        "dataLimiteCarencia": (
+            _iso(AGORA + timedelta(days=carencia_ate_em_dias))
+            if carencia_ate_em_dias is not None
+            else None
+        ),
+    }
     return SimpleNamespace(
-        token="token-falso",
+        token=token,
+        licenca_id="lic-abc",
+        ultimo_horario_visto=None,
         data_vencimento=AGORA + timedelta(days=vencimento_em_dias),
         ultima_sinc=AGORA - timedelta(days=dias_desde_sinc),
         grace_period=grace_period,
         proxima_validacao=AGORA + timedelta(days=proxima_validacao_em_dias),
-        em_carencia=em_carencia,
-        data_limite_carencia=(
-            AGORA + timedelta(days=carencia_ate_em_dias)
-            if carencia_ate_em_dias is not None
-            else None
-        ),
+        em_carencia=None,
+        data_limite_carencia=None,
     )
 
 
@@ -59,9 +85,13 @@ def _jwt_sempre_valido(monkeypatch):
     """O JWT e assinado pelo servidor; aqui interessa a regra de datas.
 
     Sem isto todo teste morreria na assinatura, e o que se quer provar (qual
-    prazo barra primeiro) nunca seria exercitado.
+    prazo barra primeiro) nunca seria exercitado. A assinatura de verdade e
+    testada em test/services/licenca/test_token_offline.py.
     """
-    monkeypatch.setattr(jwt, "decode", lambda *a, **k: {"sub": "x"})
+    monkeypatch.setattr(
+        licenca_validacao, "_claims_do_token", lambda token, chave: _CLAIMS[token]
+    )
+    monkeypatch.setattr(licenca_validacao, "obter_hwid", lambda: "hwid-qualquer")
 
 
 # =========================

@@ -2,6 +2,25 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-19 — SPEC-02 Token offline, relógio e heartbeat com token
+
+**Módulos afetados:** licenca (backend), db (migração)
+
+### Adicionado
+- `services/licenca/relogio.py`: guarda o maior horário visto e avisa quando o relógio recua mais de 5 min (D-05). Coluna `configuracoes_licenca.ultimo_horario_visto` com a migração `l1c02r3l0g10`.
+- `GET /licenca/status` ganha `aviso` (`relogio_recuou`) e `estimativa` (dias calculados aqui).
+- Heartbeat manda `Authorization: Bearer <token da licença>` (D-37) e reconecta o caixa no `404 SESSAO_INEXISTENTE`, sem removê-lo nem bloquear a licença.
+
+### Alterado
+- Validação offline lê vencimento, carência, validade offline e próxima validação das claims do token assinado (D-13), e confere `licencaId` e `hwid` do token (D-15, `TOKEN_DE_OUTRA_LICENCA`).
+- Caminho com internet: chave pública ilegível é buscada de novo antes de ler os módulos; sem ela, `CHAVE_CORROMPIDA` (D-14).
+- Dias restantes vêm de `diasRestantes` da API quando ela manda (F26).
+- Recusa `LICENCA_TRANSFERIDA` chega ao front com esse código (F27).
+- Renovação em segundo plano grava as colunas de carência (F25).
+
+### Decisões
+- Reconexão do caixa feita pelo mesmo `POST /licenca/conectar`, direto do heartbeat, porque `conectar_terminal` é idempotente (Revisão 3 da SPEC-02).
+
 ## 2026-11-19 — SPEC-01 Cofre local (token e chave) e backup cifrado na nuvem
 
 **Módulos afetados:** licenca, backup, cloud, core, fiscal (só `get_licenca_token`)
