@@ -31,7 +31,10 @@ from app.core.seed_nfse import seed_tabelas_nfse
 logger = logging.getLogger(__name__)
 
 INTERVALO_LIMPEZA_HORAS = 6
-INTERVALO_HEARTBEAT_SEGUNDOS = 100  # 5 minutos
+# A cada 100 segundos (1 min e 40 s) o servidor avisa a API que os caixas seguem vivos.
+# A LIC-09 faz a sessão sem heartbeat expirar em 10 minutos: este intervalo dá folga
+# de várias tentativas antes disso, mesmo com uma ou outra falha de rede.
+INTERVALO_HEARTBEAT_SEGUNDOS = 100
 INTERVALO_RENOVACAO_SEGUNDOS = 3600  # 1 hora
 # Re-anúncio mDNS: troca de IP por DHCP ou placa que sobe depois do boot + 30 s.
 INTERVALO_MDNS_SEGUNDOS = 45
