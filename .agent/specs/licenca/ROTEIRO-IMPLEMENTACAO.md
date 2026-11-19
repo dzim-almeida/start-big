@@ -7,20 +7,23 @@ Ordem das specs e das tarefas auxiliares. A série cruza dois repositórios, ent
 
 > **Revisão 1 (2026-11-18):** entraram a LIC-08 e a LIC-09. A LIC-03 deixou de esperar a LIC-06 (rede de segurança do `404`). O "Pronto quando" passou a exigir **todos** os CT e CA de cada spec.
 
+> **Revisão 3 (2026-11-19):** as specs só definiam os textos das telas, sem referência visual. Entrou o **passo 0**: mockups das telas da série, aprovados pelo usuário antes de qualquer spec com tela (skill `design`, §0).
+
 > **Revisão 2 (2026-11-19):** as specs da API deixaram de estar bloqueadas (fork + PR, conflito 19). Entrou o passo de PR e deploy da plataforma, com a conferência do diff do `db push` para a LIC-06. Pela ADR-004, cada spec da API pode ir para produção sem esperar as lojas atualizarem o app.
 
 ## 1. Passos
 
 | Passo | Spec | Repositório | Camada | Depende de | Pode começar quando |
 |-------|------|-------------|--------|------------|---------------------|
+| 0 | Mockups das telas da série | — | Design | — | **Aguardando aprovação do usuário** |
 | 1 | LIC-01 · Cofre e backup cifrado | start-big | Backend | — | Aprovação da LIC-01 |
 | 2 | Tarefa: comentário do heartbeat | start-big | Backend | — | Qualquer momento (uma linha) |
 | 3 | LIC-02 · Token offline e heartbeat com token | start-big | Backend | 1 | Passo 1 concluído |
 | 4 | LIC-04 · Rede e front | start-big | Front, Backend, NSIS e Tauri | — | Aprovação da LIC-04 (pode correr em paralelo aos passos 1 a 3) |
-| 5 | LIC-03 · Re-login | start-big | Backend e Front | 1, 3 | Passos 1 e 3 concluídos |
-| 6 | LIC-08 · Avisos | start-big | Backend e Front | 1, 3 | Passos 1 e 3 concluídos |
+| 5 | LIC-03 · Re-login | start-big | Backend e Front | 0, 1, 3 | Passos 0, 1 e 3 concluídos |
+| 6 | LIC-08 · Avisos | start-big | Backend e Front | 0, 1, 3 | Passos 0, 1 e 3 concluídos |
 | 7 | LIC-05 · API revogação e backup | plataforma (fork) | API | — | Aprovação da LIC-05 (pode correr em paralelo aos passos do start-big) |
-| 8 | LIC-06 · API conta e cadastro | plataforma (fork) | API e painel web | 7 | Passo 7 concluído |
+| 8 | LIC-06 · API conta e cadastro | plataforma (fork) | API e painel web | 0, 7 | Passos 0 e 7 concluídos |
 | 9 | LIC-09 · API vagas e heartbeat | plataforma (fork) | API | 2, 7 | Passos 2 e 7 concluídos |
 | 10 | PR e deploy da plataforma | plataforma | — | 7, 8, 9 (um PR por spec) | Cada spec da API concluída |
 | 11 | Verificação de integração | ambos | — | Todos | Passos 1 a 10 concluídos |
@@ -28,6 +31,28 @@ Ordem das specs e das tarefas auxiliares. A série cruza dois repositórios, ent
 **Pronto quando (vale para todo passo de spec):** **todos** os CT da spec passam e **todos** os CA foram verificados. Os que exigem Windows, o app instalado ou um PostgreSQL real são verificados na skill `verify` (ou pelo script indicado na spec), ou marcados como "não verificado", com o motivo.
 
 ## 2. Por passo
+
+### Passo 0 · Mockups das telas (design)
+
+- **Onde:** página de mockups [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (privada: só abre para quem tiver acesso compartilhado).
+- **Situação:** publicada em 2026-11-19, **aguardando a aprovação do usuário**. Ajustes são pedidos por comentário na própria página ou na conversa.
+- **O que cobre:**
+
+| Tela | Spec | Quadro |
+|------|------|--------|
+| Licença encontrada, com backup e sem backup | LIC-03 §6.2 | 1a, 1b |
+| Restauração preparada | LIC-03 §6.2 | 2 |
+| Cadastro enviado e login antes da confirmação | LIC-03 §6.5 | 3a, 3b |
+| Página do link de confirmação (painel web) | LIC-06 §4.2 | 6 |
+| Faixa do relógio e dias estimados | LIC-08 §6.1 | 4 e 9 |
+| Avisos na tela de backup | LIC-08 §6.3 | 5 |
+| Setup com documento travado | LIC-03 §6.6 | 7 |
+| Confirmação antes da troca de servidor | LIC-03 §6.3 | 8 |
+
+- **Pronto quando:** o usuário aprovou os quadros (com ou sem ajustes). A versão aprovada passa a ser a **referência de design** da skill `design` para a LIC-03, a LIC-06 (página web) e a LIC-08.
+- **Propostas além das specs** (anotadas ao lado de cada linha da página): senha pedida de novo na tela 1a (D-07), semana do backup na 1a, "Reenviar link" também na 3a, botão "Assinar" no aviso do trial, faixa do relógio sem botão de fechar. Se aprovadas, entram nas specs como nota de revisão.
+- **Arquivo do design:** a pasta `docs/licenca/design/` é do time (o agente não edita, `docs/README.md`). Depois da aprovação, o link entra no `docs/licenca/design/LINKS.md` por quem mantém a pasta, ou pelo agente com autorização.
+- **Sem tela nova:** LIC-01, LIC-02, LIC-05 e LIC-09. A LIC-04 só mexe no `BaseConfirmModal` (o negrito vem por slot, sem mudança visual).
 
 ### Passo 1 · LIC-01 (cofre e backup cifrado)
 
