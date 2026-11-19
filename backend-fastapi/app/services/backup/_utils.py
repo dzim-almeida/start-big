@@ -37,9 +37,29 @@ def _create_snapshot_db(backup_path: str) -> None:
     to = sqlite3.connect(backup_path)
     try:
         origin.backup(to)
+        _apagar_token_do_snapshot(to)
     finally:
         origin.close()
         to.close()
+
+
+def _apagar_token_do_snapshot(snapshot: sqlite3.Connection) -> None:
+    """Apaga o token da licença NO SNAPSHOT (LIC-01 §6.6).
+
+    Roda só na cópia que vai virar backup, nunca no banco da loja. O token não
+    faz falta numa restauração: a validação seguinte pede outro à StartBig. A
+    chave de ativação fica, mas trancada no cofre do Windows: em outro
+    computador ela não abre.
+    """
+    # Banco antes do setup pode ainda não ter a tabela da licença.
+    existe = snapshot.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'configuracoes_licenca'"
+    ).fetchone()
+    if existe:
+        # Texto vazio, e não NULL: a coluna é NOT NULL no banco, e o NULL faria
+        # o backup inteiro falhar (Revisão 2 da SPEC-01). Vazio = "sem token".
+        snapshot.execute("UPDATE configuracoes_licenca SET token = ''")
+        snapshot.commit()
 
 
 def _verify_integrity(backup_path: str) -> bool:

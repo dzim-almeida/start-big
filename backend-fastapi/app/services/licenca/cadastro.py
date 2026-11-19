@@ -17,7 +17,8 @@ from app.db.models.configuracao_licenca import ConfiguracaoLicenca
 from app.db.crud.configuracao import licenca as licenca_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_AUTO_CADASTRO_URL, API_CHAVE_PUBLICA_URL, CONECTAR_TIMEOUT_SECONDS, MAX_RETRIES, TIMEOUT_SECONDS
-from app.services.licenca.cripto import encriptar_valor
+from app.services.licenca.cripto import encriptar_valor  # so para a chave publica
+from app.services.licenca import cofre, segredos_licenca  # token e chave vao para o cofre (LIC-01)
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +226,16 @@ def registrar_licenca(
     # 3. Buscar chave pública RSA da plataforma StartBig
     public_key_pem = _buscar_chave_publica_online()
 
-    # 4. Encriptar campos sensíveis
-    chave_ativacao_enc = encriptar_valor(resposta.chaveAtivacao, hwid)
+    # 4. Trancar os segredos no cofre do Windows (LIC-01). A chave pública não
+    #    é segredo e continua cifrada pelo HWID, como sempre foi.
+    try:
+        chave_ativacao_enc = segredos_licenca.guardar_chave_ativacao(resposta.chaveAtivacao)
+        token_enc = segredos_licenca.guardar_token(resposta.token)
+    except cofre.CofreIndisponivel as e:
+        # Sem cofre não gravamos nada: a conta já existe na nuvem, e a pessoa
+        # entra com ela ("Já tenho conta") quando o Windows liberar o cofre.
+        logger.error("[licenca] COFRE_INDISPONIVEL no cadastro: %s", e)
+        raise segredos_licenca.erro_cofre_indisponivel() from e
     public_key_enc = encriptar_valor(public_key_pem, hwid)
 
     # 5. Criar registro no banco
@@ -238,7 +247,7 @@ def registrar_licenca(
         public_key=public_key_enc,
         limite=resposta.limite,
         data_vencimento=resposta.dataVencimento,
-        token=resposta.token,
+        token=token_enc,
         ultima_sinc=resposta.ultimaSincronizacao,
         grace_period=resposta.gracePeriodDias,
         proxima_validacao=resposta.proximaValidacaoEm,

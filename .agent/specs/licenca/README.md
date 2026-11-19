@@ -12,7 +12,7 @@ Este módulo cruza dois repositórios: `start-big` (backend Python, front Vue e 
 
 | Spec | Arquivo | Camada | Repositório | Situação | O que entrega |
 |------|---------|--------|-------------|----------|---------------|
-| LIC-01 | [`SPEC-01-COFRE-LICENCA.md`](./SPEC-01-COFRE-LICENCA.md) | Backend | start-big | Backlog | Cofre DPAPI (escopo de máquina) para o token e a chave de ativação; cópia cifrada do backup na nuvem |
+| LIC-01 | [`SPEC-01-COFRE-LICENCA.md`](./completed/SPEC-01-COFRE-LICENCA.md) | Backend | start-big | Concluída (2026-11-19) | Cofre DPAPI (escopo de máquina) para o token e a chave de ativação; cópia cifrada do backup na nuvem |
 | LIC-02 | [`SPEC-02-TOKEN-OFFLINE.md`](./SPEC-02-TOKEN-OFFLINE.md) | Backend | start-big | Backlog | Vencimento e carência do token assinado, chave pública recuperada antes dos módulos, relógio, dias da API, heartbeat com token |
 | LIC-03 | [`SPEC-03-RE-LOGIN.md`](./SPEC-03-RE-LOGIN.md) | Backend e Frontend | start-big | Backlog | Restauração pelo titular (ciclo pelo `/status`), setup com os dados da nuvem, cadastro `202`, mensagens por código, avisos de troca |
 | LIC-04 | [`SPEC-04-REDE-E-FRONT.md`](./SPEC-04-REDE-E-FRONT.md) | Frontend, Backend, NSIS e Tauri | start-big | Backlog | CORS fechado, token do login só na sessão da janela, sem `v-html`, permissões exatas do Tauri, firewall e middleware de rede |

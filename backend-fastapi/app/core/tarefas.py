@@ -26,6 +26,10 @@ from app.services.configuracao.backup import get_or_create_configuracao_backup
 from app.db.crud.terminal import conectados as terminal_crud
 
 from app.core.discovery import atualizar_anuncio, register_service, stop_discovery
+from app.core.config import data_dir
+from app.core.hwid import obter_hwid
+from app.core.permissoes import verificar_pasta_de_dados
+from app.services.licenca import segredos_licenca
 from app.core.seed_nfse import seed_tabelas_nfse
 
 logger = logging.getLogger(__name__)
@@ -48,6 +52,31 @@ async def _loop_mdns_watchdog():
             await asyncio.to_thread(atualizar_anuncio)
         except Exception:
             logger.exception("Erro no watchdog do mDNS")
+
+def _migrar_segredos_da_licenca() -> None:
+    """Tranca no cofre do Windows o token e a chave ainda no formato antigo (LIC-01 §6.3).
+
+    Nunca derruba o startup: qualquer falha vai para o log, nada muda no
+    banco, e a migração é tentada de novo no próximo boot.
+    """
+    db = SessionLocal()
+    try:
+        segredos_licenca.migrar_segredos(db, obter_hwid())
+        db.commit()   # a migração só faz flush; quem confirma é o startup
+    except Exception:  # noqa: BLE001 - o sistema sempre sobe (ACORDO D-26)
+        db.rollback()
+        logger.exception("[licenca] Migração dos segredos falhou; tenta de novo no próximo boot.")
+    finally:
+        db.close()
+
+
+def _verificar_pasta_de_dados() -> None:
+    """Avisa no log (PASTA_DADOS_ABERTA) se a pasta de dados estiver aberta demais (LIC-01 §6.8)."""
+    try:
+        verificar_pasta_de_dados(data_dir)
+    except Exception:  # noqa: BLE001 - verificação nunca derruba o startup
+        logger.exception("[permissoes] Verificação da pasta de dados falhou.")
+
 
 ATRASO_INICIAL_BACKUP_SEGUNDOS = 180
 # Checagem curta: o horario do backup diario e escolhido pelo lojista e pode
@@ -399,6 +428,9 @@ async def lifespan(app: FastAPI):
         db.close()
 
     aplicar_migracoes()
+    # LIC-01: depois das migrações (a tabela da licença já tem a forma final).
+    _migrar_segredos_da_licenca()
+    _verificar_pasta_de_dados()
     _seed_formas_pagamento()
     _seed_ncm()
     seed_tabelas_nfse()

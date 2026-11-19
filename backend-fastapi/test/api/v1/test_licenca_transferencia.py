@@ -31,7 +31,8 @@ from app.services.licenca import cadastro as licenca_cadastro
 from app.services.licenca import terminal as licenca_terminal
 from app.services.licenca import transferencia
 from app.services.licenca import validacao as licenca_validacao
-from app.services.licenca import decriptar_valor, encriptar_valor
+from app.services.licenca import encriptar_valor
+from app.services.licenca import segredos_licenca  # LIC-01: token e chave ficam no cofre
 
 
 HWID_ANTIGO = "HWID-DO-SERVIDOR-QUE-SAIU"
@@ -169,7 +170,7 @@ def test_transferir_troca_a_ativacao_antiga_pela_deste_computador(banco_copiado,
     licencas = _licencas(banco_copiado)
     assert len(licencas) == 1, "a ativacao do servidor antigo sobreviveu ao lado da nova"
     assert licencas[0].hwid == HWID_NOVO
-    assert licencas[0].token == "token-novo"
+    assert segredos_licenca.ler_token(licencas[0].token) == "token-novo"
     # A nuvem recebeu o HWID do computador NOVO.
     assert chamadas[0]["json"]["hwid"] == HWID_NOVO
 
@@ -180,7 +181,7 @@ def test_ativacao_transferida_decifra_e_destrava_o_boot(banco_copiado, monkeypat
     banco_copiado.commit()
 
     licenca = _licencas(banco_copiado)[0]
-    assert decriptar_valor(licenca.chave_ativacao, HWID_NOVO) == CHAVE_DO_CLIENTE
+    assert segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, HWID_NOVO) == CHAVE_DO_CLIENTE
     assert transferencia.licenca_ativada_nesta_maquina(licenca, HWID_NOVO)
 
 

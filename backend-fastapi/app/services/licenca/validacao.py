@@ -20,8 +20,9 @@ from app.db.crud.configuracao import licenca as licenca_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.cadastro import resgatar_chave_publica_online
 from app.services.licenca.constantes import API_CONECTAR_URL, CONECTAR_TIMEOUT_SECONDS
-from app.services.licenca.cripto import decriptar_valor
-from app.services.licenca.recusa import _carencia_vigente, _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento, erro_licenca_de_outra_maquina
+from app.services.licenca.cripto import decriptar_valor  # so para a chave publica (que nao vai ao cofre)
+from app.services.licenca import segredos_licenca  # unico dono do token e da chave de ativacao (LIC-01)
+from app.services.licenca.recusa import _carencia_vigente, _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,10 @@ def _tentar_conexao_remota(
         # Atualizar dados da licença atomicamente
         licenca.ultima_sinc = resposta.ultimaSincronizacao
         licenca.proxima_validacao = resposta.proximaValidacaoEm
-        licenca.token = resposta.token
+        # O token novo vai trancado para o cofre. Se o cofre falhar, o anterior
+        # fica (ainda vale ate 7 dias), o log registra, e a licenca continua
+        # valida: a gravacao e tentada de novo na proxima validacao (LIC-01 §6.4).
+        segredos_licenca.gravar_token_na_licenca(licenca, resposta.token)
         licenca.data_vencimento = resposta.dataVencimento
         licenca.limite = resposta.limite
         licenca.grace_period = resposta.gracePeriodDias
@@ -207,7 +211,21 @@ def modulos_da_licenca(db: Session) -> list[str] | None:
     except RuntimeError:
         return None
 
-    return ler_modulos_liberados(licenca.token, _decifrar_public_key(licenca, hwid))
+    return ler_modulos_liberados(_token_para_ler_modulos(licenca), _decifrar_public_key(licenca, hwid))
+
+
+def _token_para_ler_modulos(licenca: ConfiguracaoLicenca) -> str | None:
+    """Token aberto do cofre so para LER os modulos, ou None se nao abrir.
+
+    Mesma filosofia de _decifrar_public_key: aqui o token so serve para ler a
+    claim `modulos`, e None quer dizer "nao sei" (libera). Quem decide se a
+    licenca vale e a validacao, que tem os proprios erros.
+    """
+    try:
+        return segredos_licenca.ler_token(licenca.token)
+    except Exception as e:  # noqa: BLE001 - cofre fora do ar ou token de outra maquina
+        logger.warning("[licenca] Token ilegivel para leitura de modulos (%s).", type(e).__name__)
+        return None
 
 
 def _validar_offline(
@@ -229,10 +247,14 @@ def _validar_offline(
     """
     agora = datetime.now(timezone.utc)
 
+    # 0. Abrir o token guardado no cofre. Sem internet nao ha como pedir outro,
+    #    entao um token que nao abre aqui vira TOKEN_ILEGIVEL (LIC-01 §6.4).
+    token = segredos_licenca.abrir_token_ou_erro(licenca.token)
+
     # 1. Validar JWT com a chave pública RSA
     try:
         jwt.decode(
-            licenca.token,
+            token,
             public_key,
             algorithms=["RS256"],
             options={"verify_exp": True, "verify_aud": False}
@@ -362,12 +384,10 @@ def verificar_licenca_ativa(db: Session) -> dict:
             "Nenhuma licença encontrada. Execute o setup inicial do sistema.",
         )
 
-    # 3. Descriptografar chave de ativação: só decifra na máquina que a ativou
-    try:
-        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
-    except Exception as e:
-        logger.warning("[licenca] Licença ativada em outra máquina: %s", e)
-        raise erro_licenca_de_outra_maquina()
+    # 3. Abrir a chave de ativação: só abre na máquina que a ativou (cofre do
+    #    Windows no formato novo, HWID no antigo). Banco copiado de outro
+    #    computador -> LICENCA_DE_OUTRA_MAQUINA (tela de transferência).
+    chave_ativacao = segredos_licenca.abrir_chave_ou_erro(licenca, hwid)
 
     # 4. Tentar validação online (prioridade)
     try:
@@ -375,7 +395,7 @@ def verificar_licenca_ativa(db: Session) -> dict:
         # O token acabou de ser trocado pelo que o servidor mandou: os módulos
         # saem DELE, na hora. Quem manda é sempre o token corrente.
         resultado["modulos"] = ler_modulos_liberados(
-            licenca.token, _decifrar_public_key(licenca, hwid)
+            _token_para_ler_modulos(licenca), _decifrar_public_key(licenca, hwid)
         )
         return resultado
     except (httpx.ConnectError, httpx.TimeoutException) as e:
@@ -402,5 +422,5 @@ def verificar_licenca_ativa(db: Session) -> dict:
 
     # 6. Fallback offline
     resultado = _validar_offline(licenca, public_key)
-    resultado["modulos"] = ler_modulos_liberados(licenca.token, public_key)
+    resultado["modulos"] = ler_modulos_liberados(_token_para_ler_modulos(licenca), public_key)
     return resultado

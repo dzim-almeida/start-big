@@ -42,7 +42,8 @@ from app.services.licenca.constantes import (
     DESCONECTAR_TIMEOUT,
     TIMEOUT_SECONDS,
 )
-from app.services.licenca.cripto import decriptar_valor, encriptar_valor
+from app.services.licenca.cripto import encriptar_valor  # so para a chave publica
+from app.services.licenca import cofre, segredos_licenca  # unico dono do token e da chave (LIC-01)
 from app.services.licenca.recusa import _detalhe_da_recusa
 
 logger = logging.getLogger(__name__)
@@ -60,10 +61,12 @@ def licenca_ativada_nesta_maquina(licenca: ConfiguracaoLicenca, hwid: str) -> bo
     """A ativação gravada no banco é DESTE computador?
 
     Decifrar é a prova; a coluna `hwid` sozinha não basta, porque é texto puro
-    e pode ser editada. Mesma regra do boot (`verificar_licenca_ativa`).
+    e pode ser editada. Mesma regra do boot (`verificar_licenca_ativa`). No
+    formato novo quem prova é o cofre do Windows (só abre neste computador);
+    no antigo, o HWID.
     """
     try:
-        decriptar_valor(licenca.chave_ativacao, hwid)
+        segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid)
         return True
     except Exception:  # noqa: BLE001 - qualquer falha = não decifra aqui
         return False
@@ -159,6 +162,15 @@ def _gravar_ativacao(db: Session, resposta: AutoCadastroResponse, hwid: str) -> 
     """
     public_key_pem = cadastro._buscar_chave_publica_online()
 
+    # Tranca os segredos ANTES de apagar qualquer coisa: se o cofre falhar,
+    # nada muda no banco e a pessoa tenta de novo (LIC-01).
+    try:
+        chave_trancada = segredos_licenca.guardar_chave_ativacao(resposta.chaveAtivacao)
+        token_trancado = segredos_licenca.guardar_token(resposta.token)
+    except cofre.CofreIndisponivel as e:
+        logger.error("[licenca] COFRE_INDISPONIVEL ao gravar a ativação: %s", e)
+        raise segredos_licenca.erro_cofre_indisponivel() from e
+
     removidas = licenca_crud.remover_licencas_de_outras_maquinas(db, hwid)
     terminal_crud.limpar_todos_terminais(db)
 
@@ -166,11 +178,11 @@ def _gravar_ativacao(db: Session, resposta: AutoCadastroResponse, hwid: str) -> 
         cliente_id=resposta.clienteId or "000000000-0000000000-0000000000",
         hwid=hwid,
         licenca_id=resposta.licencaId,
-        chave_ativacao=encriptar_valor(resposta.chaveAtivacao, hwid),
+        chave_ativacao=chave_trancada,          # trancada no cofre (LIC-01)
         public_key=encriptar_valor(public_key_pem, hwid),
         limite=resposta.limite,
         data_vencimento=resposta.dataVencimento,
-        token=resposta.token,
+        token=token_trancado,                   # trancado no cofre (LIC-01)
         ultima_sinc=resposta.ultimaSincronizacao,
         grace_period=resposta.gracePeriodDias,
         proxima_validacao=resposta.proximaValidacaoEm,
@@ -312,7 +324,7 @@ async def desativar_esta_maquina(db: Session, hwid_solicitante: str) -> None:
             "A licença deste banco não é deste computador; não há o que desativar aqui.",
         )
 
-    chave = decriptar_valor(licenca.chave_ativacao, hwid)
+    chave = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid)
     hwids = {hwid} | {t.hwid for t in terminal_crud.get_todos_terminais(db)}
 
     try:

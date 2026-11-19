@@ -1,4 +1,5 @@
 # app/db/crud/fiscal/nucleo.py (era db/crud/fiscal.py ate 13/10/2026)
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload, subqueryload
@@ -15,6 +16,8 @@ from app.db.models.ordem_servico_item import OrdemServicoItem
 from app.db.models.produto_fiscal import ProdutoFiscal
 from app.db.models.servico_fiscal import ServicoFiscal
 from app.core.enum import EntityType
+
+logger = logging.getLogger(__name__)
 
 def get_empresa(db: Session, empresa_id: int):
     return db.query(Empresa).filter(Empresa.id == empresa_id).first()
@@ -145,8 +148,26 @@ from app.db.models.configuracao_licenca import ConfiguracaoLicenca
 from app.db.models.aliquota_uf import AliquotaUF
 
 def get_licenca_token(db: Session) -> str:
+    """Token da licença em texto, para o Bearer da API fiscal.
+
+    Desde a LIC-01 o token fica trancado no cofre do Windows, e quem sabe abri-lo
+    é `segredos_licenca`. EXCEÇÃO DOCUMENTADA à regra de camadas (um crud
+    chamando um service), aprovada pelo usuário em 2026-11-19: esta função é
+    chamada em ~30 lugares do fiscal, e trocar todos seria um diff grande fora
+    da spec. Se o token não abrir, devolve "" -- a API fiscal responde 401, como
+    hoje quando não há token.
+    """
+    # Import local: evita ciclo de import entre db.crud e services.licenca.
+    from app.services.licenca import segredos_licenca
+
     licenca = db.query(ConfiguracaoLicenca).first()
-    return licenca.token if licenca else ""
+    if not licenca:
+        return ""
+    try:
+        return segredos_licenca.ler_token(licenca.token) or ""
+    except Exception as e:  # noqa: BLE001 - SegredoIlegivel ou CofreIndisponivel
+        logger.warning("[fiscal] Token da licença não abre neste computador (%s).", type(e).__name__)
+        return ""
 
 def get_documento_fiscal(db: Session, documento_id: int):
     return db.query(DocumentoFiscal).filter(DocumentoFiscal.id == documento_id).first()

@@ -15,8 +15,8 @@ from app.db.crud.configuracao import licenca as licenca_crud
 from app.db.crud.terminal import conectados as terminal_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_CONECTAR_URL, API_DESCONECTAR_URL, CONECTAR_TIMEOUT_SECONDS, DESCONECTAR_TIMEOUT
-from app.services.licenca.cripto import decriptar_valor
-from app.services.licenca.recusa import _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento, erro_licenca_de_outra_maquina
+from app.services.licenca import segredos_licenca  # unico dono da chave de ativacao (LIC-01)
+from app.services.licenca.recusa import _detalhe_da_recusa, _erro_licenca, _limpar_bloqueio, _recusa_por_vencimento
 
 logger = logging.getLogger(__name__)
 
@@ -89,16 +89,12 @@ def conectar_terminal(db: Session, terminal_hwid: str) -> None:
             "Desconecte um terminal para conectar um novo.",
         )
 
-    # 4. Decriptar chave de ativação com HWID do servidor
+    # 4. Abrir a chave de ativação (cofre do Windows; HWID no formato antigo).
+    #    Mesmo erro do /licenca/status, de propósito: o login é a outra porta
+    #    por onde se descobre a troca de servidor, e as duas levam à mesma tela
+    #    de transferência no frontend (LICENCA_DE_OUTRA_MAQUINA).
     hwid_servidor = obter_hwid()
-    try:
-        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid_servidor)
-    except Exception as e:
-        # Mesmo erro do /licenca/status, de propósito: o login é a outra porta
-        # por onde se descobre a troca de servidor, e as duas levam à mesma tela
-        # de transferência no frontend.
-        logger.warning("[licenca] Licença ativada em outra máquina (login): %s", e)
-        raise erro_licenca_de_outra_maquina()
+    chave_ativacao = segredos_licenca.abrir_chave_ou_erro(licenca, hwid_servidor)
 
     # 5. Chamar API externa
     payload = ConectarPayload(chave=chave_ativacao, hwid=terminal_hwid)
@@ -198,7 +194,9 @@ async def desconectar_terminal(db: Session, terminal_hwid: str) -> dict:
             return {"ok": True}
 
         hwid_servidor = obter_hwid()
-        chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid_servidor)
+        # Se a chave não abrir, o except geral abaixo registra e segue: a
+        # desconexão local já aconteceu e a nuvem expira a sessão sozinha.
+        chave_ativacao = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid_servidor)
         payload = DesconectarPayload(chave=chave_ativacao, hwid=terminal_hwid)
 
         async with httpx.AsyncClient(timeout=DESCONECTAR_TIMEOUT) as client:

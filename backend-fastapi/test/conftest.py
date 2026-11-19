@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.db.base import Base
 
 from app.db.models.usuario import Usuario
+from app.services.licenca import cofre
+from test.apoio import cofre_falso
 
 # Configuração do banco de dados de teste (SQLite em memória)
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -42,6 +44,18 @@ def get_db_override():
         db.close()
 
 app.dependency_overrides[get_db] = get_db_override
+
+
+# Antes de CADA teste, troca a DPAPI (que so existe no Windows) pelo cofre falso
+# de test/apoio/ (LIC-01 §6.5, ACORDO D-26). O cofre falso mora em test/, entao o
+# PyInstaller nunca o coloca no .exe da loja.
+@pytest.fixture(autouse=True)          # autouse=True: vale para todos os testes, sem precisar pedir
+def usar_cofre_falso(monkeypatch):     # monkeypatch: troca uma funcao so durante o teste
+    cofre_falso.reiniciar()            # cada teste comeca com o cofre "limpo"
+    monkeypatch.setattr(cofre, "proteger", cofre_falso.proteger)
+    monkeypatch.setattr(cofre, "desproteger", cofre_falso.desproteger)
+    yield
+    cofre_falso.reiniciar()
 
 # Fixture para o cliente de teste
 @pytest.fixture(scope="module")

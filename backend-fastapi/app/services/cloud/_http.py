@@ -15,10 +15,23 @@ def _client(timeout: httpx.Timeout) -> httpx.AsyncClient:
 
 
 def _get_license_token(db) -> Optional[str]:
-    # Import local evita importação circular com app.db
+    """Token da licença, aberto do cofre do Windows (LIC-01).
+
+    Se o token não abrir (cofre fora do ar, banco de outro computador),
+    devolve None: o envio é adiado ("sem token"), e a próxima validação da
+    licença pede um token novo e regrava.
+    """
+    # Imports locais evitam importação circular com app.db e app.services.licenca
     from app.db.crud.configuracao import licenca as license_crud
+    from app.services.licenca import segredos_licenca
     license = license_crud.get_licenca(db)
-    return license.token if license else None
+    if not license:
+        return None
+    try:
+        return segredos_licenca.ler_token(license.token)
+    except Exception as e:  # noqa: BLE001 - SegredoIlegivel ou CofreIndisponivel
+        logger.warning("[SYNC] Token da licença não abre neste computador (%s).", type(e).__name__)
+        return None
 
 
 async def _renew_license(db) -> None:

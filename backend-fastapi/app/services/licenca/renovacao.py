@@ -39,7 +39,8 @@ from app.schemas.licenca import (
     ValidarPayload,
     ValidarResponse,
 )
-from app.services.licenca import _limpar_bloqueio, decriptar_valor
+from app.services.licenca import _limpar_bloqueio
+from app.services.licenca import segredos_licenca  # unico dono do token e da chave (LIC-01)
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ def _credenciais(db: Session) -> tuple[str, str]:
 
     hwid = obter_hwid()
     try:
-        chave = decriptar_valor(licenca.chave_ativacao, hwid)
+        chave = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid)
     except Exception as erro:  # noqa: BLE001 - qualquer falha aqui e chave corrompida
         logger.warning("[renovacao] Falha ao decriptar a chave de ativacao: %s", erro)
         raise _erro(
@@ -407,7 +408,7 @@ def revalidar_agora(db: Session) -> bool:
     hwid = obter_hwid()
 
     try:
-        chave = decriptar_valor(licenca.chave_ativacao, hwid)
+        chave = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid)
     except Exception:  # noqa: BLE001
         logger.warning("[renovacao] Revalidacao abortada: chave de ativacao ilegivel.")
         return False
@@ -436,7 +437,8 @@ def revalidar_agora(db: Session) -> bool:
         logger.warning("[renovacao] Resposta de validacao fora do contrato: %s", erro)
         return False
 
-    licenca.token = validada.token
+    # Token novo trancado no cofre; se o cofre falhar, fica o anterior (LIC-01 §6.4).
+    segredos_licenca.gravar_token_na_licenca(licenca, validada.token)
     licenca.proxima_validacao = validada.proximaValidacaoEm
     licenca.ultima_sinc = validada.ultimaSincronizacao
     licenca.data_vencimento = validada.dataVencimento

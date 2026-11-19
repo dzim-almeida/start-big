@@ -19,7 +19,7 @@ from app.db.crud.configuracao import licenca as licenca_crud
 from app.db.crud.terminal import conectados as terminal_crud
 from app.core.hwid import obter_hwid
 from app.services.licenca.constantes import API_HEARTBEAT_URL, API_VALIDAR_URL, HEARTBEAT_TIMEOUT
-from app.services.licenca.cripto import decriptar_valor
+from app.services.licenca import segredos_licenca  # unico dono do token e da chave (LIC-01)
 from app.services.licenca.recusa import _limpar_bloqueio
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,13 @@ async def renovar_licenca_background(db: Session) -> None:
 
     # Preparar payload
     hwid = obter_hwid()
-    chave_ativacao = decriptar_valor(licenca.chave_ativacao, hwid)
+    try:
+        chave_ativacao = segredos_licenca.ler_chave_ativacao(licenca.chave_ativacao, hwid)
+    except Exception as e:  # noqa: BLE001 - cofre fora do ar ou banco de outra maquina
+        # Roda em segundo plano: nao ha tela para mostrar o erro. O boot e o
+        # login mostram o motivo certo; aqui so registramos e tentamos depois.
+        logger.warning("[licenca] Renovacao adiada: chave de ativacao nao abre (%s).", type(e).__name__)
+        return
     payload = ValidarPayload(
         chave=chave_ativacao,
         hwid=hwid,
@@ -187,7 +193,8 @@ async def renovar_licenca_background(db: Session) -> None:
             resposta = ValidarResponse(**dados)
 
             # Atualizar campos atomicamente
-            licenca.token = resposta.token
+            # Token novo trancado no cofre; se o cofre falhar, fica o anterior.
+            segredos_licenca.gravar_token_na_licenca(licenca, resposta.token)
             licenca.proxima_validacao = resposta.proximaValidacaoEm
             licenca.ultima_sinc = resposta.ultimaSincronizacao
             licenca.data_vencimento = resposta.dataVencimento

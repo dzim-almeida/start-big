@@ -202,7 +202,10 @@ def _login_isolado(monkeypatch):
     criados: list[str] = []
 
     monkeypatch.setattr(licenca_terminal, "obter_hwid", lambda: "hwid-servidor")
-    monkeypatch.setattr(licenca_terminal, "decriptar_valor", lambda *a, **k: "chave-limpa")
+    # Desde a LIC-01 a chave e aberta por segredos_licenca (cofre ou HWID).
+    monkeypatch.setattr(
+        licenca_terminal.segredos_licenca, "abrir_chave_ou_erro", lambda *a, **k: "chave-limpa"
+    )
     monkeypatch.setattr(
         terminal_crud, "get_terminal_by_hwid", lambda db, hwid: None
     )

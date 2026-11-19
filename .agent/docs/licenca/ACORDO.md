@@ -3,6 +3,7 @@
 > Escrito pelo agente na skill `spec` §2.2 e aprovado pelo usuário **antes** de qualquer spec. As decisões `D-NN` são citadas pelas specs e pelos testes.
 
 **Status:** Aprovado em 2026-11-18 (D1 a D12 respondidas pelo usuário; itens técnicos da seção 2.C sem objeção). **Revisão 1 (2026-11-18):** revisão de conflitos das specs com o usuário (conflitos 1 a 18 e bloco de documentação), que acrescentou D-25 a D-31, revisou D-03, D-13, D-14, D-19, D-20, D-21 e D-22, e registrou os riscos R-02 e a verificação no `plataformaADM`. **Revisão 2 (2026-11-19):** conferência linha a linha das specs contra o código da plataforma (conflitos 19 a 30), que acrescentou D-32 a D-38, revisou D-01, D-06, D-28 e D-31, criou a ADR-004 e reviu o R-02.
+**Revisão 3 (2026-11-19, implementação da LIC-01):** a chave de ativação que não abre neste computador continua respondendo `LICENCA_DE_OUTRA_MAQUINA` (o código que o app leva à tela de transferência); `CHAVE_ATIVACAO_ILEGIVEL` não é emitido. O fiscal (`get_licenca_token`) passou a abrir o token pelo cofre. Detalhes na Revisão 2 da SPEC-01.
 **Branch de trabalho:** `fix/licenca-seguranca` (a partir de `origin/develop`). Só o `start-big` nesta fase.
 
 ## 1. Contexto
@@ -143,7 +144,7 @@ Fatos levantados na revisão 2 (plataforma):
 |--------|--------|------------|------|
 | `COFRE_INDISPONIVEL` | 503 | start-big | LIC-01 |
 | `TOKEN_ILEGIVEL` | 403 | start-big | LIC-01 |
-| `CHAVE_ATIVACAO_ILEGIVEL` | 403 | start-big | LIC-01 |
+| ~~`CHAVE_ATIVACAO_ILEGIVEL`~~ | — | start-big | LIC-01 (**não emitido**, Revisão 3: a chave que não abre responde `LICENCA_DE_OUTRA_MAQUINA`) |
 | `BACKUP_CHAVE_INVALIDA` | 422 | start-big | LIC-01 |
 | `PASTA_DADOS_ABERTA` | aviso (log e tela) | start-big | LIC-01, LIC-08 |
 | `TOKEN_DE_OUTRA_LICENCA` | 403 | start-big | LIC-02 |

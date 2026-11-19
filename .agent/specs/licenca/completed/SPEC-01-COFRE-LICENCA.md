@@ -2,11 +2,11 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-19) |
 | Camada       | Backend (FastAPI), com verificação no Windows |
 | Dependências | — |
 | Bloqueia     | SPEC-02, SPEC-03 |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-02, D-03, D-19, D-25, D-26, D-30; [ADR-001](../../docs/licenca/adr/ADR-001-cofre-local-dpapi.md); quadro F30, F31, F36, F37 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-02, D-03, D-19, D-25, D-26, D-30; [ADR-001](../../../docs/licenca/adr/ADR-001-cofre-local-dpapi.md); quadro F30, F31, F36, F37 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
 > - **Conflito 1 (D-25):** a DPAPI usa o escopo **de máquina**. O backend roda como SYSTEM (tarefa `StartBigServer`) e como o usuário logado (sidecar de reserva), sobre o mesmo banco, e o escopo de usuário deixaria uma conta sem ler o que a outra gravou.
@@ -14,6 +14,16 @@
 > - **Conflito 3 (D-03 revista):** os backups locais não mudam. A cifra fica só na **cópia enviada à nuvem**, com uma marca no cabeçalho. O manifest fica dentro do ZIP e é lido pelo incremental, pela limpeza, pela verificação e pela restauração em cadeia, então cifrar o ZIP local quebraria o motor de backup.
 > - **Conflito 4 (D-26):** o cifrador falso existe só em `test/`. O sistema sempre sobe, e a falha do cofre aparece na operação que precisou dele (tabela da §6.4). A pergunta da §10 está fechada.
 > - **Conflito 17 (D-30):** a **chave de ativação** vai para o mesmo cofre. Hoje ela é cifrada com o HWID, que fica em texto puro na mesma tabela, então quem copia o banco abre a chave.
+
+> **Revisão 2 (2026-11-19, implementação):** divergências achadas ao implementar, decididas com o usuário ou registradas aqui.
+> - **Chave que não abre → `LICENCA_DE_OUTRA_MAQUINA` (decisão do usuário).** O código `CHAVE_ATIVACAO_ILEGIVEL` (§4, §6.4) **não é emitido**. O app atual leva `LICENCA_DE_OUTRA_MAQUINA` sozinho à tela de transferência (boot e login), e nenhuma spec ensinava isso ao código novo: a troca de servidor cairia numa tela sem saída. O significado é o mesmo, e o CA-08 continua valendo (a tela orienta entrar com a conta). Vale para a chave nos dois formatos (cofre e HWID).
+> - **Fiscal lê o token (decisão do usuário).** `get_licenca_token` (`app/db/crud/fiscal/nucleo.py`), usado em ~30 pontos da emissão fiscal, lia a coluna `token` crua. Passou a abrir o token por `segredos_licenca.ler_token` (vazio se não abrir). Exceção documentada à regra de camadas (crud chamando service), para não trocar os 30 pontos.
+> - **Snapshot com `token = ''`, não `NULL`.** A coluna `token` é `NOT NULL` no banco; o `UPDATE ... SET token = NULL` da §6.6 faria o backup inteiro falhar. O texto vazio tem o mesmo efeito (o snapshot sai sem token). CT-12 confere `''`.
+> - **Assinaturas:** `ler_chave_ativacao(guardado, hwid)` e `migrar_segredos(db, hwid)` recebem o HWID de quem chama (todas as portas já o têm, e é assim que os testes simulam "outro computador" no formato antigo). `migrar_segredos` só faz `flush`; o commit é do startup (`tarefas.py`), pela regra das camadas.
+> - **Ajudantes no `segredos_licenca.py`:** `gravar_token_na_licenca` (o token novo; se o cofre falhar, fica o anterior), `abrir_chave_ou_erro` e `abrir_token_ou_erro` (os erros da §6.4 num lugar só) e `erro_cofre_indisponivel`.
+> - **Envio sem chave:** se a chave não abre (cofre fora do ar ou banco copiado), o ciclo de envio para antes de pedir a URL, com o código no `SyncResponse`. O backup nunca sai em claro.
+> - **Fora da lista:** `app/db/crud/fiscal/nucleo.py` (aprovado); `test/apoio/__init__.py`, `test/services/licenca/__init__.py`, `test/services/backup/__init__.py` (pacotes de teste); `test/api/v1/test_licenca_recusa_vencimento.py` (a fixture trocava `decriptar_valor` do `terminal`; agora troca `abrir_chave_ou_erro`, sem mudar o que o teste verifica).
+> - **Verificação:** CA-01, CA-02, CA-08 e CA-09 exigem Windows real (DPAPI e `Get-Acl`) e ficaram **não verificados** nesta sessão (Linux). Os outros CAs e os CT-01 a CT-17 têm teste automatizado.
 
 ## 1. Objetivo
 
