@@ -20,7 +20,7 @@ Este módulo cruza dois repositórios: `start-big` (backend Python, front Vue e 
 | LIC-06 | [`SPEC-06-API-CONTA-CADASTRO.md`](./SPEC-06-API-CONTA-CADASTRO.md) | API e painel web | plataforma (fork → PR) | Backlog | Cadastro com resposta única e confirmação, compatível com as versões instaladas; bloqueio de login; reenviar link; tokens por finalidade; titular |
 | LIC-07 | — | Rede da loja | start-big | Reservada (fora desta série) | TLS na rede da loja |
 | LIC-08 | [`SPEC-08-AVISOS-LICENCA-BACKUP.md`](./SPEC-08-AVISOS-LICENCA-BACKUP.md) | Backend e Frontend | start-big | Backlog | Avisos ao dono: relógio, dias estimados, backup na nuvem parado, pasta aberta |
-| LIC-09 | [`SPEC-09-API-VAGAS-SESSOES.md`](./SPEC-09-API-VAGAS-SESSOES.md) | API | plataforma (fork → PR) | Backlog | Sessões de 10 minutos, troca apaga as sessões da loja antiga, vaga com a licença trancada, heartbeat autenticado |
+| LIC-09 | [`SPEC-09-API-VAGAS-SESSOES.md`](./completed/SPEC-09-API-VAGAS-SESSOES.md) | API | plataforma (fork → PR) | Concluída (2026-11-19) | Sessões de 10 minutos, troca apaga as sessões da loja antiga, vaga com a licença trancada, heartbeat autenticado |
 
 > Spec concluída: o arquivo passa para `./completed/` e a situação vira `Concluída (AAAA-MM-DD)`.
 

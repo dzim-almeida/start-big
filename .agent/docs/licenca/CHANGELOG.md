@@ -2,6 +2,19 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-19 — SPEC-09 API: vagas e heartbeat (plataforma)
+
+**Módulos afetados:** API StartBig (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `003c167`)
+
+### Alterado
+- Sessão sem heartbeat há mais de 10 minutos não ocupa vaga, e o cron usa o mesmo prazo (D-10).
+- Vaga ocupada com a licença trancada (`ocuparVagaSeCouber`, D-38).
+- Troca de servidor apaga as sessões da loja antiga, menos a do servidor novo (F17).
+- Heartbeat autenticado pelo token, com transição: sem token só renova e responde `404 SESSAO_INEXISTENTE` (D-37, ADR-004).
+
+### Adicionado
+- `scripts/testar-corrida-vagas.ts` para conferir a corrida num PostgreSQL de desenvolvimento.
+
 ## 2026-11-19 — SPEC-05 API: revogação, backup do servidor atual e trial (plataforma)
 
 **Módulos afetados:** API StartBig (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `b735773`)

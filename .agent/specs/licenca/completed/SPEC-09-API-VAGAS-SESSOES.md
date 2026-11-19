@@ -2,12 +2,12 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-19) |
 | Camada       | Backend da API (NestJS, Prisma) |
 | Repositório  | Trabalho no fork `dzim-almeida/plataformaADM`; entrega por PR ao `aalan-big/plataformaADM` (D-01) |
 | Dependências | SPEC-05 (helper `lerTokenDaLicenca` e a consulta de revogação). Tarefa do comentário do heartbeat no `start-big` (ROTEIRO). Integração com a SPEC-02 (o app passa a mandar o token no heartbeat) |
 | Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-01, D-10, D-37, D-38; [ADR-004](../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); risco R-02; quadro F6, F17, F21 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-01, D-10, D-37, D-38; [ADR-004](../../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); risco R-02; quadro F6, F17, F21 |
 
 > **Origem (2026-11-18):** dividida da antiga SPEC-06 na revisão de conflitos (conflito 15). O F5 não veio junto (R-02).
 
@@ -16,6 +16,14 @@
 > - **Conflito 27 (D-37):** o heartbeat só pedia o `licencaId`. Quem o soubesse ocupava as vagas da loja com HWIDs inventados. Ele passa a ser autenticado pelo token da licença, com transição: sem token, só renova sessão existente e nunca cria; a resposta é `404`, nunca `400` (o app instalado bloqueia a licença quando todos os caixas recebem `400`).
 > - **Conflito 28 (D-38):** a contagem sem corrida usa a licença trancada (`SELECT ... FOR UPDATE`) em vez de uma transação serializável, que falharia com erro 500 em vez de "limite atingido". O banco falso ganha o que falta, e a corrida real é testada por script contra um PostgreSQL de desenvolvimento.
 > - **Documentação (D16 a D18, D20):** rotas em dobro (`/licenca/heartbeat` e `/erp/heartbeat`); como os testes rodam; padrão de arquivos.
+
+> **Revisão 3 (2026-11-19, implementação):** fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `003c167`.
+> - **Login autenticado com a licença cheia:** `deletarSessoesMaisAntigas` passou a escolher só entre as sessões VIVAS (as mortas já não ocupam vaga e derrubá-las não liberaria nada). Depois de liberar, o `conectar` tenta `ocuparVagaSeCouber` de novo; se outro computador pegou a vaga no meio, a resposta é o limite de hoje.
+> - **`totalUsuarios` no `conectar`:** sai de `countSessoesAtivas` (só sessões vivas), e não de uma conta de cabeça.
+> - **Testes antigos ajustados (§9):** `licenca-troca-servidor.test.ts` — a troca apaga as sessões dos caixas; o caixa da loja antiga recebe `404 SESSAO_INEXISTENTE` no heartbeat sem token e volta pelo `conectar`; os heartbeats que recriam sessão passam o token; o cenário "derruba a sessão mais antiga" usa uma sessão viva de 5 min (a de 30 min já está morta pela D-10).
+> - **Fora da lista:** `package.json` da raiz ganhou `licenca:testar-corrida` (mesmo padrão do `test:r2`); `deletarSessoesMaisAntigas` (mesmo arquivo da lista).
+> - **Token vencido no heartbeat:** responde `401` (sem `codigo`), como o guard obrigatório. O app novo só registra no log; a próxima validação renova o token.
+> - **Verificação:** CT-01 a CT-12 com `node --test` (pasta `test/licenca`, 59 testes). `tsc --noEmit` sem erro (servidor e script). **Não verificado:** o `scripts/testar-corrida-vagas.ts` (CA-01) — não há PostgreSQL de desenvolvimento nesta sessão; rodar com `LICENCA_ID=<uuid> npm run licenca:testar-corrida`. CA-07 fica para a verificação de integração.
 
 ## 1. Objetivo
 
