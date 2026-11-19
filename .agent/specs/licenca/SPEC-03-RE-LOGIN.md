@@ -6,16 +6,22 @@
 | Camada       | Backend (FastAPI) e Frontend (Vue 3 + TypeScript) |
 | Dependências | SPEC-01 (download que entende a cópia cifrada), SPEC-02 (códigos de recusa). Integração com a LIC-06, com rede de segurança: funciona sem ela |
 | Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-16, D-22, D-23, D-28, D-29, D-31; quadro F10, F11, F16, F18, F19, F22 |
+| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-16, D-22, D-23, D-28, D-29, D-31, D-34, D-36; [ADR-004](../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); quadro F10, F11, F16, F18, F19, F22 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
-> - **Conflito 8 (D-28):** os dados da nuvem vêm do `GET /erp/cadastro/titular` (LIC-06). Se a rota responder `404` (API antiga), o setup funciona como hoje, só local. Com isso esta spec pode ir para produção antes da LIC-06.
+> - **Conflito 8 (D-28):** os dados da nuvem vêm do `GET /erp/cadastro/titular` (LIC-06; na revisão 2 o caminho passou a ser `/erp/usuario/titular`). Se a rota responder `404` (API antiga), o setup funciona como hoje, só local. Com isso esta spec pode ir para produção antes da LIC-06.
 > - **Conflito 10:** a conferência da senha continua por `_entrar_na_conta`. Foi verificado no `plataformaADM` que um segundo login seguido do mesmo computador não conta como troca e não derruba caixa. Entram `SEM_CONEXAO` e a lista completa de mensagens por código.
 > - **Conflito 11 (D-29):** o corpo de erro é `{"error": ..., "detail": {"codigo", "mensagem"}}`, como o backend já faz. O front ganha `lerErroDaLicenca`.
 > - **Conflito 14 (D-31):** o cadastro sempre responde `202`. A tela trata só esse caso.
 > - **Conflito 16:** o documento nunca vai para a nuvem e nunca vem da tela: o corpo do `PUT` tem uma lista fechada de campos, e a empresa local recebe o documento da nuvem. Cada erro tem o seu tratamento.
 > - **Conflito 13:** o aviso de relógio fica na LIC-08.
 > - **Documentação:** o reenvio de link (F23) é da LIC-06, não da SPEC-05.
+
+> **Revisão 2 (2026-11-19):** conferência no código da plataforma.
+> - **Conflito 23 (D-34, ADR-004):** o app novo manda `fluxoConfirmacao: true` no cadastro e recebe `202`. As versões instaladas recebem `409 CONFIRMACAO_NECESSARIA` com a instrução.
+> - **Conflito 26 (D-36):** sem ciclo informado, a API usa a semana atual, e o registro local de ciclos some junto com o banco. A restauração descobre o ciclo mais recente com full pelo `historicoEventos` do `/erp/backup/status`.
+> - **Conflito 29 (D-28 revista):** as rotas do titular são `GET` e `PUT /erp/usuario/titular`.
+> - **Documentação (D13):** erro de validação da API sai como `400`, não `422`.
 
 ## 1. Objetivo
 
@@ -42,10 +48,10 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 | Arquivo | Ação | O quê |
 |---------|------|-------|
 | `backend-fastapi/app/api/v1/endpoints/licenca.py` | alterar | Rota `POST /restaurar-backup`. Pública, como `/transferir`, porque roda antes do login local. |
-| `backend-fastapi/app/services/licenca/restauracao_titular.py` | criar | Confere a conta na nuvem, confere se a licença é a desta máquina e prepara a restauração. |
+| `backend-fastapi/app/services/licenca/restauracao_titular.py` | criar | Confere a conta na nuvem, confere se a licença é a desta máquina, descobre o ciclo pelo `/status` (§6.1) e prepara a restauração. |
 | `backend-fastapi/app/services/backup/restore.py` | alterar | Expõe `preparar_restauracao_do_titular(ciclo)`, sem exigir Master. |
-| `backend-fastapi/app/services/licenca/titular_nuvem.py` | criar | `buscar_titular()` (`GET /erp/cadastro/titular`) e `atualizar_titular(campos)` (`PUT`), com a rede de segurança do `404`. |
-| `backend-fastapi/app/services/licenca/cadastro.py` | alterar | Trata a resposta `202` do cadastro sem gravar licença (§6.5). |
+| `backend-fastapi/app/services/licenca/titular_nuvem.py` | criar | `buscar_titular()` (`GET /erp/usuario/titular`) e `atualizar_titular(campos)` (`PUT`), com a rede de segurança do `404`. |
+| `backend-fastapi/app/services/licenca/cadastro.py` | alterar | Manda `fluxoConfirmacao: true` e trata a resposta `202` do cadastro sem gravar licença (§6.5). |
 | `backend-fastapi/app/services/sistema/setup.py` | alterar | Sem backup: busca o titular, monta o corpo com a lista fechada, atualiza a nuvem e só então cria a empresa local, com o documento vindo da nuvem (§6.6). |
 | `backend-fastapi/app/schemas/licenca/restauracao.py` | criar | `RestaurarBackupPayload` e `RestaurarBackupResposta`. |
 | `backend-fastapi/app/schemas/licenca/titular.py` | criar | `TitularNuvem` (o que o `GET` devolve) e `AtualizarTitularCorpo` (os campos permitidos no `PUT`). |
@@ -55,7 +61,7 @@ Fazer o caso 2 do re-login funcionar: o dono perdeu o banco, entra com a conta d
 | `frontend/src/modules/sign-in/composables/useSignIn.ts` | alterar | Novo passo `escolha-restauracao` e o caminho do `202` do cadastro. |
 | `frontend/src/modules/license/views/TransferirLicencaView.vue` | alterar | Aviso antes de confirmar a troca (§6.3). |
 | `frontend/src/shared/services/licenca.service.ts` | alterar | `MENSAGENS_DE_CODIGO`, `mensagemDoCodigo` e `lerErroDaLicenca` (§6.4). |
-| `backend-fastapi/test/api/v1/test_restaurar_backup_titular.py` | criar | Casos CT-01 a CT-07. |
+| `backend-fastapi/test/api/v1/test_restaurar_backup_titular.py` | criar | Casos CT-01 a CT-07 e CT-21 a CT-23. |
 | `backend-fastapi/test/api/v1/test_setup_dados_nuvem.py` | criar | Casos CT-08 a CT-13. |
 | `frontend/src/modules/sign-in/__tests__/reconnect.spec.ts` | criar | Casos CT-14 a CT-20. |
 
@@ -91,7 +97,7 @@ Pública, como `/licenca/transferir`, porque roda antes de existir um login loca
 }
 ```
 
-`ciclo` é opcional. Quando `null`, a restauração usa o ciclo mais recente disponível.
+`ciclo` é opcional. Quando `null`, a restauração descobre o ciclo mais recente com full confirmado pelo `/erp/backup/status` (§6.1). A API, sem ciclo, usaria a semana atual, que pode estar vazia.
 
 **Regras de negócio**
 
@@ -121,8 +127,8 @@ Nenhuma mudança de contrato. O front passa a mostrar a escolha da §6.2 quando 
 
 | Rota | Uso | Sem a LIC-06 (resposta `404`) |
 |------|-----|-------------------------------|
-| `GET /erp/cadastro/titular` | Dados para pré-preencher o setup | Setup abre vazio, como hoje |
-| `PUT /erp/cadastro/titular` | Atualizar a nuvem antes da empresa local | Empresa criada só localmente, como hoje |
+| `GET /erp/usuario/titular` | Dados para pré-preencher o setup | Setup abre vazio, como hoje |
+| `PUT /erp/usuario/titular` | Atualizar a nuvem antes da empresa local | Empresa criada só localmente, como hoje |
 
 ## 5. Schemas
 
@@ -198,7 +204,22 @@ def conferir_titular_da_licenca(db, email: str, senha: str) -> None:
                     "Esta conta não é dona da licença deste computador.")
 ```
 
-Depois disso, a função chama `download_chain` (`services/cloud/download.py`, que decifra a cópia da nuvem pela SPEC-01) e `prepare_restore` (`services/backup/restore.py`), sem passar pela rota de Master.
+Depois disso, a função descobre o ciclo (abaixo), chama `download_chain(db, ciclo)` (`services/cloud/download.py`, que decifra a cópia da nuvem pela SPEC-01) e `prepare_restore` (`services/backup/restore.py`), sem passar pela rota de Master.
+
+```python
+# restauracao_titular.py — qual ciclo restaurar quando o dono não escolheu (D-36).
+# Sem ciclo, a API usaria a SEMANA ATUAL, que pode estar vazia (segunda de manhã, trial).
+# O registro local de ciclos (journal) some junto com o banco, então a fonte é o /status.
+def ciclo_mais_recente_com_full(status: dict) -> str | None:
+    ciclos = [
+        evento["ciclo"]
+        for evento in status.get("historicoEventos", [])          # os 30 envios mais recentes
+        if evento.get("tipo") == "FULL" and evento.get("status") == "CONFIRMADO"
+    ]
+    return max(ciclos) if ciclos else None                        # ciclo é data ISO: o maior é o mais recente
+```
+
+Sem nenhum full confirmado, a resposta é `BACKUP_INEXISTENTE`. Limite registrado: o `historicoEventos` traz os 30 envios mais recentes; com o limite diário de envios e o ciclo semanal, o full do ciclo mais recente cabe nessa janela.
 
 Observação da verificação: se a sessão deste computador tiver expirado entre o re-login e a restauração **e** o plano estiver no limite, a nuvem trata o login como computador novo e encerra a sessão mais antiga. Como a restauração vem segundos depois do re-login, o caso é raro, e não há ação nesta spec.
 
@@ -213,6 +234,8 @@ Quando `inicializado` volta `false`, o fluxo em `useSignIn.ts` leva a uma tela c
 | Botão (só quando houver backup) | Restaurar backup da nuvem |
 | Botão (só quando não houver backup) | Preencher os dados da empresa |
 | Aviso, quando não houver backup | Não há backup na nuvem para esta licença. Confira os dados da empresa, que vêm da sua conta na StartBig. |
+
+"Há backup" é a mesma regra da §6.1: existe um ciclo com full confirmado no `/status`.
 
 Regra: **com backup, a tela só oferece restaurar.** Sem backup, só oferece preencher os dados da empresa (D-22).
 
@@ -251,6 +274,7 @@ export const MENSAGENS_DE_CODIGO: Record<string, string> = {
   SENHA_NAO_CONFIGURADA: 'Sua conta ainda não tem senha. Use "Reenviar link" para criar uma.',
   MUITAS_TENTATIVAS: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
   AGUARDANDO_CONFIRMACAO_EMAIL: 'Confirme o link enviado ao seu e-mail antes de entrar.',
+  CONFIRMACAO_NECESSARIA: 'Enviamos as instruções para o seu e-mail. Depois de confirmar, entre com o seu e-mail e senha.',
   CONTA_RECUSADA: 'A StartBig recusou o acesso desta conta. Fale com o suporte.',
   SEM_LICENCA_ATIVA: 'Nenhuma licença ativa foi encontrada para este e-mail.',
   LICENCA_VENCIDA: 'Sua licença está vencida. Renove a assinatura para continuar.',
@@ -279,7 +303,7 @@ export function mensagemDoCodigo(codigo: string | undefined): string {
 
 ### 6.5. Cadastro novo com confirmação de e-mail (D-23, D-31)
 
-O cadastro sempre responde `202` (LIC-06 §4.1). O app não grava licença nenhuma e mostra:
+O app novo manda `fluxoConfirmacao: true` no cadastro, e a API responde `202` (LIC-06 §4.1; D-34, ADR-004). As versões instaladas, que não mandam o campo, recebem `409 CONFIRMACAO_NECESSARIA` com uma instrução que elas já sabem mostrar. O app novo não grava licença nenhuma e mostra:
 
 > Enviamos as instruções para o seu e-mail. Se este e-mail já tiver conta, enviamos as instruções para entrar.
 >
@@ -335,7 +359,7 @@ def setup_sem_backup(db, dados_setup):
 | Resposta | O que o setup faz |
 |----------|-------------------|
 | `404` (rota inexistente) | Rede de segurança: setup como hoje, só local (D-28) |
-| `401 LICENCA_HWID_REVOGADO`, `403 DOCUMENTO_TRAVADO`, `422` | Mostra a mensagem do código (`lerErroDaLicenca`). Nada criado |
+| `401 LICENCA_HWID_REVOGADO`, `403 DOCUMENTO_TRAVADO`, `400` (validação) | Mostra a mensagem do código (`lerErroDaLicenca`). Nada criado |
 | Falha de rede | `SEM_CONEXAO`: "tente de novo". Nada criado |
 | `5xx` | `NUVEM_INDISPONIVEL`: "tente de novo". Nada criado |
 
@@ -352,6 +376,7 @@ Isso segue o mesmo padrão de `transferencia.py::desativar_esta_maquina`: nuvem 
 - **CA-07:** com backup, o re-login não mostra o setup em nenhum momento.
 - **CA-08:** com a API sem a LIC-06 (`404`), o setup funciona como hoje.
 - **CA-09:** cadastro com resposta `202` não grava licença e leva ao re-login.
+- **CA-10:** sem ciclo informado, a restauração usa o ciclo mais recente com full, mesmo que a semana atual esteja vazia.
 
 CA-01, CA-02 e CA-06 são cobertos por teste automatizado e verificados no app pela skill `verify`, no fim da série.
 
@@ -370,7 +395,7 @@ CA-01, CA-02 e CA-06 são cobertos por teste automatizado e verificados no app p
 | CT-09 | `test_setup_dados_nuvem.py` | Corpo enviado no `PUT` | Não contém o documento (lista fechada) |
 | CT-10 | `test_setup_dados_nuvem.py` | Formulário com documento diferente do da nuvem | Empresa local criada com o documento da nuvem |
 | CT-11 | `test_setup_dados_nuvem.py` | `PUT` responde 5xx ou sem rede | Nenhuma empresa local criada; `NUVEM_INDISPONIVEL` ou `SEM_CONEXAO` |
-| CT-12 | `test_setup_dados_nuvem.py` | `PUT` responde 401, 403 ou 422 | Nenhuma empresa local; erro com o código recebido |
+| CT-12 | `test_setup_dados_nuvem.py` | `PUT` responde 401, 403 ou 400 | Nenhuma empresa local; erro com o código recebido |
 | CT-13 | `test_setup_dados_nuvem.py` | `GET` responde 404 | Setup como hoje, empresa só local |
 | CT-14 | `reconnect.spec.ts` | Campo do documento no setup | Travado, sem edição |
 | CT-15 | `reconnect.spec.ts` | Código conhecido no front | Mostra o texto da tabela |
@@ -379,6 +404,9 @@ CA-01, CA-02 e CA-06 são cobertos por teste automatizado e verificados no app p
 | CT-18 | `reconnect.spec.ts` | `lerErroDaLicenca` com código em `detail` e com código no topo | Lê nos dois casos |
 | CT-19 | `reconnect.spec.ts` | Tela de escolha depois do re-login | Com backup: só restaurar. Sem backup: só preencher |
 | CT-20 | `reconnect.spec.ts` | Aviso de troca e cadastro `202` | Aviso aparece antes da chamada à API; `202` mostra a mensagem e leva ao re-login |
+| CT-21 | `test_restaurar_backup_titular.py` | Semana atual sem full, semana anterior com full | Restaura o ciclo da semana anterior |
+| CT-22 | `test_restaurar_backup_titular.py` | Trial com um full antigo | Restaura o ciclo do full do trial |
+| CT-23 | `test_restaurar_backup_titular.py` | Nenhum full confirmado no `historicoEventos` | `404 BACKUP_INEXISTENTE` |
 
 ## 9. Testes existentes que a mudança afeta
 

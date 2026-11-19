@@ -6,13 +6,17 @@
 | Camada       | Backend (FastAPI) |
 | Dependências | SPEC-01 (o token e a chave passam a ser lidos por `segredos_licenca.py`) |
 | Bloqueia     | SPEC-03, LIC-08 (os avisos desta spec são mostrados pela LIC-08) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-05, D-13, D-14, D-15; quadro F7, F8, F24, F25, F26, F27 |
+| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-05, D-13, D-14, D-15, D-37; quadro F7, F8, F24, F25, F26, F27 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
 > - **Conflito 9:** as claims foram conferidas no `aalan-big/plataformaADM` (`apps/server/src/features/dispositivos/dispositivo.service.ts:275-307`). O token já traz `licencaId`, `hwid`, `dataVencimento`, `gracePeriodDias`, `proximaValidacaoEm`, `emCarencia`, `dataLimiteCarencia` e `modulos`. A spec não depende de mudança na API.
 > - **Conflito 18 (D-14 revista):** "bloquear com lista vazia" não bloqueia nada, porque no app lista vazia significa "não sei, libera" (`app/core/modulos.py:77-93`, `modulos.store.ts:43-74`). A §6.3 foi reescrita: com internet, a chave pública ilegível é buscada de novo, como o caminho sem internet já faz.
 > - **Conflito 13:** o aviso de relógio e o rótulo de estimativa são mostrados pela **LIC-08**, não pela SPEC-03.
 > - **Documentação:** a recusa por código cita o F27 (antes, o D-16, que no ACORDO é "mensagem de tela por código"). Os códigos de vencimento são da SPEC-05, não da SPEC-06. O CT-17 ganhou arquivo de teste.
+
+> **Revisão 2 (2026-11-19):** conferência no código da plataforma.
+> - **Conflito 27 (D-37):** o heartbeat dos caixas passa a mandar o token da licença, e o app reconecta o caixa quando a API responde `404 SESSAO_INEXISTENTE` (§6.8). É o lado do app da LIC-09.
+> - **Documentação (D17):** a plataforma tem rotas em dobro (`/licenca/conectar` e `/erp/conectar`); o app usa a primeira, e as mudanças da API ficam no serviço.
 
 ## 1. Objetivo
 
@@ -33,6 +37,7 @@ Fazer o app confiar só no que a API assinou. Hoje ele confia em colunas do banc
 - Usar `diasRestantes` e `diasRestantesCarencia` da API (F26).
 - Ramificar a recusa de `/licenca/conectar` pelo `codigo` da API, quando ele existir (F27, lado do app).
 - Guardar o maior horário visto e gerar o aviso quando o relógio voltar (D-05).
+- Mandar o token da licença no heartbeat dos caixas e reconectar o caixa no `404 SESSAO_INEXISTENTE` (D-37).
 
 **Fora do escopo**
 - Reduzir a validade do token para 24 h (ACORDO D-04, alternativa B).
@@ -48,16 +53,17 @@ Fazer o app confiar só no que a API assinou. Hoje ele confia em colunas do banc
 | `backend-fastapi/app/services/licenca/relogio.py` | criar | `verificar_relogio(licenca, agora)` e `registrar_horario(licenca, agora)`. Um único ponto de decisão sobre o relógio. |
 | `backend-fastapi/app/db/models/configuracao_licenca.py` | alterar | Coluna nova `ultimo_horario_visto` (DateTime, nullable). |
 | `backend-fastapi/alembic/versions/` | criar | Migração que adiciona `ultimo_horario_visto` só se a coluna não existir. |
-| `backend-fastapi/app/services/licenca/sincronizacao.py` | alterar | Grava as colunas de carência também na renovação em segundo plano (F25). As colunas viram só informação de tela; a decisão vem do token. |
+| `backend-fastapi/app/services/licenca/sincronizacao.py` | alterar | Grava as colunas de carência também na renovação em segundo plano (F25). As colunas viram só informação de tela; a decisão vem do token. O heartbeat dos caixas passa a mandar o token e reconecta o caixa no `404 SESSAO_INEXISTENTE` (§6.8). |
 | `backend-fastapi/test/api/v1/test_licenca_validacao_offline.py` | alterar | Fixtures passam a montar o token com as claims. |
 | `backend-fastapi/test/api/v1/test_licenca_recusa_vencimento.py` | alterar | Casos com `codigo` e casos sem `codigo`. |
 | `backend-fastapi/test/api/v1/test_licenca_transferencia.py` | alterar | Ajustar só o que depende da leitura de claims. |
 | `backend-fastapi/test/services/licenca/test_token_offline.py` | criar | Casos CT-01 a CT-12, CT-17 e CT-18. |
 | `backend-fastapi/test/services/licenca/test_relogio.py` | criar | Casos CT-13 a CT-16. |
+| `backend-fastapi/test/services/licenca/test_heartbeat_token.py` | criar | Casos CT-19 a CT-21. |
 
 ## 4. Contrato consumido
 
-Rota: `POST /licenca/conectar` da API StartBig (`apps/server/src/features/dispositivos/dispositivo.service.ts`, método `conectar`).
+Rota: `POST /licenca/conectar` da API StartBig (`apps/server/src/features/dispositivos/dispositivo.service.ts`, método `conectar`). A plataforma tem a gêmea `/erp/conectar`; as mudanças da API ficam no serviço e valem para as duas.
 
 Claims do token que este módulo passa a usar (conferidas no `plataformaADM`):
 
@@ -231,6 +237,27 @@ Quando `verificar_relogio` devolve o aviso, `_validar_offline` inclui `"aviso": 
 
 A coluna nova exige migração Alembic. Ela só adiciona `ultimo_horario_visto` se a coluna não existir. O `create_all()` do startup não acrescenta colunas a tabelas existentes, então a ausência da coluna é o sinal do schema antigo (regra do `CLAUDE.md`, "Atualização de cliente").
 
+### 6.8. Heartbeat com o token da licença (D-37, LIC-09)
+
+O heartbeat dos caixas (`sincronizacao.py`, `_enviar_heartbeat_terminal`) passa a mandar o token da licença do servidor no cabeçalho, como as rotas de backup já fazem (`cloud/_http.py`):
+
+```python
+# sincronizacao.py — o heartbeat prova que vem do servidor da loja (D-37)
+token = ler_token(licenca.token)                       # SPEC-01: lê o token do cofre
+headers = {"Authorization": f"Bearer {token}"} if token else {}
+response = await client.post(API_HEARTBEAT_URL, json=payload.model_dump(), headers=headers)
+```
+
+Reação às respostas novas da LIC-09:
+
+| Resposta | O que o app faz |
+|----------|-----------------|
+| `404 SESSAO_INEXISTENTE` | Reconecta o caixa pelo `conectar_terminal` (que usa a chave de ativação). **Não** remove o caixa da tabela nem conta como bloqueio |
+| `401 LICENCA_HWID_REVOGADO` | Registra no log; a validação da licença trata a revogação |
+| `403 HEARTBEAT_LICENCA_DIVERGENTE` | Registra no log (não deveria acontecer: o token é da própria licença) |
+
+A regra de hoje para `400` (remover o caixa e, se todos receberem `400`, marcar a licença como bloqueada) não muda. Enquanto a API não tiver a LIC-09, o cabeçalho é ignorado e nada muda.
+
 ## 7. Critérios de aceite
 
 - **CA-01:** token com `licencaId` de outra licença é recusado no modo offline.
@@ -241,6 +268,7 @@ A coluna nova exige migração Alembic. Ela só adiciona `ultimo_horario_visto` 
 - **CA-06:** a migração adiciona a coluna uma vez, e rodar de novo não faz nada.
 - **CA-07:** recusa com `LICENCA_TRANSFERIDA` chega ao front com esse código.
 - **CA-08:** o vencimento offline vem da claim `dataVencimento`, mesmo com a coluna editada.
+- **CA-09:** o heartbeat manda o token, e um `404 SESSAO_INEXISTENTE` reconecta o caixa sem bloquear a licença.
 
 Todos são cobertos por teste automatizado, com backend na porta 8000 e banco de teste.
 
@@ -266,6 +294,9 @@ Todos são cobertos por teste automatizado, com backend na porta 8000 e banco de
 | CT-16 | `test_relogio.py` | Horário novo maior que o visto | `ultimo_horario_visto` avança |
 | CT-17 | `test_token_offline.py` | Token válido sem a claim `modulos` | `None`: "não sei", como manda a API |
 | CT-18 | `test_token_offline.py` | Coluna `data_vencimento` editada para o futuro, claim `dataVencimento` no passado | Recusa por vencimento (a claim vence) |
+| CT-19 | `test_heartbeat_token.py` | Heartbeat com token legível | Cabeçalho `Authorization: Bearer ...` enviado |
+| CT-20 | `test_heartbeat_token.py` | Resposta `404 SESSAO_INEXISTENTE` | `conectar_terminal` chamado; caixa continua na tabela; licença não bloqueada |
+| CT-21 | `test_heartbeat_token.py` | Todos os caixas recebem `404` | Licença **não** é marcada como bloqueada |
 
 ## 9. Testes existentes que a mudança quebra
 

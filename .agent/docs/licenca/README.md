@@ -29,11 +29,13 @@ Visão geral do módulo de licença do StartBig: como o computador se liga à co
 
 ## Decisões e documentos
 
-- `ACORDO.md`: decisões D-01 a D-31, riscos aceitos R-01 e R-02, endpoints, códigos e o mapeamento das specs.
+- `ACORDO.md`: decisões D-01 a D-38, riscos aceitos R-01 e R-02, endpoints, códigos e o mapeamento das specs.
 - `adr/ADR-001-cofre-local-dpapi.md`: token e chave de ativação protegidos pela DPAPI do Windows, no escopo de máquina.
 - `adr/ADR-002-login-bearer-cofre.md`: login com Bearer. A parte do cofre foi substituída.
 - `adr/ADR-003-token-login-session-storage.md`: token do login só em `sessionStorage`, para servidor e terminal.
+- `adr/ADR-004-compatibilidade-api-app-instalado.md`: uma mudança de contrato da API nunca deixa uma versão instalada do app sem saída, nem abre uma porta para fugir da proteção nova.
+- `learn/`: aprendizados do módulo (por exemplo, as respostas da API que o app instalado trata como bloqueio).
 
 ## Situação
 
-Correções de segurança e de re-login planejadas, ainda não implementadas. As specs LIC-01 a LIC-09 (a LIC-07, TLS, está reservada) passaram por uma revisão de conflitos com o usuário em 2026-11-18. A primeira é a LIC-01 (cofre e backup cifrado), que aguarda aprovação. Os itens da API (LIC-05, 06 e 09) ficam para depois do acesso de escrita ao repositório `aalan-big/plataformaADM`, que é público para leitura.
+Correções de segurança e de re-login planejadas, ainda não implementadas. As specs LIC-01 a LIC-09 (a LIC-07, TLS, está reservada) passaram por uma revisão de conflitos com o usuário em 2026-11-18. A primeira é a LIC-01 (cofre e backup cifrado), que aguarda aprovação. Em 2026-11-19, as specs da API (LIC-05, 06 e 09) foram conferidas linha a linha contra o código da plataforma. Elas são implementadas no fork `dzim-almeida/plataformaADM` e entregues por PR ao `aalan-big/plataformaADM`.

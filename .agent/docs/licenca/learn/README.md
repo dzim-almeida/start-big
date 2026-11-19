@@ -4,7 +4,9 @@
 
 ## Entradas
 
-_Nenhuma ainda._
+| Aprendizado | Quando abrir |
+|-------------|--------------|
+| [Respostas da API que o app já instalado trata como bloqueio ou erro](./2026-11-19-respostas-que-o-app-instalado-trata-como-bloqueio.md) | Antes de mudar o status ou o formato de qualquer resposta da API StartBig (cadastro, heartbeat, backup, conectar) |
 
 ## Como usar
 
