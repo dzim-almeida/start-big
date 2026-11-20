@@ -76,6 +76,16 @@ def licenca_ativada_nesta_maquina(licenca: ConfiguracaoLicenca, hwid: str) -> bo
 # Login na conta StartBig
 # ===========================================================================
 
+# Recusas do login da nuvem que chegam à tela com o próprio código, e o status
+# local de cada uma. O resto continua CONTA_RECUSADA, com a frase da nuvem.
+_CODIGOS_DO_LOGIN_REPASSADOS = {
+    "AGUARDANDO_CONFIRMACAO_EMAIL": status.HTTP_403_FORBIDDEN,   # conta sem licença, e-mail não confirmado
+    "MUITAS_TENTATIVAS": status.HTTP_429_TOO_MANY_REQUESTS,     # bloqueio progressivo (D-09)
+    "LICENCA_VENCIDA": status.HTTP_403_FORBIDDEN,
+    "SEM_LICENCA_ATIVA": status.HTTP_403_FORBIDDEN,
+}
+
+
 def _entrar_na_conta(email: str, senha: str, hwid: str) -> AutoCadastroResponse:
     """Pede à nuvem a ativação deste HWID com o login da conta.
 
@@ -110,7 +120,17 @@ def _entrar_na_conta(email: str, senha: str, hwid: str) -> AutoCadastroResponse:
         )
 
     if resposta.status_code >= 400:
-        detalhe, _ = _detalhe_da_recusa(resposta)
+        detalhe, corpo = _detalhe_da_recusa(resposta)
+        # Códigos da nuvem (LIC-06 §4.3) que a tela trata cada um do seu jeito:
+        # por exemplo, AGUARDANDO_CONFIRMACAO_EMAIL mostra o "Reenviar link"
+        # (LIC-03 §6.5). Esses passam com o mesmo código (decisão do usuário).
+        codigo_da_nuvem = corpo.get("codigo")
+        if codigo_da_nuvem in _CODIGOS_DO_LOGIN_REPASSADOS:
+            raise _erro(
+                _CODIGOS_DO_LOGIN_REPASSADOS[codigo_da_nuvem],
+                codigo_da_nuvem,
+                detalhe or "A StartBig recusou a entrada desta conta.",
+            )
         if resposta.status_code == 401:
             raise _erro(
                 status.HTTP_401_UNAUTHORIZED,

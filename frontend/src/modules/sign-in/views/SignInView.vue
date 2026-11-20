@@ -9,6 +9,10 @@ import { computed } from 'vue';
 import SignInLayout from '../components/ui/SignInLayout.vue';
 import EscolhaActionStep from '../components/steps/EscolhaActionStep.vue';
 import ReconnectStep from '../components/steps/ReconnectStep.vue';
+// Telas do re-login e da confirmação de e-mail (LIC-03)
+import EscolhaRestauracaoStep from '../components/steps/EscolhaRestauracaoStep.vue';
+import RestauracaoPreparadaStep from '../components/steps/RestauracaoPreparadaStep.vue';
+import ConfirmarEmailStep from '../components/steps/ConfirmarEmailStep.vue';
 import ApresentacaoStep from '../components/steps/ApresentacaoStep.vue';
 import SegmentoStep from '../components/steps/SegmentoStep.vue';
 import LojaStep from '../components/steps/LojaStep.vue';
@@ -22,6 +26,9 @@ const { currentStep, signInMode } = useSignIn();
 const currentStepComponent = computed(() => {
   if (signInMode.value === 'choice') return EscolhaActionStep;
   if (signInMode.value === 'reconnect') return ReconnectStep;
+  if (signInMode.value === 'escolha-restauracao') return EscolhaRestauracaoStep;
+  if (signInMode.value === 'restauracao-preparada') return RestauracaoPreparadaStep;
+  if (signInMode.value === 'confirmar-email') return ConfirmarEmailStep;
 
   const steps = {
     0: ApresentacaoStep,

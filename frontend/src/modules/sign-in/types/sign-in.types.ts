@@ -160,3 +160,51 @@ export interface ViaCepResponse {
   uf: string;
   erro?: boolean;
 }
+
+/**
+ * Backup encontrado na nuvem, mostrado depois do re-login (LIC-03 §6.2).
+ * `ciclo` é a semana (data ISO); `ultimo_envio` pode não vir da nuvem.
+ */
+export interface BackupEncontrado {
+  ciclo: string;
+  ultimo_envio: string | null;
+}
+
+/** Endereço do titular, como a nuvem guarda. */
+export interface EnderecoTitular {
+  cep: string;
+  logradouro: string;
+  numero: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+}
+
+/** Dados do titular da conta na nuvem (LIC-03 §6.6). O documento é só para LEITURA. */
+export interface TitularNuvem {
+  tipoPessoa: string;
+  nomeOuRazao: string;
+  documento: string;
+  nomeFantasia?: string | null;
+  telefone?: string | null;
+  celular?: string | null;
+  endereco?: EnderecoTitular | null;
+}
+
+/**
+ * Resposta do /auth/reconnect. `backup` e `titular` só vêm quando o banco
+ * ainda não tem empresa (`inicializado` = false) e podem ser null.
+ */
+export interface ReconnectResponse {
+  success: boolean;
+  inicializado: boolean;
+  backup?: BackupEncontrado | null;
+  titular?: TitularNuvem | null;
+}
+
+/** Resposta de POST /licenca/restaurar-backup. */
+export interface RestaurarBackupResposta {
+  status: 'pendente_reinicio';
+  ciclo: string;
+  mensagem: string;
+}

@@ -18,7 +18,6 @@ import { useRouter } from 'vue-router';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import axios from 'axios';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ArrowRightLeft, CheckCircle2, ShieldCheck } from 'lucide-vue-next';
 
@@ -26,6 +25,8 @@ import AppLogo from '@/shared/components/AppLogo.vue';
 import BaseFooter from '@/shared/components/layout/BaseFooter.vue';
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import BaseConfirmModal from '@/shared/components/commons/BaseConfirmModal/BaseConfirmModal.vue';
+import { lerErroDaLicenca, mensagemDoCodigo } from '@/shared/services/licenca.service';
 import { useLicencaStore } from '@/shared/stores/licenca.store';
 import { LINKS } from '@/shared/config/links';
 import { transferirLicenca, type TransferenciaResultado } from '../services/transferencia.service';
@@ -47,26 +48,36 @@ const { handleSubmit, errors, defineField, submitCount } = useForm({
 const [email] = defineField('email');
 const [senha] = defineField('senha');
 
-const onSubmit = handleSubmit(async (values) => {
+// Aviso antes da troca (LIC-03 §6.3, D-08, quadro 8): o formulário válido só
+// abre a confirmação. A chamada à nuvem acontece depois do "Trocar para este computador".
+const confirmandoTroca = ref(false);
+const credenciais = ref<{ email: string; senha: string } | null>(null);
+
+const onSubmit = handleSubmit((values) => {
+  credenciais.value = values;   // guarda até a pessoa confirmar
+  confirmandoTroca.value = true;
+});
+
+async function confirmarTroca() {
+  if (!credenciais.value) return;
   isLoading.value = true;
   serverError.value = null;
 
   try {
-    resultado.value = await transferirLicenca(values.email, values.senha);
+    resultado.value = await transferirLicenca(credenciais.value.email, credenciais.value.senha);
     useLicencaStore().limpar();
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      const detail = error.response.data?.detail;
-      serverError.value = typeof detail === 'string'
-        ? detail
-        : detail?.mensagem || 'Não foi possível transferir a licença. Tente de novo.';
-    } else {
-      serverError.value = 'O serviço do StartBig neste computador não respondeu. Aguarde alguns segundos e tente de novo.';
-    }
+    // Frase fixa do código, nunca o texto técnico do servidor (D-16)
+    const { codigo } = lerErroDaLicenca(error);
+    serverError.value = codigo
+      ? mensagemDoCodigo(codigo)
+      : 'O serviço do StartBig neste computador não respondeu. Aguarde alguns segundos e tente de novo.';
   } finally {
     isLoading.value = false;
+    confirmandoTroca.value = false;
+    credenciais.value = null;   // a senha não fica guardada na tela
   }
-});
+}
 
 function continuar() {
   // Banco copiado já tem empresa e usuários: vai direto para o login. Se não
@@ -187,5 +198,28 @@ function voltar() {
     </div>
 
     <BaseFooter />
+
+    <!-- Confirmação antes da troca (quadro 8). Não cita o computador antigo:
+         o app não tem esse dado. -->
+    <BaseConfirmModal
+      :is-open="confirmandoTroca"
+      title="Trocar o servidor de computador"
+      variant="warning"
+      confirm-label="Trocar para este computador"
+      cancel-label="Cancelar"
+      :is-loading="isLoading"
+      @confirm="confirmarTroca"
+      @close="confirmandoTroca = false"
+    >
+      <template #description>
+        <p>
+          O computador que é servidor hoje deixará de funcionar com esta licença. Os caixas precisarão
+          apontar para este computador.
+        </p>
+        <p class="mt-2">
+          Esta é uma troca de computador. Ela conta no limite de <strong>3 trocas em 30 dias</strong>.
+        </p>
+      </template>
+    </BaseConfirmModal>
   </div>
 </template>

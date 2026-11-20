@@ -27,6 +27,32 @@ logger = logging.getLogger(__name__)
 # Chamada à API Externa com Retry
 # ===========================================================================
 
+def erro_confirmacao_necessaria() -> HTTPException:
+    """O cadastro foi aceito, mas espera a confirmação do e-mail (LIC-03 §6.5).
+
+    Sai como erro 409 de propósito (decisão do usuário): o setup é desfeito
+    inteiro pelo `_handle_db_transaction`, nada fica gravado, e a tela reconhece
+    o código e mostra "Enviamos as instruções para o seu e-mail".
+    """
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "codigo": "CONFIRMACAO_NECESSARIA",
+            "mensagem": "Enviamos as instruções para o seu e-mail. "
+                        "Depois de confirmar, entre com o seu e-mail e senha.",
+        },
+    )
+
+
+def _codigo_da_resposta(response) -> str | None:
+    """O campo `codigo` do corpo JSON da API, ou None se não houver."""
+    try:
+        corpo = response.json()
+    except Exception:  # noqa: BLE001 - corpo que não é JSON
+        return None
+    return corpo.get("codigo") if isinstance(corpo, dict) else None
+
+
 def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroResponse:
     """
     Faz a requisição HTTP POST para a API de auto-cadastro com retry.
@@ -48,11 +74,21 @@ def _chamar_api_auto_cadastro(payload: AutoCadastroPayload) -> AutoCadastroRespo
                     json=payload.model_dump(exclude_none=True),
                 )
 
+            # 202 = a conta foi recebida, mas a licença só nasce depois que o dono
+            # confirmar o e-mail (LIC-06, D-24). Nada é gravado aqui: o setup para
+            # e a tela leva ao "Já confirmei, quero entrar" (LIC-03 §6.5).
+            if response.status_code == status.HTTP_202_ACCEPTED:
+                raise erro_confirmacao_necessaria()
+
             if 200 <= response.status_code < 300:
                 return AutoCadastroResponse(**response.json())
 
             # Erros 4xx da API (ex: documento duplicado) — não faz retry
             if 400 <= response.status_code < 500:
+                # A API respondeu como a uma versão antiga do app (409 com este
+                # código, ADR-004): o significado é o mesmo do 202.
+                if _codigo_da_resposta(response) == "CONFIRMACAO_NECESSARIA":
+                    raise erro_confirmacao_necessaria()
                 detail = response.json().get("message", response.text)
                 try:
                     body = response.json()
@@ -219,6 +255,7 @@ def registrar_licenca(
         senha=senha,
         hwid=hwid,
         endereco=endereco_payload,
+        fluxoConfirmacao=True,   # o app novo entende o 202 da confirmação (D-34)
     )
 
     resposta = _chamar_api_auto_cadastro(payload)

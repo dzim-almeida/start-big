@@ -23,6 +23,12 @@ from app.schemas.licenca import (
 from app.services import licenca as licenca_service
 from app.services.acesso import auth as auth_service
 from app.services.licenca import renovacao as renovacao_service
+from app.services.licenca import restauracao_titular, titular_nuvem
+from app.schemas.licenca.restauracao import (
+    ReenviarLinkPayload,
+    RestaurarBackupPayload,
+    RestaurarBackupResposta,
+)
 
 router = APIRouter()
 
@@ -112,6 +118,41 @@ def transferir_licenca(
     return TransferenciaResultado(
         inicializado=auth_service.verificar_sistema_inicializado(db),
     )
+
+
+@router.post(
+    "/restaurar-backup",
+    response_model=RestaurarBackupResposta,
+    status_code=status.HTTP_200_OK,
+    summary="Restaurar o backup da nuvem depois do re-login (titular)",
+    description=(
+        "Público, como o /transferir: roda depois do re-login, com o banco ainda "
+        "vazio, então não há login local. Quem autoriza é a senha da conta "
+        "StartBig (pedida de novo) e a licença já ativada neste computador. "
+        "A troca do banco acontece no próximo boot (LIC-03 §4.1)."
+    ),
+)
+async def restaurar_backup_titular(
+    payload: RestaurarBackupPayload,
+    db: Session = Depends(get_db),
+):
+    # `async def` porque o download da nuvem é assíncrono. Não grava nada no
+    # banco (só prepara arquivos e o marcador), então não precisa de commit.
+    return await restauracao_titular.restaurar_backup_do_titular(db, payload)
+
+
+@router.post(
+    "/reenviar-link",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Reenviar o link de confirmação ou de nova senha da conta StartBig",
+    description=(
+        "Público: quem pede pode não ter licença ainda (cadastro esperando a "
+        "confirmação do e-mail). Responde sempre 202, exista ou não o e-mail (D-31)."
+    ),
+)
+def reenviar_link(payload: ReenviarLinkPayload):
+    titular_nuvem.reenviar_link(payload.email)
+    return {"mensagem": "Se este e-mail tiver conta, enviamos um novo link."}
 
 
 @router.get(

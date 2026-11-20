@@ -2,11 +2,11 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-20) |
 | Camada       | Backend (FastAPI) e Frontend (Vue 3 + TypeScript) |
 | Dependências | SPEC-01 (download que entende a cópia cifrada), SPEC-02 (códigos de recusa). Integração com a LIC-06, com rede de segurança: funciona sem ela |
 | Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-16, D-22, D-23, D-28, D-29, D-31, D-34, D-36; [ADR-004](../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); quadro F10, F11, F16, F18, F19, F22 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-07, D-08, D-16, D-22, D-23, D-28, D-29, D-31, D-34, D-36; [ADR-004](../../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); quadro F10, F11, F16, F18, F19, F22 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
 > - **Conflito 8 (D-28):** os dados da nuvem vêm do `GET /erp/cadastro/titular` (LIC-06; na revisão 2 o caminho passou a ser `/erp/usuario/titular`). Se a rota responder `404` (API antiga), o setup funciona como hoje, só local. Com isso esta spec pode ir para produção antes da LIC-06.
@@ -24,6 +24,20 @@
 > - **Documentação (D13):** erro de validação da API sai como `400`, não `422`.
 
 > **Revisão 3 (2026-11-19):** mockups aprovados pelo usuário. A referência de design desta spec são os quadros 1a, 1b, 2, 3a, 3b, 7 e 8 da página [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (skill `design`). Propostas aprovadas junto: a tela 1a pede a senha da conta de novo (D-07), com o e-mail preenchido e travado, e mostra a semana do backup encontrado; a tela 3a também oferece "Reenviar link". As tabelas da §6.2 e da §6.5 já trazem isso.
+
+> **Revisão 4 (2026-11-20, implementação):** lacunas de contrato achadas ao implementar, decididas com o usuário, e ajustes registrados.
+> - **Dados do re-login no `/auth/reconnect` (decisão 1).** A spec não dizia como a tela sabe se há backup (§6.2) nem como recebe os dados do titular (§6.6). A resposta do `/auth/reconnect` ganhou `backup` (`{ciclo, ultimo_envio}` ou `null`) e `titular` (`TitularNuvem` ou `null`), só com `inicializado=false`. Só quem acabou de provar a senha recebe o documento. Falha na nuvem deixa o campo `null` e nunca derruba o re-login (`dados_depois_do_relogin`). O CT-08 testa essa resposta.
+> - **Setup com `409 CONFIRMACAO_NECESSARIA` (decisão 2).** O cadastro roda dentro do `/auth/setup`. Quando a nuvem responde `202` (ou o `409` das versões antigas), o setup responde `409 CONFIRMACAO_NECESSARIA`, a transação é desfeita e nada é gravado; o front abre o quadro 3a.
+> - **Rota local `POST /api/v1/licenca/reenviar-link` (decisão 3).** Pública, repassa à nuvem e responde sempre `202` (também quando a nuvem ainda não tem a rota). Só sem rede (`SEM_CONEXAO`) ou com a nuvem fora (`NUVEM_INDISPONIVEL`) responde erro.
+> - **Códigos do login repassados (decisão 4).** `_entrar_na_conta` (`transferencia.py`) passa `AGUARDANDO_CONFIRMACAO_EMAIL`, `MUITAS_TENTATIVAS` (429), `LICENCA_VENCIDA` e `SEM_LICENCA_ATIVA` com o próprio código; o resto continua `CONTA_RECUSADA`.
+> - **Telas como componentes (decisão 5).** `EscolhaRestauracaoStep`, `RestauracaoPreparadaStep` e `ConfirmarEmailStep` em `sign-in/components/steps`, mostrados pelo `SignInView`. O `ResponsavelStep` trava CPF/CNPJ e o tipo de pessoa quando os dados vêm da nuvem. O quadro 3b ficou dentro do `ReconnectStep`.
+> - **Quadro 2 sem "Reiniciar o sistema".** O marcador só é aplicado quando o serviço do backend liga de novo, e o app não tem comando que pare e religue o serviço (o `reiniciar_backend_local` só liga um que está parado). A tela orienta reiniciar o computador e não tem "Voltar" nem "Sair". Um botão de reinício de verdade exige mexer no Tauri (fica como sugestão).
+> - **Campos travados com `disabled`.** O `BaseInput` não tem `readonly`; o e-mail da tela 1a e o documento do setup usam `disabled`, que já tem o visual cinza.
+> - **Setup sem backup também usa o tipo de pessoa da nuvem.** Junto com o documento, para um CNPJ nunca virar CPF. O documento é gravado só com os números (como hoje).
+> - **`historicoEventos`:** o formato exato não estava no repositório; `tipo` e `status` são comparados sem diferenciar maiúsculas (`FULL`/`full`, `CONFIRMADO`/`confirmado`) e a data do último envio é lida de `confirmadoEm`, `criadoEm`, `dataHora` ou `data`. **Não conferido contra a API** nesta sessão: conferir na verificação de integração (roteiro, passo 11, fluxo 5).
+> - **`restore.py`:** `preparar_restauracao_do_titular` faz `prepare_restore` + `confirm_restore` (o banco está vazio, não há o que comparar); `restauracao_pendente()` olha o marcador.
+> - **Fora da lista:** `api/v1/endpoints/auth.py` (decisão 1); `services/licenca/transferencia.py` (decisão 4); `services/licenca/constantes.py` (URLs do titular e do reenvio); `schemas/licenca/cadastro.py` (`fluxoConfirmacao`); `sign-in/views/SignInView.vue`, `components/steps/ResponsavelStep.vue` e os três componentes novos (decisão 5); `sign-in/types/sign-in.types.ts`.
+> - **Verificação:** CT-01 a CT-23 com pytest e Vitest, mais casos das decisões (códigos do login, reenvio, resposta que não é JSON). Suítes completas, `vue-tsc` e lint no fim da série (pedido do usuário). **Não verificados no app** (sessão em Linux, sem a janela Tauri nem a API real): CA-01, CA-02 e CA-06 na tela; ficam para a verificação de integração.
 
 ## 1. Objetivo
 
@@ -427,3 +441,4 @@ CA-01, CA-02 e CA-06 são cobertos por teste automatizado e verificados no app p
 
 - Mudou o backend e o front: avisar o usuário para rodar `npm run build:sidecar` depois da entrega.
 - A restauração é aplicada no próximo boot. A tela precisa avisar isso e não pode deixar o usuário clicar em sair no meio.
+

@@ -18,6 +18,8 @@ from app.core.security import create_access_token
 from app.services.acesso import usuario as usuario_service
 from app.services import endereco as endereco_service
 from app.services import licenca as licenca_service
+from app.services.licenca import titular_nuvem
+from app.schemas.licenca.titular import AtualizarTitularCorpo, EnderecoTitular
 from app.db.crud.acesso import usuario as usuario_crud
 from app.db.crud.funcionario import cargo as cargo_crud
 from app.db.crud import empresa as empresa_crud
@@ -95,6 +97,12 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
             senha=setup_data.senha,
             endereco_data=endereco_licenca,
         )
+    else:
+        # Re-login sem backup (LIC-03 §6.6, D-22): a licença já existe, então a
+        # conta já existe na nuvem. A nuvem é atualizada ANTES da empresa local,
+        # e o documento da empresa vem da nuvem, nunca da tela.
+        setup_data = _sincronizar_titular_com_a_nuvem(db, setup_data)
+        is_pj = setup_data.tipo_pessoa == "PJ"
 
     # 2. Criar Usuario Master
     usuario_create = UsuarioCreate(
@@ -182,3 +190,60 @@ def setup_sistema(db: Session, setup_data: SetupCreate) -> str:
     # 7. Gerar JWT Token
     token_data = {"sub": str(usuario_master.id)}
     return create_access_token(data=token_data)
+
+
+# ---------------------------------------------------------------------------
+# Re-login sem backup: dados do titular na nuvem (LIC-03 §6.6, D-22, D-28)
+# ---------------------------------------------------------------------------
+
+def _so_numeros(texto: str) -> str:
+    """'529.982.247-25' -> '52998224725' (o banco local guarda só os números)."""
+    return "".join(caractere for caractere in texto if caractere.isdigit())
+
+
+def _corpo_para_a_nuvem(setup_data: SetupCreate) -> AtualizarTitularCorpo:
+    """Monta o PUT com a lista FECHADA de campos: o documento não existe nesta classe."""
+    is_pj = setup_data.tipo_pessoa == "PJ"
+    endereco = None
+    if setup_data.endereco:
+        primeiro = setup_data.endereco[0]
+        endereco = EnderecoTitular(
+            cep=primeiro.cep,
+            logradouro=primeiro.logradouro,
+            numero=primeiro.numero,
+            bairro=primeiro.bairro,
+            cidade=primeiro.cidade,
+            # O estado é um Enum (UF); a nuvem espera o texto ("CE")
+            estado=primeiro.estado.value if hasattr(primeiro.estado, "value") else str(primeiro.estado),
+        )
+    return AtualizarTitularCorpo(
+        nomeOuRazao=(setup_data.razao_social if is_pj else setup_data.nome_responsavel) or setup_data.nome_responsavel,
+        nomeFantasia=setup_data.nome_loja,
+        telefone=setup_data.telefone,
+        celular=setup_data.celular,
+        endereco=endereco,
+    )
+
+
+def _sincronizar_titular_com_a_nuvem(db: Session, setup_data: SetupCreate) -> SetupCreate:
+    """Atualiza o titular na nuvem e devolve os dados do setup com o documento da nuvem.
+
+    Ordem (a mesma do `desativar_esta_maquina`): nuvem primeiro, banco depois.
+    Se a nuvem recusar ou não responder, o erro sobe com o código certo e nada
+    é criado localmente (o `_handle_db_transaction` desfaz a transação).
+
+    Rede de segurança (D-28): se a API ainda não tem a rota do titular (404),
+    o setup segue como sempre, só local, com os dados da tela.
+    """
+    titular = titular_nuvem.buscar_titular(db)
+    if titular is None:
+        return setup_data
+
+    titular_nuvem.atualizar_titular(db, _corpo_para_a_nuvem(setup_data))
+
+    # O documento (e o tipo de pessoa, que vem junto com ele) vem da NUVEM.
+    # Um formulário alterado por fora não muda o documento da loja (conflito 16).
+    documento = _so_numeros(titular.documento)
+    if titular.tipoPessoa == "PJ":
+        return setup_data.model_copy(update={"tipo_pessoa": "PJ", "cnpj": documento, "cpf": None})
+    return setup_data.model_copy(update={"tipo_pessoa": "PF", "cpf": documento, "cnpj": None})

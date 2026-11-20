@@ -3,7 +3,12 @@ import api from '@/api/axios';
 import { guardarToken } from '@/shared/services/tokenSessao.service';
 import axios from 'axios';
 import { getApiBaseUrl } from '@/api/backendUrl';
-import type { SetupRequest, ViaCepResponse } from '../types/sign-in.types';
+import type {
+  ReconnectResponse,
+  RestaurarBackupResposta,
+  SetupRequest,
+  ViaCepResponse,
+} from '../types/sign-in.types';
 
 /**
  * Executa o setup inicial do sistema (público, sem auth)
@@ -18,12 +23,41 @@ export async function setupSistema(setupData: SetupRequest): Promise<{ access_to
   return data;
 }
 
-export async function reconnectLicenca(email: string, senha: string): Promise<{ success: boolean; inicializado: boolean }> {
-  const { data } = await axios.post<{ success: boolean; inicializado: boolean }>(
+/**
+ * Liga a conta StartBig a este computador (re-login).
+ * Com o banco sem empresa, a resposta traz também `backup` e `titular` (LIC-03).
+ */
+export async function reconnectLicenca(email: string, senha: string): Promise<ReconnectResponse> {
+  const { data } = await axios.post<ReconnectResponse>(
     `${getApiBaseUrl()}/auth/reconnect`,
     { email, senha }
   );
   return data;
+}
+
+/**
+ * Prepara a restauração do backup da nuvem depois do re-login (LIC-03 §4.1).
+ * A senha da conta vai de novo (D-07): é ela que autoriza trocar o banco.
+ * Rota pública, como o re-login: ainda não existe usuário local.
+ */
+export async function restaurarBackupDaNuvem(
+  email: string,
+  senha: string,
+  ciclo?: string | null,
+): Promise<RestaurarBackupResposta> {
+  const { data } = await axios.post<RestaurarBackupResposta>(
+    `${getApiBaseUrl()}/licenca/restaurar-backup`,
+    { email, senha, ciclo: ciclo ?? null },
+  );
+  return data;
+}
+
+/**
+ * Pede um novo link de confirmação ou de nova senha para o e-mail (LIC-03 §6.5).
+ * O backend responde sempre 202, exista ou não a conta.
+ */
+export async function reenviarLink(email: string): Promise<void> {
+  await axios.post(`${getApiBaseUrl()}/licenca/reenviar-link`, { email });
 }
 
 /**

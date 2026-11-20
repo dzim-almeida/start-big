@@ -156,8 +156,15 @@ def reconnect_licenca_endpoint(
     
     # Verifica se o sistema (Empresa, Master) já foi inicializado
     inicializado = auth_service.verificar_sistema_inicializado(db)
-    
-    return {"success": True, "inicializado": inicializado}
+
+    resposta = {"success": True, "inicializado": inicializado}
+    if not inicializado:
+        # Banco sem empresa: a tela precisa saber se há backup na nuvem (para
+        # oferecer a restauração) e os dados do titular (para o setup).
+        # Campos novos e opcionais: quem não os conhece, ignora (LIC-03).
+        from app.services.licenca import restauracao_titular
+        resposta.update(restauracao_titular.dados_depois_do_relogin(db))
+    return resposta
 
 @router.post(
     "/setup",

@@ -6,7 +6,7 @@
  */
 
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Info, Cloud } from 'lucide-vue-next';
 
 import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseDateInput from '@/shared/components/ui/BaseDateInput/BaseDateInput.vue';
@@ -37,7 +37,9 @@ const {
   handleTipoPessoaChange,
 } = useResponsavelForm();
 
-const { previousStep } = useSignIn();
+// documentoTravado = os dados vieram da conta na nuvem (re-login sem backup, LIC-03 §6.6):
+// o CPF/CNPJ e o tipo de pessoa não podem ser trocados aqui, só pelo suporte.
+const { previousStep, documentoTravado } = useSignIn();
 
 const generoOptions = [
   { value: 'MASCULINO', label: 'Masculino' },
@@ -63,6 +65,13 @@ const regimeTributarioOptions = [
         ao funcionário master do sistema.
       </p>
     </div>
+    <!-- Dados vindos da nuvem (quadro 7) -->
+    <div v-if="documentoTravado" class="p-3 mb-6 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-2">
+      <LucideIcon :icon="Cloud" size="md" class="text-brand-primary mt-0.5 shrink-0" />
+      <p class="text-xs text-brand-primary">
+        Estes dados vêm da sua conta na StartBig. Confira e complete o que faltar.
+      </p>
+    </div>
     <h3 class="text-sm font-semibold text-brand-action mb-4">Dados do Responsável</h3>
 
     <!-- Toggle PF/PJ -->
@@ -71,24 +80,26 @@ const regimeTributarioOptions = [
       <div class="flex gap-2">
         <button
           type="button"
-          class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all border"
+          class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all border disabled:opacity-60 disabled:cursor-not-allowed"
           :class="
             tipoPessoa === 'PF'
               ? 'bg-brand-primary text-white border-brand-primary'
               : 'bg-white text-gray-600 border-gray-200 hover:border-brand-primary'
           "
+          :disabled="documentoTravado"
           @click="handleTipoPessoaChange('PF')"
         >
           Pessoa Física (PF)
         </button>
         <button
           type="button"
-          class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all border"
+          class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all border disabled:opacity-60 disabled:cursor-not-allowed"
           :class="
             tipoPessoa === 'PJ'
               ? 'bg-brand-primary text-white border-brand-primary'
               : 'bg-white text-gray-600 border-gray-200 hover:border-brand-primary'
           "
+          :disabled="documentoTravado"
           @click="handleTipoPessoaChange('PJ')"
         >
           Pessoa Jurídica (PJ)
@@ -106,14 +117,21 @@ const regimeTributarioOptions = [
           required
           :error="submitCount > 0 ? errors.nomeResponsavel : ''"
         />
-        <BaseInput
-          v-model="cpfField"
-          label="CPF"
-          placeholder="000.000.000-00"
-          mask="###.###.###-##"
-          required
-          :error="submitCount > 0 ? errors.cpf : ''"
-        />
+        <!-- CPF: travado quando vem da nuvem (D-22, CT-14) -->
+        <div class="flex flex-col gap-1">
+          <BaseInput
+            v-model="cpfField"
+            label="CPF"
+            placeholder="000.000.000-00"
+            mask="###.###.###-##"
+            required
+            :disabled="documentoTravado"
+            :error="submitCount > 0 ? errors.cpf : ''"
+          />
+          <p v-if="documentoTravado" class="text-[11px] text-gray-500">
+            Vem da sua conta StartBig. Para alterar, fale com o suporte.
+          </p>
+        </div>
         <BaseInput
           v-model="rg"
           label="RG (opcional)"
@@ -146,14 +164,21 @@ const regimeTributarioOptions = [
           required
           :error="submitCount > 0 ? errors.razaoSocial : ''"
         />
-        <BaseInput
-          v-model="cnpj"
-          label="CNPJ"
-          placeholder="00.000.000/0000-00"
-          mask="##.###.###/####-##"
-          required
-          :error="submitCount > 0 ? errors.cnpj : ''"
-        />
+        <!-- CNPJ: travado quando vem da nuvem (D-22, CT-14) -->
+        <div class="flex flex-col gap-1">
+          <BaseInput
+            v-model="cnpj"
+            label="CNPJ"
+            placeholder="00.000.000/0000-00"
+            mask="##.###.###/####-##"
+            required
+            :disabled="documentoTravado"
+            :error="submitCount > 0 ? errors.cnpj : ''"
+          />
+          <p v-if="documentoTravado" class="text-[11px] text-gray-500">
+            Vem da sua conta StartBig. Para alterar, fale com o suporte.
+          </p>
+        </div>
         <BaseInput
           v-model="nomeFantasiaPJ"
           label="Nome Fantasia (opcional)"

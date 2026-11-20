@@ -1,5 +1,13 @@
 import { ref, computed, reactive } from 'vue';
-import type { SignInStep, SignInData, LojaData, ResponsavelData, AcessoData } from '../types/sign-in.types';
+import type {
+  SignInStep,
+  SignInData,
+  LojaData,
+  ResponsavelData,
+  AcessoData,
+  BackupEncontrado,
+  TitularNuvem,
+} from '../types/sign-in.types';
 
 /**
  * Estado global do sign-in (singleton)
@@ -7,7 +15,38 @@ import type { SignInStep, SignInData, LojaData, ResponsavelData, AcessoData } fr
 const currentStep = ref<SignInStep>(0);
 const logoFile = ref<File | null>(null);
 const logoPreview = ref<string | null>(null);
-const signInMode = ref<'choice' | 'autocadastro' | 'reconnect'>('choice');
+/**
+ * Em que tela do primeiro acesso estamos:
+ * - choice: "Já tenho conta" ou "Começar agora";
+ * - autocadastro: as etapas do setup (segmento, loja, responsável...);
+ * - reconnect: o login com a conta StartBig (re-login);
+ * - escolha-restauracao: "Sua licença foi encontrada" (LIC-03 §6.2, quadros 1a e 1b);
+ * - restauracao-preparada: o backup foi baixado e espera reiniciar (quadro 2);
+ * - confirmar-email: o cadastro novo espera a confirmação do e-mail (quadro 3a).
+ */
+export type SignInMode =
+  | 'choice'
+  | 'autocadastro'
+  | 'reconnect'
+  | 'escolha-restauracao'
+  | 'restauracao-preparada'
+  | 'confirmar-email';
+const signInMode = ref<SignInMode>('choice');
+
+/**
+ * O que o re-login trouxe da nuvem (LIC-03): se há backup e os dados do
+ * titular. Os dois podem ser null (sem backup, ou a nuvem não respondeu).
+ */
+const dadosRelogin = reactive<{ backup: BackupEncontrado | null; titular: TitularNuvem | null }>({
+  backup: null,
+  titular: null,
+});
+
+/** E-mail que recebeu as instruções de confirmação (quadro 3a). */
+const emailConfirmacao = ref('');
+
+/** Ciclo e mensagem da restauração preparada (quadro 2). */
+const restauracaoPreparada = ref<{ ciclo: string; mensagem: string } | null>(null);
 
 const signInData = reactive<SignInData>({
   loja: {
@@ -119,6 +158,10 @@ export function useSignIn() {
   function resetSignIn(): void {
     currentStep.value = 0;
     signInMode.value = 'choice';
+    dadosRelogin.backup = null;
+    dadosRelogin.titular = null;
+    emailConfirmacao.value = '';
+    restauracaoPreparada.value = null;
 
     if (logoPreview.value) URL.revokeObjectURL(logoPreview.value);
     logoFile.value = null;
@@ -164,7 +207,48 @@ export function useSignIn() {
     });
   }
 
+  /**
+   * Preenche o setup com os dados do titular que vieram da nuvem (LIC-03 §6.6).
+   * O documento vem preenchido e fica TRAVADO na tela (`documentoTravado`):
+   * só o suporte muda o CPF/CNPJ do titular.
+   */
+  function aplicarTitular(titular: TitularNuvem): void {
+    dadosRelogin.titular = titular;
+    const ehPJ = titular.tipoPessoa === 'PJ';
+    Object.assign(signInData.responsavel, {
+      tipoPessoa: ehPJ ? 'PJ' : 'PF',
+      // Em PF o "nome ou razão" é o nome da pessoa; em PJ, a razão social.
+      nomeResponsavel: ehPJ ? signInData.responsavel.nomeResponsavel : titular.nomeOuRazao,
+      razaoSocial: ehPJ ? titular.nomeOuRazao : '',
+      cpf: ehPJ ? '' : titular.documento,
+      cnpj: ehPJ ? titular.documento : '',
+      nomeFantasiaPJ: ehPJ ? titular.nomeFantasia ?? '' : '',
+      celularResponsavel: titular.celular ?? signInData.responsavel.celularResponsavel,
+    });
+    Object.assign(signInData.loja, {
+      nomeLoja: titular.nomeFantasia || signInData.loja.nomeLoja,
+      celular: titular.celular ?? signInData.loja.celular,
+      telefone: titular.telefone ?? signInData.loja.telefone,
+      ...(titular.endereco && {
+        cep: titular.endereco.cep,
+        logradouro: titular.endereco.logradouro,
+        numero: titular.endereco.numero,
+        bairro: titular.endereco.bairro,
+        cidade: titular.endereco.cidade,
+        estado: titular.endereco.estado,
+      }),
+    });
+  }
+
+  /** O documento veio da nuvem? Então a tela não deixa editar (CT-14). */
+  const documentoTravado = computed(() => dadosRelogin.titular !== null);
+
   return {
+    dadosRelogin,
+    emailConfirmacao,
+    restauracaoPreparada,
+    documentoTravado,
+    aplicarTitular,
     signInMode,
     currentStep,
     signInData,

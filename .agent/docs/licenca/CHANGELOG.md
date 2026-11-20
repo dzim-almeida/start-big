@@ -2,6 +2,26 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-20 — SPEC-03 Re-login, restauração pelo titular e avisos de troca
+
+**Módulos afetados:** licenca (backend), backup (`restore.py`), acesso (`/auth/reconnect`, `/auth/setup`), sistema (setup), front sign-in e license
+
+### Adicionado
+- `POST /api/v1/licenca/restaurar-backup`: o titular que confirma a senha restaura o backup da nuvem; o ciclo vem do full confirmado mais recente do `/status` (D-07, D-36). Códigos `LICENCA_DE_OUTRA_CONTA`, `BACKUP_INEXISTENTE`, `RESTAURACAO_JA_PENDENTE`.
+- `POST /api/v1/licenca/reenviar-link`: repassa o reenvio à nuvem, sempre `202`.
+- `services/licenca/titular_nuvem.py` (GET/PUT do titular com a rede de segurança do `404`) e `restauracao_titular.py`.
+- Front: telas "Sua licença foi encontrada" (com e sem backup), "Restauração preparada" e "Confirme o seu e-mail"; "Reenviar link" no re-login; aviso antes da troca de servidor; `lerErroDaLicenca`, `MENSAGENS_DE_CODIGO` e `mensagemDoCodigo`.
+
+### Alterado
+- `/auth/reconnect` devolve `backup` e `titular` quando o banco não tem empresa.
+- Setup depois do re-login sem backup: atualiza o titular na nuvem antes de criar a empresa local; documento e tipo de pessoa vêm da nuvem (D-22).
+- Cadastro manda `fluxoConfirmacao: true`; o `202` da nuvem vira `409 CONFIRMACAO_NECESSARIA` no setup, sem gravar nada (D-23, D-34).
+- O login da conta repassa `AGUARDANDO_CONFIRMACAO_EMAIL`, `MUITAS_TENTATIVAS`, `LICENCA_VENCIDA` e `SEM_LICENCA_ATIVA`.
+- Telas do re-login e da transferência mostram a frase fixa do código, nunca o texto do servidor (D-16).
+
+### Decisões
+- Cinco lacunas de contrato decididas com o usuário (Revisão 4 da SPEC-03). Quadro 2 sem botão de reinício: o app não tem como religar o serviço do backend.
+
 ## 2026-11-20 — SPEC-04 Rede da loja, token do login e superfície do front
 
 **Módulos afetados:** core (backend), acesso e sessão (front), shared (modal de confirmação), configuracoes, enterprise, financeiro, minha-conta, marcenaria, order-service, instalador NSIS, Tauri

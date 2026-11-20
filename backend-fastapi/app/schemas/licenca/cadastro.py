@@ -32,6 +32,11 @@ class AutoCadastroPayload(BaseModel):
     endereco: Optional[LicencaEnderecoPayload] = Field(
         None, description="Endereço (opcional)"
     )
+    # O app novo avisa que sabe tratar a confirmação de e-mail: a API responde
+    # 202 sem criar licença (LIC-03 §6.5, D-34, ADR-004).
+    fluxoConfirmacao: Optional[bool] = Field(
+        None, description="True = o app entende o cadastro com confirmação de e-mail"
+    )
 
 
 class AutoCadastroResponse(BaseModel):

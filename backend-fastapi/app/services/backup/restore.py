@@ -232,6 +232,25 @@ def confirm_restore(cycle: str, pre_restore_backup_path: str) -> ConfirmRestoreR
     )
 
 
+def restauracao_pendente() -> bool:
+    """Já existe uma restauração esperando o próximo boot? (o marcador está no disco)"""
+    return os.path.exists(MARKER_RESTORE_PATH)
+
+
+def preparar_restauracao_do_titular(cycle: str) -> ConfirmRestoreResponse:
+    """Prepara a restauração pedida pelo titular depois do re-login (LIC-03 §6.1, D-07).
+
+    É o mesmo caminho da tela de backup (preparar + confirmar), sem a rota de
+    Master: quem autoriza aqui é a senha da conta StartBig, já conferida na nuvem
+    por `restauracao_titular`. O banco atual está vazio (acabou de passar pelo
+    re-login), então não há "backup mais antigo que os dados atuais" para
+    perguntar: preparamos e confirmamos de uma vez. A troca do banco acontece no
+    próximo boot, pelo marcador, como sempre.
+    """
+    preparado = prepare_restore(cycle)  # guarda o estado atual em pre_restore/
+    return confirm_restore(cycle, preparado.pre_restore_backup)  # grava o marcador
+
+
 # ---------------------------------------------------------------------------
 # PRESERVACAO DA LICENCA
 #

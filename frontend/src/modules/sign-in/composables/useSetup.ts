@@ -8,6 +8,7 @@ import { useAppNavigation } from '@/shared/composables/useAppNavigation';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { unmaskCep, unmaskDocument, unmaskPhone } from '@/shared/utils/unmask.utils';
 import { useSignIn } from './useSignIn';
+import { lerErroDaLicenca, mensagemDoCodigo } from '@/shared/services/licenca.service';
 import { setupSistema, uploadEmpresaLogo } from '../services/sign-in.service';
 import type { SetupRequest } from '../types/sign-in.types';
 
@@ -17,7 +18,7 @@ import type { SetupRequest } from '../types/sign-in.types';
 export function useSetup() {
   const { goToHome } = useAppNavigation();
   const toast = useToast();
-  const { signInData, logoFile, resetSignIn } = useSignIn();
+  const { signInData, logoFile, resetSignIn, emailConfirmacao, signInMode } = useSignIn();
   const authStore = useAuthStore();
 
   const apiError = ref<string | null>(null);
@@ -51,7 +52,16 @@ export function useSetup() {
       goToHome();
     },
     onError: (error) => {
-      const msg = getErrorMessage(error, 'Erro ao configurar o sistema');
+      // Cadastro novo aceito, mas esperando a confirmação do e-mail (LIC-03 §6.5):
+      // nada foi gravado. Mostra "Confirme o seu e-mail" (quadro 3a), sem toast de erro.
+      const { codigo } = lerErroDaLicenca(error);
+      if (codigo === 'CONFIRMACAO_NECESSARIA') {
+        emailConfirmacao.value = signInData.acesso.email;
+        signInMode.value = 'confirmar-email';
+        return;
+      }
+      // Outros erros da licença (nuvem fora, documento travado...): frase fixa do código (D-16)
+      const msg = codigo ? mensagemDoCodigo(codigo) : getErrorMessage(error, 'Erro ao configurar o sistema');
       toast.error(msg, 'Falha no cadastro da loja');
       apiError.value = msg;
     },

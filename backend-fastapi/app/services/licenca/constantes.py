@@ -28,6 +28,13 @@ API_CHAVE_PUBLICA_URL = "https://api.startbig.com.br/licenca/chave-publica"
 # Usado no primeiro acesso e na troca de servidor (services/licenca/transferencia.py).
 API_ERP_LOGIN_URL = "https://api.startbig.com.br/erp/auth/login"
 
+# Dados do titular da conta: GET para pré-preencher o setup, PUT para atualizar
+# a nuvem antes de criar a empresa local (LIC-03 §4.3, LIC-06 §4.5 e §4.6).
+API_TITULAR_URL = "https://api.startbig.com.br/erp/usuario/titular"
+
+# Reenvio do link de confirmação ou de nova senha (LIC-06 §4.4). Sempre 202.
+API_REENVIAR_LINK_URL = "https://api.startbig.com.br/erp/auth/reenviar-link"
+
 
 TIMEOUT_SECONDS = 30
 

@@ -9,7 +9,6 @@ import { useRouter } from 'vue-router';
 import { useForm } from 'vee-validate';
 import * as z from 'zod';
 import { toTypedSchema } from '@vee-validate/zod';
-import axios from 'axios';
 
 import LucideIcon from '@/shared/components/icons/LucideIcon.vue';
 import { ArrowLeft, ArrowRight, Info, AlertCircle } from 'lucide-vue-next';
@@ -18,13 +17,18 @@ import BaseInput from '@/shared/components/ui/BaseInput/BaseInput.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
 
 import { useSignIn } from '../../composables/useSignIn';
-import { reconnectLicenca } from '../../services/sign-in.service';
+import { reconnectLicenca, reenviarLink } from '../../services/sign-in.service';
+import { lerErroDaLicenca, mensagemDoCodigo } from '@/shared/services/licenca.service';
 
 const router = useRouter();
-const { signInMode, updateAcessoData, goToStep } = useSignIn();
+const { signInMode, updateAcessoData, dadosRelogin, signInData } = useSignIn();
 
 const isLoading = ref(false);
 const serverError = ref<string | null>(null);
+// Código do último erro: com AGUARDANDO_CONFIRMACAO_EMAIL a tela oferece
+// "Reenviar link" (LIC-03 §6.5, quadro 3b).
+const codigoErro = ref<string | undefined>(undefined);
+const avisoReenvio = ref<string | null>(null);
 
 const schema = z.object({
   email: z.string().email('Digite um e-mail válido'),
@@ -33,6 +37,8 @@ const schema = z.object({
 
 const { handleSubmit, errors, defineField, submitCount } = useForm({
   validationSchema: toTypedSchema(schema),
+  // Quem vem do "Já confirmei, quero entrar" já chega com o e-mail preenchido
+  initialValues: { email: signInData.acesso.email || undefined },
 });
 
 const [email] = defineField('email');
@@ -41,6 +47,8 @@ const [senha] = defineField('senha');
 const onSubmit = handleSubmit(async (values) => {
   isLoading.value = true;
   serverError.value = null;
+  codigoErro.value = undefined;
+  avisoReenvio.value = null;
 
   try {
     const result = await reconnectLicenca(values.email, values.senha);
@@ -49,29 +57,39 @@ const onSubmit = handleSubmit(async (values) => {
       // Sistema já possui Empresa/Master
       router.push({ name: 'auth.user' });
     } else {
-      // Licença vinculada, mas o banco de dados está vazio (nova instalação)
-      // Passar credenciais para o step de configuração da Empresa
+      // Licença vinculada, mas o banco está vazio (computador novo ou banco perdido).
+      // Guarda as credenciais para o setup e o que a nuvem mandou (LIC-03).
       updateAcessoData({
         email: values.email,
         senha: values.senha,
         confirmarSenha: values.senha,
       });
-      signInMode.value = 'autocadastro';
-      goToStep(1); // Vai direto para SegmentoStep, pulando a apresentação
+      dadosRelogin.backup = result.backup ?? null;
+      dadosRelogin.titular = result.titular ?? null;
+      // "Sua licença foi encontrada": com backup, restaurar; sem, preencher (§6.2)
+      signInMode.value = 'escolha-restauracao';
     }
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      const detail = error.response.data?.detail;
-      serverError.value = typeof detail === 'string' 
-        ? detail 
-        : detail?.mensagem || 'Erro ao tentar reconectar a licença. Verifique suas credenciais.';
-    } else {
-      serverError.value = 'Falha de comunicação com o servidor local.';
-    }
+    // Mensagem fixa por código, nunca o texto técnico do servidor (D-16)
+    const { codigo } = lerErroDaLicenca(error);
+    codigoErro.value = codigo;
+    serverError.value = codigo
+      ? mensagemDoCodigo(codigo)
+      : 'O serviço do StartBig neste computador não respondeu. Aguarde alguns segundos e tente de novo.';
   } finally {
     isLoading.value = false;
   }
 });
+
+/** "Reenviar link" do quadro 3b: o backend sempre aceita. */
+async function reenviar(): Promise<void> {
+  try {
+    await reenviarLink(email.value ?? '');
+    avisoReenvio.value = 'Se este e-mail tiver conta, enviamos um novo link.';
+  } catch (e) {
+    avisoReenvio.value = mensagemDoCodigo(lerErroDaLicenca(e).codigo);
+  }
+}
 
 function goBack() {
   signInMode.value = 'choice';
@@ -99,9 +117,20 @@ function goBack() {
     <!-- Erro do Servidor -->
     <div v-if="serverError" class="p-3 mb-6 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2">
       <LucideIcon :icon="AlertCircle" size="md" class="text-red-600 mt-0.5 shrink-0" />
-      <p class="text-sm text-red-700 font-medium">
-        {{ serverError }}
-      </p>
+      <div class="flex flex-col gap-2 flex-1">
+        <p class="text-sm text-red-700 font-medium">
+          {{ serverError }}
+        </p>
+        <!-- Conta esperando a confirmação do e-mail: oferece um link novo (quadro 3b) -->
+        <div v-if="codigoErro === 'AGUARDANDO_CONFIRMACAO_EMAIL'" class="flex items-center gap-3">
+          <button
+            type="button"
+            class="min-h-9 px-3 py-1 border border-brand-primary rounded-md bg-white text-brand-primary text-xs font-semibold cursor-pointer"
+            @click="reenviar"
+          >Reenviar link</button>
+          <span class="text-xs text-gray-500">{{ avisoReenvio ?? 'O link novo substitui o anterior.' }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Dados de Login -->
