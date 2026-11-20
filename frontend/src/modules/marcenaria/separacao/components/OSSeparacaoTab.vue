@@ -28,7 +28,6 @@ import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcesso
 import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
 import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { mensagemDoErro, statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
-import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
 import SecaoTerceirizados from '@/modules/marcenaria/terceirizados/components/SecaoTerceirizados.vue';
 import type { SugestaoStatus, TerceirizadosDaOS } from '@/modules/marcenaria/terceirizados/schemas/terceirizado.schema';
 import SugestaoStatusModal from '@/modules/marcenaria/producao/components/SugestaoStatusModal.vue';
@@ -216,18 +215,21 @@ async function confirmarDevolver(quantidade: number) {
 
 /** D6: concluir explica o efeito no estoque antes de gravar. */
 async function concluir(linha: LinhaSeparacao, naoUsado: boolean) {
-  const nome = escaparHtml(linha.descricao);
+  const nome = linha.descricao; // vai em negrito como TEXTO, sem HTML (LIC-04, D-17)
   const retirado = quantidadeComUnidade(linha.separada_milesimos, linha.unidade);
   const ok = await confirmacao.pedirConfirmacao(naoUsado
     ? {
       titulo: 'Não usado nesta OS',
-      descricao: `<strong>${nome}</strong>: este produto não será usado nesta OS.`,
+      descricao: [{ negrito: nome }, ': este produto não será usado nesta OS.'],
       confirmLabel: 'Marcar como não usado',
     }
     : {
       titulo: 'Concluir a separação',
-      descricao: `<strong>${nome}</strong>: a OS passa a consumir ${retirado} (o que foi retirado). `
-        + 'A finalização não baixará mais nada deste produto.',
+      descricao: [
+        { negrito: nome },
+        `: a OS passa a consumir ${retirado} (o que foi retirado). `
+          + 'A finalização não baixará mais nada deste produto.',
+      ],
       confirmLabel: 'Concluir',
     });
   if (ok) await concluirLinha(linha);

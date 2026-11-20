@@ -37,8 +37,8 @@ export interface EditorContexto {
    */
   garantirOrcamento: () => Promise<number | null>;
   /**
-   * Pergunta de confirmação (um modal só, desenhado pelo editor). A descrição
-   * aceita HTML: texto digitado pelo usuário passa antes por `escaparHtml`.
+   * Pergunta de confirmação (um modal só, desenhado pelo editor). A descrição é
+   * texto puro ou trechos com negrito, nunca HTML (LIC-04, D-17).
    */
   confirmar: (opcoes: OpcoesConfirmacao) => Promise<boolean>;
   /** Abre o modal do móvel: novo (só o ambiente) ou editando um gravado. */

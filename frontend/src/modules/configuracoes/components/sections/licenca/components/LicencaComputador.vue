@@ -147,13 +147,19 @@ async function desativar() {
     <BaseConfirmModal
       :is-open="confirmando"
       title="Desativar a licença neste computador?"
-      description="O sistema vai parar de funcionar <strong>neste computador e em todos os caixas</strong> até a licença ser ativada no computador novo. Os dados não são apagados. Se for engano, basta entrar de novo com a conta StartBig."
       confirm-label="Desativar"
       is-danger
       overlay
       :is-loading="desativando"
       @confirm="desativar"
       @close="confirmando = false"
-    />
+    >
+      <!-- Destaque pelo slot, sem HTML na descrição (LIC-04, D-17) -->
+      <template #description>
+        O sistema vai parar de funcionar <strong>neste computador e em todos os caixas</strong>
+        até a licença ser ativada no computador novo. Os dados não são apagados. Se for engano,
+        basta entrar de novo com a conta StartBig.
+      </template>
+    </BaseConfirmModal>
   </div>
 </template>

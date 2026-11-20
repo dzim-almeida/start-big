@@ -44,6 +44,15 @@ os.makedirs(data_dir, exist_ok=True)
 # O fallback abaixo nao move nem copia arquivo: so aponta a URL para o banco legado.
 # Nao ha backup automatico antes das migracoes, entao mexer no arquivo do cliente e
 # risco desnecessario.
+# Origens que podem ler as respostas da API local pelo navegador (CORS, LIC-04, D-18).
+# "Origem" é o endereço da página que faz a chamada. Lista fixa de propósito:
+# uma variável de ambiente permitiria "abrir" o CORS sem querer.
+ORIGENS_PERMITIDAS = [
+    "http://localhost:1420",    # desenvolvimento (npm run dev)
+    "http://tauri.localhost",   # janela do Tauri no Windows
+    "https://tauri.localhost",  # mesma janela, se o Tauri trocar o protocolo
+]
+
 DB_FILENAME = "start_big.db"
 LEGACY_DB_FILENAMES = ("startbig.db",)
 

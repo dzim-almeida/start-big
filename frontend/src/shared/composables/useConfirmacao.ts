@@ -1,8 +1,10 @@
 import { ref } from 'vue'
+import type { DescricaoConfirmacao } from '@/shared/types/confirmacao.types'
 
 export interface OpcoesConfirmacao {
   titulo: string
-  descricao: string
+  /** Texto puro ou trechos com negrito (nunca HTML, LIC-04). */
+  descricao: DescricaoConfirmacao
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning' | 'info'

@@ -17,7 +17,6 @@ import { formatCurrency } from '@/shared/utils/finance';
 import { LIMITES } from '../../constants/orcamento.constants';
 import { useEditor } from '../../composables/useEditorContexto';
 import type { AmbienteDetalhe, MovelDetalhe } from '../../schemas/orcamentoDetalhe.schema';
-import { escaparHtml } from '../../utils/textoSeguro';
 import MovelLinha from './MovelLinha.vue';
 import { gradeMoveis } from './gradeMoveis';
 
@@ -67,12 +66,13 @@ async function concluirRenomear() {
 async function excluirAmbiente() {
   menuAberto.value = false;
   const qtd = props.ambiente.moveis.length;
-  const nome = escaparHtml(props.ambiente.nome);           // o modal mostra HTML
+  const nome = props.ambiente.nome;
   const ok = await confirmar({
     titulo: 'Excluir ambiente',
+    // Descrição em trechos: o nome vai em negrito como TEXTO, sem HTML (LIC-04, D-17)
     descricao: qtd
-      ? `Excluir o ambiente <strong>${nome}</strong> e ${qtd === 1 ? 'o móvel dele' : `os ${qtd} móveis dele`}?`
-      : `Excluir o ambiente <strong>${nome}</strong>?`,
+      ? ['Excluir o ambiente ', { negrito: nome }, ` e ${qtd === 1 ? 'o móvel dele' : `os ${qtd} móveis dele`}?`]
+      : ['Excluir o ambiente ', { negrito: nome }, '?'],
     confirmLabel: 'Excluir',
     variant: 'danger',
   });
@@ -94,7 +94,8 @@ async function moverMovel(indice: number, direcao: -1 | 1) {
 async function excluirMovel(movel: MovelDetalhe) {
   const ok = await confirmar({
     titulo: 'Excluir móvel',
-    descricao: `Excluir o móvel <strong>${escaparHtml(movel.nome)}</strong>?`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Excluir o móvel ', { negrito: movel.nome }, '?'],
     confirmLabel: 'Excluir',
     variant: 'danger',
   });

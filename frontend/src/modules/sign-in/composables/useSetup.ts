@@ -29,7 +29,7 @@ export function useSetup() {
   >({
     mutationFn: setupSistema,
     onSuccess: async () => {
-      // Revalidar usuário (JWT já foi salvo no localStorage pelo service)
+      // Revalidar usuário (JWT já foi salvo na sessionStorage pelo service)
       await authStore.revalidateUser();
 
       // Upload da logo se houver

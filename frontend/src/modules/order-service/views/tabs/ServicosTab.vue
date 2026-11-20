@@ -68,12 +68,18 @@ function handleConfirmStatusToggle() {
     <BaseConfirmModal
       :is-open="isStatusModalOpen"
       :title="(servicoToToggle?.ativo ? 'Desativar' : 'Ativar') + ' Serviço?'"
-      :description="`Deseja realmente ${servicoToToggle?.ativo ? 'desativar' : 'ativar'} o serviço <b>${servicoToToggle?.descricao}</b>?`"
       :confirm-text="servicoToToggle?.ativo ? 'DESATIVAR' : 'ATIVAR'"
       :is-danger="servicoToToggle?.ativo"
       :is-loading="toggleAtivoMutation.isPending.value"
       @close="handleCloseStatusModal"
       @confirm="handleConfirmStatusToggle"
-    />
+    >
+      <!-- Destaque pelo slot: o {{ }} escapa o nome do serviço, então um nome com
+           HTML aparece como texto e não vira código na tela (LIC-04, D-17). -->
+      <template #description>
+        Deseja realmente {{ servicoToToggle?.ativo ? 'desativar' : 'ativar' }} o serviço
+        <b>{{ servicoToToggle?.descricao }}</b>?
+      </template>
+    </BaseConfirmModal>
   </div>
 </template>

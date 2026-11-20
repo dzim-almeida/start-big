@@ -83,7 +83,8 @@ onBeforeRouteLeave(async () => {
 
   return confirmacao.pedirConfirmacao({
     titulo: 'Sair sem salvar?',
-    descricao: 'Você tem <strong>alterações não salvas</strong>. Se sair agora, todas as alterações serão perdidas.',
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Você tem ', { negrito: 'alterações não salvas' }, '. Se sair agora, todas as alterações serão perdidas.'],
     confirmLabel: 'Sair sem salvar',
     cancelLabel: 'Continuar editando',
     variant: 'danger',

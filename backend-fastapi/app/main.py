@@ -18,7 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.exceptions import setup_exception_handlers
 from app.core.tarefas import lifespan
-from app.core.config import BASE_DIR, BACKEND_DIR
+from app.core.config import BASE_DIR, BACKEND_DIR, ORIGENS_PERMITIDAS
+from app.core.rede_local import ExigirRedeDaLoja
 
 import app.db.models  # noqa: F401 — registra todos os modelos no Base.metadata
 
@@ -47,13 +48,21 @@ app = FastAPI(
 
 setup_exception_handlers(app)
 
+# CORS: só as origens da lista fechada podem ler as respostas pelo navegador (D-18).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ORIGENS_PERMITIDAS,   # lista fechada, nunca "*"
+    allow_credentials=True,             # o cabeçalho Authorization só vale para essas origens
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    # Cabeçalhos que o front manda. "X-Terminal-HWID" é o caixa se identificando
+    # (terminal.service.ts); sem ele aqui, o navegador barraria a chamada.
+    allow_headers=["Content-Type", "Authorization", "X-Terminal-HWID"],
 )
+
+# Rede da loja (D-21): registrado DEPOIS do CORS, então roda ANTES dele (o último
+# middleware adicionado é o primeiro a receber a requisição). Quem está fora da
+# rede é recusado logo na porta.
+app.add_middleware(ExigirRedeDaLoja)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

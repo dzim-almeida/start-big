@@ -25,7 +25,6 @@ import { useToast } from '@/shared/composables/useToast';
 import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
 import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { mensagemDoErro, statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
-import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
 
 import { useFeitoPor } from '../composables/useFeitoPor';
 import { useProducaoDaOS } from '../composables/useProducaoDaOS';
@@ -182,7 +181,8 @@ async function concluirEtapa(movel: MovelProducao, etapa: Etapa) {
   if (proxima && proxima.id !== etapa.id) {
     const ok = await confirmacao.pedirConfirmacao({
       titulo: `Concluir ${etapa.nome} antes de ${proxima.nome}?`,
-      descricao: `<strong>${escaparHtml(movel.nome)}</strong>: a etapa ${escaparHtml(proxima.nome)} ainda não foi concluída.`,
+      // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+      descricao: [{ negrito: movel.nome }, `: a etapa ${proxima.nome} ainda não foi concluída.`],
       confirmLabel: 'Concluir',
     });
     if (!ok) return;

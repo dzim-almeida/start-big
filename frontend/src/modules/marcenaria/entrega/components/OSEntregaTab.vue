@@ -23,7 +23,6 @@ import { aguardarImagensDaImpressao, imprimirComPagina } from '@/shared/utils/pr
 import { useRotulosStatusOS } from '@/modules/order-service/shared/segmento/useRotulosStatusOS';
 import type { OsStatusEnumDataType } from '@/modules/order-service/ordens/schemas/enums/osEnums.schema';
 import { statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
-import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
 import type { OpcaoFuncionario } from '@/modules/marcenaria/producao/utils/producao';
 import { diaMes } from '@/modules/marcenaria/producao/utils/producao';
 
@@ -101,7 +100,8 @@ async function confirmarAgendamento(envio: AgendamentoEnvio) {
 async function pedirExclusao(agendamento: Agendamento) {
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Desmarcar a instalação?',
-    descricao: `Instalação de <strong>${diaMes(agendamento.data)}</strong> (${escaparHtml(agendamento.ambientes.join(', '))}).`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Instalação de ', { negrito: diaMes(agendamento.data) }, ` (${agendamento.ambientes.join(', ')}).`],
     confirmLabel: 'Desmarcar',
     variant: 'danger',
   });

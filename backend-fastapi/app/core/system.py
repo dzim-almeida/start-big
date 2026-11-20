@@ -5,11 +5,18 @@ import ctypes
 import tempfile
 import subprocess
 
+from app.core.rede_local import REDES_DA_LOJA
+
 TASK_NAME = "StartBigServer"
 TCP_LAW = "StartBig-Server"
 MDSN_LAW = "StartBig-mDNS"
 
 MDNS_PORT = 5353
+
+# As regras de firewall só aceitam conexões das redes da loja (LIC-04, D-21).
+# É a MESMA lista do middleware (`rede_local.py`), em texto separado por vírgula,
+# que é o formato que o `netsh` espera no `remoteip=`.
+REMOTEIP_DA_LOJA = ",".join(REDES_DA_LOJA)
 
 def app_is_adm() -> bool:
     try:
@@ -60,7 +67,8 @@ def firewall_cfg(port: int) -> None:
             "netsh", "advfirewall", "firewall", "add", "rule",
             f"name={TCP_LAW}",
             "dir=in", "action=allow", "protocol=TCP",
-            f"localport={port}", "profile=any"
+            f"localport={port}", "profile=any",
+            f"remoteip={REMOTEIP_DA_LOJA}",  # só a rede da loja (D-21)
         ],
         f"Regra de firewall TCP para porta {port} (STARTBIG API)"
     )
@@ -70,7 +78,8 @@ def firewall_cfg(port: int) -> None:
             "netsh", "advfirewall", "firewall", "add", "rule",
             f"name={MDSN_LAW}",
             "dir=in", "action=allow", "protocol=UDP",
-            f"localport={MDNS_PORT}", "profile=any"
+            f"localport={MDNS_PORT}", "profile=any",
+            f"remoteip={REMOTEIP_DA_LOJA}",  # só a rede da loja (D-21)
         ],
         f"Regra de firewall UDP para porta {MDNS_PORT} (STARTBIG mDNS)"
     )

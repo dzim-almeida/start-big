@@ -132,9 +132,12 @@ function salvarNova() {
 async function confirmarCancelamento(conta: ContaReceber) {
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Cancelar esta cobrança?',
-    descricao:
-      `<strong>${conta.descricao}</strong> deixa de ser cobrada, mas continua no histórico ` +
-      'como cancelada. Nada é excluído.',
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    // (a descrição da conta é digitada pelo usuário: como trecho, aparece só como texto)
+    descricao: [
+      { negrito: conta.descricao },
+      ' deixa de ser cobrada, mas continua no histórico como cancelada. Nada é excluído.',
+    ],
     confirmLabel: 'Cancelar cobrança',
     cancelLabel: 'Voltar',
     variant: 'warning',

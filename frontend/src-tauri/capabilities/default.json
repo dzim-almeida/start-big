@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Permissões da janela principal: só o que o front usa (LIC-04 §6.4, D-20). core: base do Tauri (path/downloadDir, eventos). opener: openUrl e openPath. dialog:allow-save: janela 'Salvar como'. fs:allow-write-file: grava só no caminho escolhido no 'Salvar como'. Sem shell: quem inicia o backend é o Rust (backend.rs).",
   "windows": [
     "main"
   ],
@@ -9,20 +9,7 @@
     "core:default",
     "opener:default",
     "opener:allow-open-path",
-    "fs:allow-app-read",
-    "fs:allow-app-write",
-    "fs:allow-exists",
     "dialog:allow-save",
-    "shell:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "erp-api",
-          "sidecar": true,
-          "args": true
-        }
-      ]
-    }
+    "fs:allow-write-file"
   ]
 }

@@ -24,7 +24,6 @@ import { useAnexosQuery } from '../../composables/useOrcamentoQuery';
 import type { AnexoOrcamento } from '../../schemas/orcamentoDetalhe.schema';
 import { alterarLegenda, incluirAnexo, removerAnexo } from '../../services/orcamentoAnexos.service';
 import { mensagemDoErro } from '../../utils/erros';
-import { escaparHtml } from '../../utils/textoSeguro';
 
 const { id, acoes, confirmar } = useEditor();
 const toast = useToast();
@@ -86,7 +85,8 @@ async function salvarLegenda(anexo: AnexoOrcamento, evento: Event) {
 async function excluir(anexo: AnexoOrcamento) {
   const ok = await confirmar({
     titulo: 'Excluir anexo',
-    descricao: `Este arquivo (<strong>${escaparHtml(anexo.nome_arquivo)}</strong>) é usado por todas as versões deste orçamento. Excluir mesmo assim?`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Este arquivo (', { negrito: anexo.nome_arquivo }, ') é usado por todas as versões deste orçamento. Excluir mesmo assim?'],
     confirmLabel: 'Excluir',
     variant: 'danger',
   });

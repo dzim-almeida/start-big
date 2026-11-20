@@ -14,6 +14,15 @@ from app.db.models.usuario import Usuario
 from app.services.licenca import cofre
 from test.apoio import cofre_falso
 
+# O middleware da rede da loja (LIC-04, `app/core/rede_local.py`) recusa quem não
+# chama de um IP da loja. Por padrão, o TestClient se apresenta como "testclient",
+# que não é IP, e TODA a suíte receberia 403. Aqui trocamos o padrão para o
+# próprio computador (127.0.0.1), que é o que os testes simulam. Quem quiser
+# outro endereço passa `client=(ip, porta)` ao criar o TestClient.
+_padroes = list(TestClient.__init__.__defaults__)
+_padroes[-1] = ("127.0.0.1", 50000)  # o último parâmetro do construtor é `client`
+TestClient.__init__.__defaults__ = tuple(_padroes)
+
 # Configuração do banco de dados de teste (SQLite em memória)
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 

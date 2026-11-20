@@ -25,7 +25,6 @@ import { useToast } from '@/shared/composables/useToast';
 import { formatTelefone } from '@/shared/utils/document.utils';
 import { useAcessoCompras } from '@/modules/compras/shared/composables/useAcessoCompras';
 import { statusDoErro } from '@/modules/marcenaria/orcamentos/utils/erros';
-import { escaparHtml } from '@/modules/marcenaria/orcamentos/utils/textoSeguro';
 
 import { useTerceirizadosDaOS } from '../composables/useTerceirizadosDaOS';
 import type { MovelTerceirizado, TerceirizadosDaOS } from '../schemas/terceirizado.schema';
@@ -219,7 +218,8 @@ async function pedirVoltar(movel: MovelTerceirizado) {
   const aviso = destino === 'A_PEDIR' ? ' O número do pedido e a previsão anotados serão apagados.' : '';
   const ok = await confirmacao.pedirConfirmacao({
     titulo: `Voltar para ${para}?`,
-    descricao: `<strong>${escaparHtml(movel.nome)}</strong> volta de "${de}" para "${para}".${aviso}`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: [{ negrito: movel.nome }, ` volta de "${de}" para "${para}".${aviso}`],
     confirmLabel: 'Voltar',
   });
   if (!ok) return;

@@ -1,5 +1,6 @@
 import api from '@/api/axios';
-import { TOKEN_KEY } from '@/api/axios';
+// O token do login é guardado só pelo tokenSessao.service (LIC-04, D-27)
+import { guardarToken } from '@/shared/services/tokenSessao.service';
 import axios from 'axios';
 import { getApiBaseUrl } from '@/api/backendUrl';
 import type { SetupRequest, ViaCepResponse } from '../types/sign-in.types';
@@ -13,7 +14,7 @@ export async function setupSistema(setupData: SetupRequest): Promise<{ access_to
     `${getApiBaseUrl()}/auth/setup`,
     setupData,
   );
-  localStorage.setItem(TOKEN_KEY, data.access_token);
+  guardarToken(data.access_token); // o setup já deixa o dono logado nesta janela
   return data;
 }
 

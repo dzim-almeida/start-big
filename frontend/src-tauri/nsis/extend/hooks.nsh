@@ -1,6 +1,15 @@
 !define FIREWALL_RULE_NAME "StartBigERP_API_Server"
 !define FIREWALL_PING_RULE_NAME "StartBigERP_Ping_Server"
 
+; Redes da loja (LIC-04, D-21): as regras da API e do mDNS so aceitam conexoes
+; destas redes. E a MESMA lista do backend (app/core/rede_local.py, REDES_DA_LOJA);
+; o teste CT-16 (test/core/test_rede_local.py) confere que as duas nao divergem.
+!define REDES_DA_LOJA "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16"
+
+; Regras que o BACKEND cria quando a maquina vira servidor (app/core/system.py).
+!define FIREWALL_BACKEND_API "StartBig-Server"
+!define FIREWALL_BACKEND_MDNS "StartBig-mDNS"
+
 !macro NSIS_HOOK_PREINSTALL
     ; O backend NAO e filho do app: roda como tarefa agendada (StartBigServer, como
     ; SYSTEM) a partir de $INSTDIR\erp-api.exe -- ver app/core/system.py.
@@ -28,12 +37,27 @@
 !macro NSIS_HOOK_POSTINSTALL
     DetailPrint "Configurando o Firewall do Windows para o Servidor API de Rede e Ping..."
     
-    ; 1. Regra de Entrada TCP para a API (erp-api.exe)
-    nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_RULE_NAME}" dir=in action=allow program="$INSTDIR\erp-api.exe" profile=any description="Regra de Entrada TCP para permitir conexoes de terminais ao servidor StartBig."'
+    ; 1. Regra de Entrada TCP para a API (erp-api.exe), so da rede da loja (D-21).
+    ; Apaga ANTES de criar: numa atualizacao, a regra antiga (aberta para qualquer
+    ; endereco) nao pode sobrar ao lado da nova -- o firewall libera se QUALQUER
+    ; regra liberar.
+    nsExec::Exec 'netsh advfirewall firewall delete rule name="${FIREWALL_RULE_NAME}"'
+    Pop $0
+    nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_RULE_NAME}" dir=in action=allow program="$INSTDIR\erp-api.exe" profile=any remoteip=${REDES_DA_LOJA} description="Recebe conexoes so da rede da loja."'
     Pop $0
     ${If} $0 != 0
         DetailPrint "AVISO: Nao foi possivel criar a regra de firewall da API automaticamente."
     ${EndIf}
+
+    ; 1b. Regras que o backend criou ao virar servidor (porta da API e mDNS).
+    ; O instalador nao sabe a porta da API (ela fica no system-config.json do
+    ; usuario), entao nao recria: "set rule ... new remoteip=" so restringe as
+    ; regras que JA existem, mantendo a porta. Nos caixas elas nao existem, o
+    ; comando falha sem efeito e nenhuma regra nova e criada (LIC-04, Revisao 2).
+    nsExec::Exec 'netsh advfirewall firewall set rule name="${FIREWALL_BACKEND_API}" new remoteip=${REDES_DA_LOJA}'
+    Pop $0
+    nsExec::Exec 'netsh advfirewall firewall set rule name="${FIREWALL_BACKEND_MDNS}" new remoteip=${REDES_DA_LOJA}'
+    Pop $0
 
     ; 2. Regra de Entrada ICMPv4 (Ping) para testar a conectividade do servidor
     nsExec::Exec 'netsh advfirewall firewall add rule name="${FIREWALL_PING_RULE_NAME}" protocol=icmpv4:8,any dir=in action=allow description="Permite recebimento de Ping (ICMPv4) dos terminais da rede."'

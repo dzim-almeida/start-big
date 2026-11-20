@@ -10,8 +10,8 @@ import { toast } from 'vue-sonner';
 
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { getApiBaseUrl } from '@/api/backendUrl';
-
-export const TOKEN_KEY = 'access_token';
+// Dono único do token do login: só ele sabe onde o token fica (LIC-04, D-27)
+import { lerToken } from '@/shared/services/tokenSessao.service';
 
 /**
  * Instância do Axios configurada com a URL base da API
@@ -23,7 +23,7 @@ export const api = axios.create({ timeout: 10_000 });
  */
 api.interceptors.request.use((config) => {
   config.baseURL ??= getApiBaseUrl();
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = lerToken(); // token da sessão desta janela (null = sem login)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -59,7 +59,7 @@ api.interceptors.response.use(
 
       // Token expirado ou inválido - limpa autenticação
       if (status === 401) {
-        const hadToken = !!localStorage.getItem(TOKEN_KEY);
+        const hadToken = !!lerToken(); // havia sessão antes deste 401?
         const authStore = useAuthStore();
 
         authStore.logoutUser();

@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { useNetworkConfigStore } from '@/shared/stores/networkConfig.store';
-import { TOKEN_KEY } from '@/api/axios';
+import { limparTokenAntigo } from '@/shared/services/tokenSessao.service';
 import { getDesconectarUrl } from '@/shared/services/licenca.service';
 import { aguardarBackend } from '@/shared/services/system/health.service';
 import { tentarReconectar } from '@/shared/services/system/reconexao.service';
@@ -20,13 +20,10 @@ import { obterHwid } from '@/shared/services/system/hwid.service';
 import AppLoadingScreen from '@/shared/components/AppLoadingScreen.vue';
 import { useHealthMonitor } from '@/shared/composables/useHealthMonitor';
 
-// sessionStorage persiste em reloads mas é limpo ao fechar a janela.
-// DEVE rodar ANTES de useAuthStore() para que useUserQuery() veja o token já removido.
-const SESSION_KEY = 'session_active';
-if (!sessionStorage.getItem(SESSION_KEY)) {
-  localStorage.removeItem(TOKEN_KEY);
-}
-sessionStorage.setItem(SESSION_KEY, 'true');
+// O token do login agora fica só na sessionStorage (some ao fechar a janela,
+// ADR-003). Versões antigas o gravavam no localStorage, que fica em disco:
+// apagamos essa cópia velha ao abrir o app (LIC-04, D-27).
+limparTokenAntigo();
 
 const router = useRouter();
 const authStore = useAuthStore();

@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/vue-query";
 import { getUser } from "../services/user.service";
-import { TOKEN_KEY } from "@/api/axios";
+// Lê o token pelo dono único dele (LIC-04, D-27)
+import { lerToken } from "../services/tokenSessao.service";
 
 export function useUserQuery() {
     return useQuery({
         queryKey: ['user-me'],
         queryFn: () => getUser(),
-        enabled: () => !!localStorage.getItem(TOKEN_KEY),
+        // Só busca o usuário quando há login nesta janela
+        enabled: () => !!lerToken(),
         staleTime: 1000 * 60 * 30
     });
 }

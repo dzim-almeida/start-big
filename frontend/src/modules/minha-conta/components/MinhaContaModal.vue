@@ -108,7 +108,8 @@ async function handleClose() {
 
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Sair sem salvar?',
-    descricao: 'Você tem <strong>alterações não salvas</strong>. Se sair agora, as alterações serão perdidas.',
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Você tem ', { negrito: 'alterações não salvas' }, '. Se sair agora, as alterações serão perdidas.'],
     confirmLabel: 'Sair sem salvar',
     cancelLabel: 'Continuar editando',
     variant: 'danger',

@@ -3,11 +3,13 @@ import { computed } from 'vue';
 import { AlertTriangle, Info, AlertCircle } from 'lucide-vue-next';
 import BaseModal from '@/shared/components/commons/BaseModal/BaseModal.vue';
 import BaseButton from '@/shared/components/ui/BaseButton/BaseButton.vue';
+import type { DescricaoConfirmacao, TrechoDescricao } from '@/shared/types/confirmacao.types';
 
 interface Props {
   isOpen: boolean;
   title: string;
-  description?: string;
+  // Texto puro ou lista de trechos com negrito; nunca HTML (LIC-04, D-17)
+  description?: DescricaoConfirmacao;
   confirmLabel?: string;
   confirmText?: string;
   cancelLabel?: string;
@@ -37,6 +39,11 @@ const effectiveVariant = computed(() => {
   if (props.isDanger) return 'danger';
   return props.variant;
 });
+
+// A descrição sempre vira uma lista de trechos, para o template ter um caminho só.
+const trechos = computed<TrechoDescricao[]>(() =>
+  Array.isArray(props.description) ? props.description : [props.description],
+);
 
 const effectiveConfirmLabel = computed(() => props.confirmText || props.confirmLabel);
 
@@ -82,9 +89,16 @@ const defaultIcon = computed(() => {
         :class="['shrink-0 mt-0.5', iconClass]"
       />
       <div class="text-sm leading-snug">
+        <!-- Quem precisa de um destaque mais elaborado usa o slot "description". -->
         <slot name="description">
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <span v-html="description" />
+          <!-- Cada trecho é mostrado com {{ }}: o Vue escapa o texto, então nada
+               do que o usuário digitou vira HTML (LIC-04, D-17). -->
+          <span>
+            <template v-for="(trecho, indice) in trechos" :key="indice">
+              <strong v-if="typeof trecho === 'object'">{{ trecho.negrito }}</strong>
+              <template v-else>{{ trecho }}</template>
+            </template>
+          </span>
         </slot>
       </div>
     </div>

@@ -2,6 +2,27 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-20 — SPEC-04 Rede da loja, token do login e superfície do front
+
+**Módulos afetados:** core (backend), acesso e sessão (front), shared (modal de confirmação), configuracoes, enterprise, financeiro, minha-conta, marcenaria, order-service, instalador NSIS, Tauri
+
+### Adicionado
+- `core/rede_local.py`: `REDES_DA_LOJA` e o middleware `ExigirRedeDaLoja`, que responde `403 FORA_DA_REDE_DA_LOJA` (formato `error` + `detail`) a quem não é das redes privadas, do `169.254/16` nem do próprio computador (D-21).
+- `shared/services/tokenSessao.service.ts`: único dono do token do login, na `sessionStorage`; apaga o token antigo do `localStorage` ao abrir (D-27, ADR-003).
+- `shared/types/confirmacao.types.ts`: descrição do modal em trechos (`{ negrito }`), sem HTML.
+
+### Alterado
+- CORS com a lista fechada `ORIGENS_PERMITIDAS` (`core/config.py`), métodos e cabeçalhos explícitos (inclui `X-Terminal-HWID`) (D-18).
+- Firewall: `StartBig-Server` e `StartBig-mDNS` criadas pelo backend com `remoteip` da lista; o instalador recria a `StartBigERP_API_Server` com `remoteip` e restringe as duas do backend com `set rule` (D-21).
+- `BaseConfirmModal` sem `v-html`; os 13 chamadores que mandavam HTML usam trechos ou o slot (D-17). Saiu o `textoSeguro.ts` da marcenaria.
+- Permissões do Tauri: só `core:default`, `opener:default`, `opener:allow-open-path`, `dialog:allow-save` e `fs:allow-write-file` (D-20).
+
+### Corrigido
+- Contas a pagar e a receber punham a descrição digitada no modal sem escapar (XSS).
+
+### Decisões
+- Descrição em trechos nos 11 chamadores fora da lista e `set rule` no instalador (aprovados pelo usuário; Revisão 2 da SPEC-04).
+
 ## 2026-11-20 — SPEC-06 API: conta e cadastro (plataforma)
 
 **Módulos afetados:** API StartBig e painel web (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `9b7ba47`)

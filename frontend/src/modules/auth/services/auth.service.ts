@@ -4,7 +4,9 @@
  * autenticação da API (login, logout, etc.).
  */
 
-import api, { TOKEN_KEY } from '@/api/axios';
+import api from '@/api/axios';
+// O token do login é guardado e apagado só pelo tokenSessao.service (LIC-04, D-27)
+import { apagarToken, guardarToken } from '@/shared/services/tokenSessao.service';
 import { obterHwid } from '@/shared/services/system/hwid.service';
 
 import type {
@@ -29,7 +31,7 @@ export async function login(credentials: Omit<LoginRequest, 'hwid'>): Promise<Lo
       ...credentials,
       hwid,
     });
-    localStorage.setItem(TOKEN_KEY, response.data.access_token);
+    guardarToken(response.data.access_token); // fica só na sessão desta janela (ADR-003)
     return response.data;
 }
 
@@ -41,7 +43,7 @@ export async function logout(): Promise<void> {
         const hwid = await obterHwid();
         await api.post('auth/logout', { hwid });
     } finally {
-        localStorage.removeItem(TOKEN_KEY);
+        apagarToken(); // logout: a sessão acaba mesmo se a chamada ao backend falhar
     }
 }
 

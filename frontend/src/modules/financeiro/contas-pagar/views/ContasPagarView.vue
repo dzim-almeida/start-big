@@ -139,9 +139,14 @@ function editar(conta: ContaPagar) {
 async function confirmarReativacao(conta: ContaPagar) {
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Reativar esta conta?',
-    descricao:
-      `<strong>${conta.descricao}</strong> volta para <strong>em aberto</strong> e passa a ` +
-      'contar de novo no que a loja deve, no vencimento original.',
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    // (a descrição da conta é digitada pelo usuário: como trecho, aparece só como texto)
+    descricao: [
+      { negrito: conta.descricao },
+      ' volta para ',
+      { negrito: 'em aberto' },
+      ' e passa a contar de novo no que a loja deve, no vencimento original.',
+    ],
     confirmLabel: 'Reativar',
     cancelLabel: 'Voltar',
   });
@@ -152,9 +157,11 @@ async function confirmarReativacao(conta: ContaPagar) {
 async function confirmarCancelamento(conta: ContaPagar) {
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Cancelar esta conta?',
-    descricao:
-      `<strong>${conta.descricao}</strong> deixa de ser cobrada, mas continua no histórico ` +
-      'como cancelada. Nada é excluído.',
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: [
+      { negrito: conta.descricao },
+      ' deixa de ser cobrada, mas continua no histórico como cancelada. Nada é excluído.',
+    ],
     confirmLabel: 'Cancelar conta',
     cancelLabel: 'Voltar',
     variant: 'warning',

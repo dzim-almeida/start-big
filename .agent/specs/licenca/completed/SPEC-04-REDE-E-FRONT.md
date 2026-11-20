@@ -2,11 +2,11 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-20) |
 | Camada       | Frontend (Vue 3 + TypeScript), Backend (FastAPI, CORS e rede da loja), instalador NSIS e configuração do Tauri |
 | Dependências | — |
 | Bloqueia     | LIC-07 (TLS na rede da loja, spec futura) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-12, D-17, D-18, D-20, D-21, D-27, D-29; [ADR-002](../../docs/licenca/adr/ADR-002-login-bearer-cofre.md) (Bearer); [ADR-003](../../docs/licenca/adr/ADR-003-token-login-session-storage.md) (sessionStorage); quadro F1, F33, F34, F35, F38 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-12, D-17, D-18, D-20, D-21, D-27, D-29; [ADR-002](../../../docs/licenca/adr/ADR-002-login-bearer-cofre.md) (Bearer); [ADR-003](../../../docs/licenca/adr/ADR-003-token-login-session-storage.md) (sessionStorage); quadro F1, F33, F34, F35, F38 |
 
 > **Revisão 1 (2026-11-18):** revisão de conflitos com o usuário, antes da aprovação.
 > - **Conflito 5 (D-27):** um único arquivo, `shared/services/tokenSessao.service.ts`, é dono do token do login. A spec antiga listava 3 pontos; o front tem 7 (`useUser.ts:9`, `auth.store.ts:24`, `axios.ts:62` e `App.vue:27` estavam fora). O truque do `App.vue` vira a limpeza do token antigo.
@@ -14,6 +14,14 @@
 > - **Conflito 11 (D-29):** o bloqueio de rede responde no formato do projeto, `error` + `detail: {codigo, mensagem}`.
 > - **Conflito 12 (D-21 revista):** existem três regras de firewall abrindo a API (a do instalador, a `StartBig-Server` do `system.py` e a do mDNS). As três são apagadas e recriadas com a mesma lista de redes do middleware. Entra o `169.254.0.0/16` e sai o `LocalSubnet`. Um teste compara as duas listas.
 > - **Documentação:** origens do CORS numa lista fixa em `core/config.py`, sem variável de ambiente. Entra o `LicencaComputador.vue`, que tem `<strong>` na descrição. O `ProductsView` e o `ModelosEtiquetaModal` não têm HTML e não mudam. Esta spec não depende da SPEC-01, e o motivo antigo de "bloquear a SPEC-03" era da época da ADR-002.
+
+> **Revisão 2 (2026-11-20, implementação):** divergências achadas ao implementar, decididas com o usuário ou registradas aqui.
+> - **Descrição em trechos (decisão do usuário).** A spec dizia que só o `ServicosTab` e o `LicencaComputador` mandavam HTML ao modal. Outros 11 arquivos mandavam `<strong>` pela `descricao` do `useConfirmacao` (configurações, empresa, contas a pagar e a receber, minha conta e 6 da marcenaria, que escapavam o texto com `escaparHtml`). Sem o `v-html` eles mostrariam as tags na tela. A `description` do `BaseConfirmModal` (e a `descricao` do `useConfirmacao`) passou a aceitar texto puro **ou** uma lista de trechos, com o negrito como objeto: `['Excluir o móvel ', { negrito: nome }, '?']` (`shared/types/confirmacao.types.ts`). Os 11 chamadores foram convertidos e o `marcenaria/orcamentos/utils/textoSeguro.ts` saiu (não há mais o que escapar). As contas a pagar e a receber punham a descrição digitada **sem escapar**: era um XSS real, fechado aqui.
+> - **Firewall do instalador com `set rule` (decisão do usuário).** O `hooks.nsh` apaga e recria só a regra dele (`StartBigERP_API_Server`, com `remoteip`). Para `StartBig-Server` e `StartBig-mDNS`, que o backend cria, usa `netsh advfirewall firewall set rule ... new remoteip=`: o instalador não sabe a porta da API (ela fica no `system-config.json`), e recriar as regras também as criaria nos caixas. O `set` só restringe as regras que já existem, mantendo a porta. A regra de ping (`StartBigERP_Ping_Server`) não é da API e não mudou.
+> - **`X-Terminal-HWID` no `allow_headers`.** O caixa manda esse cabeçalho (`terminal.service.ts`). Com a lista da §6.1 (só `Content-Type` e `Authorization`), o navegador barraria a chamada no preflight. Teste em `test_cors_origens.py`.
+> - **Testes chamam "do próprio computador".** O `TestClient` se apresenta como `testclient`, que não é IP, e o middleware recusaria a suíte inteira. O `test/conftest.py` troca o padrão para `127.0.0.1`; quem quer outro endereço passa `client=(ip, porta)`.
+> - **Fora da lista:** `shared/composables/useConfirmacao.ts` e `shared/types/confirmacao.types.ts` (tipo dos trechos); os 11 chamadores acima e a remoção do `textoSeguro.ts` (decisão do usuário); `test/conftest.py` (endereço do TestClient); `shared/composables/__tests__/useUser.spec.ts` (CT-17, que a §3 punha no `tokenSessao.spec.ts`).
+> - **Verificação:** CT-01 a CT-17 com pytest e Vitest, mais casos de borda (redes vizinhas, cabeçalho do caixa, firewall do backend). Suítes completas, `vue-tsc` e lint rodam uma vez no fim da série (pedido do usuário). **Não verificados** (exigem Windows e o app instalado, e esta sessão roda em Linux): CA-02 (origem real da janela Tauri), CA-03 (fechar e abrir o app), CA-07, CA-08 e CA-09 (permissões na janela), CA-11 (`netsh ... show rule` depois de instalar por cima). CA-01, CA-04 (no código e no teste), CA-05, CA-06 (pelo CT-09), CA-10 e CA-12 têm teste automatizado.
 
 ## 1. Objetivo
 

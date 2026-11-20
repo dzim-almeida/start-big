@@ -4,7 +4,8 @@ import { defineStore } from 'pinia';
 import { useUserQuery } from '../composables/useUser';
 import { useQueryClient } from '@tanstack/vue-query';
 import { useNotificacoesStore } from './notificacoes.store';
-import { TOKEN_KEY } from '@/api/axios';
+// O token do login é apagado só pelo tokenSessao.service (LIC-04, D-27)
+import { apagarToken } from '../services/tokenSessao.service';
 
 export const useAuthStore = defineStore('auth', () => {
   const queryClient = useQueryClient();
@@ -21,7 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logoutUser() {
-    localStorage.removeItem(TOKEN_KEY);
+    apagarToken(); // encerra a sessão desta janela
     queryClient.removeQueries({ queryKey: ['user-me'] });
     useNotificacoesStore().resetar();
   }

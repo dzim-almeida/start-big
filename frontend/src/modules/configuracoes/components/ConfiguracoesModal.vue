@@ -138,7 +138,8 @@ async function confirmarDescarteSeNecessario(): Promise<boolean> {
   if (!isDirtyAtivo.value) return true
   const ok = await confirmacao.pedirConfirmacao({
     titulo: 'Descartar alterações?',
-    descricao: `Você tem alterações não salvas em <strong>${labelSecaoAtiva.value}</strong>. Se continuar, elas serão perdidas.`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['Você tem alterações não salvas em ', { negrito: labelSecaoAtiva.value }, '. Se continuar, elas serão perdidas.'],
     confirmLabel: 'Descartar',
     cancelLabel: 'Continuar editando',
     variant: 'warning',
@@ -221,7 +222,8 @@ async function salvar(): Promise<void> {
 
   const ok = await confirmacao.pedirConfirmacao({
     titulo: `Aplicar alterações de ${labelSecaoAtiva.value}?`,
-    descricao: `As alterações de <strong>${labelSecaoAtiva.value}</strong> serão aplicadas imediatamente.`,
+    // Descrição em trechos: o negrito é um objeto, nada vira HTML (LIC-04, D-17)
+    descricao: ['As alterações de ', { negrito: labelSecaoAtiva.value }, ' serão aplicadas imediatamente.'],
     confirmLabel: 'Aplicar',
     variant: 'warning',
   })
