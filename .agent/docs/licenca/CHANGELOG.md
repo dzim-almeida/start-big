@@ -2,6 +2,24 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-20 — SPEC-06 API: conta e cadastro (plataforma)
+
+**Módulos afetados:** API StartBig e painel web (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `9b7ba47`)
+
+### Adicionado
+- `GET /erp/auto-cadastro/confirmar` e a página `confirmar-cadastro`: a licença de teste nasce na confirmação do e-mail (D-24).
+- `POST /erp/auth/reenviar-link`: sempre `202`, um envio por minuto, link escolhido pelo estado da conta (D-31, R-01).
+- `GET` e `PUT /erp/usuario/titular`, com o documento travado (D-22, D-28).
+- Campos novos e opcionais em `Cliente` (confirmação, bloqueio de login, `tokenSenha` em hash, último envio de link).
+
+### Alterado
+- Cadastro pelo app: resposta única, `202` (app novo) ou `409 CONFIRMACAO_NECESSARIA` (versões instaladas); nunca cria licença nem manda a chave (D-23, D-31, D-34).
+- Login: bloqueio progressivo (1, 5, 15 min), `CREDENCIAIS_INVALIDAS` também para conta sem senha, `AGUARDANDO_CONFIRMACAO_EMAIL` para conta sem licença com confirmação pendente (D-09, D-32).
+- Primeiro acesso procura só pelo hash em `tokenSenha` (D-35).
+
+### Decisões
+- A contratação paga do site continua criando conta e licença na hora, sem confirmação (aprovado pelo usuário; ACORDO §7).
+
 ## 2026-11-19 — SPEC-09 API: vagas e heartbeat (plataforma)
 
 **Módulos afetados:** API StartBig (fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `003c167`)

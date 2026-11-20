@@ -2,12 +2,12 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-20) |
 | Camada       | Backend da API (NestJS, Prisma) e uma página do painel web (Next.js) |
 | Repositório  | Trabalho no fork `dzim-almeida/plataformaADM`; entrega por PR ao `aalan-big/plataformaADM` (D-01) |
 | Dependências | SPEC-05 (as rotas do titular usam a recusa de máquina revogada do guard) |
 | Bloqueia     | — (a SPEC-03 usa esta spec, mas funciona sem ela pela rede de segurança do `404`) |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-01, D-09, D-22, D-23, D-24, D-28, D-31, D-32, D-34, D-35; [ADR-004](../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); risco R-01; quadro F2, F3, F4, F12, F13, F23 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-01, D-09, D-22, D-23, D-24, D-28, D-31, D-32, D-34, D-35; [ADR-004](../../../docs/licenca/adr/ADR-004-compatibilidade-api-app-instalado.md); risco R-01; quadro F2, F3, F4, F12, F13, F23 |
 
 > **Revisão 1 (2026-11-18):** dividida da antiga SPEC-06 (vagas foram para a LIC-09); F5 saiu (R-02); entraram o `GET` do titular, o cadastro com resposta única e o `reenviar-link`.
 
@@ -21,6 +21,16 @@
 > - **Conflito 30 (D-31 revista):** caminhos corrigidos. A mudança do cadastro é no serviço, que atende `/erp/auto-cadastro` (usado pelo app) e `/licenca/auto-cadastro`. Os e-mails do painel do administrador ficam fora do escopo.
 > - **Revisão 3 (2026-11-19):** mockups aprovados. A página `confirmar-cadastro` segue o quadro 6 de [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z): estado "Conta confirmada" e estado "Este link expirou", no estilo atual das páginas da plataforma (como `primeiro-acesso`).
 > - **Documentação (D13, D16 a D20):** erro de validação do Zod sai como `400` com `detalhes`; como as rotas passam pelo guard global; `Cliente.email` não é único; padrão de arquivos do repositório.
+
+> **Revisão 4 (2026-11-20, implementação):** fork `dzim-almeida/plataformaADM`, branch `fix/licenca-seguranca`, commit `9b7ba47`.
+> - **Contratação paga do site (decisão do usuário):** `POST /erp/cobranca/contratar` (`erp-contratacao.service.ts`, fora da lista) chamava o mesmo `autoCadastro` e precisa do `licencaId` na hora para o checkout do Stripe. O cadastro de antes virou `criarContaComTrial`, usado **só** pelo site, que continua igual (sem confirmação de e-mail e com o e-mail da chave). As rotas do app seguem esta spec. Registrado no ACORDO §7.
+> - **Schema do cadastro:** o `autoCadastroSchema` fica em `dispositivo.service.ts` (não em `packages/schemas`); ganhou `fluxoConfirmacao` opcional.
+> - **Cadastro repetido:** e-mail já cadastrado manda o link pelo **estado da conta** (`enviarLinkPeloEstado`, a mesma regra do `reenviar-link`): conta com confirmação pendente recebe um link de confirmação novo; as outras, o aviso "já tem cadastro" com o link de nova senha. Os dois respeitam o limite de um envio por minuto.
+> - **Primeiro acesso:** definir a senha pelo link também zera o bloqueio de login (quem tem o link provou ter o e-mail).
+> - **Titular PF:** a PF não tem nome fantasia nem telefone no cadastro da nuvem; esses campos do `PUT` são ignorados para PF. Documento formatado (`000.000.000-00`, `00.000.000/0000-00`) no `GET`. Corpo com campo desconhecido (inclusive `tipoPessoa`) → `400`.
+> - **Fora da lista:** `apps/server/src/core/seguranca/token-de-link.ts` (hash e geração dos tokens dos links, usado por e-mail, cadastro e login); `apps/web/src/proxy.ts` (a página `/confirmar-cadastro` na lista de rotas públicas, senão o painel mandaria para o login); `erp-contratacao.service.ts` (decisão acima); `licenca-troca-servidor.test.ts` (o caso "senha nunca criada" passa a esperar `401 CREDENCIAIS_INVALIDAS`, como esta spec define).
+> - **Testes nas pastas certas:** os casos do login e do reenvio estão em `test/erp/`, e os do cadastro em `test/licenca/`, como a §3.
+> - **Verificação:** CT-01 a CT-27 com `node --test`; `npm test` completo (287 passando); `tsc --noEmit` sem erro no servidor e no painel web. **Não verificado:** CA-12 (diff do `db push`), que é conferido no deploy; a página web não foi aberta num navegador.
 
 ## 1. Objetivo
 
