@@ -8,6 +8,8 @@ import type {
   PrepareRestoreResponseType,
   ConfirmRestoreResponseType,
   DownloadChainResponseType,
+  AvisoBackupType,
+  AvisosBackupRespostaType,
 } from '../types/backup.types'
 
 const BASE_URL = '/backup'
@@ -71,4 +73,13 @@ export async function confirmarRestauracao(
     { params: { pre_restore_backup: preRestoreBackup } },
   )
   return response.data
+}
+
+/**
+ * Avisos da tela de backup: backup na nuvem parado e pasta de dados aberta (LIC-08).
+ * Lista vazia = nada a avisar.
+ */
+export async function getAvisosBackup(): Promise<AvisoBackupType[]> {
+  const { data } = await api.get<AvisosBackupRespostaType>(`${BASE_URL}/avisos`)
+  return data.avisos
 }

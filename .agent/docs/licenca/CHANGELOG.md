@@ -2,6 +2,24 @@
 
 > Acumulado, mais recente no topo. Uma entrada por spec concluída (ou por mudança de comportamento na trilha leve). Skill `doc` §7.2.
 
+## 2026-11-20 — SPEC-08 Avisos de licença e de backup
+
+**Módulos afetados:** licenca, cloud, backup (rota), core (permissões e tarefas), front mainLayout e configuracoes
+
+### Adicionado
+- `services/cloud/ultimo_ciclo.py`: guarda em memória o código e o horário do último ciclo de envio para a nuvem.
+- `GET /api/v1/backup/avisos` (Master): aviso do último ciclo (com `feito_em` no trial) e `PASTA_DADOS_ABERTA`.
+- Faixa "O relógio deste computador está atrasado" em todas as telas, sem botão de fechar (D-05).
+- "(estimado, sem internet)" ao lado dos dias no badge da licença.
+- Quadros de aviso na tela de backup, com "Assinar" no aviso do trial.
+
+### Alterado
+- O ciclo de envio bloqueado devolve o `codigoBloqueio` e a data do último full; o loop registra o resultado de cada ciclo.
+- `core/permissoes.py` guarda o resultado da verificação da pasta de dados para a tela.
+
+### Decisões
+- Faixa em componente próprio, `feito_em` no aviso do trial e `sync.py` devolvendo o motivo (aprovados pelo usuário; Revisão 4 da SPEC-08).
+
 ## 2026-11-20 — SPEC-03 Re-login, restauração pelo titular e avisos de troca
 
 **Módulos afetados:** licenca (backend), backup (`restore.py`), acesso (`/auth/reconnect`, `/auth/setup`), sistema (setup), front sign-in e license

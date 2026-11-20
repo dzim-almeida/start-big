@@ -34,6 +34,16 @@ export interface LicencaStatusResponse {
    * Não interprete nada disto aqui — quem cuida da regra é a `modulos.store`.
    */
   modulos?: string[] | null;
+  /**
+   * Aviso para o dono (LIC-02/LIC-08). Hoje só "relogio_recuou": o relógio do
+   * computador voltou no tempo. Não bloqueia nada (D-05); a tela mostra uma faixa.
+   */
+  aviso?: 'relogio_recuou' | null;
+  /**
+   * true = os dias restantes foram calculados neste computador (sem internet),
+   * e não informados pela API. A tela mostra "(estimado, sem internet)".
+   */
+  estimativa?: boolean;
 }
 
 export interface LicencaErroResponse {

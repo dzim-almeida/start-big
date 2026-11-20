@@ -18,8 +18,25 @@ import logging
 import os
 import subprocess
 import sys
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Quando a verificação do startup achou a pasta aberta (None = não achou).
+# Fica em memória para a tela de backup avisar (LIC-08, GET /backup/avisos).
+_pasta_aberta_desde: datetime | None = None
+
+
+def _marcar_pasta_aberta() -> None:
+    """Guarda o horário em que a pasta foi vista aberta (só a primeira vez)."""
+    global _pasta_aberta_desde
+    if _pasta_aberta_desde is None:
+        _pasta_aberta_desde = datetime.now()
+
+
+def ler_aviso_pasta() -> datetime | None:
+    """Desde quando a pasta de dados está aberta; None = sem aviso."""
+    return _pasta_aberta_desde
 
 # Grupos que NAO deveriam ter acesso a pasta dos dados da loja, pelo SID.
 # O SID e o "numero de identidade" de uma conta ou grupo no Windows. Usamos o
@@ -58,6 +75,8 @@ def verificar_pasta_de_dados(caminho: str) -> None:
         return
 
     abertos = sorted(nome for sid, nome in _SIDS_ABERTOS.items() if sid in sids)
+    if abertos or not _esta_no_perfil(caminho):
+        _marcar_pasta_aberta()   # a tela de backup mostra o aviso (LIC-08)
     if abertos:
         logger.warning(
             "[permissoes] PASTA_DADOS_ABERTA: a pasta de dados da loja da acesso a %s.",

@@ -6,6 +6,8 @@ import { storeToRefs } from 'pinia';
 import SettingsMenu from '../ui/SettingsMenu.vue';
 import NotificacoesPanel from '../ui/NotificacoesPanel.vue';
 import LicencaStatusBadge from '../ui/LicencaStatusBadge.vue';
+// Faixa do relógio atrasado, logo abaixo do cabeçalho em todas as telas (LIC-08)
+import FaixaAvisoRelogio from '../ui/FaixaAvisoRelogio.vue';
 import { useNotificacoesStore } from '@/shared/stores/notificacoes.store';
 import { useAuthStore } from '@/shared/stores/auth.store';
 import { onClickOutside } from '@vueuse/core';
@@ -134,6 +136,9 @@ const notifStyle = computed((): Record<string, string> => {
       </button>
     </div>
   </header>
+
+  <!-- Aviso do relógio (LIC-08): fora do <header>, que tem altura fixa -->
+  <FaixaAvisoRelogio />
 
   <!-- Menus renderizados no body via Teleport para escapar do z-index do header -->
   <Teleport to="body">

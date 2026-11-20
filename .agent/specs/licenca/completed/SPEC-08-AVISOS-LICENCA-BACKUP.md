@@ -2,17 +2,28 @@
 
 | Campo        | Valor |
 |--------------|-------|
-| Status       | Backlog |
+| Status       | Concluída (2026-11-20) |
 | Camada       | Backend (FastAPI) e Frontend (Vue 3 + TypeScript) |
 | Dependências | SPEC-02 (gera `aviso` e `estimativa`), SPEC-01 (gera `PASTA_DADOS_ABERTA`). Integração com a SPEC-05, com rede de segurança: sem os códigos novos, a tela mostra os de hoje |
 | Bloqueia     | — |
-| Referência   | [acordo](../../docs/licenca/ACORDO.md) decisões D-05, D-06, D-19; quadro F7, F15, F26 |
+| Referência   | [acordo](../../../docs/licenca/ACORDO.md) decisões D-05, D-06, D-19; quadro F7, F15, F26 |
 
 > **Origem (2026-11-18):** nasceu na revisão de conflitos (conflito 13), reunindo avisos que outras specs geram e que nenhuma tela mostrava. O número 07 está reservado para o TLS na rede da loja.
 
 > **Revisão 2 (2026-11-19, conflito 22):** a versão anterior supunha que o envio para a nuvem "recebe recusa de hora em hora" e criava uma pausa em memória (`estado_envio.py`). Na verdade, o start-big consulta o `GET /erp/backup/status` antes de enviar e **para em silêncio** quando ele diz que o plano não permite (`backend-fastapi/app/services/cloud/flow.py:26-27`). A pausa saiu: o aviso passa a ser o **código do último ciclo de envio** (o `codigoBloqueio` do `/status` ou o código do erro). Entrou o código `TRIAL_BACKUP_USADO` (SPEC-05).
 
 > **Revisão 3 (2026-11-19):** mockups aprovados pelo usuário. A referência de design desta spec são os quadros 4 e 9 (faixa do relógio e dias estimados) e 5 (avisos na tela de backup) da página [https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z](https://claude.ai/artifact/E5SohwYLXt3pY84pCFwj6z) (skill `design`). Propostas aprovadas junto: a faixa do relógio **não tem botão de fechar** (some sozinha quando o aviso deixa de vir); o aviso `TRIAL_BACKUP_USADO` tem o botão "Assinar", que leva à tela de renovação que já existe (`/renovar-assinatura`).
+
+> **Revisão 4 (2026-11-20, implementação):** decisões do usuário e ajustes registrados.
+> - **Faixa do relógio num componente próprio (decisão 1).** `mainLayout/components/ui/FaixaAvisoRelogio.vue`, mostrada pelo `BaseHeader.vue` logo abaixo da barra (fora do `<header>`, que tem altura fixa). Usa o mesmo `useLicencaStatusQuery` do badge (o cache evita chamada a mais). O badge só ganhou o "(estimado, sem internet)".
+> - **`feito_em` no aviso do trial (decisão 2).** O `AvisoBackup` ganhou o campo opcional `feito_em` (data do full confirmado mais recente). Sem a data, a tela mostra "Período de teste: o backup na nuvem já foi feito. Assine para ter backups contínuos."
+> - **`sync.py` devolve o motivo (decisão 3).** O ciclo parado pelo `/status` devolve `SyncResponse(status="blocked", code=codigoBloqueio, feito_em=...)`; o envio para do mesmo jeito. `SyncResponse` ganhou `feito_em`.
+> - **Registro no `_loop_cloud_sync`.** O `except Exception` de dentro engolia o `CloudSyncError` (o `except` de fora nunca rodava); o registro do erro ficou num `except CloudSyncError` antes dele.
+> - **O que limpa e o que mantém o aviso.** `success`, `skipped` e `up_to_date` limpam; `blocked` e `error` com código registram; `in_progress`, `waiting`, `no_local_backup` e erro sem código (sem rede) não mexem no aviso: sem internet o envio só fica para depois, não está "parado".
+> - **`GET /backup/avisos` só para o Master**, como as outras rotas de backup (teste da amarração da dependência).
+> - **Quadros de aviso num componente** (`AvisosBackupLista.vue`) que só recebe a lista, mais `useAvisosBackupQuery.ts` (recarrega como as outras consultas de backup). O botão "Assinar" vai para a rota `licenca.renovar` (`/renovar-assinatura`).
+> - **Fora da lista:** `services/cloud/sync.py` e `schemas/backup/operacoes.py` (decisão 3); `mainLayout/components/layout/BaseHeader.vue` e `FaixaAvisoRelogio.vue` (decisão 1); `configuracoes/types/backup.types.ts`, `composables/queries/useAvisosBackupQuery.ts`, `components/.../AvisosBackupLista.vue` (apoio do mesmo módulo); `test/services/cloud/__init__.py`.
+> - **Verificação:** CT-01 a CT-11 com pytest e Vitest, mais CA-07 (códigos antigos) e o `sync` bloqueado. **Não verificados no app** (sessão em Linux): CA-01, CA-04 e CA-06 na tela, e o CA-06 de verdade depende do `Get-Acl` do Windows.
 
 ## 1. Objetivo
 
@@ -189,3 +200,4 @@ CA-01, CA-04 e CA-06 também são verificados no app pela skill `verify`, no fim
 ## 11. Observações
 
 - Mudou o backend e o front: avisar o usuário para rodar `npm run build:sidecar` depois da entrega.
+

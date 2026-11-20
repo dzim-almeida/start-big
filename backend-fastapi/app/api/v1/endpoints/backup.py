@@ -14,7 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.core.depends import get_current_master_user, _handle_db_transaction
 from app.db.session import get_db
+from app.core.permissoes import ler_aviso_pasta
 from app.schemas.backup.operacoes import (
+    AvisoBackup,
+    AvisosBackupResposta,
     BackupCriadoComCota,
     BackupInfo,
     CicloNuvemInfo,
@@ -26,6 +29,7 @@ from app.schemas.configuracao.backup import ConfiguracaoBackupRead, Configuracao
 from app.services import backup as backup_service
 from app.services.cloud import journal as cloud_journal
 from app.services.cloud import download as cloud_download
+from app.services.cloud import ultimo_ciclo as cloud_ultimo_ciclo
 from app.services.configuracao import backup as configuracao_backup_service
 
 router = APIRouter()
@@ -132,6 +136,26 @@ def update_configuracao_backup(
         empresa_id,
         data,
     )
+
+
+@router.get(
+    "/avisos",
+    response_model=AvisosBackupResposta,
+    status_code=status.HTTP_200_OK,
+    summary="Avisos da tela de backup: backup na nuvem parado e pasta de dados aberta",
+)
+def listar_avisos_backup(
+    usuario_token: dict = Depends(get_current_master_user),
+):
+    """Lista vazia = nada a avisar (LIC-08 §4.1). O texto de cada código fica na tela."""
+    avisos: list[AvisoBackup] = []
+    ciclo = cloud_ultimo_ciclo.ler()            # resultado do último envio para a nuvem
+    if ciclo:
+        avisos.append(AvisoBackup(**ciclo))
+    pasta_desde = ler_aviso_pasta()             # verificação da pasta no startup
+    if pasta_desde:
+        avisos.append(AvisoBackup(codigo="PASTA_DADOS_ABERTA", desde=pasta_desde))
+    return AvisosBackupResposta(avisos=avisos)
 
 
 @router.get(

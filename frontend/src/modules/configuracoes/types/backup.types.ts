@@ -57,3 +57,16 @@ export interface DownloadChainResponseType {
   indisponiveis: string[] | null
   total_bytes: number | null
 }
+
+/** Um aviso da tela de backup (LIC-08 §4.1). A tela traduz o código em texto. */
+export interface AvisoBackupType {
+  codigo: string;
+  desde: string;
+  /** Só no TRIAL_BACKUP_USADO: quando foi feito o backup do período de teste. */
+  feito_em?: string | null;
+}
+
+/** Resposta de GET /backup/avisos. Lista vazia = nada a avisar. */
+export interface AvisosBackupRespostaType {
+  avisos: AvisoBackupType[];
+}

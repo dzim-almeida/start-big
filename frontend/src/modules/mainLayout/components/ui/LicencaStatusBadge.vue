@@ -142,5 +142,9 @@ function handleClick() {
   >
     <component :is="config.icon" :size="13" />
     <span class="hidden md:inline">{{ config.label }}</span>
+    <!-- Sem internet, os dias são uma conta feita aqui, não a palavra da API (LIC-08, F26) -->
+    <span v-if="data?.estimativa && config.label.includes('dias')" class="hidden md:inline font-medium opacity-80">
+      (estimado, sem internet)
+    </span>
   </button>
 </template>

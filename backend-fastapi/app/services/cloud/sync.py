@@ -40,6 +40,13 @@ async def sync(db) -> SyncResponse:
     # Ações de PARADA (tudo que não é "upload"): encerra o ciclo.
     if decision.action in ("blocked", "in_progress", "up_to_date", "no_local_backup"):
         logger.info("[SYNC] Ciclo encerrado sem envio: %s", decision)
+        if decision.action == "blocked":
+            # O plano não permite backup: devolve o motivo (codigoBloqueio) e a
+            # data do último full, para a tela de backup avisar (LIC-08). O envio
+            # para do mesmo jeito que antes.
+            from .ultimo_ciclo import data_do_ultimo_full
+            return SyncResponse(status="blocked", details="blocked", code=decision.code,
+                                feito_em=data_do_ultimo_full(status))
         return SyncResponse(status=decision.action, details=str(decision.action))
 
     # 2. RECONCILIAÇÃO: gerar full local se o servidor exige

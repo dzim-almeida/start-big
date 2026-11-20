@@ -10,12 +10,17 @@ import { useCriarBackupMutation } from '@/modules/configuracoes/composables/muta
 import { useConfirmacao } from '@/shared/composables/useConfirmacao'
 import BackupHistoricoModal from './BackupHistoricoModal.vue'
 import BackupRestaurarModal from './BackupRestaurarModal.vue'
+// Avisos de backup na nuvem parado e pasta de dados aberta (LIC-08)
+import AvisosBackupLista from './AvisosBackupLista.vue'
+import { useAvisosBackupQuery } from '@/modules/configuracoes/composables/queries/useAvisosBackupQuery'
 
 const confirmacao = useConfirmacao()
 
 const { data: ultimoBackup, isLoading: isLoadingUltimo } = useUltimoBackupQuery()
 const { data: configBackup } = useConfiguracaoBackupQuery()
 const { mutate: criarBackup, isPending: isCriando } = useCriarBackupMutation()
+// Lista vazia (ou ainda carregando) = nenhum quadro de aviso
+const { data: avisos } = useAvisosBackupQuery()
 
 const historicoAberto = ref(false)
 const restaurarAberto = ref(false)
@@ -132,6 +137,9 @@ defineExpose({
       <h3 class="text-base font-bold text-zinc-900">Backup dos Dados</h3>
       <p class="text-sm text-zinc-500 mt-0.5">Configure e gerencie os backups do banco de dados do sistema</p>
     </div>
+
+    <!-- Avisos (quadro 5): backup na nuvem parado, pasta de dados aberta -->
+    <AvisosBackupLista :avisos="avisos ?? []" />
 
     <!-- Status do Último Backup -->
     <div class="bg-zinc-50 border border-zinc-100 rounded-lg p-4">

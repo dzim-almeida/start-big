@@ -22,6 +22,7 @@ from app.services.backup import (
 )
 # `cloud` reexporta sync/CloudSyncError; o alias mantem o resto do arquivo igual.
 from app.services import cloud as cloud_sync
+from app.services.cloud import ultimo_ciclo  # último ciclo de envio, para os avisos (LIC-08)
 from app.services.configuracao.backup import get_or_create_configuracao_backup
 from app.db.crud.terminal import conectados as terminal_crud
 
@@ -231,6 +232,11 @@ async def _loop_cloud_sync():
                 print("[SYNC] Iniciando ciclo de sincronização com nuvem...")
                 summary = await cloud_sync.sync(db)
                 print(f"[SYNC] Status da sincronização: {summary}")
+                # Lembra o resultado para a tela de backup avisar o dono (LIC-08)
+                ultimo_ciclo.registrar_resposta(summary)
+            except cloud_sync.CloudSyncError as e:
+                print(f"[SYNC] Ciclo encerrado: {e} (codigo={e.code})")
+                ultimo_ciclo.registrar_erro(e)   # ex.: BACKUP_MAQUINA_REVOGADA
             except Exception as e:
                 print(f"[SYNC] Erro durante a sincronização: {type(e).__name__}: {e}")
             finally:

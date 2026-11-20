@@ -4,6 +4,7 @@
 #            e journal de envios.
 # ---------------------------------------------------------------------------
 
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional
 
@@ -107,6 +108,7 @@ class SyncResponse(BaseModel):
     details: Optional[str] = Field(None, description="Mensagem descritiva ou detalhes da ação")
     code: Optional[str] = Field(None, description="Código de erro da API (quando status='error')")
     http_status: Optional[int] = Field(None, description="Status HTTP da falha (quando status='error')")
+    feito_em: Optional[str] = Field(None, description="Data do último full confirmado (aviso do trial, LIC-08)")
 
     model_config = {
         "json_schema_extra": {
@@ -211,3 +213,15 @@ class JournalEntry(BaseModel):
     codigoErro: Optional[str] = Field(None, description="Código de erro (quando status='falhou')")
     observacao: Optional[str] = Field(None, description="Observação adicional")
     atualizado_em: str = Field(..., description="Data da última atualização da entrada (ISO 8601)")
+
+
+class AvisoBackup(BaseModel):
+    """Um aviso da tela de backup (LIC-08 §4.1). A tela traduz o código em texto."""
+    codigo: str = Field(..., description="Código do último ciclo de envio ou PASTA_DADOS_ABERTA")
+    desde: datetime = Field(..., description="Quando o aviso começou")
+    feito_em: Optional[str] = Field(None, description="Só no TRIAL_BACKUP_USADO: data do backup do trial")
+
+
+class AvisosBackupResposta(BaseModel):
+    """Resposta de GET /backup/avisos. Lista vazia = nada a avisar."""
+    avisos: list[AvisoBackup]
