@@ -224,9 +224,14 @@ export function useSignIn() {
       cnpj: ehPJ ? titular.documento : '',
       nomeFantasiaPJ: ehPJ ? titular.nomeFantasia ?? '' : '',
       celularResponsavel: titular.celular ?? signInData.responsavel.celularResponsavel,
+      // Mesmo caso do e-mail da loja: o da conta é o ponto de partida.
+      emailResponsavel: signInData.responsavel.emailResponsavel || signInData.acesso.email,
     });
     Object.assign(signInData.loja, {
       nomeLoja: titular.nomeFantasia || signInData.loja.nomeLoja,
+      // A nuvem não guarda um e-mail da loja: o da conta (o que acabou de
+      // entrar) é o ponto de partida, e a pessoa pode trocar.
+      emailLoja: signInData.loja.emailLoja || signInData.acesso.email,
       celular: titular.celular ?? signInData.loja.celular,
       telefone: titular.telefone ?? signInData.loja.telefone,
       ...(titular.endereco && {

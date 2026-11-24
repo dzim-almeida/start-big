@@ -3,6 +3,7 @@ import { useForm } from 'vee-validate';
 import { useSignIn } from './useSignIn';
 import { lojaValidationSchema, type LojaFormData } from '../schemas/sign-in.schema';
 import { useCepQuery } from './useCepLookup';
+import { unmaskCep } from '@/shared/utils/unmask.utils';
 
 /**
  * Composable para o formulário da loja + endereço (Passo 1)
@@ -48,8 +49,17 @@ export function useLojaForm() {
   // CEP auto-fill
   const { data: cepData, isLoading: cepIsLoading, isError: cepIsError } = useCepQuery(cep);
 
+  // CEP que o formulário já abriu preenchido (veio da conta na nuvem, ou a
+  // pessoa voltou de uma etapa). A busca do CEP roda sozinha ao abrir a tela,
+  // e sem esta trava ela apagava o número e o complemento já preenchidos.
+  const cepCarregado = unmaskCep(signInData.loja.cep || '');
+
   watch(cepData, (data) => {
-    if (data) {
+    // Mesmo CEP do que já estava preenchido, com endereço: o endereço salvo
+    // vale mais que o da consulta. Só um CEP NOVO preenche os campos.
+    const mesmoCepJaPreenchido =
+      cepCarregado !== '' && unmaskCep(cep.value || '') === cepCarregado && !!logradouro.value;
+    if (data && !mesmoCepJaPreenchido) {
       setValues({
         cep: cep.value,
         logradouro: data.logradouro || '',
