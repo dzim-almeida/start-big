@@ -68,6 +68,20 @@ describe('dados da nuvem no setup', () => {
     expect(signIn.signInData.loja.celular).toBe('(85) 99999-0000');
   });
 
+  it('sem nome fantasia, o nome da loja vem do nome do titular', () => {
+    const signIn = useSignIn();
+    signIn.aplicarTitular(TITULAR_PF); // PF: a nuvem não tem nome fantasia
+
+    expect(signIn.signInData.loja.nomeLoja).toBe('Maria da Silva');
+  });
+
+  it('com nome fantasia, ele é o nome da loja', () => {
+    const signIn = useSignIn();
+    signIn.aplicarTitular({ ...TITULAR_PF, tipoPessoa: 'PJ', nomeOuRazao: 'Exemplo Ltda', nomeFantasia: 'Loja Exemplo' });
+
+    expect(signIn.signInData.loja.nomeLoja).toBe('Loja Exemplo');
+  });
+
   it('o e-mail da conta vira o e-mail da loja e o do responsável', () => {
     const signIn = useSignIn();
     signIn.updateAcessoData({ email: 'dono@exemplo.com.br' }); // o re-login guarda o e-mail

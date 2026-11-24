@@ -228,7 +228,10 @@ export function useSignIn() {
       emailResponsavel: signInData.responsavel.emailResponsavel || signInData.acesso.email,
     });
     Object.assign(signInData.loja, {
-      nomeLoja: titular.nomeFantasia || signInData.loja.nomeLoja,
+      // Nome da loja: o nome fantasia; sem ele (o site não pergunta), a razão
+      // social (CNPJ) ou o nome da pessoa (CPF). É só o ponto de partida: a
+      // pessoa troca se quiser (decisão do usuário, 11/2026).
+      nomeLoja: titular.nomeFantasia || signInData.loja.nomeLoja || titular.nomeOuRazao,
       // A nuvem não guarda um e-mail da loja: o da conta (o que acabou de
       // entrar) é o ponto de partida, e a pessoa pode trocar.
       emailLoja: signInData.loja.emailLoja || signInData.acesso.email,
