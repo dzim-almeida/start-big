@@ -189,7 +189,7 @@ model Cliente {
 ```
 
 - O `tokenEmail` e o `tokenEmailExpiraEm` **continuam** só para a troca de e-mail (`erp-usuario.service.ts`, `solicitarNovoEmail`), sem mudança.
-- **Deploy:** antes do `db push`, conferir o diff como no `docs/deploy-pix-asaas.md` (`npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`). O esperado é **só** `ALTER TABLE "clientes" ADD COLUMN ...`. Não há script de dados.
+- **Deploy:** antes do `db push`, conferir o diff como no `docs/deploy-pix-asaas.md` (`npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`). O esperado é **só** `ALTER TABLE "clientes" ADD COLUMN ...` e `ALTER TABLE "clientes_pf" ADD COLUMN ...` (telefone e celular da PF, acrescentados na homologação de 11/2026). Não há script de dados.
 - **Risco conhecido:** `Cliente.email` não é único no banco (só tem índice). Dois cadastros simultâneos com o mesmo e-mail podem criar duas contas. Fica registrado, sem mudança nesta série.
 
 ## 6. Especificação técnica

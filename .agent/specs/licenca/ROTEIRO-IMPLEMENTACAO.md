@@ -105,7 +105,7 @@ Para cada spec da API concluída no fork:
 1. Abrir o PR do fork para o `aalan-big/plataformaADM`, com a spec e os testes no texto do PR.
 2. Depois do merge, o deploy segue o roteiro da própria plataforma (`docs/deploy-pix-asaas.md`), e **não** o `npm run deploy` direto, quando houver mudança de banco:
    - conferir o diff: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`;
-   - para a LIC-06, o esperado é **só** `ALTER TABLE "clientes" ADD COLUMN ...`. Qualquer `DROP`, `RENAME`, `ALTER COLUMN` ou `SET NOT NULL` → **parar**;
+   - para a LIC-06, o esperado é **só** `ALTER TABLE "clientes" ADD COLUMN ...` e `ALTER TABLE "clientes_pf" ADD COLUMN ...` (telefone e celular da PF). Qualquer `DROP`, `RENAME`, `ALTER COLUMN` ou `SET NOT NULL` → **parar**;
    - aplicar o `db push`, fazer o build e reiniciar a API.
 3. A LIC-05 e a LIC-09 não mudam o banco: o deploy normal serve.
 
