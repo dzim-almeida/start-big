@@ -4,7 +4,7 @@
  */
 
 import type { RouteRecordRaw } from 'vue-router';
-import { verificarLicenca } from '@/shared/services/licenca.service';
+import { sistemaFoiConfigurado } from '@/shared/services/sistema.service';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -16,13 +16,15 @@ const routes: RouteRecordRaw[] = [
       skipLicenseCheck: true,
     },
     beforeEnter: async () => {
-      try {
-        await verificarLicenca();
-        // Licença válida = sistema já inicializado → redirecionar para login
+      // Só manda para o login quando o setup JÁ terminou (existe usuário Master).
+      // Ter licença não basta: depois do re-login a licença está salva, mas a
+      // empresa e o usuário ainda não existem, e a pessoa precisa voltar aqui
+      // para terminar o formulário.
+      if ((await sistemaFoiConfigurado()) === true) {
         return { name: 'auth.user' };
-      } catch {
-        // 404/403/erro de rede → sistema não inicializado → permitir setup
       }
+      // false (falta o setup) ou null (não deu para perguntar): fica no sign-in,
+      // como antes.
     },
   },
 ];

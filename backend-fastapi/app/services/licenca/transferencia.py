@@ -225,21 +225,39 @@ def _gravar_ativacao(db: Session, resposta: AutoCadastroResponse, hwid: str) -> 
 def reconnect_licenca(db: Session, email: str, senha: str) -> ConfiguracaoLicenca:
     """Assistente de primeiro acesso: liga uma conta que já existe a este banco.
 
-    Se o banco já tiver a licença DESTE computador, não há o que reconectar
-    (409). Se tiver a de OUTRO, é uma troca de servidor -- e é tratada aqui
+    Se o banco já tiver a licença DESTE computador e o sistema já estiver
+    configurado, não há o que reconectar (409). Com a licença mas SEM o setup
+    feito, a entrada é refeita (o setup foi interrompido no meio). Se tiver a de OUTRO, é uma troca de servidor -- e é tratada aqui
     também, porque o assistente é por onde muita gente chega depois de copiar
     o banco.
     """
+    # Import aqui dentro para não criar import circular entre os serviços.
+    from app.services.acesso import auth as auth_acesso
+
     hwid = obter_hwid()
 
-    if licenca_crud.get_licenca_by_hwid(db, hwid):
+    licenca_desta_maquina = licenca_crud.get_licenca_by_hwid(db, hwid)
+    # A licença deste computador só barra o re-login quando o sistema JÁ foi
+    # configurado (tem usuário Master). Sem Master, a pessoa entrou com a conta
+    # mas não terminou o setup (fechou o app, recarregou a tela): entrar de
+    # novo precisa funcionar, senão ela fica sem caminho para terminar.
+    if licenca_desta_maquina and auth_acesso.verificar_sistema_inicializado(db):
         raise _erro(
             status.HTTP_409_CONFLICT,
             "LICENCA_JA_ATIVADA",
             "Este computador já está com a licença ativada.",
         )
 
+    # A senha é conferida na nuvem ANTES de mexer em qualquer coisa local.
     resposta = _entrar_na_conta(email, senha, hwid)
+
+    if licenca_desta_maquina:
+        # Setup interrompido: a ativação antiga deste computador sai para a
+        # nova entrar (o `licenca_id` é único). Só flush, sem commit: se algo
+        # falhar daqui para frente, o endpoint desfaz tudo junto.
+        db.delete(licenca_desta_maquina)
+        db.flush()
+
     return _gravar_ativacao(db, resposta, hwid)
 
 

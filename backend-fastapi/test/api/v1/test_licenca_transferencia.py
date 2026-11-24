@@ -275,14 +275,51 @@ def test_reconectar_com_banco_copiado_tambem_transfere(banco_copiado, monkeypatc
     assert [l.hwid for l in _licencas(banco_copiado)] == [HWID_NOVO]
 
 
+def _sistema_configurado(monkeypatch, configurado: bool) -> None:
+    """Finge que o banco tem (ou não) o usuário Master do setup."""
+    from app.services.acesso import auth as auth_acesso
+    monkeypatch.setattr(auth_acesso, "verificar_sistema_inicializado", lambda db: configurado)
+
+
 def test_reconectar_com_licenca_deste_computador_continua_409(banco_copiado, monkeypatch):
     _estar_no(monkeypatch, HWID_ANTIGO)
+    _sistema_configurado(monkeypatch, True)   # setup já feito: nada a reconectar
     _nuvem(monkeypatch, resposta=_login_aprovado())
 
     with pytest.raises(HTTPException) as erro:
         licenca_service.reconnect_licenca(banco_copiado, "dono@loja.com", "senha-certa")
 
     assert erro.value.status_code == 409
+    assert [l.token for l in _licencas(banco_copiado)] == ["token-antigo"]
+
+
+def test_reconectar_de_novo_com_setup_interrompido_refaz_a_ativacao(banco_copiado, monkeypatch):
+    """Entrou com a conta, recarregou a tela antes do setup: entrar de novo funciona.
+
+    Antes dava 409 LICENCA_JA_ATIVADA, e a pessoa ficava sem caminho para
+    terminar o setup (bug do build de teste, 11/2026).
+    """
+    _estar_no(monkeypatch, HWID_ANTIGO)
+    _sistema_configurado(monkeypatch, False)  # licença aqui, mas sem Master
+    _nuvem(monkeypatch, resposta=_login_aprovado())
+
+    licenca_service.reconnect_licenca(banco_copiado, "dono@loja.com", "senha-certa")
+    banco_copiado.commit()
+
+    licencas = _licencas(banco_copiado)
+    assert [l.hwid for l in licencas] == [HWID_ANTIGO]          # continua uma só
+    assert segredos_licenca.ler_token(licencas[0].token) == "token-novo"
+
+
+def test_reconectar_de_novo_com_senha_errada_nao_mexe_na_ativacao(banco_copiado, monkeypatch):
+    """A senha é conferida na nuvem antes de apagar a ativação antiga."""
+    _estar_no(monkeypatch, HWID_ANTIGO)
+    _sistema_configurado(monkeypatch, False)
+    _nuvem(monkeypatch, resposta=_Resposta(401, {"message": "Credenciais inválidas."}))
+
+    with pytest.raises(HTTPException):
+        licenca_service.reconnect_licenca(banco_copiado, "dono@loja.com", "senha-errada")
+
     assert [l.token for l in _licencas(banco_copiado)] == ["token-antigo"]
 
 
